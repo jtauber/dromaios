@@ -43,6 +43,12 @@ export type Cpu6502StepRecord = {
   | { readonly outcome: "unsupported"; readonly reason: "opcode" | "decimal-mode" }
 );
 
+export interface Cpu6502ResetRecord {
+  readonly before: Cpu6502Snapshot;
+  readonly after: Cpu6502Snapshot;
+  readonly accesses: readonly Cpu6502MemoryAccess[];
+}
+
 interface InstructionContext {
   readonly fetchByte: () => number;
 }
@@ -98,6 +104,18 @@ export class Cpu6502 {
   /** Inspect a detached copy, readonly to TypeScript, without accessing RAM. */
   snapshot(): Cpu6502Snapshot {
     return copyState(this.#state);
+  }
+
+  /** Reset PC, I, and SP with only the vector reads; preserve other state and RAM. */
+  reset(): Cpu6502ResetRecord {
+    const before = this.snapshot();
+    const accesses: Cpu6502MemoryAccess[] = [];
+    const low = this.#read(0xfffc, accesses);
+    const high = this.#read(0xfffd, accesses);
+    this.#state.pc = low | (high << 8);
+    this.#state.flags.i = true;
+    this.#state.sp = (this.#state.sp - 3) & 0xff;
+    return { before, after: this.snapshot(), accesses };
   }
 
   /** Attempt one instruction; unsupported opcodes leave PC and all other state unchanged. */

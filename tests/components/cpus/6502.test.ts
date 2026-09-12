@@ -339,6 +339,163 @@ test("LDA records retain actual bytes and stay independent of execution, inspect
   assert.deepEqual(second, savedSecond);
 });
 
+test("6502 reset changes only PC, I, and SP and performs exactly two vector reads", () => {
+  for (const preserved of [
+    { n: false, v: true, d: false, z: true, c: false },
+    { n: true, v: false, d: true, z: false, c: true },
+  ]) {
+    for (const i of [false, true]) {
+      const ram = new ObservedRam();
+      ram.write(0xfffc, 0x78);
+      ram.write(0xfffd, 0x56);
+      ram.write(0x5678, 0xa9);
+      ram.write(0x0080, 5);
+      ram.write(0x01ab, 0xa5);
+      ram.write(0x01aa, 0x5a);
+      ram.write(0x01a9, 0xff);
+      ram.accesses.length = 0;
+      const before = initialState({ flags: { ...preserved, i } });
+      const cpu = new Cpu6502(ram, before);
+      const expectedAccesses = [
+        { kind: "read", address: 0xfffc, value: 0x78 },
+        { kind: "read", address: 0xfffd, value: 0x56 },
+      ];
+      const record = cpu.reset();
+      assert.deepEqual(record, {
+        before,
+        after: { ...before, pc: 0x5678, sp: 0xa8, flags: { ...preserved, i: true } },
+        accesses: expectedAccesses,
+      });
+      assert.deepEqual(cpu.snapshot(), record.after);
+      // This excludes stack writes, dummy reads, and prefetching the target opcode.
+      assert.deepEqual(ram.accesses, expectedAccesses);
+      assert.equal(ram.read(0x0080), 5);
+      assert.equal(ram.read(0x01ab), 0xa5);
+      assert.equal(ram.read(0x01aa), 0x5a);
+      assert.equal(ram.read(0x01a9), 0xff);
+    }
+  }
+});
+
+test("6502 reset decrements SP on every call and wraps within eight bits", () => {
+  // Literal expectations cover underflow and the lesson's FF -> FC -> F9 sequence.
+  for (const [initialSp, firstSp, secondSp] of [
+    [0x00, 0xfd, 0xfa],
+    [0x01, 0xfe, 0xfb],
+    [0x02, 0xff, 0xfc],
+    [0x03, 0x00, 0xfd],
+    [0xff, 0xfc, 0xf9],
+  ] as const) {
+    const ram = new ObservedRam();
+    ram.write(0xfffc, 0);
+    ram.write(0xfffd, 2);
+    let before = initialState({ sp: initialSp });
+    const cpu = new Cpu6502(ram, before);
+    for (const sp of [firstSp, secondSp]) {
+      ram.accesses.length = 0;
+      const after = { ...before, pc: 0x0200, sp, flags: { ...before.flags, i: true } };
+      const record = cpu.reset();
+      assert.deepEqual(record, {
+        before,
+        after,
+        accesses: [
+          { kind: "read", address: 0xfffc, value: 0 },
+          { kind: "read", address: 0xfffd, value: 2 },
+        ],
+      });
+      assert.deepEqual(cpu.snapshot(), after);
+      assert.deepEqual(ram.accesses, record.accesses);
+      before = after;
+    }
+  }
+});
+
+test("6502 reset rereads both vector bytes and execution resumes at any target address", () => {
+  const ram = new ObservedRam();
+  const cpu = new Cpu6502(ram, initialState());
+  for (const [low, high, target, operandAddress, nextPc] of [
+    [0x00, 0x00, 0x0000, 0x0001, 0x0002],
+    [0x56, 0x34, 0x3456, 0x3457, 0x3458],
+    [0xff, 0xff, 0xffff, 0x0000, 0x0001],
+  ] as const) {
+    ram.write(0xfffc, low);
+    ram.write(0xfffd, high);
+    ram.write(target, 0xa9);
+    ram.write(operandAddress, 0x80);
+    ram.accesses.length = 0;
+    const before = cpu.snapshot();
+    const reset = cpu.reset();
+    const savedReset = structuredClone(reset);
+    assert.deepEqual(reset.before, before);
+    assert.equal(reset.after.pc, target);
+    assert.deepEqual(reset.accesses, [
+      { kind: "read", address: 0xfffc, value: low },
+      { kind: "read", address: 0xfffd, value: high },
+    ]);
+    assert.deepEqual(ram.accesses, reset.accesses);
+
+    // The next step must use current memory, not anything cached during reset.
+    ram.write(operandAddress, 0x5a);
+    ram.accesses.length = 0;
+    const step = cpu.step();
+    assert.deepEqual(step, {
+      instruction: { address: target, bytes: [0xa9, 0x5a] },
+      before: reset.after,
+      after: { ...reset.after, pc: nextPc, a: 0x5a, flags: { ...reset.after.flags, n: false, z: false } },
+      accesses: [
+        { kind: "read", address: target, value: 0xa9 },
+        { kind: "read", address: operandAddress, value: 0x5a },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), step.after);
+    assert.deepEqual(ram.accesses, step.accesses);
+    assert.deepEqual(reset, savedReset);
+  }
+});
+
+test("6502 reset and step records stay independent of later execution, resets, and caller edits", () => {
+  const ram = new ObservedRam();
+  ram.write(0x1234, 0xa9);
+  ram.write(0x1235, 0);
+  ram.write(0xfffc, 0);
+  ram.write(0xfffd, 0x40);
+  ram.write(0x4000, 0xa9);
+  ram.write(0x4001, 2);
+  const cpu = new Cpu6502(ram, initialState({ flags: { ...initialState().flags, i: false } }));
+  const oldStep = cpu.step();
+  const savedOldStep = structuredClone(oldStep);
+  const first = cpu.reset();
+  const savedFirst = structuredClone(first);
+  const nextStep = cpu.step();
+  const savedNextStep = structuredClone(nextStep);
+  ram.write(0xfffc, 2);
+  ram.write(0x1235, 0xff);
+  assert.deepEqual(first, savedFirst);
+  assert.deepEqual(oldStep, savedOldStep);
+
+  const second = cpu.reset();
+  const savedSecond = structuredClone(second);
+  assert.deepEqual(second.before, nextStep.after);
+  assert.deepEqual(first, savedFirst);
+  // Simulate edits from JavaScript, which has no readonly checks.
+  Reflect.set(first.before, "a", 0xff);
+  Reflect.set(first.before.flags, "n", true);
+  assert.deepEqual(first.after, savedFirst.after);
+  Reflect.set(first.after, "pc", 0xffff);
+  Reflect.set(first.after.flags, "d", false);
+  assert.ok(first.accesses[0]);
+  Reflect.set(first.accesses[0], "value", 0xff);
+  Reflect.set(first.accesses, first.accesses.length, { kind: "write", address: 0, value: 0xff });
+  Reflect.set(cpu.snapshot().flags, "i", false);
+  assert.equal(first.after.pc, 0xffff);
+  assert.deepEqual(second, savedSecond);
+  assert.deepEqual(oldStep, savedOldStep);
+  assert.deepEqual(nextStep, savedNextStep);
+  assert.deepEqual(cpu.snapshot(), savedSecond.after);
+  assert.equal(ram.read(0xfffc), 2);
+});
+
 test("6502 rejects RAM sizes outside its flat 64 KiB model without accessing memory", () => {
   for (const size of [1, 0xffff, 0x10001]) {
     const ram = new ObservedRam(size);

@@ -1,4 +1,4 @@
-import type { Cpu6502, Cpu6502StepRecord } from "../../src/components/cpus/6502.js";
+import type { Cpu6502, Cpu6502ResetRecord, Cpu6502StepRecord } from "../../src/components/cpus/6502.js";
 
 // Compiled by npm test; never called. Each expected error guards the public API.
 export function checkPublicTypes(cpu: Cpu6502, record: Cpu6502StepRecord): void {
@@ -75,4 +75,33 @@ export function checkRecordConstruction(cpu: Cpu6502): readonly Cpu6502StepRecor
     { ...common, outcome: "unsupported", reason: "opcode" },
     { ...common, outcome: "unsupported", reason: "decimal-mode" },
   ];
+}
+
+export function checkResetTypes(cpu: Cpu6502): Cpu6502ResetRecord {
+  const record = cpu.reset();
+  // @ts-expect-error Reset snapshots cannot be replaced.
+  record.before = cpu.snapshot();
+  // @ts-expect-error The after snapshot cannot be replaced either.
+  record.after = cpu.snapshot();
+  // @ts-expect-error Registers in reset snapshots are readonly.
+  record.before.sp = 0;
+  // @ts-expect-error Nested reset flags are readonly.
+  record.after.flags.d = true;
+  // @ts-expect-error Reset access arrays cannot be replaced.
+  record.accesses = [];
+  // @ts-expect-error Reset access arrays are readonly.
+  record.accesses.push({ kind: "read", address: 0, value: 0 });
+  if (record.accesses[0]) {
+    // @ts-expect-error Reset access entries are readonly.
+    record.accesses[0].address = 0;
+  }
+  // @ts-expect-error Reset is not an instruction attempt.
+  record.instruction;
+  // @ts-expect-error Reset has no step outcome.
+  record.outcome;
+  // @ts-expect-error Reset has no unsupported reason.
+  record.reason;
+  // @ts-expect-error A reset record cannot serve as an instruction step record.
+  const step: Cpu6502StepRecord = record;
+  return record;
 }

@@ -14,17 +14,22 @@ detached snapshots, and instruction records. `CLC` clears C and advances PC;
 [example factory](../src/machines/6502-example.ts) loads the full program and
 reset vector, supplies the initial state, and returns the completion address.
 
-Reset, ADC, and STA remain to be implemented in that order. Every opcode
+CPU reset is implemented with a separate record of its before/after state and
+two vector reads. It sets I and decrements SP while preserving the other
+registers, flags, and RAM. Lesson restart creates fresh state and memory.
+
+ADC and STA remain to be implemented in that order. Every opcode
 except `18` and `A9` currently returns `unsupported` with reason `opcode`,
 including ADC with either D value. The `decimal-mode` reason in the record
 type will be used when binary ADC is added. The lesson currently runs CLC and
-LDA from `0200`, then stops at unsupported ADC at `0203`. The complete execution and
-reset behavior below remain the specification for later changes.
+LDA from `0200`, then stops at unsupported ADC at `0203`. The complete program's
+execution below remains the specification for later changes.
 
 [CPU tests](../tests/components/cpus/6502.test.ts) cover flags, actual accesses,
-PC wrapping, all unsupported opcodes, input validation, and ownership.
+PC wrapping, all unsupported opcodes, input validation, ownership, reset-vector
+reads, SP wrapping, repeated reset, and resuming execution at the reset target.
 [Fixture tests](../tests/machines/6502-example.test.ts) check the entire memory
-image, initial state, CLC followed by LDA, and independent restarts.
+image, initial state, CLC followed by LDA, and CPU reset versus lesson restart.
 [Type checks](../tests/types/6502.ts) cover readonly records and snapshots,
 non-null instructions, and the outcome/reason relationship.
 
@@ -204,7 +209,7 @@ assigned a lesson-stop meaning.
 
 ## CPU reset and lesson restart
 
-`reset()` will return a separate `Cpu6502ResetRecord` containing `before`,
+`reset()` returns a separate `Cpu6502ResetRecord` containing `before`,
 `after`, and `accesses`, with the same detached, readonly ownership guarantees
 as step records. It has no instruction, outcome, or reason fields. The CPU
 does not retain either kind of record.

@@ -63,7 +63,7 @@ test("the 6502 example executes CLC then LDA from its entry point and stops at u
   checkInitialMemory(ram);
 });
 
-test("6502 lesson restart restores independent state and the entire original memory image", () => {
+test("6502 CPU reset preserves lesson data while restart restores the original state and image", () => {
   const first = create6502Example();
   const record = first.cpu.step();
   const savedRecord = structuredClone(record);
@@ -79,6 +79,23 @@ test("6502 lesson restart restores independent state and the entire original mem
   first.ram.write(0xfffd, 0xff);
   first.ram.write(0xffff, 0xff);
 
+  const savedMemory = Array.from({ length: first.ram.size }, (_, address) => first.ram.read(address));
+  const reset = first.cpu.reset();
+  const savedReset = structuredClone(reset);
+  const afterReset = { ...changedState, pc: 0xff00, sp: 0xfc };
+  assert.deepEqual(reset, {
+    before: changedState,
+    after: afterReset,
+    accesses: [
+      { kind: "read", address: 0xfffc, value: 0 },
+      { kind: "read", address: 0xfffd, value: 0xff },
+    ],
+  });
+  assert.deepEqual(first.cpu.snapshot(), afterReset);
+  for (const [address, value] of savedMemory.entries()) {
+    assert.equal(first.ram.read(address), value, `reset preserves memory at ${address}`);
+  }
+
   const restarted = create6502Example();
   assert.notEqual(restarted.cpu, first.cpu);
   assert.notEqual(restarted.ram, first.ram);
@@ -88,7 +105,8 @@ test("6502 lesson restart restores independent state and the entire original mem
   restarted.ram.write(0x0080, 9);
   assert.equal(first.ram.read(0x0080), 5);
   assert.equal(first.ram.read(0xfffd), 0xff);
-  assert.deepEqual(first.cpu.snapshot(), changedState);
+  assert.deepEqual(first.cpu.snapshot(), afterReset);
   assert.deepEqual(record, savedRecord);
   assert.deepEqual(loadRecord, savedLoadRecord);
+  assert.deepEqual(reset, savedReset);
 });
