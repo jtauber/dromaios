@@ -30,7 +30,7 @@ its parts before implementing them.
 The first-example specification has been reviewed. Development uses TypeScript
 compiled to ES modules, npm, and Node.js 24's built-in test runner.
 
-## 1. Follow a tiny 8080 program — current
+## 1. Follow a tiny 8080 program — complete
 
 - Introduce RAM and the 8080, implementing instructions incrementally.
 - Load a small program and advance it one instruction at a time.
@@ -45,7 +45,7 @@ The supported instruction subset and execution granularity are documented.
 Detailed implementation progress and acceptance checks live in the
 [first-example specification](docs/first-example.md).
 
-## 2. Test generalizations across three CPUs
+## 2. Test generalizations across three CPUs — current
 
 - Introduce equivalent small programs on the 6502, then the 6809, in separate
   reviewable changes. Implement only the instruction subsets they need.
@@ -58,6 +58,9 @@ Detailed implementation progress and acceptance checks live in the
 **Review point:** Three small examples run with explicit expected behavior and
 documented limits. Proposed generalizations have been exercised against their
 architectural differences, beyond simply running the same arithmetic example.
+
+The [first 6502 example](docs/6502-example.md) specifies the next case and tracks
+its review and implementation status.
 
 ## 3. Make the examples explorable in the browser
 
