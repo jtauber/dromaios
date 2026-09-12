@@ -1,10 +1,10 @@
 # First example: step through an 8080 program
 
-**Status: reviewed specification; implementation in progress.** RAM and the
-initial program memory image are implemented and tested. CPU execution and
-step records remain to be built in the small changes listed below. Development
-uses TypeScript compiled to ES modules and Node.js 24's built-in test runner;
-see the [development instructions](../README.md#development).
+**Status: reviewed specification; implementation in progress.** RAM, CPU state,
+`MVI A,n`, step records, CPU reset, and lesson setup are implemented and tested.
+`ADI n`, `STA addr`, and `HLT` remain to be built in the small changes listed
+below. Development uses TypeScript compiled to ES modules and Node.js 24's
+built-in test runner; see the [development instructions](../README.md#development).
 
 The example loads 2 into the accumulator, adds 3, stores 5 in RAM, and halts.
 Its purpose is to make each instruction's state changes and memory accesses
@@ -14,8 +14,9 @@ observable and independently checkable.
 
 - One Intel 8080 model connected to flat **64 KiB of RAM**.
 - One call to `step()` executes at most one instruction.
-- Support exactly four opcode forms initially: `MVI A,n`, `ADI n`, `STA addr`,
-  and `HLT`. Other forms of `MVI` are outside this first subset.
+- The completed example will support four opcode forms: `MVI A,n`, `ADI n`,
+  `STA addr`, and `HLT`. Currently only `MVI A,n` is implemented. Other forms
+  of `MVI` are outside this first subset.
 - Instruction-level execution and access records. Cycle timing, electrical bus
   activity, interrupts, devices, and browser controls are outside this slice.
 - The interrupt-enable latch is represented but initially false; no interrupt
@@ -79,6 +80,31 @@ CPU arithmetic and PC advancement wrap to their hardware widths. RAM's host
 API rejects non-integer or out-of-range addresses and byte values, so caller
 errors are not silently wrapped by the memory component.
 
+## Current API
+
+`new Cpu8080(ram, initialState)` connects the CPU to exactly 64 KiB of RAM and
+copies only the declared model fields into new plain objects. Extra properties
+are ignored; declared fields may be supplied through getters. The TypeScript
+state fields are `a`, `b`, `c`, `d`, `e`, `h`, `l`, `pc`, `sp`, `flags`,
+`interruptEnabled`, and `halted`;
+flags have fields `s`, `z`, `ac`, `p`, and `cy`. Registers must be integers in
+their byte or 16-bit ranges, otherwise construction throws `RangeError`.
+Flags and control latches must be booleans, otherwise it throws `TypeError`.
+
+- `snapshot()` returns an independent, readonly state copy without accessing RAM.
+- `step()` executes `MVI A,n`, returns `unsupported` for every other opcode,
+  or returns `halted` without fetching if the supplied state is already halted.
+  `HLT` itself is still unsupported.
+- `reset()` applies only the CPU reset changes specified below.
+- `createFirstExample()` returns fresh `{ cpu, ram }` components with the
+  specified initial state and program. Call it again to restart the lesson;
+  the previous components and records remain available to their caller.
+
+For the current implementation, the first call to `cpu.step()` executes
+`MVI A,2`, producing the first record specified below. The second reports
+`ADI` as unsupported: it reads only `C6` at `0002` and leaves A at `02` and PC
+at `0002`. The complete four-step results below remain the implementation target.
+
 ## Supported instruction behavior
 
 - `MVI A,n` reads its opcode and immediate byte, writes A, advances PC by two,
@@ -121,6 +147,18 @@ arrays, and access entries, independent of live state and other records. Later
 execution or restart cannot change an earlier record, and modifying a returned
 record cannot mutate the CPU or RAM.
 Inspecting state outside execution must not add accesses to a step record.
+
+Public snapshots and records are readonly in TypeScript, including nested
+flags, instruction bytes, access arrays, and their entries. `Cpu8080State`
+remains the mutable state shape for initialization and the CPU's internal
+storage; `Cpu8080Snapshot` is its readonly public view. Readonly is a compiler
+check, not runtime freezing. Copies still provide isolation if JavaScript
+code or a deliberate type-check bypass edits a returned value.
+
+`Cpu8080StepRecord` is a discriminated union on `outcome`. Executed and
+unsupported records always contain an instruction. Halted records permit
+null for an already halted CPU, or an instruction for the eventual `HLT`
+implementation. Each execution branch returns a complete record.
 
 These entries describe the accesses required by this instruction-level model.
 They do not claim to reproduce every electrical bus operation or idle cycle.
@@ -215,8 +253,9 @@ Headless checks should establish:
 Implement in small reviewed changes: RAM and fixture setup; CPU state and
 fetching with `MVI A,n`; `ADI n` and its flags; `STA addr`; `HLT` and the completed
 example. Introduce the record and reset behavior alongside the state and
-instructions they describe. RAM, fixture setup, and the MIT license are now
-in place; CPU state and `MVI A,n` are next.
+instructions they describe. RAM, CPU state, `MVI A,n`, step records, reset,
+lesson setup, and the MIT license are now in place. `ADI n` and its flags are
+next.
 
 Changes remain uncommitted until maintainer review and an explicit go-ahead
 to commit, as recorded in [AGENTS.md](../AGENTS.md).

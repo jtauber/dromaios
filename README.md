@@ -53,10 +53,11 @@ agents follow this rule in [AGENTS.md](AGENTS.md).
 
 ## Status
 
-The first code provides byte-addressable RAM and the memory image for the
-[first 8080 example](docs/first-example.md), with automated tests. CPU execution
-and a browser application are still to come. The first CPU is the Intel 8080,
-followed by small 6502 and 6809 examples to test our generalizations.
+The [first 8080 example](docs/first-example.md) can execute `MVI A,2` and return
+a record of its state changes and memory reads. RAM, CPU state, reset, lesson
+setup, and this first instruction have automated tests. `ADI`, `STA`, `HLT`,
+and a browser application are still to come. Small 6502 and 6809 examples will
+follow the 8080 to test our generalizations.
 
 The implementation uses **TypeScript**, compiled to JavaScript ES modules,
 with **Node.js 24 LTS** and its built-in test runner for development.
@@ -84,7 +85,8 @@ dependencies, and the simulation source uses no Node or browser APIs.
 
 Source imports use `.js` extensions so they resolve in the compiled ES modules.
 Tests live under `tests/` and state expected behavior independently of the code
-they exercise.
+they exercise. Files under `tests/types/` check public TypeScript contracts
+during compilation; they are not executed as runtime tests.
 
 ## License
 
@@ -101,9 +103,11 @@ Released under the [MIT license](LICENSE).
   initial state, step records, and acceptance checks.
 - [src/components/memory/ram.ts](src/components/memory/ram.ts) owns byte storage
   and validates reads and writes.
+- [src/components/cpus/8080.ts](src/components/cpus/8080.ts) owns 8080 state,
+  executes `MVI A,n`, and returns detached state snapshots and step records.
 - [src/machines/first-example.ts](src/machines/first-example.ts) prepares fresh
-  memory for the first example, without executing its program.
-- [tests/](tests/) checks RAM behavior and the example's initial memory image.
+  RAM and CPU state for starting or restarting the example.
+- [tests/](tests/) checks RAM, the supported CPU behavior, and the example.
 
 ## Existing work
 

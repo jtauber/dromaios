@@ -48,8 +48,9 @@ The execution granularity and fidelity of each model need to be explicit.
 **Inspection** exposes state and activity for exploration. Common views should
 work across components where meaningful, with specific views for distinctive
 hardware. Reading a device for inspection must not accidentally trigger the
-side effects of a CPU access, such as clearing an interrupt. We will decide
-the smallest useful inspection interface alongside the first component.
+side effects of a CPU access, such as clearing an interrupt. The first 8080
+exposes detached state snapshots and instruction access records; device
+inspection will develop as devices are added.
 
 **The browser interface** presents controls, displays, inspectors, and
 explanations. Components should be usable without the DOM or a browser render
@@ -62,7 +63,8 @@ the same underlying models as a complete machine.
 
 ## Proposed repository layout
 
-The memory component, first-example memory setup, and their tests now exist.
+RAM, the first 8080 instruction and state model, example setup, and their tests
+now exist.
 The other source paths show where code and content could go as we introduce
 them; their names can change with experience. No package or framework
 boundaries are implied by this tree. Build and test commands are in the
@@ -117,9 +119,9 @@ models, variants, and machine compositions can still require revisions.
 ## First example specification
 
 The reviewed [first-example specification](first-example.md) describes an
-8080, 64 KiB of RAM, and an eight-byte program. Only RAM and the memory image
-are implemented so far. The specification answers these questions, which
-should guide review of each implementation change:
+8080, 64 KiB of RAM, and an eight-byte program. RAM, CPU state, `MVI A,n`, step
+records, reset, and fresh lesson setup are implemented so far. The specification
+answers these questions, which should guide review of each implementation change:
 
 1. Which instructions and program demonstrate the first lesson, and what is
    the expected state after each instruction?
@@ -134,6 +136,15 @@ Re-reading memory or devices afterward cannot reliably reconstruct them. The
 record must make its granularity clear; an instruction-level model does not
 automatically provide a complete cycle-by-cycle bus trace.
 
+The concrete `Cpu8080` takes a 64 KiB `Ram` instance and explicit initial state.
+It copies only declared state fields, including flags, and exposes `snapshot()`,
+`step()`, and `reset()`. Public snapshots and records have readonly TypeScript
+types and own detached values; internal CPU state stays mutable. Step records
+use a discriminated union to relate the outcome to the instruction. The CPU
+retains no execution history. Example setup returns `{ cpu, ram }`, and
+restarting creates fresh components. These types remain specific to the 8080 while we gather
+experience for shared CPU and inspection interfaces.
+
 The first checks should use small programs with explicit expected behavior.
 Existing emulator implementations can help identify cases to examine; their
 outputs should be checked against the relevant hardware documentation before
@@ -144,5 +155,5 @@ being treated as correctness references.
 Worker placement, performance optimizations, cycle-level bus simulation,
 save states, reverse execution, a public plugin API, and DSLs or declarative
 file formats for CPU, component, or machine definitions can be considered when
-concrete examples justify them. The current review covers RAM, the example's
-memory setup, and the minimal TypeScript build and tests.
+concrete examples justify them. The current review covers 8080 state, the first
+instruction, its execution records, and reset versus lesson restart.

@@ -1,3 +1,4 @@
+import { Cpu8080 } from "../components/cpus/8080.js";
 import { Ram } from "../components/memory/ram.js";
 
 // MVI A,2; ADI 3; STA 0080H; HLT. See docs/first-example.md.
@@ -10,4 +11,24 @@ export function createFirstExampleMemory(): Ram {
     ram.write(address, value);
   }
   return ram;
+}
+
+/** Start or restart the lesson with fresh components and explicit initial state. */
+export function createFirstExample(): { cpu: Cpu8080; ram: Ram } {
+  const ram = createFirstExampleMemory();
+  const cpu = new Cpu8080(ram, {
+    a: 0,
+    b: 0,
+    c: 0,
+    d: 0,
+    e: 0,
+    h: 0,
+    l: 0,
+    pc: 0,
+    sp: 0,
+    flags: { s: false, z: false, ac: false, p: false, cy: false },
+    interruptEnabled: false,
+    halted: false,
+  });
+  return { cpu, ram };
 }

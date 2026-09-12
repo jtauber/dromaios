@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createFirstExampleMemory } from "../../src/machines/first-example.js";
+import { createFirstExample, createFirstExampleMemory } from "../../src/machines/first-example.js";
+
+function expectedInitialState() {
+  return {
+    a: 0, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0,
+    pc: 0, sp: 0,
+    flags: { s: false, z: false, ac: false, p: false, cy: false },
+    interruptEnabled: false,
+    halted: false,
+  };
+}
 
 test("the first example loads exactly the specified program into 64 KiB of zeroed RAM", () => {
   const ram = createFirstExampleMemory();
@@ -31,4 +41,55 @@ test("each setup creates independent memory with the original program and zero r
 
   second.write(0x0080, 9);
   assert.equal(first.read(0x0080), 5);
+});
+
+test("the first example executes MVI A,2 and reports the following ADI as unsupported", () => {
+  const { cpu, ram } = createFirstExample();
+  const before = expectedInitialState();
+  const after = { ...before, a: 2, pc: 2 };
+  assert.deepEqual(cpu.snapshot(), before);
+  assert.deepEqual(cpu.step(), {
+    instruction: { address: 0, bytes: [0x3e, 0x02] },
+    before,
+    after,
+    accesses: [
+      { kind: "read", address: 0, value: 0x3e },
+      { kind: "read", address: 1, value: 0x02 },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(cpu.step(), {
+    instruction: { address: 2, bytes: [0xc6] },
+    before: after,
+    after,
+    accesses: [{ kind: "read", address: 2, value: 0xc6 }],
+    outcome: "unsupported",
+  });
+  const expectedMemory = createFirstExampleMemory();
+  for (let address = 0; address < ram.size; address++) {
+    assert.equal(ram.read(address), expectedMemory.read(address));
+  }
+});
+
+test("lesson restart creates fresh CPU state and memory while reset preserves data", () => {
+  const first = createFirstExample();
+  const record = first.cpu.step();
+  const savedRecord = structuredClone(record);
+  first.ram.write(0, 0);
+  first.ram.write(0x0080, 5);
+  first.cpu.reset();
+  assert.deepEqual(first.cpu.snapshot(), { ...expectedInitialState(), a: 2 });
+  assert.equal(first.ram.read(0), 0);
+  assert.equal(first.ram.read(0x0080), 5);
+
+  const restarted = createFirstExample();
+  assert.deepEqual(restarted.cpu.snapshot(), expectedInitialState());
+  assert.equal(restarted.ram.read(0), 0x3e);
+  assert.equal(restarted.ram.read(0x0080), 0);
+  assert.deepEqual(record, savedRecord);
+  restarted.cpu.step();
+  restarted.ram.write(0x0080, 9);
+  assert.deepEqual(first.cpu.snapshot(), { ...expectedInitialState(), a: 2 });
+  assert.equal(first.ram.read(0x0080), 5);
+  assert.deepEqual(record, savedRecord);
 });
