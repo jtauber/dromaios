@@ -61,7 +61,7 @@ export function checkRecordConstruction(cpu: Cpu8080): readonly Cpu8080StepRecor
   // @ts-expect-error Unsupported records must carry an instruction.
   const invalidUnsupported: Cpu8080StepRecord = { ...common, outcome: "unsupported", instruction: null };
 
-  // HLT will carry an instruction; a call while already halted will not.
+  // HLT carries an instruction; a call while already halted does not.
   return [
     { ...common, outcome: "halted", instruction: { address: 0, bytes: [0x76] } },
     { ...common, outcome: "halted", instruction: null },

@@ -1,10 +1,9 @@
 # First example: step through an 8080 program
 
-**Status: reviewed specification; implementation in progress.** RAM, CPU state,
-`MVI A,n`, `ADI n` and its flags, `STA addr`, step records, CPU reset, and lesson
-setup are implemented and tested. `HLT` remains to complete the program.
-Development uses TypeScript compiled to ES modules and
-Node.js 24's built-in test runner; see the
+**Status: first headless example implemented and tested.** The complete program,
+step records, CPU reset, and lesson restart follow the specification below.
+Development uses TypeScript compiled to ES modules and Node.js 24's built-in
+test runner; see the
 [development instructions](../README.md#development).
 
 The example loads 2 into the accumulator, adds 3, stores 5 in RAM, and halts.
@@ -15,8 +14,7 @@ observable and independently checkable.
 
 - One Intel 8080 model connected to flat **64 KiB of RAM**.
 - One call to `step()` executes at most one instruction.
-- The completed example will support four opcode forms: `MVI A,n`, `ADI n`,
-  `STA addr`, and `HLT`. The first three are implemented.
+- The example supports four opcode forms: `MVI A,n`, `ADI n`, `STA addr`, and `HLT`.
   Other forms of `MVI` are outside this first subset.
 - Instruction-level execution and access records. Cycle timing, electrical bus
   activity, interrupts, devices, and browser controls are outside this slice.
@@ -93,21 +91,13 @@ their byte or 16-bit ranges, otherwise construction throws `RangeError`.
 Flags and control latches must be booleans, otherwise it throws `TypeError`.
 
 - `snapshot()` returns an independent, readonly state copy without accessing RAM.
-- `step()` executes `MVI A,n`, `ADI n`, or `STA addr`, returns `unsupported` for
-  every other opcode, or returns `halted` without fetching if the supplied state
-  is already halted.
-  `HLT` itself is still unsupported.
+- `step()` executes the supported instructions below and returns `unsupported`
+  for every other opcode. Executing `HLT` returns `halted` with its instruction;
+  subsequent calls return `halted` without fetching.
 - `reset()` applies only the CPU reset changes specified below.
 - `createFirstExample()` returns fresh `{ cpu, ram }` components with the
   specified initial state and program. Call it again to restart the lesson;
   the previous components and records remain available to their caller.
-
-For the current implementation, the first three calls to `cpu.step()` execute
-`MVI A,2`, `ADI 3`, and `STA 0080H`, producing the first three records specified
-below. A and RAM at `0080` are then `05`, PC is `0007`, and only P is set among
-the arithmetic flags. The fourth call reports `HLT` as unsupported: it reads
-only `76` at `0007` and leaves CPU state and memory unchanged. The complete
-four-step results below remain the implementation target.
 
 ## Supported instruction behavior
 
@@ -161,8 +151,8 @@ code or a deliberate type-check bypass edits a returned value.
 
 `Cpu8080StepRecord` is a discriminated union on `outcome`. Executed and
 unsupported records always contain an instruction. Halted records permit
-null for an already halted CPU, or an instruction for the eventual `HLT`
-implementation. Each execution branch returns a complete record.
+null for an already halted CPU, or an instruction when executing `HLT`.
+Each execution branch returns a complete record.
 
 These entries describe the accesses required by this instruction-level model.
 They do not claim to reproduce every electrical bus operation or idle cycle.
@@ -206,6 +196,10 @@ Calling `step()` when already halted returns `outcome: halted`,
 It performs no fetch and does not advance PC. Thus a fifth call after this
 program leaves PC at `0008` and A and RAM at their final values.
 
+Interrupt inputs are outside this model. Setting the initial interrupt-enable
+latch to true does not itself resume a halted CPU; `reset()` clears the halted
+state, and restarting the lesson creates a fresh CPU.
+
 For any opcode outside the four supported forms, return `outcome: unsupported`.
 The instruction field contains the attempted address and the single opcode byte;
 the access list contains just that opcode read. PC and all other CPU state,
@@ -237,7 +231,7 @@ execution history; records retained from the prior run remain unchanged.
 
 ## Acceptance checks and implementation order
 
-Headless checks should establish:
+Headless checks establish:
 
 1. The exact four records and final memory above, including a fifth halted call.
 2. Preservation of unrelated state by each supported instruction, using nonzero
@@ -254,12 +248,9 @@ Headless checks should establish:
    inspection follow the contracts above.
 7. RAM enforces its byte and address bounds and rejects invalid host values.
 
-Implement in small reviewed changes: RAM and fixture setup; CPU state and
-fetching with `MVI A,n`; `ADI n` and its flags; `STA addr`; `HLT` and the completed
-example. Introduce the record and reset behavior alongside the state and
-instructions they describe. RAM, CPU state, `MVI A,n`, `ADI n` and its flags,
-`STA addr`, step records, reset, lesson setup, and the MIT license are now in
-place. `HLT` and the completed example are next.
+The implementation order was RAM and fixture setup; CPU state, stepping, and
+reset with `MVI A,n`; `ADI n` and its flags; `STA addr`; then `HLT` and the
+completed example.
 
 ADI checks include the explicit edge cases above and Intel's examples
 `14 + 42 = 56` and `56 + BE = 14` (all hexadecimal), from the programming manual
@@ -279,6 +270,12 @@ fetched instruction bytes in the record. Further checks cover detached write
 entries, the example's complete memory image, and reset versus lesson restart
 after the store.
 
+HLT checks cover a single opcode read, PC advancement including wrapping from
+`FFFF` to `0000`, preservation of unrelated state, and repeated halted steps
+without RAM accesses. Reset after HLT preserves data and allows execution to
+resume at `0000`. The complete example checks all four instruction records,
+a fifth halted step, final memory, and lesson restart after halting.
+
 Changes remain uncommitted until maintainer review and an explicit go-ahead
 to commit, as recorded in [AGENTS.md](../AGENTS.md).
 
@@ -286,6 +283,7 @@ to commit, as recorded in [AGENTS.md](../AGENTS.md).
 
 - [Intel 8080 Assembly Language Programming Manual, page 27](https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf#page=33): ADI semantics and explicit arithmetic examples.
 - [Intel 8080 Assembly Language Programming Manual, page 30](https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf#page=36): direct-address encoding and STA semantics.
+- [Intel 8080 Assembly Language Programming Manual, page 39](https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf#page=45): HLT and advancement to the next instruction address.
 - [Intel 8080 Microcomputer Systems User's Manual, September 1975](https://www.bitsavers.org/components/intel/MCS80/98-153B_Intel_8080_Microcomputer_Systems_Users_Manual_197509.pdf): instruction encodings and semantics.
 - [Intel MCS-80 User's Manual, October 1977](https://www.bitsavers.org/components/intel/MCS80/98-153D__MCS-80_Users_Manual_Oct77.pdf): addressing and arithmetic flag definitions.
 - [Intel Intellec 8/MOD 80 Reference Manual, February 1975](https://bitsavers.org/components/intel/MCS80/Intellec_8_Mod_80/Intel_Intellec_8_Mod_80_Reference_Manual_Feb75.pdf): 8080 functional pin definitions, especially RESET and INTE.

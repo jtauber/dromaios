@@ -43,12 +43,13 @@ test("each setup creates independent memory with the original program and zero r
   assert.equal(first.read(0x0080), 5);
 });
 
-test("the first example loads, adds, and stores 5, then reports HLT as unsupported", () => {
+test("the first example loads, adds, stores 5, and halts with the specified records", () => {
   const { cpu, ram } = createFirstExample();
   const before = expectedInitialState();
   const afterLoad = { ...before, a: 2, pc: 2 };
   const afterAdd = { ...before, a: 5, pc: 4, flags: { ...before.flags, p: true } };
   const afterStore = { ...afterAdd, pc: 7 };
+  const afterHalt = { ...afterStore, pc: 8, halted: true };
   assert.deepEqual(cpu.snapshot(), before);
   assert.deepEqual(cpu.step(), {
     instruction: { address: 0, bytes: [0x3e, 0x02] },
@@ -87,11 +88,19 @@ test("the first example loads, adds, and stores 5, then reports HLT as unsupport
   assert.deepEqual(cpu.step(), {
     instruction: { address: 7, bytes: [0x76] },
     before: afterStore,
-    after: afterStore,
+    after: afterHalt,
     accesses: [{ kind: "read", address: 7, value: 0x76 }],
-    outcome: "unsupported",
+    outcome: "halted",
   });
-  assert.deepEqual(cpu.snapshot(), afterStore);
+  assert.deepEqual(cpu.snapshot(), afterHalt);
+  assert.deepEqual(cpu.step(), {
+    instruction: null,
+    before: afterHalt,
+    after: afterHalt,
+    accesses: [],
+    outcome: "halted",
+  });
+  assert.deepEqual(cpu.snapshot(), afterHalt);
   const expectedMemory = createFirstExampleMemory();
   expectedMemory.write(0x0080, 5);
   for (let address = 0; address < ram.size; address++) {
@@ -107,6 +116,9 @@ test("lesson restart creates fresh CPU state and memory while reset preserves da
   const savedAdditionRecord = structuredClone(additionRecord);
   const storeRecord = first.cpu.step();
   const savedStoreRecord = structuredClone(storeRecord);
+  const haltRecord = first.cpu.step();
+  const savedHaltRecord = structuredClone(haltRecord);
+  assert.equal(first.cpu.snapshot().halted, true);
   first.ram.write(0, 0);
   first.cpu.reset();
   const afterReset = {
@@ -124,6 +136,7 @@ test("lesson restart creates fresh CPU state and memory while reset preserves da
   assert.deepEqual(record, savedRecord);
   assert.deepEqual(additionRecord, savedAdditionRecord);
   assert.deepEqual(storeRecord, savedStoreRecord);
+  assert.deepEqual(haltRecord, savedHaltRecord);
   restarted.cpu.step();
   restarted.ram.write(0x0080, 9);
   assert.deepEqual(first.cpu.snapshot(), afterReset);
@@ -131,4 +144,5 @@ test("lesson restart creates fresh CPU state and memory while reset preserves da
   assert.deepEqual(record, savedRecord);
   assert.deepEqual(additionRecord, savedAdditionRecord);
   assert.deepEqual(storeRecord, savedStoreRecord);
+  assert.deepEqual(haltRecord, savedHaltRecord);
 });

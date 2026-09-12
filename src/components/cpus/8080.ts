@@ -81,7 +81,10 @@ function hasEvenParity(byte: number): boolean {
   return setBits % 2 === 0;
 }
 
-/** Instruction-level 8080 model. Supports MVI A,n (3E), ADI n (C6), and STA addr (32). */
+/**
+ * Instruction-level 8080 model.
+ * Supports MVI A,n (3E), ADI n (C6), STA addr (32), and HLT (76).
+ */
 export class Cpu8080 {
   readonly #ram: Ram;
   readonly #state: Cpu8080State;
@@ -184,6 +187,18 @@ export class Cpu8080 {
         after: this.snapshot(),
         accesses,
         outcome: "executed",
+      };
+    }
+
+    if (opcode === 0x76) {
+      this.#state.pc = (address + 1) & 0xffff;
+      this.#state.halted = true;
+      return {
+        instruction: { address, bytes: [opcode] },
+        before,
+        after: this.snapshot(),
+        accesses,
+        outcome: "halted",
       };
     }
 

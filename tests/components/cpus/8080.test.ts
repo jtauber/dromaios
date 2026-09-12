@@ -405,12 +405,63 @@ test("STA can overwrite its opcode or either operand without changing fetched by
   }
 });
 
+test("HLT advances PC with wrapping, preserves unrelated state, and stops further fetching", () => {
+  for (const [address, nextPc] of [
+    [0x0000, 0x0001], [0x1234, 0x1235], [0xffff, 0x0000],
+  ] as const) {
+    for (const flags of [
+      { s: true, z: false, ac: true, p: false, cy: true },
+      { s: false, z: true, ac: false, p: true, cy: false },
+    ]) {
+      for (const interruptEnabled of [false, true]) {
+        const ram = new ObservedRam();
+        ram.write(address, 0x76);
+        ram.write(nextPc, 0x3e);
+        ram.accesses.length = 0;
+        const before = initialState({ pc: address, flags, interruptEnabled });
+        const after = { ...before, pc: nextPc, halted: true };
+        const cpu = new Cpu8080(ram, before);
+        const record = cpu.step();
+        const expectedAccesses = [{ kind: "read", address, value: 0x76 }];
+        const context = `PC=${address}, flags=${JSON.stringify(flags)}, INTE=${interruptEnabled}`;
+        assert.deepEqual(record, {
+          instruction: { address, bytes: [0x76] },
+          before,
+          after,
+          accesses: expectedAccesses,
+          outcome: "halted",
+        }, context);
+        assert.deepEqual(cpu.snapshot(), after, context);
+        assert.deepEqual(ram.accesses, expectedAccesses, context);
+
+        const saved = structuredClone(record);
+        ram.accesses.length = 0;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          assert.deepEqual(cpu.step(), {
+            instruction: null, before: after, after, accesses: [], outcome: "halted",
+          }, context);
+        }
+        assert.deepEqual(cpu.snapshot(), after, context);
+        assert.deepEqual(ram.accesses, [], context);
+        assert.deepEqual(record, saved, context);
+
+        // Bypass readonly to check that a HLT record cannot resume the CPU.
+        assert.ok(Reflect.set(record.after, "halted", false));
+        assert.deepEqual(record.before, before, context);
+        assert.deepEqual(cpu.snapshot(), after, context);
+        assert.equal(cpu.step().instruction, null, context);
+        assert.deepEqual(ram.accesses, [], context);
+      }
+    }
+  }
+});
+
 test("every other opcode reports unsupported repeatedly with one read and unchanged state", () => {
   const ram = new ObservedRam();
   const before = initialState({ pc: 0xffff });
   const cpu = new Cpu8080(ram, before);
   for (let opcode = 0; opcode <= 0xff; opcode++) {
-    if (opcode === 0x3e || opcode === 0xc6 || opcode === 0x32) continue;
+    if (opcode === 0x3e || opcode === 0xc6 || opcode === 0x32 || opcode === 0x76) continue;
     ram.write(0xffff, opcode);
     for (let attempt = 0; attempt < 2; attempt++) {
       ram.accesses.length = 0;
@@ -448,26 +499,42 @@ test("an already halted CPU returns independent records without fetching", () =>
   assert.deepEqual(ram.accesses, []);
 });
 
-test("reset clears only control state without accessing RAM, then execution can resume", () => {
+test("reset after HLT clears only control state without accessing RAM, then execution resumes", () => {
   const ram = new ObservedRam();
   ram.write(0, 0x3e);
   ram.write(1, 0x5a);
   ram.write(0x0080, 0xa5);
+  ram.write(0x1234, 0x76);
   ram.accesses.length = 0;
-  const before = initialState({ halted: true });
+  const before = initialState();
   const cpu = new Cpu8080(ram, before);
   const oldRecord = cpu.step();
+  assert.equal(oldRecord.outcome, "halted");
   const savedRecord = structuredClone(oldRecord);
+  ram.accesses.length = 0;
   cpu.reset();
-  assert.deepEqual(cpu.snapshot(), {
+  const afterReset = {
     ...before, pc: 0, interruptEnabled: false, halted: false,
-  });
+  };
+  assert.deepEqual(cpu.snapshot(), afterReset);
   assert.deepEqual(ram.accesses, []);
   assert.deepEqual(oldRecord, savedRecord);
   assert.equal(ram.read(0x0080), 0xa5);
-  assert.equal(cpu.step().outcome, "executed");
-  assert.equal(cpu.snapshot().a, 0x5a);
-  assert.equal(cpu.snapshot().pc, 2);
+  ram.accesses.length = 0;
+  const resumed = cpu.step();
+  assert.deepEqual(resumed, {
+    instruction: { address: 0, bytes: [0x3e, 0x5a] },
+    before: afterReset,
+    after: { ...afterReset, a: 0x5a, pc: 2 },
+    accesses: [
+      { kind: "read", address: 0, value: 0x3e },
+      { kind: "read", address: 1, value: 0x5a },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(cpu.snapshot(), resumed.after);
+  assert.deepEqual(ram.accesses, resumed.accesses);
+  assert.deepEqual(oldRecord, savedRecord);
 });
 
 test("records stay independent of execution, inspection, RAM edits, reset, and each other", () => {
