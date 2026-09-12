@@ -1,8 +1,10 @@
 # First example: step through an 8080 program
 
-**Status: draft for maintainer review.** This specifies the first implementation
-target; no emulator code or development tooling has been added yet. TypeScript
-is selected. The minimal build and test setup remains to be chosen.
+**Status: reviewed specification; implementation in progress.** RAM and the
+initial program memory image are implemented and tested. CPU execution and
+step records remain to be built in the small changes listed below. Development
+uses TypeScript compiled to ES modules and Node.js 24's built-in test runner;
+see the [development instructions](../README.md#development).
 
 The example loads 2 into the accumulator, adds 3, stores 5 in RAM, and halts.
 Its purpose is to make each instruction's state changes and memory accesses
@@ -64,6 +66,12 @@ The CPU owns its registers, flags, interrupt-enable latch, and halted state.
 RAM owns the bytes. The example setup owns allocation, program loading, and
 deterministic initialization. The CPU accesses RAM through byte reads and
 writes; it does not own program loading or lesson restart.
+
+The implemented memory API is `new Ram(size)`, with a read-only `size` getter,
+`read(address)`, and `write(address, value)`. Storage is private and initially
+zeroed. Size must be a positive safe integer; invalid sizes, addresses, and
+byte values throw `RangeError`. `createFirstExampleMemory()` returns a fresh
+RAM instance with the program loaded. It does not create or execute a CPU.
 
 Values exposed in records are numbers, with byte values in `00`–`FF` and
 addresses in `0000`–`FFFF`. Hexadecimal formatting belongs to presentation.
@@ -207,11 +215,11 @@ Headless checks should establish:
 Implement in small reviewed changes: RAM and fixture setup; CPU state and
 fetching with `MVI A,n`; `ADI n` and its flags; `STA addr`; `HLT` and the completed
 example. Introduce the record and reset behavior alongside the state and
-instructions they describe. Add the MIT license with the first code.
+instructions they describe. RAM, fixture setup, and the MIT license are now
+in place; CPU state and `MVI A,n` are next.
 
-Review this specification and choose the minimal TypeScript build/test setup
-before implementing it. Changes remain uncommitted until maintainer review
-and an explicit go-ahead to commit, as recorded in [AGENTS.md](../AGENTS.md).
+Changes remain uncommitted until maintainer review and an explicit go-ahead
+to commit, as recorded in [AGENTS.md](../AGENTS.md).
 
 ## References
 

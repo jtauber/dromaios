@@ -62,9 +62,11 @@ the same underlying models as a complete machine.
 
 ## Proposed repository layout
 
-Only documentation files exist currently. The other paths show where
-code and content could go as we introduce them; their names can change with
-experience. No package or framework boundaries are implied by this tree.
+The memory component, first-example memory setup, and their tests now exist.
+The other source paths show where code and content could go as we introduce
+them; their names can change with experience. No package or framework
+boundaries are implied by this tree. Build and test commands are in the
+[development instructions](../README.md#development).
 
 ```text
 dromaios/
@@ -114,9 +116,10 @@ models, variants, and machine compositions can still require revisions.
 
 ## First example specification
 
-The [first-example draft](first-example.md) proposes an 8080, 64 KiB of RAM,
-and an eight-byte program. Its state, step records, halt behavior, unsupported
-opcodes, and reset semantics are ready for review. Before coding it, review:
+The reviewed [first-example specification](first-example.md) describes an
+8080, 64 KiB of RAM, and an eight-byte program. Only RAM and the memory image
+are implemented so far. The specification answers these questions, which
+should guide review of each implementation change:
 
 1. Which instructions and program demonstrate the first lesson, and what is
    the expected state after each instruction?
@@ -141,5 +144,5 @@ being treated as correctness references.
 Worker placement, performance optimizations, cycle-level bus simulation,
 save states, reverse execution, a public plugin API, and DSLs or declarative
 file formats for CPU, component, or machine definitions can be considered when
-concrete examples justify them. The next review covers the first-example draft
-and the minimal TypeScript development/test setup.
+concrete examples justify them. The current review covers RAM, the example's
+memory setup, and the minimal TypeScript build and tests.

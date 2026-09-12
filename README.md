@@ -53,19 +53,42 @@ agents follow this rule in [AGENTS.md](AGENTS.md).
 
 ## Status
 
-Initial design. There is no runnable application yet. The first CPU is the
-Intel 8080, followed by small 6502 and 6809 examples to test our generalizations.
-The implementation language is **TypeScript**. The first program and execution
-contract are [drafted for review](docs/first-example.md). Tooling remains to be
-chosen.
+The first code provides byte-addressable RAM and the memory image for the
+[first 8080 example](docs/first-example.md), with automated tests. CPU execution
+and a browser application are still to come. The first CPU is the Intel 8080,
+followed by small 6502 and 6809 examples to test our generalizations.
+
+The implementation uses **TypeScript**, compiled to JavaScript ES modules,
+with **Node.js 24 LTS** and its built-in test runner for development.
 
 The first implementation milestone is deliberately small: one CPU, a little
 RAM, a tiny program, and a way to step through it and see what changes.
 
+## Development
+
+Use Node.js 24 and its bundled npm. With nvm, run `nvm install` and `nvm use`
+from this directory; [.nvmrc](.nvmrc) selects the major version. Other Node
+version managers work too. For a Homebrew `node@24` installation, select it
+for the current shell with `export PATH="$(brew --prefix node@24)/bin:$PATH"`.
+
+```sh
+npm ci
+npm test
+```
+
+`npm ci` installs the locked development dependencies. `npm test` cleans the
+generated `dist/` directory, type-checks and compiles the source and tests, and
+runs the compiled tests. `npm run build` performs just the clean build.
+Generated output and `node_modules/` are ignored by Git. There are no runtime
+dependencies, and the simulation source uses no Node or browser APIs.
+
+Source imports use `.js` extensions so they resolve in the compiled ES modules.
+Tests live under `tests/` and state expected behavior independently of the code
+they exercise.
+
 ## License
 
-We have chosen the MIT license. The license file will be added alongside the
-first code; it has not been added yet.
+Released under the [MIT license](LICENSE).
 
 ## Repository guide
 
@@ -75,9 +98,12 @@ first code; it has not been added yet.
 - [docs/cpu-roadmap.md](docs/cpu-roadmap.md) records the intended CPU scope,
   existing reference coverage, and the three-CPU approach to generalization.
 - [docs/first-example.md](docs/first-example.md) specifies the first 8080 program,
-  initial state, step records, and acceptance checks; it is a draft for review.
-
-Source and test directories will be added as their first pieces are implemented.
+  initial state, step records, and acceptance checks.
+- [src/components/memory/ram.ts](src/components/memory/ram.ts) owns byte storage
+  and validates reads and writes.
+- [src/machines/first-example.ts](src/machines/first-example.ts) prepares fresh
+  memory for the first example, without executing its program.
+- [tests/](tests/) checks RAM behavior and the example's initial memory image.
 
 ## Existing work
 

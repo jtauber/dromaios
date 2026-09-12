@@ -14,7 +14,7 @@ Implementation order is independent of the tutorial's historical teaching
 order. See [CPU scope and early roadmap](docs/cpu-roadmap.md) for the rationale,
 eventual targets, and current reference coverage.
 
-## 0. Establish the starting point — current
+## 0. Establish the starting point — complete
 
 - Review the purpose, design principles, and proposed repository structure.
 - Review the [first-example specification](docs/first-example.md): an eight-byte
@@ -27,7 +27,10 @@ eventual targets, and current reference coverage.
 **Review point:** We can explain the first example and the responsibilities of
 its parts before implementing them.
 
-## 1. Follow a tiny 8080 program
+The first-example specification has been reviewed. Development uses TypeScript
+compiled to ES modules, npm, and Node.js 24's built-in test runner.
+
+## 1. Follow a tiny 8080 program — current
 
 - Introduce RAM and the 8080, implementing instructions incrementally.
 - Load a small program and advance it one instruction at a time.
@@ -38,6 +41,10 @@ its parts before implementing them.
 
 **Review point:** We can account for what each instruction reads and changes.
 The supported instruction subset and execution granularity are documented.
+
+**Progress:** RAM, the initial program memory image, their tests, and the MIT
+license are in place. The next small change introduces CPU state, fetching,
+and `MVI A,n`, with the corresponding step records and reset behavior.
 
 ## 2. Test generalizations across three CPUs
 

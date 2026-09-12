@@ -70,9 +70,9 @@ Hardware references for these distinctions:
 ## How we will use the three examples
 
 1. Build a tiny 8080 program with RAM, instruction stepping, and an execution
-   record. The [first-example draft](first-example.md) specifies loading a
+   record. The [first-example specification](first-example.md) specifies loading a
    number, adding another, storing the result, and halting, with exact expected
-   records for review.
+   records to check against.
 2. Implement an equivalent program on the 6502. Examine which support carries
    over and where the first model made assumptions.
 3. Repeat with the 6809, revisiting those assumptions with a third architecture.
@@ -128,12 +128,12 @@ programmer-managed stack in RAM. See
 
 ## Next decisions
 
-Before the first code, review the [first-example draft](first-example.md) and
-choose the minimal TypeScript build/test setup. The draft specifies the 8080
-program and instruction subset, initial state, memory accesses, step results,
-CPU reset versus lesson restart, unsupported-instruction behavior, and expected
-state changes. The [specification questions](architecture.md#first-example-specification)
-guide that review.
+The [first-example specification](first-example.md) has been reviewed. RAM and
+the program memory image are implemented, with TypeScript compiled to ES modules
+and tests run by Node.js 24's built-in runner. The next small change introduces
+8080 state, instruction fetching, and `MVI A,n`, including the corresponding
+step records and reset behavior. The
+[specification questions](architecture.md#first-example-specification) continue
+to guide review as each instruction is added.
 
-We have chosen **MIT** for licensing and will add the license file alongside
-the first code.
+The first code includes the [MIT license](../LICENSE).
