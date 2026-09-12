@@ -74,12 +74,13 @@ function checkUnsigned(name: string, value: number, maximum: number): void {
   }
 }
 
-/** Instruction-level NMOS 6502 subset supporting CLC (18) and LDA immediate (A9). */
+/** Instruction-level NMOS 6502 subset with CLC, LDA immediate, and binary ADC immediate. */
 export class Cpu6502 {
   readonly #ram: Ram;
   readonly #state: Cpu6502State;
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
     0x18: () => this.#clearCarry(), // CLC
+    0x69: ({ fetchByte }) => this.#addWithCarry(fetchByte()), // ADC #n (binary)
     0xa9: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
   };
 
@@ -118,7 +119,7 @@ export class Cpu6502 {
     return { before, after: this.snapshot(), accesses };
   }
 
-  /** Attempt one instruction; unsupported opcodes leave PC and all other state unchanged. */
+  /** Attempt one instruction; unsupported opcodes or modes leave all state unchanged. */
   step(): Cpu6502StepRecord {
     const before = this.snapshot();
     const accesses: Cpu6502MemoryAccess[] = [];
@@ -126,8 +127,10 @@ export class Cpu6502 {
     const opcode = this.#read(address, accesses);
     const bytes = [opcode];
     const handler = this.#opcodeHandlers[opcode];
-    if (handler) {
-      // Advance only after recognizing the opcode; operand fetches advance themselves.
+    // Reject decimal ADC before advancing PC or fetching its operand.
+    const decimalModeUnsupported = opcode === 0x69 && this.#state.flags.d;
+    if (handler && !decimalModeUnsupported) {
+      // Advance only for supported instructions; operand fetches advance themselves.
       this.#state.pc = (address + 1) & 0xffff;
       handler({
         fetchByte: () => {
@@ -146,9 +149,9 @@ export class Cpu6502 {
       after: this.snapshot(),
       accesses,
     };
-    return handler
+    return handler && !decimalModeUnsupported
       ? { ...record, outcome: "executed" }
-      : { ...record, outcome: "unsupported", reason: "opcode" };
+      : { ...record, outcome: "unsupported", reason: decimalModeUnsupported ? "decimal-mode" : "opcode" };
   }
 
   #clearCarry(): void {
@@ -159,6 +162,16 @@ export class Cpu6502 {
     this.#state.a = value;
     this.#state.flags.n = (value & 0x80) !== 0;
     this.#state.flags.z = value === 0;
+  }
+
+  #addWithCarry(value: number): void {
+    const accumulator = this.#state.a;
+    const sum = accumulator + value + (this.#state.flags.c ? 1 : 0);
+    const result = sum & 0xff;
+    this.#loadAccumulator(result);
+    this.#state.flags.c = sum > 0xff;
+    // Like-signed operands producing an opposite-signed result indicate overflow.
+    this.#state.flags.v = (~(accumulator ^ value) & (accumulator ^ result) & 0x80) !== 0;
   }
 
   #read(address: number, accesses: Cpu6502MemoryAccess[]): number {

@@ -10,7 +10,10 @@ the 6809 example.
 
 The [CPU](../src/components/cpus/6502.ts) provides explicit validated state,
 detached snapshots, and instruction records. `CLC` clears C and advances PC;
-`LDA #n` updates A, N, Z, and PC. Both preserve all other state, including D. The
+`LDA #n` updates A, N, Z, and PC. Both preserve all other state, including D.
+Binary `ADC #n` adds the operand and incoming carry to A and updates N, V, Z,
+C, and PC, preserving X, Y, SP, D, and I. With D true it returns `unsupported`
+with reason `decimal-mode`, reading only the opcode and leaving state unchanged. The
 [example factory](../src/machines/6502-example.ts) loads the full program and
 reset vector, supplies the initial state, and returns the completion address.
 
@@ -18,18 +21,20 @@ CPU reset is implemented with a separate record of its before/after state and
 two vector reads. It sets I and decrements SP while preserving the other
 registers, flags, and RAM. Lesson restart creates fresh state and memory.
 
-ADC and STA remain to be implemented in that order. Every opcode
-except `18` and `A9` currently returns `unsupported` with reason `opcode`,
-including ADC with either D value. The `decimal-mode` reason in the record
-type will be used when binary ADC is added. The lesson currently runs CLC and
-LDA from `0200`, then stops at unsupported ADC at `0203`. The complete program's
-execution below remains the specification for later changes.
+STA remains to be implemented. Every opcode except `18`, `69`, and `A9`
+currently returns `unsupported` with reason `opcode`. The lesson runs CLC,
+LDA, and ADC from `0200`, producing A = `05`, then stops at unsupported STA at
+`0205`. The complete program's execution below remains the specification for
+the next change.
 
 [CPU tests](../tests/components/cpus/6502.test.ts) cover flags, actual accesses,
 PC wrapping, all unsupported opcodes, input validation, ownership, reset-vector
 reads, SP wrapping, repeated reset, and resuming execution at the reset target.
+Binary ADC is checked for all 131,072 accumulator/operand/carry combinations
+with old N/V/Z both clear and set. Decimal rejection is checked across repeated
+steps and reset, including at the address boundary.
 [Fixture tests](../tests/machines/6502-example.test.ts) check the entire memory
-image, initial state, CLC followed by LDA, and CPU reset versus lesson restart.
+image, initial state, CLC/LDA/ADC execution, and CPU reset versus lesson restart.
 [Type checks](../tests/types/6502.ts) cover readonly records and snapshots,
 non-null instructions, and the outcome/reason relationship.
 

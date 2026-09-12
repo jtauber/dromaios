@@ -29,11 +29,12 @@ test("the 6502 example creates the full image, vector, initial state, and comple
   checkInitialMemory(ram);
 });
 
-test("the 6502 example executes CLC then LDA from its entry point and stops at unsupported ADC", () => {
+test("the 6502 example clears carry, loads 2, adds 3, and stops at unsupported STA", () => {
   const { cpu, ram } = create6502Example();
   const before = expectedInitialState();
   const afterClear = { ...before, pc: 0x0201, flags: { ...before.flags, c: false } };
   const afterLoad = { ...afterClear, a: 2, pc: 0x0203 };
+  const afterAdd = { ...afterLoad, a: 5, pc: 0x0205 };
   assert.deepEqual(cpu.step(), {
     instruction: { address: 0x0200, bytes: [0x18] },
     before,
@@ -52,14 +53,24 @@ test("the 6502 example executes CLC then LDA from its entry point and stops at u
     outcome: "executed",
   });
   assert.deepEqual(cpu.step(), {
-    instruction: { address: 0x0203, bytes: [0x69] },
+    instruction: { address: 0x0203, bytes: [0x69, 0x03] },
     before: afterLoad,
-    after: afterLoad,
-    accesses: [{ kind: "read", address: 0x0203, value: 0x69 }],
+    after: afterAdd,
+    accesses: [
+      { kind: "read", address: 0x0203, value: 0x69 },
+      { kind: "read", address: 0x0204, value: 0x03 },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(cpu.step(), {
+    instruction: { address: 0x0205, bytes: [0x8d] },
+    before: afterAdd,
+    after: afterAdd,
+    accesses: [{ kind: "read", address: 0x0205, value: 0x8d }],
     outcome: "unsupported",
     reason: "opcode",
   });
-  assert.deepEqual(cpu.snapshot(), afterLoad);
+  assert.deepEqual(cpu.snapshot(), afterAdd);
   checkInitialMemory(ram);
 });
 
@@ -69,9 +80,11 @@ test("6502 CPU reset preserves lesson data while restart restores the original s
   const savedRecord = structuredClone(record);
   const loadRecord = first.cpu.step();
   const savedLoadRecord = structuredClone(loadRecord);
+  const addRecord = first.cpu.step();
+  const savedAddRecord = structuredClone(addRecord);
   const changedState = first.cpu.snapshot();
-  assert.equal(changedState.a, 2);
-  assert.equal(changedState.pc, 0x0203);
+  assert.equal(changedState.a, 5);
+  assert.equal(changedState.pc, 0x0205);
   assert.equal(changedState.flags.c, false);
   first.ram.write(0x0200, 0);
   first.ram.write(0x0201, 0xff);
@@ -108,5 +121,6 @@ test("6502 CPU reset preserves lesson data while restart restores the original s
   assert.deepEqual(first.cpu.snapshot(), afterReset);
   assert.deepEqual(record, savedRecord);
   assert.deepEqual(loadRecord, savedLoadRecord);
+  assert.deepEqual(addRecord, savedAddRecord);
   assert.deepEqual(reset, savedReset);
 });
