@@ -16,7 +16,7 @@ observable and independently checkable.
 
 - One Intel 8080 model connected to flat **64 KiB of RAM**.
 - One call to `step()` executes at most one instruction.
-- The example supports four opcode forms: `MVI A,n`, `ADI n`, `STA addr`, and `HLT`.
+- The example uses four opcode forms: `MVI A,n`, `ADI n`, `STA addr`, and `HLT`.
   Other forms of `MVI` are outside this first subset.
 - Instruction-level execution and access records. Cycle timing, electrical bus
   activity, interrupts, devices, and browser controls are outside this slice.
@@ -54,6 +54,7 @@ required for this example; the byte image is the executable fixture.
 | State | Initial value |
 | --- | --- |
 | A, B, C, D, E, H, L | `00` each |
+| Derived BC, DE, HL | `0000` each |
 | PC | `0000` |
 | SP | `0000` |
 | Flags S, Z, AC, P, CY | All false |
@@ -92,17 +93,19 @@ flags have fields `s`, `z`, `ac`, `p`, and `cy`. Registers must be integers in
 their byte or 16-bit ranges, otherwise construction throws `RangeError`.
 Flags and control latches must be booleans, otherwise it throws `TypeError`.
 
-- `snapshot()` returns an independent, readonly state copy without accessing RAM.
-- `step()` executes the supported instructions below and returns `unsupported`
-  for every other opcode. Executing `HLT` returns `halted` with its instruction;
-  subsequent calls return `halted` without fetching.
+- `snapshot()` returns an independent, readonly state copy without accessing RAM,
+  including derived BC, DE, and HL views. Their ownership and initialization
+  rules are specified in the [register-pair example](8080-register-pairs-example.md#register-views-and-ownership).
+- `step()` executes the forms in the [coverage inventory](cpu-coverage.md#8080)
+  and returns `unsupported` for other opcodes. Executing `HLT` returns `halted`
+  with its instruction; subsequent calls return `halted` without fetching.
 - `reset()` applies only the CPU reset changes specified below and returns a
   reset record with before/after snapshots and an empty access list.
 - `create8080Example()` returns fresh `{ cpu, ram }` components with the
   specified initial state and program. Call it again to restart the lesson;
   the previous components and records remain available to their caller.
 
-## Supported instruction behavior
+## Instruction behavior for this example
 
 - `MVI A,n` reads its opcode and immediate byte, writes A, advances PC by two,
   and preserves flags and the other registers.
@@ -149,8 +152,8 @@ Inspecting state outside execution must not add accesses to a step record.
 Public snapshots and records are readonly in TypeScript, including nested
 flags, instruction bytes, access arrays, and their entries. `Cpu8080State`
 remains the mutable state shape for initialization and the CPU's internal
-storage; `Cpu8080Snapshot` is its readonly public view. Readonly is a compiler
-check, not runtime freezing. Copies still provide isolation if JavaScript
+storage; `Cpu8080Snapshot` is its readonly public view with derived pair fields.
+Readonly is a compiler check, not runtime freezing. Copies still provide isolation if JavaScript
 code or a deliberate type-check bypass edits a returned value.
 
 `Cpu8080StepRecord` is a discriminated union on `outcome`. Executed and
@@ -204,8 +207,8 @@ Interrupt inputs are outside this model. Setting the initial interrupt-enable
 latch to true does not itself resume a halted CPU; `reset()` clears the halted
 state, and restarting the lesson creates a fresh CPU.
 
-For any opcode outside the four supported forms, return `outcome: unsupported`
-with `reason: opcode`.
+For any opcode outside the [coverage inventory](cpu-coverage.md#8080), return
+`outcome: unsupported` with `reason: opcode`.
 The instruction field contains the attempted address and the single opcode byte;
 the access list contains just that opcode read. PC and all other CPU state,
 and all RAM, remain unchanged. No operands are fetched and no instruction is

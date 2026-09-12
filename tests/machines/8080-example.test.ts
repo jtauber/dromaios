@@ -6,7 +6,7 @@ import { create8080Example, create8080ExampleMemory } from "../../src/machines/8
 function expectedInitialState() {
   return {
     a: 0, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0,
-    pc: 0, sp: 0,
+    pc: 0, sp: 0, bc: 0, de: 0, hl: 0,
     flags: { s: false, z: false, ac: false, p: false, cy: false },
     interruptEnabled: false,
     halted: false,

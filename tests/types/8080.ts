@@ -1,8 +1,11 @@
+import { Cpu8080 } from "../../src/components/cpus/8080.js";
 import type {
-  Cpu8080,
   Cpu8080ResetRecord,
+  Cpu8080Snapshot,
+  Cpu8080State,
   Cpu8080StepRecord,
 } from "../../src/components/cpus/8080.js";
+import type { Ram } from "../../src/components/memory/ram.js";
 
 // Compiled by npm test; never called. Each expected error guards the public API.
 export function checkPublicTypes(cpu: Cpu8080, record: Cpu8080StepRecord): void {
@@ -13,6 +16,12 @@ export function checkPublicTypes(cpu: Cpu8080, record: Cpu8080StepRecord): void 
   snapshot.flags = { s: false, z: false, ac: false, p: false, cy: false };
   // @ts-expect-error Nested snapshot flags are readonly too.
   snapshot.flags.cy = true;
+  // @ts-expect-error Derived BC is readonly.
+  snapshot.bc = 0;
+  // @ts-expect-error Derived DE is readonly.
+  snapshot.de = 0;
+  // @ts-expect-error Derived HL is readonly.
+  snapshot.hl = 0;
 
   // @ts-expect-error Record fields are readonly.
   record.outcome = "halted";
@@ -24,6 +33,8 @@ export function checkPublicTypes(cpu: Cpu8080, record: Cpu8080StepRecord): void 
   record.before.pc = 0;
   // @ts-expect-error Flags in the after snapshot are readonly.
   record.after.flags.z = true;
+  // @ts-expect-error Derived views in instruction records are readonly.
+  record.after.hl = 0;
   // @ts-expect-error Access arrays cannot be replaced.
   record.accesses = [];
   // @ts-expect-error Access arrays are readonly.
@@ -43,6 +54,22 @@ export function checkPublicTypes(cpu: Cpu8080, record: Cpu8080StepRecord): void 
     // @ts-expect-error Individual instruction bytes are readonly.
     record.instruction.bytes[0] = 0;
   }
+}
+
+export function checkInitialization(ram: Ram, state: Cpu8080State, snapshot: Cpu8080Snapshot): Cpu8080[] {
+  // @ts-expect-error Stored state has no separate BC register.
+  state.bc;
+  // @ts-expect-error Stored state has no separate DE register.
+  state.de;
+  // @ts-expect-error Stored state has no separate HL register.
+  state.hl;
+  // @ts-expect-error BC is not a separate initialization input.
+  new Cpu8080(ram, { ...state, bc: 0x1234 });
+  // @ts-expect-error DE is not a separate initialization input.
+  new Cpu8080(ram, { ...state, de: 0x1234 });
+  // @ts-expect-error HL is not a separate initialization input.
+  new Cpu8080(ram, { ...state, hl: 0x1234 });
+  return [new Cpu8080(ram, state), new Cpu8080(ram, snapshot)];
 }
 
 export function checkOutcomes(record: Cpu8080StepRecord): readonly number[] {
@@ -103,6 +130,8 @@ export function checkResetTypes(cpu: Cpu8080): Cpu8080ResetRecord {
   record.after.halted = true;
   // @ts-expect-error Nested reset flags are readonly.
   record.after.flags.cy = false;
+  // @ts-expect-error Derived views in reset records are readonly.
+  record.after.bc = 0;
   // @ts-expect-error Reset access arrays cannot be replaced.
   record.accesses = [];
   // @ts-expect-error Reset access arrays are readonly.

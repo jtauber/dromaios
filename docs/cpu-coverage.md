@@ -12,11 +12,11 @@ do not count toward implementation here.
 
 ## At a glance
 
-| Model | Complete / documented opcode forms | Opcode completion | Additional partial forms | Example |
+| Model | Complete / documented opcode forms | Opcode completion | Additional partial forms | Completed examples |
 | --- | --- | --- | --- | --- |
-| [Intel 8080](#8080) | 4 / 244 | 1.6% | 0 | [Complete](8080-example.md) |
-| [NMOS MOS 6502](#6502) | 3 / 151 | 2.0% | 1: binary-only ADC | [Complete](6502-example.md) |
-| [Motorola MC6809 / MC6809E](#6809) | 3 / 268 | 1.1% | 0 | [Complete](6809-example.md) |
+| [Intel 8080](#8080) | 12 / 244 | 4.9% | 0 | [Arithmetic](8080-example.md), [register pairs](8080-register-pairs-example.md) |
+| [NMOS MOS 6502](#6502) | 3 / 151 | 2.0% | 1: binary-only ADC | [Arithmetic](6502-example.md) |
+| [Motorola MC6809 / MC6809E](#6809) | 3 / 268 | 1.1% | 0 | [Arithmetic](6809-example.md) |
 
 A completed example establishes its specified program and checks; all three
 CPU models remain small subsets.
@@ -80,9 +80,20 @@ instruction lengths are in bytes.
 [Example specification](8080-example.md) ·
 [Example setup](../src/machines/8080-example.ts)
 
+[Register-pair specification](8080-register-pairs-example.md) ·
+[Register-pair setup](../src/machines/8080-register-pairs-example.ts)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
+| `01` | `LXI B,nn` | Immediate | 3 | Load B:C; low byte then high; preserve flags |
+| `03` | `INX B` | Register pair | 1 | Increment B:C with 16-bit wrapping; preserve flags |
+| `11` | `LXI D,nn` | Immediate | 3 | Load D:E; low byte then high; preserve flags |
+| `13` | `INX D` | Register pair | 1 | Increment D:E with 16-bit wrapping; preserve flags |
+| `21` | `LXI H,nn` | Immediate | 3 | Load H:L; low byte then high; preserve flags |
+| `23` | `INX H` | Register pair | 1 | Increment H:L with 16-bit wrapping; preserve flags |
+| `31` | `LXI SP,nn` | Immediate | 3 | Load SP; low byte then high; preserve flags |
 | `32` | `STA addr` | Direct memory address | 3 | Store A; address bytes low then high |
+| `33` | `INX SP` | Register pair | 1 | Increment SP with 16-bit wrapping; preserve flags |
 | `3E` | `MVI A,n` | Immediate | 2 | Accumulator destination only |
 | `76` | `HLT` | Implied | 1 | Advance PC and enter halted state |
 | `C6` | `ADI n` | Immediate | 2 | Add without incoming carry; update S/Z/AC/P/CY |
@@ -91,17 +102,20 @@ instruction lengths are in bytes.
 | --- | --- |
 | Stored registers | A, B, C, D, E, H, L, PC, SP |
 | Stored flags/control | S, Z, AC, P, CY; interrupt-enable and halted latches |
-| Register relationships | Individual bytes only; combined BC/DE/HL views and pair operations are not implemented |
+| Register relationships | Snapshots derive BC, DE, and HL from stored bytes; LXI and INX update those bytes or the separately stored SP |
 | Reset | Set PC to `0000`, clear interrupt-enable and halted; preserve data registers, SP, flags, and RAM; no memory accesses |
 | Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
-| Remaining instruction scope | Other loads/moves, register and memory arithmetic, logical operations, pair operations, stack operations, control flow, flag-control instructions, and port I/O |
+| Remaining instruction scope | Other loads/moves, register and memory arithmetic, logical operations, other pair operations, stack operations, control flow, flag-control instructions, and port I/O |
 
 Verification: [CPU tests](../tests/components/cpus/8080.test.ts),
-[example tests](../tests/machines/8080-example.test.ts), and
+[arithmetic example tests](../tests/machines/8080-example.test.ts),
+[register-pair example tests](../tests/machines/8080-register-pairs-example.test.ts), and
 [public type checks](../tests/types/8080.ts). ADI checks cover every byte operand
 pair with incoming flags clear and set. Other checks cover exact accesses,
 wrapping, self-overwriting stores, halt/reset behavior, rejection of every
 unimplemented opcode, input validation, and detached records.
+LXI/INX checks cover all pair and SP forms, derived views, byte carry and
+16-bit wrapping, flag preservation, operand order, and successive operations.
 
 ## 6502
 

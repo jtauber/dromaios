@@ -26,6 +26,9 @@ export interface Cpu8080State {
 
 export type Cpu8080Snapshot = Readonly<Omit<Cpu8080State, "flags">> & {
   readonly flags: Readonly<Cpu8080Flags>;
+  readonly bc: number;
+  readonly de: number;
+  readonly hl: number;
 };
 
 export interface Cpu8080MemoryAccess {
@@ -67,9 +70,9 @@ interface InstructionContext {
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 
-function copyState(state: Cpu8080Snapshot): Cpu8080State {
+function copyState(state: Omit<Cpu8080Snapshot, "bc" | "de" | "hl">): Cpu8080State {
   const flags = state.flags;
-  // Copy declared fields only, including non-enumerable fields and inherited getters.
+  // Copy declared stored fields only; supplied pair views and metadata are ignored.
   return {
     a: state.a,
     b: state.b,
@@ -94,18 +97,26 @@ function hasEvenParity(byte: number): boolean {
   return setBits % 2 === 0;
 }
 
-/** Instruction-level Intel 8080 subset for the first 8080 example. */
+/** Instruction-level Intel 8080 subset for the 8080 examples. */
 export class Cpu8080 {
   readonly #ram: Ram;
   readonly #state: Cpu8080State;
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+    0x01: ({ fetchWord }) => { this.#bc = fetchWord(); }, // LXI B,nn
+    0x03: () => { this.#bc = (this.#bc + 1) & 0xffff; }, // INX B
+    0x11: ({ fetchWord }) => { this.#de = fetchWord(); }, // LXI D,nn
+    0x13: () => { this.#de = (this.#de + 1) & 0xffff; }, // INX D
+    0x21: ({ fetchWord }) => { this.#hl = fetchWord(); }, // LXI H,nn
+    0x23: () => { this.#hl = (this.#hl + 1) & 0xffff; }, // INX H
+    0x31: ({ fetchWord }) => { this.#state.sp = fetchWord(); }, // LXI SP,nn
     0x32: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
+    0x33: () => { this.#state.sp = (this.#state.sp + 1) & 0xffff; }, // INX SP
     0x3e: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // MVI A,n
     0x76: () => this.#halt(), // HLT
     0xc6: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADI n
   };
 
-  constructor(ram: Ram, initialState: Cpu8080Snapshot) {
+  constructor(ram: Ram, initialState: Omit<Cpu8080Snapshot, "bc" | "de" | "hl">) {
     if (ram.size !== 0x10000) {
       throw new RangeError("The 8080 model requires exactly 64 KiB of RAM.");
     }
@@ -130,7 +141,7 @@ export class Cpu8080 {
 
   /** Inspect a detached copy, readonly to TypeScript, without accessing RAM. */
   snapshot(): Cpu8080Snapshot {
-    return copyState(this.#state);
+    return { ...copyState(this.#state), bc: this.#bc, de: this.#de, hl: this.#hl };
   }
 
   /** Reset PC and control latches, preserving data registers, SP, flags, and RAM. */
@@ -190,6 +201,33 @@ export class Cpu8080 {
     return handler
       ? { ...record, outcome: this.#state.halted ? "halted" : "executed" }
       : { ...record, outcome: "unsupported", reason: "opcode" };
+  }
+
+  get #bc(): number {
+    return (this.#state.b << 8) | this.#state.c;
+  }
+
+  set #bc(value: number) {
+    this.#state.b = value >>> 8;
+    this.#state.c = value & 0xff;
+  }
+
+  get #de(): number {
+    return (this.#state.d << 8) | this.#state.e;
+  }
+
+  set #de(value: number) {
+    this.#state.d = value >>> 8;
+    this.#state.e = value & 0xff;
+  }
+
+  get #hl(): number {
+    return (this.#state.h << 8) | this.#state.l;
+  }
+
+  set #hl(value: number) {
+    this.#state.h = value >>> 8;
+    this.#state.l = value & 0xff;
   }
 
   #loadAccumulator(value: number): void {
