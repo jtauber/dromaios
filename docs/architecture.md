@@ -3,6 +3,10 @@
 This is a starting vocabulary and proposed layout. Interfaces and implementation
 details will be worked out through the first small examples.
 
+The first examples use the **8080, 6502, and 6809**, in that order. Their
+differences will inform the shared interfaces; see the
+[CPU roadmap](cpu-roadmap.md) for the selection rationale and scope.
+
 ## The pieces
 
 **Components** model CPUs, memory, and devices. Each owns its relevant state and
@@ -36,7 +40,7 @@ the same underlying models as a complete machine.
 
 ## Proposed repository layout
 
-Only the three documentation files exist initially. The other paths show where
+Only documentation files exist currently. The other paths show where
 code and content could go as we introduce them; their names can change with
 experience. No package or framework boundaries are implied by this tree.
 
@@ -45,7 +49,8 @@ dromaios/
 ├── README.md
 ├── ROADMAP.md
 ├── docs/
-│   └── architecture.md
+│   ├── architecture.md
+│   └── cpu-roadmap.md
 ├── src/
 │   ├── components/
 │   │   ├── cpus/          CPU models, grouped by architecture
@@ -67,15 +72,38 @@ machine that uses it. Machine wiring belongs with the composition. Presentation
 belongs with the UI; explanations belong with the relevant lesson or docs.
 We will give specialist instruments a home when we introduce the first one.
 
-## First design discussion
+## Generalization through three CPUs
 
-The first slice needs a CPU, RAM, and a tiny program. Before coding it, decide:
+Begin with the smallest useful 8080 implementation. Add equivalent 6502 and
+6809 examples, then exercise the differences that a shared interface must
+represent: register widths and aliases, stack conventions, addressing modes,
+and distinct memory or I/O accesses.
 
-1. Which CPU and instructions best serve the first lesson?
+Shared CPU and inspection interfaces remain provisional until these three
+cases provide evidence for them. RAM and straightforward helpers can be shared
+as soon as useful. The rule of three does not require every operation to have
+a common implementation or every helper to have three users. Decoding, flags,
+addressing, and timing can retain the structure that explains each CPU best.
+
+Three examples are a review point, not a claim of universality. Later CPU
+models, variants, and machine compositions can still require revisions.
+
+## First example specification
+
+The first slice needs an 8080, RAM, and a tiny program. Before coding it, decide:
+
+1. Which instructions and program demonstrate the first lesson, and what is
+   the expected state after each instruction?
 2. How does the CPU access memory, and which object owns each piece of state?
 3. What does one step mean, and what execution information does it return?
-4. How are initial state and reset defined for this example?
+4. How are initial state, CPU reset, and restarting the lesson defined?
 5. How do we inspect state and accesses without changing execution?
+6. What happens on an unsupported instruction, and how is it reported?
+
+Execution records should describe the accesses that occurred while stepping.
+Re-reading memory or devices afterward cannot reliably reconstruct them. The
+record must make its granularity clear; an instruction-level model does not
+automatically provide a complete cycle-by-cycle bus trace.
 
 The first checks should use small programs with explicit expected behavior.
 Existing emulator implementations can help identify cases to examine; their
@@ -87,4 +115,5 @@ being treated as correctness references.
 Worker placement, performance optimizations, cycle-level bus simulation,
 save states, reverse execution, a public plugin API, and a declarative machine
 file format can be considered when a concrete example justifies them. Language,
-tooling, and the first CPU remain choices for the next design discussion.
+tooling, and the exact first program remain choices for the next design
+discussion.

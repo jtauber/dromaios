@@ -2,7 +2,7 @@
 
 An in-browser emulation platform for exploring how computers work.
 
-The new platform will use `jtauber/dromaios` on GitHub.
+The platform lives at [jtauber/dromaios](https://github.com/jtauber/dromaios).
 
 Dromaios brings together the existing Altair, TRS-80 Color Computer, Game Boy,
 Apple II, Macintosh, IBM PC, and microcomputer tutorial projects. Each machine
@@ -36,7 +36,8 @@ be small enough to understand before we build on it.
 - **Separate simulation from the browser interface.** The same models should
   support automated checks, interactive lessons, and a complete machine UI.
 - **Develop abstractions through concrete examples.** Start with a small working
-  case, then use a second case to test what is actually reusable.
+  case, then exercise three distinct CPUs before settling shared CPU and
+  inspection interfaces. Use a rule of three to judge generalizations.
 - **Explain the model's limits.** Teaching views should make clear what is
   simulated, simplified, or still missing.
 
@@ -49,17 +50,26 @@ steps so that understanding the implementation remains central to the process.
 
 ## Status
 
-Initial design sketch. There is no runnable application yet. The language,
-tooling, first CPU, and initial execution interface are still to be decided.
+Initial design. There is no runnable application yet. The first CPU is the
+Intel 8080, followed by small 6502 and 6809 examples to test our generalizations.
+The language, tooling, exact first program, and initial execution interface
+remain to be decided.
 
 The first implementation milestone is deliberately small: one CPU, a little
 RAM, a tiny program, and a way to step through it and see what changes.
+
+## License
+
+We have chosen the MIT license. The license file will be added alongside the
+first code; it has not been added yet.
 
 ## Repository guide
 
 - [ROADMAP.md](ROADMAP.md) describes the stages and review points.
 - [docs/architecture.md](docs/architecture.md) sketches the component boundaries
   and proposed source layout.
+- [docs/cpu-roadmap.md](docs/cpu-roadmap.md) records the intended CPU scope,
+  existing reference coverage, and the three-CPU approach to generalization.
 
 Source and test directories will be added as their first pieces are implemented.
 
@@ -75,7 +85,7 @@ inspection tools, and examples:
 | Game Boy and Game Boy Color | `dromaios-gameboy` |
 | Apple II | `dromaios-apple2` |
 | Macintosh 128K | `dromaios-mac` |
-| IBM PC XT, with AT work | `dromaios-pc` |
+| IBM PC XT, with an AT scaffold | `dromaios-pc` |
 | Microcomputer tutorial | `microcomputer-tutorial` |
 
 CPUjs and applepy are historical references only. The new platform's design
