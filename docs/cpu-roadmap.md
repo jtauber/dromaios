@@ -6,6 +6,9 @@ The [project roadmap](../ROADMAP.md) describes the implementation stages;
 
 ## Working decisions
 
+- Use **TypeScript** as the initial implementation language. Future DSLs for
+  CPU and component definitions remain a possible direction; see
+  [implementation language and future definition languages](architecture.md#implementation-language-and-future-definition-languages).
 - Start with the **Intel 8080**.
 - Introduce small **6502** and **6809** examples early, in that order, before
   settling shared CPU and inspection interfaces.
@@ -124,7 +127,7 @@ programmer-managed stack in RAM. See
 
 ## Next decisions
 
-Before the first code, specify the language and minimal test setup, exact 8080
+Before the first code, specify the minimal TypeScript test setup, exact 8080
 program and instruction subset, initial state, memory access, step results,
 CPU reset versus lesson restart, and unsupported-instruction behavior. Write
 explicit expected state changes for each instruction. The

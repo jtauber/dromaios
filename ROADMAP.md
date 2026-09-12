@@ -19,7 +19,8 @@ eventual targets, and current reference coverage.
 - Specify a tiny 8080 program and its expected state after each instruction.
   Loading a number, adding another, and storing the result is the initial
   candidate; the exact program is still to be decided.
-- Decide the initial language and minimal development/test setup.
+- Choose the minimal development/test setup for TypeScript, the selected
+  implementation language.
 - Sketch CPU–memory interaction, stepping, reset, visible state, and what
   happens when the CPU encounters an unsupported instruction.
 

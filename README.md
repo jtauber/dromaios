@@ -52,8 +52,8 @@ steps so that understanding the implementation remains central to the process.
 
 Initial design. There is no runnable application yet. The first CPU is the
 Intel 8080, followed by small 6502 and 6809 examples to test our generalizations.
-The language, tooling, exact first program, and initial execution interface
-remain to be decided.
+The implementation language is **TypeScript**. Tooling, the exact first program,
+and the initial execution interface remain to be decided.
 
 The first implementation milestone is deliberately small: one CPU, a little
 RAM, a tiny program, and a way to step through it and see what changes.

@@ -7,6 +7,28 @@ The first examples use the **8080, 6502, and 6809**, in that order. Their
 differences will inform the shared interfaces; see the
 [CPU roadmap](cpu-roadmap.md) for the selection rationale and scope.
 
+## Implementation language and future definition languages
+
+We will begin in **TypeScript**, including the CPU and other component models.
+Domain-specific languages (DSLs) for defining CPUs or other components remain
+a possible later direction.
+
+For example, definitions might describe registers and their relationships,
+instruction encodings and behavior, device registers, or component connections.
+Where useful, the same definitions could support execution, disassembly,
+inspection, and explanations. Expected behavior would still be checked
+independently against hardware documentation.
+
+The first forms could be typed data or helper functions within TypeScript.
+Custom syntax, interpretation, or code generation can follow when concrete
+examples demonstrate a benefit. Some behavior may remain ordinary TypeScript.
+
+The rule of three applies to these generalizations too. We will use the 8080,
+6502, and 6809 examples to discover useful common descriptions while preserving
+their hardware distinctions. Definitions for other component types should
+likewise develop through concrete examples. No DSL syntax or processing model
+is being chosen upfront.
+
 ## The pieces
 
 **Components** model CPUs, memory, and devices. Each owns its relevant state and
@@ -113,7 +135,7 @@ being treated as correctness references.
 ## Decisions to defer
 
 Worker placement, performance optimizations, cycle-level bus simulation,
-save states, reverse execution, a public plugin API, and a declarative machine
-file format can be considered when a concrete example justifies them. Language,
-tooling, and the exact first program remain choices for the next design
-discussion.
+save states, reverse execution, a public plugin API, and DSLs or declarative
+file formats for CPU, component, or machine definitions can be considered when
+concrete examples justify them. Tooling and the exact first program remain
+choices for the next design discussion.
