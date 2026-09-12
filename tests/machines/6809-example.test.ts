@@ -70,7 +70,47 @@ test("the partial 6809 lesson loads 2 and stops at the unsupported ADDA with exa
   checkExampleMemory(ram);
 });
 
-test("restarting the 6809 lesson restores its original state and memory with independent components", () => {
+test("6809 reset returns the partial lesson to its entry point and resumes with DP cleared", (t) => {
+  const { cpu, ram } = create6809Example();
+  assert.equal(cpu.step().outcome, "executed");
+  assert.equal(cpu.step().outcome, "unsupported");
+  const read = t.mock.method(ram, "read");
+  const write = t.mock.method(ram, "write");
+  const initial = expectedInitialState();
+  const before = { ...initial, a: 2, d: 0x0234, pc: 0x0202, flags: { ...initial.flags, v: false } };
+  const afterReset = { ...before, pc: 0x0200, dp: 0 };
+  assert.deepEqual(cpu.reset(), {
+    before,
+    after: afterReset,
+    accesses: [
+      { kind: "read", address: 0xfffe, value: 2 },
+      { kind: "read", address: 0xffff, value: 0 },
+    ],
+  });
+  assert.deepEqual(cpu.snapshot(), afterReset);
+  assert.deepEqual(read.mock.calls.map((call) => call.arguments), [[0xfffe], [0xffff]]);
+  assert.deepEqual(write.mock.calls, []);
+  read.mock.resetCalls();
+
+  const afterLoad = { ...afterReset, pc: 0x0202 };
+  assert.deepEqual(cpu.step(), {
+    instruction: { address: 0x0200, bytes: [0x86, 2] },
+    before: afterReset,
+    after: afterLoad,
+    accesses: [
+      { kind: "read", address: 0x0200, value: 0x86 },
+      { kind: "read", address: 0x0201, value: 2 },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(cpu.snapshot(), afterLoad);
+  assert.deepEqual(read.mock.calls.map((call) => call.arguments), [[0x0200], [0x0201]]);
+  assert.deepEqual(write.mock.calls, []);
+  t.mock.restoreAll();
+  checkExampleMemory(ram);
+});
+
+test("6809 reset preserves lesson data while restart restores the original state and image", () => {
   const first = create6809Example();
   const loaded = first.cpu.step();
   const rejected = first.cpu.step();
@@ -86,6 +126,18 @@ test("restarting the 6809 lesson restores its original state and memory with ind
   first.ram.write(0xfffe, 0xff);
   first.ram.write(0xffff, 0xff);
   const savedMemory = Array.from({ length: first.ram.size }, (_, address) => first.ram.read(address));
+  const reset = first.cpu.reset();
+  const savedReset = structuredClone(reset);
+  const afterReset = { ...changedState, pc: 0xffff, dp: 0 };
+  assert.deepEqual(reset, {
+    before: changedState,
+    after: afterReset,
+    accesses: [
+      { kind: "read", address: 0xfffe, value: 0xff },
+      { kind: "read", address: 0xffff, value: 0xff },
+    ],
+  });
+  assert.deepEqual(first.cpu.snapshot(), afterReset);
 
   const restarted = create6809Example();
   assert.notEqual(restarted.cpu, first.cpu);
@@ -95,10 +147,11 @@ test("restarting the 6809 lesson restores its original state and memory with ind
   checkExampleMemory(restarted.ram);
   assert.deepEqual(restarted.cpu.step(), savedLoaded);
   restarted.ram.write(0x0080, 9);
-  assert.deepEqual(first.cpu.snapshot(), changedState);
+  assert.deepEqual(first.cpu.snapshot(), afterReset);
   for (const [address, value] of savedMemory.entries()) {
     assert.equal(first.ram.read(address), value, `original memory at ${address}`);
   }
   assert.deepEqual(loaded, savedLoaded);
   assert.deepEqual(rejected, savedRejected);
+  assert.deepEqual(reset, savedReset);
 });

@@ -49,6 +49,12 @@ export type Cpu6809StepRecord = {
   | { readonly outcome: "unsupported"; readonly reason: "opcode" }
 );
 
+export interface Cpu6809ResetRecord {
+  readonly before: Cpu6809Snapshot;
+  readonly after: Cpu6809Snapshot;
+  readonly accesses: readonly Cpu6809MemoryAccess[];
+}
+
 interface InstructionContext {
   readonly fetchByte: () => number;
 }
@@ -112,6 +118,19 @@ export class Cpu6809 {
   snapshot(): Cpu6809Snapshot {
     const state = copyState(this.#state);
     return { ...state, d: (state.a << 8) | state.b };
+  }
+
+  /** Reset PC, DP, F, and I with only the vector reads; preserve other state and RAM. */
+  reset(): Cpu6809ResetRecord {
+    const before = this.snapshot();
+    const accesses: Cpu6809MemoryAccess[] = [];
+    const high = this.#read(0xfffe, accesses);
+    const low = this.#read(0xffff, accesses);
+    this.#state.pc = (high << 8) | low;
+    this.#state.dp = 0;
+    this.#state.flags.f = true;
+    this.#state.flags.i = true;
+    return { before, after: this.snapshot(), accesses };
   }
 
   /** Attempt one instruction; unsupported bytes (including prefixes) leave state unchanged. */

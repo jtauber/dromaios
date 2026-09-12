@@ -1,6 +1,6 @@
 # Third example: the same calculation on a 6809
 
-**Status: state, snapshots, lesson setup, and LDA immediate are implemented and tested.**
+**Status: the 6809 example is partially implemented and tested.**
 This defines the third small example after the completed
 [8080](first-example.md) and [6502](6502-example.md) examples. It loads 2,
 adds 3, and stores 5. The CPU-specific interfaces remain provisional while
@@ -14,19 +14,27 @@ detached snapshots with D derived from A/B, and instruction records.
 Every other opcode remains unsupported, including `10` and `11`: one read,
 unchanged state, and no second-byte fetch.
 
+CPU reset returns a separate record of its snapshots and two vector reads.
+It loads PC high byte first, clears DP, and sets F/I, preserving other modeled
+state and RAM, including A/B/D and both stack pointers. Lesson restart creates
+fresh state and memory.
+
 The [example factory](../src/machines/6809-example.ts) loads the full program
 and reset vector and supplies the initial state. The lesson currently reaches
 A = `02`, D = `0234`, and PC = `0202`, then stops at the unsupported ADDA.
-RAM remains unchanged. Reset and its record come next, followed by ADDA
-immediate, then STA extended and the complete lesson. The sections below
+RAM remains unchanged. ADDA immediate comes next, followed by STA extended
+and the complete lesson. The sections below
 retain the reviewed specification for that full subset.
 
 [CPU tests](../tests/components/cpus/6809.test.ts) cover validation, ownership,
 D, flag effects, observed accesses, PC wrapping, and every unsupported byte.
+Reset checks cover preservation, repeated calls, changed vectors, and resumed
+execution at targets including `FFFF`.
 [Fixture tests](../tests/machines/6809-example.test.ts) check the entire image,
-the exact partial-lesson records, and independent restarts.
+the exact partial-lesson records, and CPU reset versus lesson restart.
 [Type checks](../tests/types/6809.ts) cover initialization without separate D,
-readonly snapshots and records, and the outcome/reason relationship.
+readonly snapshots and records, the outcome/reason relationship, and reset
+records being distinct from instruction attempts.
 
 ## Model boundary
 
@@ -249,7 +257,7 @@ operand or access the direct page. Completion belongs solely to the caller.
 
 ## CPU reset and lesson restart
 
-`reset()` will return a separate `Cpu6809ResetRecord` with readonly `before`,
+`reset()` returns a separate `Cpu6809ResetRecord` with readonly `before`,
 `after`, and `accesses` using the same snapshot/access types and detached
 ownership as step records. It has no instruction, outcome, or reason fields.
 

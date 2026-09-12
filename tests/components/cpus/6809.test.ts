@@ -316,6 +316,151 @@ test("6809 records retain fetched bytes and independent snapshots across RAM edi
   assert.deepEqual(cpu.snapshot(), savedSecond.after);
 });
 
+test("6809 reset changes only PC, DP, F, and I and reads the vector high byte first", () => {
+  const preservedFlags = [
+    { e: false, h: false, n: false, z: false, v: false, c: false },
+    { e: true, h: true, n: true, z: true, v: true, c: true },
+    { e: true, h: false, n: true, z: false, v: true, c: false },
+    { e: false, h: true, n: false, z: true, v: false, c: true },
+  ];
+  for (const preserved of preservedFlags) {
+    for (const f of [false, true]) {
+      for (const i of [false, true]) {
+        const ram = new ObservedRam();
+        ram.write(0xfffe, 0x34);
+        ram.write(0xffff, 0x56);
+        ram.write(0x3456, 0x86);
+        ram.accesses.length = 0;
+        const before = { ...initialState({ flags: { ...preserved, f, i } }), d: 0x1134 };
+        const cpu = new Cpu6809(ram, before);
+        const after = { ...before, pc: 0x3456, dp: 0, flags: { ...preserved, f: true, i: true } };
+        const accesses = [
+          { kind: "read", address: 0xfffe, value: 0x34 },
+          { kind: "read", address: 0xffff, value: 0x56 },
+        ];
+        assert.deepEqual(cpu.reset(), { before, after, accesses });
+        assert.deepEqual(cpu.snapshot(), after);
+        assert.deepEqual(ram.accesses, accesses);
+      }
+    }
+  }
+});
+
+test("6809 reset rereads changed vectors, preserves both stack pointers on repeated calls, and resumes execution", () => {
+  const ram = new ObservedRam();
+  ram.write(0x1234, 0x10);
+  let before = { ...initialState({ s: 0, u: 0xffff }), d: 0x1134 };
+  const cpu = new Cpu6809(ram, before);
+  const rejected = cpu.step();
+  const savedRejected = structuredClone(rejected);
+  assert.equal(rejected.outcome, "unsupported");
+  assert.deepEqual(cpu.snapshot(), before);
+
+  const targets = [
+    { high: 0, low: 0, pc: 0, operandAddress: 1, nextPc: 2, value: 2, n: false, z: false },
+    { high: 0x34, low: 0x56, pc: 0x3456, operandAddress: 0x3457, nextPc: 0x3458,
+      value: 0, n: false, z: true },
+    { high: 0xff, low: 0xff, pc: 0xffff, operandAddress: 0, nextPc: 1, value: 0x80, n: true, z: false },
+  ];
+  for (const { high, low, pc, operandAddress, nextPc, value, n, z } of targets) {
+    ram.write(0xfffe, high);
+    ram.write(0xffff, low);
+    ram.accesses.length = 0;
+    const afterReset = { ...before, pc, dp: 0, flags: { ...before.flags, f: true, i: true } };
+    const accesses = [
+      { kind: "read", address: 0xfffe, value: high },
+      { kind: "read", address: 0xffff, value: low },
+    ];
+    for (let attempt = 0; attempt < 2; attempt++) {
+      assert.deepEqual(cpu.reset(), { before, after: afterReset, accesses });
+      assert.deepEqual(cpu.snapshot(), afterReset);
+      assert.deepEqual(ram.accesses, accesses);
+      ram.accesses.length = 0;
+      before = afterReset;
+    }
+
+    // Install the instruction after reset; FFFF is also the low vector byte.
+    ram.write(pc, 0x86);
+    ram.write(operandAddress, value);
+    ram.accesses.length = 0;
+    const afterLoad = {
+      ...afterReset, a: value, d: value * 256 + 0x34, pc: nextPc,
+      flags: { ...afterReset.flags, n, z, v: false },
+    };
+    const step = cpu.step();
+    assert.deepEqual(step, {
+      instruction: { address: pc, bytes: [0x86, value] },
+      before: afterReset,
+      after: afterLoad,
+      accesses: [
+        { kind: "read", address: pc, value: 0x86 },
+        { kind: "read", address: operandAddress, value },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), afterLoad);
+    assert.deepEqual(ram.accesses, step.accesses);
+    before = afterLoad;
+  }
+  assert.deepEqual(rejected, savedRejected);
+});
+
+test("6809 reset records stay independent of execution, later resets, RAM edits, and caller edits", () => {
+  const ram = new ObservedRam();
+  ram.write(0x1234, 0x86);
+  ram.write(0x1235, 2);
+  ram.write(0x3456, 0x86);
+  ram.write(0x3457, 0x80);
+  ram.write(0xfffe, 0x34);
+  ram.write(0xffff, 0x56);
+  const cpu = new Cpu6809(ram, initialState());
+  const earlierStep = cpu.step();
+  const savedEarlierStep = structuredClone(earlierStep);
+  const first = cpu.reset();
+  const savedFirst = structuredClone(first);
+  assert.deepEqual(first.before, earlierStep.after);
+  assert.equal(first.before.d, 0x0234);
+  assert.equal(first.after.d, 0x0234);
+
+  const step = cpu.step();
+  const savedStep = structuredClone(step);
+  assert.deepEqual(step.before, first.after);
+  assert.equal(step.after.a, 0x80);
+  assert.equal(step.after.d, 0x8034);
+  ram.write(0x3457, 0xff);
+  ram.write(0xfffe, 0);
+  ram.write(0xffff, 0);
+  const second = cpu.reset();
+  const savedSecond = structuredClone(second);
+  assert.deepEqual(second, {
+    before: savedStep.after,
+    after: { ...savedStep.after, pc: 0 },
+    accesses: [
+      { kind: "read", address: 0xfffe, value: 0 },
+      { kind: "read", address: 0xffff, value: 0 },
+    ],
+  });
+  assert.deepEqual(first, savedFirst);
+  assert.deepEqual(earlierStep, savedEarlierStep);
+  assert.deepEqual(step, savedStep);
+
+  Reflect.set(first.before, "a", 0xff);
+  Reflect.set(first.before, "d", 0xffff);
+  Reflect.set(first.before.flags, "e", false);
+  assert.deepEqual(first.after, savedFirst.after);
+  Reflect.set(first.after, "b", 0xff);
+  Reflect.set(first.after, "d", 0xffff);
+  Reflect.set(first.after.flags, "f", false);
+  assert.ok(first.accesses[0]);
+  Reflect.set(first.accesses[0], "value", 0xff);
+  Reflect.set(first.accesses, "length", 0);
+  Reflect.set(cpu.snapshot().flags, "i", false);
+  assert.deepEqual(earlierStep, savedEarlierStep);
+  assert.deepEqual(step, savedStep);
+  assert.deepEqual(second, savedSecond);
+  assert.deepEqual(cpu.snapshot(), savedSecond.after);
+});
+
 test("6809 requires exactly 64 KiB of RAM without reading or writing it", () => {
   for (const size of [1, 0xffff, 0x10001]) {
     const ram = new ObservedRam(size);
