@@ -78,10 +78,16 @@ npm test
 ```
 
 `npm ci` installs the locked development dependencies. `npm test` cleans the
-generated `dist/` directory, type-checks and compiles the source and tests, and
-runs the compiled tests. `npm run build` performs just the clean build.
+generated `dist/` directory, checks the simulation without Node or browser
+ambient types, compiles the source and tests, and runs the compiled tests.
+`npm run build` performs the same checks and compilation without running tests.
+`npm run check:src` runs just the simulation check, using
+[tsconfig.src.json](tsconfig.src.json), without emitting files.
 Generated output and `node_modules/` are ignored by Git. There are no runtime
 dependencies, and the simulation source uses no Node or browser APIs.
+
+The [GitHub Actions workflow](.github/workflows/ci.yml) runs `npm ci` and
+`npm test` on pushes and pull requests, using the Node version in `.nvmrc`.
 
 Source imports use `.js` extensions so they resolve in the compiled ES modules.
 Tests live under `tests/` and state expected behavior independently of the code

@@ -1,32 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu6502 } from "../../../src/components/cpus/6502.js";
-import type {
-  Cpu6502Flags,
-  Cpu6502MemoryAccess,
-  Cpu6502State,
-} from "../../../src/components/cpus/6502.js";
+import type { Cpu6502Flags, Cpu6502State } from "../../../src/components/cpus/6502.js";
 import { Ram } from "../../../src/components/memory/ram.js";
-
-// Observe real RAM calls independently of the CPU's own records.
-class ObservedRam extends Ram {
-  readonly accesses: Cpu6502MemoryAccess[] = [];
-
-  constructor(size = 0x10000) {
-    super(size);
-  }
-
-  override read(address: number): number {
-    const value = super.read(address);
-    this.accesses.push({ kind: "read", address, value });
-    return value;
-  }
-
-  override write(address: number, value: number): void {
-    super.write(address, value);
-    this.accesses.push({ kind: "write", address, value });
-  }
-}
+import { ObservedRam } from "../../helpers/observed-ram.js";
 
 function initialState(overrides: Partial<Cpu6502State> = {}): Cpu6502State {
   return {

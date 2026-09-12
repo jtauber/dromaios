@@ -1,4 +1,5 @@
 import type { Ram } from "../memory/ram.js";
+import { checkUnsigned } from "../validation.js";
 
 export interface Cpu6502Flags {
   n: boolean;
@@ -68,12 +69,6 @@ function copyState(state: Cpu6502Snapshot): Cpu6502State {
     pc: state.pc,
     flags: { n: flags.n, v: flags.v, d: flags.d, i: flags.i, z: flags.z, c: flags.c },
   };
-}
-
-function checkUnsigned(name: string, value: number, maximum: number): void {
-  if (!Number.isInteger(value) || value < 0 || value > maximum) {
-    throw new RangeError(`${name} must be an integer from 0 to ${maximum}.`);
-  }
 }
 
 /** Instruction-level NMOS 6502 subset for the first 6502 example. */

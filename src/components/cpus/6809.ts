@@ -1,4 +1,5 @@
 import type { Ram } from "../memory/ram.js";
+import { checkUnsigned } from "../validation.js";
 
 export interface Cpu6809Flags {
   e: boolean;
@@ -80,12 +81,6 @@ function copyState(state: Omit<Cpu6809Snapshot, "d">): Cpu6809State {
       n: flags.n, z: flags.z, v: flags.v, c: flags.c,
     },
   };
-}
-
-function checkUnsigned(name: string, value: number, maximum: number): void {
-  if (!Number.isInteger(value) || value < 0 || value > maximum) {
-    throw new RangeError(`${name} must be an integer from 0 to ${maximum}.`);
-  }
 }
 
 /** Instruction-level MC6809 subset for the first 6809 example. */

@@ -1,32 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu8080 } from "../../../src/components/cpus/8080.js";
-import type {
-  Cpu8080Flags,
-  Cpu8080MemoryAccess,
-  Cpu8080State,
-} from "../../../src/components/cpus/8080.js";
+import type { Cpu8080Flags, Cpu8080State } from "../../../src/components/cpus/8080.js";
 import { Ram } from "../../../src/components/memory/ram.js";
-
-// Observe real RAM calls independently of the CPU's own records.
-class ObservedRam extends Ram {
-  readonly accesses: Cpu8080MemoryAccess[] = [];
-
-  constructor() {
-    super(0x10000);
-  }
-
-  override read(address: number): number {
-    const value = super.read(address);
-    this.accesses.push({ kind: "read", address, value });
-    return value;
-  }
-
-  override write(address: number, value: number): void {
-    super.write(address, value);
-    this.accesses.push({ kind: "write", address, value });
-  }
-}
+import { ObservedRam } from "../../helpers/observed-ram.js";
 
 function initialState(overrides: Partial<Cpu8080State> = {}): Cpu8080State {
   return {

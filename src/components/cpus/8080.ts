@@ -1,4 +1,5 @@
 import type { Ram } from "../memory/ram.js";
+import { checkUnsigned } from "../validation.js";
 
 export interface Cpu8080Flags {
   s: boolean;
@@ -83,12 +84,6 @@ function copyState(state: Cpu8080Snapshot): Cpu8080State {
     interruptEnabled: state.interruptEnabled,
     halted: state.halted,
   };
-}
-
-function checkUnsigned(name: string, value: number, maximum: number): void {
-  if (!Number.isInteger(value) || value < 0 || value > maximum) {
-    throw new RangeError(`${name} must be an integer from 0 to ${maximum}.`);
-  }
 }
 
 function hasEvenParity(byte: number): boolean {
