@@ -128,7 +128,8 @@ programmer-managed stack in RAM. See
 
 The [8080 example](first-example.md) and [6502 example](6502-example.md) are
 complete; their specifications record detailed coverage and acceptance checks.
-The next step is to specify the equivalent 6809 example. The
+The reviewed [6809 specification](6809-example.md) defines the equivalent third
+example and records the CoCo reference review. It guides implementation next. The
 [specification questions](architecture.md#example-specifications) guide review
 of each implementation change.
 

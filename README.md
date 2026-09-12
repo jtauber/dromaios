@@ -105,6 +105,8 @@ Released under the [MIT license](LICENSE).
   tracks its implementation progress.
 - [docs/6502-reference-notes.md](docs/6502-reference-notes.md) records ideas from
   applepy and dromaios-apple2 and when to revisit them.
+- [docs/6809-example.md](docs/6809-example.md) specifies the third example and
+  records findings from the existing CoCo implementation.
 - [src/components/memory/ram.ts](src/components/memory/ram.ts) owns byte storage
   and validates reads and writes.
 - [src/components/cpus/](src/components/cpus/) contains the 8080 and 6502 models,
