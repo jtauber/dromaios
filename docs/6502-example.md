@@ -1,9 +1,32 @@
 # Second example: the same calculation on a 6502
 
-**Status: specification reviewed; no 6502 implementation yet.** This
-example loads 2, adds 3, and stores 5, providing a second architecture against
-which to examine the [8080 example](first-example.md). The proposed interfaces
-below are specific to the 6502 and remain provisional through the 6809 example.
+**Status: CPU state, snapshots, LDA immediate, and the example fixture implemented
+and tested.** The complete example will load 2, add 3, and
+store 5, providing a second architecture against which to examine the
+[8080 example](first-example.md). The interfaces below are specific to the
+6502 and remain provisional through the 6809 example.
+
+## Implementation progress
+
+The [CPU](../src/components/cpus/6502.ts) provides explicit validated state,
+detached snapshots, and instruction records. `LDA #n` updates A, N, Z, and PC
+and preserves all other state, including D. The
+[example factory](../src/machines/6502-example.ts) loads the full program and
+reset vector, supplies the initial state, and returns the completion address.
+
+CLC, reset, ADC, and STA remain to be implemented in that order. Every opcode
+except `A9` currently returns `unsupported` with reason `opcode`, including
+ADC with either D value. The `decimal-mode` reason in the record type will be
+used when binary ADC is added. The lesson currently stops at its opening CLC;
+LDA tests start directly at `0201`. The complete execution and reset behavior
+below remain the specification for later changes.
+
+[CPU tests](../tests/components/cpus/6502.test.ts) cover flags, actual accesses,
+PC wrapping, all unsupported opcodes, input validation, and ownership.
+[Fixture tests](../tests/machines/6502-example.test.ts) check the entire memory
+image, initial state, LDA at `0201`, and independent restarts.
+[Type checks](../tests/types/6502.ts) cover readonly records and snapshots,
+non-null instructions, and the outcome/reason relationship.
 
 ## Model boundary
 

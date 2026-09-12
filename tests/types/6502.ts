@@ -1,0 +1,78 @@
+import type { Cpu6502, Cpu6502StepRecord } from "../../src/components/cpus/6502.js";
+
+// Compiled by npm test; never called. Each expected error guards the public API.
+export function checkPublicTypes(cpu: Cpu6502, record: Cpu6502StepRecord): void {
+  const snapshot = cpu.snapshot();
+  // @ts-expect-error Snapshot registers are readonly.
+  snapshot.a = 1;
+  // @ts-expect-error The snapshot's flags object cannot be replaced.
+  snapshot.flags = { n: false, v: false, d: false, i: true, z: false, c: true };
+  // @ts-expect-error Nested snapshot flags are readonly too.
+  snapshot.flags.c = true;
+  // @ts-expect-error The 6502 has no synthetic halt state.
+  snapshot.halted;
+
+  // @ts-expect-error Record fields are readonly.
+  record.outcome = "executed";
+  // @ts-expect-error The instruction cannot be replaced.
+  record.instruction = { address: 0, bytes: [0xa9, 2] };
+  // @ts-expect-error The before snapshot cannot be replaced.
+  record.before = snapshot;
+  // @ts-expect-error Registers in the before snapshot are readonly.
+  record.before.pc = 0;
+  // @ts-expect-error Flags in the after snapshot are readonly.
+  record.after.flags.z = true;
+  // @ts-expect-error Access arrays cannot be replaced.
+  record.accesses = [];
+  // @ts-expect-error Access arrays are readonly.
+  record.accesses.push({ kind: "read", address: 0, value: 0 });
+  if (record.accesses[0]) {
+    // @ts-expect-error Access entries are readonly too.
+    record.accesses[0].value = 0;
+  }
+
+  // @ts-expect-error Instruction addresses are readonly.
+  record.instruction.address = 0;
+  // @ts-expect-error Instruction bytes cannot be replaced.
+  record.instruction.bytes = [];
+  // @ts-expect-error Instruction byte arrays are readonly.
+  record.instruction.bytes.push(0);
+  // @ts-expect-error Individual instruction bytes are readonly.
+  record.instruction.bytes[0] = 0;
+}
+
+export function checkOutcomes(record: Cpu6502StepRecord): readonly number[] {
+  switch (record.outcome) {
+    case "executed":
+      // @ts-expect-error Executed records have no unsupported reason.
+      record.reason;
+      return record.instruction.bytes;
+    case "unsupported": {
+      const reason: "opcode" | "decimal-mode" = record.reason;
+      // @ts-expect-error Unsupported reasons are readonly.
+      record.reason = reason;
+      return record.instruction.bytes;
+    }
+  }
+}
+
+export function checkRecordConstruction(cpu: Cpu6502): readonly Cpu6502StepRecord[] {
+  const common = {
+    before: cpu.snapshot(), after: cpu.snapshot(), accesses: [],
+    instruction: { address: 0, bytes: [0xa9, 2] },
+  };
+  // @ts-expect-error Every attempted instruction carries an instruction record.
+  const invalidExecuted: Cpu6502StepRecord = { ...common, outcome: "executed", instruction: null };
+  // @ts-expect-error Unsupported records must carry a reason.
+  const missingReason: Cpu6502StepRecord = { ...common, outcome: "unsupported" };
+  // @ts-expect-error Executed records have no unsupported reason.
+  const extraReason: Cpu6502StepRecord = { ...common, outcome: "executed", reason: "opcode" };
+  // @ts-expect-error The CPU does not report lesson completion or a halt outcome.
+  const invalidOutcome: Cpu6502StepRecord = { ...common, outcome: "halted" };
+
+  return [
+    { ...common, outcome: "executed" },
+    { ...common, outcome: "unsupported", reason: "opcode" },
+    { ...common, outcome: "unsupported", reason: "decimal-mode" },
+  ];
+}
