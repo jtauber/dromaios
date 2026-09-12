@@ -57,6 +57,8 @@ export interface Cpu6809ResetRecord {
 
 interface InstructionContext {
   readonly fetchByte: () => number;
+  readonly fetchWord: () => number;
+  readonly writeByte: (address: number, value: number) => void;
 }
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
@@ -93,6 +95,12 @@ export class Cpu6809 {
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
     0x86: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
     0x8b: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADDA #n
+    0xb7: ({ fetchWord, writeByte }) => { // STA addr (extended)
+      const address = fetchWord();
+      const value = this.#state.a;
+      writeByte(address, value);
+      this.#setLoadStoreFlags(value);
+    },
   };
 
   constructor(ram: Ram, initialState: Omit<Cpu6809Snapshot, "d">) {
@@ -145,14 +153,21 @@ export class Cpu6809 {
     if (handler) {
       // Advance only for supported instructions; operand fetches advance themselves.
       this.#state.pc = (address + 1) & 0xffff;
+      const fetchByte = (): number => {
+        const pc = this.#state.pc;
+        const byte = this.#read(pc, accesses);
+        this.#state.pc = (pc + 1) & 0xffff;
+        bytes.push(byte);
+        return byte;
+      };
       handler({
-        fetchByte: () => {
-          const pc = this.#state.pc;
-          const byte = this.#read(pc, accesses);
-          this.#state.pc = (pc + 1) & 0xffff;
-          bytes.push(byte);
-          return byte;
+        fetchByte,
+        fetchWord: () => {
+          const high = fetchByte();
+          const low = fetchByte();
+          return (high << 8) | low;
         },
+        writeByte: (address, value) => this.#write(address, value, accesses),
       });
     }
 
@@ -169,6 +184,10 @@ export class Cpu6809 {
 
   #loadAccumulator(value: number): void {
     this.#state.a = value;
+    this.#setLoadStoreFlags(value);
+  }
+
+  #setLoadStoreFlags(value: number): void {
     this.#state.flags.n = (value & 0x80) !== 0;
     this.#state.flags.z = value === 0;
     this.#state.flags.v = false;
@@ -189,5 +208,10 @@ export class Cpu6809 {
     const value = this.#ram.read(address);
     accesses.push({ kind: "read", address, value });
     return value;
+  }
+
+  #write(address: number, value: number, accesses: Cpu6809MemoryAccess[]): void {
+    this.#ram.write(address, value);
+    accesses.push({ kind: "write", address, value });
   }
 }

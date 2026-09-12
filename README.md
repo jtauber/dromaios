@@ -53,11 +53,11 @@ agents follow this rule in [AGENTS.md](AGENTS.md).
 
 ## Status
 
-The [first 8080 example](docs/first-example.md) and
-[6502 example](docs/6502-example.md) are complete. A 6809 example comes next,
-before we settle shared CPU and inspection interfaces. The examples run and are
-tested independently of the browser. Each example's specification tracks
-instruction coverage and detailed implementation progress.
+The introductory [8080](docs/first-example.md), [6502](docs/6502-example.md),
+and [6809](docs/6809-example.md) examples are complete and tested independently
+of the browser. Next, focused examples will exercise register relationships,
+stacks, addressing, and I/O before we settle shared CPU and inspection
+interfaces. Each example's specification tracks detailed coverage and progress.
 
 The implementation uses **TypeScript**, compiled to JavaScript ES modules,
 with **Node.js 24 LTS** and its built-in test runner for development.

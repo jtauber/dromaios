@@ -59,8 +59,10 @@ Detailed implementation progress and acceptance checks live in the
 documented limits. Proposed generalizations have been exercised against their
 architectural differences, beyond simply running the same arithmetic example.
 
-The [6502 example](docs/6502-example.md) is complete, with detailed coverage and
-acceptance checks in its specification. The 6809 example comes next.
+The introductory [8080](docs/first-example.md), [6502](docs/6502-example.md),
+and [6809](docs/6809-example.md) examples are complete. Their specifications
+record detailed coverage and acceptance checks. Focused examples and comparison
+of the three models are next within this stage.
 
 ## 3. Make the examples explorable in the browser
 

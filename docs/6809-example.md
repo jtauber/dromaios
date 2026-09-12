@@ -1,6 +1,6 @@
 # Third example: the same calculation on a 6809
 
-**Status: the 6809 example is partially implemented and tested.**
+**Status: the first 6809 example is implemented and tested.**
 This defines the third small example after the completed
 [8080](first-example.md) and [6502](6502-example.md) examples. It loads 2,
 adds 3, and stores 5. The CPU-specific interfaces remain provisional while
@@ -13,7 +13,9 @@ detached snapshots with D derived from A/B, and instruction records.
 `LDA #n` replaces A/N/Z, clears V, and preserves all other state except PC.
 `ADDA #n` adds the operand to A without incoming carry and replaces H/N/Z/V/C,
 preserving B, DP, X, Y, S, U, E, F, and I. D reflects the new A after either
-instruction.
+instruction. `STA addr` fetches the high/low address bytes and writes A once,
+independently of DP. It replaces N/Z from A and clears V while preserving
+all registers except PC and all other flags. LDA and STA share a flag helper.
 Every other opcode remains unsupported, including `10` and `11`: one read,
 unchanged state, and no second-byte fetch.
 
@@ -23,19 +25,23 @@ state and RAM, including A/B/D and both stack pointers. Lesson restart creates
 fresh state and memory.
 
 The [example factory](../src/machines/6809-example.ts) loads the full program
-and reset vector and supplies the initial state. The lesson currently reaches
-A = `05`, D = `0534`, and PC = `0204`, then stops at the unsupported STA.
-RAM remains unchanged. STA extended comes next to complete the lesson.
-The sections below retain the reviewed specification for that full subset.
+and reset vector and supplies the initial state. The complete lesson stores
+`05` at `0080`, with A = `05` and D = `0534`. Its caller stops at PC = `0207`
+without another fetch. RAM otherwise remains unchanged, including `1280`
+despite the initial DP value of `12`. A direct step at the completion address
+attempts unsupported opcode `00`.
 
 [CPU tests](../tests/components/cpus/6809.test.ts) cover validation, ownership,
 D, flag effects, observed accesses, PC wrapping, and every unsupported byte.
 ADDA is checked for all 65,536 accumulator/operand pairs with both incoming
 carry values and old H/N/Z/V both clear and set.
+STA checks cover high/low address decoding, unchanged-value writes, flag
+effects, and stores that overwrite their own opcode or operands.
 Reset checks cover preservation, repeated calls, changed vectors, and resumed
 execution at targets including `FFFF`.
 [Fixture tests](../tests/machines/6809-example.test.ts) check the entire image,
-the exact partial-lesson records, and CPU reset versus lesson restart.
+all three exact lesson records, caller completion, direct stepping at the
+endpoint, and CPU reset versus lesson restart.
 [Type checks](../tests/types/6809.ts) cover initialization without separate D,
 readonly snapshots and records, the outcome/reason relationship, and reset
 records being distinct from instruction attempts.
@@ -293,9 +299,9 @@ Restarting through `create6809Example()` restores the full initial state,
 including DP `12`, H/V/C true, A `00`, and D `0034`, plus the original program,
 vector, and zero result byte. It does not apply an additional CPU reset.
 
-## Acceptance checks and implementation order
+## Acceptance checks
 
-The eventual tests should cover:
+The tests cover:
 
 1. Constructor validation of every field and RAM size, with no memory accesses;
    copying declared fields only; fresh independent factory calls and the entire
@@ -328,14 +334,9 @@ The eventual tests should cover:
    JavaScript edits to returned objects; public readonly types and outcome/reason
    relationships, including a reset record being distinct from a step record.
 
-Implement in small reviewed changes: state, snapshots, fixture, LDA immediate,
-and step records; reset and its record; ADDA immediate; then STA extended and
-the complete lesson. The initial fixture contains the entire seven-byte
-program even while its later instructions remain unsupported.
-
-Use private operation helpers composed with recorded operand/address access
-through the opcode table. Keep CPU-specific byte order and flag behavior
-explicit. No generic CPU base class, shared opcode schema, or DSL is required.
+The CPU uses private operation helpers composed with recorded operand/address
+access through the opcode table, keeping its byte order and flag behavior
+explicit. There is no generic CPU base class, shared opcode schema, or DSL.
 After this lesson, focused register, stack, addressing, and I/O examples still
 need to exercise the distinctions identified in the [CPU roadmap](cpu-roadmap.md).
 Three versions of this calculation alone do not settle those interfaces.

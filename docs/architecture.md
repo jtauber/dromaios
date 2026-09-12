@@ -63,7 +63,7 @@ the same underlying models as a complete machine.
 
 ## Proposed repository layout
 
-The implementation has RAM, 8080 and 6502 CPU subsets, example setup, and
+The implementation has RAM, 8080, 6502, and 6809 CPU subsets, example setup, and
 tests. The other source paths show where code and content could go as we
 introduce them; their names can change with experience. No package or framework
 boundaries are implied by this tree. Build and test commands are in the
@@ -79,7 +79,8 @@ dromaios/
 │   ├── cpu-roadmap.md
 │   ├── first-example.md
 │   ├── 6502-example.md
-│   └── 6502-reference-notes.md
+│   ├── 6502-reference-notes.md
+│   └── 6809-example.md
 ├── src/
 │   ├── components/
 │   │   ├── cpus/          CPU models, grouped by architecture
@@ -118,10 +119,10 @@ models, variants, and machine compositions can still require revisions.
 
 ## Example specifications
 
-The [8080 example](first-example.md) and [6502 example](6502-example.md) are
-complete; the 6809 example comes next. Each example's document records its
-state, program, execution contract, acceptance
-checks, and detailed progress. These questions guide review of each change:
+The introductory [8080](first-example.md), [6502](6502-example.md), and
+[6809](6809-example.md) examples are complete. Each example's document records
+its state, program, execution contract, acceptance checks, and detailed progress.
+These questions also guide review of the focused examples that come next:
 
 1. Which instructions and program demonstrate the example, and what is
    the expected state after each instruction?
@@ -136,8 +137,8 @@ Re-reading memory or devices afterward cannot reliably reconstruct them. The
 record must make its granularity clear; an instruction-level model does not
 automatically provide a complete cycle-by-cycle bus trace.
 
-The concrete `Cpu8080` and `Cpu6502` models each take a 64 KiB `Ram` instance
-and explicit initial state. They copy only declared state fields, including
+The concrete `Cpu8080`, `Cpu6502`, and `Cpu6809` models each take a 64 KiB
+`Ram` instance and explicit initial state. They copy only declared state fields, including
 flags, and expose `snapshot()` and `step()`. Public snapshots and records have
 readonly TypeScript types and own detached values; internal CPU state stays
 mutable. Each model uses a discriminated union for step outcomes and retains
@@ -146,7 +147,7 @@ no execution history. Restarting an example creates fresh components.
 Reset behavior, step outcomes, and lesson completion remain specific to each
 CPU and example. Their specifications describe the implemented behavior and
 planned additions. These types remain CPU-specific while we gather experience
-for shared execution and inspection interfaces through the 6809 example.
+for shared execution and inspection interfaces through the focused examples.
 
 Checks use small programs with explicit expected behavior.
 Existing emulator implementations can help identify cases to examine; their

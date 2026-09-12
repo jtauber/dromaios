@@ -3,8 +3,8 @@
 **Status: the first 6502 example is implemented and tested.**
 The example loads 2, adds 3, and stores 5, providing a second
 architecture against which to examine the [8080 example](first-example.md).
-The interfaces below are specific to the 6502 and remain provisional through
-the 6809 example.
+The interfaces below are specific to the 6502 and remain provisional while
+focused examples exercise all three architectures.
 
 ## Implementation progress
 
