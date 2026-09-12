@@ -57,7 +57,8 @@ The introductory [8080](docs/8080-example.md), [6502](docs/6502-example.md),
 and [6809](docs/6809-example.md) examples are complete and tested independently
 of the browser. Next, focused examples will exercise register relationships,
 stacks, addressing, and I/O before we settle shared CPU and inspection
-interfaces. Each example's specification tracks detailed coverage and progress.
+interfaces. [CPU implementation coverage](docs/cpu-coverage.md) tracks supported
+instructions, features, and remaining gaps for each CPU.
 
 The implementation uses **TypeScript**, compiled to JavaScript ES modules,
 with **Node.js 24 LTS** and its built-in test runner for development.
@@ -105,10 +106,12 @@ Released under the [MIT license](LICENSE).
   and proposed source layout.
 - [docs/cpu-roadmap.md](docs/cpu-roadmap.md) records the intended CPU scope,
   existing reference coverage, and the three-CPU approach to generalization.
+- [docs/cpu-coverage.md](docs/cpu-coverage.md) tracks current implementation
+  coverage for each CPU and variant.
 - [docs/8080-example.md](docs/8080-example.md) specifies the first 8080 program,
   initial state, step records, and acceptance checks.
-- [docs/6502-example.md](docs/6502-example.md) specifies the second example and
-  tracks its implementation progress.
+- [docs/6502-example.md](docs/6502-example.md) specifies the second program,
+  initial state, execution behavior, and acceptance checks.
 - [docs/6502-reference-notes.md](docs/6502-reference-notes.md) records ideas from
   applepy and dromaios-apple2 and when to revisit them.
 - [docs/6809-example.md](docs/6809-example.md) specifies the third example and

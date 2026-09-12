@@ -77,6 +77,7 @@ dromaios/
 ├── docs/
 │   ├── architecture.md
 │   ├── cpu-roadmap.md
+│   ├── cpu-coverage.md
 │   ├── 8080-example.md
 │   ├── 6502-example.md
 │   ├── 6502-reference-notes.md
@@ -121,7 +122,8 @@ models, variants, and machine compositions can still require revisions.
 
 The introductory [8080](8080-example.md), [6502](6502-example.md), and
 [6809](6809-example.md) examples are complete. Each example's document records
-its state, program, execution contract, acceptance checks, and detailed progress.
+its state, program, execution contract, and acceptance checks.
+The [coverage tracker](cpu-coverage.md) records current CPU implementation support.
 These questions also guide review of the focused examples that come next:
 
 1. Which instructions and program demonstrate the example, and what is

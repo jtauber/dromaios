@@ -42,8 +42,8 @@ compiled to ES modules, npm, and Node.js 24's built-in test runner.
 **Review point:** We can account for what each instruction reads and changes.
 The supported instruction subset and execution granularity are documented.
 
-Detailed implementation progress and acceptance checks live in the
-[8080 example specification](docs/8080-example.md).
+Current support is tracked in [CPU implementation coverage](docs/cpu-coverage.md).
+Acceptance checks are defined in the [8080 example specification](docs/8080-example.md).
 
 ## 2. Test generalizations across three CPUs — current
 
@@ -61,8 +61,9 @@ architectural differences, beyond simply running the same arithmetic example.
 
 The introductory [8080](docs/8080-example.md), [6502](docs/6502-example.md),
 and [6809](docs/6809-example.md) examples are complete. Their specifications
-record detailed coverage and acceptance checks. Focused examples and comparison
-of the three models are next within this stage.
+define behavior and acceptance checks; the [coverage tracker](docs/cpu-coverage.md)
+records current support. Focused examples and comparison of the three models
+are next within this stage.
 
 ## 3. Make the examples explorable in the browser
 

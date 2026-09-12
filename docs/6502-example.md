@@ -6,41 +6,7 @@ architecture against which to examine the [8080 example](8080-example.md).
 The interfaces below are specific to the 6502 and remain provisional while
 focused examples exercise all three architectures.
 
-## Implementation progress
-
-The [CPU](../src/components/cpus/6502.ts) provides explicit validated state,
-detached snapshots, and instruction records. `CLC` clears C and advances PC;
-`LDA #n` updates A, N, Z, and PC. Both preserve all other state, including D.
-Binary `ADC #n` adds the operand and incoming carry to A and updates N, V, Z,
-C, and PC, preserving X, Y, SP, D, and I. With D true it returns `unsupported`
-with reason `decimal-mode`, reading only the opcode and leaving state unchanged.
-`STA addr` fetches the low/high address bytes and writes A once, preserving
-registers and flags except PC. It works with either D value. The
-[example factory](../src/machines/6502-example.ts) loads the full program and
-reset vector, supplies the initial state, and returns the completion address.
-
-CPU reset is implemented with a separate record of its before/after state and
-two vector reads. It sets I and decrements SP while preserving the other
-registers, flags, and RAM. Lesson restart creates fresh state and memory.
-
-The lesson runs all four instructions from `0200`, producing A = `05` and
-RAM at `0080` = `05`. Its caller stops at `0208` without another fetch.
-Every other opcode returns `unsupported` with reason `opcode`, including BRK
-if the caller steps directly at the completion address.
-
-[CPU tests](../tests/components/cpus/6502.test.ts) cover flags, actual accesses,
-PC wrapping, all unsupported opcodes, input validation, ownership, reset-vector
-reads, SP wrapping, repeated reset, and resuming execution at the reset target.
-Binary ADC is checked for all 131,072 accumulator/operand/carry combinations
-with old N/V/Z both clear and set. Decimal rejection is checked across repeated
-steps and reset, including at the address boundary.
-STA checks cover low/high address decoding, unchanged-value writes, preservation
-of all flags, and stores that overwrite their own opcode or operands.
-[Fixture tests](../tests/machines/6502-example.test.ts) check the entire memory
-image, initial state, all four exact instruction records, caller completion,
-direct stepping at the endpoint, and CPU reset versus lesson restart.
-[Type checks](../tests/types/6502.ts) cover readonly records and snapshots,
-non-null instructions, and the outcome/reason relationship.
+Current CPU support is tracked in [6502 implementation coverage](cpu-coverage.md#6502).
 
 ## Model boundary
 

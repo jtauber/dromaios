@@ -127,8 +127,9 @@ programmer-managed stack in RAM. See
 ## Current implementation
 
 The introductory [8080](8080-example.md), [6502](6502-example.md), and
-[6809](6809-example.md) examples are complete. Their specifications record
-detailed coverage and acceptance checks; the 6809 document also records the
+[6809](6809-example.md) examples are complete. The [coverage tracker](cpu-coverage.md)
+records current instruction and feature support. The example specifications
+define behavior and acceptance checks; the 6809 document also records the
 CoCo reference review. Next come focused examples and comparison of the models
 to test shared execution and inspection conventions. The
 [specification questions](architecture.md#example-specifications) guide review

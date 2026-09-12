@@ -9,6 +9,7 @@ Keep changes small and reviewable, and report the checks performed.
 Keep overview documentation stable across small implementation changes.
 Update README.md, ROADMAP.md, docs/architecture.md, and docs/cpu-roadmap.md
 when project scope, milestones, architecture, or development workflow changes;
-do not update them just to add an opcode to a progress list. Keep detailed
-instruction coverage and implementation progress in the relevant example or
-CPU document, avoiding duplicate status lists.
+do not update them just to add an opcode to a progress list. Track current CPU
+instruction coverage and implementation progress in docs/cpu-coverage.md,
+updating it in the same change as CPU support. Keep behavior and acceptance
+criteria in the relevant example specifications, avoiding duplicate status lists.

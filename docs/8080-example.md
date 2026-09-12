@@ -3,6 +3,7 @@
 **Status: implemented and tested.**
 The complete program, step records, CPU reset, and lesson restart follow the
 specification below.
+Current CPU support is tracked in [8080 implementation coverage](cpu-coverage.md#8080).
 Development uses TypeScript compiled to ES modules and Node.js 24's built-in
 test runner; see the
 [development instructions](../README.md#development).

@@ -6,45 +6,7 @@ This defines the third small example after the completed
 adds 3, and stores 5. The CPU-specific interfaces remain provisional while
 these examples expose the differences shared support must represent.
 
-## Implementation progress
-
-The [CPU](../src/components/cpus/6809.ts) provides validated stored state,
-detached snapshots with D derived from A/B, and instruction records.
-`LDA #n` replaces A/N/Z, clears V, and preserves all other state except PC.
-`ADDA #n` adds the operand to A without incoming carry and replaces H/N/Z/V/C,
-preserving B, DP, X, Y, S, U, E, F, and I. D reflects the new A after either
-instruction. `STA addr` fetches the high/low address bytes and writes A once,
-independently of DP. It replaces N/Z from A and clears V while preserving
-all registers except PC and all other flags. LDA and STA share a flag helper.
-Every other opcode remains unsupported, including `10` and `11`: one read,
-unchanged state, and no second-byte fetch.
-
-CPU reset returns a separate record of its snapshots and two vector reads.
-It loads PC high byte first, clears DP, and sets F/I, preserving other modeled
-state and RAM, including A/B/D and both stack pointers. Lesson restart creates
-fresh state and memory.
-
-The [example factory](../src/machines/6809-example.ts) loads the full program
-and reset vector and supplies the initial state. The complete lesson stores
-`05` at `0080`, with A = `05` and D = `0534`. Its caller stops at PC = `0207`
-without another fetch. RAM otherwise remains unchanged, including `1280`
-despite the initial DP value of `12`. A direct step at the completion address
-attempts unsupported opcode `00`.
-
-[CPU tests](../tests/components/cpus/6809.test.ts) cover validation, ownership,
-D, flag effects, observed accesses, PC wrapping, and every unsupported byte.
-ADDA is checked for all 65,536 accumulator/operand pairs with both incoming
-carry values and old H/N/Z/V both clear and set.
-STA checks cover high/low address decoding, unchanged-value writes, flag
-effects, and stores that overwrite their own opcode or operands.
-Reset checks cover preservation, repeated calls, changed vectors, and resumed
-execution at targets including `FFFF`.
-[Fixture tests](../tests/machines/6809-example.test.ts) check the entire image,
-all three exact lesson records, caller completion, direct stepping at the
-endpoint, and CPU reset versus lesson restart.
-[Type checks](../tests/types/6809.ts) cover initialization without separate D,
-readonly snapshots and records, the outcome/reason relationship, and reset
-records being distinct from instruction attempts.
+Current CPU support is tracked in [6809 implementation coverage](cpu-coverage.md#6809).
 
 ## Model boundary
 
