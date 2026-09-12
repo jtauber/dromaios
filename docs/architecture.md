@@ -1,0 +1,90 @@
+# Architecture sketch
+
+This is a starting vocabulary and proposed layout. Interfaces and implementation
+details will be worked out through the first small examples.
+
+## The pieces
+
+**Components** model CPUs, memory, and devices. Each owns its relevant state and
+exposes the operations and connections that other components need. A CPU's
+registers, flags, instruction semantics, and timing remain specific to that CPU.
+
+**Machine compositions** select components and connect them. They describe
+memory maps, device connections, clock relationships, and initial state where
+needed. Configuration may include small amounts of machine-specific code.
+Making a machine a configuration does not require expressing all behavior as
+data or inventing a configuration language upfront.
+
+**Execution support** coordinates stepping, running, pausing, and eventually
+emulated time. Browser display updates should not define the machine's timing.
+The execution granularity and fidelity of each model need to be explicit.
+
+**Inspection** exposes state and activity for exploration. Common views should
+work across components where meaningful, with specific views for distinctive
+hardware. Reading a device for inspection must not accidentally trigger the
+side effects of a CPU access, such as clearing an interrupt. We will decide
+the smallest useful inspection interface alongside the first component.
+
+**The browser interface** presents controls, displays, inspectors, and
+explanations. Components should be usable without the DOM or a browser render
+loop. Specialist instruments, such as an Applesoft BASIC inspector, can add
+software knowledge through the inspection interface.
+
+**Lessons** combine small programs, machine compositions, views, and explanatory
+content. A lesson can expose only the parts needed for its concept while using
+the same underlying models as a complete machine.
+
+## Proposed repository layout
+
+Only the three documentation files exist initially. The other paths show where
+code and content could go as we introduce them; their names can change with
+experience. No package or framework boundaries are implied by this tree.
+
+```text
+dromaios/
+├── README.md
+├── ROADMAP.md
+├── docs/
+│   └── architecture.md
+├── src/
+│   ├── components/
+│   │   ├── cpus/          CPU models, grouped by architecture
+│   │   ├── memory/        Reusable memory models
+│   │   └── devices/       Peripheral and controller models
+│   ├── machines/          Component selection, configuration, and wiring
+│   ├── runtime/           Execution controls and emulated time
+│   ├── inspection/        Shared observation support and descriptions
+│   └── ui/                Browser shell, controls, and reusable views
+├── lessons/               Teaching scenarios, programs, and explanations
+└── tests/
+    ├── components/        CPU, memory, and device behavior
+    ├── machines/          Small integration checks and software targets
+    └── fixtures/          Small programs and expected results
+```
+
+A component should belong to its hardware model rather than to the first
+machine that uses it. Machine wiring belongs with the composition. Presentation
+belongs with the UI; explanations belong with the relevant lesson or docs.
+We will give specialist instruments a home when we introduce the first one.
+
+## First design discussion
+
+The first slice needs a CPU, RAM, and a tiny program. Before coding it, decide:
+
+1. Which CPU and instructions best serve the first lesson?
+2. How does the CPU access memory, and which object owns each piece of state?
+3. What does one step mean, and what execution information does it return?
+4. How are initial state and reset defined for this example?
+5. How do we inspect state and accesses without changing execution?
+
+The first checks should use small programs with explicit expected behavior.
+Existing emulator implementations can help identify cases to examine; their
+outputs should be checked against the relevant hardware documentation before
+being treated as correctness references.
+
+## Decisions to defer
+
+Worker placement, performance optimizations, cycle-level bus simulation,
+save states, reverse execution, a public plugin API, and a declarative machine
+file format can be considered when a concrete example justifies them. Language,
+tooling, and the first CPU remain choices for the next design discussion.
