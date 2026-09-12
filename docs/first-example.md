@@ -1,9 +1,9 @@
 # First example: step through an 8080 program
 
 **Status: reviewed specification; implementation in progress.** RAM, CPU state,
-`MVI A,n`, `ADI n` and its flags, step records, CPU reset, and lesson setup are
-implemented and tested. `STA addr` and `HLT` remain to be built in the small
-changes listed below. Development uses TypeScript compiled to ES modules and
+`MVI A,n`, `ADI n` and its flags, `STA addr`, step records, CPU reset, and lesson
+setup are implemented and tested. `HLT` remains to complete the program.
+Development uses TypeScript compiled to ES modules and
 Node.js 24's built-in test runner; see the
 [development instructions](../README.md#development).
 
@@ -16,7 +16,7 @@ observable and independently checkable.
 - One Intel 8080 model connected to flat **64 KiB of RAM**.
 - One call to `step()` executes at most one instruction.
 - The completed example will support four opcode forms: `MVI A,n`, `ADI n`,
-  `STA addr`, and `HLT`. Currently `MVI A,n` and `ADI n` are implemented.
+  `STA addr`, and `HLT`. The first three are implemented.
   Other forms of `MVI` are outside this first subset.
 - Instruction-level execution and access records. Cycle timing, electrical bus
   activity, interrupts, devices, and browser controls are outside this slice.
@@ -93,20 +93,21 @@ their byte or 16-bit ranges, otherwise construction throws `RangeError`.
 Flags and control latches must be booleans, otherwise it throws `TypeError`.
 
 - `snapshot()` returns an independent, readonly state copy without accessing RAM.
-- `step()` executes `MVI A,n` or `ADI n`, returns `unsupported` for every other
-  opcode, or returns `halted` without fetching if the supplied state is already halted.
+- `step()` executes `MVI A,n`, `ADI n`, or `STA addr`, returns `unsupported` for
+  every other opcode, or returns `halted` without fetching if the supplied state
+  is already halted.
   `HLT` itself is still unsupported.
 - `reset()` applies only the CPU reset changes specified below.
 - `createFirstExample()` returns fresh `{ cpu, ram }` components with the
   specified initial state and program. Call it again to restart the lesson;
   the previous components and records remain available to their caller.
 
-For the current implementation, the first call to `cpu.step()` executes
-`MVI A,2` and the second executes `ADI 3`, producing the first two records
-specified below. A is then `05`, PC is `0004`, and only P is set among the
-arithmetic flags. The third call reports `STA` as unsupported: it reads only
-`32` at `0004` and leaves CPU state and memory unchanged. The complete four-step
-results below remain the implementation target.
+For the current implementation, the first three calls to `cpu.step()` execute
+`MVI A,2`, `ADI 3`, and `STA 0080H`, producing the first three records specified
+below. A and RAM at `0080` are then `05`, PC is `0007`, and only P is set among
+the arithmetic flags. The fourth call reports `HLT` as unsupported: it reads
+only `76` at `0007` and leaves CPU state and memory unchanged. The complete
+four-step results below remain the implementation target.
 
 ## Supported instruction behavior
 
@@ -257,8 +258,8 @@ Implement in small reviewed changes: RAM and fixture setup; CPU state and
 fetching with `MVI A,n`; `ADI n` and its flags; `STA addr`; `HLT` and the completed
 example. Introduce the record and reset behavior alongside the state and
 instructions they describe. RAM, CPU state, `MVI A,n`, `ADI n` and its flags,
-step records, reset, lesson setup, and the MIT license are now in place.
-`STA addr` is next.
+`STA addr`, step records, reset, lesson setup, and the MIT license are now in
+place. `HLT` and the completed example are next.
 
 ADI checks include the explicit edge cases above and Intel's examples
 `14 + 42 = 56` and `56 + BE = 14` (all hexadecimal), from the programming manual
@@ -269,12 +270,22 @@ flags, and independence from incoming carry. Separate tests check exact state
 and access records, preservation of unrelated state and memory, boundary
 wrapping, snapshot independence, and reset versus lesson restart after addition.
 
+STA checks cover destinations `1234`, `0000`, and `FFFF`; preservation of all
+CPU state except PC; and operand fetching and PC wrapping with the instruction
+at `FFFD`, `FFFE`, and `FFFF`. Tests observe actual RAM calls to check three
+reads followed by exactly one write, including when the destination already
+contains that value. Writing over the opcode or either operand preserves the
+fetched instruction bytes in the record. Further checks cover detached write
+entries, the example's complete memory image, and reset versus lesson restart
+after the store.
+
 Changes remain uncommitted until maintainer review and an explicit go-ahead
 to commit, as recorded in [AGENTS.md](../AGENTS.md).
 
 ## References
 
 - [Intel 8080 Assembly Language Programming Manual, page 27](https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf#page=33): ADI semantics and explicit arithmetic examples.
+- [Intel 8080 Assembly Language Programming Manual, page 30](https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf#page=36): direct-address encoding and STA semantics.
 - [Intel 8080 Microcomputer Systems User's Manual, September 1975](https://www.bitsavers.org/components/intel/MCS80/98-153B_Intel_8080_Microcomputer_Systems_Users_Manual_197509.pdf): instruction encodings and semantics.
 - [Intel MCS-80 User's Manual, October 1977](https://www.bitsavers.org/components/intel/MCS80/98-153D__MCS-80_Users_Manual_Oct77.pdf): addressing and arithmetic flag definitions.
 - [Intel Intellec 8/MOD 80 Reference Manual, February 1975](https://bitsavers.org/components/intel/MCS80/Intellec_8_Mod_80/Intel_Intellec_8_Mod_80_Reference_Manual_Feb75.pdf): 8080 functional pin definitions, especially RESET and INTE.

@@ -53,10 +53,9 @@ agents follow this rule in [AGENTS.md](AGENTS.md).
 
 ## Status
 
-The [first 8080 example](docs/first-example.md) can execute `MVI A,2` and `ADI 3`,
-returning records of state changes and memory reads. RAM, CPU state, reset,
-lesson setup, and both instructions have automated tests, including exhaustive
-addition checks. `STA`, `HLT`, and a browser application are still to come.
+Work is focused on the [first 8080 example](docs/first-example.md), with a
+simulation core and automated checks independent of the browser. Its
+specification tracks instruction coverage and detailed implementation progress.
 Small 6502 and 6809 examples will follow the 8080 to test our generalizations.
 
 The implementation uses **TypeScript**, compiled to JavaScript ES modules,
@@ -104,8 +103,8 @@ Released under the [MIT license](LICENSE).
 - [src/components/memory/ram.ts](src/components/memory/ram.ts) owns byte storage
   and validates reads and writes.
 - [src/components/cpus/8080.ts](src/components/cpus/8080.ts) owns 8080 state,
-  executes `MVI A,n` and `ADI n`, and returns detached state snapshots and step
-  records.
+  executes the supported instruction subset, and returns detached state
+  snapshots and step records.
 - [src/machines/first-example.ts](src/machines/first-example.ts) prepares fresh
   RAM and CPU state for starting or restarting the example.
 - [tests/](tests/) checks RAM, the supported CPU behavior, and the example.

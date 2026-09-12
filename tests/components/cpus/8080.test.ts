@@ -288,12 +288,129 @@ test("ADI wraps operand fetching and PC advancement at the 16-bit boundary", () 
   }
 });
 
+test("STA decodes low/high address bytes and writes once while preserving CPU state", () => {
+  for (const [low, high, destination] of [
+    [0x34, 0x12, 0x1234],
+    [0x00, 0x00, 0x0000],
+    [0xff, 0xff, 0xffff],
+  ] as const) {
+    for (const a of [0x00, 0x5a, 0xff]) {
+      for (const flags of [
+        { s: true, z: false, ac: true, p: false, cy: true },
+        { s: false, z: true, ac: false, p: true, cy: false },
+      ]) {
+        const ram = new ObservedRam();
+        ram.write(0x2000, 0x32);
+        ram.write(0x2001, low);
+        ram.write(0x2002, high);
+        // A write is still required when the destination already contains A.
+        ram.write(destination, 0x5a);
+        ram.accesses.length = 0;
+        const before = initialState({ a, pc: 0x2000, flags });
+        const cpu = new Cpu8080(ram, before);
+        const record = cpu.step();
+        const expectedAccesses = [
+          { kind: "read", address: 0x2000, value: 0x32 },
+          { kind: "read", address: 0x2001, value: low },
+          { kind: "read", address: 0x2002, value: high },
+          { kind: "write", address: destination, value: a },
+        ];
+        const context = `destination=${destination}, A=${a}, flags=${JSON.stringify(flags)}`;
+        assert.deepEqual(record, {
+          instruction: { address: 0x2000, bytes: [0x32, low, high] },
+          before,
+          after: { ...before, pc: 0x2003 },
+          accesses: expectedAccesses,
+          outcome: "executed",
+        }, context);
+        assert.deepEqual(cpu.snapshot(), record.after, context);
+        assert.deepEqual(ram.accesses, expectedAccesses, context);
+        assert.equal(ram.read(destination), a, context);
+      }
+    }
+  }
+});
+
+test("STA wraps both operand fetching and PC advancement at the 16-bit boundary", () => {
+  for (const [address, lowAddress, highAddress, nextPc] of [
+    [0xfffd, 0xfffe, 0xffff, 0x0000],
+    [0xfffe, 0xffff, 0x0000, 0x0001],
+    [0xffff, 0x0000, 0x0001, 0x0002],
+  ] as const) {
+    const ram = new ObservedRam();
+    ram.write(address, 0x32);
+    ram.write(lowAddress, 0x34);
+    ram.write(highAddress, 0x12);
+    ram.accesses.length = 0;
+    const before = initialState({ a: 0xa5, pc: address });
+    const cpu = new Cpu8080(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address, bytes: [0x32, 0x34, 0x12] },
+      before,
+      after: { ...before, pc: nextPc },
+      accesses: [
+        { kind: "read", address, value: 0x32 },
+        { kind: "read", address: lowAddress, value: 0x34 },
+        { kind: "read", address: highAddress, value: 0x12 },
+        { kind: "write", address: 0x1234, value: 0xa5 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), record.after);
+    assert.deepEqual(ram.accesses, record.accesses);
+    assert.equal(ram.read(0x1234), 0xa5);
+  }
+});
+
+test("STA can overwrite its opcode or either operand without changing fetched bytes", () => {
+  for (const [low, destination] of [
+    [0x00, 0x2000], [0x01, 0x2001], [0x02, 0x2002],
+  ] as const) {
+    const ram = new ObservedRam();
+    ram.write(0x2000, 0x32);
+    ram.write(0x2001, low);
+    ram.write(0x2002, 0x20);
+    ram.accesses.length = 0;
+    const before = initialState({ a: 0xe7, pc: 0x2000 });
+    const cpu = new Cpu8080(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: 0x2000, bytes: [0x32, low, 0x20] },
+      before,
+      after: { ...before, pc: 0x2003 },
+      accesses: [
+        { kind: "read", address: 0x2000, value: 0x32 },
+        { kind: "read", address: 0x2001, value: low },
+        { kind: "read", address: 0x2002, value: 0x20 },
+        { kind: "write", address: destination, value: 0xe7 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(ram.accesses, record.accesses);
+    assert.equal(ram.read(destination), 0xe7);
+
+    const saved = structuredClone(record);
+    ram.write(destination, 0x99);
+    cpu.reset();
+    assert.deepEqual(record, saved);
+    const afterReset = cpu.snapshot();
+    const write = record.accesses[3];
+    assert.ok(write);
+    // Bypass readonly as JavaScript could, checking that the write entry is detached.
+    assert.ok(Reflect.set(write, "value", 0));
+    assert.ok(Reflect.set(write, "address", 0xffff));
+    assert.equal(ram.read(destination), 0x99);
+    assert.deepEqual(cpu.snapshot(), afterReset);
+  }
+});
+
 test("every other opcode reports unsupported repeatedly with one read and unchanged state", () => {
   const ram = new ObservedRam();
   const before = initialState({ pc: 0xffff });
   const cpu = new Cpu8080(ram, before);
   for (let opcode = 0; opcode <= 0xff; opcode++) {
-    if (opcode === 0x3e || opcode === 0xc6) continue;
+    if (opcode === 0x3e || opcode === 0xc6 || opcode === 0x32) continue;
     ram.write(0xffff, opcode);
     for (let attempt = 0; attempt < 2; attempt++) {
       ram.accesses.length = 0;

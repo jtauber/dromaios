@@ -63,10 +63,9 @@ the same underlying models as a complete machine.
 
 ## Proposed repository layout
 
-RAM, the first two 8080 instructions and state model, example setup, and their
-tests now exist.
-The other source paths show where code and content could go as we introduce
-them; their names can change with experience. No package or framework
+The initial implementation has RAM and 8080 components, example setup, and
+tests. The other source paths show where code and content could go as we
+introduce them; their names can change with experience. No package or framework
 boundaries are implied by this tree. Build and test commands are in the
 [development instructions](../README.md#development).
 
@@ -119,10 +118,9 @@ models, variants, and machine compositions can still require revisions.
 ## First example specification
 
 The reviewed [first-example specification](first-example.md) describes an
-8080, 64 KiB of RAM, and an eight-byte program. RAM, CPU state, `MVI A,n`,
-`ADI n`, step records, reset, and fresh lesson setup are implemented so far.
-The specification answers these questions, which should guide review of each
-implementation change:
+8080, 64 KiB of RAM, and an eight-byte program, and tracks detailed
+implementation progress. It answers these questions, which should guide
+review of each implementation change:
 
 1. Which instructions and program demonstrate the first lesson, and what is
    the expected state after each instruction?
@@ -156,5 +154,4 @@ being treated as correctness references.
 Worker placement, performance optimizations, cycle-level bus simulation,
 save states, reverse execution, a public plugin API, and DSLs or declarative
 file formats for CPU, component, or machine definitions can be considered when
-concrete examples justify them. The current review covers `ADI n`, its arithmetic
-flags, and the example's second execution record.
+concrete examples justify them.

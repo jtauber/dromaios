@@ -81,7 +81,7 @@ function hasEvenParity(byte: number): boolean {
   return setBits % 2 === 0;
 }
 
-/** Instruction-level 8080 model. Supports MVI A,n (3E) and ADI n (C6). */
+/** Instruction-level 8080 model. Supports MVI A,n (3E), ADI n (C6), and STA addr (32). */
 export class Cpu8080 {
   readonly #ram: Ram;
   readonly #state: Cpu8080State;
@@ -172,6 +172,21 @@ export class Cpu8080 {
       };
     }
 
+    if (opcode === 0x32) {
+      const low = this.#read((address + 1) & 0xffff, accesses);
+      const high = this.#read((address + 2) & 0xffff, accesses);
+      const destination = low | (high << 8);
+      this.#write(destination, this.#state.a, accesses);
+      this.#state.pc = (address + 3) & 0xffff;
+      return {
+        instruction: { address, bytes: [opcode, low, high] },
+        before,
+        after: this.snapshot(),
+        accesses,
+        outcome: "executed",
+      };
+    }
+
     return {
       instruction: { address, bytes: [opcode] },
       before,
@@ -185,5 +200,10 @@ export class Cpu8080 {
     const value = this.#ram.read(address);
     accesses.push({ kind: "read", address, value });
     return value;
+  }
+
+  #write(address: number, value: number, accesses: Cpu8080MemoryAccess[]): void {
+    this.#ram.write(address, value);
+    accesses.push({ kind: "write", address, value });
   }
 }
