@@ -118,9 +118,9 @@ models, variants, and machine compositions can still require revisions.
 
 ## Example specifications
 
-The [8080 example](first-example.md) is complete; the reviewed
-[6502 specification](6502-example.md) guides current implementation. Each
-example's document records its state, program, execution contract, acceptance
+The [8080 example](first-example.md) and [6502 example](6502-example.md) are
+complete; the 6809 example comes next. Each example's document records its
+state, program, execution contract, acceptance
 checks, and detailed progress. These questions guide review of each change:
 
 1. Which instructions and program demonstrate the example, and what is

@@ -126,10 +126,9 @@ programmer-managed stack in RAM. See
 
 ## Current implementation
 
-Work now follows the reviewed [6502 example specification](6502-example.md),
-which defines the incremental implementation order and tracks detailed
-progress. The completed [8080 example](first-example.md) provides the first
-comparison point; the 6809 example follows the 6502. The
+The [8080 example](first-example.md) and [6502 example](6502-example.md) are
+complete; their specifications record detailed coverage and acceptance checks.
+The next step is to specify the equivalent 6809 example. The
 [specification questions](architecture.md#example-specifications) guide review
 of each implementation change.
 

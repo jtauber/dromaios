@@ -458,11 +458,160 @@ test("reset preserves the decimal ADC limitation, and replacing the opcode permi
   assert.deepEqual(second, savedSecond);
 });
 
+test("STA absolute decodes low/high bytes and writes once while preserving state, including D", () => {
+  for (const [low, high, destination] of [
+    [0x34, 0x12, 0x1234],
+    [0x00, 0x00, 0x0000],
+    [0xff, 0xff, 0xffff],
+  ] as const) {
+    for (const a of [0x00, 0x80, 0xff]) {
+      for (const flags of [
+        { n: true, v: false, d: true, i: false, z: true, c: false },
+        { n: false, v: true, d: false, i: true, z: false, c: true },
+      ]) {
+        const ram = new ObservedRam();
+        ram.write(0x0200, 0x8d);
+        ram.write(0x0201, low);
+        ram.write(0x0202, high);
+        // Writing is required even when the destination already contains A.
+        ram.write(destination, 0x80);
+        ram.accesses.length = 0;
+        const before = initialState({ a, pc: 0x0200, flags });
+        const cpu = new Cpu6502(ram, before);
+        const expectedAccesses = [
+          { kind: "read", address: 0x0200, value: 0x8d },
+          { kind: "read", address: 0x0201, value: low },
+          { kind: "read", address: 0x0202, value: high },
+          { kind: "write", address: destination, value: a },
+        ];
+        const record = cpu.step();
+        const context = `destination=${destination}, A=${a}, flags=${JSON.stringify(flags)}`;
+        assert.deepEqual(record, {
+          instruction: { address: 0x0200, bytes: [0x8d, low, high] },
+          before,
+          after: { ...before, pc: 0x0203 },
+          accesses: expectedAccesses,
+          outcome: "executed",
+        }, context);
+        assert.deepEqual(cpu.snapshot(), record.after, context);
+        assert.deepEqual(ram.accesses, expectedAccesses, context);
+        assert.equal(ram.read(destination), a, context);
+      }
+    }
+  }
+});
+
+test("STA absolute wraps both operand fetching and PC advancement at the 16-bit boundary", () => {
+  for (const [address, lowAddress, highAddress, nextPc] of [
+    [0xfffd, 0xfffe, 0xffff, 0x0000],
+    [0xfffe, 0xffff, 0x0000, 0x0001],
+    [0xffff, 0x0000, 0x0001, 0x0002],
+  ] as const) {
+    const ram = new ObservedRam();
+    ram.write(address, 0x8d);
+    ram.write(lowAddress, 0x56);
+    ram.write(highAddress, 0x34);
+    ram.accesses.length = 0;
+    const before = initialState({ a: 0xa5, pc: address });
+    const cpu = new Cpu6502(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address, bytes: [0x8d, 0x56, 0x34] },
+      before,
+      after: { ...before, pc: nextPc },
+      accesses: [
+        { kind: "read", address, value: 0x8d },
+        { kind: "read", address: lowAddress, value: 0x56 },
+        { kind: "read", address: highAddress, value: 0x34 },
+        { kind: "write", address: 0x3456, value: 0xa5 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), record.after);
+    assert.deepEqual(ram.accesses, record.accesses);
+    assert.equal(ram.read(0x3456), 0xa5);
+  }
+});
+
+test("STA absolute can overwrite its opcode or either operand while retaining the fetched bytes", () => {
+  for (const [low, destination] of [
+    [0x00, 0x0200], [0x01, 0x0201], [0x02, 0x0202],
+  ] as const) {
+    const ram = new ObservedRam();
+    ram.write(0x0200, 0x8d);
+    ram.write(0x0201, low);
+    ram.write(0x0202, 0x02);
+    ram.accesses.length = 0;
+    const before = initialState({ a: 0xe7, pc: 0x0200 });
+    const cpu = new Cpu6502(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: 0x0200, bytes: [0x8d, low, 0x02] },
+      before,
+      after: { ...before, pc: 0x0203 },
+      accesses: [
+        { kind: "read", address: 0x0200, value: 0x8d },
+        { kind: "read", address: 0x0201, value: low },
+        { kind: "read", address: 0x0202, value: 0x02 },
+        { kind: "write", address: destination, value: 0xe7 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), record.after);
+    assert.deepEqual(ram.accesses, record.accesses);
+    assert.equal(ram.read(destination), 0xe7);
+  }
+});
+
+test("STA records keep written values independent of later stores, memory changes, and caller edits", () => {
+  const ram = new ObservedRam();
+  // Store 80 at 1234, load zero, then store zero at 1234.
+  for (const [address, value] of [0x8d, 0x34, 0x12, 0xa9, 0, 0x8d, 0x34, 0x12].entries()) {
+    ram.write(address, value);
+  }
+  const cpu = new Cpu6502(ram, initialState({ a: 0x80, pc: 0 }));
+  const first = cpu.step();
+  const savedFirst = structuredClone(first);
+  assert.equal(ram.read(0x1234), 0x80);
+  ram.write(1, 0xff);
+  ram.write(0x1234, 0xff);
+  const load = cpu.step();
+  const savedLoad = structuredClone(load);
+  ram.accesses.length = 0;
+  const second = cpu.step();
+  const savedSecond = structuredClone(second);
+  assert.deepEqual(second, {
+    instruction: { address: 5, bytes: [0x8d, 0x34, 0x12] },
+    before: load.after,
+    after: { ...load.after, pc: 8 },
+    accesses: [
+      { kind: "read", address: 5, value: 0x8d },
+      { kind: "read", address: 6, value: 0x34 },
+      { kind: "read", address: 7, value: 0x12 },
+      { kind: "write", address: 0x1234, value: 0 },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(ram.accesses, second.accesses);
+  assert.deepEqual(first, savedFirst);
+  Reflect.set(first.before.flags, "d", false);
+  assert.deepEqual(first.after, savedFirst.after);
+  Reflect.set(first.after, "a", 0xff);
+  Reflect.set(first.instruction.bytes, 1, 0xff);
+  assert.ok(first.accesses[3]);
+  Reflect.set(first.accesses[3], "value", 0xff);
+  Reflect.set(cpu.snapshot().flags, "z", false);
+  assert.deepEqual(cpu.snapshot(), savedSecond.after);
+  assert.deepEqual(second, savedSecond);
+  assert.deepEqual(load, savedLoad);
+  assert.equal(ram.read(0x1234), 0);
+});
+
 test("every unimplemented 6502 opcode reads once and preserves state on repeated attempts", () => {
   const ram = new ObservedRam();
   ram.write(0, 0xa9);
   for (let opcode = 0; opcode < 256; opcode++) {
-    if (opcode === 0x18 || opcode === 0x69 || opcode === 0xa9) continue;
+    if (opcode === 0x18 || opcode === 0x69 || opcode === 0x8d || opcode === 0xa9) continue;
     ram.write(0xffff, opcode);
     for (const d of [false, true]) {
       const before = initialState({ pc: 0xffff, flags: { ...initialState().flags, d } });

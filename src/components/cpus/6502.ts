@@ -51,6 +51,8 @@ export interface Cpu6502ResetRecord {
 
 interface InstructionContext {
   readonly fetchByte: () => number;
+  readonly fetchWord: () => number;
+  readonly writeByte: (address: number, value: number) => void;
 }
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
@@ -74,13 +76,14 @@ function checkUnsigned(name: string, value: number, maximum: number): void {
   }
 }
 
-/** Instruction-level NMOS 6502 subset with CLC, LDA immediate, and binary ADC immediate. */
+/** Instruction-level NMOS 6502 subset for the first 6502 example. */
 export class Cpu6502 {
   readonly #ram: Ram;
   readonly #state: Cpu6502State;
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
     0x18: () => this.#clearCarry(), // CLC
     0x69: ({ fetchByte }) => this.#addWithCarry(fetchByte()), // ADC #n (binary)
+    0x8d: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
     0xa9: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
   };
 
@@ -132,14 +135,21 @@ export class Cpu6502 {
     if (handler && !decimalModeUnsupported) {
       // Advance only for supported instructions; operand fetches advance themselves.
       this.#state.pc = (address + 1) & 0xffff;
+      const fetchByte = (): number => {
+        const pc = this.#state.pc;
+        const byte = this.#read(pc, accesses);
+        this.#state.pc = (pc + 1) & 0xffff;
+        bytes.push(byte);
+        return byte;
+      };
       handler({
-        fetchByte: () => {
-          const pc = this.#state.pc;
-          const byte = this.#read(pc, accesses);
-          this.#state.pc = (pc + 1) & 0xffff;
-          bytes.push(byte);
-          return byte;
+        fetchByte,
+        fetchWord: () => {
+          const low = fetchByte();
+          const high = fetchByte();
+          return low | (high << 8);
         },
+        writeByte: (address, value) => this.#write(address, value, accesses),
       });
     }
 
@@ -178,5 +188,10 @@ export class Cpu6502 {
     const value = this.#ram.read(address);
     accesses.push({ kind: "read", address, value });
     return value;
+  }
+
+  #write(address: number, value: number, accesses: Cpu6502MemoryAccess[]): void {
+    this.#ram.write(address, value);
+    accesses.push({ kind: "write", address, value });
   }
 }

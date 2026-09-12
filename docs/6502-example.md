@@ -1,7 +1,7 @@
 # Second example: the same calculation on a 6502
 
-**Status: the first 6502 example is partially implemented and tested.**
-The complete example will load 2, add 3, and store 5, providing a second
+**Status: the first 6502 example is implemented and tested.**
+The example loads 2, adds 3, and stores 5, providing a second
 architecture against which to examine the [8080 example](first-example.md).
 The interfaces below are specific to the 6502 and remain provisional through
 the 6809 example.
@@ -13,7 +13,9 @@ detached snapshots, and instruction records. `CLC` clears C and advances PC;
 `LDA #n` updates A, N, Z, and PC. Both preserve all other state, including D.
 Binary `ADC #n` adds the operand and incoming carry to A and updates N, V, Z,
 C, and PC, preserving X, Y, SP, D, and I. With D true it returns `unsupported`
-with reason `decimal-mode`, reading only the opcode and leaving state unchanged. The
+with reason `decimal-mode`, reading only the opcode and leaving state unchanged.
+`STA addr` fetches the low/high address bytes and writes A once, preserving
+registers and flags except PC. It works with either D value. The
 [example factory](../src/machines/6502-example.ts) loads the full program and
 reset vector, supplies the initial state, and returns the completion address.
 
@@ -21,11 +23,10 @@ CPU reset is implemented with a separate record of its before/after state and
 two vector reads. It sets I and decrements SP while preserving the other
 registers, flags, and RAM. Lesson restart creates fresh state and memory.
 
-STA remains to be implemented. Every opcode except `18`, `69`, and `A9`
-currently returns `unsupported` with reason `opcode`. The lesson runs CLC,
-LDA, and ADC from `0200`, producing A = `05`, then stops at unsupported STA at
-`0205`. The complete program's execution below remains the specification for
-the next change.
+The lesson runs all four instructions from `0200`, producing A = `05` and
+RAM at `0080` = `05`. Its caller stops at `0208` without another fetch.
+Every other opcode returns `unsupported` with reason `opcode`, including BRK
+if the caller steps directly at the completion address.
 
 [CPU tests](../tests/components/cpus/6502.test.ts) cover flags, actual accesses,
 PC wrapping, all unsupported opcodes, input validation, ownership, reset-vector
@@ -33,8 +34,11 @@ reads, SP wrapping, repeated reset, and resuming execution at the reset target.
 Binary ADC is checked for all 131,072 accumulator/operand/carry combinations
 with old N/V/Z both clear and set. Decimal rejection is checked across repeated
 steps and reset, including at the address boundary.
+STA checks cover low/high address decoding, unchanged-value writes, preservation
+of all flags, and stores that overwrite their own opcode or operands.
 [Fixture tests](../tests/machines/6502-example.test.ts) check the entire memory
-image, initial state, CLC/LDA/ADC execution, and CPU reset versus lesson restart.
+image, initial state, all four exact instruction records, caller completion,
+direct stepping at the endpoint, and CPU reset versus lesson restart.
 [Type checks](../tests/types/6502.ts) cover readonly records and snapshots,
 non-null instructions, and the outcome/reason relationship.
 
@@ -111,7 +115,7 @@ RAM changes cannot alter them, and edits made by JavaScript to returned values
 cannot change live state. Readonly typing does not require runtime freezing.
 Snapshots copy CPU state, not RAM, and inspection performs no RAM accesses.
 
-`create6502Example()` will return fresh `{ cpu, ram, endAddress }` values, with
+`create6502Example()` returns fresh `{ cpu, ram, endAddress }` values, with
 `endAddress` equal to `0208`. Setup supplies the initial PC directly, so the
 first instruction record begins at `0200` without an implicit reset record.
 Calling the factory again restarts the lesson with independent components.
@@ -147,7 +151,7 @@ flag behavior, will require a separate reviewed change.
 
 ## Step records and expected execution
 
-Use a CPU-specific `Cpu6502StepRecord` with these fields:
+The CPU-specific `Cpu6502StepRecord` has these fields:
 
 | Field | Meaning |
 | --- | --- |
@@ -157,13 +161,12 @@ Use a CPU-specific `Cpu6502StepRecord` with these fields:
 | `outcome` | `executed` or `unsupported` |
 | `reason` | Present only with `unsupported`: `opcode` or `decimal-mode` |
 
-Make the outcome/reason relationship a discriminated union. All public record
+The outcome/reason relationship is a discriminated union. All public record
 fields, nested snapshots, byte arrays, and access entries are readonly. There
 is no `halted` or `complete` CPU outcome in this subset, and no null instruction.
 Unsupported opcodes use reason `opcode`, read only the opcode, and leave CPU
 state and RAM unchanged. Repeating the call repeats that read; it does not
-advance past the limitation. During incremental implementation, each opcode
-remains unsupported until its implementation is added.
+advance past the limitation.
 
 Instruction bytes come from the actual opcode and operand reads. Data writes
 do not become instruction bytes. Record the actual accesses during execution,
@@ -198,8 +201,8 @@ image equals the initial image with `0080` changed to `05`.
 
 The caller checks `cpu.snapshot().pc === endAddress` before calling `step()`.
 For this fixed program it stops after four records, with no fetch at `0208`
-and no fifth CPU record. The initial tests can perform this check directly;
-this specification does not introduce a generic runner or new runner API.
+and no fifth CPU record. The fixture tests perform this check directly;
+there is no generic runner or new runner API.
 
 Completion describes the lesson boundary, not a CPU latch. A caller must also
 stop on an unsupported result and use a bounded instruction budget if it runs
@@ -242,9 +245,9 @@ SP `FF`, the original program and vector, and the zero result byte. It does not
 apply an additional reset or decrement SP. Old components and records remain
 independent and available to their caller.
 
-## Acceptance checks and implementation order
+## Acceptance checks
 
-The eventual checks should cover:
+The tests cover:
 
 1. The full initial memory image, including reset vector, and independent setup
    calls. Constructor and snapshot validation/ownership follow the API above.
@@ -277,10 +280,6 @@ Explicit binary ADC cases, with D false:
 | `7F` | `01` | 0 | `80` | 1 | 1 | 0 | 0 |
 | `80` | `80` | 0 | `00` | 0 | 1 | 1 | 1 |
 | `7F` | `00` | 1 | `80` | 1 | 1 | 0 | 0 |
-
-Implement in small reviewed changes: fixture and CPU state with snapshots,
-LDA immediate, and step records; CLC; reset and its record; binary ADC and the
-decimal-mode rejection; then STA and the complete example.
 
 Reuse RAM and the pattern of small opcode handlers composing operand access
 with CPU-specific operations. Operations that consume data accept values;
