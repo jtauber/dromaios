@@ -92,6 +92,7 @@ export class Cpu6809 {
   readonly #state: Cpu6809State;
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
     0x86: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
+    0x8b: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADDA #n
   };
 
   constructor(ram: Ram, initialState: Omit<Cpu6809Snapshot, "d">) {
@@ -171,6 +172,17 @@ export class Cpu6809 {
     this.#state.flags.n = (value & 0x80) !== 0;
     this.#state.flags.z = value === 0;
     this.#state.flags.v = false;
+  }
+
+  #addToAccumulator(value: number): void {
+    const accumulator = this.#state.a;
+    const sum = accumulator + value;
+    const result = sum & 0xff;
+    this.#loadAccumulator(result);
+    this.#state.flags.h = (accumulator & 0x0f) + (value & 0x0f) > 0x0f;
+    this.#state.flags.c = sum > 0xff;
+    // Like-signed operands producing an opposite-signed result indicate overflow.
+    this.#state.flags.v = (~(accumulator ^ value) & (accumulator ^ result) & 0x80) !== 0;
   }
 
   #read(address: number, accesses: Cpu6809MemoryAccess[]): number {

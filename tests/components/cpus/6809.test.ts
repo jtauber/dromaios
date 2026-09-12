@@ -211,9 +211,186 @@ test("6809 LDA wraps operand fetching and PC advancement at the 16-bit boundary"
   }
 });
 
+test("6809 ADDA immediate replaces H/N/Z/V/C, preserves other state, and reads exactly two bytes", () => {
+  const cases = [
+    { a: 0x02, value: 0x03, result: 0x05, flags: { h: false, n: false, z: false, v: false, c: false } },
+    { a: 0x0f, value: 0x01, result: 0x10, flags: { h: true, n: false, z: false, v: false, c: false } },
+    { a: 0xff, value: 0x01, result: 0x00, flags: { h: true, n: false, z: true, v: false, c: true } },
+    { a: 0x7f, value: 0x01, result: 0x80, flags: { h: true, n: true, z: false, v: true, c: false } },
+    { a: 0x80, value: 0x80, result: 0x00, flags: { h: false, n: false, z: true, v: true, c: true } },
+    { a: 0xff, value: 0x00, result: 0xff, flags: { h: false, n: true, z: false, v: false, c: false } },
+  ];
+  const preservedFlags = [
+    { e: false, f: false, i: false },
+    { e: true, f: true, i: true },
+    { e: true, f: false, i: true },
+    { e: false, f: true, i: false },
+  ];
+  for (const { a, value, result, flags } of cases) {
+    for (const preserved of preservedFlags) {
+      for (const carry of [false, true]) {
+        for (const oldHNZV of [false, true]) {
+          const ram = new ObservedRam();
+          ram.write(0x1234, 0x8b);
+          ram.write(0x1235, value);
+          ram.accesses.length = 0;
+          const before = {
+            ...initialState({ a, flags: { ...preserved, h: oldHNZV, n: oldHNZV, z: oldHNZV, v: oldHNZV, c: carry } }),
+            d: a * 256 + 0x34,
+          };
+          const cpu = new Cpu6809(ram, before);
+          const accesses = [
+            { kind: "read", address: 0x1234, value: 0x8b },
+            { kind: "read", address: 0x1235, value },
+          ];
+          const record = cpu.step();
+          const context = `A=${a}, operand=${value}, C=${carry}, old H/N/Z/V=${oldHNZV}`;
+          assert.deepEqual(record, {
+            instruction: { address: 0x1234, bytes: [0x8b, value] },
+            before,
+            after: { ...before, a: result, d: result * 256 + 0x34, pc: 0x1236, flags: { ...preserved, ...flags } },
+            accesses,
+            outcome: "executed",
+          }, context);
+          assert.deepEqual(cpu.snapshot(), record.after, context);
+          assert.deepEqual(ram.accesses, accesses, context);
+        }
+      }
+    }
+  }
+});
+
+test("6809 ADDA matches unsigned and signed addition for every operand pair regardless of incoming carry", () => {
+  const ram = new Ram(0x10000);
+  ram.write(0, 0x8b);
+  for (let value = 0; value < 256; value++) {
+    ram.write(1, value);
+    for (let a = 0; a < 256; a++) {
+      // Arithmetic expectations are independent of the CPU's bit masks and XORs.
+      const unsignedSum = a + value;
+      const signedSum = (a < 128 ? a : a - 256) + (value < 128 ? value : value - 256);
+      const result = unsignedSum % 256;
+      for (const carry of [false, true]) {
+        for (const oldHNZV of [false, true]) {
+          const before = initialState({
+            a, pc: 0,
+            flags: {
+              e: oldHNZV, f: !oldHNZV, i: oldHNZV,
+              h: oldHNZV, n: oldHNZV, z: oldHNZV, v: oldHNZV, c: carry,
+            },
+          });
+          const cpu = new Cpu6809(ram, before);
+          const record = cpu.step();
+          assert.equal(record.outcome, "executed");
+          assert.deepEqual(record.after, {
+            ...before, a: result, d: result * 256 + before.b, pc: 2,
+            flags: {
+              e: oldHNZV, f: !oldHNZV, i: oldHNZV,
+              h: a % 16 + value % 16 >= 16,
+              n: result >= 128, z: result === 0,
+              v: signedSum < -128 || signedSum > 127, c: unsignedSum >= 256,
+            },
+          }, `A=${a}, operand=${value}, C=${carry}, old H/N/Z/V=${oldHNZV}`);
+        }
+      }
+    }
+  }
+});
+
+test("6809 ADDA wraps operand fetching and PC advancement at the 16-bit boundary", () => {
+  for (const [address, operandAddress, nextPc] of [
+    [0xfffe, 0xffff, 0x0000],
+    [0xffff, 0x0000, 0x0001],
+  ] as const) {
+    const ram = new ObservedRam();
+    ram.write(address, 0x8b);
+    ram.write(operandAddress, 1);
+    ram.accesses.length = 0;
+    const before = { ...initialState({ a: 0xff, pc: address }), d: 0xff34 };
+    const cpu = new Cpu6809(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address, bytes: [0x8b, 1] },
+      before,
+      after: {
+        ...before, a: 0, d: 0x0034, pc: nextPc,
+        flags: { ...before.flags, h: true, n: false, z: true, v: false, c: true },
+      },
+      accesses: [
+        { kind: "read", address, value: 0x8b },
+        { kind: "read", address: operandAddress, value: 1 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), record.after);
+    assert.deepEqual(ram.accesses, record.accesses);
+  }
+});
+
+test("successive 6809 ADDA instructions use live A and operands while keeping independent records", () => {
+  const ram = new ObservedRam();
+  for (const [address, value] of [0x8b, 1, 0x8b, 0, 0x8b, 1].entries()) {
+    ram.write(address, value);
+  }
+  const cpu = new Cpu6809(ram, initialState({ a: 0xff, pc: 0 }));
+  const first = cpu.step();
+  const savedFirst = structuredClone(first);
+  assert.equal(first.after.a, 0);
+  assert.equal(first.after.d, 0x0034);
+  assert.equal(first.after.flags.c, true);
+  ram.write(1, 0xff);
+  ram.write(3, 0x7f);
+  ram.accesses.length = 0;
+  const second = cpu.step();
+  const savedSecond = structuredClone(second);
+  assert.deepEqual(second, {
+    instruction: { address: 2, bytes: [0x8b, 0x7f] },
+    before: first.after,
+    after: {
+      ...first.after, a: 0x7f, d: 0x7f34, pc: 4,
+      flags: { ...first.after.flags, h: false, n: false, z: false, v: false, c: false },
+    },
+    accesses: [
+      { kind: "read", address: 2, value: 0x8b },
+      { kind: "read", address: 3, value: 0x7f },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(ram.accesses, second.accesses);
+  assert.deepEqual(first, savedFirst);
+  Reflect.set(first.before.flags, "h", false);
+  assert.deepEqual(first.after, savedFirst.after);
+  Reflect.set(first.after, "a", 0xff);
+  Reflect.set(first.after, "d", 0xffff);
+  Reflect.set(first.after.flags, "c", false);
+  Reflect.set(first.instruction.bytes, 1, 0xff);
+  assert.ok(first.accesses[1]);
+  Reflect.set(first.accesses[1], "value", 0xff);
+  Reflect.set(cpu.snapshot().flags, "c", true);
+  assert.deepEqual(cpu.snapshot(), savedSecond.after);
+  ram.accesses.length = 0;
+  const third = cpu.step();
+  assert.deepEqual(third, {
+    instruction: { address: 4, bytes: [0x8b, 1] },
+    before: savedSecond.after,
+    after: {
+      ...savedSecond.after, a: 0x80, d: 0x8034, pc: 6,
+      flags: { ...savedSecond.after.flags, h: true, n: true, z: false, v: true, c: false },
+    },
+    accesses: [
+      { kind: "read", address: 4, value: 0x8b },
+      { kind: "read", address: 5, value: 1 },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(cpu.snapshot(), third.after);
+  assert.deepEqual(ram.accesses, third.accesses);
+  assert.deepEqual(second, savedSecond);
+});
+
 test("every unsupported 6809 byte, including prefixes, repeatedly reads only itself without advancing PC", () => {
   for (let opcode = 0; opcode <= 0xff; opcode++) {
-    if (opcode === 0x86) continue;
+    if (opcode === 0x86 || opcode === 0x8b) continue;
     for (const pc of [0x1234, 0xffff]) {
       const ram = new ObservedRam();
       ram.write(pc, opcode);

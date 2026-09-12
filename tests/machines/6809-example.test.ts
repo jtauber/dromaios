@@ -30,7 +30,7 @@ test("the 6809 example creates the full image, high/low reset vector, state, and
   checkExampleMemory(ram);
 });
 
-test("the partial 6809 lesson loads 2 and stops at the unsupported ADDA with exact records", (t) => {
+test("the partial 6809 lesson computes 5 and stops at the unsupported STA with exact records", (t) => {
   const { cpu, ram, endAddress } = create6809Example();
   const read = t.mock.method(ram, "read");
   const write = t.mock.method(ram, "write");
@@ -42,6 +42,9 @@ test("the partial 6809 lesson loads 2 and stops at the unsupported ADDA with exa
   }
   const before = expectedInitialState();
   const afterLoad = { ...before, a: 2, d: 0x0234, pc: 0x0202, flags: { ...before.flags, v: false } };
+  const afterAdd = {
+    ...afterLoad, a: 5, d: 0x0534, pc: 0x0204, flags: { ...afterLoad.flags, h: false, c: false },
+  };
   assert.deepEqual(records, [
     {
       instruction: { address: 0x0200, bytes: [0x86, 0x02] },
@@ -54,17 +57,29 @@ test("the partial 6809 lesson loads 2 and stops at the unsupported ADDA with exa
       outcome: "executed",
     },
     {
-      instruction: { address: 0x0202, bytes: [0x8b] },
+      instruction: { address: 0x0202, bytes: [0x8b, 0x03] },
       before: afterLoad,
-      after: afterLoad,
-      accesses: [{ kind: "read", address: 0x0202, value: 0x8b }],
+      after: afterAdd,
+      accesses: [
+        { kind: "read", address: 0x0202, value: 0x8b },
+        { kind: "read", address: 0x0203, value: 0x03 },
+      ],
+      outcome: "executed",
+    },
+    {
+      instruction: { address: 0x0204, bytes: [0xb7] },
+      before: afterAdd,
+      after: afterAdd,
+      accesses: [{ kind: "read", address: 0x0204, value: 0xb7 }],
       outcome: "unsupported",
       reason: "opcode",
     },
   ]);
-  assert.deepEqual(cpu.snapshot(), afterLoad);
+  assert.deepEqual(cpu.snapshot(), afterAdd);
   assert.notEqual(cpu.snapshot().pc, endAddress);
-  assert.deepEqual(read.mock.calls.map((call) => call.arguments), [[0x0200], [0x0201], [0x0202]]);
+  assert.deepEqual(read.mock.calls.map((call) => call.arguments), [
+    [0x0200], [0x0201], [0x0202], [0x0203], [0x0204],
+  ]);
   assert.deepEqual(write.mock.calls, []);
   t.mock.restoreAll();
   checkExampleMemory(ram);
@@ -73,11 +88,15 @@ test("the partial 6809 lesson loads 2 and stops at the unsupported ADDA with exa
 test("6809 reset returns the partial lesson to its entry point and resumes with DP cleared", (t) => {
   const { cpu, ram } = create6809Example();
   assert.equal(cpu.step().outcome, "executed");
+  assert.equal(cpu.step().outcome, "executed");
   assert.equal(cpu.step().outcome, "unsupported");
   const read = t.mock.method(ram, "read");
   const write = t.mock.method(ram, "write");
   const initial = expectedInitialState();
-  const before = { ...initial, a: 2, d: 0x0234, pc: 0x0202, flags: { ...initial.flags, v: false } };
+  const before = {
+    ...initial, a: 5, d: 0x0534, pc: 0x0204,
+    flags: { ...initial.flags, h: false, v: false, c: false },
+  };
   const afterReset = { ...before, pc: 0x0200, dp: 0 };
   assert.deepEqual(cpu.reset(), {
     before,
@@ -92,7 +111,7 @@ test("6809 reset returns the partial lesson to its entry point and resumes with 
   assert.deepEqual(write.mock.calls, []);
   read.mock.resetCalls();
 
-  const afterLoad = { ...afterReset, pc: 0x0202 };
+  const afterLoad = { ...afterReset, a: 2, d: 0x0234, pc: 0x0202 };
   assert.deepEqual(cpu.step(), {
     instruction: { address: 0x0200, bytes: [0x86, 2] },
     before: afterReset,
@@ -104,7 +123,19 @@ test("6809 reset returns the partial lesson to its entry point and resumes with 
     outcome: "executed",
   });
   assert.deepEqual(cpu.snapshot(), afterLoad);
-  assert.deepEqual(read.mock.calls.map((call) => call.arguments), [[0x0200], [0x0201]]);
+  const afterAdd = { ...afterLoad, a: 5, d: 0x0534, pc: 0x0204 };
+  assert.deepEqual(cpu.step(), {
+    instruction: { address: 0x0202, bytes: [0x8b, 3] },
+    before: afterLoad,
+    after: afterAdd,
+    accesses: [
+      { kind: "read", address: 0x0202, value: 0x8b },
+      { kind: "read", address: 0x0203, value: 3 },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(cpu.snapshot(), afterAdd);
+  assert.deepEqual(read.mock.calls.map((call) => call.arguments), [[0x0200], [0x0201], [0x0202], [0x0203]]);
   assert.deepEqual(write.mock.calls, []);
   t.mock.restoreAll();
   checkExampleMemory(ram);
@@ -113,13 +144,17 @@ test("6809 reset returns the partial lesson to its entry point and resumes with 
 test("6809 reset preserves lesson data while restart restores the original state and image", () => {
   const first = create6809Example();
   const loaded = first.cpu.step();
+  const added = first.cpu.step();
   const rejected = first.cpu.step();
   const savedLoaded = structuredClone(loaded);
+  const savedAdded = structuredClone(added);
   const savedRejected = structuredClone(rejected);
   const changedState = first.cpu.snapshot();
-  assert.equal(changedState.a, 2);
-  assert.equal(changedState.d, 0x0234);
-  assert.equal(changedState.pc, 0x0202);
+  assert.equal(changedState.a, 5);
+  assert.equal(changedState.d, 0x0534);
+  assert.equal(changedState.pc, 0x0204);
+  assert.equal(changedState.flags.h, false);
+  assert.equal(changedState.flags.c, false);
   first.ram.write(0x0080, 5);
   first.ram.write(0x0200, 0);
   first.ram.write(0x0201, 0xff);
@@ -146,12 +181,14 @@ test("6809 reset preserves lesson data while restart restores the original state
   assert.equal(restarted.endAddress, 0x0207);
   checkExampleMemory(restarted.ram);
   assert.deepEqual(restarted.cpu.step(), savedLoaded);
+  assert.deepEqual(restarted.cpu.step(), savedAdded);
   restarted.ram.write(0x0080, 9);
   assert.deepEqual(first.cpu.snapshot(), afterReset);
   for (const [address, value] of savedMemory.entries()) {
     assert.equal(first.ram.read(address), value, `original memory at ${address}`);
   }
   assert.deepEqual(loaded, savedLoaded);
+  assert.deepEqual(added, savedAdded);
   assert.deepEqual(rejected, savedRejected);
   assert.deepEqual(reset, savedReset);
 });

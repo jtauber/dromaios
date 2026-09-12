@@ -11,6 +11,9 @@ these examples expose the differences shared support must represent.
 The [CPU](../src/components/cpus/6809.ts) provides validated stored state,
 detached snapshots with D derived from A/B, and instruction records.
 `LDA #n` replaces A/N/Z, clears V, and preserves all other state except PC.
+`ADDA #n` adds the operand to A without incoming carry and replaces H/N/Z/V/C,
+preserving B, DP, X, Y, S, U, E, F, and I. D reflects the new A after either
+instruction.
 Every other opcode remains unsupported, including `10` and `11`: one read,
 unchanged state, and no second-byte fetch.
 
@@ -21,13 +24,14 @@ fresh state and memory.
 
 The [example factory](../src/machines/6809-example.ts) loads the full program
 and reset vector and supplies the initial state. The lesson currently reaches
-A = `02`, D = `0234`, and PC = `0202`, then stops at the unsupported ADDA.
-RAM remains unchanged. ADDA immediate comes next, followed by STA extended
-and the complete lesson. The sections below
-retain the reviewed specification for that full subset.
+A = `05`, D = `0534`, and PC = `0204`, then stops at the unsupported STA.
+RAM remains unchanged. STA extended comes next to complete the lesson.
+The sections below retain the reviewed specification for that full subset.
 
 [CPU tests](../tests/components/cpus/6809.test.ts) cover validation, ownership,
 D, flag effects, observed accesses, PC wrapping, and every unsupported byte.
+ADDA is checked for all 65,536 accumulator/operand pairs with both incoming
+carry values and old H/N/Z/V both clear and set.
 Reset checks cover preservation, repeated calls, changed vectors, and resumed
 execution at targets including `FFFF`.
 [Fixture tests](../tests/machines/6809-example.test.ts) check the entire image,
