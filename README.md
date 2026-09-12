@@ -48,12 +48,16 @@ write code, tests, and documentation; the human maintainer directs the design,
 reviews changes, and makes the final decisions. Development proceeds in small
 steps so that understanding the implementation remains central to the process.
 
+Every commit waits for the maintainer's review and explicit go-ahead. Coding
+agents follow this rule in [AGENTS.md](AGENTS.md).
+
 ## Status
 
 Initial design. There is no runnable application yet. The first CPU is the
 Intel 8080, followed by small 6502 and 6809 examples to test our generalizations.
-The implementation language is **TypeScript**. Tooling, the exact first program,
-and the initial execution interface remain to be decided.
+The implementation language is **TypeScript**. The first program and execution
+contract are [drafted for review](docs/first-example.md). Tooling remains to be
+chosen.
 
 The first implementation milestone is deliberately small: one CPU, a little
 RAM, a tiny program, and a way to step through it and see what changes.
@@ -70,6 +74,8 @@ first code; it has not been added yet.
   and proposed source layout.
 - [docs/cpu-roadmap.md](docs/cpu-roadmap.md) records the intended CPU scope,
   existing reference coverage, and the three-CPU approach to generalization.
+- [docs/first-example.md](docs/first-example.md) specifies the first 8080 program,
+  initial state, step records, and acceptance checks; it is a draft for review.
 
 Source and test directories will be added as their first pieces are implemented.
 

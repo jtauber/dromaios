@@ -68,11 +68,13 @@ experience. No package or framework boundaries are implied by this tree.
 
 ```text
 dromaios/
+├── AGENTS.md
 ├── README.md
 ├── ROADMAP.md
 ├── docs/
 │   ├── architecture.md
-│   └── cpu-roadmap.md
+│   ├── cpu-roadmap.md
+│   └── first-example.md
 ├── src/
 │   ├── components/
 │   │   ├── cpus/          CPU models, grouped by architecture
@@ -112,7 +114,9 @@ models, variants, and machine compositions can still require revisions.
 
 ## First example specification
 
-The first slice needs an 8080, RAM, and a tiny program. Before coding it, decide:
+The [first-example draft](first-example.md) proposes an 8080, 64 KiB of RAM,
+and an eight-byte program. Its state, step records, halt behavior, unsupported
+opcodes, and reset semantics are ready for review. Before coding it, review:
 
 1. Which instructions and program demonstrate the first lesson, and what is
    the expected state after each instruction?
@@ -137,5 +141,5 @@ being treated as correctness references.
 Worker placement, performance optimizations, cycle-level bus simulation,
 save states, reverse execution, a public plugin API, and DSLs or declarative
 file formats for CPU, component, or machine definitions can be considered when
-concrete examples justify them. Tooling and the exact first program remain
-choices for the next design discussion.
+concrete examples justify them. The next review covers the first-example draft
+and the minimal TypeScript development/test setup.

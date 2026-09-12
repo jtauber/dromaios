@@ -6,6 +6,7 @@ emulators and power the microcomputer tutorial through reusable components.
 This is a direction of travel, not a schedule. Each stage will be divided into
 small changes with time for review, questions, and revision. Finishing a change
 is a point to discuss the next slice. Later stages are provisional.
+Every commit requires maintainer review and an explicit go-ahead.
 
 The initial CPU sequence is **8080 → 6502 → 6809**. We will introduce small
 examples for all three before settling shared CPU and inspection interfaces.
@@ -16,13 +17,12 @@ eventual targets, and current reference coverage.
 ## 0. Establish the starting point — current
 
 - Review the purpose, design principles, and proposed repository structure.
-- Specify a tiny 8080 program and its expected state after each instruction.
-  Loading a number, adding another, and storing the result is the initial
-  candidate; the exact program is still to be decided.
+- Review the [first-example specification](docs/first-example.md): an eight-byte
+  8080 program with its complete expected state changes and access records.
 - Choose the minimal development/test setup for TypeScript, the selected
   implementation language.
-- Sketch CPU–memory interaction, stepping, reset, visible state, and what
-  happens when the CPU encounters an unsupported instruction.
+- Review its CPU–memory interaction, stepping, reset versus lesson restart,
+  visible state, and unsupported-instruction behavior.
 
 **Review point:** We can explain the first example and the responsibilities of
 its parts before implementing them.

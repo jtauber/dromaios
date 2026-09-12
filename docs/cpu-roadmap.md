@@ -70,8 +70,9 @@ Hardware references for these distinctions:
 ## How we will use the three examples
 
 1. Build a tiny 8080 program with RAM, instruction stepping, and an execution
-   record. Loading a number, adding another, and storing the result is the
-   candidate first lesson; its exact instructions and initial state remain open.
+   record. The [first-example draft](first-example.md) specifies loading a
+   number, adding another, storing the result, and halting, with exact expected
+   records for review.
 2. Implement an equivalent program on the 6502. Examine which support carries
    over and where the first model made assumptions.
 3. Repeat with the 6809, revisiting those assumptions with a third architecture.
@@ -127,12 +128,12 @@ programmer-managed stack in RAM. See
 
 ## Next decisions
 
-Before the first code, specify the minimal TypeScript test setup, exact 8080
-program and instruction subset, initial state, memory access, step results,
-CPU reset versus lesson restart, and unsupported-instruction behavior. Write
-explicit expected state changes for each instruction. The
-[first example specification questions](architecture.md#first-example-specification)
-are the next review point.
+Before the first code, review the [first-example draft](first-example.md) and
+choose the minimal TypeScript build/test setup. The draft specifies the 8080
+program and instruction subset, initial state, memory accesses, step results,
+CPU reset versus lesson restart, unsupported-instruction behavior, and expected
+state changes. The [specification questions](architecture.md#first-example-specification)
+guide that review.
 
 We have chosen **MIT** for licensing and will add the license file alongside
 the first code.
