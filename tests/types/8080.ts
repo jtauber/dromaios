@@ -1,4 +1,8 @@
-import type { Cpu8080, Cpu8080StepRecord } from "../../src/components/cpus/8080.js";
+import type {
+  Cpu8080,
+  Cpu8080ResetRecord,
+  Cpu8080StepRecord,
+} from "../../src/components/cpus/8080.js";
 
 // Compiled by npm test; never called. Each expected error guards the public API.
 export function checkPublicTypes(cpu: Cpu8080, record: Cpu8080StepRecord): void {
@@ -44,10 +48,19 @@ export function checkPublicTypes(cpu: Cpu8080, record: Cpu8080StepRecord): void 
 export function checkOutcomes(record: Cpu8080StepRecord): readonly number[] {
   switch (record.outcome) {
     case "executed":
-    case "unsupported":
+      // @ts-expect-error Executed records have no unsupported reason.
+      record.reason;
       // Checking the outcome is enough to know an instruction exists.
       return record.instruction.bytes;
+    case "unsupported": {
+      const reason: "opcode" = record.reason;
+      // @ts-expect-error Unsupported reasons are readonly.
+      record.reason = reason;
+      return record.instruction.bytes;
+    }
     case "halted":
+      // @ts-expect-error Halted records have no unsupported reason.
+      record.reason;
       // @ts-expect-error Halted records may have no instruction.
       record.instruction.bytes;
       return record.instruction?.bytes ?? [];
@@ -59,11 +72,52 @@ export function checkRecordConstruction(cpu: Cpu8080): readonly Cpu8080StepRecor
   // @ts-expect-error Executed records must carry an instruction.
   const invalidExecuted: Cpu8080StepRecord = { ...common, outcome: "executed", instruction: null };
   // @ts-expect-error Unsupported records must carry an instruction.
-  const invalidUnsupported: Cpu8080StepRecord = { ...common, outcome: "unsupported", instruction: null };
+  const invalidUnsupported: Cpu8080StepRecord = { ...common, outcome: "unsupported", instruction: null, reason: "opcode" };
+  const attempted = { ...common, instruction: { address: 0, bytes: [0x00] } };
+  // @ts-expect-error Unsupported records must carry a reason.
+  const missingReason: Cpu8080StepRecord = { ...attempted, outcome: "unsupported" };
+  // @ts-expect-error Executed records have no unsupported reason.
+  const extraExecutedReason: Cpu8080StepRecord = { ...attempted, outcome: "executed", reason: "opcode" };
+  // @ts-expect-error Halted records have no unsupported reason.
+  const extraHaltedReason: Cpu8080StepRecord = { ...attempted, outcome: "halted", reason: "opcode" };
+  // @ts-expect-error The 8080 has no decimal-mode rejection.
+  const invalidReason: Cpu8080StepRecord = { ...attempted, outcome: "unsupported", reason: "decimal-mode" };
 
   // HLT carries an instruction; a call while already halted does not.
   return [
     { ...common, outcome: "halted", instruction: { address: 0, bytes: [0x76] } },
     { ...common, outcome: "halted", instruction: null },
+    { ...attempted, outcome: "unsupported", reason: "opcode" },
   ];
+}
+
+export function checkResetTypes(cpu: Cpu8080): Cpu8080ResetRecord {
+  const record = cpu.reset();
+  // @ts-expect-error Reset snapshots cannot be replaced.
+  record.before = cpu.snapshot();
+  // @ts-expect-error The after snapshot cannot be replaced either.
+  record.after = cpu.snapshot();
+  // @ts-expect-error Registers in reset snapshots are readonly.
+  record.before.pc = 0;
+  // @ts-expect-error Control latches in reset snapshots are readonly.
+  record.after.halted = true;
+  // @ts-expect-error Nested reset flags are readonly.
+  record.after.flags.cy = false;
+  // @ts-expect-error Reset access arrays cannot be replaced.
+  record.accesses = [];
+  // @ts-expect-error Reset access arrays are readonly.
+  record.accesses.push({ kind: "read", address: 0, value: 0 });
+  if (record.accesses[0]) {
+    // @ts-expect-error Reset access entries are readonly.
+    record.accesses[0].address = 0;
+  }
+  // @ts-expect-error Reset is not an instruction attempt.
+  record.instruction;
+  // @ts-expect-error Reset has no step outcome.
+  record.outcome;
+  // @ts-expect-error Reset has no unsupported reason.
+  record.reason;
+  // @ts-expect-error A reset record cannot serve as an instruction step record.
+  const step: Cpu8080StepRecord = record;
+  return record;
 }

@@ -1,8 +1,8 @@
-# Third example: the same calculation on a 6809
+# 6809 example: load, add, and store
 
-**Status: the first 6809 example is implemented and tested.**
+**Status: implemented and tested.**
 This defines the third small example after the completed
-[8080](first-example.md) and [6502](6502-example.md) examples. It loads 2,
+[8080](8080-example.md) and [6502](6502-example.md) examples. It loads 2,
 adds 3, and stores 5. The CPU-specific interfaces remain provisional while
 these examples expose the differences shared support must represent.
 

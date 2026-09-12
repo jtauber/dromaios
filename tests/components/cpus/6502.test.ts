@@ -92,7 +92,7 @@ test("6502 accepts inherited flag getters and non-enumerable state fields", () =
   assert.deepEqual(ram.accesses, []);
 });
 
-test("CLC clears either incoming carry value, preserves other state, and reads only its opcode", () => {
+test("6502 CLC clears either incoming carry value, preserves other state, and reads only its opcode", () => {
   const preservedFlags = [
     { n: false, v: false, d: false, i: false, z: false },
     { n: true, v: true, d: true, i: true, z: true },
@@ -122,7 +122,7 @@ test("CLC clears either incoming carry value, preserves other state, and reads o
   }
 });
 
-test("CLC wraps PC at FFFF without fetching the next instruction", () => {
+test("6502 CLC wraps PC at FFFF without fetching the next instruction", () => {
   for (const c of [false, true]) {
     const ram = new ObservedRam();
     ram.write(0xffff, 0x18);
@@ -161,7 +161,7 @@ test("CLC wraps PC at FFFF without fetching the next instruction", () => {
   }
 });
 
-test("LDA immediate replaces N/Z, preserves all other state, and performs exactly two reads", () => {
+test("6502 LDA immediate replaces N/Z, preserves all other state, and performs exactly two reads", () => {
   const cases = [
     { value: 0x00, n: false, z: true },
     { value: 0x01, n: false, z: false },
@@ -203,7 +203,7 @@ test("LDA immediate replaces N/Z, preserves all other state, and performs exactl
   }
 });
 
-test("LDA immediate wraps operand fetching and PC advancement at the 16-bit boundary", () => {
+test("6502 LDA immediate wraps operand fetching and PC advancement at the 16-bit boundary", () => {
   for (const [address, operandAddress, nextPc] of [
     [0xfffe, 0xffff, 0x0000],
     [0xffff, 0x0000, 0x0001],
@@ -230,7 +230,7 @@ test("LDA immediate wraps operand fetching and PC advancement at the 16-bit boun
   }
 });
 
-test("binary ADC immediate replaces N/V/Z/C, preserves other state, and reads exactly two bytes", () => {
+test("6502 binary ADC immediate replaces N/V/Z/C, preserves other state, and reads exactly two bytes", () => {
   const cases = [
     { a: 0x02, value: 0x03, carry: false, result: 0x05,
       flags: { n: false, v: false, z: false, c: false } },
@@ -280,7 +280,7 @@ test("binary ADC immediate replaces N/V/Z/C, preserves other state, and reads ex
   }
 });
 
-test("binary ADC matches unsigned and signed addition for every operand pair and carry input", () => {
+test("6502 binary ADC matches unsigned and signed addition for every operand pair and carry input", () => {
   const ram = new Ram(0x10000);
   ram.write(0, 0x69);
   for (let value = 0; value < 256; value++) {
@@ -313,7 +313,7 @@ test("binary ADC matches unsigned and signed addition for every operand pair and
   }
 });
 
-test("binary ADC wraps operand fetching and PC advancement at the 16-bit boundary", () => {
+test("6502 binary ADC wraps operand fetching and PC advancement at the 16-bit boundary", () => {
   for (const [address, operandAddress, nextPc] of [
     [0xfffe, 0xffff, 0x0000],
     [0xffff, 0x0000, 0x0001],
@@ -340,7 +340,7 @@ test("binary ADC wraps operand fetching and PC advancement at the 16-bit boundar
   }
 });
 
-test("successive ADC instructions use live carry and operands while keeping independent records", () => {
+test("successive 6502 ADC instructions use live carry and operands while keeping independent records", () => {
   const ram = new ObservedRam();
   for (const [address, value] of [0x69, 0, 0x69, 0, 0x69, 0].entries()) {
     ram.write(address, value);
@@ -385,7 +385,7 @@ test("successive ADC instructions use live carry and operands while keeping inde
   assert.deepEqual(second, savedSecond);
 });
 
-test("decimal ADC repeatedly reads only its opcode and preserves all state, including at FFFF", () => {
+test("6502 decimal ADC repeatedly reads only its opcode and preserves all state, including at FFFF", () => {
   for (const address of [0x1234, 0xfffe, 0xffff]) {
     for (const setFlags of [false, true]) {
       const ram = new ObservedRam();
@@ -414,7 +414,7 @@ test("decimal ADC repeatedly reads only its opcode and preserves all state, incl
   }
 });
 
-test("reset preserves the decimal ADC limitation, and replacing the opcode permits execution", () => {
+test("6502 reset preserves the decimal ADC limitation, and replacing the opcode permits execution", () => {
   const ram = new ObservedRam();
   ram.write(0x1234, 0x69);
   ram.write(0x1235, 0);
@@ -458,7 +458,7 @@ test("reset preserves the decimal ADC limitation, and replacing the opcode permi
   assert.deepEqual(second, savedSecond);
 });
 
-test("STA absolute decodes low/high bytes and writes once while preserving state, including D", () => {
+test("6502 STA absolute decodes low/high bytes and writes once while preserving state, including D", () => {
   for (const [low, high, destination] of [
     [0x34, 0x12, 0x1234],
     [0x00, 0x00, 0x0000],
@@ -501,7 +501,7 @@ test("STA absolute decodes low/high bytes and writes once while preserving state
   }
 });
 
-test("STA absolute wraps both operand fetching and PC advancement at the 16-bit boundary", () => {
+test("6502 STA absolute wraps both operand fetching and PC advancement at the 16-bit boundary", () => {
   for (const [address, lowAddress, highAddress, nextPc] of [
     [0xfffd, 0xfffe, 0xffff, 0x0000],
     [0xfffe, 0xffff, 0x0000, 0x0001],
@@ -533,7 +533,7 @@ test("STA absolute wraps both operand fetching and PC advancement at the 16-bit 
   }
 });
 
-test("STA absolute can overwrite its opcode or either operand while retaining the fetched bytes", () => {
+test("6502 STA absolute can overwrite its opcode or either operand while retaining the fetched bytes", () => {
   for (const [low, destination] of [
     [0x00, 0x0200], [0x01, 0x0201], [0x02, 0x0202],
   ] as const) {
@@ -563,7 +563,7 @@ test("STA absolute can overwrite its opcode or either operand while retaining th
   }
 });
 
-test("STA records keep written values independent of later stores, memory changes, and caller edits", () => {
+test("6502 STA records keep written values independent of later stores, memory changes, and caller edits", () => {
   const ram = new ObservedRam();
   // Store 80 at 1234, load zero, then store zero at 1234.
   for (const [address, value] of [0x8d, 0x34, 0x12, 0xa9, 0, 0x8d, 0x34, 0x12].entries()) {
@@ -634,7 +634,7 @@ test("every unimplemented 6502 opcode reads once and preserves state on repeated
   }
 });
 
-test("unsupported records are independent and execution resumes after host memory changes", () => {
+test("unsupported 6502 records are independent and execution resumes after host memory changes", () => {
   const ram = new ObservedRam();
   const before = initialState();
   const cpu = new Cpu6502(ram, before);
@@ -667,7 +667,7 @@ test("unsupported records are independent and execution resumes after host memor
   assert.deepEqual(second, savedSecond);
 });
 
-test("LDA records retain actual bytes and stay independent of execution, inspection, and edits", () => {
+test("6502 LDA records retain actual bytes and stay independent of execution, inspection, and edits", () => {
   const ram = new ObservedRam();
   for (const [address, value] of [0xa9, 2, 0xa9, 0x80, 0xa9, 0].entries()) {
     ram.write(address, value);

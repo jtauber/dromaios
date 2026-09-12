@@ -101,7 +101,7 @@ test("8080 accepts inherited flag getters and non-enumerable state fields", () =
   assert.deepEqual(ram.accesses, []);
 });
 
-test("MVI A,n preserves unrelated state and records exactly the two actual reads", () => {
+test("8080 MVI A,n preserves unrelated state and records exactly the two actual reads", () => {
   for (const immediate of [0, 0x02, 0x80, 0xff]) {
     for (const setFlags of [false, true]) {
       const ram = new ObservedRam();
@@ -130,7 +130,7 @@ test("MVI A,n preserves unrelated state and records exactly the two actual reads
   }
 });
 
-test("MVI A,n wraps operand fetching and PC advancement at the 16-bit boundary", () => {
+test("8080 MVI A,n wraps operand fetching and PC advancement at the 16-bit boundary", () => {
   for (const [address, operandAddress, nextPc] of [
     [0xfffe, 0xffff, 0x0000],
     [0xffff, 0x0000, 0x0001],
@@ -157,7 +157,7 @@ test("MVI A,n wraps operand fetching and PC advancement at the 16-bit boundary",
   }
 });
 
-test("ADI replaces all arithmetic flags, preserves unrelated state, and records only two reads", () => {
+test("8080 ADI replaces all arithmetic flags, preserves unrelated state, and records only two reads", () => {
   // Literal expectations from the specification and Intel's ADI examples.
   const cases = [
     { a: 0x02, immediate: 0x03, result: 0x05,
@@ -237,7 +237,7 @@ function referenceAddition(a: number, immediate: number): { result: number; flag
   };
 }
 
-test("ADI matches reference addition for all operand pairs with old flags clear and set", () => {
+test("8080 ADI matches reference addition for all operand pairs with old flags clear and set", () => {
   const ram = new Ram(0x10000);
   ram.write(0, 0xc6);
   for (let immediate = 0; immediate < 256; immediate++) {
@@ -258,7 +258,7 @@ test("ADI matches reference addition for all operand pairs with old flags clear 
   }
 });
 
-test("ADI wraps operand fetching and PC advancement at the 16-bit boundary", () => {
+test("8080 ADI wraps operand fetching and PC advancement at the 16-bit boundary", () => {
   for (const [address, operandAddress, nextPc] of [
     [0xfffe, 0xffff, 0x0000],
     [0xffff, 0x0000, 0x0001],
@@ -288,7 +288,7 @@ test("ADI wraps operand fetching and PC advancement at the 16-bit boundary", () 
   }
 });
 
-test("STA decodes low/high address bytes and writes once while preserving CPU state", () => {
+test("8080 STA decodes low/high address bytes and writes once while preserving CPU state", () => {
   for (const [low, high, destination] of [
     [0x34, 0x12, 0x1234],
     [0x00, 0x00, 0x0000],
@@ -331,7 +331,7 @@ test("STA decodes low/high address bytes and writes once while preserving CPU st
   }
 });
 
-test("STA wraps both operand fetching and PC advancement at the 16-bit boundary", () => {
+test("8080 STA wraps both operand fetching and PC advancement at the 16-bit boundary", () => {
   for (const [address, lowAddress, highAddress, nextPc] of [
     [0xfffd, 0xfffe, 0xffff, 0x0000],
     [0xfffe, 0xffff, 0x0000, 0x0001],
@@ -363,7 +363,7 @@ test("STA wraps both operand fetching and PC advancement at the 16-bit boundary"
   }
 });
 
-test("STA can overwrite its opcode or either operand without changing fetched bytes", () => {
+test("8080 STA can overwrite its opcode or either operand without changing fetched bytes", () => {
   for (const [low, destination] of [
     [0x00, 0x2000], [0x01, 0x2001], [0x02, 0x2002],
   ] as const) {
@@ -405,7 +405,7 @@ test("STA can overwrite its opcode or either operand without changing fetched by
   }
 });
 
-test("HLT advances PC with wrapping, preserves unrelated state, and stops further fetching", () => {
+test("8080 HLT advances PC with wrapping, preserves unrelated state, and stops further fetching", () => {
   for (const [address, nextPc] of [
     [0x0000, 0x0001], [0x1234, 0x1235], [0xffff, 0x0000],
   ] as const) {
@@ -456,7 +456,7 @@ test("HLT advances PC with wrapping, preserves unrelated state, and stops furthe
   }
 });
 
-test("every other opcode reports unsupported repeatedly with one read and unchanged state", () => {
+test("every other 8080 opcode reports unsupported repeatedly with one read and unchanged state", () => {
   const ram = new ObservedRam();
   const before = initialState({ pc: 0xffff });
   const cpu = new Cpu8080(ram, before);
@@ -472,6 +472,7 @@ test("every other opcode reports unsupported repeatedly with one read and unchan
         after: before,
         accesses: [{ kind: "read", address: 0xffff, value: opcode }],
         outcome: "unsupported",
+        reason: "opcode",
       });
       assert.deepEqual(cpu.snapshot(), before);
       assert.deepEqual(ram.accesses, record.accesses);
@@ -479,7 +480,7 @@ test("every other opcode reports unsupported repeatedly with one read and unchan
   }
 });
 
-test("an already halted CPU returns independent records without fetching", () => {
+test("an already halted 8080 returns independent records without fetching", () => {
   const ram = new ObservedRam();
   const before = initialState({ halted: true });
   const cpu = new Cpu8080(ram, before);
@@ -499,7 +500,7 @@ test("an already halted CPU returns independent records without fetching", () =>
   assert.deepEqual(ram.accesses, []);
 });
 
-test("reset after HLT clears only control state without accessing RAM, then execution resumes", () => {
+test("8080 reset after HLT clears only control state without accessing RAM, then execution resumes", () => {
   const ram = new ObservedRam();
   ram.write(0, 0x3e);
   ram.write(1, 0x5a);
@@ -512,10 +513,12 @@ test("reset after HLT clears only control state without accessing RAM, then exec
   assert.equal(oldRecord.outcome, "halted");
   const savedRecord = structuredClone(oldRecord);
   ram.accesses.length = 0;
-  cpu.reset();
+  const reset = cpu.reset();
   const afterReset = {
     ...before, pc: 0, interruptEnabled: false, halted: false,
   };
+  assert.deepEqual(reset, { before: oldRecord.after, after: afterReset, accesses: [] });
+  const savedReset = structuredClone(reset);
   assert.deepEqual(cpu.snapshot(), afterReset);
   assert.deepEqual(ram.accesses, []);
   assert.deepEqual(oldRecord, savedRecord);
@@ -535,9 +538,54 @@ test("reset after HLT clears only control state without accessing RAM, then exec
   assert.deepEqual(cpu.snapshot(), resumed.after);
   assert.deepEqual(ram.accesses, resumed.accesses);
   assert.deepEqual(oldRecord, savedRecord);
+  assert.deepEqual(reset, savedReset);
 });
 
-test("records stay independent of execution, inspection, RAM edits, reset, and each other", () => {
+test("8080 reset records stay independent across repeated resets, execution, and caller edits", () => {
+  const ram = new ObservedRam();
+  ram.write(0, 0xc6);
+  ram.write(1, 0xef);
+  ram.accesses.length = 0;
+  const before = initialState();
+  const cpu = new Cpu8080(ram, before);
+  const afterReset = { ...before, pc: 0, interruptEnabled: false, halted: false };
+  const first = cpu.reset();
+  const savedFirst = structuredClone(first);
+  const second = cpu.reset();
+  const savedSecond = structuredClone(second);
+  assert.deepEqual(first, { before, after: afterReset, accesses: [] });
+  assert.deepEqual(second, { before: afterReset, after: afterReset, accesses: [] });
+  assert.deepEqual(cpu.snapshot(), afterReset);
+  assert.deepEqual(ram.accesses, []);
+
+  const step = cpu.step();
+  const savedStep = structuredClone(step);
+  assert.equal(step.outcome, "executed");
+  assert.equal(step.after.a, 0);
+  assert.deepEqual(first, savedFirst);
+  assert.deepEqual(second, savedSecond);
+
+  // Deliberately bypass readonly to check nested snapshots and empty access lists.
+  assert.ok(Reflect.set(first.before, "pc", 0xffff));
+  assert.ok(Reflect.set(first.before.flags, "s", false));
+  assert.deepEqual(first.after, savedFirst.after);
+  assert.ok(Reflect.set(first.after, "halted", true));
+  assert.ok(Reflect.set(first.after.flags, "cy", false));
+  assert.equal(first.before.flags.cy, true);
+  assert.ok(Reflect.set(first.accesses, 0, { kind: "write", address: 0, value: 0 }));
+  assert.deepEqual(second, savedSecond);
+  assert.deepEqual(step, savedStep);
+  assert.deepEqual(cpu.snapshot(), savedStep.after);
+  assert.equal(ram.read(0), 0xc6);
+
+  ram.write(0, 0x76);
+  cpu.reset();
+  cpu.step();
+  assert.deepEqual(second, savedSecond);
+  assert.deepEqual(step, savedStep);
+});
+
+test("8080 records stay independent of execution, inspection, RAM edits, reset, and each other", () => {
   const ram = new ObservedRam();
   ram.write(0, 0x3e);
   ram.write(1, 0x02);

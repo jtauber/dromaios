@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createFirstExample, createFirstExampleMemory } from "../../src/machines/first-example.js";
+import type { Ram } from "../../src/components/memory/ram.js";
+import { create8080Example, create8080ExampleMemory } from "../../src/machines/8080-example.js";
 
 function expectedInitialState() {
   return {
@@ -12,26 +13,29 @@ function expectedInitialState() {
   };
 }
 
-test("the first example loads exactly the specified program into 64 KiB of zeroed RAM", () => {
-  const ram = createFirstExampleMemory();
-  // Expected bytes are stated independently of the loader, from the specification.
-  const expectedProgram = [0x3e, 0x02, 0xc6, 0x03, 0x32, 0x80, 0x00, 0x76];
-  assert.equal(ram.size, 65_536);
-  for (const [address, value] of expectedProgram.entries()) {
-    assert.equal(ram.read(address), value, `program byte at ${address}`);
+function checkExampleMemory(ram: Ram, result: number): void {
+  // Literal bytes and addresses from the specification, independent of the loader.
+  const expected = new Uint8Array(65_536);
+  expected.set([0x3e, 0x02, 0xc6, 0x03, 0x32, 0x80, 0x00, 0x76], 0x0000);
+  expected[0x0080] = result;
+  assert.equal(ram.size, expected.length);
+  for (const [address, value] of expected.entries()) {
+    assert.equal(ram.read(address), value, `memory at ${address}`);
   }
-  for (let address = expectedProgram.length; address < ram.size; address++) {
-    assert.equal(ram.read(address), 0, `zero byte at ${address}`);
-  }
+}
+
+test("the 8080 example loads exactly the specified program into 64 KiB of zeroed RAM", () => {
+  const ram = create8080ExampleMemory();
+  checkExampleMemory(ram, 0);
 });
 
-test("each setup creates independent memory with the original program and zero result", () => {
-  const first = createFirstExampleMemory();
+test("each 8080 setup creates independent memory with the original program and zero result", () => {
+  const first = create8080ExampleMemory();
   first.write(0x0000, 0);
   first.write(0x0080, 5);
   first.write(0xffff, 0xff);
 
-  const second = createFirstExampleMemory();
+  const second = create8080ExampleMemory();
   assert.equal(second.read(0x0000), 0x3e);
   assert.equal(second.read(0x0080), 0);
   assert.equal(second.read(0xffff), 0);
@@ -43,8 +47,8 @@ test("each setup creates independent memory with the original program and zero r
   assert.equal(first.read(0x0080), 5);
 });
 
-test("the first example loads, adds, stores 5, and halts with the specified records", () => {
-  const { cpu, ram } = createFirstExample();
+test("the 8080 example loads, adds, stores 5, and halts with the specified records", () => {
+  const { cpu, ram } = create8080Example();
   const before = expectedInitialState();
   const afterLoad = { ...before, a: 2, pc: 2 };
   const afterAdd = { ...before, a: 5, pc: 4, flags: { ...before.flags, p: true } };
@@ -101,15 +105,11 @@ test("the first example loads, adds, stores 5, and halts with the specified reco
     outcome: "halted",
   });
   assert.deepEqual(cpu.snapshot(), afterHalt);
-  const expectedMemory = createFirstExampleMemory();
-  expectedMemory.write(0x0080, 5);
-  for (let address = 0; address < ram.size; address++) {
-    assert.equal(ram.read(address), expectedMemory.read(address));
-  }
+  checkExampleMemory(ram, 5);
 });
 
-test("lesson restart creates fresh CPU state and memory while reset preserves data", () => {
-  const first = createFirstExample();
+test("8080 lesson restart creates fresh CPU state and memory while reset preserves data", () => {
+  const first = create8080Example();
   const record = first.cpu.step();
   const savedRecord = structuredClone(record);
   const additionRecord = first.cpu.step();
@@ -129,10 +129,9 @@ test("lesson restart creates fresh CPU state and memory while reset preserves da
   assert.equal(first.ram.read(0), 0);
   assert.equal(first.ram.read(0x0080), 5);
 
-  const restarted = createFirstExample();
+  const restarted = create8080Example();
   assert.deepEqual(restarted.cpu.snapshot(), expectedInitialState());
-  assert.equal(restarted.ram.read(0), 0x3e);
-  assert.equal(restarted.ram.read(0x0080), 0);
+  checkExampleMemory(restarted.ram, 0);
   assert.deepEqual(record, savedRecord);
   assert.deepEqual(additionRecord, savedAdditionRecord);
   assert.deepEqual(storeRecord, savedStoreRecord);

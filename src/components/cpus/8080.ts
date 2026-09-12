@@ -44,9 +44,19 @@ export type Cpu8080StepRecord = {
   readonly accesses: readonly Cpu8080MemoryAccess[];
 } & (
   | { readonly outcome: "executed"; readonly instruction: Cpu8080Instruction }
-  | { readonly outcome: "unsupported"; readonly instruction: Cpu8080Instruction }
+  | {
+    readonly outcome: "unsupported";
+    readonly instruction: Cpu8080Instruction;
+    readonly reason: "opcode";
+  }
   | { readonly outcome: "halted"; readonly instruction: Cpu8080Instruction | null }
 );
+
+export interface Cpu8080ResetRecord {
+  readonly before: Cpu8080Snapshot;
+  readonly after: Cpu8080Snapshot;
+  readonly accesses: readonly Cpu8080MemoryAccess[];
+}
 
 interface InstructionContext {
   readonly fetchByte: () => number;
@@ -58,7 +68,7 @@ type OpcodeHandler = (instruction: InstructionContext) => void;
 
 function copyState(state: Cpu8080Snapshot): Cpu8080State {
   const flags = state.flags;
-  // Read only model fields; inputs may have extra properties or inherited getters.
+  // Copy declared fields only, including non-enumerable fields and inherited getters.
   return {
     a: state.a,
     b: state.b,
@@ -89,18 +99,15 @@ function hasEvenParity(byte: number): boolean {
   return setBits % 2 === 0;
 }
 
-/**
- * Instruction-level 8080 model.
- * Supports MVI A,n (3E), ADI n (C6), STA addr (32), and HLT (76).
- */
+/** Instruction-level Intel 8080 subset for the first 8080 example. */
 export class Cpu8080 {
   readonly #ram: Ram;
   readonly #state: Cpu8080State;
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
-    0x3e: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // MVI A,n
-    0xc6: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADI n
     0x32: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
+    0x3e: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // MVI A,n
     0x76: () => this.#halt(), // HLT
+    0xc6: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADI n
   };
 
   constructor(ram: Ram, initialState: Cpu8080Snapshot) {
@@ -132,12 +139,15 @@ export class Cpu8080 {
   }
 
   /** Reset PC and control latches, preserving data registers, SP, flags, and RAM. */
-  reset(): void {
+  reset(): Cpu8080ResetRecord {
+    const before = this.snapshot();
     this.#state.pc = 0;
     this.#state.interruptEnabled = false;
     this.#state.halted = false;
+    return { before, after: this.snapshot(), accesses: [] };
   }
 
+  /** Attempt one instruction; halted CPUs do not fetch and unsupported opcodes preserve state. */
   step(): Cpu8080StepRecord {
     const before = this.snapshot();
     if (this.#state.halted) {
@@ -155,9 +165,8 @@ export class Cpu8080 {
     const opcode = this.#read(address, accesses);
     const bytes = [opcode];
     const handler = this.#opcodeHandlers[opcode];
-    let outcome: Cpu8080StepRecord["outcome"] = "unsupported";
     if (handler) {
-      // Consume the opcode only after recognizing it; unsupported opcodes keep PC.
+      // Advance only for supported instructions; operand fetches advance themselves.
       this.#state.pc = (address + 1) & 0xffff;
       const fetchByte = (): number => {
         const pc = this.#state.pc;
@@ -175,16 +184,17 @@ export class Cpu8080 {
         },
         writeByte: (address, value) => this.#write(address, value, accesses),
       });
-      outcome = this.#state.halted ? "halted" : "executed";
     }
 
-    return {
+    const record = {
       instruction: { address, bytes },
       before,
       after: this.snapshot(),
       accesses,
-      outcome,
     };
+    return handler
+      ? { ...record, outcome: this.#state.halted ? "halted" : "executed" }
+      : { ...record, outcome: "unsupported", reason: "opcode" };
   }
 
   #loadAccumulator(value: number): void {

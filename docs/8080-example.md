@@ -1,7 +1,8 @@
-# First example: step through an 8080 program
+# 8080 example: load, add, and store
 
-**Status: first headless example implemented and tested.** The complete program,
-step records, CPU reset, and lesson restart follow the specification below.
+**Status: implemented and tested.**
+The complete program, step records, CPU reset, and lesson restart follow the
+specification below.
 Development uses TypeScript compiled to ES modules and Node.js 24's built-in
 test runner; see the
 [development instructions](../README.md#development).
@@ -21,8 +22,8 @@ observable and independently checkable.
 - The interrupt-enable latch is represented but initially false; no interrupt
   inputs or instructions that enable interrupts are implemented in this slice.
 
-This contract is specific to the first 8080 example. We will revisit shared
-conventions through the [6502 and 6809 examples](cpu-roadmap.md).
+This contract is specific to the first 8080 example. Shared conventions remain
+provisional while [focused examples exercise all three CPUs](cpu-roadmap.md).
 
 ## Program and memory image
 
@@ -70,7 +71,7 @@ writes; it does not own program loading or lesson restart.
 The implemented memory API is `new Ram(size)`, with a read-only `size` getter,
 `read(address)`, and `write(address, value)`. Storage is private and initially
 zeroed. Size must be a positive safe integer; invalid sizes, addresses, and
-byte values throw `RangeError`. `createFirstExampleMemory()` returns a fresh
+byte values throw `RangeError`. `create8080ExampleMemory()` returns a fresh
 RAM instance with the program loaded. It does not create or execute a CPU.
 
 Values exposed in records are numbers, with byte values in `00`–`FF` and
@@ -94,8 +95,9 @@ Flags and control latches must be booleans, otherwise it throws `TypeError`.
 - `step()` executes the supported instructions below and returns `unsupported`
   for every other opcode. Executing `HLT` returns `halted` with its instruction;
   subsequent calls return `halted` without fetching.
-- `reset()` applies only the CPU reset changes specified below.
-- `createFirstExample()` returns fresh `{ cpu, ram }` components with the
+- `reset()` applies only the CPU reset changes specified below and returns a
+  reset record with before/after snapshots and an empty access list.
+- `create8080Example()` returns fresh `{ cpu, ram }` components with the
   specified initial state and program. Call it again to restart the lesson;
   the previous components and records remain available to their caller.
 
@@ -130,6 +132,7 @@ These are provisional field names for the 8080, not a platform-wide CPU API.
 | `after` | Snapshot of the same state after this call |
 | `accesses` | Ordered list of `{ kind, address, value }` entries; kind is `read` or `write` |
 | `outcome` | `executed`, `halted`, or `unsupported` |
+| `reason` | `opcode` for unsupported records; absent for other outcomes |
 
 Instruction bytes and read values come from the actual reads made during the
 step. A write entry contains the value written. Capturing a record must not
@@ -200,7 +203,8 @@ Interrupt inputs are outside this model. Setting the initial interrupt-enable
 latch to true does not itself resume a halted CPU; `reset()` clears the halted
 state, and restarting the lesson creates a fresh CPU.
 
-For any opcode outside the four supported forms, return `outcome: unsupported`.
+For any opcode outside the four supported forms, return `outcome: unsupported`
+with `reason: opcode`.
 The instruction field contains the attempted address and the single opcode byte;
 the access list contains just that opcode read. PC and all other CPU state,
 and all RAM, remain unchanged. No operands are fetched and no instruction is
@@ -221,9 +225,13 @@ enable becomes false, and halted becomes false. It preserves A, B, C, D, E,
 H, L, SP, and the arithmetic flags. It does not read, clear, or reload RAM.
 This follows the 8080 reset distinction in the Intel hardware reference.
 
+`reset()` returns a `Cpu8080ResetRecord` with detached `before` and `after`
+snapshots and an empty `accesses` list. It has the same readonly and ownership
+guarantees as step records, but no `instruction`, `outcome`, or `reason`.
+Repeated resets leave the reset state unchanged and return fresh records.
+
 After resetting the completed program, A and RAM at `0080` therefore still
-contain `05`, and P is still true. Reset itself is not an instruction step
-and does not produce a step record.
+contain `05`, and P is still true.
 
 Restarting the lesson restores the entire specified initial state and memory
 image, including clearing the result byte and flags. The caller starts a new

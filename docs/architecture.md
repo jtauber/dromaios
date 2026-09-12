@@ -77,7 +77,7 @@ dromaios/
 ├── docs/
 │   ├── architecture.md
 │   ├── cpu-roadmap.md
-│   ├── first-example.md
+│   ├── 8080-example.md
 │   ├── 6502-example.md
 │   ├── 6502-reference-notes.md
 │   └── 6809-example.md
@@ -119,7 +119,7 @@ models, variants, and machine compositions can still require revisions.
 
 ## Example specifications
 
-The introductory [8080](first-example.md), [6502](6502-example.md), and
+The introductory [8080](8080-example.md), [6502](6502-example.md), and
 [6809](6809-example.md) examples are complete. Each example's document records
 its state, program, execution contract, acceptance checks, and detailed progress.
 These questions also guide review of the focused examples that come next:
@@ -138,11 +138,11 @@ record must make its granularity clear; an instruction-level model does not
 automatically provide a complete cycle-by-cycle bus trace.
 
 The concrete `Cpu8080`, `Cpu6502`, and `Cpu6809` models each take a 64 KiB
-`Ram` instance and explicit initial state. They copy only declared state fields, including
-flags, and expose `snapshot()` and `step()`. Public snapshots and records have
-readonly TypeScript types and own detached values; internal CPU state stays
-mutable. Each model uses a discriminated union for step outcomes and retains
-no execution history. Restarting an example creates fresh components.
+`Ram` instance and explicit initial state. They copy only declared state fields,
+including flags, and expose `snapshot()` and `step()`. Public snapshots and
+records have readonly TypeScript types and own detached values. Internal CPU
+state stays mutable. Each model uses a discriminated union for step outcomes
+and retains no execution history. Restarting an example creates fresh components.
 
 Reset behavior, step outcomes, and lesson completion remain specific to each
 CPU and example. Their specifications describe the implemented behavior and

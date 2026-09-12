@@ -8,8 +8,8 @@ small changes with time for review, questions, and revision. Finishing a change
 is a point to discuss the next slice. Later stages are provisional.
 Every commit requires maintainer review and an explicit go-ahead.
 
-The initial CPU sequence is **8080 → 6502 → 6809**. We will introduce small
-examples for all three before settling shared CPU and inspection interfaces.
+The introductory examples were built in the order **8080 → 6502 → 6809**.
+Focused examples will now inform shared CPU and inspection interfaces.
 Implementation order is independent of the tutorial's historical teaching
 order. See [CPU scope and early roadmap](docs/cpu-roadmap.md) for the rationale,
 eventual targets, and current reference coverage.
@@ -17,7 +17,7 @@ eventual targets, and current reference coverage.
 ## 0. Establish the starting point — complete
 
 - Review the purpose, design principles, and proposed repository structure.
-- Review the [first-example specification](docs/first-example.md): an eight-byte
+- Review the [8080 example specification](docs/8080-example.md): an eight-byte
   8080 program with its complete expected state changes and access records.
 - Choose the minimal development/test setup for TypeScript, the selected
   implementation language.
@@ -27,7 +27,7 @@ eventual targets, and current reference coverage.
 **Review point:** We can explain the first example and the responsibilities of
 its parts before implementing them.
 
-The first-example specification has been reviewed. Development uses TypeScript
+The 8080 example specification has been reviewed. Development uses TypeScript
 compiled to ES modules, npm, and Node.js 24's built-in test runner.
 
 ## 1. Follow a tiny 8080 program — complete
@@ -43,7 +43,7 @@ compiled to ES modules, npm, and Node.js 24's built-in test runner.
 The supported instruction subset and execution granularity are documented.
 
 Detailed implementation progress and acceptance checks live in the
-[first-example specification](docs/first-example.md).
+[8080 example specification](docs/8080-example.md).
 
 ## 2. Test generalizations across three CPUs — current
 
@@ -59,7 +59,7 @@ Detailed implementation progress and acceptance checks live in the
 documented limits. Proposed generalizations have been exercised against their
 architectural differences, beyond simply running the same arithmetic example.
 
-The introductory [8080](docs/first-example.md), [6502](docs/6502-example.md),
+The introductory [8080](docs/8080-example.md), [6502](docs/6502-example.md),
 and [6809](docs/6809-example.md) examples are complete. Their specifications
 record detailed coverage and acceptance checks. Focused examples and comparison
 of the three models are next within this stage.

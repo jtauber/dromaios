@@ -53,7 +53,7 @@ agents follow this rule in [AGENTS.md](AGENTS.md).
 
 ## Status
 
-The introductory [8080](docs/first-example.md), [6502](docs/6502-example.md),
+The introductory [8080](docs/8080-example.md), [6502](docs/6502-example.md),
 and [6809](docs/6809-example.md) examples are complete and tested independently
 of the browser. Next, focused examples will exercise register relationships,
 stacks, addressing, and I/O before we settle shared CPU and inspection
@@ -99,7 +99,7 @@ Released under the [MIT license](LICENSE).
   and proposed source layout.
 - [docs/cpu-roadmap.md](docs/cpu-roadmap.md) records the intended CPU scope,
   existing reference coverage, and the three-CPU approach to generalization.
-- [docs/first-example.md](docs/first-example.md) specifies the first 8080 program,
+- [docs/8080-example.md](docs/8080-example.md) specifies the first 8080 program,
   initial state, step records, and acceptance checks.
 - [docs/6502-example.md](docs/6502-example.md) specifies the second example and
   tracks its implementation progress.
@@ -109,7 +109,7 @@ Released under the [MIT license](LICENSE).
   records findings from the existing CoCo implementation.
 - [src/components/memory/ram.ts](src/components/memory/ram.ts) owns byte storage
   and validates reads and writes.
-- [src/components/cpus/](src/components/cpus/) contains the 8080 and 6502 models,
+- [src/components/cpus/](src/components/cpus/) contains the 8080, 6502, and 6809 models,
   each with its own state, supported instruction subset, detached snapshots,
   and step records.
 - [src/machines/](src/machines/) prepares fresh RAM and CPU state for starting

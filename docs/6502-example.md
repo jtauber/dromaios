@@ -1,8 +1,8 @@
-# Second example: the same calculation on a 6502
+# 6502 example: load, add, and store
 
-**Status: the first 6502 example is implemented and tested.**
+**Status: implemented and tested.**
 The example loads 2, adds 3, and stores 5, providing a second
-architecture against which to examine the [8080 example](first-example.md).
+architecture against which to examine the [8080 example](8080-example.md).
 The interfaces below are specific to the 6502 and remain provisional while
 focused examples exercise all three architectures.
 
@@ -289,7 +289,7 @@ resolve a destination and write without first reading its contents.
 Keep 6502 flags, addressing, reset, and records specific to this CPU. The
 comparison with the 8080 already exposes distinct load flags, carry input,
 status layout, stack width, reset reads, and completion behavior. Shared
-interfaces will be assessed with the 6809 example as well.
+interfaces will be assessed through focused examples across all three CPUs.
 
 Future explanations of completed steps should use the captured instruction
 bytes, snapshots, and accesses. The [6502 reference notes](6502-reference-notes.md)

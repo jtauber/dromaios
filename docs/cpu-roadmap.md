@@ -69,7 +69,7 @@ Hardware references for these distinctions:
 ## How we use the three examples
 
 1. Establish RAM, instruction stepping, and execution records with a tiny
-   8080 program. The completed [first example](first-example.md) loads a number,
+   8080 program. The completed [8080 example](8080-example.md) loads a number,
    adds another, stores the result, and halts, with exact expected records.
 2. Implement the equivalent [6502 example](6502-example.md). Examine which
    support carries over and where the first model made assumptions.
@@ -126,7 +126,7 @@ programmer-managed stack in RAM. See
 
 ## Current implementation
 
-The introductory [8080](first-example.md), [6502](6502-example.md), and
+The introductory [8080](8080-example.md), [6502](6502-example.md), and
 [6809](6809-example.md) examples are complete. Their specifications record
 detailed coverage and acceptance checks; the 6809 document also records the
 CoCo reference review. Next come focused examples and comparison of the models
