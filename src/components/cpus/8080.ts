@@ -73,7 +73,15 @@ function checkUnsigned(name: string, value: number, maximum: number): void {
   }
 }
 
-/** Instruction-level 8080 model. Currently supports only MVI A,n (3E). */
+function hasEvenParity(byte: number): boolean {
+  let setBits = 0;
+  for (let bit = 0; bit < 8; bit++) {
+    setBits += (byte >>> bit) & 1;
+  }
+  return setBits % 2 === 0;
+}
+
+/** Instruction-level 8080 model. Supports MVI A,n (3E) and ADI n (C6). */
 export class Cpu8080 {
   readonly #ram: Ram;
   readonly #state: Cpu8080State;
@@ -131,6 +139,29 @@ export class Cpu8080 {
     if (opcode === 0x3e) {
       const immediate = this.#read((address + 1) & 0xffff, accesses);
       this.#state.a = immediate;
+      this.#state.pc = (address + 2) & 0xffff;
+      return {
+        instruction: { address, bytes: [opcode, immediate] },
+        before,
+        after: this.snapshot(),
+        accesses,
+        outcome: "executed",
+      };
+    }
+
+    if (opcode === 0xc6) {
+      const immediate = this.#read((address + 1) & 0xffff, accesses);
+      const accumulator = this.#state.a;
+      const sum = accumulator + immediate;
+      const result = sum & 0xff;
+      this.#state.a = result;
+      this.#state.flags = {
+        s: (result & 0x80) !== 0,
+        z: result === 0,
+        ac: (accumulator & 0x0f) + (immediate & 0x0f) > 0x0f,
+        p: hasEvenParity(result),
+        cy: sum > 0xff,
+      };
       this.#state.pc = (address + 2) & 0xffff;
       return {
         instruction: { address, bytes: [opcode, immediate] },

@@ -42,9 +42,9 @@ compiled to ES modules, npm, and Node.js 24's built-in test runner.
 **Review point:** We can account for what each instruction reads and changes.
 The supported instruction subset and execution granularity are documented.
 
-**Progress:** RAM, CPU state, `MVI A,n`, step records, CPU reset, and fresh lesson
-setup are implemented and tested. The MIT license is in place. The next small
-change adds `ADI n` and its arithmetic flags; `STA` and `HLT` follow separately.
+**Progress:** RAM, CPU state, `MVI A,n`, `ADI n` and its flags, step records,
+CPU reset, and fresh lesson setup are implemented and tested. The MIT license
+is in place. The next small change adds `STA addr`; `HLT` follows separately.
 
 ## 2. Test generalizations across three CPUs
 

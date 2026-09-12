@@ -157,12 +157,143 @@ test("MVI A,n wraps operand fetching and PC advancement at the 16-bit boundary",
   }
 });
 
+test("ADI replaces all arithmetic flags, preserves unrelated state, and records only two reads", () => {
+  // Literal expectations from the specification and Intel's ADI examples.
+  const cases = [
+    { a: 0x02, immediate: 0x03, result: 0x05,
+      flags: { s: false, z: false, ac: false, p: true, cy: false } },
+    { a: 0xff, immediate: 0x01, result: 0x00,
+      flags: { s: false, z: true, ac: true, p: true, cy: true } },
+    { a: 0x7f, immediate: 0x01, result: 0x80,
+      flags: { s: true, z: false, ac: true, p: false, cy: false } },
+    { a: 0xff, immediate: 0x00, result: 0xff,
+      flags: { s: true, z: false, ac: false, p: true, cy: false } },
+    { a: 0x08, immediate: 0x08, result: 0x10,
+      flags: { s: false, z: false, ac: true, p: false, cy: false } },
+    { a: 0x80, immediate: 0x80, result: 0x00,
+      flags: { s: false, z: true, ac: false, p: true, cy: true } },
+    { a: 0x14, immediate: 0x42, result: 0x56,
+      flags: { s: false, z: false, ac: false, p: true, cy: false } },
+    { a: 0x56, immediate: 0xbe, result: 0x14,
+      flags: { s: false, z: false, ac: true, p: true, cy: true } },
+  ] satisfies readonly { a: number; immediate: number; result: number; flags: Cpu8080Flags }[];
+
+  for (const { a, immediate, result, flags } of cases) {
+    for (const setFlags of [false, true]) {
+      const ram = new ObservedRam();
+      ram.write(0x1234, 0xc6);
+      ram.write(0x1235, immediate);
+      ram.accesses.length = 0;
+      const before = initialState({
+        a,
+        flags: { s: setFlags, z: setFlags, ac: setFlags, p: setFlags, cy: setFlags },
+      });
+      const cpu = new Cpu8080(ram, before);
+      const record = cpu.step();
+      const expectedAccesses = [
+        { kind: "read", address: 0x1234, value: 0xc6 },
+        { kind: "read", address: 0x1235, value: immediate },
+      ];
+      const context = `A=${a}, immediate=${immediate}, initial flags=${setFlags}`;
+      assert.deepEqual(record, {
+        instruction: { address: 0x1234, bytes: [0xc6, immediate] },
+        before,
+        after: { ...before, a: result, flags, pc: 0x1236 },
+        accesses: expectedAccesses,
+        outcome: "executed",
+      }, context);
+      assert.deepEqual(cpu.snapshot(), record.after, context);
+      assert.deepEqual(ram.accesses, expectedAccesses, context);
+    }
+  }
+});
+
+// Reference addition works one binary column at a time, independently of the
+// CPU's whole-byte sum, bit masks, and parity helper. Carry starts at zero for ADI.
+function referenceAddition(a: number, immediate: number): { result: number; flags: Cpu8080Flags } {
+  let result = 0;
+  let carry = 0;
+  let auxiliaryCarry = false;
+  let setBits = 0;
+  for (let bit = 0; bit < 8; bit++) {
+    const column = (a % 2) + (immediate % 2) + carry;
+    const digit = column % 2;
+    result += digit * 2 ** bit;
+    setBits += digit;
+    carry = column >= 2 ? 1 : 0;
+    if (bit === 3) auxiliaryCarry = carry === 1;
+    a = Math.floor(a / 2);
+    immediate = Math.floor(immediate / 2);
+  }
+  return {
+    result,
+    flags: {
+      s: result >= 128,
+      z: result === 0,
+      ac: auxiliaryCarry,
+      p: setBits % 2 === 0,
+      cy: carry === 1,
+    },
+  };
+}
+
+test("ADI matches reference addition for all operand pairs with old flags clear and set", () => {
+  const ram = new Ram(0x10000);
+  ram.write(0, 0xc6);
+  for (let immediate = 0; immediate < 256; immediate++) {
+    ram.write(1, immediate);
+    for (let a = 0; a < 256; a++) {
+      const expected = referenceAddition(a, immediate);
+      for (const setFlags of [false, true]) {
+        const cpu = new Cpu8080(ram, initialState({
+          a, pc: 0,
+          flags: { s: setFlags, z: setFlags, ac: setFlags, p: setFlags, cy: setFlags },
+        }));
+        const record = cpu.step();
+        assert.equal(record.outcome, "executed");
+        assert.deepEqual({ result: record.after.a, flags: record.after.flags }, expected,
+          `A=${a}, immediate=${immediate}, initial flags=${setFlags}`);
+      }
+    }
+  }
+});
+
+test("ADI wraps operand fetching and PC advancement at the 16-bit boundary", () => {
+  for (const [address, operandAddress, nextPc] of [
+    [0xfffe, 0xffff, 0x0000],
+    [0xffff, 0x0000, 0x0001],
+  ] as const) {
+    const ram = new ObservedRam();
+    ram.write(address, 0xc6);
+    ram.write(operandAddress, 1);
+    ram.accesses.length = 0;
+    const before = initialState({ a: 0xff, pc: address });
+    const cpu = new Cpu8080(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address, bytes: [0xc6, 0x01] },
+      before,
+      after: {
+        ...before, a: 0, pc: nextPc,
+        flags: { s: false, z: true, ac: true, p: true, cy: true },
+      },
+      accesses: [
+        { kind: "read", address, value: 0xc6 },
+        { kind: "read", address: operandAddress, value: 1 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), record.after);
+    assert.deepEqual(ram.accesses, record.accesses);
+  }
+});
+
 test("every other opcode reports unsupported repeatedly with one read and unchanged state", () => {
   const ram = new ObservedRam();
   const before = initialState({ pc: 0xffff });
   const cpu = new Cpu8080(ram, before);
   for (let opcode = 0; opcode <= 0xff; opcode++) {
-    if (opcode === 0x3e) continue;
+    if (opcode === 0x3e || opcode === 0xc6) continue;
     ram.write(0xffff, opcode);
     for (let attempt = 0; attempt < 2; attempt++) {
       ram.accesses.length = 0;
@@ -226,7 +357,7 @@ test("records stay independent of execution, inspection, RAM edits, reset, and e
   const ram = new ObservedRam();
   ram.write(0, 0x3e);
   ram.write(1, 0x02);
-  ram.write(2, 0x3e);
+  ram.write(2, 0xc6);
   ram.write(3, 0x03);
   const before = initialState({ pc: 0 });
   const cpu = new Cpu8080(ram, before);
@@ -237,7 +368,7 @@ test("records stay independent of execution, inspection, RAM edits, reset, and e
   const live = cpu.snapshot();
   ram.accesses.length = 0;
   // Simulate edits from JavaScript, which has no readonly checks.
-  Reflect.set(cpu.snapshot().flags, "ac", false);
+  Reflect.set(cpu.snapshot().flags, "p", false);
   assert.deepEqual(cpu.snapshot(), live);
   assert.deepEqual(ram.accesses, []);
   assert.deepEqual(first, savedFirst);

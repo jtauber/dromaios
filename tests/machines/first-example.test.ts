@@ -43,15 +43,16 @@ test("each setup creates independent memory with the original program and zero r
   assert.equal(first.read(0x0080), 5);
 });
 
-test("the first example executes MVI A,2 and reports the following ADI as unsupported", () => {
+test("the first example executes MVI A,2 and ADI 3, then reports STA as unsupported", () => {
   const { cpu, ram } = createFirstExample();
   const before = expectedInitialState();
-  const after = { ...before, a: 2, pc: 2 };
+  const afterLoad = { ...before, a: 2, pc: 2 };
+  const afterAdd = { ...before, a: 5, pc: 4, flags: { ...before.flags, p: true } };
   assert.deepEqual(cpu.snapshot(), before);
   assert.deepEqual(cpu.step(), {
     instruction: { address: 0, bytes: [0x3e, 0x02] },
     before,
-    after,
+    after: afterLoad,
     accesses: [
       { kind: "read", address: 0, value: 0x3e },
       { kind: "read", address: 1, value: 0x02 },
@@ -59,12 +60,23 @@ test("the first example executes MVI A,2 and reports the following ADI as unsupp
     outcome: "executed",
   });
   assert.deepEqual(cpu.step(), {
-    instruction: { address: 2, bytes: [0xc6] },
-    before: after,
-    after,
-    accesses: [{ kind: "read", address: 2, value: 0xc6 }],
+    instruction: { address: 2, bytes: [0xc6, 0x03] },
+    before: afterLoad,
+    after: afterAdd,
+    accesses: [
+      { kind: "read", address: 2, value: 0xc6 },
+      { kind: "read", address: 3, value: 0x03 },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(cpu.step(), {
+    instruction: { address: 4, bytes: [0x32] },
+    before: afterAdd,
+    after: afterAdd,
+    accesses: [{ kind: "read", address: 4, value: 0x32 }],
     outcome: "unsupported",
   });
+  assert.deepEqual(cpu.snapshot(), afterAdd);
   const expectedMemory = createFirstExampleMemory();
   for (let address = 0; address < ram.size; address++) {
     assert.equal(ram.read(address), expectedMemory.read(address));
@@ -75,10 +87,16 @@ test("lesson restart creates fresh CPU state and memory while reset preserves da
   const first = createFirstExample();
   const record = first.cpu.step();
   const savedRecord = structuredClone(record);
+  const additionRecord = first.cpu.step();
+  const savedAdditionRecord = structuredClone(additionRecord);
   first.ram.write(0, 0);
   first.ram.write(0x0080, 5);
   first.cpu.reset();
-  assert.deepEqual(first.cpu.snapshot(), { ...expectedInitialState(), a: 2 });
+  const afterReset = {
+    ...expectedInitialState(), a: 5,
+    flags: { s: false, z: false, ac: false, p: true, cy: false },
+  };
+  assert.deepEqual(first.cpu.snapshot(), afterReset);
   assert.equal(first.ram.read(0), 0);
   assert.equal(first.ram.read(0x0080), 5);
 
@@ -87,9 +105,11 @@ test("lesson restart creates fresh CPU state and memory while reset preserves da
   assert.equal(restarted.ram.read(0), 0x3e);
   assert.equal(restarted.ram.read(0x0080), 0);
   assert.deepEqual(record, savedRecord);
+  assert.deepEqual(additionRecord, savedAdditionRecord);
   restarted.cpu.step();
   restarted.ram.write(0x0080, 9);
-  assert.deepEqual(first.cpu.snapshot(), { ...expectedInitialState(), a: 2 });
+  assert.deepEqual(first.cpu.snapshot(), afterReset);
   assert.equal(first.ram.read(0x0080), 5);
   assert.deepEqual(record, savedRecord);
+  assert.deepEqual(additionRecord, savedAdditionRecord);
 });

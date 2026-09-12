@@ -129,9 +129,9 @@ programmer-managed stack in RAM. See
 ## Next decisions
 
 The [first-example specification](first-example.md) has been reviewed. RAM,
-8080 state, `MVI A,n`, step records, reset, and lesson setup are implemented,
-with TypeScript compiled to ES modules and tests run by Node.js 24's built-in
-runner. The next small change adds `ADI n` and its arithmetic flags. The
+8080 state, `MVI A,n`, `ADI n` and its flags, step records, reset, and lesson
+setup are implemented, with TypeScript compiled to ES modules and tests run
+by Node.js 24's built-in runner. The next small change adds `STA addr`. The
 [specification questions](architecture.md#first-example-specification) continue
 to guide review as each instruction is added.
 
