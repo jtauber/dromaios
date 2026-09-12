@@ -1,10 +1,32 @@
 # Third example: the same calculation on a 6809
 
-**Status: reviewed specification; no 6809 implementation yet.**
+**Status: state, snapshots, lesson setup, and LDA immediate are implemented and tested.**
 This defines the third small example after the completed
 [8080](first-example.md) and [6502](6502-example.md) examples. It loads 2,
 adds 3, and stores 5. The CPU-specific interfaces remain provisional while
 these examples expose the differences shared support must represent.
+
+## Implementation progress
+
+The [CPU](../src/components/cpus/6809.ts) provides validated stored state,
+detached snapshots with D derived from A/B, and instruction records.
+`LDA #n` replaces A/N/Z, clears V, and preserves all other state except PC.
+Every other opcode remains unsupported, including `10` and `11`: one read,
+unchanged state, and no second-byte fetch.
+
+The [example factory](../src/machines/6809-example.ts) loads the full program
+and reset vector and supplies the initial state. The lesson currently reaches
+A = `02`, D = `0234`, and PC = `0202`, then stops at the unsupported ADDA.
+RAM remains unchanged. Reset and its record come next, followed by ADDA
+immediate, then STA extended and the complete lesson. The sections below
+retain the reviewed specification for that full subset.
+
+[CPU tests](../tests/components/cpus/6809.test.ts) cover validation, ownership,
+D, flag effects, observed accesses, PC wrapping, and every unsupported byte.
+[Fixture tests](../tests/machines/6809-example.test.ts) check the entire image,
+the exact partial-lesson records, and independent restarts.
+[Type checks](../tests/types/6809.ts) cover initialization without separate D,
+readonly snapshots and records, and the outcome/reason relationship.
 
 ## Model boundary
 
@@ -20,10 +42,6 @@ these examples expose the differences shared support must represent.
   prefixed instructions, devices, timing, dummy bus accesses, or browser UI.
 - One `step()` attempts one instruction. The caller owns the completion
   address and execution budget; the CPU has no lesson-specific halt latch.
-
-The proposed source locations are `src/components/cpus/6809.ts` and
-`src/machines/6809-example.ts`, with corresponding CPU, machine, and public-type
-checks under `tests/`. They will be added in reviewed implementation changes.
 
 ## Program and memory image
 
@@ -55,8 +73,8 @@ Extended addressing bypasses DP; this lesson deliberately initializes DP to
 
 ## State, initialization, and ownership
 
-`Cpu6809State` will contain `a`, `b`, `dp`, `x`, `y`, `s`, `u`, `pc`, and
-`flags`. `Cpu6809Flags` will contain eight booleans: `e`, `f`, `h`, `i`, `n`,
+`Cpu6809State` contains `a`, `b`, `dp`, `x`, `y`, `s`, `u`, `pc`, and
+`flags`. `Cpu6809Flags` contains eight booleans: `e`, `f`, `h`, `i`, `n`,
 `z`, `v`, and `c`, corresponding to the condition-code register's bit order.
 
 | State | Width | Lesson initial value |
@@ -80,7 +98,7 @@ through LDA so ADDA visibly ignores it; H and V start true to expose their
 replacement. Flags are supplied state, not inferred from the initial A value.
 
 Motorola's [programming model][model] describes A and B as the two halves of D,
-with A providing the high byte. Store A and B only. Each snapshot will include
+with A providing the high byte. Store A and B only. Each snapshot includes
 a plain numeric `d` computed as `(a << 8) | b`, without retaining a third
 mutable register or a getter linked to live CPU state:
 
@@ -91,7 +109,7 @@ export type Cpu6809Snapshot = Readonly<Omit<Cpu6809State, "flags">> & {
 };
 ```
 
-The constructor will accept
+The constructor accepts
 `new Cpu6809(ram, initialState: Omit<Cpu6809Snapshot, "d">)`. D is not a separate
 initialization input. Passing an existing snapshot is structurally permitted;
 its `d` is ignored and recomputed from the copied A and B. Extra properties,
@@ -118,7 +136,7 @@ pointer used by calls and interrupts; U is a separate programmer-controlled
 stack pointer. Neither stack is exercised by this program. See the
 [register descriptions][model].
 
-`create6809Example()` will return fresh `{ cpu, ram, endAddress }` values, with
+`create6809Example()` returns fresh `{ cpu, ram, endAddress }` values, with
 `endAddress` equal to `0207`. Setup supplies the initial PC directly and does
 not call reset. Calling the factory again restarts the lesson from its original
 state and complete memory image.
@@ -164,7 +182,7 @@ Useful arithmetic cases, each with old C both false and true:
 
 `Cpu6809MemoryAccess` has readonly `kind: "read" | "write"`, `address: number`,
 and `value: number`. `Cpu6809Instruction` has readonly `address: number` and
-`bytes: readonly number[]`. The step record will be:
+`bytes: readonly number[]`. The step record is:
 
 ```ts
 export type Cpu6809StepRecord = {
