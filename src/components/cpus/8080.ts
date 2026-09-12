@@ -48,6 +48,14 @@ export type Cpu8080StepRecord = {
   | { readonly outcome: "halted"; readonly instruction: Cpu8080Instruction | null }
 );
 
+interface InstructionContext {
+  readonly fetchByte: () => number;
+  readonly fetchWord: () => number;
+  readonly writeByte: (address: number, value: number) => void;
+}
+
+type OpcodeHandler = (instruction: InstructionContext) => void;
+
 function copyState(state: Cpu8080Snapshot): Cpu8080State {
   const flags = state.flags;
   // Read only model fields; inputs may have extra properties or inherited getters.
@@ -88,6 +96,12 @@ function hasEvenParity(byte: number): boolean {
 export class Cpu8080 {
   readonly #ram: Ram;
   readonly #state: Cpu8080State;
+  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+    0x3e: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // MVI A,n
+    0xc6: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADI n
+    0x32: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
+    0x76: () => this.#halt(), // HLT
+  };
 
   constructor(ram: Ram, initialState: Cpu8080Snapshot) {
     if (ram.size !== 0x10000) {
@@ -139,76 +153,60 @@ export class Cpu8080 {
     const accesses: Cpu8080MemoryAccess[] = [];
     const address = this.#state.pc;
     const opcode = this.#read(address, accesses);
-    if (opcode === 0x3e) {
-      const immediate = this.#read((address + 1) & 0xffff, accesses);
-      this.#state.a = immediate;
-      this.#state.pc = (address + 2) & 0xffff;
-      return {
-        instruction: { address, bytes: [opcode, immediate] },
-        before,
-        after: this.snapshot(),
-        accesses,
-        outcome: "executed",
-      };
-    }
-
-    if (opcode === 0xc6) {
-      const immediate = this.#read((address + 1) & 0xffff, accesses);
-      const accumulator = this.#state.a;
-      const sum = accumulator + immediate;
-      const result = sum & 0xff;
-      this.#state.a = result;
-      this.#state.flags = {
-        s: (result & 0x80) !== 0,
-        z: result === 0,
-        ac: (accumulator & 0x0f) + (immediate & 0x0f) > 0x0f,
-        p: hasEvenParity(result),
-        cy: sum > 0xff,
-      };
-      this.#state.pc = (address + 2) & 0xffff;
-      return {
-        instruction: { address, bytes: [opcode, immediate] },
-        before,
-        after: this.snapshot(),
-        accesses,
-        outcome: "executed",
-      };
-    }
-
-    if (opcode === 0x32) {
-      const low = this.#read((address + 1) & 0xffff, accesses);
-      const high = this.#read((address + 2) & 0xffff, accesses);
-      const destination = low | (high << 8);
-      this.#write(destination, this.#state.a, accesses);
-      this.#state.pc = (address + 3) & 0xffff;
-      return {
-        instruction: { address, bytes: [opcode, low, high] },
-        before,
-        after: this.snapshot(),
-        accesses,
-        outcome: "executed",
-      };
-    }
-
-    if (opcode === 0x76) {
+    const bytes = [opcode];
+    const handler = this.#opcodeHandlers[opcode];
+    let outcome: Cpu8080StepRecord["outcome"] = "unsupported";
+    if (handler) {
+      // Consume the opcode only after recognizing it; unsupported opcodes keep PC.
       this.#state.pc = (address + 1) & 0xffff;
-      this.#state.halted = true;
-      return {
-        instruction: { address, bytes: [opcode] },
-        before,
-        after: this.snapshot(),
-        accesses,
-        outcome: "halted",
+      const fetchByte = (): number => {
+        const pc = this.#state.pc;
+        const byte = this.#read(pc, accesses);
+        this.#state.pc = (pc + 1) & 0xffff;
+        bytes.push(byte);
+        return byte;
       };
+      handler({
+        fetchByte,
+        fetchWord: () => {
+          const low = fetchByte();
+          const high = fetchByte();
+          return low | (high << 8);
+        },
+        writeByte: (address, value) => this.#write(address, value, accesses),
+      });
+      outcome = this.#state.halted ? "halted" : "executed";
     }
 
     return {
-      instruction: { address, bytes: [opcode] },
+      instruction: { address, bytes },
       before,
       after: this.snapshot(),
       accesses,
-      outcome: "unsupported",
+      outcome,
     };
+  }
+
+  #loadAccumulator(value: number): void {
+    this.#state.a = value;
+  }
+
+  #addToAccumulator(value: number): void {
+    const accumulator = this.#state.a;
+    const sum = accumulator + value;
+    const result = sum & 0xff;
+    this.#state.a = result;
+    this.#state.flags = {
+      s: (result & 0x80) !== 0,
+      z: result === 0,
+      ac: (accumulator & 0x0f) + (value & 0x0f) > 0x0f,
+      p: hasEvenParity(result),
+      cy: sum > 0xff,
+    };
+  }
+
+  #halt(): void {
+    this.#state.halted = true;
   }
 
   #read(address: number, accesses: Cpu8080MemoryAccess[]): number {

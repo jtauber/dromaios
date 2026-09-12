@@ -152,7 +152,7 @@ code or a deliberate type-check bypass edits a returned value.
 `Cpu8080StepRecord` is a discriminated union on `outcome`. Executed and
 unsupported records always contain an instruction. Halted records permit
 null for an already halted CPU, or an instruction when executing `HLT`.
-Each execution branch returns a complete record.
+Each call to `step()` returns a complete record.
 
 These entries describe the accesses required by this instruction-level model.
 They do not claim to reproduce every electrical bus operation or idle cycle.
