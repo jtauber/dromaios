@@ -11,4 +11,4 @@ Update README.md, ROADMAP.md, docs/architecture.md, and docs/cpu-roadmap.md
 when project scope, milestones, architecture, or development workflow changes;
 do not update them just to add an opcode to a progress list. Keep detailed
 instruction coverage and implementation progress in the relevant example or
-CPU document (currently docs/first-example.md), avoiding duplicate status lists.
+CPU document, avoiding duplicate status lists.

@@ -68,11 +68,12 @@ function checkUnsigned(name: string, value: number, maximum: number): void {
   }
 }
 
-/** Instruction-level NMOS 6502 subset. Currently supports LDA immediate (A9). */
+/** Instruction-level NMOS 6502 subset supporting CLC (18) and LDA immediate (A9). */
 export class Cpu6502 {
   readonly #ram: Ram;
   readonly #state: Cpu6502State;
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+    0x18: () => this.#clearCarry(), // CLC
     0xa9: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
   };
 
@@ -130,6 +131,10 @@ export class Cpu6502 {
     return handler
       ? { ...record, outcome: "executed" }
       : { ...record, outcome: "unsupported", reason: "opcode" };
+  }
+
+  #clearCarry(): void {
+    this.#state.flags.c = false;
   }
 
   #loadAccumulator(value: number): void {

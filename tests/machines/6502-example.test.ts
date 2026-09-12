@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Cpu6502 } from "../../src/components/cpus/6502.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { create6502Example } from "../../src/machines/6502-example.js";
 
@@ -28,30 +27,24 @@ test("the 6502 example creates the full image, vector, initial state, and comple
   assert.deepEqual(cpu.snapshot(), expectedInitialState());
   assert.equal(endAddress, 0x0208);
   checkInitialMemory(ram);
+});
 
-  // The first opcode remains unsupported until the next implementation change.
+test("the 6502 example executes CLC then LDA from its entry point and stops at unsupported ADC", () => {
+  const { cpu, ram } = create6502Example();
   const before = expectedInitialState();
+  const afterClear = { ...before, pc: 0x0201, flags: { ...before.flags, c: false } };
+  const afterLoad = { ...afterClear, a: 2, pc: 0x0203 };
   assert.deepEqual(cpu.step(), {
     instruction: { address: 0x0200, bytes: [0x18] },
     before,
-    after: before,
+    after: afterClear,
     accesses: [{ kind: "read", address: 0x0200, value: 0x18 }],
-    outcome: "unsupported",
-    reason: "opcode",
+    outcome: "executed",
   });
-  assert.deepEqual(cpu.snapshot(), before);
-  checkInitialMemory(ram);
-});
-
-test("a CPU starting at the fixture's LDA reads the operand and stops at unsupported ADC", () => {
-  const example = create6502Example();
-  const before = { ...expectedInitialState(), pc: 0x0201 };
-  const cpu = new Cpu6502(example.ram, before);
-  const after = { ...before, a: 2, pc: 0x0203 };
   assert.deepEqual(cpu.step(), {
     instruction: { address: 0x0201, bytes: [0xa9, 0x02] },
-    before,
-    after,
+    before: afterClear,
+    after: afterLoad,
     accesses: [
       { kind: "read", address: 0x0201, value: 0xa9 },
       { kind: "read", address: 0x0202, value: 0x02 },
@@ -60,26 +53,28 @@ test("a CPU starting at the fixture's LDA reads the operand and stops at unsuppo
   });
   assert.deepEqual(cpu.step(), {
     instruction: { address: 0x0203, bytes: [0x69] },
-    before: after,
-    after,
+    before: afterLoad,
+    after: afterLoad,
     accesses: [{ kind: "read", address: 0x0203, value: 0x69 }],
     outcome: "unsupported",
     reason: "opcode",
   });
-  assert.deepEqual(example.cpu.snapshot(), expectedInitialState());
-  checkInitialMemory(example.ram);
+  assert.deepEqual(cpu.snapshot(), afterLoad);
+  checkInitialMemory(ram);
 });
 
 test("6502 lesson restart restores independent state and the entire original memory image", () => {
   const first = create6502Example();
-  // Replace the opening instruction with an implemented LDA to change CPU state.
-  first.ram.write(0x0200, 0xa9);
-  first.ram.write(0x0201, 0x80);
   const record = first.cpu.step();
   const savedRecord = structuredClone(record);
+  const loadRecord = first.cpu.step();
+  const savedLoadRecord = structuredClone(loadRecord);
   const changedState = first.cpu.snapshot();
-  assert.equal(changedState.a, 0x80);
-  assert.equal(changedState.pc, 0x0202);
+  assert.equal(changedState.a, 2);
+  assert.equal(changedState.pc, 0x0203);
+  assert.equal(changedState.flags.c, false);
+  first.ram.write(0x0200, 0);
+  first.ram.write(0x0201, 0xff);
   first.ram.write(0x0080, 5);
   first.ram.write(0xfffd, 0xff);
   first.ram.write(0xffff, 0xff);
@@ -95,4 +90,5 @@ test("6502 lesson restart restores independent state and the entire original mem
   assert.equal(first.ram.read(0xfffd), 0xff);
   assert.deepEqual(first.cpu.snapshot(), changedState);
   assert.deepEqual(record, savedRecord);
+  assert.deepEqual(loadRecord, savedLoadRecord);
 });

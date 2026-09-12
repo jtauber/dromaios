@@ -59,8 +59,9 @@ Detailed implementation progress and acceptance checks live in the
 documented limits. Proposed generalizations have been exercised against their
 architectural differences, beyond simply running the same arithmetic example.
 
-The [first 6502 example](docs/6502-example.md) specifies the next case and tracks
-its review and implementation status.
+The [6502 example](docs/6502-example.md) is the current implementation focus.
+Its specification tracks detailed progress and acceptance checks; the 6809
+example follows it.
 
 ## 3. Make the examples explorable in the browser
 

@@ -92,6 +92,75 @@ test("6502 accepts inherited flag getters and non-enumerable state fields", () =
   assert.deepEqual(ram.accesses, []);
 });
 
+test("CLC clears either incoming carry value, preserves other state, and reads only its opcode", () => {
+  const preservedFlags = [
+    { n: false, v: false, d: false, i: false, z: false },
+    { n: true, v: true, d: true, i: true, z: true },
+    { n: true, v: false, d: true, i: false, z: true },
+    { n: false, v: true, d: false, i: true, z: false },
+  ];
+  for (const preserved of preservedFlags) {
+    for (const c of [false, true]) {
+      const ram = new ObservedRam();
+      ram.write(0x1234, 0x18);
+      ram.write(0x1235, 0xa9);
+      ram.accesses.length = 0;
+      const before = initialState({ flags: { ...preserved, c } });
+      const cpu = new Cpu6502(ram, before);
+      const expectedAccesses = [{ kind: "read", address: 0x1234, value: 0x18 }];
+      const record = cpu.step();
+      assert.deepEqual(record, {
+        instruction: { address: 0x1234, bytes: [0x18] },
+        before,
+        after: { ...before, pc: 0x1235, flags: { ...preserved, c: false } },
+        accesses: expectedAccesses,
+        outcome: "executed",
+      });
+      assert.deepEqual(cpu.snapshot(), record.after);
+      assert.deepEqual(ram.accesses, expectedAccesses);
+    }
+  }
+});
+
+test("CLC wraps PC at FFFF without fetching the next instruction", () => {
+  for (const c of [false, true]) {
+    const ram = new ObservedRam();
+    ram.write(0xffff, 0x18);
+    ram.write(0, 0xa9);
+    ram.write(1, 2);
+    ram.accesses.length = 0;
+    const before = initialState({ pc: 0xffff, flags: { ...initialState().flags, c } });
+    const cpu = new Cpu6502(ram, before);
+    const record = cpu.step();
+    const afterClear = { ...before, pc: 0, flags: { ...before.flags, c: false } };
+    assert.deepEqual(record, {
+      instruction: { address: 0xffff, bytes: [0x18] },
+      before,
+      after: afterClear,
+      accesses: [{ kind: "read", address: 0xffff, value: 0x18 }],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), afterClear);
+    assert.deepEqual(ram.accesses, record.accesses);
+    const savedRecord = structuredClone(record);
+
+    ram.accesses.length = 0;
+    const next = cpu.step();
+    assert.deepEqual(next, {
+      instruction: { address: 0, bytes: [0xa9, 2] },
+      before: afterClear,
+      after: { ...afterClear, a: 2, pc: 2, flags: { ...afterClear.flags, n: false, z: false } },
+      accesses: [
+        { kind: "read", address: 0, value: 0xa9 },
+        { kind: "read", address: 1, value: 2 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(ram.accesses, next.accesses);
+    assert.deepEqual(record, savedRecord);
+  }
+});
+
 test("LDA immediate replaces N/Z, preserves all other state, and performs exactly two reads", () => {
   const cases = [
     { value: 0x00, n: false, z: true },
@@ -165,7 +234,7 @@ test("every unimplemented 6502 opcode reads once and preserves state on repeated
   const ram = new ObservedRam();
   ram.write(0, 0xa9);
   for (let opcode = 0; opcode < 256; opcode++) {
-    if (opcode === 0xa9) continue;
+    if (opcode === 0x18 || opcode === 0xa9) continue;
     ram.write(0xffff, opcode);
     for (const d of [false, true]) {
       const before = initialState({ pc: 0xffff, flags: { ...initialState().flags, d } });

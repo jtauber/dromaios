@@ -9,9 +9,8 @@ The [project roadmap](../ROADMAP.md) describes the implementation stages;
 - Use **TypeScript** as the initial implementation language. Future DSLs for
   CPU and component definitions remain a possible direction; see
   [implementation language and future definition languages](architecture.md#implementation-language-and-future-definition-languages).
-- Start with the **Intel 8080**.
-- Introduce small **6502** and **6809** examples early, in that order, before
-  settling shared CPU and inspection interfaces.
+- Build small examples in the order **8080 → 6502 → 6809** before settling
+  shared CPU and inspection interfaces.
 - Apply a **rule of three**: use evidence from three distinct architectures to
   judge generalizations, including examples that expose their differences.
 - Keep changes small and reviewable. Initially implement only the instruction
@@ -67,14 +66,13 @@ Hardware references for these distinctions:
 - [MOS MCS6500 Programming Manual](https://www.bitsavers.org/components/mosTechnology/6500-50A_MCS6500pgmManJan76.pdf)
 - [Motorola M6809 Programming Manual](https://www.bitsavers.org/components/motorola/6809/M6809PM.rev0_May83.pdf)
 
-## How we will use the three examples
+## How we use the three examples
 
-1. Build a tiny 8080 program with RAM, instruction stepping, and an execution
-   record. The [first-example specification](first-example.md) specifies loading a
-   number, adding another, storing the result, and halting, with exact expected
-   records to check against.
-2. Implement an equivalent program on the 6502. Examine which support carries
-   over and where the first model made assumptions.
+1. Establish RAM, instruction stepping, and execution records with a tiny
+   8080 program. The completed [first example](first-example.md) loads a number,
+   adds another, stores the result, and halts, with exact expected records.
+2. Implement the equivalent [6502 example](6502-example.md). Examine which
+   support carries over and where the first model made assumptions.
 3. Repeat with the 6809, revisiting those assumptions with a third architecture.
 4. Add focused examples covering register relationships, stack operations,
    addressing, and I/O. Three versions of the same arithmetic program alone
@@ -126,11 +124,13 @@ supporting seven nested calls. The useful comparison is with the 8080's
 programmer-managed stack in RAM. See
 [Intel's 8008 documentation](https://www.bitsavers.org/components/intel/MCS8/Intel_8008_8-Bit_Parallel_Central_Processing_Unit_Rev1_Apr72.pdf).
 
-## Next decisions
+## Current implementation
 
-The reviewed [first-example specification](first-example.md) defines the
-incremental implementation order and tracks detailed progress. The
-[specification questions](architecture.md#first-example-specification) continue
-to guide review as each instruction is added.
+Work now follows the reviewed [6502 example specification](6502-example.md),
+which defines the incremental implementation order and tracks detailed
+progress. The completed [8080 example](first-example.md) provides the first
+comparison point; the 6809 example follows the 6502. The
+[specification questions](architecture.md#example-specifications) guide review
+of each implementation change.
 
 The first code includes the [MIT license](../LICENSE).

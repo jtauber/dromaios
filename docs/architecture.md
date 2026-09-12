@@ -9,9 +9,9 @@ differences will inform the shared interfaces; see the
 
 ## Implementation language and future definition languages
 
-We will begin in **TypeScript**, including the CPU and other component models.
-Domain-specific languages (DSLs) for defining CPUs or other components remain
-a possible later direction.
+The implementation uses **TypeScript**, including the CPU and other component
+models. Domain-specific languages (DSLs) for defining CPUs or other components
+remain a possible later direction.
 
 For example, definitions might describe registers and their relationships,
 instruction encodings and behavior, device registers, or component connections.
@@ -48,8 +48,8 @@ The execution granularity and fidelity of each model need to be explicit.
 **Inspection** exposes state and activity for exploration. Common views should
 work across components where meaningful, with specific views for distinctive
 hardware. Reading a device for inspection must not accidentally trigger the
-side effects of a CPU access, such as clearing an interrupt. The first 8080
-exposes detached state snapshots and instruction access records; device
+side effects of a CPU access, such as clearing an interrupt. The CPU models
+expose detached state snapshots and instruction access records; device
 inspection will develop as devices are added.
 
 **The browser interface** presents controls, displays, inspectors, and
@@ -63,7 +63,7 @@ the same underlying models as a complete machine.
 
 ## Proposed repository layout
 
-The initial implementation has RAM and 8080 components, example setup, and
+The implementation has RAM, 8080 and 6502 CPU subsets, example setup, and
 tests. The other source paths show where code and content could go as we
 introduce them; their names can change with experience. No package or framework
 boundaries are implied by this tree. Build and test commands are in the
@@ -77,7 +77,9 @@ dromaios/
 ├── docs/
 │   ├── architecture.md
 │   ├── cpu-roadmap.md
-│   └── first-example.md
+│   ├── first-example.md
+│   ├── 6502-example.md
+│   └── 6502-reference-notes.md
 ├── src/
 │   ├── components/
 │   │   ├── cpus/          CPU models, grouped by architecture
@@ -101,10 +103,9 @@ We will give specialist instruments a home when we introduce the first one.
 
 ## Generalization through three CPUs
 
-Begin with the smallest useful 8080 implementation. Add equivalent 6502 and
-6809 examples, then exercise the differences that a shared interface must
-represent: register widths and aliases, stack conventions, addressing modes,
-and distinct memory or I/O accesses.
+Use small programs on the 8080, 6502, and 6809 to exercise the differences that
+a shared interface must represent: register widths and aliases, stack
+conventions, addressing modes, and distinct memory or I/O accesses.
 
 Shared CPU and inspection interfaces remain provisional until these three
 cases provide evidence for them. RAM and straightforward helpers can be shared
@@ -115,14 +116,14 @@ addressing, and timing can retain the structure that explains each CPU best.
 Three examples are a review point, not a claim of universality. Later CPU
 models, variants, and machine compositions can still require revisions.
 
-## First example specification
+## Example specifications
 
-The reviewed [first-example specification](first-example.md) describes an
-8080, 64 KiB of RAM, and an eight-byte program, and tracks detailed
-implementation progress. It answers these questions, which should guide
-review of each implementation change:
+The [8080 example](first-example.md) is complete; the reviewed
+[6502 specification](6502-example.md) guides current implementation. Each
+example's document records its state, program, execution contract, acceptance
+checks, and detailed progress. These questions guide review of each change:
 
-1. Which instructions and program demonstrate the first lesson, and what is
+1. Which instructions and program demonstrate the example, and what is
    the expected state after each instruction?
 2. How does the CPU access memory, and which object owns each piece of state?
 3. What does one step mean, and what execution information does it return?
@@ -135,16 +136,19 @@ Re-reading memory or devices afterward cannot reliably reconstruct them. The
 record must make its granularity clear; an instruction-level model does not
 automatically provide a complete cycle-by-cycle bus trace.
 
-The concrete `Cpu8080` takes a 64 KiB `Ram` instance and explicit initial state.
-It copies only declared state fields, including flags, and exposes `snapshot()`,
-`step()`, and `reset()`. Public snapshots and records have readonly TypeScript
-types and own detached values; internal CPU state stays mutable. Step records
-use a discriminated union to relate the outcome to the instruction. The CPU
-retains no execution history. Example setup returns `{ cpu, ram }`, and
-restarting creates fresh components. These types remain specific to the 8080 while we gather
-experience for shared CPU and inspection interfaces.
+The concrete `Cpu8080` and `Cpu6502` models each take a 64 KiB `Ram` instance
+and explicit initial state. They copy only declared state fields, including
+flags, and expose `snapshot()` and `step()`. Public snapshots and records have
+readonly TypeScript types and own detached values; internal CPU state stays
+mutable. Each model uses a discriminated union for step outcomes and retains
+no execution history. Restarting an example creates fresh components.
 
-The first checks should use small programs with explicit expected behavior.
+Reset behavior, step outcomes, and lesson completion remain specific to each
+CPU and example. Their specifications describe the implemented behavior and
+planned additions. These types remain CPU-specific while we gather experience
+for shared execution and inspection interfaces through the 6809 example.
+
+Checks use small programs with explicit expected behavior.
 Existing emulator implementations can help identify cases to examine; their
 outputs should be checked against the relevant hardware documentation before
 being treated as correctness references.
