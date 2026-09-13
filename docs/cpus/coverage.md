@@ -5,18 +5,19 @@ coverage means the instructions and processor features the models provide.
 Test coverage measures how much existing code the tests exercise; even full
 test coverage can accompany a small instruction subset.
 
-Update this document whenever CPU support changes. The example specifications
-define behavior and expected results; the [CPU roadmap](cpu-roadmap.md) records
-intended scope and the reasons for choosing it. Existing reference emulators
-do not count toward implementation here.
+Update this document whenever CPU support changes. The
+[model contracts](../README.md#cpu-models) define state and execution policies;
+example specifications define programs and expected results. [CPU scope](scope.md)
+records intended targets and the reasons for choosing them. Existing reference
+emulators do not count toward implementation here.
 
 ## At a glance
 
 | Model | Complete / documented opcode forms | Opcode completion | Additional partial forms | Completed examples |
 | --- | --- | --- | --- | --- |
-| [Intel 8080](#8080) | 20 / 244 | 8.2% | 0 | [Arithmetic](8080-example.md), [register pairs](8080-register-pairs-example.md), [stack](8080-stack-example.md), [addressing](8080-addressing-example.md) |
-| [NMOS MOS 6502](#6502) | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502-example.md), [stack](6502-stack-example.md), [addressing](6502-addressing-example.md) |
-| [Motorola MC6809 / MC6809E](#6809) | 9 / 268 | 3.4% | 0 | [Arithmetic](6809-example.md), [stack](6809-stack-example.md), [addressing](6809-addressing-example.md) |
+| [Intel 8080](#8080) | 20 / 244 | 8.2% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md) |
+| [NMOS MOS 6502](#6502) | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502/examples/arithmetic.md), [stack](6502/examples/stack.md), [addressing](6502/examples/addressing.md) |
+| [Motorola MC6809 / MC6809E](#6809) | 9 / 268 | 3.4% | 0 | [Arithmetic](6809/examples/arithmetic.md), [stack](6809/examples/stack.md), [addressing](6809/examples/addressing.md) |
 
 A completed example establishes its specified program and checks; all three
 CPU models remain small subsets.
@@ -76,18 +77,19 @@ instruction lengths are in bytes.
 
 ## 8080
 
-[Source](../src/components/cpus/8080.ts) ·
-[Example specification](8080-example.md) ·
-[Example definition](../src/machines/8080/example.machine)
+[Source](../../src/components/cpus/8080.ts) ·
+[Model contract](8080/model.md) ·
+[Arithmetic example](8080/examples/arithmetic.md) ·
+[Example definition](../../src/machines/8080/example.machine)
 
-[Register-pair specification](8080-register-pairs-example.md) ·
-[Register-pair definition](../src/machines/8080/register-pairs-example.machine)
+[Register-pair specification](8080/examples/register-pairs.md) ·
+[Register-pair definition](../../src/machines/8080/register-pairs-example.machine)
 
-[Stack specification](8080-stack-example.md) ·
-[Stack definition](../src/machines/8080/stack-example.machine)
+[Stack specification](8080/examples/stack.md) ·
+[Stack definition](../../src/machines/8080/stack-example.machine)
 
-[Addressing specification](8080-addressing-example.md) ·
-[Addressing definition](../src/machines/8080/addressing-example.machine)
+[Addressing specification](8080/examples/addressing.md) ·
+[Addressing definition](../../src/machines/8080/addressing-example.machine)
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -123,12 +125,12 @@ instruction lengths are in bytes.
 | Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
 | Remaining instruction scope | Other loads/moves, register and memory arithmetic, logical operations, other pair operations, PSW stack forms, control flow, flag-control instructions, and port I/O |
 
-Verification: [CPU tests](../tests/components/cpus/8080.test.ts),
-[arithmetic example tests](../tests/machines/8080/example.test.ts),
-[register-pair example tests](../tests/machines/8080/register-pairs-example.test.ts),
-[stack example tests](../tests/machines/8080/stack-example.test.ts),
-[addressing example tests](../tests/machines/8080/addressing-example.test.ts), and
-[public type checks](../tests/types/8080.ts). ADI checks cover every byte operand
+Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
+[arithmetic example tests](../../tests/machines/8080/example.test.ts),
+[register-pair example tests](../../tests/machines/8080/register-pairs-example.test.ts),
+[stack example tests](../../tests/machines/8080/stack-example.test.ts),
+[addressing example tests](../../tests/machines/8080/addressing-example.test.ts), and
+[public type checks](../../tests/types/8080.ts). ADI checks cover every byte operand
 pair with incoming flags clear and set. Other checks cover exact accesses,
 wrapping, self-overwriting stores, halt/reset behavior, rejection of every
 unimplemented opcode, input validation, and detached records.
@@ -142,15 +144,16 @@ across page and address-space boundaries.
 
 ## 6502
 
-[Source](../src/components/cpus/6502.ts) ·
-[Example specification](6502-example.md) ·
-[Example setup](../src/machines/6502/example.machine)
+[Source](../../src/components/cpus/6502.ts) ·
+[Model contract](6502/model.md) ·
+[Arithmetic example](6502/examples/arithmetic.md) ·
+[Example definition](../../src/machines/6502/example.machine)
 
-[Stack specification](6502-stack-example.md) ·
-[Stack definition](../src/machines/6502/stack-example.machine)
+[Stack specification](6502/examples/stack.md) ·
+[Stack definition](../../src/machines/6502/stack-example.machine)
 
-[Addressing specification](6502-addressing-example.md) ·
-[Addressing definition](../src/machines/6502/addressing-example.machine)
+[Addressing specification](6502/examples/addressing.md) ·
+[Addressing definition](../../src/machines/6502/addressing-example.machine)
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -181,11 +184,11 @@ remove it.
 The model targets the original NMOS 6502; variant-specific behavior has not
 been implemented.
 
-Verification: [CPU tests](../tests/components/cpus/6502.test.ts),
-[example tests](../tests/machines/6502/example.test.ts),
-[stack example tests](../tests/machines/6502/stack-example.test.ts),
-[addressing example tests](../tests/machines/6502/addressing-example.test.ts), and
-[public type checks](../tests/types/6502.ts). Binary ADC checks cover every byte
+Verification: [CPU tests](../../tests/components/cpus/6502.test.ts),
+[arithmetic example tests](../../tests/machines/6502/example.test.ts),
+[stack example tests](../../tests/machines/6502/stack-example.test.ts),
+[addressing example tests](../../tests/machines/6502/addressing-example.test.ts), and
+[public type checks](../../tests/types/6502.ts). Binary ADC checks cover every byte
 operand pair and carry input with old result flags clear and set. Other checks
 cover decimal rejection, exact accesses, wrapping, self-overwriting stores,
 reset vectors and SP effects, caller completion, unsupported opcodes, input
@@ -199,15 +202,16 @@ current RAM, unchanged-value writes without destination reads, and detached reco
 
 ## 6809
 
-[Source](../src/components/cpus/6809.ts) ·
-[Example specification](6809-example.md) ·
-[Example setup](../src/machines/6809/example.machine)
+[Source](../../src/components/cpus/6809.ts) ·
+[Model contract](6809/model.md) ·
+[Arithmetic example](6809/examples/arithmetic.md) ·
+[Example definition](../../src/machines/6809/example.machine)
 
-[Stack specification](6809-stack-example.md) ·
-[Stack definition](../src/machines/6809/stack-example.machine)
+[Stack specification](6809/examples/stack.md) ·
+[Stack definition](../../src/machines/6809/stack-example.machine)
 
-[Addressing specification](6809-addressing-example.md) ·
-[Addressing definition](../src/machines/6809/addressing-example.machine)
+[Addressing specification](6809/examples/addressing.md) ·
+[Addressing definition](../../src/machines/6809/addressing-example.machine)
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -235,16 +239,17 @@ current RAM, unchanged-value writes without destination reads, and detached reco
 | Remaining instruction scope | Other B/D and register operations, arithmetic and logic beyond ADDA, decimal adjustment, branch/call/return opcodes, and other CC operations |
 | Remaining addressing scope | Indexed, relative, and other forms beyond the exact encodings above |
 
-The reset preservation policy is specified in the example document; it does
-not claim hardware power-on values for unspecified state. Interrupt handling,
-including NMI arming after reset, remains unimplemented. MC6809/MC6809E clock
-and pin differences are outside this instruction-level model.
+The [reset preservation policy](6809/model.md#cpu-reset) is specified in the
+model contract; it does not claim hardware power-on values for unspecified
+state. Interrupt handling, including NMI arming after reset, remains
+unimplemented. MC6809/MC6809E clock and pin differences are outside this
+instruction-level model.
 
-Verification: [CPU tests](../tests/components/cpus/6809.test.ts),
-[example tests](../tests/machines/6809/example.test.ts),
-[stack example tests](../tests/machines/6809/stack-example.test.ts),
-[addressing example tests](../tests/machines/6809/addressing-example.test.ts), and
-[public type checks](../tests/types/6809.ts). ADDA checks cover every byte
+Verification: [CPU tests](../../tests/components/cpus/6809.test.ts),
+[arithmetic example tests](../../tests/machines/6809/example.test.ts),
+[stack example tests](../../tests/machines/6809/stack-example.test.ts),
+[addressing example tests](../../tests/machines/6809/addressing-example.test.ts), and
+[public type checks](../../tests/types/6809.ts). ADDA checks cover every byte
 operand pair with both incoming carry values and old result flags clear and
 set. Other checks cover derived D, exact accesses, wrapping, self-overwriting
 stores, extended addressing with nonzero DP, reset, prefix rejection, caller
@@ -260,7 +265,7 @@ reads, DP changed by a stack pull or reset, current RAM, and detached records.
 
 These targets have no implementation in this repository. The existing NMOS
 6502 subset does not establish the behavior of its intended variants.
-The [roadmap](cpu-roadmap.md#intended-eventual-scope) owns target selection and
+The [CPU scope document](scope.md#intended-eventual-scope) owns target selection and
 machine associations.
 
 These targets are at 0% opcode completion. Establish each denominator and
@@ -286,7 +291,7 @@ its counting rules when implementation starts.
 When support changes, update the relevant opcode rows, complete and partial
 counts, percentages, restrictions, and feature status in the same change.
 Keep each denominator tied to its stated CPU variant and counting rules.
-Link to the tests and example contracts that establish the behavior. Keep
-current progress here; update example
-specifications when their behavior or acceptance criteria change, and update
+Link to the tests, model contracts, and example specifications that establish
+the behavior. Keep current progress here; update the relevant contract or
+specification when its behavior or acceptance criteria change, and update
 overview documents when scope, milestones, architecture, or workflow changes.

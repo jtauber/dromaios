@@ -1,12 +1,12 @@
 # 6502 example: zero-page addressing
 
 This example copies a byte between the two ends of zero page. It complements
-the [8080 addressing example](8080-addressing-example.md) with addresses
+the [8080 addressing example](../../8080/examples/addressing.md) with addresses
 supplied by one-byte instruction operands.
 
-[Machine definition](../src/machines/6502/addressing-example.machine) ·
-[Example tests](../tests/machines/6502/addressing-example.test.ts) ·
-[CPU coverage](cpu-coverage.md#6502)
+[Example definition](../../../../src/machines/6502/addressing-example.machine) ·
+[Example tests](../../../../tests/machines/6502/addressing-example.test.ts) ·
+[CPU coverage](../../coverage.md#6502)
 
 ## Instruction behavior
 
@@ -82,7 +82,7 @@ attempts the zero byte there and reports unsupported BRK with unchanged state.
 
 ## Reset and restart
 
-Reset follows the [existing 6502 policy](6502-example.md#cpu-reset-and-lesson-restart).
+Reset follows the [existing 6502 policy](../model.md#cpu-reset).
 After this program it reads `FFFC` then `FFFD`, sets PC to `0200`, sets I, and
 changes SP from `FF` to `FC`. Other state and RAM remain unchanged, including
 the copied byte. Resuming execution reads the source's current contents.

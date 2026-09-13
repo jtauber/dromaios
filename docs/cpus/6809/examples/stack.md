@@ -5,13 +5,13 @@ This example saves `12` on S and `34` on U, then retrieves them into separate
 result locations. Pulling from S before U demonstrates that each pointer has
 its own sequence of saved values. Both stacks occupy ordinary shared RAM.
 
-[Machine definition](../src/machines/6809/stack-example.machine) ·
-[Example tests](../tests/machines/6809/stack-example.test.ts) ·
-[CPU coverage](cpu-coverage.md#6809)
+[Example definition](../../../../src/machines/6809/stack-example.machine) ·
+[Example tests](../../../../tests/machines/6809/stack-example.test.ts) ·
+[CPU coverage](../../coverage.md#6809)
 
 ## Instruction behavior
 
-The instruction-level MC6809 model adds `PSHS` (`34`), `PULS` (`35`),
+The example uses the instruction-level MC6809 model's `PSHS` (`34`), `PULS` (`35`),
 `PSHU` (`36`), and `PULU` (`37`). Each fetches an opcode and a register-mask
 postbyte before accessing stack data. Every mask from `00` through `FF` works.
 
@@ -118,7 +118,7 @@ in the program table above.
 | 9 | `0214` | `34` | `3478` | `8000` | `4000` | 0 | 0 | 0 |
 
 Step 6 deliberately leaves Z set despite restoring nonzero A. Step 7's STA
-then clears Z. This differs from [6502 PLA](6502-stack-example.md), which
+then clears Z. This differs from [6502 PLA](../../6502/examples/stack.md), which
 updates N/Z as part of the pull.
 
 The complete ordered accesses follow; `R` means read and `W` means write.
@@ -142,7 +142,7 @@ state or RAM.
 
 ## Reset and restart
 
-Reset follows the [existing 6809 policy](6809-example.md#cpu-reset-and-lesson-restart).
+Reset follows the [existing 6809 policy](../model.md#cpu-reset).
 After step 4, it reads `FFFE` then `FFFF`, returns PC to `0200`, clears DP,
 and sets F/I. It preserves S = `7FFF`, U = `3FFF`, both saved bytes, and the
 rest of the modeled state.

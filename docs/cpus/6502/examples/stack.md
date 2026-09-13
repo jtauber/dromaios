@@ -2,18 +2,18 @@
 
 **Status: implemented and tested.**
 This example saves A on the stack, replaces it with zero, restores it, and
-stores the restored value. It complements the [8080 stack example](8080-stack-example.md)
+stores the restored value. It complements the [8080 stack example](../../8080/examples/stack.md)
 with the 6502's fixed stack page and different pointer convention.
 
-[Machine definition](../src/machines/6502/stack-example.machine) ·
-[Example tests](../tests/machines/6502/stack-example.test.ts) ·
-[CPU coverage](cpu-coverage.md#6502)
+[Example definition](../../../../src/machines/6502/stack-example.machine) ·
+[Example tests](../../../../tests/machines/6502/stack-example.test.ts) ·
+[CPU coverage](../../coverage.md#6502)
 
-## Model boundary
+## Instruction behavior
 
-Use the existing NMOS 6502 and flat 64 KiB RAM. This change adds `PHA` (`48`)
-and `PLA` (`68`), both one-byte implied instructions. The example also uses
-the existing immediate LDA and absolute STA forms.
+The example uses the NMOS 6502 and flat 64 KiB RAM, with `PHA` (`48`) and
+`PLA` (`68`), both one-byte implied instructions. It also uses immediate LDA
+and absolute STA.
 
 The stack address is `0100 + SP`. PHA writes A there and then decrements SP;
 PLA increments SP first and then reads A from that address. SP wraps as an
@@ -93,7 +93,7 @@ reports unsupported BRK with unchanged state, as in the arithmetic example.
 
 ## Reset and restart
 
-Reset retains the [existing 6502 policy](6502-example.md#cpu-reset-and-lesson-restart).
+Reset retains the [existing 6502 policy](../model.md#cpu-reset).
 Immediately after PHA, reset reads `FFFC` then `FFFD`, returns PC to `0200`,
 changes SP from `FE` to `FB`, and sets I. A, X, Y, the other flags, and RAM
 remain unchanged, including the saved `80` at `01FF`.

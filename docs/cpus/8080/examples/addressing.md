@@ -1,12 +1,12 @@
 # 8080 example: memory addressing through HL
 
-This example uses the [HL register pair](8080-register-pairs-example.md) to
+This example uses the [HL register pair](register-pairs.md) to
 copy a byte to the next memory address. Current support is tracked in
-[8080 implementation coverage](cpu-coverage.md#8080).
+[8080 implementation coverage](../../coverage.md#8080).
 
-[Example definition](../src/machines/8080/addressing-example.machine) ·
-[Example tests](../tests/machines/8080/addressing-example.test.ts) ·
-[CPU tests](../tests/components/cpus/8080.test.ts)
+[Example definition](../../../../src/machines/8080/addressing-example.machine) ·
+[Example tests](../../../../tests/machines/8080/addressing-example.test.ts) ·
+[CPU tests](../../../../tests/components/cpus/8080.test.ts)
 
 ## Program and initial state
 
@@ -66,7 +66,7 @@ no cycle counts, dummy bus accesses, or electrical activity.
 
 ## Expected records
 
-Records use the [8080 step format](8080-example.md#step-record). The first
+Records use the [8080 step format](../model.md#step-records). The first
 `before` snapshot is the initial state above; subsequent `before` snapshots
 equal the previous `after`. The table lists all changed fields. B, C, D, E,
 BC, DE, SP, flags, and interrupt enable retain their initial values.

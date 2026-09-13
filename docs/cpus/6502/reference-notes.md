@@ -1,12 +1,13 @@
 # Ideas from applepy and dromaios-apple2
 
-Recorded on 12 September 2026 while reviewing the [first 6502 example](6502-example.md).
+Recorded on 12 September 2026 while reviewing the [first 6502 example](examples/arithmetic.md).
 These recommendations guide implementation and later design reviews. The first
 example remains a four-instruction subset; the later ideas below do not expand
 its scope.
 Source links identify the versions examined. Existing emulator behavior is
 evidence to investigate, with hardware expectations checked independently
-against the references in the example specification.
+against the references in the [model contract](model.md#references) and
+example specifications.
 
 ## Operation and operand separation: use in the first example
 
@@ -33,7 +34,7 @@ When disassembly gets its first consumer, aim for one typed definition per
 opcode form supplying the shared encoding facts and executable handler.
 Disassembly and explanations can use that metadata while retaining their own
 responsibilities. This is a possible first step toward the definition languages
-discussed in [architecture.md](architecture.md#implementation-language-and-future-definition-languages).
+discussed in [architecture.md](../../architecture.md#implementation-language-and-future-definition-languages).
 Choose fields when they have consumers; custom syntax and a universal CPU
 schema remain deferred. Correctness tests must still use independently derived
 expectations rather than treating the definitions as their own oracle.
@@ -95,10 +96,10 @@ design inspiration, not a verified timing specification.
 D. A focused check with A = `$09`, operand = `$01`, C false, and D true produced
 A = `$0A` while leaving D true in that implementation.
 
-Keep the specification's explicit unsupported decimal-mode result, checked
+Keep the [model contract's explicit unsupported decimal-mode result](model.md#unsupported-instructions-and-modes), checked
 before advancing PC or reading the operand. These older implementations do not
-establish decimal-mode correctness. The example specification remains the
-source for our exact rejection behavior and its eventual implementation tests.
+establish decimal-mode correctness. The model contract defines the exact
+rejection behavior; the arithmetic example specifies the binary ADC checks.
 
 [applepy-operations]: https://github.com/jtauber/applepy/blob/934bf1a495583e7b4b08d42eae27e3532b51c3f2/cpu6502.py#L806-L880
 [applepy-tests]: https://github.com/jtauber/applepy/blob/934bf1a495583e7b4b08d42eae27e3532b51c3f2/tests.py#L951-L997

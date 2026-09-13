@@ -1,19 +1,10 @@
 # Machine definitions
 
-The examples use the same [machine language](machine-language.md) and setup
+The examples use the same [machine language](language.md) and setup
 code. Their `.machine` files supply the CPU model, all initial state, addressed
-byte images, and an optional caller completion address:
-
-- [8080 arithmetic](../src/machines/8080/example.machine)
-- [8080 register pairs](../src/machines/8080/register-pairs-example.machine)
-- [8080 stack](../src/machines/8080/stack-example.machine)
-- [8080 addressing](../src/machines/8080/addressing-example.machine)
-- [6502 arithmetic](../src/machines/6502/example.machine)
-- [6502 stack](../src/machines/6502/stack-example.machine)
-- [6502 addressing](../src/machines/6502/addressing-example.machine)
-- [6809 arithmetic](../src/machines/6809/example.machine)
-- [6809 stack](../src/machines/6809/stack-example.machine)
-- [6809 addressing](../src/machines/6809/addressing-example.machine)
+byte images, and an optional caller completion address. The
+[example catalog](../README.md#cpu-examples) links to specifications, each with
+its source definition and tests.
 
 Each file explicitly declares 64 KiB RAM. Unspecified memory is zero; blocks
 load in source order, with later bytes overwriting earlier ones where they
@@ -21,26 +12,27 @@ overlap. Reset vectors are ordinary byte blocks. Initial state includes every
 stored field for that CPU. The optional `end` declaration supplies a completion
 address for the caller; it does not make the CPU stop there automatically.
 
+## RAM and CPU ownership
+
+The CPU owns its registers, flags, and any control latches. RAM owns the bytes.
+Example setup owns allocation, program loading, and deterministic
+initialization; these setup accesses do not appear in CPU execution records.
+The CPU accesses RAM through byte reads and writes and does not own example
+restart.
+
+The [memory API](../../src/components/memory/ram.ts) is `new Ram(size)`, with
+a readonly `size` getter, `read(address)`, and `write(address, value)`.
+Storage is private and initially zeroed. Size must be a positive safe integer;
+addresses must be integers within the allocated memory, and byte values must
+be integers from `00` through `FF`. Invalid arguments throw `RangeError`.
+RAM rejects invalid host values instead of wrapping them to hardware widths.
+The [RAM tests](../../tests/components/memory/ram.test.ts) check these bounds.
+
 ## Directory organization
 
-Machine definitions are grouped by CPU, with matching test folders:
-
-```text
-src/machines/                       tests/machines/
-  8080/                               8080/
-    addressing-example.machine          addressing-example.test.ts
-    example.machine                     example.test.ts
-    register-pairs-example.machine      register-pairs-example.test.ts
-    stack-example.machine               stack-example.test.ts
-  6502/                               6502/
-    addressing-example.machine          addressing-example.test.ts
-    example.machine                     example.test.ts
-    stack-example.machine               stack-example.test.ts
-  6809/                               6809/
-    addressing-example.machine          addressing-example.test.ts
-    example.machine                     example.test.ts
-    stack-example.machine               stack-example.test.ts
-```
+Machine definitions live under `src/machines/<cpu>/`, with matching tests
+under `tests/machines/<cpu>/`. For example, `8080/stack-example.machine`
+has a corresponding `8080/stack-example.test.ts`.
 
 The shared parser and RAM setup helper, and their tests, stay at the respective
 `machines/` roots. Additional subfolders can group examples as needed; the build
@@ -49,7 +41,7 @@ definition's `cpu` declaration still selects its processor model.
 
 ## Generated factories
 
-The [build script](../scripts/generate-machines.ts) discovers `src/machines/**/*.machine`,
+The [build script](../../scripts/generate-machines.ts) discovers `src/machines/**/*.machine`,
 excluding the generated output directory, and mirrors their relative paths under
 `src/machines/generated/`. For example, `8080/stack-example.machine` generates
 `generated/8080/stack-example.ts`, exporting `create8080StackExample()` and
@@ -61,10 +53,10 @@ and file names. Factory names combine the relative path segments and filename
 words, capitalizing each part after `create`. Definitions in different folders
 can share a filename because their generated modules preserve those folders.
 
-The [parser](../src/machines/machine-language.ts) checks syntax, complete CPU
+The [parser](../../src/machines/machine-language.ts) checks syntax, complete CPU
 state, numeric ranges, and memory bounds, reporting errors with source locations.
 Its field schemas are checked against the CPU state interfaces. The generated
-code calls [defineRamExample](../src/machines/ram-example.ts) with the selected
+code calls [defineRamExample](../../src/machines/ram-example.ts) with the selected
 CPU and a numeric definition; TypeScript also checks each generated call against
 the actual constructor. CPU constructors retain their own state validation.
 The example tests independently check full memory images, initial state, and

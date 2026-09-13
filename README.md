@@ -53,12 +53,12 @@ agents follow this rule in [AGENTS.md](AGENTS.md).
 
 ## Status
 
-The introductory [8080](docs/8080-example.md), [6502](docs/6502-example.md),
-and [6809](docs/6809-example.md) examples are complete and tested independently
-of the browser. Next, focused examples will exercise register relationships,
-stacks, addressing, and I/O before we settle shared CPU and inspection
-interfaces. [CPU implementation coverage](docs/cpu-coverage.md) tracks supported
-instructions, features, and remaining gaps for each CPU.
+The platform has instruction-level CPU subsets and small RAM-based examples
+for the 8080, 6502, and 6809, tested independently of the browser. The
+[example catalog](docs/README.md#cpu-examples) links to their specifications.
+[CPU implementation coverage](docs/cpus/coverage.md) tracks supported
+instructions, features, and remaining gaps; the [roadmap](ROADMAP.md) describes
+the development stages.
 
 The implementation uses **TypeScript**, compiled to JavaScript ES modules,
 with **Node.js 24 LTS** and its built-in test runner for development.
@@ -79,7 +79,7 @@ npm test
 ```
 
 `npm ci` installs the locked development dependencies. `npm test` cleans generated
-output, generates factories from the [machine definitions](docs/machine-definitions.md),
+output, generates factories from the [machine definitions](docs/machines/definitions.md),
 checks the simulation without Node or browser ambient types, compiles the source,
 build script, and tests, and runs the compiled tests.
 `npm run build` performs the same checks and compilation without running tests.
@@ -107,20 +107,9 @@ Released under the [MIT license](LICENSE).
 ## Repository guide
 
 - [ROADMAP.md](ROADMAP.md) describes the stages and review points.
-- [docs/architecture.md](docs/architecture.md) sketches the component boundaries
-  and proposed source layout.
-- [docs/cpu-roadmap.md](docs/cpu-roadmap.md) records the intended CPU scope,
-  existing reference coverage, and the three-CPU approach to generalization.
-- [docs/cpu-coverage.md](docs/cpu-coverage.md) tracks current implementation
-  coverage for each CPU and variant.
-- [docs/8080-example.md](docs/8080-example.md) specifies the first 8080 program,
-  initial state, step records, and acceptance checks.
-- [docs/6502-example.md](docs/6502-example.md) specifies the second program,
-  initial state, execution behavior, and acceptance checks.
-- [docs/6502-reference-notes.md](docs/6502-reference-notes.md) records ideas from
-  applepy and dromaios-apple2 and when to revisit them.
-- [docs/6809-example.md](docs/6809-example.md) specifies the third example and
-  records findings from the existing CoCo implementation.
+- [Documentation](docs/README.md) is the entry point for architecture, CPU
+  scope, model contracts and coverage, example specifications, machine
+  definitions, and reference notes.
 - [src/components/memory/ram.ts](src/components/memory/ram.ts) owns byte storage
   and validates reads and writes.
 - [src/components/cpus/](src/components/cpus/) contains the 8080, 6502, and 6809 models,

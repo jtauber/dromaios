@@ -1,39 +1,16 @@
 # 8080 example: register pairs
 
-This focused example follows the [load, add, and store example](8080-example.md).
+This focused example follows the [load, add, and store example](arithmetic.md).
 It shows how the same stored bytes can be inspected and changed as a 16-bit
-register pair. Current support is tracked in [8080 implementation coverage](cpu-coverage.md#8080).
+register pair. Current support is tracked in [8080 implementation coverage](../../coverage.md#8080).
 
-[Example definition](../src/machines/8080/register-pairs-example.machine) ·
-[Example tests](../tests/machines/8080/register-pairs-example.test.ts) ·
-[CPU tests](../tests/components/cpus/8080.test.ts)
+[Example definition](../../../../src/machines/8080/register-pairs-example.machine) ·
+[Example tests](../../../../tests/machines/8080/register-pairs-example.test.ts) ·
+[CPU tests](../../../../tests/components/cpus/8080.test.ts)
 
-## Register views and ownership
-
-The CPU stores B, C, D, E, H, and L as individual bytes. Its snapshots also
-contain these derived numeric views:
-
-| Snapshot field | High byte | Low byte |
-| --- | --- | --- |
-| `bc` | B | C |
-| `de` | D | E |
-| `hl` | H | L |
-
-For example, H = `12` and L = `FF` give HL = `12FF`. SP is a separately
-stored 16-bit register. Intel assembly names the pairs `B`, `D`, and `H`;
-the snapshot names `bc`, `de`, and `hl` show both component registers.
-
-`Cpu8080State` continues to describe stored state. Construction accepts those
-fields without requiring pair values. `Cpu8080Snapshot` adds readonly `bc`,
-`de`, and `hl`, including in step and reset records. Pair values supplied by
-a JavaScript caller or an existing snapshot are ignored when constructing a
-CPU; only the stored bytes are copied and validated. Extra pair getters are
-never evaluated.
-
-Each snapshot owns plain numeric values, as with the [6809's D view](6809-example.md#state-initialization-and-ownership).
-Later execution leaves those values unchanged. Deliberately bypassing
-TypeScript readonly checks to edit snapshot bytes does not recalculate that
-snapshot's pair fields or affect the CPU. Inspection performs no RAM accesses.
+The [model's register views](../model.md#register-views) define BC, DE, and
+HL as detached views of stored bytes, with no separate initialization inputs.
+For example, H = `12` and L = `FF` give HL = `12FF`.
 
 ## Program and initial state
 
@@ -81,11 +58,11 @@ and [INX description](https://altairclone.com/downloads/manuals/8080%20Programme
 All B, D, H, and SP forms of both instructions follow this contract, although
 the program uses only H. Incrementing SP here performs no stack memory access.
 The instruction-level access records omit timing, dummy bus accesses, and
-electrical activity, as in the introductory example.
+electrical activity, as specified in the [model contract](../model.md#step-records).
 
 ## Expected records
 
-Records retain the [8080 step format](8080-example.md#step-record). The first
+Records retain the [8080 step format](../model.md#step-records). The first
 `before` snapshot is the initial state above; each following `before` equals
 the previous `after`. The table lists every changed field. A, B, C, D, E, BC,
 DE, SP, all flags, and interrupt enable remain at their initial values.
@@ -106,7 +83,7 @@ read. There are no writes or reads beyond these entries.
 | 3 | `R 0004:76` |
 
 A fourth call returns `halted` with `instruction: null`, identical before/after
-snapshots, and no accesses. The [unsupported-opcode policy](8080-example.md#halt-and-unsupported-opcodes)
+snapshots, and no accesses. The [unsupported-opcode policy](../model.md#halt-and-unsupported-opcodes)
 is unchanged for forms outside the coverage inventory.
 
 ## Reset and restart
@@ -134,6 +111,6 @@ captured records remain independent.
 - Verify pair ordering and unsigned values, construction from stored state
   and snapshots, ignored pair getters, and single reads of stored-field getters.
 - Check detached pair views across successive instructions, reset, restart,
-  and caller edits; enforce readonly views in [public type checks](../tests/types/8080.ts).
+  and caller edits; enforce readonly views in [public type checks](../../../../tests/types/8080.ts).
 - Continue checking every unimplemented opcode against the unsupported policy
   and preserve the introductory arithmetic example's behavior.

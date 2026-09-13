@@ -11,13 +11,13 @@ Every commit requires maintainer review and an explicit go-ahead.
 The introductory examples were built in the order **8080 → 6502 → 6809**.
 Focused examples will now inform shared CPU and inspection interfaces.
 Implementation order is independent of the tutorial's historical teaching
-order. See [CPU scope and early roadmap](docs/cpu-roadmap.md) for the rationale,
+order. See [CPU scope](docs/cpus/scope.md) for the rationale,
 eventual targets, and current reference coverage.
 
 ## 0. Establish the starting point — complete
 
 - Review the purpose, design principles, and proposed repository structure.
-- Review the [8080 example specification](docs/8080-example.md): an eight-byte
+- Review the [8080 example specification](docs/cpus/8080/examples/arithmetic.md): an eight-byte
   8080 program with its complete expected state changes and access records.
 - Choose the minimal development/test setup for TypeScript, the selected
   implementation language.
@@ -42,8 +42,8 @@ compiled to ES modules, npm, and Node.js 24's built-in test runner.
 **Review point:** We can account for what each instruction reads and changes.
 The supported instruction subset and execution granularity are documented.
 
-Current support is tracked in [CPU implementation coverage](docs/cpu-coverage.md).
-Acceptance checks are defined in the [8080 example specification](docs/8080-example.md).
+Current support is tracked in [CPU implementation coverage](docs/cpus/coverage.md).
+Acceptance checks are defined in the [8080 example specification](docs/cpus/8080/examples/arithmetic.md).
 
 ## 2. Test generalizations across three CPUs — current
 
@@ -59,11 +59,12 @@ Acceptance checks are defined in the [8080 example specification](docs/8080-exam
 documented limits. Proposed generalizations have been exercised against their
 architectural differences, beyond simply running the same arithmetic example.
 
-The introductory [8080](docs/8080-example.md), [6502](docs/6502-example.md),
-and [6809](docs/6809-example.md) examples are complete. Their specifications
-define behavior and acceptance checks; the [coverage tracker](docs/cpu-coverage.md)
-records current support. Focused examples and comparison of the three models
-are next within this stage.
+The introductory [8080](docs/cpus/8080/examples/arithmetic.md), [6502](docs/cpus/6502/examples/arithmetic.md),
+and [6809](docs/cpus/6809/examples/arithmetic.md) examples are complete. Their specifications
+define behavior and acceptance checks; the [coverage tracker](docs/cpus/coverage.md)
+records current support. Focused examples are extending this comparison;
+the [example catalog](docs/README.md#cpu-examples) lists the completed programs.
+Further examples and comparison of the three models continue within this stage.
 
 ## 3. Make the examples explorable in the browser
 

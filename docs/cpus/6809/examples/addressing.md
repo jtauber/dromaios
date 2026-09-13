@@ -2,12 +2,12 @@
 
 This example copies a byte using the DP register to select a memory page.
 It completes the basic addressing comparison with the
-[8080's HL pair](8080-addressing-example.md) and the
-[6502's fixed zero page](6502-addressing-example.md).
+[8080's HL pair](../../8080/examples/addressing.md) and the
+[6502's fixed zero page](../../6502/examples/addressing.md).
 
-[Machine definition](../src/machines/6809/addressing-example.machine) ·
-[Example tests](../tests/machines/6809/addressing-example.test.ts) ·
-[CPU coverage](cpu-coverage.md#6809)
+[Example definition](../../../../src/machines/6809/addressing-example.machine) ·
+[Example tests](../../../../tests/machines/6809/addressing-example.test.ts) ·
+[CPU coverage](../../coverage.md#6809)
 
 ## Instruction behavior
 
@@ -88,7 +88,7 @@ step there reads `00` and reports unsupported with unchanged state and RAM.
 
 ## Reset and restart
 
-Reset follows the [existing 6809 policy](6809-example.md#cpu-reset-and-lesson-restart).
+Reset follows the [existing 6809 policy](../model.md#cpu-reset).
 It reads `FFFE` then `FFFF`, sets PC to `0200`, clears DP, and sets F/I.
 Other state and RAM remain unchanged, including the `A5` copied to `1281`.
 

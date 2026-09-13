@@ -1,14 +1,14 @@
-# CPU scope and early roadmap
+# CPU scope
 
 This records the CPU discussion and working direction as of 12 September 2026.
-The [project roadmap](../ROADMAP.md) describes the implementation stages;
-[architecture.md](architecture.md) describes component responsibilities.
+The [project roadmap](../../ROADMAP.md) describes the implementation stages;
+[architecture.md](../architecture.md) describes component responsibilities.
 
 ## Working decisions
 
 - Use **TypeScript** as the initial implementation language. Future DSLs for
   CPU and component definitions remain a possible direction; see
-  [implementation language and future definition languages](architecture.md#implementation-language-and-future-definition-languages).
+  [implementation language and future definition languages](../architecture.md#implementation-language-and-future-definition-languages).
 - Build small examples in the order **8080 → 6502 → 6809** before settling
   shared CPU and inspection interfaces.
 - Apply a **rule of three**: use evidence from three distinct architectures to
@@ -69,9 +69,9 @@ Hardware references for these distinctions:
 ## How we use the three examples
 
 1. Establish RAM, instruction stepping, and execution records with a tiny
-   8080 program. The completed [8080 example](8080-example.md) loads a number,
+   8080 program. The completed [8080 example](8080/examples/arithmetic.md) loads a number,
    adds another, stores the result, and halts, with exact expected records.
-2. Implement the equivalent [6502 example](6502-example.md). Examine which
+2. Implement the equivalent [6502 example](6502/examples/arithmetic.md). Examine which
    support carries over and where the first model made assumptions.
 3. Repeat with the 6809, revisiting those assumptions with a third architecture.
 4. Add focused examples covering register relationships, stack operations,
@@ -126,13 +126,15 @@ programmer-managed stack in RAM. See
 
 ## Current implementation
 
-The introductory [8080](8080-example.md), [6502](6502-example.md), and
-[6809](6809-example.md) examples are complete. The [coverage tracker](cpu-coverage.md)
-records current instruction and feature support. The example specifications
-define behavior and acceptance checks; the 6809 document also records the
-CoCo reference review. Next come focused examples and comparison of the models
-to test shared execution and inspection conventions. The
-[specification questions](architecture.md#example-specifications) guide review
-of each implementation change.
+The introductory [8080](8080/examples/arithmetic.md), [6502](6502/examples/arithmetic.md), and
+[6809](6809/examples/arithmetic.md) examples are complete. The [coverage tracker](coverage.md)
+records current instruction and feature support. The
+[model contracts](../README.md#cpu-models) define state, execution records,
+and reset; [example specifications](../README.md#cpu-examples) define programs
+and acceptance checks. The [CoCo reference review](6809/reference-notes.md)
+records ideas from the earlier implementation. Focused examples and comparison
+of the models continue to test shared execution and inspection conventions.
+The [specification questions](../architecture.md#model-contracts-and-example-specifications)
+guide review of each implementation change.
 
-The first code includes the [MIT license](../LICENSE).
+The first code includes the [MIT license](../../LICENSE).

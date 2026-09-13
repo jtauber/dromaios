@@ -1,11 +1,11 @@
 # Architecture sketch
 
-This is a starting vocabulary and proposed layout. Interfaces and implementation
-details will be worked out through the first small examples.
+This is a working vocabulary and proposed layout. Interfaces and implementation
+details continue to develop through small examples.
 
-The first examples use the **8080, 6502, and 6809**, in that order. Their
-differences will inform the shared interfaces; see the
-[CPU roadmap](cpu-roadmap.md) for the selection rationale and scope.
+The introductory examples were built for the **8080, 6502, and 6809**, in that
+order. Their differences inform shared interfaces; see
+[CPU scope](cpus/scope.md) for the selection rationale and intended targets.
 
 ## Implementation language and future definition languages
 
@@ -49,7 +49,7 @@ CPU instances without reset or execution; each CPU constructor still owns
 copying and validating its state. Example exports retain their concrete CPU
 types. More complex machine wiring can use ordinary TypeScript as it develops.
 
-The flat-RAM setups are [machine definitions](machine-definitions.md) written in a
+The flat-RAM setups are [machine definitions](machines/definitions.md) written in a
 small language for CPU state and hexadecimal byte images. Definitions and their
 tests are grouped by CPU, and generated factories mirror the definition folders.
 A build step validates the definitions and generates calls to the same helper;
@@ -90,14 +90,7 @@ dromaios/
 ├── AGENTS.md
 ├── README.md
 ├── ROADMAP.md
-├── docs/
-│   ├── architecture.md
-│   ├── cpu-roadmap.md
-│   ├── cpu-coverage.md
-│   ├── 8080-example.md
-│   ├── 6502-example.md
-│   ├── 6502-reference-notes.md
-│   └── 6809-example.md
+├── docs/                  Design, CPU specifications, examples, and machine guides
 ├── src/
 │   ├── components/
 │   │   ├── cpus/          CPU models, grouped by architecture
@@ -113,6 +106,8 @@ dromaios/
     ├── machines/          Small integration checks and software targets
     └── fixtures/          Small programs and expected results
 ```
+
+The [documentation index](README.md) provides navigation within `docs/`.
 
 A component should belong to its hardware model rather than to the first
 machine that uses it. Machine wiring belongs with the composition. Presentation
@@ -134,13 +129,15 @@ addressing, and timing can retain the structure that explains each CPU best.
 Three examples are a review point, not a claim of universality. Later CPU
 models, variants, and machine compositions can still require revisions.
 
-## Example specifications
+## Model contracts and example specifications
 
-The introductory [8080](8080-example.md), [6502](6502-example.md), and
-[6809](6809-example.md) examples are complete. Each example's document records
-its state, program, execution contract, and acceptance checks.
-The [coverage tracker](cpu-coverage.md) records current CPU implementation support.
-These questions also guide review of the focused examples that come next:
+The introductory [8080](cpus/8080/examples/arithmetic.md), [6502](cpus/6502/examples/arithmetic.md), and
+[6809](cpus/6809/examples/arithmetic.md) examples are complete. Each example's document
+records its program, initial state, instruction behavior, expected execution,
+and acceptance checks. The [CPU model contracts](README.md#cpu-models) define
+state ownership, record formats, unsupported-instruction policies, and reset.
+The [coverage tracker](cpus/coverage.md) records current CPU implementation support.
+These questions guide review of the focused examples as they develop:
 
 1. Which instructions and program demonstrate the example, and what is
    the expected state after each instruction?

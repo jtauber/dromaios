@@ -1,13 +1,13 @@
 # 8080 example: stack round-trip
 
-This example builds on the [register-pair example](8080-register-pairs-example.md).
+This example builds on the [register-pair example](register-pairs.md).
 It saves BC on a RAM stack, clears the pair, and restores it. The records show
 how SP selects memory and how stack data reads differ from instruction fetching.
-Current support is tracked in [8080 implementation coverage](cpu-coverage.md#8080).
+Current support is tracked in [8080 implementation coverage](../../coverage.md#8080).
 
-[Example definition](../src/machines/8080/stack-example.machine) ·
-[Example tests](../tests/machines/8080/stack-example.test.ts) ·
-[CPU tests](../tests/components/cpus/8080.test.ts)
+[Example definition](../../../../src/machines/8080/stack-example.machine) ·
+[Example tests](../../../../tests/machines/8080/stack-example.test.ts) ·
+[CPU tests](../../../../tests/components/cpus/8080.test.ts)
 
 ## Program and initial state
 
@@ -45,7 +45,7 @@ is visible. These are lesson values, not hardware power-on defaults.
 `create8080StackExampleMemory()` returns the loaded RAM without creating a CPU.
 `create8080StackExample()` returns fresh `{ cpu, ram }` components in the state
 above, without resetting or executing the CPU. State ownership and derived
-views follow the [register-pair contract](8080-register-pairs-example.md#register-views-and-ownership).
+views follow the [register-pair contract](../model.md#register-views).
 
 ## Stack instruction behavior
 
@@ -53,7 +53,7 @@ PUSH and POP each occupy one instruction byte. They advance PC by one and
 preserve all flags, the accumulator, unrelated register pairs, and control
 latches. B, D, and H select BC, DE, and HL respectively. The PSW forms remain
 unsupported pending packed-flag support; they follow the existing
-[unsupported-opcode policy](8080-example.md#halt-and-unsupported-opcodes).
+[unsupported-opcode policy](../model.md#halt-and-unsupported-opcodes).
 
 PUSH writes the pair's high byte at `SP−1`, then its low byte at `SP−2`,
 leaving SP at `SP−2`. The pair is unchanged. POP reads the low byte at SP,
@@ -69,7 +69,7 @@ stack overlaps its opcode reads that location again as data.
 
 ## Expected records and memory
 
-The [8080 record format](8080-example.md#step-record) is unchanged. Only
+The [8080 record format](../model.md#step-records) is unchanged. Only
 instruction fetches contribute to `instruction.bytes`. Stack reads and writes
 appear in `accesses`, in the order they occur. Thus POP records one instruction
 byte and three accesses: the opcode read and two data reads. No extra read is

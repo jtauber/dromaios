@@ -5,12 +5,12 @@ has four declarations: `ram`, `cpu`, `memory`, and optional `end`. All numeric
 data is hexadecimal by default. Register and flag names are uppercase by
 convention; flags use `1` for set and `0` for clear.
 
-See [machine definitions](machine-definitions.md) for example source files and
+See [machine definitions](definitions.md) for example source files and
 the build workflow.
 
 ## Example
 
-The [6502 lesson](6502-example.md) supplies a reset vector as a second memory
+The [6502 lesson](../cpus/6502/examples/arithmetic.md) supplies a reset vector as a second memory
 block. `end` records the caller's completion address, one byte past the program.
 
 ```text
@@ -115,7 +115,7 @@ and converts numeric flag bits to Booleans.
 
 ## Errors
 
-The [parser](../src/machines/machine-language.ts) validates syntax, complete CPU
+The [parser](../../src/machines/machine-language.ts) validates syntax, complete CPU
 state, register widths, flag bits, and memory bounds before generating code.
 Errors identify the filename, line, and column, with the offending source line
 and a caret. For example, a block that runs past the end of RAM reports:
