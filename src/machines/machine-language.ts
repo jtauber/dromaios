@@ -1,5 +1,6 @@
 import type { Cpu8008AddressStack, Cpu8008State } from "../components/cpus/8008.js";
 import type { Cpu8080State } from "../components/cpus/8080.js";
+import type { Cpu8088State } from "../components/cpus/8088.js";
 import type { Cpu6502State } from "../components/cpus/6502.js";
 import type { Cpu6800State } from "../components/cpus/6800.js";
 import type { Cpu6809State } from "../components/cpus/6809.js";
@@ -8,6 +9,7 @@ import type { CpuZ80State } from "../components/cpus/z80.js";
 interface CpuStates {
   "8008": Cpu8008State;
   "8080": Cpu8080State;
+  "8088": Cpu8088State;
   "6502": Cpu6502State;
   "6800": Cpu6800State;
   "6809": Cpu6809State;
@@ -23,7 +25,7 @@ export type MachineDefinition = {
   [Model in CpuModel]: {
     readonly cpu: Model;
     readonly initialState: CpuStates[Model];
-    readonly ramSize: Model extends "8008" ? 0x4000 : 0x10000;
+    readonly ramSize: Model extends "8008" ? 0x4000 : Model extends "8088" ? 0x100000 : 0x10000;
   };
 }[CpuModel] & {
   readonly memory: readonly { readonly address: number; readonly bytes: readonly number[] }[];
@@ -63,6 +65,12 @@ const schemas = {
     pc: "word", sp: "word",
     flags: { s: "flag", z: "flag", ac: "flag", p: "flag", cy: "flag" },
     interruptEnabled: "boolean", halted: "boolean",
+  },
+  "8088": {
+    ax: "word", bx: "word", cx: "word", dx: "word", sp: "word", bp: "word", si: "word", di: "word",
+    cs: "word", ds: "word", ss: "word", es: "word", ip: "word",
+    flags: { cf: "flag", pf: "flag", af: "flag", zf: "flag", sf: "flag",
+      tf: "flag", if: "flag", df: "flag", of: "flag" },
   },
   "6502": {
     a: "byte", x: "byte", y: "byte", sp: "byte", pc: "word",
@@ -187,11 +195,12 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
     switch (model.text) {
       case "8008": return { cpu: model.text, initialState: readState(schemas["8008"], model.text) };
       case "8080": return { cpu: model.text, initialState: readState(schemas["8080"], model.text) };
+      case "8088": return { cpu: model.text, initialState: readState(schemas["8088"], model.text) };
       case "6502": return { cpu: model.text, initialState: readState(schemas["6502"], model.text) };
       case "6800": return { cpu: model.text, initialState: readState(schemas["6800"], model.text) };
       case "6809": return { cpu: model.text, initialState: readState(schemas["6809"], model.text) };
       case "z80": return { cpu: model.text, initialState: readState(schemas.z80, model.text) };
-      default: return fail(model, `Expected CPU model 8008, 8080, 6502, 6800, 6809, or z80, found ${describe(model)}`);
+      default: return fail(model, `Expected CPU model 8008, 8080, 8088, 6502, 6800, 6809, or z80, found ${describe(model)}`);
     }
   }
 
@@ -207,8 +216,10 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
       case "ram": {
         if (ram !== undefined) fail(declaration, "Duplicate ram declaration");
         const size = take();
-        const value = readNumber(size, "RAM size", 0x10000);
-        if (value !== 0x4000 && value !== 0x10000) fail(size, "RAM size must be 4000 (16 KiB) or 10000 (64 KiB)");
+        const value = readNumber(size, "RAM size", 0x100000);
+        if (value !== 0x4000 && value !== 0x10000 && value !== 0x100000) {
+          fail(size, "RAM size must be 4000 (16 KiB), 10000 (64 KiB), or 100000 (1 MiB)");
+        }
         ram = { size: value, token: size };
         break;
       }
@@ -220,12 +231,12 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
       case "end": {
         if (completion !== undefined) fail(declaration, "Duplicate end declaration");
         const token = take();
-        completion = { address: readNumber(token, "Completion address", 0xffff), token };
+        completion = { address: readNumber(token, "Completion address", 0xfffff), token };
         break;
       }
       case "memory": {
         const addressToken = take();
-        const address = readNumber(addressToken, "Memory address", 0xffff);
+        const address = readNumber(addressToken, "Memory address", 0xfffff);
         memoryBounds.push({ token: addressToken, address, isByte: false });
         expect("{");
         const bytes: number[] = [];
@@ -233,7 +244,10 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
           if (current.text === "") fail(current, 'Expected "}" to close memory block');
           const token = take();
           if (!/^[\da-fA-F]{2}$/.test(token.text)) fail(token, `Expected a two-digit hexadecimal byte, found ${describe(token)}`);
-          if (address + bytes.length >= 0x10000) fail(token, "Memory block extends beyond address FFFF");
+          const limit = ram?.size ?? 0x100000;
+          if (address + bytes.length >= limit) {
+            fail(token, `Memory block extends beyond address ${(limit - 1).toString(16).toUpperCase()}`);
+          }
           memoryBounds.push({ token, address: address + bytes.length, isByte: true });
           bytes.push(Number.parseInt(token.text, 16));
         }
@@ -246,7 +260,7 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
   }
   if (ram === undefined) fail(current, "Missing ram declaration");
   if (cpu === undefined) fail(current, "Missing cpu declaration");
-  const requiredSize = cpu.cpu === "8008" ? 0x4000 : 0x10000;
+  const requiredSize = cpu.cpu === "8008" ? 0x4000 : cpu.cpu === "8088" ? 0x100000 : 0x10000;
   if (ram.size !== requiredSize) fail(ram.token, `RAM size for ${cpu.cpu} must be ${requiredSize.toString(16).toUpperCase()}`);
   const lastAddress = (requiredSize - 1).toString(16).toUpperCase();
   for (const { token, address, isByte } of memoryBounds) {
@@ -258,6 +272,7 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
   }
   const machine = cpu.cpu === "8008"
     ? { ...cpu, ramSize: 0x4000 as const, memory }
+    : cpu.cpu === "8088" ? { ...cpu, ramSize: 0x100000 as const, memory }
     : { ...cpu, ramSize: 0x10000 as const, memory };
   return completion === undefined ? machine : { ...machine, endAddress: completion.address };
 }

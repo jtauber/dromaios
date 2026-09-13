@@ -166,9 +166,11 @@ ram 10000 // The model name above is an identifier; numbers here are hex.\n`;
     assert.deepEqual(parseMachine(source.replaceAll("\n", newline)), expected);
   }
   const first = parseMachine(sources["8080"]);
+  assert.equal(first.cpu, "8080");
   first.initialState.a = 0xff;
   first.initialState.flags.z = true;
   const second = parseMachine(sources["8080"]);
+  assert.equal(second.cpu, "8080");
   assert.equal(second.initialState.a, 0);
   assert.equal(second.initialState.flags.z, false);
   assert.equal(Object.hasOwn(second, "endAddress"), false);
@@ -179,11 +181,13 @@ test("hexadecimal values and aliases have the same meaning for every CPU", () =>
   for (const source of Object.values(sources)) {
     for (const value of ["100", "0100", "0x100", "0X100", "$100", "100h", "100H"]) {
       const machine = parseMachine(set(source, "PC", value));
-      assert.ok(machine.cpu !== "8008");
+      assert.ok(machine.cpu !== "8008" && machine.cpu !== "8088");
       assert.equal(machine.initialState.pc, 0x100, value);
     }
     for (const value of ["ff", "FF", "0xFF", "$ff", "0ffh", "0FFH"]) {
-      assert.equal(parseMachine(set(source, "A", value)).initialState.a, 0xff, value);
+      const machine = parseMachine(set(source, "A", value));
+      assert.ok(machine.cpu !== "8088");
+      assert.equal(machine.initialState.a, 0xff, value);
     }
   }
   for (const size of ["10000", "0x10000", "0X10000", "$10000", "10000h", "10000H"]) {
@@ -406,4 +410,72 @@ test("machine RAM size follows the selected CPU and checks bounds regardless of 
     });
   }
   assert.deepEqual(parseMachine(`memory 3FFF {} end 3FFF ${source8008}`).memory, [{ address: 0x3fff, bytes: [] }]);
+});
+
+const source8088 = `ram 100000
+cpu 8088 {
+  AX=1122 BX=3344 CX=5566 DX=7788 SP=8000 BP=9000 SI=0010 DI=0020
+  CS=1234 DS=2000 SS=3000 ES=4000 IP=0100
+  flags { CF=1 PF=0 AF=1 ZF=1 SF=1 TF=0 IF=1 DF=1 OF=1 }
+}`;
+
+test("8088 parsing preserves logical word registers and validates twenty-bit physical image and completion addresses", () => {
+  const suffix = "memory FFFFE { 12 AB } end FFFFF";
+  const expected = { cpu: "8088", ramSize: 0x100000,
+    initialState: { ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788, sp: 0x8000, bp: 0x9000, si: 0x10, di: 0x20,
+      cs: 0x1234, ds: 0x2000, ss: 0x3000, es: 0x4000, ip: 0x100,
+      flags: { cf: true, pf: false, af: true, zf: true, sf: true, tf: false, if: true, df: true, of: true } },
+    memory: [{ address: 0xffffe, bytes: [0x12, 0xab] }], endAddress: 0xfffff };
+  for (const source of [`${source8088} ${suffix}`, `${suffix} ${source8088}`]) {
+    assert.deepEqual(parseMachine(source), expected);
+  }
+  const first = parseMachine(`${source8088} ${suffix}`);
+  assert.equal(first.cpu, "8088");
+  first.initialState.ax = 0;
+  first.initialState.flags.if = false;
+  assert.deepEqual(parseMachine(`${source8088} ${suffix}`), expected);
+  for (const value of ["100", "$100", "0x100", "100h"]) {
+    const machine = parseMachine(set(source8088, "IP", value));
+    assert.equal(machine.cpu, "8088");
+    assert.equal(machine.initialState.ip, 0x100);
+  }
+});
+
+test("8088 parsing checks every word and flag and rejects assignments to byte views and derived PC", () => {
+  for (const name of ["AX", "BX", "CX", "DX", "SP", "BP", "SI", "DI", "CS", "DS", "SS", "ES", "IP"]) {
+    for (const value of ["0000", "FFFF"]) assert.doesNotThrow(() => parseMachine(set(source8088, name, value)));
+    assert.throws(() => parseMachine(set(source8088, name, "10000")), /must be in 0..FFFF/);
+    assert.throws(() => parseMachine(source8088.replace(new RegExp(`\\b${name}=\\w+`), "")), /Missing fields/);
+    assert.throws(() => parseMachine(source8088.replace(`${name}=`, `${name.toLowerCase()}=0 ${name}=`)), /Duplicate field/);
+  }
+  for (const name of ["CF", "PF", "AF", "ZF", "SF", "TF", "IF", "DF", "OF"]) {
+    for (const value of ["2", "true", "false"]) assert.throws(() => parseMachine(set(source8088, name, value)), SyntaxError);
+    assert.throws(() => parseMachine(source8088.replace(new RegExp(`\\b${name}=\\w+`), "")), /Missing fields/);
+  }
+  for (const name of ["AL", "AH", "BL", "BH", "CL", "CH", "DL", "DH", "PC", "A", "halted"]) {
+    assert.throws(() => parseMachine(source8088.replace("AX=1122", `AX=1122 ${name}=0`)), /Unknown field/);
+  }
+});
+
+test("larger 8088 images do not relax the smaller CPUs' bounds and memory blocks never wrap", () => {
+  for (const size of ["4000", "10000"]) {
+    assert.throws(() => parseMachine(source8088.replace("ram 100000", `ram ${size}`)), /RAM size for 8088 must be 100000/);
+  }
+  for (const suffix of ["memory 100000 {}", "memory FFFFF { AA BB }", "end 100000"]) {
+    for (const text of [`${source8088} ${suffix}`, `${suffix} ${source8088}`]) {
+      assert.throws(() => parseMachine(text), /FFFFF/);
+    }
+  }
+  for (const source of [...Object.values(sources), source8008]) {
+    for (const suffix of ["memory FFFFF {}", "end FFFFF"]) {
+      for (const text of [`${source} ${suffix}`, `${suffix} ${source}`]) assert.throws(() => parseMachine(text), SyntaxError);
+    }
+    assert.throws(() => parseMachine(source.replace(/ram \w+/, "ram 100000")), /RAM size for/);
+  }
+  for (const newline of ["\n", "\r\n", "\r"]) {
+    const text = `memory FFFFF {\n  AA BB\n}\n${source8088}`.replaceAll("\n", newline);
+    assert.throws(() => parseMachine(text, "8088.machine"), {
+      name: "SyntaxError", message: "8088.machine:2:6: Memory block extends beyond address FFFFF\n  AA BB\n     ^",
+    });
+  }
 });

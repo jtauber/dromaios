@@ -21,15 +21,14 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | 25 / 151 | 16.6% | 1: binary-only ADC |
 | [Zilog Z80](#z80) | 1976 | 30 / 698 | 4.3% | 0 |
 | [Motorola 6809](#6809) | 1978 | 30 / 268 | 11.2% | 0 |
-| [Intel 8088](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 |
+| [Intel 8088](#8088) | 1979 | 3 / 291 | 1.0% | 0 |
 | [Motorola 68000](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 |
 
 Completed examples are linked in each CPU section below and grouped by topic
 in the [example catalog](../README.md#cpu-examples).
 
-All six implemented CPU models remain incomplete. The 8088 and 68000
-are not started; their documented-form totals will be established when
-implementation begins.
+All seven implemented CPU models remain incomplete. The 68000 is not started;
+its documented-form total will be established when implementation begins.
 
 The next milestone is the [CPU-only checkpoint across all eight targets](../../ROADMAP.md#cpu-only-checkpoint).
 Interrupt delivery, interrupt-specific control instructions, port I/O, and
@@ -64,6 +63,7 @@ encodings and instructions belonging to other CPU variants are excluded.
 | MOS 6502 | 151 | [Synertek 6500 Programming Manual, Appendix B](https://syncopate.us/books/Synertek6502ProgrammingManual.html#ap-b): count the documented instruction/addressing forms |
 | Motorola 6809 | 268 | [Motorola MC6809–MC6809E Programming Manual, Appendix D](https://www.maddes.net/m6809pm/appendix_d.htm): 221 unprefixed forms + 38 on page 2 + 9 on page 3, counting mnemonic aliases once |
 | Zilog Z80 | 698 | [Zilog Z80 CPU User Manual, UM008011-0816](https://www.zilog.com/docs/z80/um0080.pdf): 252 unprefixed + 248 CB + 58 ED + 39 DD + 39 FD + 31 DD CB + 31 FD CB forms |
+| Intel 8088 | 291 | [Intel 8086 Family User's Manual, October 1979, table 4-13](https://www.ardent-tool.com/CPU/docs/Intel/808x/manuals/9800722-03_alt.pdf): 226 documented non-prefix first bytes + 65 additional ModR/M opcode-extension forms; audit below |
 
 For the 8008, the six absent encodings are `22`, `2A`, `32`, `38`, `39`,
 and `3A`. The documented opcode don't-care bits are expanded: JMP, CAL,
@@ -92,20 +92,50 @@ HL among the choices for `LD (nn),dd` and `LD dd,(nn)` (printed pages 108 and 10
 These are different documented encodings from the unprefixed HL transfers,
 so both count, giving 698 rather than the 696 obtained by excluding that pair.
 
+For the 8088, start with the 256 first-byte values in table 4-13 (printed
+pages 4-27–4-35). Exclude 23 unused bytes (`0F`, `60`–`6F`, `C0`, `C1`, `C8`,
+`C9`, `D6`, `F1`) and seven prefixes (`26`, `2E`, `36`, `3E`, `F0`, `F2`, `F3`),
+leaving 226. Expand the ModR/M `reg` field where it selects an operation:
+
+| First bytes | Documented operations per byte | Additional forms beyond one per byte |
+| --- | --- | --- |
+| `80`, `81` | 8 | 14 |
+| `82`, `83` | 5: ADD, ADC, SBB, SUB, CMP | 8 |
+| `D0`–`D3` | 7 rotations/shifts | 24 |
+| `F6`, `F7` | 7 | 12 |
+| `FE` | 2: INC, DEC | 1 |
+| `FF` | 7 | 6 |
+| **Total** | | **65** |
+
+This gives **226 + 65 = 291**. In particular, the October 1979 decoding guide
+marks `/1`, `/4`, and `/6` unused for `82` and `83`; it documents the five
+arithmetic forms counted here. Register fields within the first opcode byte
+are expanded, as on the other CPUs. ModR/M register and effective-address
+choices are operands, as are displacements, immediate values, and the external
+opcode carried by ESC. They do not add forms; a form remains partial until
+all its documented operand choices work. Each ESC first byte `D8`–`DF` counts
+once. AAM/AAD's fixed second byte does not add forms.
+
+The 8088 count measures unprefixed forms. Segment overrides, LOCK, and repetition
+are modifiers; their support is tracked separately rather than multiplying the
+denominator by prefix combinations. Mnemonic aliases count once. Undocumented
+encodings and later x86 instructions are excluded, while deferred interrupts
+and I/O remain in the total.
+
 ## Support shared by the current models
 
 | Area | Implemented scope |
 | --- | --- |
-| Memory connection | Flat RAM with recorded byte reads and writes: 16 KiB for the 8008, 64 KiB for the other current models |
+| Memory connection | Flat RAM with recorded byte reads and writes: 16 KiB for the 8008, 1 MiB for the 8088, 64 KiB for the other current models |
 | Initialization | Explicit caller-supplied registers and flags, copied and validated; no implicit reset |
 | Inspection | Detached state snapshots, recursively readonly in TypeScript, without RAM access |
 | Stepping | At most one instruction attempt; before/after snapshots, fetched instruction bytes, ordered accesses, and outcome |
 | Reset records | Separate before/after snapshots and access list; CPU-specific reset effects |
-| Arithmetic and addresses | Byte results and PC/operand fetching wrap at their modeled widths: 14-bit addresses for the 8008, 16-bit for the other current models |
+| Arithmetic and addresses | Results wrap at their modeled widths; 14-bit addresses for the 8008, 16-bit addresses for the other 8-bit cores; the 8088 combines 16-bit offsets with segments to form 20-bit physical addresses |
 | Unsupported attempts | `reason: "opcode"`, one opcode read, unchanged CPU state and RAM; additional 6502 mode restriction below |
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
-All six currently omit cycle counts, dummy bus accesses, electrical signals,
+All seven currently omit cycle counts, dummy bus accesses, electrical signals,
 interrupt delivery, mapped devices, disassembly, and an
 execution UI. Existing interrupt flags can be stored and inspected before interrupt
 delivery is implemented; the 8008 has no interrupt-enable flag.
@@ -781,6 +811,45 @@ operands, and detached records. The counted loop checks ten complete records,
 actual RAM calls, full memory images, refresh wrapping, HALT, bounded resumption,
 reset and restart, and a zero initial count producing 256 iterations.
 
+## 8088
+
+[Source](../../src/components/cpus/8088.ts) ·
+[Model contract](8088/model.md) ·
+[Arithmetic example](8088/examples/arithmetic.md) ·
+[Example definition](../../src/machines/8088/example.machine) ·
+[PC reference review](8088/reference-notes.md)
+
+| Opcode | Instruction | Addressing form | Length | Scope |
+| --- | --- | --- | --- | --- |
+| `05` | `ADD AX,nn` | Immediate word | 3 | Add without incoming carry; set CF/PF/AF/ZF/SF/OF, preserve TF/IF/DF |
+| `A3` | `MOV [offset],AX` | Direct offset in DS | 3 | Store low byte then high at consecutive physical addresses; preserve all flags |
+| `B8` | `MOV AX,nn` | Immediate word | 3 | Load AX, deriving AL/AH; preserve all flags |
+
+| Area | Implemented scope |
+| --- | --- |
+| Stored registers | AX/BX/CX/DX, SP/BP/SI/DI, CS/DS/SS/ES, IP; all 16-bit |
+| Stored flags | CF/PF/AF/ZF/SF/TF/IF/DF/OF; no packed FLAGS or reserved-bit policy yet |
+| Register views | AL/AH, BL/BH, CL/CH, DL/DH derived from word registers; physical PC derived from CS:IP |
+| Memory | Exactly 1 MiB RAM; segment × 16 + offset wraps at 20 bits; unaligned word stores supported |
+| Instruction fetching | CS:IP, with IP wrapping at 16 bits between bytes; low-byte-first immediate words and offsets |
+| Data words | Translate DS:offset once, then store at consecutive physical addresses with 20-bit wrapping |
+| Arithmetic | Full word result determines ZF/SF/OF; PF uses only the low byte; AF records carry out of bit 3 |
+| Reset | CS=FFFF, IP=0000, DS/SS/ES=0000, all flags clear; preserve general registers and RAM under the documented model policy; no vector reads |
+| Prefixes | All rejected after the first byte with unchanged state and RAM; no segment overrides, LOCK, or repetition yet |
+| Remaining scope | Other transfers, byte arithmetic, ModR/M addressing, logic, branches, calls/returns, stack operations, HALT, interrupts, I/O, and timing/prefetch behavior |
+
+Verification: [CPU tests](../../tests/components/cpus/8088.test.ts),
+[arithmetic example tests](../../tests/machines/8088/example.test.ts), and
+[public type checks](../../tests/types/8088.ts). Checks cover every load/store
+word, direct offset, and IP; all flag patterns; independent arithmetic
+expectations; register aliases; logical and physical boundary cases; every
+unsupported first byte; reset; current RAM; and detached records. The example
+checks complete traces, actual RAM calls, full memory images, physical completion
+addresses, bounded resumption, reset, and restart. Parser and generator checks
+cover word state, derived-view rejection, and one-megabyte memory bounds.
+An additional [hardware-test comparison](8088/reference-notes.md#independent-hardware-comparison)
+passed all 15,089 unprefixed cases supplied for these three encodings.
+
 ## CPUs and variants not started
 
 These targets have no implementation in this repository. The existing NMOS
@@ -798,7 +867,7 @@ its counting rules when implementation starts.
 | Ricoh 2A03 | 0% | Not started |
 | Sharp SM83 | 0% | Not started |
 | Motorola 68000 | 0% | Not started |
-| Intel 8088 / 8086 | 0% | Not started |
+| Intel 8086 | 0% | Not started as a separate model |
 | Intel 80286 | 0% | Not started |
 | Intel 80386 | 0% | Not started |
 | ARM2 | 0% | Not started |

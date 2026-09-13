@@ -42,10 +42,11 @@ end 0208
   declaration, zero or more `memory` blocks, and at most one `end` declaration.
   Top-level declarations can appear in any order. Memory blocks are applied in
   their source order.
-- `ram` gives the byte count: `4000` (16 KiB) for the 8008, or `10000`
-  (64 KiB) for the other current CPUs. The declared size must match the model.
+- `ram` gives the byte count: `4000` (16 KiB) for the 8008, `100000`
+  (1 MiB) for the 8088, or `10000` (64 KiB) for the other current CPUs.
+  The declared size must match the model.
   RAM starts at address zero and is filled with zero before loading images.
-- `cpu` selects the model by name: `8008`, `8080`, `6502`, `6800`, `6809`, or `z80`. Its block contains
+- `cpu` selects the model by name: `8008`, `8080`, `6502`, `6800`, `6809`, `z80`, or `8088`. Its block contains
   the initial state. Stored registers and control latches use `name = value`;
   `flags { ... }` groups assignments to the flags. The Z80's `alternate { ... }`
   block contains another register bank and its own `flags` block. CPU model
@@ -76,7 +77,8 @@ end 0208
   form is simply `FF`.
 - Hexadecimal digits accept either letter case. By convention, examples use
   uppercase digits `A` through `F`, two digits for byte registers, four for
-  word registers and addresses, and a single digit for flag bits. Register
+  word registers and 16-bit addresses, five for 8088 physical addresses, and
+  a single digit for flag bits. Register
   ranges come from the CPU model; padding does not determine a register's width.
 - Inside a memory body, every token is exactly two bare hexadecimal digits.
   Single digits, prefixed or suffixed numbers, and tokens longer than two
@@ -95,6 +97,8 @@ end 0208
 - `memory` gives a starting address. Bytes are written consecutively without
   address wrapping. Block starts must be within RAM and whole blocks must fit.
   Where blocks overlap, later bytes overwrite earlier ones.
+  The 8088 uses physical addresses in `00000`–`FFFFF` for both `memory` and `end`;
+  its logical code address is supplied separately through `CS` and `IP`.
 - `end` is an optional caller completion address within RAM. It maps to the
   `endAddress` field. It neither executes instructions nor halts the CPU;
   the caller can stop stepping when PC reaches it. Omission leaves this
@@ -117,6 +121,7 @@ All fields listed for the selected CPU are required, including every flag.
 | 6800 | A, B | X, SP, PC | H, I, N, Z, V, C | — |
 | 6809 | A, B, DP | X, Y, S, U, PC | E, F, H, I, N, Z, V, C | — |
 | z80 | A, B, C, D, E, H, L in both banks; I, R | IX, IY, PC, SP | S, Z, H, PV, N, C in both banks | iff1, iff2, halted |
+| 8088 | — | AX, BX, CX, DX, SP, BP, SI, DI, CS, DS, SS, ES, IP | CF, PF, AF, ZF, SF, TF, IF, DF, OF | — |
 
 The 8008 also requires its complete address stack and selector. There is no
 separate PC assignment or RAM stack pointer:
@@ -156,6 +161,11 @@ including inside the Z80's alternate bank.
 Supply their stored byte registers instead. The parser resolves names to the
 CPU's existing TypeScript fields, for example `PC` to `pc` and `CY` to `cy`,
 and converts numeric flag bits to Booleans.
+
+The 8088 instead stores word registers: byte views such as `AL` and `AH`
+derive from `AX`. Its physical `PC` derives from `CS:IP`. Neither the byte
+views nor `PC` can be assigned. See the [8088 example](../cpus/8088/examples/arithmetic.md)
+for a complete definition using different code and data segments.
 
 ## Errors
 

@@ -153,3 +153,17 @@ test("8008 generation preserves the 16 KiB size and eight address registers for 
   const existing = compileMachine(readFileSync("src/machines/8080/example.machine", "utf8"), "8080/example.machine");
   assert.ok(existing.includes('"ramSize": 65536'));
 });
+
+test("8088 generation retains word registers, one MiB RAM, and physical addresses beyond sixteen bits", () => {
+  const source = readFileSync("src/machines/8088/example.machine", "utf8");
+  const generated = compileMachine(source, "8088/example.machine");
+  assert.ok(generated.includes('import { Cpu8088 } from "../../../components/cpus/8088.js";'));
+  assert.ok(generated.includes("create: create8088Example, createMemory: create8088ExampleMemory"));
+  assert.ok(generated.includes('"ramSize": 1048576'));
+  assert.ok(generated.includes('"cs": 4660'));
+  assert.ok(generated.includes('"ip": 256'));
+  assert.ok(generated.includes('"address": 74816'));
+  assert.ok(generated.includes('"endAddress": 74825'));
+  assert.equal(generated.includes('"pc"'), false);
+  assert.equal(generated.includes('"al"'), false);
+});

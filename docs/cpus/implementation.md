@@ -35,7 +35,7 @@ core. Keep a CPU in one file while this organization remains easy to follow.
 Use binary opcode values or explicit bit patterns, grouping meaningful fields
 with underscores or spaces. Explain the bit positions, fixed bits, and selector
 values beside the code. The [opcode definition experiment](opcode-definitions.md)
-uses patterns throughout the 8008, 6502, 6800, and 6809 tables, with typed selector
+uses patterns throughout the 8008, 6502, 6800, 6809, and 8088 tables, with typed selector
 mappings for families. Ordinary addresses, memory images, and arithmetic
 constants can remain hexadecimal.
 
@@ -49,6 +49,7 @@ Choose the grouping from the CPU's encoding:
 | [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; short branches use `0010 ttt p`, keeping the unused `21` explicit |
 | [6809](../../src/components/cpus/6809.ts) | Opcode page and family-specific fields; the current A-register forms use `10 mm oooo`, while stack instructions use `001101 s p` and a separate register-mask postbyte |
 | [Z80](../../src/components/cpus/z80.ts) | Unprefixed `xx yyy zzz` groups; preserve distinct prefix pages as support grows |
+| [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 10 w` for immediate accumulator arithmetic, `1010 00 d w` for direct accumulator transfers, and `1011 w rrr` for immediate register loads; keep logical instruction offsets distinct from physical data-word accesses |
 
 Keep each encoded subgroup contiguous, including its alternate selector cases
 and exceptions. For example, the 8080's `11 pp q 001` group contains both the

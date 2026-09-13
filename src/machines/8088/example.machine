@@ -1,0 +1,16 @@
+ram 100000
+
+cpu 8088 {
+    AX = 1122  BX = 3344  CX = 5566  DX = 7788
+    SP = 8000  BP = 9000  SI = 0010  DI = 0020
+    CS = 1234  DS = 2000  SS = 3000  ES = 4000  IP = 0100
+    flags { CF = 1  PF = 0  AF = 1  ZF = 1  SF = 1  TF = 0  IF = 1  DF = 1  OF = 1 }
+}
+
+memory 12440 {
+    B8 FF 12    // MOV AX,12FFh
+    05 02 00    // ADD AX,0002h
+    A3 81 00    // MOV [0081h],AX: DS:0081 is physical 20081
+}
+
+end 12449

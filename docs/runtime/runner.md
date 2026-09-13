@@ -30,7 +30,10 @@ record reports the halt instruction and the runner returns `stopReason: "halted"
 Both values must be nonnegative safe integers. A zero budget is valid.
 Invalid options throw `RangeError` before inspecting or stepping the CPU.
 The runner accepts addresses beyond 16 bits so that it does not impose the
-initial CPUs' address width on future models. The caller chooses an endpoint
+initial CPUs' address width on other models. For the 8088, `endAddress` is the
+physical address derived from `CS:IP`, rather than IP alone; different logical
+addresses that translate to the same physical address match the same endpoint.
+The caller chooses an endpoint
 appropriate to its CPU and program; machine definitions retain their own
 address validation.
 
@@ -81,7 +84,8 @@ Record contents and isolation guarantees belong to the CPU's model contract.
 TypeScript infers the record type from the supplied CPU. A 6502 run retains
 its non-null instruction and `opcode | decimal-mode` unsupported reasons;
 an 8080 run retains its halted-record union; a 6809 run retains D and both
-stack pointers in snapshots; a Z80 run retains both register banks, P/V, and R.
+stack pointers in snapshots; a Z80 run retains both register banks, P/V, and R;
+an 8088 run retains CS:IP, word registers, derived byte views, and physical PC.
 Selecting between CPU types produces the union of their record types. Run-level `stopReason` is separate from each record's
 CPU-level `outcome` and optional `reason`.
 
