@@ -15,7 +15,7 @@ emulators do not count toward implementation here.
 
 | Model | Complete / documented opcode forms | Opcode completion | Additional partial forms | Completed examples |
 | --- | --- | --- | --- | --- |
-| [Intel 8080](#8080) | 56 / 244 | 23.0% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md) |
+| [Intel 8080](#8080) | 134 / 244 | 54.9% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md), [transfers](8080/examples/transfers.md) |
 | [NMOS MOS 6502](#6502) | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502/examples/arithmetic.md), [stack](6502/examples/stack.md), [addressing](6502/examples/addressing.md) |
 | [Motorola MC6809 / MC6809E](#6809) | 9 / 268 | 3.4% | 0 | [Arithmetic](6809/examples/arithmetic.md), [stack](6809/examples/stack.md), [addressing](6809/examples/addressing.md) |
 
@@ -94,21 +94,41 @@ instruction lengths are in bytes.
 [Control-flow specification](8080/examples/control-flow.md) ·
 [Control-flow definition](../../src/machines/8080/control-flow-example.machine)
 
+[Transfers specification](8080/examples/transfers.md) ·
+[Transfers definition](../../src/machines/8080/transfers-example.machine)
+
+The MOV row groups 63 forms: all B/C/D/E/H/L/M/A source and destination
+combinations except M,M, whose encoding is HLT. M means memory at current HL.
+The two three-bit selector fields use the order B, C, D, E, H, L, M, A.
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `01` | `LXI B,nn` | Immediate | 3 | Load B:C; low byte then high; preserve flags |
+| `02` | `STAX B` | Register indirect through BC | 1 | Store A; preserve pair and flags |
 | `03` | `INX B` | Register pair | 1 | Increment B:C with 16-bit wrapping; preserve flags |
+| `06` | `MVI B,n` | Immediate | 2 | Load B; preserve flags |
+| `0A` | `LDAX B` | Register indirect through BC | 1 | Load A; preserve pair and flags |
+| `0E` | `MVI C,n` | Immediate | 2 | Load C; preserve flags |
 | `11` | `LXI D,nn` | Immediate | 3 | Load D:E; low byte then high; preserve flags |
+| `12` | `STAX D` | Register indirect through DE | 1 | Store A; preserve pair and flags |
 | `13` | `INX D` | Register pair | 1 | Increment D:E with 16-bit wrapping; preserve flags |
+| `16` | `MVI D,n` | Immediate | 2 | Load D; preserve flags |
+| `1A` | `LDAX D` | Register indirect through DE | 1 | Load A; preserve pair and flags |
+| `1E` | `MVI E,n` | Immediate | 2 | Load E; preserve flags |
 | `21` | `LXI H,nn` | Immediate | 3 | Load H:L; low byte then high; preserve flags |
+| `22` | `SHLD addr` | Direct memory address | 3 | Store L then H at consecutive wrapped addresses; preserve flags |
 | `23` | `INX H` | Register pair | 1 | Increment H:L with 16-bit wrapping; preserve flags |
+| `26` | `MVI H,n` | Immediate | 2 | Load H; preserve flags |
+| `2A` | `LHLD addr` | Direct memory address | 3 | Load L then H from consecutive wrapped addresses; preserve flags |
+| `2E` | `MVI L,n` | Immediate | 2 | Load L; preserve flags |
 | `31` | `LXI SP,nn` | Immediate | 3 | Load SP; low byte then high; preserve flags |
 | `32` | `STA addr` | Direct memory address | 3 | Store A; address bytes low then high |
 | `33` | `INX SP` | Register pair | 1 | Increment SP with 16-bit wrapping; preserve flags |
-| `3E` | `MVI A,n` | Immediate | 2 | Accumulator destination only |
+| `36` | `MVI M,n` | Immediate | 2 | Load memory at HL; preserve flags |
+| `3A` | `LDA addr` | Direct memory address | 3 | Load A; address bytes low then high; preserve flags |
+| `3E` | `MVI A,n` | Immediate | 2 | Load A; preserve flags |
+| `40–75`, `77–7F` | `MOV dst,src` | Register or indirect through HL | 1 | All 63 forms; read source before writing destination; preserve flags |
 | `76` | `HLT` | Implied | 1 | Advance PC and enter halted state |
-| `77` | `MOV M,A` | Register indirect through HL | 1 | Store A at HL; preserve HL and flags |
-| `7E` | `MOV A,M` | Register indirect through HL | 1 | Load A from HL; preserve HL and flags |
 | `C0` | `RNZ` | Stack | 1 | Return if Z = 0 |
 | `C1` | `POP B` | Stack | 1 | Read low then high into B:C; increment SP by 2; preserve flags |
 | `C2` | `JNZ addr` | Absolute target | 3 | Jump if Z = 0 |
@@ -136,12 +156,14 @@ instruction lengths are in bytes.
 | `E0` | `RPO` | Stack | 1 | Return if P = 0 |
 | `E1` | `POP H` | Stack | 1 | Read low then high into H:L; increment SP by 2; preserve flags |
 | `E2` | `JPO addr` | Absolute target | 3 | Jump if P = 0 |
+| `E3` | `XTHL` | Stack | 1 | Exchange HL with the word at SP; preserve SP and flags |
 | `E4` | `CPO addr` | Absolute target / stack | 3 | Call if P = 0 |
 | `E5` | `PUSH H` | Stack | 1 | Write H:L high then low; decrement SP by 2; preserve flags |
 | `E7` | `RST 4` | Encoded vector / stack | 1 | Push following PC; jump to `0020`; preserve interrupt enable |
 | `E8` | `RPE` | Stack | 1 | Return if P = 1 |
 | `E9` | `PCHL` | Register indirect through HL | 1 | Replace PC with current HL; no data read |
 | `EA` | `JPE addr` | Absolute target | 3 | Jump if P = 1 |
+| `EB` | `XCHG` | Register pairs | 1 | Exchange DE and HL; preserve flags |
 | `EC` | `CPE addr` | Absolute target / stack | 3 | Call if P = 1 |
 | `EF` | `RST 5` | Encoded vector / stack | 1 | Push following PC; jump to `0028`; preserve interrupt enable |
 | `F0` | `RP` | Stack | 1 | Return if S = 0 |
@@ -149,6 +171,7 @@ instruction lengths are in bytes.
 | `F4` | `CP addr` | Absolute target / stack | 3 | Call if S = 0 |
 | `F7` | `RST 6` | Encoded vector / stack | 1 | Push following PC; jump to `0030`; preserve interrupt enable |
 | `F8` | `RM` | Stack | 1 | Return if S = 1 |
+| `F9` | `SPHL` | Register pair | 1 | Copy HL to SP; preserve HL and flags |
 | `FA` | `JM addr` | Absolute target | 3 | Jump if S = 1 |
 | `FC` | `CM addr` | Absolute target / stack | 3 | Call if S = 1 |
 | `FF` | `RST 7` | Encoded vector / stack | 1 | Push following PC; jump to `0038`; preserve interrupt enable |
@@ -157,20 +180,21 @@ instruction lengths are in bytes.
 | --- | --- |
 | Stored registers | A, B, C, D, E, H, L, PC, SP |
 | Stored flags/control | S, Z, AC, P, CY; interrupt-enable and halted latches |
-| Register relationships | Snapshots derive BC, DE, and HL from stored bytes; LXI, INX, and POP update the pairs |
-| Memory addressing | STA with an explicit 16-bit address; MOV A,M and MOV M,A use the current HL without changing it |
-| Stack | PUSH/POP for BC, DE, and HL plus control-flow return addresses, using a descending RAM stack and wrapping 16-bit SP; PSW forms are unsupported |
+| Register relationships | Snapshots derive BC, DE, and HL from stored bytes; byte transfers and pair operations update those views; XCHG exchanges DE/HL and SPHL copies HL to SP |
+| Memory addressing | MOV/MVI through current HL; LDAX/STAX through BC or DE; LDA/STA and LHLD/SHLD with an explicit 16-bit address |
+| Stack | PUSH/POP for BC, DE, and HL plus control-flow return addresses, using a descending RAM stack and wrapping 16-bit SP; XTHL exchanges HL with stack memory without moving SP; PSW forms are unsupported |
 | Control flow | JMP, CALL, RET and all eight conditions for each; PCHL and RST 0–7; preserve arithmetic flags and interrupt enable |
 | Reset | Set PC to `0000`, clear interrupt-enable and halted; preserve data registers, SP, flags, and RAM; no memory accesses |
 | Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
-| Remaining instruction scope | Other loads/moves, register and memory arithmetic, logical operations, other pair operations, PSW stack forms, flag-control instructions, and port I/O |
+| Remaining instruction scope | Register and memory arithmetic, logical operations, DAD/DCX, PSW stack forms, flag-control instructions, NOP, and port I/O |
 
 Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [arithmetic example tests](../../tests/machines/8080/example.test.ts),
 [register-pair example tests](../../tests/machines/8080/register-pairs-example.test.ts),
 [stack example tests](../../tests/machines/8080/stack-example.test.ts),
 [addressing example tests](../../tests/machines/8080/addressing-example.test.ts),
-[control-flow example tests](../../tests/machines/8080/control-flow-example.test.ts), and
+[control-flow example tests](../../tests/machines/8080/control-flow-example.test.ts),
+[transfers example tests](../../tests/machines/8080/transfers-example.test.ts), and
 [public type checks](../../tests/types/8080.ts). ADI checks cover every byte operand
 pair with incoming flags clear and set. Other checks cover exact accesses,
 wrapping, self-overwriting stores, halt/reset behavior, rejection of every
@@ -187,6 +211,11 @@ values for every condition, all RST vectors, taken/untaken accesses, PC/SP
 wrapping, code/stack overlap, nested CALL/RST/RET, current RAM and HL, and
 retained records. The loop-and-subroutine example checks complete records,
 final RAM, and resumption after a bounded run.
+Transfer checks cover every MOV combination and every MVI destination/byte,
+self-moves, register/pair views, current HL/BC/DE and RAM, flags and control
+preservation, wrapped operand/data addresses, code overlap, ordered accesses,
+and unchanged-value writes. The transfers example checks all records and the
+full memory image, including different successive writes to one address.
 
 ## 6502
 

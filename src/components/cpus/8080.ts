@@ -71,6 +71,13 @@ interface InstructionContext {
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 
+type ByteRegister = "b" | "c" | "d" | "e" | "h" | "l" | "a";
+
+interface ByteOperand {
+  readonly read: (instruction: InstructionContext) => number;
+  readonly write: (instruction: InstructionContext, value: number) => void;
+}
+
 function copyState(state: Omit<Cpu8080Snapshot, "bc" | "de" | "hl">): Cpu8080State {
   const flags = state.flags;
   // Copy declared stored fields only; supplied pair views and metadata are ignored.
@@ -102,20 +109,36 @@ function hasEvenParity(byte: number): boolean {
 export class Cpu8080 {
   readonly #ram: Ram;
   readonly #state: Cpu8080State;
+  // Intel's three-bit register encoding: B, C, D, E, H, L, M, A.
+  readonly #byteOperands: readonly ByteOperand[] = [
+    this.#registerOperand("b"), this.#registerOperand("c"),
+    this.#registerOperand("d"), this.#registerOperand("e"),
+    this.#registerOperand("h"), this.#registerOperand("l"),
+    {
+      read: ({ readByte }) => readByte(this.#hl),
+      write: ({ writeByte }, value) => writeByte(this.#hl, value),
+    },
+    this.#registerOperand("a"),
+  ];
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+    ...this.#transferHandlers(),
     0x01: ({ fetchWord }) => { this.#bc = fetchWord(); }, // LXI B,nn
+    0x02: ({ writeByte }) => writeByte(this.#bc, this.#state.a), // STAX B
     0x03: () => { this.#bc = (this.#bc + 1) & 0xffff; }, // INX B
+    0x0a: ({ readByte }) => this.#loadAccumulator(readByte(this.#bc)), // LDAX B
     0x11: ({ fetchWord }) => { this.#de = fetchWord(); }, // LXI D,nn
+    0x12: ({ writeByte }) => writeByte(this.#de, this.#state.a), // STAX D
     0x13: () => { this.#de = (this.#de + 1) & 0xffff; }, // INX D
+    0x1a: ({ readByte }) => this.#loadAccumulator(readByte(this.#de)), // LDAX D
     0x21: ({ fetchWord }) => { this.#hl = fetchWord(); }, // LXI H,nn
+    0x22: ({ fetchWord, writeByte }) => this.#storeHl(fetchWord(), writeByte), // SHLD addr
     0x23: () => { this.#hl = (this.#hl + 1) & 0xffff; }, // INX H
+    0x2a: ({ fetchWord, readByte }) => this.#loadHl(fetchWord(), readByte), // LHLD addr
     0x31: ({ fetchWord }) => { this.#state.sp = fetchWord(); }, // LXI SP,nn
     0x32: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
     0x33: () => { this.#state.sp = (this.#state.sp + 1) & 0xffff; }, // INX SP
-    0x3e: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // MVI A,n
+    0x3a: ({ fetchWord, readByte }) => this.#loadAccumulator(readByte(fetchWord())), // LDA addr
     0x76: () => this.#halt(), // HLT
-    0x77: ({ writeByte }) => writeByte(this.#hl, this.#state.a), // MOV M,A
-    0x7e: ({ readByte }) => this.#loadAccumulator(readByte(this.#hl)), // MOV A,M
     0xc0: ({ readByte }) => this.#return(readByte, !this.#state.flags.z), // RNZ
     0xc1: ({ readByte }) => { this.#bc = this.#popWord(readByte); }, // POP B
     0xc2: ({ fetchWord }) => this.#jump(fetchWord(), !this.#state.flags.z), // JNZ addr
@@ -143,12 +166,14 @@ export class Cpu8080 {
     0xe0: ({ readByte }) => this.#return(readByte, !this.#state.flags.p), // RPO
     0xe1: ({ readByte }) => { this.#hl = this.#popWord(readByte); }, // POP H
     0xe2: ({ fetchWord }) => this.#jump(fetchWord(), !this.#state.flags.p), // JPO addr
+    0xe3: (instruction) => this.#exchangeStack(instruction), // XTHL
     0xe4: ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte, !this.#state.flags.p), // CPO addr
     0xe5: ({ writeByte }) => this.#pushWord(this.#hl, writeByte), // PUSH H
     0xe7: ({ writeByte }) => this.#call(0x20, writeByte), // RST 4
     0xe8: ({ readByte }) => this.#return(readByte, this.#state.flags.p), // RPE
     0xe9: () => this.#jump(this.#hl), // PCHL
     0xea: ({ fetchWord }) => this.#jump(fetchWord(), this.#state.flags.p), // JPE addr
+    0xeb: () => this.#exchangeDeHl(), // XCHG
     0xec: ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte, this.#state.flags.p), // CPE addr
     0xef: ({ writeByte }) => this.#call(0x28, writeByte), // RST 5
     0xf0: ({ readByte }) => this.#return(readByte, !this.#state.flags.s), // RP
@@ -156,6 +181,7 @@ export class Cpu8080 {
     0xf4: ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte, !this.#state.flags.s), // CP addr
     0xf7: ({ writeByte }) => this.#call(0x30, writeByte), // RST 6
     0xf8: ({ readByte }) => this.#return(readByte, this.#state.flags.s), // RM
+    0xf9: () => { this.#state.sp = this.#hl; }, // SPHL
     0xfa: ({ fetchWord }) => this.#jump(fetchWord(), this.#state.flags.s), // JM addr
     0xfc: ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte, this.#state.flags.s), // CM addr
     0xff: ({ writeByte }) => this.#call(0x38, writeByte), // RST 7
@@ -249,6 +275,27 @@ export class Cpu8080 {
       : { ...record, outcome: "unsupported", reason: "opcode" };
   }
 
+  #registerOperand(name: ByteRegister): ByteOperand {
+    return {
+      read: () => this.#state[name],
+      write: (_instruction, value) => { this.#state[name] = value; },
+    };
+  }
+
+  #transferHandlers(): Partial<Record<number, OpcodeHandler>> {
+    const handlers: Partial<Record<number, OpcodeHandler>> = {};
+    for (const [destinationCode, destination] of this.#byteOperands.entries()) {
+      handlers[0x06 | (destinationCode << 3)] = instruction =>
+        destination.write(instruction, instruction.fetchByte()); // MVI r,n
+      for (const [sourceCode, source] of this.#byteOperands.entries()) {
+        const opcode = 0x40 | (destinationCode << 3) | sourceCode;
+        if (opcode === 0x76) continue; // HLT occupies the otherwise unused MOV M,M slot.
+        handlers[opcode] = instruction => destination.write(instruction, source.read(instruction));
+      }
+    }
+    return handlers;
+  }
+
   get #bc(): number {
     return (this.#state.b << 8) | this.#state.c;
   }
@@ -274,6 +321,33 @@ export class Cpu8080 {
   set #hl(value: number) {
     this.#state.h = value >>> 8;
     this.#state.l = value & 0xff;
+  }
+
+  #loadHl(address: number, readByte: InstructionContext["readByte"]): void {
+    const low = readByte(address);
+    const high = readByte((address + 1) & 0xffff);
+    this.#hl = low | (high << 8);
+  }
+
+  #storeHl(address: number, writeByte: InstructionContext["writeByte"]): void {
+    writeByte(address, this.#state.l);
+    writeByte((address + 1) & 0xffff, this.#state.h);
+  }
+
+  #exchangeDeHl(): void {
+    const de = this.#de;
+    this.#de = this.#hl;
+    this.#hl = de;
+  }
+
+  #exchangeStack({ readByte, writeByte }: InstructionContext): void {
+    const address = this.#state.sp;
+    const highAddress = (address + 1) & 0xffff;
+    const low = readByte(address);
+    const high = readByte(highAddress);
+    writeByte(highAddress, this.#state.h);
+    writeByte(address, this.#state.l);
+    this.#hl = low | (high << 8);
   }
 
   #jump(address: number, take = true): void {

@@ -122,6 +122,32 @@ These entries describe the accesses required by this instruction-level model.
 They do not claim to reproduce every electrical bus operation or idle cycle.
 Records have no cycle-count or elapsed-time field.
 
+### Data-transfer accesses
+
+MOV reads its source before writing its destination. Register-to-register moves
+fetch only the opcode, including self-moves. `M` refers to memory at current HL:
+a memory source adds one read and a memory destination adds one write. Loading
+H or L from M uses the address before that register changes. `76` remains HLT;
+there is no MOV M,M. MVI fetches the immediate byte before its register or
+memory write, including when M overlaps the opcode or immediate byte.
+
+LDAX and STAX use current BC or DE without changing the pair. LDA and STA fetch
+both address operands before their data access. LHLD and SHLD likewise capture
+the full address, then transfer L at that address and H at the next address.
+The second address wraps from `FFFF` to `0000`; changes to H/L or overlapping
+stores do not change the captured address or instruction bytes.
+
+XCHG exchanges DE with HL. SPHL copies HL into SP. Both fetch only their opcode.
+XTHL reads at SP and then SP+1, writes the original H at SP+1 and then the
+original L at SP, and replaces HL with the bytes read. SP is unchanged and
+SP+1 wraps at 16 bits. Even unchanged-value stores are recorded.
+
+These operations preserve flags and control latches and advance PC by their
+instruction length, with wrapping. They report `executed`, including when
+loading zero or copying a register to itself. The
+[transfers example](examples/transfers.md) specifies a combined program and its
+records. These are instruction-level accesses, without dummy bus operations.
+
 ### Control-flow accesses
 
 Jumps and calls with immediate targets fetch both address bytes, low then high,

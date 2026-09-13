@@ -10,6 +10,7 @@ import { create8080RegisterPairsExample } from "../../src/machines/generated/808
 import { create8080StackExample } from "../../src/machines/generated/8080/stack-example.js";
 import { create8080AddressingExample } from "../../src/machines/generated/8080/addressing-example.js";
 import { create8080ControlFlowExample } from "../../src/machines/generated/8080/control-flow-example.js";
+import { create8080TransfersExample } from "../../src/machines/generated/8080/transfers-example.js";
 import { create6502Example } from "../../src/machines/generated/6502/example.js";
 import { create6502StackExample } from "../../src/machines/generated/6502/stack-example.js";
 import { create6502AddressingExample } from "../../src/machines/generated/6502/addressing-example.js";
@@ -32,6 +33,10 @@ const examples: readonly ExampleCase[] = [
   { name: "8080 register pairs", create: create8080RegisterPairsExample, steps: 3, pc: 0x0005, stopReason: "halted", writes: [] },
   { name: "8080 stack", create: create8080StackExample, steps: 6, pc: 0x000c, stopReason: "halted", writes: [[0x1fff, 0x12], [0x1ffe, 0x34]] },
   { name: "8080 addressing", create: create8080AddressingExample, steps: 5, pc: 0x0007, stopReason: "halted", writes: [[0x1300, 0xa5]] },
+  {
+    name: "8080 transfers", create: create8080TransfersExample, steps: 15, pc: 0x001b, stopReason: "halted",
+    writes: [[0x80, 0xa5], [0x80, 0x5a], [0x81, 0xa5], [0x82, 0x55], [0x83, 0xa5], [0x2001, 0x20], [0x2000, 0]],
+  },
   {
     name: "8080 control flow", create: create8080ControlFlowExample, steps: 11, pc: 0x000c, stopReason: "halted",
     writes: [[0x1fff, 0], [0x1ffe, 5], [0x1fff, 0], [0x1ffe, 5], [0x0080, 0]],
@@ -62,6 +67,7 @@ for (const example of examples) {
     assert.deepEqual(read.mock.calls.map(call => call.arguments),
       accesses.filter(access => access.kind === "read").map(access => [access.address]));
     assert.deepEqual(write.mock.calls.map(call => call.arguments), example.writes);
-    for (const [address, value] of example.writes) assert.equal(ram.read(address), value);
+    // Repeated writes remain in the access log; the last value is left in RAM.
+    for (const [address, value] of new Map(example.writes)) assert.equal(ram.read(address), value);
   });
 }

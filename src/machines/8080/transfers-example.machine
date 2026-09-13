@@ -1,0 +1,30 @@
+ram 10000
+
+cpu 8080 {
+    A = 11  B = 22  C = 33  D = 44
+    E = 55  H = 66  L = 77
+    PC = 0000  SP = ABCD
+    flags { S = 1  Z = 0  AC = 1  P = 0  CY = 1 }
+    interruptEnabled = false
+    halted = false
+}
+
+memory 0000 {
+    06 A5       // MVI B,A5H
+    48          // MOV C,B
+    21 80 00    // LXI H,0080H
+    71          // MOV M,C
+    56          // MOV D,M
+    36 5A       // MVI M,5AH
+    7A          // MOV A,D
+    32 81 00    // STA 0081H
+    2A 80 00    // LHLD 0080H
+    EB          // XCHG
+    22 82 00    // SHLD 0082H
+    21 00 20    // LXI H,2000H
+    F9          // SPHL
+    E3          // XTHL
+    76          // HLT
+}
+
+memory 2000 { 34 12 }
