@@ -97,7 +97,7 @@ Execution is synchronous and retains all records from the bounded call.
 Browser scheduling, pausing between batches, streaming records, timing, and
 breakpoints can be added when their consumers need them.
 
-Tests cover all ten existing examples at their exact step budgets, checking
+Tests cover the existing examples at their exact step budgets, checking
 final PC, stopping reason, original record identity, RAM accesses, and writes.
 The example specifications retain independently authored expected records and
 memory images. Boundary checks cover zero and exhausted budgets, endpoint

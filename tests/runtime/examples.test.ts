@@ -9,6 +9,7 @@ import { create8080Example } from "../../src/machines/generated/8080/example.js"
 import { create8080RegisterPairsExample } from "../../src/machines/generated/8080/register-pairs-example.js";
 import { create8080StackExample } from "../../src/machines/generated/8080/stack-example.js";
 import { create8080AddressingExample } from "../../src/machines/generated/8080/addressing-example.js";
+import { create8080ControlFlowExample } from "../../src/machines/generated/8080/control-flow-example.js";
 import { create6502Example } from "../../src/machines/generated/6502/example.js";
 import { create6502StackExample } from "../../src/machines/generated/6502/stack-example.js";
 import { create6502AddressingExample } from "../../src/machines/generated/6502/addressing-example.js";
@@ -31,6 +32,10 @@ const examples: readonly ExampleCase[] = [
   { name: "8080 register pairs", create: create8080RegisterPairsExample, steps: 3, pc: 0x0005, stopReason: "halted", writes: [] },
   { name: "8080 stack", create: create8080StackExample, steps: 6, pc: 0x000c, stopReason: "halted", writes: [[0x1fff, 0x12], [0x1ffe, 0x34]] },
   { name: "8080 addressing", create: create8080AddressingExample, steps: 5, pc: 0x0007, stopReason: "halted", writes: [[0x1300, 0xa5]] },
+  {
+    name: "8080 control flow", create: create8080ControlFlowExample, steps: 11, pc: 0x000c, stopReason: "halted",
+    writes: [[0x1fff, 0], [0x1ffe, 5], [0x1fff, 0], [0x1ffe, 5], [0x0080, 0]],
+  },
   { name: "6502 arithmetic", create: create6502Example, steps: 4, pc: 0x0208, stopReason: "completed", writes: [[0x0080, 5]] },
   { name: "6502 stack", create: create6502StackExample, steps: 5, pc: 0x0209, stopReason: "completed", writes: [[0x01ff, 0x80], [0x0080, 0x80]] },
   { name: "6502 addressing", create: create6502AddressingExample, steps: 2, pc: 0x0204, stopReason: "completed", writes: [[0x0000, 0xa5]] },

@@ -15,7 +15,7 @@ emulators do not count toward implementation here.
 
 | Model | Complete / documented opcode forms | Opcode completion | Additional partial forms | Completed examples |
 | --- | --- | --- | --- | --- |
-| [Intel 8080](#8080) | 20 / 244 | 8.2% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md) |
+| [Intel 8080](#8080) | 56 / 244 | 23.0% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md) |
 | [NMOS MOS 6502](#6502) | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502/examples/arithmetic.md), [stack](6502/examples/stack.md), [addressing](6502/examples/addressing.md) |
 | [Motorola MC6809 / MC6809E](#6809) | 9 / 268 | 3.4% | 0 | [Arithmetic](6809/examples/arithmetic.md), [stack](6809/examples/stack.md), [addressing](6809/examples/addressing.md) |
 
@@ -67,7 +67,7 @@ postbyte choices work.
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
 All three currently omit cycle counts, dummy bus accesses, electrical signals,
-interrupt delivery, branches and calls, mapped devices, disassembly, and an
+interrupt delivery, mapped devices, disassembly, and an
 execution UI. Interrupt flags can be stored and inspected before interrupt
 delivery is implemented.
 
@@ -91,6 +91,9 @@ instruction lengths are in bytes.
 [Addressing specification](8080/examples/addressing.md) ·
 [Addressing definition](../../src/machines/8080/addressing-example.machine)
 
+[Control-flow specification](8080/examples/control-flow.md) ·
+[Control-flow definition](../../src/machines/8080/control-flow-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `01` | `LXI B,nn` | Immediate | 3 | Load B:C; low byte then high; preserve flags |
@@ -106,13 +109,49 @@ instruction lengths are in bytes.
 | `76` | `HLT` | Implied | 1 | Advance PC and enter halted state |
 | `77` | `MOV M,A` | Register indirect through HL | 1 | Store A at HL; preserve HL and flags |
 | `7E` | `MOV A,M` | Register indirect through HL | 1 | Load A from HL; preserve HL and flags |
+| `C0` | `RNZ` | Stack | 1 | Return if Z = 0 |
 | `C1` | `POP B` | Stack | 1 | Read low then high into B:C; increment SP by 2; preserve flags |
+| `C2` | `JNZ addr` | Absolute target | 3 | Jump if Z = 0 |
+| `C3` | `JMP addr` | Absolute target | 3 | Replace PC with target |
+| `C4` | `CNZ addr` | Absolute target / stack | 3 | Call if Z = 0 |
 | `C5` | `PUSH B` | Stack | 1 | Write B:C high then low; decrement SP by 2; preserve flags |
 | `C6` | `ADI n` | Immediate | 2 | Add without incoming carry; update S/Z/AC/P/CY |
+| `C7` | `RST 0` | Encoded vector / stack | 1 | Push following PC; jump to `0000`; preserve interrupt enable |
+| `C8` | `RZ` | Stack | 1 | Return if Z = 1 |
+| `C9` | `RET` | Stack | 1 | Pop PC low then high |
+| `CA` | `JZ addr` | Absolute target | 3 | Jump if Z = 1 |
+| `CC` | `CZ addr` | Absolute target / stack | 3 | Call if Z = 1 |
+| `CD` | `CALL addr` | Absolute target / stack | 3 | Push following PC, then jump to target |
+| `CF` | `RST 1` | Encoded vector / stack | 1 | Push following PC; jump to `0008`; preserve interrupt enable |
+| `D0` | `RNC` | Stack | 1 | Return if CY = 0 |
 | `D1` | `POP D` | Stack | 1 | Read low then high into D:E; increment SP by 2; preserve flags |
+| `D2` | `JNC addr` | Absolute target | 3 | Jump if CY = 0 |
+| `D4` | `CNC addr` | Absolute target / stack | 3 | Call if CY = 0 |
 | `D5` | `PUSH D` | Stack | 1 | Write D:E high then low; decrement SP by 2; preserve flags |
+| `D7` | `RST 2` | Encoded vector / stack | 1 | Push following PC; jump to `0010`; preserve interrupt enable |
+| `D8` | `RC` | Stack | 1 | Return if CY = 1 |
+| `DA` | `JC addr` | Absolute target | 3 | Jump if CY = 1 |
+| `DC` | `CC addr` | Absolute target / stack | 3 | Call if CY = 1 |
+| `DF` | `RST 3` | Encoded vector / stack | 1 | Push following PC; jump to `0018`; preserve interrupt enable |
+| `E0` | `RPO` | Stack | 1 | Return if P = 0 |
 | `E1` | `POP H` | Stack | 1 | Read low then high into H:L; increment SP by 2; preserve flags |
+| `E2` | `JPO addr` | Absolute target | 3 | Jump if P = 0 |
+| `E4` | `CPO addr` | Absolute target / stack | 3 | Call if P = 0 |
 | `E5` | `PUSH H` | Stack | 1 | Write H:L high then low; decrement SP by 2; preserve flags |
+| `E7` | `RST 4` | Encoded vector / stack | 1 | Push following PC; jump to `0020`; preserve interrupt enable |
+| `E8` | `RPE` | Stack | 1 | Return if P = 1 |
+| `E9` | `PCHL` | Register indirect through HL | 1 | Replace PC with current HL; no data read |
+| `EA` | `JPE addr` | Absolute target | 3 | Jump if P = 1 |
+| `EC` | `CPE addr` | Absolute target / stack | 3 | Call if P = 1 |
+| `EF` | `RST 5` | Encoded vector / stack | 1 | Push following PC; jump to `0028`; preserve interrupt enable |
+| `F0` | `RP` | Stack | 1 | Return if S = 0 |
+| `F2` | `JP addr` | Absolute target | 3 | Jump if S = 0 |
+| `F4` | `CP addr` | Absolute target / stack | 3 | Call if S = 0 |
+| `F7` | `RST 6` | Encoded vector / stack | 1 | Push following PC; jump to `0030`; preserve interrupt enable |
+| `F8` | `RM` | Stack | 1 | Return if S = 1 |
+| `FA` | `JM addr` | Absolute target | 3 | Jump if S = 1 |
+| `FC` | `CM addr` | Absolute target / stack | 3 | Call if S = 1 |
+| `FF` | `RST 7` | Encoded vector / stack | 1 | Push following PC; jump to `0038`; preserve interrupt enable |
 
 | Area | Current coverage |
 | --- | --- |
@@ -120,16 +159,18 @@ instruction lengths are in bytes.
 | Stored flags/control | S, Z, AC, P, CY; interrupt-enable and halted latches |
 | Register relationships | Snapshots derive BC, DE, and HL from stored bytes; LXI, INX, and POP update the pairs |
 | Memory addressing | STA with an explicit 16-bit address; MOV A,M and MOV M,A use the current HL without changing it |
-| Stack | PUSH/POP for BC, DE, and HL using a descending RAM stack and wrapping 16-bit SP; PSW forms are unsupported |
+| Stack | PUSH/POP for BC, DE, and HL plus control-flow return addresses, using a descending RAM stack and wrapping 16-bit SP; PSW forms are unsupported |
+| Control flow | JMP, CALL, RET and all eight conditions for each; PCHL and RST 0–7; preserve arithmetic flags and interrupt enable |
 | Reset | Set PC to `0000`, clear interrupt-enable and halted; preserve data registers, SP, flags, and RAM; no memory accesses |
 | Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
-| Remaining instruction scope | Other loads/moves, register and memory arithmetic, logical operations, other pair operations, PSW stack forms, control flow, flag-control instructions, and port I/O |
+| Remaining instruction scope | Other loads/moves, register and memory arithmetic, logical operations, other pair operations, PSW stack forms, flag-control instructions, and port I/O |
 
 Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [arithmetic example tests](../../tests/machines/8080/example.test.ts),
 [register-pair example tests](../../tests/machines/8080/register-pairs-example.test.ts),
 [stack example tests](../../tests/machines/8080/stack-example.test.ts),
-[addressing example tests](../../tests/machines/8080/addressing-example.test.ts), and
+[addressing example tests](../../tests/machines/8080/addressing-example.test.ts),
+[control-flow example tests](../../tests/machines/8080/control-flow-example.test.ts), and
 [public type checks](../../tests/types/8080.ts). ADI checks cover every byte operand
 pair with incoming flags clear and set. Other checks cover exact accesses,
 wrapping, self-overwriting stores, halt/reset behavior, rejection of every
@@ -141,6 +182,11 @@ nested operations, program overlap, current RAM reads, and retained stack data.
 Memory MOV checks cover HL addressing, flag preservation, PC wrapping, exact
 data accesses, instruction-byte overlap, current RAM, and successive operations
 across page and address-space boundaries.
+Control-flow checks cover all 32 flag combinations and both interrupt-enable
+values for every condition, all RST vectors, taken/untaken accesses, PC/SP
+wrapping, code/stack overlap, nested CALL/RST/RET, current RAM and HL, and
+retained records. The loop-and-subroutine example checks complete records,
+final RAM, and resumption after a bounded run.
 
 ## 6502
 

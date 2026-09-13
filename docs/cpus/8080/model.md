@@ -122,6 +122,27 @@ These entries describe the accesses required by this instruction-level model.
 They do not claim to reproduce every electrical bus operation or idle cycle.
 Records have no cycle-count or elapsed-time field.
 
+### Control-flow accesses
+
+Jumps and calls with immediate targets fetch both address bytes, low then high,
+even when a condition is false. Untaken forms advance PC past those operands
+without touching the stack. PCHL fetches only its opcode and uses current HL.
+
+Taken CALL fetches its complete instruction before writing the return address,
+so overlapping stack writes cannot alter the fetched target. The return address
+is PC after the operands. A program-memory RST instead saves PC after its
+single opcode. Both push high then low, decrementing SP before each write.
+Taken returns read low then high, incrementing SP after each read; untaken
+returns fetch only their opcode. PC and stack operations wrap at 16 bits.
+
+No transfer reads the destination instruction in the same step. Branches,
+calls, RST, and returns report `executed`; transferring to a completion address
+or HLT opcode does not itself halt the CPU. Their only state changes are PC
+and, for taken calls, RST, and taken returns, SP. RST from program memory preserves
+interrupt enable and does not implement external interrupt delivery.
+The [control-flow example](examples/control-flow.md) specifies a loop with calls
+and independently checked records.
+
 ## Halt and unsupported opcodes
 
 Calling `step()` when already halted returns `outcome: halted`,

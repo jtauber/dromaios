@@ -101,16 +101,16 @@ test("unsupported opcodes stop immediately, preserve their record, and beat the 
   for (const create of [create8080Example, create6502Example, create6809Example]) {
     const { cpu, ram } = create();
     const before = cpu.snapshot();
-    ram.write(before.pc, 0xff);
+    ram.write(before.pc, 0x08);
     const read = t.mock.method(ram, "read");
     const write = t.mock.method(ram, "write");
     const result = runCpu(cpu, { maxSteps: 1 });
     assert.equal(result.stopReason, "unsupported");
     assert.deepEqual(result.records, [{
       outcome: "unsupported", reason: "opcode",
-      instruction: { address: before.pc, bytes: [0xff] },
+      instruction: { address: before.pc, bytes: [0x08] },
       before, after: before,
-      accesses: [{ kind: "read", address: before.pc, value: 0xff }],
+      accesses: [{ kind: "read", address: before.pc, value: 0x08 }],
     }]);
     assert.deepEqual(read.mock.calls.map(call => call.arguments), [[before.pc]]);
     assert.equal(write.mock.callCount(), 0);
