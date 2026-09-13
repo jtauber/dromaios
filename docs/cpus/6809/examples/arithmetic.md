@@ -15,7 +15,7 @@ unsupported-prefix behavior. Current support is tracked in
 
 ## Example scope
 
-One Motorola MC6809 model is connected to flat 64 KiB RAM. The program uses
+One Motorola 6809 model is connected to flat 64 KiB RAM. The program uses
 three forms: `LDA #n` (`86`), `ADDA #n` (`8B`), and `STA addr` with extended
 addressing (`B7`). Encodings and lengths follow the
 [Motorola instruction summary][summary]. The caller stops at the example's

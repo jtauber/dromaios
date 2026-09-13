@@ -11,7 +11,7 @@ its own sequence of saved values. Both stacks occupy ordinary shared RAM.
 
 ## Instruction behavior
 
-The example uses the instruction-level MC6809 model's `PSHS` (`34`), `PULS` (`35`),
+The example uses the Motorola 6809 model's `PSHS` (`34`), `PULS` (`35`),
 `PSHU` (`36`), and `PULU` (`37`). Each fetches an opcode and a register-mask
 postbyte before accessing stack data. Every mask from `00` through `FF` works.
 

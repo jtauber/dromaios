@@ -18,9 +18,9 @@ emulators do not count toward implementation here.
 | [Intel 8008](#cpus-and-variants-not-started) | 1972 | 0 / TBD | 0.0% | 0 | None |
 | [Intel 8080](#8080) | 1974 | 229 / 244 | 93.9% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md), [transfers](8080/examples/transfers.md), [ALU](8080/examples/alu.md), [counted loop](8080/examples/counted-loop.md) |
 | [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 | None |
-| [NMOS MOS 6502](#6502) | 1975 | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502/examples/arithmetic.md), [stack](6502/examples/stack.md), [addressing](6502/examples/addressing.md) |
+| [MOS 6502](#6502) | 1975 | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502/examples/arithmetic.md), [stack](6502/examples/stack.md), [addressing](6502/examples/addressing.md) |
 | [Zilog Z80](#z80) | 1976 | 4 / 698 | 0.6% | 0 | [Arithmetic and 8080 comparison](z80/examples/arithmetic.md) |
-| [Motorola MC6809 / MC6809E](#6809) | 1978 | 9 / 268 | 3.4% | 0 | [Arithmetic](6809/examples/arithmetic.md), [stack](6809/examples/stack.md), [addressing](6809/examples/addressing.md) |
+| [Motorola 6809](#6809) | 1978 | 9 / 268 | 3.4% | 0 | [Arithmetic](6809/examples/arithmetic.md), [stack](6809/examples/stack.md), [addressing](6809/examples/addressing.md) |
 | [Intel 8088](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 | None |
 | [Motorola 68000](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 | None |
 
@@ -52,8 +52,8 @@ encodings and instructions belonging to other CPU variants are excluded.
 | Model | Documented forms | Counting basis |
 | --- | --- | --- |
 | Intel 8080 | 244 | [Intel 8080 Assembly Language Programming Manual, Appendix B](https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf): expand the opcode bit patterns, excluding the 12 undocumented byte encodings |
-| NMOS MOS 6502 | 151 | [Synertek 6500 Programming Manual, Appendix B](https://syncopate.us/books/Synertek6502ProgrammingManual.html#ap-b): count the documented instruction/addressing forms |
-| Motorola MC6809 / MC6809E | 268 | [Motorola MC6809–MC6809E Programming Manual, Appendix D](https://www.maddes.net/m6809pm/appendix_d.htm): 221 unprefixed forms + 38 on page 2 + 9 on page 3, counting mnemonic aliases once |
+| MOS 6502 | 151 | [Synertek 6500 Programming Manual, Appendix B](https://syncopate.us/books/Synertek6502ProgrammingManual.html#ap-b): count the documented instruction/addressing forms |
+| Motorola 6809 | 268 | [Motorola MC6809–MC6809E Programming Manual, Appendix D](https://www.maddes.net/m6809pm/appendix_d.htm): 221 unprefixed forms + 38 on page 2 + 9 on page 3, counting mnemonic aliases once |
 | Zilog Z80 | 698 | [Zilog Z80 CPU User Manual, UM008011-0816](https://www.zilog.com/docs/z80/um0080.pdf): 252 unprefixed + 248 CB + 58 ED + 39 DD + 39 FD + 31 DD CB + 31 FD CB forms |
 
 For the 6809, a prefix and following opcode byte identify one form; prefixes

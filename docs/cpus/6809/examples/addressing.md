@@ -11,7 +11,7 @@ It completes the basic addressing comparison with the
 
 ## Instruction behavior
 
-Use the existing instruction-level MC6809 and flat 64 KiB RAM. Direct `LDA`
+Use the existing Motorola 6809 model and flat 64 KiB RAM. Direct `LDA`
 (`96`) and `STA` (`97`) each have one address-operand byte. DP supplies the
 high byte of the effective address and the operand supplies the low byte.
 For example, DP = `12` and operand `80` select `1280`. Neither instruction

@@ -1,4 +1,4 @@
-# NMOS MOS 6502 model
+# MOS 6502 model
 
 This document defines the model's state, execution records, and reset contract.
 Current instruction support is tracked in [6502 implementation coverage](../coverage.md#6502).
@@ -11,7 +11,7 @@ instruction behavior, and expected execution.
 
 ## Model boundary
 
-`Cpu6502` models the original NMOS MOS 6502, connected to flat
+`Cpu6502` models the original MOS 6502 (NMOS), connected to flat
 [64 KiB RAM](../../machines/definitions.md#ram-and-cpu-ownership). This is not
 a 65C02 or the NES's Ricoh 2A03 variant.
 

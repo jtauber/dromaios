@@ -14,7 +14,7 @@ decimal-mode boundary. Current support is tracked in
 
 ## Example scope
 
-One NMOS MOS 6502 model is connected to flat 64 KiB RAM. The program uses four
+One MOS 6502 model is connected to flat 64 KiB RAM. The program uses four
 opcode forms: `CLC` (`18`), `LDA #n` (`A9`), `ADC #n` (`69`), and `STA addr`
 with absolute addressing (`8D`). Its initial D = false selects binary ADC.
 The caller stops at the example's completion address.

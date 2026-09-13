@@ -11,7 +11,7 @@ with the 6502's fixed stack page and different pointer convention.
 
 ## Instruction behavior
 
-The example uses the NMOS 6502 and flat 64 KiB RAM, with `PHA` (`48`) and
+The example uses the MOS 6502 and flat 64 KiB RAM, with `PHA` (`48`) and
 `PLA` (`68`), both one-byte implied instructions. It also uses immediate LDA
 and absolute STA.
 

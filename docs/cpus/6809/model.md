@@ -1,4 +1,4 @@
-# Motorola MC6809 model
+# Motorola 6809 model
 
 This document defines the model's state, execution records, and reset contract.
 Current instruction support is tracked in [6809 implementation coverage](../coverage.md#6809).

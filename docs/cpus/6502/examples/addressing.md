@@ -10,7 +10,7 @@ supplied by one-byte instruction operands.
 
 ## Instruction behavior
 
-Use the existing NMOS 6502 and flat 64 KiB RAM. `LDA zp` (`A5`) loads A and
+Use the existing MOS 6502 and flat 64 KiB RAM. `LDA zp` (`A5`) loads A and
 replaces N/Z from the byte read, preserving V/D/I/C. `STA zp` (`85`) stores A
 and preserves all flags. Both have a one-byte address operand: the effective
 address's high byte is always zero, giving access to `0000–00FF` independently
