@@ -32,11 +32,12 @@ core. Keep a CPU in one file while this organization remains easy to follow.
 
 ## Make the encoding visible
 
-Use binary opcode values and family bases, with underscores separating meaningful
-fields. Explain the bit positions, fixed bits, and selector values beside the
-code. The [opcode definition experiment](opcode-definitions.md) uses explicit
-patterns and typed selector mappings for selected families. Ordinary addresses,
-memory images, and arithmetic constants can remain hexadecimal.
+Use binary opcode values or explicit bit patterns, grouping meaningful fields
+with underscores or spaces. Explain the bit positions, fixed bits, and selector
+values beside the code. The [opcode definition experiment](opcode-definitions.md)
+uses patterns throughout the 8008, 6502, and 6809 tables, with typed selector
+mappings for families. Ordinary addresses, memory images, and arithmetic
+constants can remain hexadecimal.
 
 Choose the grouping from the CPU's encoding:
 
@@ -53,6 +54,13 @@ Keep each encoded subgroup contiguous, including its alternate selector cases
 and exceptions. For example, the 8080's `11 pp q 001` group contains both the
 generated POP forms and the explicit `q=1` operations. A shared construction
 loop should not scatter that group across the table.
+
+Keep individual opcode entries on one line where practical, with the pattern,
+handler, and mnemonic together so readers can scan the encodings vertically.
+Prefer this regular layout over wrapping a short handler solely to meet a line
+length limit. Move substantial behavior into named methods so table entries
+remain compact. Family definitions can span lines to show their selector
+mappings clearly.
 
 Keep instruction mnemonics next to their encodings. Explain exceptions and
 relevant gaps in place, such as HLT occupying the 8080's MOV M,M slot. A bit

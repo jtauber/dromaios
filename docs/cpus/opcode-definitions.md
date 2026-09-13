@@ -3,8 +3,8 @@
 The [opcode helpers](../../src/components/cpus/opcodes.ts) are a small experiment
 in describing existing encodings within TypeScript. The goal is to make the
 hardware easier to read while preserving each CPU's execution behavior. The
-8008 table uses patterns throughout; the 6502 and 6809 use them for selected
-families. These examples exercise three encoding relationships:
+8008, 6502, and 6809 tables use patterns throughout, with typed selector
+mappings for families. These examples exercise three encoding relationships:
 
 | CPU | Pattern | Meaning |
 | --- | --- | --- |

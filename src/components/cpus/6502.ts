@@ -1,6 +1,6 @@
 import type { Ram } from "../memory/ram.js";
 import { checkUnsigned } from "../validation.js";
-import { opcodeFamily, opcodeTable } from "./opcodes.js";
+import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.js";
 
 export interface Cpu6502Flags {
   n: boolean;
@@ -165,16 +165,16 @@ export class Cpu6502 {
   // Only implemented encodings enter the table; this is not a decoder for every combination.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // cc=00, bbb=000: aaa=101 selects LDY immediate.
-    [0b101_000_00, ({ fetchByte }) => this.#loadRegister("y", fetchByte())], // LDY #n
+    ...opcodePattern("101 000 00", ({ fetchByte }: InstructionContext) => this.#loadRegister("y", fetchByte())), // LDY #n
 
     // cc=00, bbb=010: 01p 010 00 selects push A (p=0) or pull A (p=1).
-    [0b01_0_010_00, ({ writeByte }) => this.#pushByte(this.#state.a, writeByte)], // PHA
-    [0b01_1_010_00, ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte))], // PLA
+    ...opcodePattern("01 0 010 00", ({ writeByte }: InstructionContext) => this.#pushByte(this.#state.a, writeByte)), // PHA
+    ...opcodePattern("01 1 010 00", ({ readByte }: InstructionContext) => this.#loadRegister("a", this.#pullByte(readByte))), // PLA
     // aaa=100..111 selects DEY, TAY, INY, INX in this subgroup.
-    [0b100_010_00, () => this.#adjustIndex("y", -1)], // DEY
-    [0b101_010_00, () => this.#loadRegister("y", this.#state.a)], // TAY
-    [0b110_010_00, () => this.#adjustIndex("y", 1)], // INY
-    [0b111_010_00, () => this.#adjustIndex("x", 1)], // INX
+    ...opcodePattern("100 010 00", () => this.#adjustIndex("y", -1)), // DEY
+    ...opcodePattern("101 010 00", () => this.#loadRegister("y", this.#state.a)), // TAY
+    ...opcodePattern("110 010 00", () => this.#adjustIndex("y", 1)), // INY
+    ...opcodePattern("111 010 00", () => this.#adjustIndex("x", 1)), // INX
 
     // cc=00, bbb=100: ffv 100 00 selects a flag and the value required to branch.
     // ff (bits 7..6): 00 N, 01 V, 10 C, 11 Z.
@@ -186,28 +186,28 @@ export class Cpu6502 {
       this.#branch(fetchByte(), this.#state.flags[flag] === value)),
 
     // cc=00, bbb=110: aaa=000 selects CLC; aaa=100 selects TYA.
-    [0b000_110_00, () => this.#clearCarry()], // CLC
-    [0b100_110_00, () => this.#loadRegister("a", this.#state.y)], // TYA
+    ...opcodePattern("000 110 00", () => this.#clearCarry()), // CLC
+    ...opcodePattern("100 110 00", () => this.#loadRegister("a", this.#state.y)), // TYA
 
     // cc=01: the operations used here are aaa=011 ADC, 100 STA, 101 LDA.
     // bbb=001 selects zero-page addressing.
-    [0b100_001_01, ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.a)], // STA zp
-    [0b101_001_01, ({ fetchByte, readByte }) => this.#loadRegister("a", readByte(fetchByte()))], // LDA zp
+    ...opcodePattern("100 001 01", ({ fetchByte, writeByte }: InstructionContext) => writeByte(fetchByte(), this.#state.a)), // STA zp
+    ...opcodePattern("101 001 01", ({ fetchByte, readByte }: InstructionContext) => this.#loadRegister("a", readByte(fetchByte()))), // LDA zp
 
     // bbb=010 selects an immediate operand; STA has no immediate form.
-    [0b011_010_01, ({ fetchByte }) => this.#addWithCarry(fetchByte())], // ADC #n (binary)
-    [0b101_010_01, ({ fetchByte }) => this.#loadRegister("a", fetchByte())], // LDA #n
+    ...opcodePattern("011 010 01", ({ fetchByte }: InstructionContext) => this.#addWithCarry(fetchByte())), // ADC #n (binary)
+    ...opcodePattern("101 010 01", ({ fetchByte }: InstructionContext) => this.#loadRegister("a", fetchByte())), // LDA #n
 
     // bbb=011 selects absolute addressing.
-    [0b100_011_01, ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a)], // STA addr
+    ...opcodePattern("100 011 01", ({ fetchWord, writeByte }: InstructionContext) => writeByte(fetchWord(), this.#state.a)), // STA addr
 
     // cc=10, bbb=000: aaa=101 selects LDX immediate.
-    [0b101_000_10, ({ fetchByte }) => this.#loadRegister("x", fetchByte())], // LDX #n
+    ...opcodePattern("101 000 10", ({ fetchByte }: InstructionContext) => this.#loadRegister("x", fetchByte())), // LDX #n
 
     // cc=10, bbb=010: aaa=100..110 selects TXA, TAX, DEX.
-    [0b100_010_10, () => this.#loadRegister("a", this.#state.x)], // TXA
-    [0b101_010_10, () => this.#loadRegister("x", this.#state.a)], // TAX
-    [0b110_010_10, () => this.#adjustIndex("x", -1)], // DEX
+    ...opcodePattern("100 010 10", () => this.#loadRegister("a", this.#state.x)), // TXA
+    ...opcodePattern("101 010 10", () => this.#loadRegister("x", this.#state.a)), // TAX
+    ...opcodePattern("110 010 10", () => this.#adjustIndex("x", -1)), // DEX
   ]);
 
   // Loads and register operations.
