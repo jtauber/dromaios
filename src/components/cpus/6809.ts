@@ -96,12 +96,9 @@ export class Cpu6809 {
     0x37: ({ fetchByte, readByte }) => this.#pullRegisters("u", fetchByte(), readByte), // PULU
     0x86: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
     0x8b: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADDA #n
-    0xb7: ({ fetchWord, writeByte }) => { // STA addr (extended)
-      const address = fetchWord();
-      const value = this.#state.a;
-      writeByte(address, value);
-      this.#setLoadStoreFlags(value);
-    },
+    0x96: ({ fetchByte, readByte }) => this.#loadAccumulator(readByte(this.#directAddress(fetchByte()))), // LDA direct
+    0x97: ({ fetchByte, writeByte }) => this.#storeAccumulator(this.#directAddress(fetchByte()), writeByte), // STA direct
+    0xb7: ({ fetchWord, writeByte }) => this.#storeAccumulator(fetchWord(), writeByte), // STA extended
   };
 
   constructor(ram: Ram, initialState: Omit<Cpu6809Snapshot, "d">) {
@@ -242,8 +239,18 @@ export class Cpu6809 {
     if (mask & 0x80) this.#state.pc = pullWord();
   }
 
+  #directAddress(offset: number): number {
+    return (this.#state.dp << 8) | offset;
+  }
+
   #loadAccumulator(value: number): void {
     this.#state.a = value;
+    this.#setLoadStoreFlags(value);
+  }
+
+  #storeAccumulator(address: number, writeByte: InstructionContext["writeByte"]): void {
+    const value = this.#state.a;
+    writeByte(address, value);
     this.#setLoadStoreFlags(value);
   }
 

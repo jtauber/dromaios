@@ -1,0 +1,22 @@
+ram 10000
+
+cpu 6809 {
+    A = 11  B = 34  DP = 12
+    X = 2345  Y = 4567  S = 8000  U = 4000
+    PC = 0200
+    flags { E = 1  F = 0  H = 1  I = 0  N = 0  Z = 1  V = 1  C = 1 }
+}
+
+memory 0200 {
+    96 80       // LDA <$80 (direct through DP)
+    97 81       // STA <$81 (direct through DP)
+}
+
+memory 0080 { 5A }   // Source used after reset clears DP
+memory 1280 { A5 }   // Source selected by the initial DP
+
+memory FFFE {
+    02 00       // Reset vector: 0200, high byte first
+}
+
+end 0204

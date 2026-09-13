@@ -16,7 +16,7 @@ do not count toward implementation here.
 | --- | --- | --- | --- | --- |
 | [Intel 8080](#8080) | 20 / 244 | 8.2% | 0 | [Arithmetic](8080-example.md), [register pairs](8080-register-pairs-example.md), [stack](8080-stack-example.md), [addressing](8080-addressing-example.md) |
 | [NMOS MOS 6502](#6502) | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502-example.md), [stack](6502-stack-example.md), [addressing](6502-addressing-example.md) |
-| [Motorola MC6809 / MC6809E](#6809) | 7 / 268 | 2.6% | 0 | [Arithmetic](6809-example.md), [stack](6809-stack-example.md) |
+| [Motorola MC6809 / MC6809E](#6809) | 9 / 268 | 3.4% | 0 | [Arithmetic](6809-example.md), [stack](6809-stack-example.md), [addressing](6809-addressing-example.md) |
 
 A completed example establishes its specified program and checks; all three
 CPU models remain small subsets.
@@ -206,6 +206,9 @@ current RAM, unchanged-value writes without destination reads, and detached reco
 [Stack specification](6809-stack-example.md) ·
 [Stack definition](../src/machines/6809/stack-example.machine)
 
+[Addressing specification](6809-addressing-example.md) ·
+[Addressing definition](../src/machines/6809/addressing-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `34` | `PSHS mask` | Immediate register mask | 2 | Push any selection of CC/A/B/DP/X/Y/U/PC onto S; preserve flags |
@@ -214,6 +217,8 @@ current RAM, unchanged-value writes without destination reads, and detached reco
 | `37` | `PULU mask` | Immediate register mask | 2 | Pull any selection of CC/A/B/DP/X/Y/S/PC from U; flags change only if CC is selected |
 | `86` | `LDA #n` | Immediate | 2 | Load A and update N/Z/V |
 | `8B` | `ADDA #n` | Immediate | 2 | Add without incoming carry; update H/N/Z/V/C |
+| `96` | `LDA direct` | Direct page | 2 | Load A from DP:operand; update N/Z and clear V |
+| `97` | `STA direct` | Direct page | 2 | Store A at DP:operand; update N/Z and clear V |
 | `B7` | `STA addr` | Extended | 3 | Store A and update N/Z/V; address bytes high then low; bypass DP |
 
 | Area | Current coverage |
@@ -221,13 +226,14 @@ current RAM, unchanged-value writes without destination reads, and detached reco
 | Stored registers | A, B, DP, X, Y, S, U, PC |
 | Stored flags | E, F, H, I, N, Z, V, C; CC is packed/unpacked for stack transfers without a separate public CC state field |
 | Register relationships | Snapshots derive D from A:B, including after stack pulls; other 16-bit D operations and register transfers are not implemented |
+| Memory addressing | Direct LDA/STA combine current DP with a one-byte operand; extended STA uses an explicit 16-bit address and bypasses DP |
 | Stack | S and U use descending RAM stacks with wrapping 16-bit pointers; all register masks work, including empty/full masks and the other pointer |
 | PC stack transfers | Push saves PC after the postbyte; pull replaces PC and execution resumes there |
 | Reset | Read `FFFE` then `FFFF` for PC, clear DP, set F/I; preserve other modeled state and RAM, including both stack pointers |
 | Prefixes | `10` and `11` are rejected after the prefix byte alone; no second-byte fetch or opcode-page dispatch |
 | Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
 | Remaining instruction scope | Other B/D and register operations, arithmetic and logic beyond ADDA, decimal adjustment, branch/call/return opcodes, and other CC operations |
-| Remaining addressing scope | Direct, indexed, relative, and other forms beyond the exact encodings above |
+| Remaining addressing scope | Indexed, relative, and other forms beyond the exact encodings above |
 
 The reset preservation policy is specified in the example document; it does
 not claim hardware power-on values for unspecified state. Interrupt handling,
@@ -236,7 +242,8 @@ and pin differences are outside this instruction-level model.
 
 Verification: [CPU tests](../tests/components/cpus/6809.test.ts),
 [example tests](../tests/machines/6809/example.test.ts),
-[stack example tests](../tests/machines/6809/stack-example.test.ts), and
+[stack example tests](../tests/machines/6809/stack-example.test.ts),
+[addressing example tests](../tests/machines/6809/addressing-example.test.ts), and
 [public type checks](../tests/types/6809.ts). ADDA checks cover every byte
 operand pair with both incoming carry values and old result flags clear and
 set. Other checks cover derived D, exact accesses, wrapping, self-overwriting
@@ -245,6 +252,9 @@ completion, unsupported opcodes, input validation, and detached records.
 PSH/PUL checks cover every register mask and CC value, byte and register order,
 pointer and postbyte wrapping, PC transfers, nested saves, other-pointer
 transfers, stack/code overlap, current RAM reads, and occupied-stack reset.
+Direct LDA/STA checks cover page selection, N/Z/V effects and preserved flags,
+PC and operand wrapping, code overlap, unchanged-value writes without destination
+reads, DP changed by a stack pull or reset, current RAM, and detached records.
 
 ## CPUs and variants not started
 

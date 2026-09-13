@@ -13,6 +13,7 @@ byte images, and an optional caller completion address:
 - [6502 addressing](../src/machines/6502/addressing-example.machine)
 - [6809 arithmetic](../src/machines/6809/example.machine)
 - [6809 stack](../src/machines/6809/stack-example.machine)
+- [6809 addressing](../src/machines/6809/addressing-example.machine)
 
 Each file explicitly declares 64 KiB RAM. Unspecified memory is zero; blocks
 load in source order, with later bytes overwriting earlier ones where they
@@ -36,6 +37,7 @@ src/machines/                       tests/machines/
     example.machine                     example.test.ts
     stack-example.machine               stack-example.test.ts
   6809/                               6809/
+    addressing-example.machine          addressing-example.test.ts
     example.machine                     example.test.ts
     stack-example.machine               stack-example.test.ts
 ```
