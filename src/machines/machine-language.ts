@@ -1,11 +1,13 @@
 import type { Cpu8080State } from "../components/cpus/8080.js";
 import type { Cpu6502State } from "../components/cpus/6502.js";
 import type { Cpu6809State } from "../components/cpus/6809.js";
+import type { CpuZ80State } from "../components/cpus/z80.js";
 
 interface CpuStates {
   "8080": Cpu8080State;
   "6502": Cpu6502State;
   "6809": Cpu6809State;
+  "z80": CpuZ80State;
 }
 
 type CpuModel = keyof CpuStates;
@@ -19,16 +21,23 @@ export type MachineDefinition = CpuDefinition & {
   readonly endAddress?: number;
 };
 
-type ValueKind = "byte" | "word" | "flag" | "boolean";
+type ValueKind = "byte" | "word" | "flag" | "boolean" | "interrupt-mode";
 interface Schema { readonly [name: string]: ValueKind | Schema }
 type SchemaValues<S extends Schema> = {
   [Name in keyof S]: S[Name] extends Schema ? SchemaValues<S[Name]>
-    : S[Name] extends "flag" | "boolean" ? boolean : number;
+    : S[Name] extends "flag" | "boolean" ? boolean : S[Name] extends "interrupt-mode" ? 0 | 1 | 2 : number;
 };
-type CpuSchema<State extends { flags: object }> = {
-  [Name in keyof State]: Name extends "flags" ? { [Flag in keyof State["flags"]]: "flag" }
+type CpuSchema<State> = {
+  [Name in keyof State]: Name extends "flags" ? { [Flag in keyof State[Name]]: "flag" }
+    : State[Name] extends object ? CpuSchema<State[Name]>
+    : State[Name] extends 0 | 1 | 2 ? "interrupt-mode"
     : State[Name] extends number ? "byte" | "word" : "boolean";
 };
+
+const z80BankSchema = {
+  a: "byte", b: "byte", c: "byte", d: "byte", e: "byte", h: "byte", l: "byte",
+  flags: { s: "flag", z: "flag", h: "flag", pv: "flag", n: "flag", c: "flag" },
+} as const;
 
 // Constructor state types keep field coverage and Boolean/numeric kinds in sync.
 // Widths describe the source format; CPU constructors also validate their state.
@@ -46,6 +55,11 @@ const schemas = {
   "6809": {
     a: "byte", b: "byte", dp: "byte", x: "word", y: "word", s: "word", u: "word", pc: "word",
     flags: { e: "flag", f: "flag", h: "flag", i: "flag", n: "flag", z: "flag", v: "flag", c: "flag" },
+  },
+  "z80": {
+    ...z80BankSchema, alternate: z80BankSchema,
+    ix: "word", iy: "word", pc: "word", sp: "word", i: "byte", r: "byte",
+    iff1: "boolean", iff2: "boolean", im: "interrupt-mode", halted: "boolean",
   },
 } as const satisfies { [Model in CpuModel]: CpuSchema<CpuStates[Model]> };
 
@@ -101,7 +115,7 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
       if (token.text !== "true" && token.text !== "false") fail(token, `Expected true or false for ${label}`);
       return token.text === "true";
     }
-    const maximum = kind === "byte" ? 0xff : kind === "word" ? 0xffff : 1;
+    const maximum = kind === "byte" ? 0xff : kind === "word" ? 0xffff : kind === "interrupt-mode" ? 2 : 1;
     const value = readNumber(token, label, maximum);
     return kind === "flag" ? value === 1 : value;
   }
@@ -139,7 +153,8 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
       case "8080": return { cpu: model.text, initialState: readState(schemas["8080"], model.text) };
       case "6502": return { cpu: model.text, initialState: readState(schemas["6502"], model.text) };
       case "6809": return { cpu: model.text, initialState: readState(schemas["6809"], model.text) };
-      default: return fail(model, `Expected CPU model 8080, 6502, or 6809, found ${describe(model)}`);
+      case "z80": return { cpu: model.text, initialState: readState(schemas.z80, model.text) };
+      default: return fail(model, `Expected CPU model 8080, 6502, 6809, or z80, found ${describe(model)}`);
     }
   }
 

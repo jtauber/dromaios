@@ -82,7 +82,7 @@ the same underlying models as a complete machine.
 
 ## Proposed repository layout
 
-The implementation has RAM, 8080, 6502, and 6809 CPU subsets, example setup, and
+The implementation has RAM, 8080, 6502, 6809, and Z80 CPU subsets, example setup, and
 tests. The other source paths show where code and content could go as we
 introduce them; their names can change with experience. No package or framework
 boundaries are implied by this tree. Build and test commands are in the
@@ -132,11 +132,17 @@ addressing, and timing can retain the structure that explains each CPU best.
 Three examples are a review point, not a claim of universality. Later CPU
 models, variants, and machine compositions can still require revisions.
 
+The Z80 now extends the comparison to a related processor. It uses the existing
+RAM setup and runner with its own state, including an alternate bank and
+refresh register. Paired programs expose common encodings but different flag
+semantics. This establishes reuse of execution support; CPU implementation
+sharing remains a question for further instruction families.
+
 ## Model contracts and example specifications
 
-The introductory [8080](cpus/8080/examples/arithmetic.md), [6502](cpus/6502/examples/arithmetic.md), and
-[6809](cpus/6809/examples/arithmetic.md) examples are complete. Each example's document
-records its program, initial state, instruction behavior, expected execution,
+The introductory [8080](cpus/8080/examples/arithmetic.md), [6502](cpus/6502/examples/arithmetic.md),
+[6809](cpus/6809/examples/arithmetic.md), and [Z80](cpus/z80/examples/arithmetic.md) examples are complete.
+Each example's document records its program, initial state, instruction behavior, expected execution,
 and acceptance checks. The [CPU model contracts](README.md#cpu-models) define
 state ownership, record formats, unsupported-instruction policies, and reset.
 The [coverage tracker](cpus/coverage.md) records current CPU implementation support.
@@ -155,7 +161,7 @@ Re-reading memory or devices afterward cannot reliably reconstruct them. The
 record must make its granularity clear; an instruction-level model does not
 automatically provide a complete cycle-by-cycle bus trace.
 
-The concrete `Cpu8080`, `Cpu6502`, and `Cpu6809` models each take a 64 KiB
+The concrete `Cpu8080`, `Cpu6502`, `Cpu6809`, and `CpuZ80` models each take a 64 KiB
 `Ram` instance and explicit initial state. They copy only declared state fields,
 including flags, and expose `snapshot()` and `step()`. Public snapshots and
 records have readonly TypeScript types and own detached values. Internal CPU

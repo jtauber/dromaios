@@ -18,8 +18,9 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 229 / 244 | 93.9% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md), [transfers](8080/examples/transfers.md), [ALU](8080/examples/alu.md), [counted loop](8080/examples/counted-loop.md) |
 | [NMOS MOS 6502](#6502) | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502/examples/arithmetic.md), [stack](6502/examples/stack.md), [addressing](6502/examples/addressing.md) |
 | [Motorola MC6809 / MC6809E](#6809) | 9 / 268 | 3.4% | 0 | [Arithmetic](6809/examples/arithmetic.md), [stack](6809/examples/stack.md), [addressing](6809/examples/addressing.md) |
+| [Zilog Z80](#z80) | 4 / 698 | 0.6% | 0 | [Arithmetic and 8080 comparison](z80/examples/arithmetic.md) |
 
-A completed example establishes its specified program and checks; all three
+A completed example establishes its specified program and checks; all four
 CPU models remain incomplete.
 
 ## How the percentages are counted
@@ -47,11 +48,21 @@ encodings and instructions belonging to other CPU variants are excluded.
 | Intel 8080 | 244 | [Intel 8080 Assembly Language Programming Manual, Appendix B](https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf): expand the opcode bit patterns, excluding the 12 undocumented byte encodings |
 | NMOS MOS 6502 | 151 | [Synertek 6500 Programming Manual, Appendix B](https://syncopate.us/books/Synertek6502ProgrammingManual.html#ap-b): count the documented instruction/addressing forms |
 | Motorola MC6809 / MC6809E | 268 | [Motorola MC6809–MC6809E Programming Manual, Appendix D](https://www.maddes.net/m6809pm/appendix_d.htm): 221 unprefixed forms + 38 on page 2 + 9 on page 3, counting mnemonic aliases once |
+| Zilog Z80 | 698 | [Zilog Z80 CPU User Manual, UM008011-0816](https://www.zilog.com/docs/z80/um0080.pdf): 252 unprefixed + 248 CB + 58 ED + 39 DD + 39 FD + 31 DD CB + 31 FD CB forms |
 
 For the 6809, a prefix and following opcode byte identify one form; prefixes
 alone do not count. Indexed and register-selection postbytes do not create
 additional forms, but an opcode remains partial until all its documented
 postbyte choices work.
+
+For the Z80, prefixes and the final opcode identify a form; displacement and
+immediate values do not create forms. The DD CB and FD CB counts include only
+the documented memory forms. Undocumented SLL, index-half register operations,
+ignored-prefix aliases, and alternate encodings absent from the manual are
+excluded. The ED count includes `ED 63` and `ED 6B`: the manual explicitly lists
+HL among the choices for `LD (nn),dd` and `LD dd,(nn)` (printed pages 108 and 103).
+These are different documented encodings from the unprefixed HL transfers,
+so both count, giving 698 rather than the 696 obtained by excluding that pair.
 
 ## Support shared by the current models
 
@@ -66,7 +77,7 @@ postbyte choices work.
 | Unsupported attempts | `reason: "opcode"`, one opcode read, unchanged CPU state and RAM; additional 6502 mode restriction below |
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
-All three currently omit cycle counts, dummy bus accesses, electrical signals,
+All four currently omit cycle counts, dummy bus accesses, electrical signals,
 interrupt delivery, mapped devices, disassembly, and an
 execution UI. Interrupt flags can be stored and inspected before interrupt
 delivery is implemented.
@@ -406,6 +417,51 @@ Direct LDA/STA checks cover page selection, N/Z/V effects and preserved flags,
 PC and operand wrapping, code overlap, unchanged-value writes without destination
 reads, DP changed by a stack pull or reset, current RAM, and detached records.
 
+## Z80
+
+[Source](../../src/components/cpus/z80.ts) ·
+[Model contract](z80/model.md) ·
+[Arithmetic example](z80/examples/arithmetic.md) ·
+[Example definition](../../src/machines/z80/example.machine)
+
+| Opcode | Instruction | Addressing form | Length | Scope |
+| --- | --- | --- | --- | --- |
+| `32` | `LD (nn),A` | Absolute | 3 | Store A; address bytes low then high; preserve flags |
+| `3E` | `LD A,n` | Immediate | 2 | Load A; preserve flags |
+| `76` | `HALT` | Implied | 1 | Advance PC, increment R, and halt; preserve flags and interrupt latches |
+| `C6` | `ADD A,n` | Immediate | 2 | Add without incoming carry; set S/Z/H/PV/C from the result and clear N; PV means signed overflow |
+
+| Area | Current coverage |
+| --- | --- |
+| Stored registers | A/B/C/D/E/H/L in main and alternate banks; IX, IY, PC, SP, I, R |
+| Stored flags | S/Z/H/PV/N/C in both banks; undocumented F bits 3/5 and raw F/AF views are omitted |
+| Register relationships | Snapshots derive BC, DE, and HL in both banks; no bank-exchange or pair-operation instructions yet |
+| Interrupt state | IFF1, IFF2, and IM 0/1/2 can be initialized and inspected; no interrupt delivery or interrupt-control instructions |
+| Refresh register | Each supported unprefixed opcode increments R bits 0–6 once, preserving bit 7; no increments for operand/data accesses |
+| Reset | Clear PC/I/R, IFF1/IFF2, and IM; release HALT; preserve banks, flags, IX/IY/SP, and RAM under the documented model policy |
+| Prefixes | CB/DD/ED/FD rejected after the first byte; all CPU state, including R, remains unchanged |
+| Stopping | HALT reports its instruction once; already halted steps perform no accesses or refresh updates |
+| Remaining instruction scope | All other transfers, arithmetic and logic, register exchanges, stack operations, control flow, and I/O |
+| Remaining addressing scope | Register, indirect, indexed, relative, and prefixed forms beyond the exact encodings above |
+
+The model covers documented instruction semantics for the listed forms, not
+undocumented flag bits or cycle activity. In particular, a physical Z80 keeps
+refreshing during HALT; the instruction-level halted state does not model
+those cycles. See the [model contract](z80/model.md) for unsupported-attempt and
+reset-preservation policies.
+
+Verification: [CPU tests](../../tests/components/cpus/z80.test.ts),
+[arithmetic example tests](../../tests/machines/z80/example.test.ts), and
+[public type checks](../../tests/types/z80.ts). ADD checks every byte operand
+pair against independent column addition and signed-range overflow, with old
+flags clear and set. Boundary programs exercise all flag patterns alongside
+the 8080, independently checking parity versus overflow. Other checks cover
+all immediate-load bytes and flag patterns, nested state isolation, register
+views, exact accesses, PC and R wrapping, current RAM, overlapping stores,
+every unsupported first byte, HALT, reset, and retained records. The generated
+example and runner checks verify complete records, final RAM, and bounded
+resumption with the concrete Z80 types.
+
 ## CPUs and variants not started
 
 These targets have no implementation in this repository. The existing NMOS
@@ -421,7 +477,6 @@ its counting rules when implementation starts.
 | MOS 6507 | 0% | Not started |
 | MOS 6510 | 0% | Not started |
 | Ricoh 2A03 | 0% | Not started |
-| Zilog Z80 | 0% | Not started |
 | Motorola 6800 | 0% | Not started |
 | Intel 8008 | 0% | Not started |
 | Sharp SM83 | 0% | Not started |

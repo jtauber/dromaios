@@ -3,6 +3,17 @@ import { test } from "node:test";
 import { parseMachine } from "../../src/machines/machine-language.js";
 
 const sources = {
+  "z80": `ram 10000
+cpu z80 {
+  A=00 B=00 C=00 D=00 E=00 H=00 L=00
+  flags { S=0 Z=0 H=0 PV=0 N=0 C=0 }
+  alternate {
+    A=11 B=22 C=33 D=44 E=55 H=66 L=77
+    flags { S=1 Z=0 H=1 PV=0 N=1 C=0 }
+  }
+  IX=1234 IY=5678 PC=0000 SP=9ABC I=DE R=FF IM=2
+  iff1=true iff2=false halted=false
+}`,
   "8080": `ram 10000
 cpu 8080 {
   A=00 B=00 C=00 D=00 E=00 H=00 L=00 PC=0000 SP=0000
@@ -24,6 +35,65 @@ cpu 6809 {
 function set(source: string, name: string, value: string): string {
   return source.replace(new RegExp(`\\b${name}=\\w+`), `${name}=${value}`);
 }
+
+test("Z80 parsing preserves both banks, index registers, refresh state, and separate interrupt controls", () => {
+  const machine = parseMachine(sources.z80);
+  assert.equal(machine.cpu, "z80");
+  assert.deepEqual(machine.initialState, {
+    a: 0, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0,
+    flags: { s: false, z: false, h: false, pv: false, n: false, c: false },
+    alternate: { a: 0x11, b: 0x22, c: 0x33, d: 0x44, e: 0x55, h: 0x66, l: 0x77,
+      flags: { s: true, z: false, h: true, pv: false, n: true, c: false } },
+    ix: 0x1234, iy: 0x5678, pc: 0, sp: 0x9abc, i: 0xde, r: 0xff, im: 2,
+    iff1: true, iff2: false, halted: false,
+  });
+  machine.initialState.alternate.a = 0;
+  machine.initialState.alternate.flags.s = false;
+  const fresh = parseMachine(sources.z80);
+  assert.equal(fresh.cpu, "z80");
+  assert.equal(fresh.initialState.alternate.a, 0x11);
+  assert.equal(fresh.initialState.alternate.flags.s, true);
+});
+
+test("Z80 nested fields, flag bits, interrupt modes, and latches are validated in their own scope", () => {
+  for (const value of ["0", "1", "2", "$02", "0x2", "02h"]) {
+    const machine = parseMachine(set(sources.z80, "IM", value));
+    assert.equal(machine.cpu, "z80");
+    assert.ok([0, 1, 2].includes(machine.initialState.im));
+  }
+  for (const value of ["3", "FF", "true", "-1", "1.0"]) {
+    assert.throws(() => parseMachine(set(sources.z80, "IM", value)), SyntaxError);
+  }
+  for (const field of ["iff1", "iff2", "halted"]) {
+    for (const value of ["0", "1", "TRUE", "False"]) {
+      assert.throws(() => parseMachine(set(sources.z80, field, value)), /Expected true or false/);
+    }
+  }
+  const alternate = /alternate \{[\s\S]*?\n  \}/;
+  for (const field of ["A", "B", "C", "D", "E", "H", "L"]) {
+    assert.throws(() => parseMachine(sources.z80.replace(alternate, block => set(block, field, "100"))),
+      /z80.alternate.*must be in 0..FF/);
+  }
+  for (const flag of ["S", "Z", "H", "PV", "N", "C"]) {
+    for (const value of ["2", "true", "false"]) {
+      assert.throws(() => parseMachine(sources.z80.replace(/flags \{[^}]*\}/g, block => set(block, flag, value))), SyntaxError);
+      assert.throws(() => parseMachine(sources.z80.replace(alternate, block =>
+        block.replace(/flags \{[^}]*\}/, flags => set(flags, flag, value)))), SyntaxError);
+    }
+  }
+  for (const [source, error] of [
+    [sources.z80.replace(alternate, ""), /Missing fields in z80: alternate/],
+    [sources.z80.replace("A=11", ""), /Missing fields in z80.alternate: A/],
+    [sources.z80.replace("A=11", "A=11 a=22"), /Duplicate field A/],
+    [sources.z80.replace("A=11", "BC=1122"), /Unknown field "BC" in z80.alternate/],
+    [sources.z80.replace("A=00", "AF=0000"), /Unknown field "AF"/],
+    [sources.z80.replace(alternate, block => block.replace("PV=0", "")), /Missing fields in z80.alternate.flags: PV/],
+    [sources.z80.replace(alternate, block => block.replace("PV=0", "PV=0 pv=1")), /Duplicate field PV/],
+    [sources.z80.replace("alternate", "ALTERNATE"), /Expected lowercase keyword "alternate"/],
+    [sources.z80.replace("alternate {", "alternate = {"), /Expected "\{"/],
+    [sources.z80.replace("IX=1234", "alternate {} IX=1234"), /Duplicate field alternate/],
+  ] as const) assert.throws(() => parseMachine(source), error);
+});
 
 test("machine parsing preserves explicit state, ordered images, and a zero completion address", () => {
   const source = `// Declarations can appear in any order.
@@ -88,9 +158,10 @@ test("each CPU's stored registers use their actual byte or word width", () => {
   const widths = {
     "8080": { byte: ["A", "B", "C", "D", "E", "H", "L"], word: ["PC", "SP"] },
     "6502": { byte: ["A", "X", "Y", "SP"], word: ["PC"] },
+    "z80": { byte: ["A", "B", "C", "D", "E", "H", "L", "I", "R"], word: ["IX", "IY", "PC", "SP"] },
     "6809": { byte: ["A", "B", "DP"], word: ["X", "Y", "S", "U", "PC"] },
   };
-  for (const model of ["8080", "6502", "6809"] as const) {
+  for (const model of ["8080", "6502", "6809", "z80"] as const) {
     for (const width of ["byte", "word"] as const) {
       for (const register of widths[model][width]) {
         const maximum = width === "byte" ? "FF" : "FFFF";
@@ -160,7 +231,8 @@ test("malformed values and syntax are rejected as whole tokens", () => {
     [`${sources["8080"]} ram 10000`, /Duplicate ram/],
     [`${sources["8080"]} cpu 8080 {}`, /Duplicate cpu/],
     [`${sources["8080"]} end 0 end 1`, /Duplicate end/],
-    ["cpu z80 {}", /Expected CPU model/],
+    ["cpu 6800 {}", /Expected CPU model/],
+    ["cpu Z80 {}", /Expected CPU model/],
     ["cpu 0x8080 {}", /Expected CPU model/],
     ["RAM 10000", /Unknown declaration "RAM"/],
     [`${sources["8080"]} garbage`, /Unknown declaration "garbage"/],

@@ -50,7 +50,7 @@ Acceptance checks are defined in the [8080 example specification](docs/cpus/8080
 ## 2. Expand CPU support and test generalizations — current
 
 - Use the [shared CPU runner](docs/runtime/runner.md), now exercised against
-  the existing examples on all three CPUs. It has an explicit step budget,
+  the existing examples on all four CPUs. It has an explicit step budget,
   stops before a caller completion address or after a halt or unsupported
   attempt, and returns captured records and the reason for stopping while
   preserving CPU-specific types.
@@ -62,33 +62,35 @@ Acceptance checks are defined in the [8080 example specification](docs/cpus/8080
 - Continue focused comparisons with the 6502 and 6809, expanding their support
   as we exercise register relationships, stacks, addressing, and memory or I/O
   access.
-- Compare execution records and inspection needs across all three CPUs.
+- Compare execution records and inspection needs across the current CPUs.
 - Consolidate shared support where the examples justify it. Keep decoding,
   flags, addressing, and timing specific to each CPU where appropriate.
-- Introduce the Z80 once the 8080 instruction set is substantially established.
-  Use it to test how related processors should share implementation. Its start
-  does not depend on completing the other CPUs or building a complete machine.
+- Extend the initial Z80 slice, now using the same RAM setup and runner with
+  its own state and flags. Paired 8080/Z80 programs test common encodings and
+  different semantics. Use further related instruction families to judge which
+  implementation details should be shared.
 
 **Review points:** The runner handles each CPU's stopping behavior correctly.
 Instruction-family additions have explicit expected behavior and documented
 limits, with progress toward complete documented 8080 opcode coverage.
-Generalizations are exercised against the initial three architectures and,
-when introduced, the Z80.
+Generalizations are exercised against the initial three architectures and
+the Z80.
 
 The introductory [8080](docs/cpus/8080/examples/arithmetic.md), [6502](docs/cpus/6502/examples/arithmetic.md),
-and [6809](docs/cpus/6809/examples/arithmetic.md) examples are complete. Their specifications
+[6809](docs/cpus/6809/examples/arithmetic.md), and [Z80](docs/cpus/z80/examples/arithmetic.md)
+examples are complete. Their specifications
 define behavior and acceptance checks; the [coverage tracker](docs/cpus/coverage.md)
 records current support. Focused examples are extending this comparison;
 the [example catalog](docs/README.md#cpu-examples) lists the completed programs.
-Further examples and comparison of the three models continue within this stage.
+Further examples and comparison of the models continue within this stage.
 
 ## 3. Make the examples explorable in the browser
 
 This work can begin with the existing examples and shared runner, alongside
-opcode expansion and the introduction of the Z80.
+opcode expansion and further Z80 comparisons.
 
 - Add a small interface for stepping, resetting, and inspecting state.
-- Introduce register, memory, and instruction views that serve the three
+- Introduce register, memory, and instruction views that serve the
   examples while preserving each CPU's distinctions.
 - Add controlled running and pausing, separating execution from display updates.
 - Turn the examples into short lessons using the same simulation components.

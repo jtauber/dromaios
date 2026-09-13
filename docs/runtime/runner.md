@@ -19,8 +19,8 @@ const result = runCpu(cpu, { maxSteps: 16, endAddress });
 ```
 
 The result has `stopReason: "completed"` and four `Cpu6502StepRecord` entries.
-For an 8080 example that ends in HLT, omit `endAddress`; its final record
-reports the HLT instruction and the runner returns `stopReason: "halted"`.
+For an 8080 or Z80 example that ends in HLT or HALT, omit `endAddress`; its final
+record reports the halt instruction and the runner returns `stopReason: "halted"`.
 
 | Option | Meaning |
 | --- | --- |
@@ -56,12 +56,12 @@ This gives the following boundary behavior:
 | Zero budget away from the endpoint | `step-limit`, no records |
 | Last permitted executed step reaches the endpoint | `completed`, including that step's record |
 | Last permitted step halts or reports unsupported | `halted` or `unsupported`, including that record |
-| HLT advances PC to the endpoint | `halted`, retaining the CPU's terminal result |
+| HLT or HALT advances PC to the endpoint | `halted`, retaining the CPU's terminal result |
 | Budget ends before any other stopping condition | `step-limit`, with exactly `maxSteps` records |
 
 A step budget counts attempts, including unsupported instructions and the
-8080's already halted, no-fetch step. An already halted CPU therefore returns
-one such record if a step is permitted. With a zero budget it returns
+8080's and Z80's already halted, no-fetch steps. An already halted CPU therefore
+returns one such record if a step is permitted. With a zero budget it returns
 `step-limit`; if it starts at a supplied endpoint, completion takes precedence
 and it is not stepped.
 
@@ -81,8 +81,8 @@ Record contents and isolation guarantees belong to the CPU's model contract.
 TypeScript infers the record type from the supplied CPU. A 6502 run retains
 its non-null instruction and `opcode | decimal-mode` unsupported reasons;
 an 8080 run retains its halted-record union; a 6809 run retains D and both
-stack pointers in snapshots. Selecting between CPU types produces the union
-of their record types. Run-level `stopReason` is separate from each record's
+stack pointers in snapshots; a Z80 run retains both register banks, P/V, and R.
+Selecting between CPU types produces the union of their record types. Run-level `stopReason` is separate from each record's
 CPU-level `outcome` and optional `reason`.
 
 The runner depends only on `snapshot().pc` and a `step()` result whose outcome

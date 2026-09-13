@@ -16,6 +16,18 @@ memory FFFC { 00 02 }
 end 0202
 `;
 
+test("Z80 generation preserves nested state and uses CpuZ80 with lowercase module paths", () => {
+  const source = readFileSync("src/machines/z80/example.machine", "utf8");
+  const generated = compileMachine(source, "z80/example.machine");
+  assert.ok(generated.includes('import { CpuZ80 } from "../../../components/cpus/z80.js";'));
+  assert.ok(generated.includes("create: createZ80Example, createMemory: createZ80ExampleMemory"));
+  assert.ok(generated.includes("defineRamExample(CpuZ80,"));
+  assert.ok(generated.includes('"alternate": {'));
+  assert.ok(generated.includes('"pv": false'));
+  assert.ok(generated.includes('"im": 0'));
+  assert.equal(generated.includes('"endAddress"'), false);
+});
+
 test("regeneration mirrors nested definitions, ignores its output, and removes obsolete files and directories", t => {
   const directory = mkdtempSync(join(tmpdir(), "dromaios-machines-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));

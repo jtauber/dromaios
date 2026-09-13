@@ -18,9 +18,10 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
 - Make a **complete documented 8080 instruction set** the next substantial CPU
   milestone, with continued focused comparisons on the 6502 and 6809. Opcode
   coverage, timing, and interrupt delivery are separate measures of progress.
-- Introduce the **Z80 as the fourth CPU**, once the 8080 instruction set is
-  substantially established. This tests sharing between related processors
-  without waiting for the other CPUs or a complete machine. The
+- The **Z80 is the fourth CPU**, introduced after substantial 8080 opcode
+  coverage. Its initial arithmetic example tests common encodings and distinct
+  flags while using the shared RAM setup and runner. Further instruction families
+  will test sharing between related processors. The
   [project roadmap](../../ROADMAP.md) sets out the runner and opcode-expansion
   priorities; browser work can proceed alongside CPU development.
 - Choose implementation order independently of the microcomputer tutorial's
@@ -136,9 +137,9 @@ programmer-managed stack in RAM. See
 
 ## Current implementation
 
-The introductory [8080](8080/examples/arithmetic.md), [6502](6502/examples/arithmetic.md), and
-[6809](6809/examples/arithmetic.md) examples are complete. The [coverage tracker](coverage.md)
-records current instruction and feature support. The
+The introductory [8080](8080/examples/arithmetic.md), [6502](6502/examples/arithmetic.md),
+[6809](6809/examples/arithmetic.md), and [Z80](z80/examples/arithmetic.md) examples are complete.
+The [coverage tracker](coverage.md) records current instruction and feature support. The
 [model contracts](../README.md#cpu-models) define state, execution records,
 and reset; [example specifications](../README.md#cpu-examples) define programs
 and acceptance checks. The [CoCo reference review](6809/reference-notes.md)

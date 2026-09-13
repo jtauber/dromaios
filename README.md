@@ -54,7 +54,7 @@ agents follow this rule in [AGENTS.md](AGENTS.md).
 ## Status
 
 The platform has instruction-level CPU subsets and small RAM-based examples
-for the 8080, 6502, and 6809, tested independently of the browser. The
+for the 8080, 6502, 6809, and Z80, tested independently of the browser. The
 [example catalog](docs/README.md#cpu-examples) links to their specifications.
 [CPU implementation coverage](docs/cpus/coverage.md) tracks supported
 instructions, features, and remaining gaps; the [roadmap](ROADMAP.md) describes
@@ -112,7 +112,7 @@ Released under the [MIT license](LICENSE).
   definitions, and reference notes.
 - [src/components/memory/ram.ts](src/components/memory/ram.ts) owns byte storage
   and validates reads and writes.
-- [src/components/cpus/](src/components/cpus/) contains the 8080, 6502, and 6809 models,
+- [src/components/cpus/](src/components/cpus/) contains the 8080, 6502, 6809, and Z80 models,
   each with its own state, supported instruction subset, detached snapshots,
   and step records.
 - [src/machines/](src/machines/) prepares fresh RAM and CPU state for starting

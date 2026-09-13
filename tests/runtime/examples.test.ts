@@ -3,6 +3,8 @@ import { test } from "node:test";
 import type { Cpu8080 } from "../../src/components/cpus/8080.js";
 import type { Cpu6502 } from "../../src/components/cpus/6502.js";
 import type { Cpu6809 } from "../../src/components/cpus/6809.js";
+import type { CpuZ80 } from "../../src/components/cpus/z80.js";
+import { createZ80Example } from "../../src/machines/generated/z80/example.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import { create8080Example } from "../../src/machines/generated/8080/example.js";
@@ -22,7 +24,7 @@ import { create6809AddressingExample } from "../../src/machines/generated/6809/a
 
 interface ExampleCase {
   readonly name: string;
-  readonly create: () => { cpu: Cpu8080 | Cpu6502 | Cpu6809; ram: Ram; endAddress?: number };
+  readonly create: () => { cpu: Cpu8080 | Cpu6502 | Cpu6809 | CpuZ80; ram: Ram; endAddress?: number };
   readonly steps: number;
   readonly pc: number;
   readonly stopReason: "completed" | "halted";
@@ -31,6 +33,7 @@ interface ExampleCase {
 
 // Expectations come from the example specifications, independently of the factories.
 const examples: readonly ExampleCase[] = [
+  { name: "Z80 arithmetic", create: createZ80Example, steps: 4, pc: 8, stopReason: "halted", writes: [[0x80, 5]] },
   { name: "8080 arithmetic", create: create8080Example, steps: 4, pc: 0x0008, stopReason: "halted", writes: [[0x0080, 5]] },
   { name: "8080 register pairs", create: create8080RegisterPairsExample, steps: 3, pc: 0x0005, stopReason: "halted", writes: [] },
   { name: "8080 stack", create: create8080StackExample, steps: 6, pc: 0x000c, stopReason: "halted", writes: [[0x1fff, 0x12], [0x1ffe, 0x34]] },

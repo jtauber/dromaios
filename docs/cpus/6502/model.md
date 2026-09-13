@@ -141,7 +141,7 @@ through recorded operand or data reads. Store handlers resolve a destination
 and write without first reading its contents.
 
 Keep flags, addressing, reset, and records specific to this CPU while
-[focused examples across all three CPUs](../scope.md) inform shared interfaces.
+[focused examples across the initial three CPUs](../scope.md) inform shared interfaces.
 The [reference notes](reference-notes.md) record ideas from applepy and
 dromaios-apple2, including captured-step explanations and side-effect-free
 previews, opcode metadata, lesson annotations, addressing, and timing.

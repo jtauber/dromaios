@@ -12,13 +12,14 @@ export function compileMachine(text: string, relativePath: string): string {
   // The parser validates the explicit RAM size against the helper's 64 KiB model.
   const { cpu, ramSize, ...definition } = parseMachine(text, relativePath);
   const data = JSON.stringify(definition, null, 2);
+  const cpuClass = `Cpu${cpu.charAt(0).toUpperCase()}${cpu.slice(1)}`;
   const name = `create${stem.split(/[/-]/).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join("")}`;
   const from = posix.dirname(posix.join("generated", relativePath));
   return `// Generated from ${posix.relative(from, relativePath)}; edit the .machine definition instead.
-import { Cpu${cpu} } from "${posix.relative(from, `../components/cpus/${cpu}.js`)}";
+import { ${cpuClass} } from "${posix.relative(from, `../components/cpus/${cpu}.js`)}";
 import { defineRamExample } from "${posix.relative(from, "ram-example.js")}";
 
-export const { create: ${name}, createMemory: ${name}Memory } = defineRamExample(Cpu${cpu}, ${data});
+export const { create: ${name}, createMemory: ${name}Memory } = defineRamExample(${cpuClass}, ${data});
 `;
 }
 

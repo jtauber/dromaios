@@ -1,6 +1,7 @@
 import type { Cpu8080State } from "../../src/components/cpus/8080.js";
 import type { Cpu6502State } from "../../src/components/cpus/6502.js";
 import type { Cpu6809State } from "../../src/components/cpus/6809.js";
+import type { CpuZ80State } from "../../src/components/cpus/z80.js";
 import { parseMachine } from "../../src/machines/machine-language.js";
 
 // Compiled, never called: the model discriminant must narrow the parsed state.
@@ -8,6 +9,14 @@ export function checkParsedState(source: string): void {
   const machine = parseMachine(source);
   const endAddress: number | undefined = machine.endAddress;
   switch (machine.cpu) {
+    case "z80": {
+      const state: CpuZ80State = machine.initialState;
+      const im: 0 | 1 | 2 = state.im;
+      const pv: boolean = state.alternate.flags.pv;
+      // @ts-expect-error The parsed Z80 state has no 8080 carry flag.
+      state.flags.cy;
+      break;
+    }
     case "8080": {
       const state: Cpu8080State = machine.initialState;
       // @ts-expect-error Numeric source bits become Boolean flags.

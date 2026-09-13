@@ -2,6 +2,8 @@ import { Cpu8080 } from "../../src/components/cpus/8080.js";
 import type { Cpu8080State } from "../../src/components/cpus/8080.js";
 import type { Cpu6502, Cpu6502State } from "../../src/components/cpus/6502.js";
 import type { Cpu6809 } from "../../src/components/cpus/6809.js";
+import type { CpuZ80 } from "../../src/components/cpus/z80.js";
+import { createZ80Example } from "../../src/machines/generated/z80/example.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { defineRamExample } from "../../src/machines/ram-example.js";
 import { create8080Example, create8080ExampleMemory } from "../../src/machines/generated/8080/example.js";
@@ -36,6 +38,9 @@ export function checkDefinitions(state8080: Cpu8080State, state6502: Cpu6502Stat
 }
 
 export function checkExistingFactories(): void {
+  const zilog: { cpu: CpuZ80; ram: Ram } = createZ80Example();
+  // @ts-expect-error The Z80 example has no caller completion address.
+  createZ80Example().endAddress;
   const arithmetic: { cpu: Cpu8080; ram: Ram } = create8080Example();
   const pairs: { cpu: Cpu8080; ram: Ram } = create8080RegisterPairsExample();
   const stack: { cpu: Cpu8080; ram: Ram } = create8080StackExample();

@@ -1,0 +1,20 @@
+ram 10000
+
+cpu z80 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    flags { S = 0  Z = 0  H = 0  PV = 0  N = 0  C = 0 }
+    alternate {
+        A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+        flags { S = 0  Z = 0  H = 0  PV = 0  N = 0  C = 0 }
+    }
+    IX = 0000  IY = 0000  PC = 0000  SP = 0000
+    I = 00  R = 00  IM = 0
+    iff1 = false  iff2 = false  halted = false
+}
+
+memory 0000 {
+    3E 02       // LD A,02H
+    C6 03       // ADD A,03H
+    32 80 00    // LD (0080H),A
+    76          // HALT
+}

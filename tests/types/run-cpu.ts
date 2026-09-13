@@ -1,11 +1,21 @@
 import type { Cpu8080, Cpu8080StepRecord } from "../../src/components/cpus/8080.js";
 import type { Cpu6502, Cpu6502StepRecord } from "../../src/components/cpus/6502.js";
 import type { Cpu6809, Cpu6809StepRecord } from "../../src/components/cpus/6809.js";
+import type { CpuZ80, CpuZ80StepRecord } from "../../src/components/cpus/z80.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import type { CpuRunOptions, CpuRunResult } from "../../src/runtime/run-cpu.js";
 
 // Compiled by npm test; never called. Preserve inference and each CPU's record union.
-export function checkRecordTypes(intel: Cpu8080, mos: Cpu6502, motorola: Cpu6809): void {
+export function checkRecordTypes(intel: Cpu8080, mos: Cpu6502, motorola: Cpu6809, zilog: CpuZ80): void {
+  const zilogRun = runCpu(zilog, { maxSteps: 4 });
+  const zilogResult: CpuRunResult<CpuZ80StepRecord> = zilogRun;
+  if (zilogRun.records[0]) {
+    const pv: boolean = zilogRun.records[0].after.alternate.flags.pv;
+    // @ts-expect-error The Z80 retains its own flag names.
+    zilogRun.records[0].after.flags.cy;
+    // @ts-expect-error Nested snapshots stay readonly through the runner.
+    zilogRun.records[0].after.alternate.a = 0;
+  }
   const intelRun = runCpu(intel, { maxSteps: 5 });
   const intelResult: CpuRunResult<Cpu8080StepRecord> = intelRun;
   const intelRecord = intelRun.records[0];
@@ -57,8 +67,8 @@ export function checkRecordTypes(intel: Cpu8080, mos: Cpu6502, motorola: Cpu6809
   }
 }
 
-export function checkSelectedCpu(cpu: Cpu8080 | Cpu6502 | Cpu6809): void {
-  const records: readonly (Cpu8080StepRecord | Cpu6502StepRecord | Cpu6809StepRecord)[] =
+export function checkSelectedCpu(cpu: Cpu8080 | Cpu6502 | Cpu6809 | CpuZ80): void {
+  const records: readonly (Cpu8080StepRecord | Cpu6502StepRecord | Cpu6809StepRecord | CpuZ80StepRecord)[] =
     runCpu(cpu, { maxSteps: 5 }).records;
 }
 

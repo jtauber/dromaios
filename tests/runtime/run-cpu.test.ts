@@ -6,6 +6,8 @@ import { create8080Example } from "../../src/machines/generated/8080/example.js"
 import { create6502Example } from "../../src/machines/generated/6502/example.js";
 import { create6809Example } from "../../src/machines/generated/6809/example.js";
 
+import { createZ80Example } from "../../src/machines/generated/z80/example.js";
+
 test("invalid run options are rejected before inspecting or stepping the CPU", () => {
   const cpu = {
     snapshot: () => { throw new Error("unexpected inspection"); },
@@ -98,7 +100,7 @@ test("an already halted CPU contributes its own no-fetch record when stepped", (
 });
 
 test("unsupported opcodes stop immediately, preserve their record, and beat the step limit", (t) => {
-  for (const create of [create8080Example, create6502Example, create6809Example]) {
+  for (const create of [create8080Example, create6502Example, create6809Example, createZ80Example]) {
     const { cpu, ram } = create();
     const before = cpu.snapshot();
     ram.write(before.pc, 0x08);
