@@ -1,5 +1,7 @@
 import type { Ram } from "../memory/ram.js";
 import { checkUnsigned } from "../validation.js";
+import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.js";
+import type { OpcodeEntry } from "./opcodes.js";
 
 export interface Cpu6800Flags {
   h: boolean;
@@ -57,6 +59,7 @@ interface InstructionContext {
 }
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
+type Accumulator = "a" | "b";
 
 function copyState(state: Cpu6800State): Cpu6800State {
   const flags = state.flags;
@@ -133,25 +136,50 @@ export class Cpu6800 {
       : { ...record, outcome: "unsupported", reason: "opcode" };
   }
 
-  // Opcode construction. These accumulator forms use 1 r mm oooo:
-  // r (bit 6) selects A=0/B=1; mm (bits 5–4) selects the addressing mode;
-  // oooo (bits 3–0) selects load=0110, store=0111, or add=1011.
-  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
-    // 1 0 00 oooo: A with an immediate operand; stores have no immediate form.
-    0b1_0_00_0110: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDAA #n
-    0b1_0_00_1011: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADDA #n
+  // Opcode selectors and construction. Each group labels its own encoding fields.
+
+  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
+    // 0001011 d: d=0 transfers A to B; d=1 transfers B to A. Both update N/Z/V.
+    ...opcodePattern("0001011 0", () => this.#loadAccumulator("b", this.#state.a)), // TAB
+    ...opcodePattern("0001011 1", () => this.#loadAccumulator("a", this.#state.b)), // TBA
+
+    // 0010 ttt p: bits 3..1 select a condition; bit 0 selects it (0) or its inverse (1).
+    // ttt=000 has only BRA. The original 6800 leaves 21 unused; it has no BRN.
+    ...opcodePattern("0010 000 0", ({ fetchByte }: InstructionContext) => this.#branch(fetchByte(), true)), // BRA
+    ...this.#branchPair("0010 001 p", () => !this.#state.flags.c && !this.#state.flags.z), // BHI / BLS
+    ...this.#branchPair("0010 010 p", () => !this.#state.flags.c), // BCC / BCS
+    ...this.#branchPair("0010 011 p", () => !this.#state.flags.z), // BNE / BEQ
+    ...this.#branchPair("0010 100 p", () => !this.#state.flags.v), // BVC / BVS
+    ...this.#branchPair("0010 101 p", () => !this.#state.flags.n), // BPL / BMI
+    ...this.#branchPair("0010 110 p", () => this.#state.flags.n === this.#state.flags.v), // BGE / BLT
+    ...this.#branchPair("0010 111 p", () => !this.#state.flags.z && this.#state.flags.n === this.#state.flags.v), // BGT / BLE
+
+    // 010 r oooo: r (bit 4) selects A=0/B=1; oooo=1010 decrements, 1100 increments.
+    ...opcodeFamily("010 r 1010", { r: ["a", "b"] }, ({ r: register }) => () => this.#adjustAccumulator(register, -1)), // DECA / DECB
+    ...opcodeFamily("010 r 1100", { r: ["a", "b"] }, ({ r: register }) => () => this.#adjustAccumulator(register, 1)), // INCA / INCB
+
+    // 1 r mm oooo: r (bit 6) selects A=0/B=1; mm (bits 5–4) selects addressing;
+    // oooo (bits 3–0) selects load=0110, store=0111, or add=1011 in this subset.
+    // mm=00 supplies an immediate byte. Both loads and only the A add are implemented.
+    ...opcodeFamily("1 r 00 0110", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#loadAccumulator(register, fetchByte())), // LDAA / LDAB #n
+    ...opcodePattern("1 0 00 1011", ({ fetchByte }: InstructionContext) => this.#addToAccumulator(fetchByte())), // ADDA #n
 
     // mm=01 (direct) and mm=10 (indexed) remain unsupported.
     // 1 0 11 0111: STAA with an extended address, fetched high byte first.
-    0b1_0_11_0111: ({ fetchWord, writeByte }) => this.#storeAccumulator(fetchWord(), writeByte), // STAA addr
+    ...opcodePattern("1 0 11 0111", ({ fetchWord, writeByte }: InstructionContext) => this.#storeAccumulator(fetchWord(), writeByte)), // STAA addr
 
-    // B-register forms and other operation groups remain unsupported.
-  };
+    // Other instruction groups, including stack operations and interrupt controls, are unsupported.
+  ]);
 
-  // Loads and stores.
+  #branchPair(pattern: string, test: () => boolean): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { p: [false, true] }, ({ p: invert }) =>
+      ({ fetchByte }: InstructionContext) => this.#branch(fetchByte(), test() !== invert));
+  }
 
-  #loadAccumulator(value: number): void {
-    this.#state.a = value;
+  // Loads, stores, and accumulator operations.
+
+  #loadAccumulator(register: Accumulator, value: number): void {
+    this.#state[register] = value;
     this.#setLoadStoreFlags(value);
   }
 
@@ -161,13 +189,30 @@ export class Cpu6800 {
     this.#setLoadStoreFlags(value);
   }
 
+  #adjustAccumulator(register: Accumulator, delta: -1 | 1): void {
+    const value = this.#state[register];
+    this.#loadAccumulator(register, (value + delta) & 0xff);
+    // Incrementing +127 or decrementing -128 overflows the signed byte range.
+    this.#state.flags.v = value === (delta === 1 ? 0x7f : 0x80);
+  }
+
+  // Control flow.
+
+  #branch(displacement: number, take: boolean): void {
+    // Both paths fetch the displacement; PC now points past the two instruction bytes.
+    if (take) {
+      const offset = displacement < 0x80 ? displacement : displacement - 0x100;
+      this.#state.pc = (this.#state.pc + offset) & 0xffff;
+    }
+  }
+
   // Arithmetic and flags.
 
   #addToAccumulator(value: number): void {
     const accumulator = this.#state.a;
     const sum = accumulator + value;
     const result = sum & 0xff;
-    this.#loadAccumulator(result);
+    this.#loadAccumulator("a", result);
     this.#state.flags.h = (accumulator & 0x0f) + (value & 0x0f) > 0x0f;
     this.#state.flags.c = sum > 0xff;
     // Like-signed operands producing an opposite-signed result indicate overflow.

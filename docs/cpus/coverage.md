@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 | --- | --- | --- | --- | --- |
 | [Intel 8008](#8008) | 1972 | 32 / 250 | 12.8% | 0 |
 | [Intel 8080](#8080) | 1974 | 240 / 244 | 98.4% | 0 |
-| [Motorola 6800](#6800) | 1974 | 3 / 197 | 1.5% | 0 |
+| [Motorola 6800](#6800) | 1974 | 25 / 197 | 12.7% | 0 |
 | [MOS 6502](#6502) | 1975 | 25 / 151 | 16.6% | 1: binary-only ADC |
 | [Zilog Z80](#z80) | 1976 | 30 / 698 | 4.3% | 0 |
 | [Motorola 6809](#6809) | 1978 | 30 / 268 | 11.2% | 0 |
@@ -447,31 +447,66 @@ final RAM, resumption before adjustment, reset, and restart.
 [Arithmetic example](6800/examples/arithmetic.md) ·
 [Example definition](../../src/machines/6800/example.machine)
 
+[Counted-loop specification](6800/examples/counted-loop.md) ·
+[Counted-loop definition](../../src/machines/6800/counted-loop-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
+| `16` | TAB | Inherent | 1 | Copy A to B; set N/Z, clear V, preserve H/I/C |
+| `17` | TBA | Inherent | 1 | Copy B to A; set N/Z, clear V, preserve H/I/C |
+| `20` | BRA rel | Relative | 2 | Always branch |
+| `22` | BHI rel | Relative | 2 | Branch if C = 0 and Z = 0 |
+| `23` | BLS rel | Relative | 2 | Branch if C = 1 or Z = 1 |
+| `24` | BCC rel | Relative | 2 | Branch if C = 0 |
+| `25` | BCS rel | Relative | 2 | Branch if C = 1 |
+| `26` | BNE rel | Relative | 2 | Branch if Z = 0 |
+| `27` | BEQ rel | Relative | 2 | Branch if Z = 1 |
+| `28` | BVC rel | Relative | 2 | Branch if V = 0 |
+| `29` | BVS rel | Relative | 2 | Branch if V = 1 |
+| `2A` | BPL rel | Relative | 2 | Branch if N = 0 |
+| `2B` | BMI rel | Relative | 2 | Branch if N = 1 |
+| `2C` | BGE rel | Relative | 2 | Branch if N = V |
+| `2D` | BLT rel | Relative | 2 | Branch if N ≠ V |
+| `2E` | BGT rel | Relative | 2 | Branch if Z = 0 and N = V |
+| `2F` | BLE rel | Relative | 2 | Branch if Z = 1 or N ≠ V |
+| `4A` | DECA | Inherent | 1 | Decrement A; set N/Z/V, preserve H/I/C |
+| `4C` | INCA | Inherent | 1 | Increment A; set N/Z/V, preserve H/I/C |
+| `5A` | DECB | Inherent | 1 | Decrement B; set N/Z/V, preserve H/I/C |
+| `5C` | INCB | Inherent | 1 | Increment B; set N/Z/V, preserve H/I/C |
 | `86` | LDAA #n | Immediate | 2 | Load A; set N/Z, clear V, preserve H/I/C |
 | `8B` | ADDA #n | Immediate | 2 | Add to A without incoming carry; set H/N/Z/V/C, preserve I |
 | `B7` | STAA addr | Extended | 3 | Store A; set N/Z, clear V, preserve H/I/C |
+| `C6` | LDAB #n | Immediate | 2 | Load B; set N/Z, clear V, preserve H/I/C |
+
+Opcode `21` is unused on the original 6800 and remains unsupported. It is not
+the 6809's BRN instruction.
 
 | Area | Implemented scope |
 | --- | --- |
 | Stored state | Byte A/B, word X/SP/PC, and H/I/N/Z/V/C flags |
 | Inspection | Detached registers and flags; no derived register pairs |
+| Accumulator operations | Immediate A/B loads, A↔B transfers, and wrapping A/B increment/decrement; preserve H/I/C |
+| Control flow | BRA and all fourteen short conditional branches; signed displacement relative to the end of the instruction, 16-bit target wrapping, unchanged flags |
 | Memory | Exactly 64 KiB RAM; 16-bit PC wrapping; extended addresses fetched high byte first |
 | Reset | Read FFFE then FFFF into PC, set I; preserve other registers, flags, and RAM under the model policy |
 | Stopping | Caller completion address or step budget; unsupported instructions preserve state; no halt/wait latch |
-| Remaining scope | Other loads/stores, arithmetic/logic, addressing forms, branches, stack operations, interrupts, mapped devices, and timing |
+| Remaining scope | Other loads/stores, arithmetic/logic, addressing forms, jumps, subroutine and stack operations, interrupts, mapped devices, and timing |
 
 Verification: [CPU tests](../../tests/components/cpus/6800.test.ts),
-[example tests](../../tests/machines/6800/example.test.ts), and
+[arithmetic example tests](../../tests/machines/6800/example.test.ts),
+[counted-loop tests](../../tests/machines/6800/counted-loop-example.test.ts), and
 [public type checks](../../tests/types/6800.ts). Checks cover every addition
-operand pair, every load/store byte and incoming flag pattern, arithmetic
-boundaries, every destination, PC, and reset-vector value. Complete records
-and observed RAM calls verify wrapping, byte order, self-modifying code,
-unchanged-value stores, unsupported attempts, reset, and detached snapshots.
-The example checks whole RAM images, three complete records, bounded running,
-caller completion, reset, and fresh restart. Parser and generator checks
-preserve the 6800's own state schema and generated factory types.
+operand pair, every load/store/transfer/increment/decrement byte and incoming
+flag pattern, arithmetic boundaries, every store destination, PC, and
+reset-vector value. Literal branch truth tables check all flag combinations;
+displacement checks cover every byte, both paths, and address boundaries.
+Complete records and observed RAM calls verify wrapping, byte order,
+self-modifying code, unchanged-value stores, unsupported attempts, reset, and
+detached snapshots. The examples check whole RAM images, complete records,
+bounded running, caller completion, reset, and fresh restart. The counted loop
+also checks resumption and an edited displacement that branches to itself.
+Parser and generator checks preserve the 6800's own state schema and generated
+factory types.
 
 ## 6502
 

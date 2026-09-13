@@ -3,17 +3,19 @@
 The [opcode helpers](../../src/components/cpus/opcodes.ts) are a small experiment
 in describing existing encodings within TypeScript. The goal is to make the
 hardware easier to read while preserving each CPU's execution behavior. The
-8008, 6502, and 6809 tables use patterns throughout, with typed selector
-mappings for families. These examples exercise three encoding relationships:
+8008, 6502, 6800, and 6809 tables use patterns throughout, with typed selector
+mappings for families. These examples exercise several encoding relationships:
 
 | CPU | Pattern | Meaning |
 | --- | --- | --- |
 | [8008](../../src/components/cpus/8008.ts) | `00 xxx 111`, `01 xxx 100`, `01 xxx 110` | RET, JMP, and CAL ignore bits 5–3, giving eight aliases each |
 | [6502](../../src/components/cpus/6502.ts) | `ff v 100 00` | `ff` selects N/V/C/Z; `v` selects the value required to branch |
+| [6800](../../src/components/cpus/6800.ts) | `0010 ttt p` | Seven conditional pairs expand `p`; BRA is explicit because `21` is unused |
 | [6809](../../src/components/cpus/6809.ts) | `0010 ttt p` | `ttt` selects a condition; `p` selects whether to invert it |
 
-Supported opcodes, public CPU types, flags, reset, wrapping, and recorded memory
-accesses are unchanged. The other CPU models retain their existing tables.
+The helper describes encodings; each CPU still defines supported instructions,
+public types, flags, reset, wrapping, and recorded memory accesses. The other
+CPU models retain their existing tables.
 
 ## Explicit entries and families
 
@@ -70,6 +72,12 @@ those encodings are supported. Keep exceptions and incomplete groups explicit,
 or split them into disjoint supported patterns. In particular, an omitted
 selector entry does not mean an unsupported instruction. Prefixes and operand
 postbytes are outside this experiment.
+
+The 6800 demonstrates such a gap within `0010 ttt p`. Its CPU-local
+`#branchPair` binds the two values of `p` to a condition and its inverse,
+keeping each pair on one table line. BRA has an explicit pattern, so the unused
+`21` never enters the table. This uses the existing helper without an exclusion
+mechanism or the 6809's additional BRN instruction.
 
 ## Execution and verification
 

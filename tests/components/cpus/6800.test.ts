@@ -89,24 +89,74 @@ test("6800 validates byte accumulators, word registers, Boolean flags, and exact
   assert.deepEqual(ram.accesses, []);
 });
 
-test("6800 LDAA immediate checks all bytes and incoming flags, preserving H/I/C across wrapped fetches", () => {
-  const ram = new ObservedRam();
-  ram.write(0xffff, 0x86);
-  for (let bits = 0; bits < 64; bits++) {
-    for (let value = 0; value < 256; value++) {
-      ram.write(0, value);
-      ram.accesses.length = 0;
-      const before = initialState({ pc: 0xffff, flags: flags(bits) });
-      const after = { ...before, a: value, pc: 1, flags: loadStoreFlags(value, before.flags) };
-      const accesses = [{ kind: "read", address: 0xffff, value: 0x86 }, { kind: "read", address: 0, value }];
-      const cpu = new Cpu6800(ram, before);
-      assert.deepEqual(cpu.step(), { before, after, instruction: { address: 0xffff, bytes: [0x86, value] },
-        outcome: "executed", accesses });
-      assert.deepEqual(cpu.snapshot(), after);
-      assert.deepEqual(ram.accesses, accesses);
+for (const [mnemonic, opcode, register] of [["LDAA", 0x86, "a"], ["LDAB", 0xc6, "b"]] as const) {
+  test(`6800 ${mnemonic} immediate checks all bytes and incoming flags, preserving H/I/C across wrapped fetches`, () => {
+    const ram = new ObservedRam();
+    ram.write(0xffff, opcode);
+    for (let bits = 0; bits < 64; bits++) {
+      for (let value = 0; value < 256; value++) {
+        ram.write(0, value);
+        ram.accesses.length = 0;
+        const before = initialState({ pc: 0xffff, flags: flags(bits) });
+        const after = { ...before, [register]: value, pc: 1, flags: loadStoreFlags(value, before.flags) };
+        const accesses = [{ kind: "read", address: 0xffff, value: opcode }, { kind: "read", address: 0, value }];
+        const cpu = new Cpu6800(ram, before);
+        assert.deepEqual(cpu.step(), { before, after, instruction: { address: 0xffff, bytes: [opcode, value] },
+          outcome: "executed", accesses });
+        assert.deepEqual(cpu.snapshot(), after);
+        assert.deepEqual(ram.accesses, accesses);
+      }
     }
-  }
-});
+  });
+}
+
+for (const [mnemonic, opcode, source, destination] of [["TAB", 0x16, "a", "b"], ["TBA", 0x17, "b", "a"]] as const) {
+  test(`6800 ${mnemonic} copies every byte, updates N/Z/V, and preserves H/I/C and its source`, () => {
+    const ram = new ObservedRam();
+    ram.write(0xffff, opcode);
+    ram.write(0, 0x3f);
+    for (let bits = 0; bits < 64; bits++) {
+      for (let value = 0; value < 256; value++) {
+        const before = initialState({ [source]: value, [destination]: 255 - value, pc: 0xffff, flags: flags(bits) });
+        const after = { ...before, [destination]: value, pc: 0, flags: loadStoreFlags(value, before.flags) };
+        const cpu = new Cpu6800(ram, before);
+        ram.accesses.length = 0;
+        const accesses = [{ kind: "read", address: 0xffff, value: opcode }];
+        assert.deepEqual(cpu.step(), { before, after, instruction: { address: 0xffff, bytes: [opcode] },
+          outcome: "executed", accesses });
+        assert.deepEqual(cpu.snapshot(), after);
+        assert.deepEqual(ram.accesses, accesses);
+      }
+    }
+  });
+}
+
+for (const [mnemonic, opcode, register, delta] of [
+  ["DECA", 0x4a, "a", -1], ["INCA", 0x4c, "a", 1],
+  ["DECB", 0x5a, "b", -1], ["INCB", 0x5c, "b", 1],
+] as const) {
+  test(`6800 ${mnemonic} checks every byte and flag pattern, including signed overflow and wrap`, () => {
+    const ram = new ObservedRam();
+    ram.write(0xffff, opcode);
+    ram.write(0, 0x3f);
+    for (let bits = 0; bits < 64; bits++) {
+      for (let value = 0; value < 256; value++) {
+        const before = initialState({ [register]: value, pc: 0xffff, flags: flags(bits) });
+        const result = (value + delta + 256) % 256;
+        const signedResult = (value < 128 ? value : value - 256) + delta;
+        const after = { ...before, [register]: result, pc: 0,
+          flags: { ...before.flags, n: result >= 128, z: result === 0, v: signedResult < -128 || signedResult > 127 } };
+        const cpu = new Cpu6800(ram, before);
+        ram.accesses.length = 0;
+        const accesses = [{ kind: "read", address: 0xffff, value: opcode }];
+        assert.deepEqual(cpu.step(), { before, after, instruction: { address: 0xffff, bytes: [opcode] },
+          outcome: "executed", accesses });
+        assert.deepEqual(cpu.snapshot(), after);
+        assert.deepEqual(ram.accesses, accesses);
+      }
+    }
+  });
+}
 
 test("6800 ADDA checks every operand pair, ignores incoming carry, and preserves I", () => {
   const ram = new ObservedRam();
@@ -217,8 +267,11 @@ test("6800 extended stores wrap across either operand fetch and preserve recorde
   }
 });
 
-test("6800 rejects every other opcode atomically, including other modes, B forms, WAI, and interrupt controls", () => {
-  const supported = new Set([0x86, 0x8b, 0xb7]);
+test("6800 rejects every other opcode atomically, including 21, other modes, stack and interrupt instructions", () => {
+  const supported = new Set([
+    0x16, 0x17, 0x20, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+    0x4a, 0x4c, 0x5a, 0x5c, 0x86, 0x8b, 0xb7, 0xc6,
+  ]);
   const ram = new ObservedRam();
   for (let opcode = 0; opcode < 256; opcode++) {
     if (supported.has(opcode)) continue;
@@ -300,4 +353,159 @@ test("6800 sees host-edited operands and self-modified instructions while earlie
   assert.deepEqual([load, store], saved);
   Reflect.set(load.after.flags, "n", false);
   assert.equal(store.before.flags.n, true);
+});
+
+// Literal truth sets for N Z V C, independent of the implementation's paired predicates.
+// The original 6800 leaves 21 unused; the 6809's BRN is not part of this model.
+const branchCases: readonly { mnemonic: string; opcode: number; takenCodes: readonly number[] }[] = [
+  { mnemonic: "BRA", opcode: 0x20, takenCodes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+  { mnemonic: "BHI", opcode: 0x22, takenCodes: [0, 2, 8, 10] },
+  { mnemonic: "BLS", opcode: 0x23, takenCodes: [1, 3, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15] },
+  { mnemonic: "BCC", opcode: 0x24, takenCodes: [0, 2, 4, 6, 8, 10, 12, 14] },
+  { mnemonic: "BCS", opcode: 0x25, takenCodes: [1, 3, 5, 7, 9, 11, 13, 15] },
+  { mnemonic: "BNE", opcode: 0x26, takenCodes: [0, 1, 2, 3, 8, 9, 10, 11] },
+  { mnemonic: "BEQ", opcode: 0x27, takenCodes: [4, 5, 6, 7, 12, 13, 14, 15] },
+  { mnemonic: "BVC", opcode: 0x28, takenCodes: [0, 1, 4, 5, 8, 9, 12, 13] },
+  { mnemonic: "BVS", opcode: 0x29, takenCodes: [2, 3, 6, 7, 10, 11, 14, 15] },
+  { mnemonic: "BPL", opcode: 0x2a, takenCodes: [0, 1, 2, 3, 4, 5, 6, 7] },
+  { mnemonic: "BMI", opcode: 0x2b, takenCodes: [8, 9, 10, 11, 12, 13, 14, 15] },
+  { mnemonic: "BGE", opcode: 0x2c, takenCodes: [0, 1, 4, 5, 10, 11, 14, 15] },
+  { mnemonic: "BLT", opcode: 0x2d, takenCodes: [2, 3, 6, 7, 8, 9, 12, 13] },
+  { mnemonic: "BGT", opcode: 0x2e, takenCodes: [0, 1, 10, 11] },
+  { mnemonic: "BLE", opcode: 0x2f, takenCodes: [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15] },
+];
+
+for (const { mnemonic, opcode, takenCodes } of branchCases) {
+  test(`6800 ${mnemonic} follows its truth table for all flags, preserves state, and fetches both bytes on either path`, () => {
+    const ram = new ObservedRam();
+    // Literal targets cover signed extremes, instruction overlap, page and address-space crossings.
+    for (const [pc, operandAddress, displacement, fallthrough, target] of [
+      [0x1234, 0x1235, 0x00, 0x1236, 0x1236],
+      [0x1234, 0x1235, 0x7f, 0x1236, 0x12b5],
+      [0x1234, 0x1235, 0x80, 0x1236, 0x11b6],
+      [0x1234, 0x1235, 0xfe, 0x1236, 0x1234],
+      [0x1234, 0x1235, 0xff, 0x1236, 0x1235],
+      [0x12fd, 0x12fe, 0x01, 0x12ff, 0x1300],
+      [0x0000, 0x0001, 0x80, 0x0002, 0xff82],
+      [0xfffd, 0xfffe, 0x01, 0xffff, 0x0000],
+      [0xfffe, 0xffff, 0xff, 0x0000, 0xffff],
+      [0xffff, 0x0000, 0xfe, 0x0001, 0xffff],
+    ] as const) {
+      ram.write(pc, opcode);
+      ram.write(operandAddress, displacement);
+      for (let bits = 0; bits < 64; bits++) {
+        const before = initialState({ pc, flags: flags(bits) });
+        const after = { ...before, pc: takenCodes.includes(bits % 16) ? target : fallthrough };
+        const cpu = new Cpu6800(ram, before);
+        ram.accesses.length = 0;
+        const accesses = [{ kind: "read", address: pc, value: opcode },
+          { kind: "read", address: operandAddress, value: displacement }];
+        assert.deepEqual(cpu.step(), { before, after, instruction: { address: pc, bytes: [opcode, displacement] },
+          outcome: "executed", accesses });
+        assert.deepEqual(cpu.snapshot(), after);
+        assert.deepEqual(ram.accesses, accesses);
+      }
+    }
+  });
+}
+
+test("6800 branches interpret every displacement relative to the end of the instruction", () => {
+  const ram = new ObservedRam();
+  const operand = new DataView(new ArrayBuffer(1));
+  for (const { opcode, takenCodes } of branchCases) {
+    const untakenCode = Array.from({ length: 16 }, (_, code) => code).find(code => !takenCodes.includes(code));
+    for (const bits of [takenCodes[0], untakenCode]) {
+      if (bits === undefined) continue; // BRA has no untaken path.
+      for (const pc of [0, 0x1234, 0xffff]) {
+        ram.write(pc, opcode);
+        for (let displacement = 0; displacement < 256; displacement++) {
+          ram.write((pc + 1) % 65536, displacement);
+          operand.setUint8(0, displacement);
+          const before = initialState({ pc, flags: flags(bits) });
+          const offset: number = takenCodes.includes(bits) ? operand.getInt8(0) : 0;
+          const after: Cpu6800State = { ...before, pc: (pc + 2 + offset + 65536) % 65536 };
+          const cpu = new Cpu6800(ram, before);
+          ram.accesses.length = 0;
+          const accesses = [{ kind: "read", address: pc, value: opcode },
+            { kind: "read", address: (pc + 1) % 65536, value: displacement }];
+          assert.deepEqual(cpu.step(), { before, after, instruction: { address: pc, bytes: [opcode, displacement] },
+            outcome: "executed", accesses });
+          assert.deepEqual(ram.accesses, accesses);
+        }
+      }
+    }
+  }
+});
+
+test("6800 branches use current overflow and carry after decrement, transfers, and addition", () => {
+  const ram = new ObservedRam();
+  for (const [address, bytes] of [
+    [0x2000, [0xc6, 0x80, 0x5a, 0x2d, 2]],
+    [0x2007, [0x17, 0x2c, 2]],
+    [0x200c, [0x8b, 0x81, 0x16, 0x25, 2]],
+  ] as const) {
+    bytes.forEach((byte, offset) => ram.write(address + offset, byte));
+  }
+  let before = initialState({ flags: flags(0x10) });
+  const cpu = new Cpu6800(ram, before);
+  for (const [bytes, changes] of [
+    [[0xc6, 0x80], { pc: 0x2002, b: 0x80, flags: flags(0x18) }],
+    [[0x5a], { pc: 0x2003, b: 0x7f, flags: flags(0x12) }],
+    [[0x2d, 2], { pc: 0x2007 }],
+    [[0x17], { pc: 0x2008, a: 0x7f, flags: flags(0x10) }],
+    [[0x2c, 2], { pc: 0x200c }],
+    [[0x8b, 0x81], { pc: 0x200e, a: 0, flags: flags(0x35) }],
+    [[0x16], { pc: 0x200f, b: 0 }],
+    [[0x25, 2], { pc: 0x2013 }],
+  ] as const) {
+    const after = { ...before, ...changes };
+    const accesses = bytes.map((value, offset) => ({ kind: "read", address: before.pc + offset, value }));
+    ram.accesses.length = 0;
+    assert.deepEqual(cpu.step(), { before, after, instruction: { address: before.pc, bytes }, outcome: "executed", accesses });
+    assert.deepEqual(ram.accesses, accesses);
+    before = after;
+  }
+});
+
+test("6800 branches fetch edited operands, keep records detached, and resume after replacing unused 21", () => {
+  const ram = new ObservedRam();
+  ram.write(0xffff, 0x26);
+  ram.write(0, 0);
+  const initial = initialState({ pc: 0xffff });
+  const cpu = new Cpu6800(ram, initial);
+  ram.write(0, 0xfe);
+  ram.accesses.length = 0;
+  const first = cpu.step();
+  const saved = structuredClone(first);
+  assert.deepEqual(first, { before: initial, after: initial, instruction: { address: 0xffff, bytes: [0x26, 0xfe] },
+    outcome: "executed", accesses: [{ kind: "read", address: 0xffff, value: 0x26 }, { kind: "read", address: 0, value: 0xfe }] });
+  assert.deepEqual(ram.accesses, first.accesses);
+  ram.write(0, 1);
+  ram.accesses.length = 0;
+  const second = cpu.step();
+  const atTwo = { ...initial, pc: 2 };
+  assert.deepEqual(second, { before: initial, after: atTwo, instruction: { address: 0xffff, bytes: [0x26, 1] },
+    outcome: "executed", accesses: [{ kind: "read", address: 0xffff, value: 0x26 }, { kind: "read", address: 0, value: 1 }] });
+  assert.deepEqual(ram.accesses, second.accesses);
+  ram.write(2, 0x21);
+  ram.write(3, 0xa5);
+  ram.accesses.length = 0;
+  assert.deepEqual(cpu.step(), { before: atTwo, after: atTwo, instruction: { address: 2, bytes: [0x21] },
+    outcome: "unsupported", reason: "opcode", accesses: [{ kind: "read", address: 2, value: 0x21 }] });
+  assert.deepEqual(ram.accesses, [{ kind: "read", address: 2, value: 0x21 }]);
+  ram.write(2, 0x20);
+  ram.write(3, 0xfe);
+  ram.accesses.length = 0;
+  const resumed = cpu.step();
+  assert.deepEqual(resumed, { before: atTwo, after: atTwo, instruction: { address: 2, bytes: [0x20, 0xfe] },
+    outcome: "executed", accesses: [{ kind: "read", address: 2, value: 0x20 }, { kind: "read", address: 3, value: 0xfe }] });
+  assert.deepEqual(ram.accesses, resumed.accesses);
+  ram.write(0xfffe, 0x23);
+  ram.write(0xffff, 0x45);
+  cpu.reset();
+  assert.deepEqual(first, saved);
+  Reflect.set(first.after.flags, "z", true);
+  Reflect.set(second.instruction.bytes, 1, 0);
+  assert.deepEqual(resumed.after, atTwo);
+  assert.deepEqual(cpu.snapshot(), { ...atTwo, pc: 0x2345, flags: { ...atTwo.flags, i: true } });
 });
