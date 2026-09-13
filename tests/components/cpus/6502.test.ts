@@ -207,6 +207,106 @@ test("6502 LDA immediate wraps operand fetching and PC advancement at the 16-bit
   }
 });
 
+test("6502 LDA zero page fetches one address byte and replaces only A and N/Z with either D value", () => {
+  for (const address of [0x00, 0x7f, 0x80, 0xff]) {
+    for (const [value, n, z] of [
+      [0x00, false, true], [0x01, false, false], [0x11, false, false],
+      [0x7f, false, false], [0x80, true, false], [0xff, true, false],
+    ] as const) {
+      for (const flags of [
+        { n: true, v: false, d: true, i: false, z: true, c: false },
+        { n: false, v: true, d: false, i: true, z: false, c: true },
+      ]) {
+        const ram = new ObservedRam();
+        ram.write(0x1234, 0xa5);
+        ram.write(0x1235, address);
+        const before = initialState({ flags });
+        const cpu = new Cpu6502(ram, before);
+        ram.write(address, value); // Read current RAM, including edits after construction.
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: 0x1234, bytes: [0xa5, address] },
+          before,
+          after: { ...before, a: value, pc: 0x1236, flags: { ...flags, n, z } },
+          accesses: [
+            { kind: "read", address: 0x1234, value: 0xa5 },
+            { kind: "read", address: 0x1235, value: address },
+            { kind: "read", address, value },
+          ],
+          outcome: "executed",
+        }, `address=${address}, value=${value}`);
+        assert.deepEqual(cpu.snapshot(), record.after);
+        assert.deepEqual(ram.accesses, record.accesses);
+        assert.equal(ram.read(address), value);
+      }
+    }
+  }
+});
+
+test("6502 zero-page loads and stores wrap instruction fetching while data stays in page zero", () => {
+  for (const opcode of [0xa5, 0x85]) {
+    for (const [pc, operandAddress, nextPc] of [
+      [0xfffe, 0xffff, 0x0000], [0xffff, 0x0000, 0x0001],
+    ] as const) {
+      const ram = new ObservedRam();
+      ram.write(pc, opcode);
+      ram.write(operandAddress, 0xff);
+      ram.write(0x00ff, 0x80);
+      ram.accesses.length = 0;
+      const before = initialState({ pc });
+      const cpu = new Cpu6502(ram, before);
+      const record = cpu.step();
+      assert.deepEqual(record, {
+        instruction: { address: pc, bytes: [opcode, 0xff] },
+        before,
+        after: opcode === 0xa5
+          ? { ...before, a: 0x80, pc: nextPc, flags: { ...before.flags, n: true, z: false } }
+          : { ...before, pc: nextPc },
+        accesses: [
+          { kind: "read", address: pc, value: opcode },
+          { kind: "read", address: operandAddress, value: 0xff },
+          opcode === 0xa5
+            ? { kind: "read", address: 0x00ff, value: 0x80 }
+            : { kind: "write", address: 0x00ff, value: 0x11 },
+        ],
+        outcome: "executed",
+      });
+      assert.deepEqual(cpu.snapshot(), record.after);
+      assert.deepEqual(ram.accesses, record.accesses);
+      assert.equal(ram.read(0x00ff), opcode === 0xa5 ? 0x80 : 0x11);
+    }
+  }
+});
+
+test("6502 LDA zero page can read its opcode, operand, or next instruction as data", () => {
+  for (const [address, value, n] of [
+    [0x40, 0xa5, true], [0x41, 0x41, false], [0x42, 0x80, true],
+  ] as const) {
+    const ram = new ObservedRam();
+    ram.write(0x0040, 0xa5);
+    ram.write(0x0041, address);
+    ram.write(0x0042, 0x80);
+    ram.accesses.length = 0;
+    const before = initialState({ pc: 0x0040 });
+    const cpu = new Cpu6502(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: 0x0040, bytes: [0xa5, address] },
+      before,
+      after: { ...before, a: value, pc: 0x0042, flags: { ...before.flags, n, z: false } },
+      accesses: [
+        { kind: "read", address: 0x0040, value: 0xa5 },
+        { kind: "read", address: 0x0041, value: address },
+        { kind: "read", address, value },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), record.after);
+    assert.deepEqual(ram.accesses, record.accesses);
+  }
+});
+
 test("6502 binary ADC immediate replaces N/V/Z/C, preserves other state, and reads exactly two bytes", () => {
   const cases = [
     { a: 0x02, value: 0x03, carry: false, result: 0x05,
@@ -584,6 +684,75 @@ test("6502 STA records keep written values independent of later stores, memory c
   assert.equal(ram.read(0x1234), 0);
 });
 
+test("6502 STA zero page writes once without reading the destination and preserves all state except PC", () => {
+  for (const address of [0x00, 0x7f, 0x80, 0xff]) {
+    for (const a of [0x00, 0x80, 0xff]) {
+      for (const flags of [
+        { n: true, v: false, d: true, i: false, z: true, c: false },
+        { n: false, v: true, d: false, i: true, z: false, c: true },
+      ]) {
+        const ram = new ObservedRam();
+        ram.write(0x1234, 0x85);
+        ram.write(0x1235, address);
+        ram.write(address, 0x80); // Even an unchanged byte must be written.
+        ram.accesses.length = 0;
+        const before = initialState({ a, flags });
+        const cpu = new Cpu6502(ram, before);
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: 0x1234, bytes: [0x85, address] },
+          before,
+          after: { ...before, pc: 0x1236 },
+          accesses: [
+            { kind: "read", address: 0x1234, value: 0x85 },
+            { kind: "read", address: 0x1235, value: address },
+            { kind: "write", address, value: a },
+          ],
+          outcome: "executed",
+        }, `address=${address}, A=${a}`);
+        assert.deepEqual(cpu.snapshot(), record.after);
+        assert.deepEqual(ram.accesses, record.accesses);
+        assert.equal(ram.read(address), a);
+      }
+    }
+  }
+});
+
+test("6502 STA zero page can overwrite its opcode, operand, or next instruction without changing captured bytes", () => {
+  for (const address of [0x40, 0x41, 0x42]) {
+    const ram = new ObservedRam();
+    ram.write(0x0040, 0x85);
+    ram.write(0x0041, address);
+    ram.write(0x0042, 0x00);
+    ram.accesses.length = 0;
+    const before = initialState({ a: 0x18, pc: 0x0040 });
+    const cpu = new Cpu6502(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: 0x0040, bytes: [0x85, address] },
+      before,
+      after: { ...before, pc: 0x0042 },
+      accesses: [
+        { kind: "read", address: 0x0040, value: 0x85 },
+        { kind: "read", address: 0x0041, value: address },
+        { kind: "write", address, value: 0x18 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), record.after);
+    assert.deepEqual(ram.accesses, record.accesses);
+    assert.equal(ram.read(address), 0x18);
+
+    const saved = structuredClone(record);
+    const next = cpu.step();
+    assert.equal(next.outcome, address === 0x42 ? "executed" : "unsupported");
+    assert.deepEqual(next.instruction, { address: 0x0042, bytes: [address === 0x42 ? 0x18 : 0x00] });
+    ram.write(address, 0xff);
+    cpu.reset();
+    assert.deepEqual(record, saved);
+  }
+});
+
 test("6502 PHA writes at the current page-one SP, then decrements it, preserving all flags", () => {
   for (const [sp, destination, nextSp] of [
     [0xab, 0x01ab, 0xaa], [0xff, 0x01ff, 0xfe], [0x00, 0x0100, 0xff],
@@ -824,7 +993,7 @@ test("every unimplemented 6502 opcode reads once and preserves state on repeated
   const ram = new ObservedRam();
   ram.write(0, 0xa9);
   for (let opcode = 0; opcode < 256; opcode++) {
-    if ([0x18, 0x48, 0x68, 0x69, 0x8d, 0xa9].includes(opcode)) continue;
+    if ([0x18, 0x48, 0x68, 0x69, 0x85, 0x8d, 0xa5, 0xa9].includes(opcode)) continue;
     ram.write(0xffff, opcode);
     for (const d of [false, true]) {
       const before = initialState({ pc: 0xffff, flags: { ...initialState().flags, d } });

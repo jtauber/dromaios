@@ -10,6 +10,7 @@ byte images, and an optional caller completion address:
 - [8080 addressing](../src/machines/8080/addressing-example.machine)
 - [6502 arithmetic](../src/machines/6502/example.machine)
 - [6502 stack](../src/machines/6502/stack-example.machine)
+- [6502 addressing](../src/machines/6502/addressing-example.machine)
 - [6809 arithmetic](../src/machines/6809/example.machine)
 - [6809 stack](../src/machines/6809/stack-example.machine)
 
@@ -31,6 +32,7 @@ src/machines/                       tests/machines/
     register-pairs-example.machine      register-pairs-example.test.ts
     stack-example.machine               stack-example.test.ts
   6502/                               6502/
+    addressing-example.machine          addressing-example.test.ts
     example.machine                     example.test.ts
     stack-example.machine               stack-example.test.ts
   6809/                               6809/

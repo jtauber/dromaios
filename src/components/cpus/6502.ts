@@ -81,7 +81,9 @@ export class Cpu6502 {
     0x48: ({ writeByte }) => this.#pushByte(this.#state.a, writeByte), // PHA
     0x68: ({ readByte }) => this.#loadAccumulator(this.#pullByte(readByte)), // PLA
     0x69: ({ fetchByte }) => this.#addWithCarry(fetchByte()), // ADC #n (binary)
+    0x85: ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.a), // STA zp
     0x8d: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
+    0xa5: ({ fetchByte, readByte }) => this.#loadAccumulator(readByte(fetchByte())), // LDA zp
     0xa9: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
   };
 

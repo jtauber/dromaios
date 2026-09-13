@@ -9,6 +9,7 @@ import { create8080RegisterPairsExample } from "../../src/machines/generated/808
 import { create8080StackExample } from "../../src/machines/generated/8080/stack-example.js";
 import { create8080AddressingExample } from "../../src/machines/generated/8080/addressing-example.js";
 import { create6502Example } from "../../src/machines/generated/6502/example.js";
+import { create6502AddressingExample } from "../../src/machines/generated/6502/addressing-example.js";
 import { create6809Example } from "../../src/machines/generated/6809/example.js";
 
 // Compiled by npm test; never called. Guard inference at the shared setup boundary.
@@ -40,6 +41,7 @@ export function checkExistingFactories(): void {
   const addressing: { cpu: Cpu8080; ram: Ram } = create8080AddressingExample();
   const memory: Ram = create8080ExampleMemory();
   const mos: { cpu: Cpu6502; ram: Ram; endAddress: number } = create6502Example();
+  const mosAddressing: { cpu: Cpu6502; ram: Ram; endAddress: number } = create6502AddressingExample();
   const motorola: { cpu: Cpu6809; ram: Ram; endAddress: number } = create6809Example();
   // @ts-expect-error The factory keeps the concrete CPU type.
   const wrongCpu: Cpu6502 = create8080Example().cpu;
