@@ -10,6 +10,7 @@ import { runCpu } from "../../src/runtime/run-cpu.js";
 import { create8080Example } from "../../src/machines/generated/8080/example.js";
 import { create8080RegisterPairsExample } from "../../src/machines/generated/8080/register-pairs-example.js";
 import { create8080StackExample } from "../../src/machines/generated/8080/stack-example.js";
+import { create8080PswExample } from "../../src/machines/generated/8080/psw-example.js";
 import { create8080AddressingExample } from "../../src/machines/generated/8080/addressing-example.js";
 import { create8080ControlFlowExample } from "../../src/machines/generated/8080/control-flow-example.js";
 import { create8080TransfersExample } from "../../src/machines/generated/8080/transfers-example.js";
@@ -42,6 +43,10 @@ const examples: readonly ExampleCase[] = [
   { name: "8080 arithmetic", create: create8080Example, steps: 4, pc: 0x0008, stopReason: "halted", writes: [[0x0080, 5]] },
   { name: "8080 register pairs", create: create8080RegisterPairsExample, steps: 3, pc: 0x0005, stopReason: "halted", writes: [] },
   { name: "8080 stack", create: create8080StackExample, steps: 6, pc: 0x000c, stopReason: "halted", writes: [[0x1fff, 0x12], [0x1ffe, 0x34]] },
+  {
+    name: "8080 PSW", create: create8080PswExample, steps: 9, pc: 0x0210, stopReason: "halted",
+    writes: [[0, 0x81], [0xffff, 0x93], [0x80, 0x81], [0x81, 0x82]],
+  },
   { name: "8080 addressing", create: create8080AddressingExample, steps: 5, pc: 0x0007, stopReason: "halted", writes: [[0x1300, 0xa5]] },
   {
     name: "8080 counted loop", create: create8080CountedLoopExample, steps: 18, pc: 0x0213, stopReason: "halted",

@@ -84,13 +84,13 @@ test("8080 register-pair reset preserves data; lesson restart restores independe
   const beforeReset = {
     ...expectedInitialState(), h: 0x13, l: 0, hl: 0x1300, pc: 5, halted: true,
   };
-  first.ram.write(0, 0);
+  first.ram.write(0, 0x08); // Unsupported encoding remains in RAM after reset.
   first.ram.write(0x0080, 0xa5);
   const reset = first.cpu.reset();
   const afterReset = { ...beforeReset, pc: 0, halted: false };
   assert.deepEqual(reset, { before: beforeReset, after: afterReset, accesses: [] });
   assert.deepEqual(first.cpu.snapshot(), afterReset);
-  assert.equal(first.ram.read(0), 0);
+  assert.equal(first.ram.read(0), 0x08);
   assert.equal(first.ram.read(0x0080), 0xa5);
   assert.equal(first.cpu.step().outcome, "unsupported");
 

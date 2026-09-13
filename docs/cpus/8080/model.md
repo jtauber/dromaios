@@ -122,6 +122,40 @@ These entries describe the accesses required by this instruction-level model.
 They do not claim to reproduce every electrical bus operation or idle cycle.
 Records have no cycle-count or elapsed-time field.
 
+### NOP
+
+NOP fetches only its opcode, advances PC by one with 16-bit wrapping, and
+reports `executed`. It preserves all other state and performs no data accesses.
+It consumes one step of a runner's budget, like any other executed instruction.
+
+### Stack accesses and PSW
+
+PUSH captures the selected word, then writes its high byte at SP−1 and low
+byte at SP−2, leaving SP at SP−2. POP reads the low byte at SP, then the high
+byte at SP+1, and leaves SP at SP+2. Stack addresses wrap at 16 bits. Both
+fetch a single opcode, advance PC by one with wrapping, and report `executed`.
+They preserve control latches and unrelated registers; POP does not erase RAM.
+
+B, D, and H select BC, DE, and HL. Their PUSH forms preserve the pair and
+their POP forms replace it; all preserve A and flags. PSW instead combines A
+as the high byte with this packed flags byte:
+
+| Bit | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| PUSH PSW value | S | Z | 0 | AC | 0 | P | 1 | CY |
+
+PUSH PSW preserves A and flags. POP PSW replaces A and all five flags,
+ignoring saved bits 5, 3, and 1. Flags come from the saved byte, without
+recalculating them from A. A later PUSH reconstructs the fixed bits. PSW has
+no interrupt-enable bit and adds no stored field or public snapshot view.
+
+There is no separate stack depth: POP reads current RAM even without a
+preceding PUSH. Stack data may overlap the fetched opcode; data reads do not
+extend `instruction.bytes`, and writes do not change bytes already recorded.
+The [pair-stack example](examples/stack.md) and [PSW example](examples/psw.md)
+specify save/restore programs. Intel's [instruction descriptions][counters],
+pages 16 and 22–23, define NOP, PUSH, and POP.
+
 ### Data-transfer accesses
 
 MOV reads its source before writing its destination. Register-to-register moves
@@ -310,8 +344,9 @@ SP, flags, and RAM, returns fresh records, and allows execution to resume at
   encodings, arithmetic flags, and HLT semantics.
 - [Intel 8080/8085 Assembly Language Programming Manual][alu], pages 1-12
   and 3-64: 8080 auxiliary carry for AND and subtraction.
-- [Intel 8080 Assembly Language Programming Manual][counters], pages 14–15,
-  21–22, and 24: carry operations, CMA, rotates, INR/DCR, DCX, and DAD.
+- [Intel 8080 Assembly Language Programming Manual][counters], pages 14–16
+  and 21–24: carry operations, CMA, rotates, INR/DCR, DCX, DAD, NOP, and
+  PUSH/POP including the PSW flag-byte layout.
 
 Record ownership, unsupported-opcode reporting, and explicit initialization
 are choices for this model.

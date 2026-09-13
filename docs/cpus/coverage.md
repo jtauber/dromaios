@@ -16,7 +16,7 @@ emulators do not count toward implementation here.
 | Model | Introduced | Complete / documented opcode forms | Opcode completion | Additional partial forms | Completed examples |
 | --- | --- | --- | --- | --- | --- |
 | [Intel 8008](#cpus-and-variants-not-started) | 1972 | 0 / TBD | 0.0% | 0 | None |
-| [Intel 8080](#8080) | 1974 | 236 / 244 | 96.7% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md), [transfers](8080/examples/transfers.md), [ALU](8080/examples/alu.md), [counted loop](8080/examples/counted-loop.md), [rotates and carry](8080/examples/rotates.md) |
+| [Intel 8080](#8080) | 1974 | 239 / 244 | 98.0% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [PSW](8080/examples/psw.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md), [transfers](8080/examples/transfers.md), [ALU](8080/examples/alu.md), [counted loop](8080/examples/counted-loop.md), [rotates and carry](8080/examples/rotates.md) |
 | [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 | None |
 | [MOS 6502](#6502) | 1975 | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502/examples/arithmetic.md), [stack](6502/examples/stack.md), [addressing](6502/examples/addressing.md) |
 | [Zilog Z80](#z80) | 1976 | 4 / 698 | 0.6% | 0 | [Arithmetic and 8080 comparison](z80/examples/arithmetic.md) |
@@ -105,6 +105,9 @@ instruction lengths are in bytes.
 [Stack specification](8080/examples/stack.md) ·
 [Stack definition](../../src/machines/8080/stack-example.machine)
 
+[PSW specification](8080/examples/psw.md) ·
+[PSW definition](../../src/machines/8080/psw-example.machine)
+
 [Addressing specification](8080/examples/addressing.md) ·
 [Addressing definition](../../src/machines/8080/addressing-example.machine)
 
@@ -134,6 +137,7 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
+| `00` | `NOP` | Implied | 1 | Advance PC; preserve all other state; fetch only the opcode |
 | `01` | `LXI B,nn` | Immediate | 3 | Load B:C; low byte then high; preserve flags |
 | `02` | `STAX B` | Register indirect through BC | 1 | Store A; preserve pair and flags |
 | `03` | `INX B` | Register pair | 1 | Increment B:C with 16-bit wrapping; preserve flags |
@@ -242,8 +246,10 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | `EE` | `XRI n` | Immediate | 2 | XOR with A; clear AC and CY |
 | `EF` | `RST 5` | Encoded vector / stack | 1 | Push following PC; jump to `0028`; preserve interrupt enable |
 | `F0` | `RP` | Stack | 1 | Return if S = 0 |
+| `F1` | `POP PSW` | Stack | 1 | Read flags then A; ignore reserved flag bits; increment SP by 2 |
 | `F2` | `JP addr` | Absolute target | 3 | Jump if S = 0 |
 | `F4` | `CP addr` | Absolute target / stack | 3 | Call if S = 0 |
+| `F5` | `PUSH PSW` | Stack | 1 | Write A then packed flags; decrement SP by 2; preserve A and flags |
 | `F6` | `ORI n` | Immediate | 2 | OR with A; clear AC and CY |
 | `F7` | `RST 6` | Encoded vector / stack | 1 | Push following PC; jump to `0030`; preserve interrupt enable |
 | `F8` | `RM` | Stack | 1 | Return if S = 1 |
@@ -259,19 +265,20 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | Stored flags/control | S, Z, AC, P, CY; interrupt-enable and halted latches |
 | Register relationships | Snapshots derive BC, DE, and HL from stored bytes; byte transfers, INR/DCR, and pair operations update those views; XCHG exchanges DE/HL and SPHL copies HL to SP |
 | Memory addressing | MOV/MVI, INR/DCR, and accumulator ALU operands through current HL; LDAX/STAX through BC or DE; LDA/STA and LHLD/SHLD with an explicit 16-bit address |
-| Stack | PUSH/POP for BC, DE, and HL plus control-flow return addresses, using a descending RAM stack and wrapping 16-bit SP; XTHL exchanges HL with stack memory without moving SP; PSW forms are unsupported |
+| Stack | PUSH/POP for BC, DE, HL, and PSW plus control-flow return addresses, using a descending RAM stack and wrapping 16-bit SP; PSW packs/restores A and five flags with fixed reserved bits on PUSH; XTHL exchanges HL with stack memory without moving SP |
 | Control flow | JMP, CALL, RET and all eight conditions for each; PCHL and RST 0–7; preserve arithmetic flags and interrupt enable |
 | Reset | Set PC to `0000`, clear interrupt-enable and halted; preserve data registers, SP, flags, and RAM; no memory accesses |
 | Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
 | Accumulator arithmetic/logic | ADD/ADC, SUB/SBB, ANA/XRA/ORA, CMP and all immediate counterparts; 8-bit results, carry/borrow propagation, comparison without changing A, and 8080 auxiliary carry rules |
 | Byte and word arithmetic | INR/DCR update byte results and S/Z/AC/P while preserving CY; INX/DCX wrap pairs and SP without changing flags; DAD adds to HL and updates only CY |
 | Rotates and carry | RLC/RRC rotate within A; RAL/RAR rotate through CY; all preserve S/Z/AC/P. CMA complements A without changing flags; STC/CMC change only CY |
-| Remaining instruction scope | DAA, PSW stack forms, DI/EI, NOP, and port I/O |
+| Remaining instruction scope | DAA, DI/EI, and port I/O |
 
 Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [arithmetic example tests](../../tests/machines/8080/example.test.ts),
 [register-pair example tests](../../tests/machines/8080/register-pairs-example.test.ts),
 [stack example tests](../../tests/machines/8080/stack-example.test.ts),
+[PSW example tests](../../tests/machines/8080/psw-example.test.ts),
 [addressing example tests](../../tests/machines/8080/addressing-example.test.ts),
 [control-flow example tests](../../tests/machines/8080/control-flow-example.test.ts),
 [transfers example tests](../../tests/machines/8080/transfers-example.test.ts),
@@ -321,6 +328,13 @@ regressions as independent expectations. They verify flag preservation, wrapped
 PC, exact opcode reads, and current A/CY across successive operations. The
 rotates example checks a word rotated through carry and restored, complete
 records, final RAM, resumption between bytes, reset, and restart.
+PSW checks independently cover every A/flag combination on PUSH and every
+saved word on POP with both interrupt-enable values, including reserved bits,
+wrapped PC/SP, overlapping opcode/data, mixed pair/PSW stacks, current RAM,
+fixed-bit reconstruction, and retained records. NOP checks all flag combinations,
+control preservation, wrapped PC, and exactly one opcode read. The PSW example
+checks saved/restored state, use of restored carry, final RAM, and resumption
+after a NOP step.
 
 ## 6502
 

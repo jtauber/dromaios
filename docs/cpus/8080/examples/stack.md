@@ -49,11 +49,11 @@ views follow the [register-pair contract](../model.md#register-views).
 
 ## Stack instruction behavior
 
-PUSH and POP each occupy one instruction byte. They advance PC by one and
-preserve all flags, the accumulator, unrelated register pairs, and control
-latches. B, D, and H select BC, DE, and HL respectively. The PSW forms remain
-unsupported pending packed-flag support; they follow the existing
-[unsupported-opcode policy](../model.md#halt-and-unsupported-opcodes).
+The register-pair PUSH and POP forms each occupy one instruction byte. They
+advance PC by one and preserve all flags, the accumulator, unrelated register
+pairs, and control latches. B, D, and H select BC, DE, and HL respectively. The
+[PSW example](psw.md) covers saving and restoring A and the packed flags byte;
+the [model contract](../model.md#stack-accesses-and-psw) defines both cases.
 
 PUSH writes the pair's high byte at `SP−1`, then its low byte at `SP−2`,
 leaving SP at `SP−2`. The pair is unchanged. POP reads the low byte at SP,
@@ -137,4 +137,4 @@ zeroed stack locations. Earlier components and records remain unchanged.
 - Modify saved RAM before POP to prove it reads current memory. Keep captured
   records independent of RAM edits, later execution, reset, and caller edits.
 - Verify reset with an occupied stack, execution after reset, and lesson restart.
-  Retain rejection checks for every unimplemented opcode, including PSW forms.
+  Retain rejection checks for every unimplemented opcode.

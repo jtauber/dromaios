@@ -58,6 +58,7 @@ test("8080 owns its initial state and returns independent snapshots without RAM 
 
 test("8080 copies only model fields, excluding extra state and flag metadata", () => {
   const ram = new ObservedRam();
+  ram.write(0x1234, 0x08); // Unsupported encoding keeps successive snapshots identical.
   const supplied = {
     ...initialState(),
     metadata: { label: "initial state" },
@@ -699,6 +700,201 @@ test("8080 stack records preserve captured reads and writes across RAM edits, re
   cpu.step();
   assert.deepEqual(pushed, editedPush);
   assert.deepEqual(popped, editedPop);
+});
+
+// Read the documented bit positions as characters, independently of CPU masks.
+function referencePswFlags(byte: number): Cpu8080Flags {
+  const bits = byte.toString(2).padStart(8, "0");
+  return { s: bits[0] === "1", z: bits[1] === "1", ac: bits[3] === "1",
+    p: bits[5] === "1", cy: bits[7] === "1" };
+}
+
+test("8080 PUSH PSW packs every A and flag combination, preserves control, and wraps SP", () => {
+  const ram = new ObservedRam();
+  ram.write(0x1234, 0xf5);
+  for (const flags of flagCombinations) {
+    const low = Number.parseInt([flags.s, flags.z, false, flags.ac, false, flags.p, true, flags.cy]
+      .map(Number).join(""), 2);
+    for (let a = 0; a <= 0xff; a++) {
+      for (const [sp, highAddress, lowAddress] of [
+        [0x2000, 0x1fff, 0x1ffe], [0, 0xffff, 0xfffe], [1, 0, 0xffff],
+      ] as const) {
+        for (const interruptEnabled of [false, true]) {
+          const before = expectedSnapshot({ a, flags, sp, interruptEnabled });
+          const cpu = new Cpu8080(ram, before);
+          ram.accesses.length = 0;
+          const record = cpu.step();
+          assert.deepEqual(record, {
+            instruction: { address: 0x1234, bytes: [0xf5] }, before,
+            after: { ...before, pc: 0x1235, sp: lowAddress }, outcome: "executed",
+            accesses: [{ kind: "read", address: 0x1234, value: 0xf5 },
+              { kind: "write", address: highAddress, value: a },
+              { kind: "write", address: lowAddress, value: low }],
+          }, `A=${a}, flags=${low}, SP=${sp}, IE=${interruptEnabled}`);
+          assert.deepEqual(ram.accesses, record.accesses);
+          assert.deepEqual(cpu.snapshot(), record.after);
+          assert.equal(ram.read(highAddress), a);
+          assert.equal(ram.read(lowAddress), low);
+        }
+      }
+    }
+  }
+});
+
+test("8080 POP PSW restores every saved word, ignoring reserved flag bits and preserving interrupt enable", () => {
+  const ram = new ObservedRam();
+  ram.write(0x1234, 0xf1);
+  for (let low = 0; low <= 0xff; low++) {
+    const flags = referencePswFlags(low);
+    // Every restored flag must replace the opposite initial value.
+    const initialFlags = { s: !flags.s, z: !flags.z, ac: !flags.ac, p: !flags.p, cy: !flags.cy };
+    ram.write(0xffff, low);
+    for (let a = 0; a <= 0xff; a++) {
+      ram.write(0, a);
+      for (const interruptEnabled of [false, true]) {
+        const before = expectedSnapshot({ a: (a + 1) % 256, flags: initialFlags, sp: 0xffff, interruptEnabled });
+        const cpu = new Cpu8080(ram, before);
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: 0x1234, bytes: [0xf1] }, before,
+          after: { ...before, a, flags, pc: 0x1235, sp: 1 }, outcome: "executed",
+          accesses: [{ kind: "read", address: 0x1234, value: 0xf1 },
+            { kind: "read", address: 0xffff, value: low }, { kind: "read", address: 0, value: a }],
+        }, `A=${a}, flags=${low}, IE=${interruptEnabled}`);
+        assert.deepEqual(ram.accesses, record.accesses);
+        assert.deepEqual(cpu.snapshot(), record.after);
+      }
+    }
+  }
+});
+
+test("8080 PSW stack accesses can overlap the opcode while PC and SP wrap independently", () => {
+  for (const [pc, sp, highAddress, lowAddress] of [
+    [0x2000, 0x2001, 0x2000, 0x1fff], [0x2000, 0x2002, 0x2001, 0x2000],
+    [0xffff, 1, 0, 0xffff], [0xffff, 0x2000, 0x1fff, 0x1ffe],
+  ] as const) {
+    const ram = new ObservedRam();
+    ram.write(pc, 0xf5);
+    const before = expectedSnapshot({ a: 0xa5, pc, sp }); // Flags encode as 93H.
+    const cpu = new Cpu8080(ram, before);
+    ram.accesses.length = 0;
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: pc, bytes: [0xf5] }, before,
+      after: { ...before, pc: (pc + 1) % 0x10000, sp: lowAddress }, outcome: "executed",
+      accesses: [{ kind: "read", address: pc, value: 0xf5 },
+        { kind: "write", address: highAddress, value: 0xa5 },
+        { kind: "write", address: lowAddress, value: 0x93 }],
+    });
+    assert.deepEqual(ram.accesses, record.accesses);
+    assert.equal(ram.read(highAddress), 0xa5);
+    assert.equal(ram.read(lowAddress), 0x93);
+  }
+  for (const [pc, sp, highAddress, nextSp, low, a] of [
+    [0x2000, 0x2000, 0x2001, 0x2002, 0xf1, 0xa5],
+    [0x2000, 0x1fff, 0x2000, 0x2001, 0x2a, 0xf1],
+    [0xffff, 0xffff, 0, 1, 0xf1, 0xa5], [0xffff, 0xfffe, 0xffff, 0, 0x2a, 0xf1],
+    [0xffff, 0x2000, 0x2001, 0x2002, 0xc3, 0xff],
+  ] as const) {
+    const ram = new ObservedRam();
+    ram.write(pc, 0xf1);
+    ram.write(sp, low);
+    ram.write(highAddress, a);
+    const before = expectedSnapshot({ pc, sp });
+    const cpu = new Cpu8080(ram, before);
+    ram.accesses.length = 0;
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: pc, bytes: [0xf1] }, before,
+      after: { ...before, a, flags: referencePswFlags(low), pc: (pc + 1) % 0x10000, sp: nextSp },
+      outcome: "executed", accesses: [{ kind: "read", address: pc, value: 0xf1 },
+        { kind: "read", address: sp, value: low }, { kind: "read", address: highAddress, value: a }],
+    });
+    assert.deepEqual(ram.accesses, record.accesses);
+    assert.deepEqual(cpu.snapshot(), record.after);
+  }
+});
+
+test("8080 PSW shares the pair stack, rereads edited RAM, normalizes reserved bits, and retains records", () => {
+  const ram = new ObservedRam();
+  const initial = expectedSnapshot({ a: 0x1f, pc: 0xfffc, sp: 0x2000,
+    flags: { s: false, z: true, ac: false, p: true, cy: true } });
+  const steps: readonly { opcode: number; changes: Partial<Cpu8080Snapshot>; data: readonly Cpu8080MemoryAccess[] }[] = [
+    { opcode: 0xf5, changes: { sp: 0x1ffe }, data: [
+      { kind: "write", address: 0x1fff, value: 0x1f }, { kind: "write", address: 0x1ffe, value: 0x47 }] },
+    { opcode: 0xc5, changes: { sp: 0x1ffc }, data: [
+      { kind: "write", address: 0x1ffd, value: 0x22 }, { kind: "write", address: 0x1ffc, value: 0x33 }] },
+    { opcode: 0xf1, changes: { sp: 0x1ffe, a: 0x22,
+      flags: { s: false, z: false, ac: true, p: false, cy: true } }, data: [
+      { kind: "read", address: 0x1ffc, value: 0x33 }, { kind: "read", address: 0x1ffd, value: 0x22 }] },
+    { opcode: 0xf1, changes: { sp: 0x2000, a: 0x80,
+      flags: { s: false, z: false, ac: false, p: false, cy: false } }, data: [
+      { kind: "read", address: 0x1ffe, value: 0x2a }, { kind: "read", address: 0x1fff, value: 0x80 }] },
+    { opcode: 0xf5, changes: { sp: 0x1ffe }, data: [
+      { kind: "write", address: 0x1fff, value: 0x80 }, { kind: "write", address: 0x1ffe, value: 0x02 }] },
+  ];
+  for (const [offset, { opcode }] of steps.entries()) ram.write((initial.pc + offset) % 0x10000, opcode);
+  const cpu = new Cpu8080(ram, initial);
+  let state = initial;
+  const records: Cpu8080StepRecord[] = [];
+  const saved: Cpu8080StepRecord[] = [];
+  for (const [index, { opcode, changes, data }] of steps.entries()) {
+    if (index === 3) {
+      ram.write(0x1ffe, 0x2a); // Only reserved bits are set; all five flags restore as zero.
+      ram.write(0x1fff, 0x80);
+    }
+    const before = state;
+    state = { ...before, ...changes, pc: (before.pc + 1) % 0x10000 };
+    ram.accesses.length = 0;
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: before.pc, bytes: [opcode] }, before, after: state, outcome: "executed",
+      accesses: [{ kind: "read", address: before.pc, value: opcode }, ...data],
+    });
+    assert.deepEqual(ram.accesses, record.accesses);
+    records.push(record);
+    saved.push(structuredClone(record));
+  }
+  assert.deepEqual(cpu.snapshot(), state);
+  assert.deepEqual(records, saved);
+  const first = records[0];
+  const popped = records[3];
+  assert.ok(first && popped && popped.accesses[1]);
+  Reflect.set(first.after.flags, "cy", false);
+  Reflect.set(popped.after, "a", 0);
+  Reflect.set(popped.accesses[1], "value", 0xff);
+  assert.deepEqual(cpu.snapshot(), state);
+  assert.equal(ram.read(0x1ffe), 0x02);
+  const edited = structuredClone(records);
+  cpu.reset();
+  ram.write(0x1ffe, 0xff);
+  assert.deepEqual(records, edited);
+});
+
+test("8080 NOP reads only its opcode, preserves all data and control state, and advances wrapped PC", () => {
+  const ram = new ObservedRam();
+  for (const pc of [0, 0xff, 0xffff]) {
+    ram.write(pc, 0x00);
+    ram.write((pc + 1) % 0x10000, 0x76);
+    for (const a of [0, 0x11, 0xff]) {
+      for (const flags of flagCombinations) {
+        for (const interruptEnabled of [false, true]) {
+          const before = expectedSnapshot({ a, pc, flags, interruptEnabled });
+          const cpu = new Cpu8080(ram, before);
+          ram.accesses.length = 0;
+          const record = cpu.step();
+          assert.deepEqual(record, {
+            instruction: { address: pc, bytes: [0] }, before,
+            after: { ...before, pc: (pc + 1) % 0x10000 }, outcome: "executed",
+            accesses: [{ kind: "read", address: pc, value: 0 }],
+          });
+          assert.deepEqual(ram.accesses, record.accesses);
+          assert.deepEqual(cpu.snapshot(), record.after);
+        }
+      }
+    }
+  }
 });
 
 test("8080 MVI A,n preserves unrelated state and records exactly the two actual reads", () => {
@@ -2224,6 +2420,7 @@ test("every other 8080 opcode reports unsupported repeatedly with one read and u
       0x05, 0x0d, 0x15, 0x1d, 0x25, 0x2d, 0x35, 0x3d,
       0x09, 0x19, 0x29, 0x39, 0x0b, 0x1b, 0x2b, 0x3b,
       0x07, 0x0f, 0x17, 0x1f, 0x2f, 0x37, 0x3f,
+      0x00, 0xf1, 0xf5,
     ].includes(opcode)) continue;
     ram.write(0xffff, opcode);
     for (let attempt = 0; attempt < 2; attempt++) {

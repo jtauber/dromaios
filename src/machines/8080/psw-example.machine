@@ -1,0 +1,22 @@
+ram 10000
+
+cpu 8080 {
+    A = 81  B = 22  C = 33  D = 44
+    E = 55  H = 66  L = 77
+    PC = 0200  SP = ABCD
+    flags { S = 1  Z = 0  AC = 1  P = 0  CY = 1 }
+    interruptEnabled = true
+    halted = false
+}
+
+memory 0200 {
+    31 01 00    // LXI SP,0001H: stack crosses the address boundary
+    F5          // PUSH PSW: save A = 81 and flags = 93
+    AF          // XRA A: A = 00, flags = 46
+    00          // NOP: leave the changed state intact
+    F1          // POP PSW: restore A and all five flags
+    32 80 00    // STA 0080H: save the restored accumulator
+    CE 00       // ACI 00H: use restored carry, giving A = 82
+    32 81 00    // STA 0081H: save the result
+    76          // HLT
+}

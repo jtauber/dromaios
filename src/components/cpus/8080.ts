@@ -124,6 +124,7 @@ export class Cpu8080 {
     ...this.#transferHandlers(),
     ...this.#aluHandlers(),
     ...this.#incrementDecrementHandlers(),
+    0x00: () => {}, // NOP
     0x01: ({ fetchWord }) => { this.#bc = fetchWord(); }, // LXI B,nn
     0x02: ({ writeByte }) => writeByte(this.#bc, this.#state.a), // STAX B
     0x03: () => { this.#bc = (this.#bc + 1) & 0xffff; }, // INX B
@@ -193,8 +194,10 @@ export class Cpu8080 {
     0xec: ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte, this.#state.flags.p), // CPE addr
     0xef: ({ writeByte }) => this.#call(0x28, writeByte), // RST 5
     0xf0: ({ readByte }) => this.#return(readByte, !this.#state.flags.s), // RP
+    0xf1: ({ readByte }) => { this.#psw = this.#popWord(readByte); }, // POP PSW
     0xf2: ({ fetchWord }) => this.#jump(fetchWord(), !this.#state.flags.s), // JP addr
     0xf4: ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte, !this.#state.flags.s), // CP addr
+    0xf5: ({ writeByte }) => this.#pushWord(this.#psw, writeByte), // PUSH PSW
     0xf7: ({ writeByte }) => this.#call(0x30, writeByte), // RST 6
     0xf8: ({ readByte }) => this.#return(readByte, this.#state.flags.s), // RM
     0xf9: () => { this.#state.sp = this.#hl; }, // SPHL
@@ -374,6 +377,21 @@ export class Cpu8080 {
   set #hl(value: number) {
     this.#state.h = value >>> 8;
     this.#state.l = value & 0xff;
+  }
+
+  get #psw(): number {
+    const { a, flags } = this.#state;
+    // A is the high byte; the low byte is S Z 0 AC 0 P 1 CY.
+    return (a << 8) | (Number(flags.s) << 7) | (Number(flags.z) << 6)
+      | (Number(flags.ac) << 4) | (Number(flags.p) << 2) | 0x02 | Number(flags.cy);
+  }
+
+  set #psw(value: number) {
+    this.#state.a = value >>> 8;
+    this.#state.flags = {
+      s: (value & 0x80) !== 0, z: (value & 0x40) !== 0,
+      ac: (value & 0x10) !== 0, p: (value & 0x04) !== 0, cy: (value & 0x01) !== 0,
+    };
   }
 
   #loadHl(address: number, readByte: InstructionContext["readByte"]): void {
