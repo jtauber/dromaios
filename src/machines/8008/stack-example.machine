@@ -1,0 +1,29 @@
+ram 4000
+
+cpu 8008 {
+    A = 11  B = 22  C = 33  D = 44  E = 55  H = C0  L = 80
+    flags { S = 1  Z = 0  P = 1  C = 1 }
+    addressStack = [1111 1222 1333 1444 1555 1666 1777 0200]
+    stackIndex = 7  halted = false
+}
+
+memory 0200 {
+    06 02       // LAI 02H
+    46 00 03    // CAL 0300H: slot 7 saves 0205; slot 0 becomes PC
+    F8          // LMA: store the returned result at 0080H (low 14 bits of H:L)
+    7C 0A C2    // JMP 020AH: alternate opcode; high address bits are ignored
+    22          // Unsupported byte skipped by JMP
+    00          // HLT
+}
+
+memory 0300 {
+    04 03       // ADI 03H
+    7E 00 84    // CAL 0400H: alternate opcode; slot 0 saves 0305, slot 1 becomes PC
+    04 01       // ADI 01H
+    3F          // RET: alternate opcode; select slot 7, retaining 0308 in slot 0
+}
+
+memory 0400 {
+    04 04       // ADI 04H
+    07          // RET: select slot 0, retaining 0403 in slot 1
+}

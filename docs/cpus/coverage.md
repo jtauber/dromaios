@@ -15,7 +15,7 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Complete / documented opcode forms | Opcode completion | Additional partial forms |
 | --- | --- | --- | --- | --- |
-| [Intel 8008](#8008) | 1972 | 8 / 250 | 3.2% | 0 |
+| [Intel 8008](#8008) | 1972 | 32 / 250 | 12.8% | 0 |
 | [Intel 8080](#8080) | 1974 | 240 / 244 | 98.4% | 0 |
 | [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 |
 | [MOS 6502](#6502) | 1975 | 25 / 151 | 16.6% | 1: binary-only ADC |
@@ -115,14 +115,41 @@ instruction lengths are in bytes.
 [Arithmetic example](8008/examples/arithmetic.md) ·
 [Example definition](../../src/machines/8008/example.machine)
 
+[Stack specification](8008/examples/stack.md) ·
+[Stack definition](../../src/machines/8008/stack-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `00` | HLT | Implied | 1 | Advance PC and stop; preserve flags |
 | `01` | HLT | Implied | 1 | Second documented low-page HLT encoding |
 | `04` | ADI n | Immediate | 2 | Add to A without incoming carry; set S/Z/P/C |
 | `06` | LAI n | Immediate | 2 | Load A; preserve flags |
+| `07` | RET | Implied | 1 | Select the preceding address slot; preserve flags |
+| `0F` | RET | Implied | 1 | Documented RET alias |
+| `17` | RET | Implied | 1 | Documented RET alias |
+| `1F` | RET | Implied | 1 | Documented RET alias |
+| `27` | RET | Implied | 1 | Documented RET alias |
 | `2E` | LHI n | Immediate | 2 | Load the full H byte; preserve flags |
+| `2F` | RET | Implied | 1 | Documented RET alias |
 | `36` | LLI n | Immediate | 2 | Load L; preserve flags |
+| `37` | RET | Implied | 1 | Documented RET alias |
+| `3F` | RET | Implied | 1 | Documented RET alias |
+| `44` | JMP addr | Absolute | 3 | Set PC to the 14-bit destination; preserve flags |
+| `46` | CAL addr | Absolute | 3 | Save the return PC in its slot, select the next slot, and jump; preserve flags |
+| `4C` | JMP addr | Absolute | 3 | Documented JMP alias |
+| `4E` | CAL addr | Absolute | 3 | Documented CAL alias |
+| `54` | JMP addr | Absolute | 3 | Documented JMP alias |
+| `56` | CAL addr | Absolute | 3 | Documented CAL alias |
+| `5C` | JMP addr | Absolute | 3 | Documented JMP alias |
+| `5E` | CAL addr | Absolute | 3 | Documented CAL alias |
+| `64` | JMP addr | Absolute | 3 | Documented JMP alias |
+| `66` | CAL addr | Absolute | 3 | Documented CAL alias |
+| `6C` | JMP addr | Absolute | 3 | Documented JMP alias |
+| `6E` | CAL addr | Absolute | 3 | Documented CAL alias |
+| `74` | JMP addr | Absolute | 3 | Documented JMP alias |
+| `76` | CAL addr | Absolute | 3 | Documented CAL alias |
+| `7C` | JMP addr | Absolute | 3 | Documented JMP alias |
+| `7E` | CAL addr | Absolute | 3 | Documented CAL alias |
 | `F8` | LMA | Indirect through H:L | 1 | Store A at the low 14 bits of H:L; preserve flags |
 | `FF` | HLT | Implied | 1 | HLT occupies the M,M transfer slot |
 
@@ -131,19 +158,22 @@ instruction lengths are in bytes.
 | Stored state | A/B/C/D/E/H/L, S/Z/P/C, eight 14-bit address registers, selector 0–7, and halt state |
 | Register views | PC selects an address-stack slot; HL exposes the raw H:L pair |
 | Memory | Exactly 16 KiB RAM; instruction fetches wrap at 14 bits; H bits 7–6 are ignored for LMA addressing |
-| Address stack | Explicit initialization and detached inspection; stepping changes only the selected PC slot; calls/returns and stack movement are not implemented |
+| Address stack | Eight circular address registers: CAL selects the next slot, RET selects the preceding slot; overwrite on overflow, retain outgoing PC after RET, no RAM stack |
 | Reset | Model settled power-on clearing: zero data/address registers, select slot zero, stay stopped, preserve flags and RAM under the documented policy |
 | Stopping | All three documented HLT encodings report once; already halted steps have no instruction or accesses |
-| Remaining scope | Other transfers, arithmetic/logic, rotations, branches, calls/returns, RST, interrupts, I/O, and timing |
+| Remaining scope | Other transfers, arithmetic/logic, rotations, conditional jumps/calls/returns, RST, interrupts, I/O, and timing |
 
 Verification: [CPU tests](../../tests/components/cpus/8008.test.ts),
-[example tests](../../tests/machines/8008/example.test.ts), and
+[arithmetic example tests](../../tests/machines/8008/example.test.ts),
+[stack example tests](../../tests/machines/8008/stack-example.test.ts), and
 [public type checks](../../tests/types/8008.ts). Checks cover every addition
 operand pair, all load bytes and flag patterns, arithmetic boundaries, every
 H:L combination and PC, all selectors, and every unsupported opcode. Complete
 records and actual RAM calls verify wrapping, overlapping/unchanged-value
-stores, HALT, reset, and retained snapshots. The example checks whole RAM
-images, six complete records, bounded running, caller completion, and restart.
+stores, HALT, reset, and retained snapshots. Control-flow checks cover every
+alias, encoded destination, selector, and flag pattern; wrapped fetches,
+overflowing calls, and unbalanced returns. Examples check whole RAM images,
+complete traces, bounded running, caller completion, and restart.
 Parser and generator checks cover the smaller RAM size and explicit address list.
 
 ## 8080

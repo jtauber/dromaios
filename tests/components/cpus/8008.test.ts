@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu8008 } from "../../../src/components/cpus/8008.js";
-import type { Cpu8008AddressStack, Cpu8008Flags, Cpu8008State } from "../../../src/components/cpus/8008.js";
+import type { Cpu8008AddressStack, Cpu8008Flags, Cpu8008Snapshot, Cpu8008State } from "../../../src/components/cpus/8008.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 
@@ -21,9 +21,9 @@ function atPc(pc: number, stackIndex = 3, overrides: Partial<Cpu8008State> = {})
   return { ...state, addressStack };
 }
 
-function snapshot(state: Cpu8008State) {
+function snapshot(state: Cpu8008State): Cpu8008Snapshot {
   return { ...state, flags: { ...state.flags }, addressStack: [...state.addressStack],
-    pc: state.addressStack[state.stackIndex], hl: state.h * 256 + state.l };
+    pc: state.addressStack[state.stackIndex]!, hl: state.h * 256 + state.l };
 }
 
 function advanced(state: Cpu8008State, pc: number, changes: Partial<Cpu8008State> = {}) {
@@ -216,6 +216,136 @@ test("8008 fetches wrap from every PC using the selected slot without changing t
   }
 });
 
+for (const [mnemonic, opcodes] of [
+  ["JMP", [0x44, 0x4c, 0x54, 0x5c, 0x64, 0x6c, 0x74, 0x7c]],
+  ["CAL", [0x46, 0x4e, 0x56, 0x5e, 0x66, 0x6e, 0x76, 0x7e]],
+] as const) {
+  test(`8008 ${mnemonic} aliases preserve every flag pattern and use 14-bit destinations and circular address slots`, () => {
+    const ram = new ObservedRam(0x4000);
+    // Literal byte-fetch positions, encoded destinations, and fall-through addresses.
+    const cases = [
+      [0x2000, 0x2001, 0x2002, 0x12, 0x23, 0x2312, 0x2003],
+      [0x00fe, 0x00ff, 0x0100, 0x45, 0x40, 0x0045, 0x0101],
+      [0x3ffd, 0x3ffe, 0x3fff, 0xfe, 0xbf, 0x3ffe, 0x0000],
+      [0x3ffe, 0x3fff, 0x0000, 0xff, 0xff, 0x3fff, 0x0001],
+      [0x3fff, 0x0000, 0x0001, 0x00, 0x80, 0x0000, 0x0002],
+      [0x2000, 0x2001, 0x2002, 0x00, 0x20, 0x2000, 0x2003],
+    ] as const;
+    for (const opcode of opcodes) {
+      for (let stackIndex = 0; stackIndex < 8; stackIndex++) {
+        for (let bits = 0; bits < 16; bits++) {
+          for (const [pc, lowAt, highAt, low, high, destination, returnAddress] of cases) {
+            ram.write(pc, opcode);
+            ram.write(lowAt, low);
+            ram.write(highAt, high);
+            ram.accesses.length = 0;
+            const before = atPc(pc, stackIndex, { flags: flags(bits) });
+            const addressStack: Cpu8008AddressStack = [...before.addressStack];
+            const nextIndex = mnemonic === "CAL" ? [1, 2, 3, 4, 5, 6, 7, 0][stackIndex]! : stackIndex;
+            addressStack[stackIndex] = returnAddress;
+            addressStack[nextIndex] = destination;
+            const after = snapshot({ ...before, addressStack, stackIndex: nextIndex });
+            const expected = { before: snapshot(before), after, outcome: "executed",
+              instruction: { address: pc, bytes: [opcode, low, high] },
+              accesses: [{ kind: "read", address: pc, value: opcode },
+                { kind: "read", address: lowAt, value: low }, { kind: "read", address: highAt, value: high }] };
+            const cpu = new Cpu8008(ram, before);
+            assert.deepEqual(cpu.step(), expected);
+            assert.deepEqual(cpu.snapshot(), after);
+            assert.deepEqual(ram.accesses, expected.accesses);
+          }
+        }
+      }
+    }
+  });
+
+  test(`8008 ${mnemonic} reaches every 14-bit address with each combination of ignored operand bits`, () => {
+    const ram = new Ram(0x4000);
+    ram.write(0x2000, opcodes[0]);
+    for (let encoded = 0; encoded < 0x10000; encoded++) {
+      ram.write(0x2001, encoded % 256);
+      ram.write(0x2002, Math.floor(encoded / 256));
+      const cpu = new Cpu8008(ram, initialState());
+      assert.equal(cpu.step().after.pc, encoded % 0x4000);
+    }
+  });
+}
+
+test("8008 RET aliases select the previous physical slot and retain the advanced outgoing PC for every flag pattern", () => {
+  const ram = new ObservedRam(0x4000);
+  for (const opcode of [0x07, 0x0f, 0x17, 0x1f, 0x27, 0x2f, 0x37, 0x3f]) {
+    for (let stackIndex = 0; stackIndex < 8; stackIndex++) {
+      for (let bits = 0; bits < 16; bits++) {
+        for (const [pc, nextPc] of [[0, 1], [0x2000, 0x2001], [0x3fff, 0]] as const) {
+          ram.write(pc, opcode);
+          ram.accesses.length = 0;
+          const before = atPc(pc, stackIndex, { flags: flags(bits) });
+          const addressStack: Cpu8008AddressStack = [...before.addressStack];
+          addressStack[stackIndex] = nextPc;
+          const previousIndex = [7, 0, 1, 2, 3, 4, 5, 6][stackIndex]!;
+          const after = snapshot({ ...before, addressStack, stackIndex: previousIndex });
+          const cpu = new Cpu8008(ram, before);
+          const expected = { before: snapshot(before), after, outcome: "executed",
+            instruction: { address: pc, bytes: [opcode] }, accesses: [{ kind: "read", address: pc, value: opcode }] };
+          assert.deepEqual(cpu.step(), expected);
+          assert.deepEqual(cpu.snapshot(), after);
+          assert.deepEqual(ram.accesses, expected.accesses);
+        }
+      }
+    }
+  }
+});
+
+test("8008 eight nested calls overwrite the oldest return; unbalanced returns keep cycling without clearing slots", () => {
+  const ram = new ObservedRam(0x4000);
+  // Each subroutine calls the next, then returns. The eighth call reuses slot zero.
+  for (const [caller, calleeHigh] of [
+    [0x100, 2], [0x200, 3], [0x300, 4], [0x400, 5],
+    [0x500, 6], [0x600, 7], [0x700, 8], [0x800, 9],
+  ] as const) {
+    ram.write(caller, 0x46);
+    ram.write(caller + 1, 0);
+    ram.write(caller + 2, calleeHigh);
+    ram.write(caller + 3, 0x07);
+  }
+  ram.write(0x900, 0x07);
+  ram.write(0x901, 0x07);
+  ram.write(0x804, 0x07);
+  ram.accesses.length = 0;
+  const initial = atPc(0x100, 0);
+  const cpu = new Cpu8008(ram, initial);
+  const transitions: readonly (readonly [number, Cpu8008AddressStack])[] = [
+    [1, [0x103, 0x200, 0x2333, 0x2000, 0x3444, 0x555, 0x1666, 0x3777]],
+    [2, [0x103, 0x203, 0x300, 0x2000, 0x3444, 0x555, 0x1666, 0x3777]],
+    [3, [0x103, 0x203, 0x303, 0x400, 0x3444, 0x555, 0x1666, 0x3777]],
+    [4, [0x103, 0x203, 0x303, 0x403, 0x500, 0x555, 0x1666, 0x3777]],
+    [5, [0x103, 0x203, 0x303, 0x403, 0x503, 0x600, 0x1666, 0x3777]],
+    [6, [0x103, 0x203, 0x303, 0x403, 0x503, 0x603, 0x700, 0x3777]],
+    [7, [0x103, 0x203, 0x303, 0x403, 0x503, 0x603, 0x703, 0x800]],
+    [0, [0x900, 0x203, 0x303, 0x403, 0x503, 0x603, 0x703, 0x803]],
+    [7, [0x901, 0x203, 0x303, 0x403, 0x503, 0x603, 0x703, 0x803]],
+    [6, [0x901, 0x203, 0x303, 0x403, 0x503, 0x603, 0x703, 0x804]],
+    [5, [0x901, 0x203, 0x303, 0x403, 0x503, 0x603, 0x704, 0x804]],
+    [4, [0x901, 0x203, 0x303, 0x403, 0x503, 0x604, 0x704, 0x804]],
+    [3, [0x901, 0x203, 0x303, 0x403, 0x504, 0x604, 0x704, 0x804]],
+    [2, [0x901, 0x203, 0x303, 0x404, 0x504, 0x604, 0x704, 0x804]],
+    [1, [0x901, 0x203, 0x304, 0x404, 0x504, 0x604, 0x704, 0x804]],
+    [0, [0x901, 0x204, 0x304, 0x404, 0x504, 0x604, 0x704, 0x804]],
+    [7, [0x902, 0x204, 0x304, 0x404, 0x504, 0x604, 0x704, 0x804]],
+    [6, [0x902, 0x204, 0x304, 0x404, 0x504, 0x604, 0x704, 0x805]],
+  ];
+  let before = snapshot(initial);
+  for (const [stackIndex, addressStack] of transitions) {
+    const after = snapshot({ ...initial, stackIndex, addressStack });
+    const bytes = before.pc < 0x900 && before.pc % 256 === 0 ? [0x46, 0, before.pc / 256 + 1] : [0x07];
+    const accesses = bytes.map((value, offset) => ({ kind: "read", address: before.pc + offset, value }));
+    ram.accesses.length = 0;
+    assert.deepEqual(cpu.step(), { before, after, instruction: { address: before.pc, bytes }, outcome: "executed", accesses });
+    assert.deepEqual(ram.accesses, accesses);
+    before = after;
+  }
+});
+
 for (const opcode of [0x00, 0x01, 0xff]) {
   test(`8008 documented HLT ${opcode.toString(16)} advances PC once, preserves flags, and stops further reads`, () => {
     const ram = new ObservedRam(0x4000);
@@ -234,8 +364,12 @@ for (const opcode of [0x00, 0x01, 0xff]) {
   });
 }
 
-test("8008 rejects every other opcode atomically, including 8080 encodings and deferred calls and I/O", () => {
-  const supported = new Set([0x00, 0x01, 0x04, 0x06, 0x2e, 0x36, 0xf8, 0xff]);
+test("8008 rejects every other opcode atomically, including conditional control flow, RST, and I/O", () => {
+  const supported = new Set([
+    0x00, 0x01, 0x04, 0x06, 0x07, 0x0f, 0x17, 0x1f, 0x27, 0x2e, 0x2f, 0x36, 0x37, 0x3f,
+    0x44, 0x46, 0x4c, 0x4e, 0x54, 0x56, 0x5c, 0x5e, 0x64, 0x66, 0x6c, 0x6e, 0x74, 0x76, 0x7c, 0x7e,
+    0xf8, 0xff,
+  ]);
   const ram = new ObservedRam(0x4000);
   for (let opcode = 0; opcode < 256; opcode++) {
     if (supported.has(opcode)) continue;

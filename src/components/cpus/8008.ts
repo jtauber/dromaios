@@ -61,6 +61,7 @@ export interface Cpu8008ResetRecord {
 
 interface InstructionContext {
   readonly fetchByte: () => number;
+  readonly fetchAddress: () => number;
   readonly writeByte: (address: number, value: number) => void;
 }
 
@@ -130,12 +131,18 @@ export class Cpu8008 {
     const handler = this.#opcodeHandlers[opcode];
     if (handler) {
       this.#pc = (address + 1) & 0x3fff;
+      const fetchByte = () => {
+        const byte = this.#read(this.#pc, accesses);
+        this.#pc = (this.#pc + 1) & 0x3fff;
+        bytes.push(byte);
+        return byte;
+      };
       handler({
-        fetchByte: () => {
-          const byte = this.#read(this.#pc, accesses);
-          this.#pc = (this.#pc + 1) & 0x3fff;
-          bytes.push(byte);
-          return byte;
+        fetchByte,
+        fetchAddress: () => {
+          const low = fetchByte();
+          const high = fetchByte();
+          return ((high & 0x3f) << 8) | low;
         },
         writeByte: (address, value) => this.#write(address, value, accesses),
       });
@@ -177,12 +184,27 @@ export class Cpu8008 {
     0b00_101_110: ({ fetchByte }) => this.#loadRegister("h", fetchByte()), // LHI n
     0b00_110_110: ({ fetchByte }) => this.#loadRegister("l", fetchByte()), // LLI n
 
-    // xx=01 control flow/I/O and xx=10 register/memory ALU forms remain unsupported.
+    // 00 xxx 111: RET. Bits 5–3 are don't-care bits: all eight encodings return.
+    ...this.#unconditionalHandlers(0b00_000_111, () => this.#return()), // RET
+
+    // 01 xxx 100/110: JMP/CAL. Again xxx is ignored, not a register or condition.
+    // The following bytes supply the address as llllllll, xxhhhhhh (low byte first).
+    ...this.#unconditionalHandlers(0b01_000_100, ({ fetchAddress }) => this.#jump(fetchAddress())), // JMP addr
+    ...this.#unconditionalHandlers(0b01_000_110, ({ fetchAddress }) => this.#call(fetchAddress())), // CAL addr
+
+    // Conditional jumps/calls/returns, RST, I/O, and xx=10 ALU forms remain unsupported.
 
     // 11 ddd sss: loads; ddd=111 selects M and sss=000 selects A. The M,M slot is HLT.
     0b11_111_000: ({ writeByte }) => writeByte(this.#hl & 0x3fff, this.#state.a), // LMA
     0b11_111_111: () => this.#halt(), // HLT (FF), not a memory-to-memory load.
   };
+
+  #unconditionalHandlers(base: number, handler: OpcodeHandler): Partial<Record<number, OpcodeHandler>> {
+    const handlers: Partial<Record<number, OpcodeHandler>> = {};
+    // Expand the documented xxx don't-care field in bits 5–3.
+    for (let ignored = 0; ignored < 8; ignored++) handlers[base | (ignored << 3)] = handler;
+    return handlers;
+  }
 
   // Loads.
 
@@ -191,6 +213,22 @@ export class Cpu8008 {
   }
 
   // Control flow.
+
+  #jump(address: number): void {
+    this.#pc = address;
+  }
+
+  #call(address: number): void {
+    // All three bytes have advanced the caller's slot to the return address.
+    // The next physical slot becomes PC; an eighth nested call overwrites the oldest return.
+    this.#state.stackIndex = (this.#state.stackIndex + 1) & 7;
+    this.#pc = address;
+  }
+
+  #return(): void {
+    // Opcode fetch already advanced the outgoing slot. Retain it when selecting the caller.
+    this.#state.stackIndex = (this.#state.stackIndex + 7) & 7;
+  }
 
   #halt(): void {
     this.#state.halted = true;

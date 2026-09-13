@@ -8,13 +8,16 @@ its memory addresses wrap at 14 bits.
 [CPU tests](../../../tests/components/cpus/8008.test.ts) ·
 [Public type checks](../../../tests/types/8008.ts) ·
 [Coverage](../coverage.md#8008) ·
-[Arithmetic example](examples/arithmetic.md)
+[Arithmetic example](examples/arithmetic.md) ·
+[Nested-call example](examples/stack.md)
 
 The hardware reference is Intel's
 [8008 User's Manual, April 1972](https://www.bitsavers.org/components/intel/MCS8/Intel_8008_8-Bit_Parallel_Central_Processing_Unit_Rev1_Apr72.pdf)
 ([searchable copy](https://manuals.plus/m/c23aa03524a8348d87dbe05c0a002b2aef66f39578347a483393e89283fb0f96)).
 Relevant sections are *Basic Functional Blocks*, *Basic Instruction Set*,
 *Start-Up of the 8008*, and Appendix I's functional definitions.
+The [November 1972 revision](https://manualzz.com/doc/10956006/intel-8008--8008-1-microprocessors-users-manual),
+Appendix II, also describes PC increments before stack selection changes.
 The tutorial's earlier teaching model uses 8080 encodings; this core implements
 the hardware encoding described by Intel.
 
@@ -39,11 +42,10 @@ Neither is separately stored or initialized. H remains an eight-bit register;
 a memory access uses only its low six bits together with L. Thus H:L = `E677`
 addresses RAM at `2677`, while the snapshot still shows HL = `E677`.
 
-The selected slot holds PC; the other seven can hold return addresses. This
-initial subset preserves the selector and inactive slots during execution.
-Calls, returns, and circular stack movement are not implemented yet. There is
-no RAM stack pointer, stack-depth counter, interrupt-enable latch, auxiliary
-carry, or overflow flag in this state model.
+The selected slot holds PC; the other seven can hold return addresses. Calls
+and returns change which slot is selected, as described below. There is no RAM
+stack pointer, stack-depth counter, interrupt-enable latch, auxiliary carry,
+or overflow flag in this state model.
 
 ## Construction and inspection
 
@@ -92,6 +94,28 @@ result to a byte, and replaces all four flags: S is the result's high bit, Z
 indicates zero, P indicates even parity, and C indicates a sum exceeding `FF`.
 The other data registers and inactive address slots remain unchanged.
 
+## Jumps, calls, and returns
+
+JMP and CAL fetch a low address byte followed by a high byte. The high byte's
+top two bits are ignored for addressing but retained in the instruction record.
+All three fetches advance the caller's PC, including wrap at `3FFF`.
+
+- JMP replaces the selected PC with the destination and preserves other slots.
+- CAL leaves the address after its three bytes in the caller's slot, selects
+  the next slot, and writes the destination there.
+- RET advances the outgoing PC by one for its opcode fetch, then selects the
+  preceding slot. The outgoing slot retains that advanced address.
+
+Slot numbering is a model convention: CAL increments `stackIndex` modulo eight;
+RET decrements it modulo eight. Seven calls can preserve all return addresses.
+An eighth nested call overwrites the oldest; extra returns continue around the
+same ring without a depth check or fault. No slot is cleared on return.
+
+Each instruction has eight documented encodings: `01 xxx 100` for JMP,
+`01 xxx 110` for CAL, and `00 xxx 111` for RET. The `xxx` bits are ignored.
+All forms preserve data registers and flags. Their only RAM accesses are the
+instruction bytes: there is no RAM stack access or destination prefetch.
+
 ## CPU reset
 
 The 8008 has no dedicated reset input. Its documented power-on sequence clears
@@ -121,11 +145,16 @@ address-stack selector. They compare complete records and actual RAM accesses,
 including unchanged-value writes, self-modified code, unsupported attempts,
 all three HLT encodings, reset, and detached records.
 
-The generated example checks both factories, whole memory images, a complete
-six-step trace, bounded running, caller completion, reset, and fresh restart.
+Control-flow checks cover all documented aliases, every encoded destination
+including ignored high bits, every selector and flag pattern, wrapped fetches,
+eight nested calls, overwritten return addresses, and unbalanced returns.
+
+The generated examples check both factories, whole memory images, complete
+traces, bounded running, caller completion, reset, and fresh restart. The
+nested-call trace also checks inactive slot contents across returns.
 Parser and generator tests cover address lists, ranges, RAM size, diagnostics,
 and declaration order. Type checks preserve concrete CPU and runner records.
 
-The remaining instruction set, stack movement, interrupt delivery, I/O,
+The remaining instruction set, interrupt delivery, I/O,
 mapped devices, and timing remain outside this slice. Coverage counts only
 the supported encodings, not the presence of unused stored registers.
