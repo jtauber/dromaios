@@ -1,0 +1,17 @@
+ram 4000
+
+cpu 8008 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    flags { S = 0  Z = 0  P = 0  C = 0 }
+    addressStack = [0000 0000 0000 0000 0000 0000 0000 0000]
+    stackIndex = 0  halted = false
+}
+
+memory 0000 {
+    2E 00       // LHI 00H: upper six address bits
+    36 80       // LLI 80H: lower eight address bits
+    06 02       // LAI 02H
+    04 03       // ADI 03H
+    F8          // LMA: store A at memory[H:L]
+    00          // HLT
+}

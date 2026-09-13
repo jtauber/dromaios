@@ -1,3 +1,4 @@
+import type { Cpu8008State } from "../../src/components/cpus/8008.js";
 import type { Cpu8080State } from "../../src/components/cpus/8080.js";
 import type { Cpu6502State } from "../../src/components/cpus/6502.js";
 import type { Cpu6809State } from "../../src/components/cpus/6809.js";
@@ -9,6 +10,16 @@ export function checkParsedState(source: string): void {
   const machine = parseMachine(source);
   const endAddress: number | undefined = machine.endAddress;
   switch (machine.cpu) {
+    case "8008": {
+      const state: Cpu8008State = machine.initialState;
+      const size: 0x4000 = machine.ramSize;
+      const address: number = state.addressStack[7];
+      // @ts-expect-error PC is a derived snapshot view.
+      state.pc;
+      // @ts-expect-error Address stacks have exactly eight entries.
+      state.addressStack[8];
+      break;
+    }
     case "z80": {
       const state: CpuZ80State = machine.initialState;
       const im: 0 | 1 | 2 = state.im;

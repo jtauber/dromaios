@@ -15,7 +15,7 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Complete / documented opcode forms | Opcode completion | Additional partial forms |
 | --- | --- | --- | --- | --- |
-| [Intel 8008](#cpus-and-variants-not-started) | 1972 | 0 / TBD | 0.0% | 0 |
+| [Intel 8008](#8008) | 1972 | 8 / 250 | 3.2% | 0 |
 | [Intel 8080](#8080) | 1974 | 240 / 244 | 98.4% | 0 |
 | [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 |
 | [MOS 6502](#6502) | 1975 | 25 / 151 | 16.6% | 1: binary-only ADC |
@@ -27,7 +27,7 @@ emulators do not count toward implementation here.
 Completed examples are linked in each CPU section below and grouped by topic
 in the [example catalog](../README.md#cpu-examples).
 
-All four implemented CPU models remain incomplete. The 8008, 6800, 8088, and
+All five implemented CPU models remain incomplete. The 6800, 8088, and
 68000 are not started; their documented-form totals will be established when
 implementation begins.
 
@@ -58,10 +58,19 @@ encodings and instructions belonging to other CPU variants are excluded.
 
 | Model | Documented forms | Counting basis |
 | --- | --- | --- |
+| Intel 8008 | 250 | [Intel 8008 User's Manual, Basic Instruction Set and Appendix I](https://www.bitsavers.org/components/intel/MCS8/Intel_8008_8-Bit_Parallel_Central_Processing_Unit_Rev1_Apr72.pdf): expand documented selectors and opcode don't-care bits; 58 forms in `00`, and 64 each in `01`, `10`, and `11` |
 | Intel 8080 | 244 | [Intel 8080 Assembly Language Programming Manual, Appendix B](https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf): expand the opcode bit patterns, excluding the 12 undocumented byte encodings |
 | MOS 6502 | 151 | [Synertek 6500 Programming Manual, Appendix B](https://syncopate.us/books/Synertek6502ProgrammingManual.html#ap-b): count the documented instruction/addressing forms |
 | Motorola 6809 | 268 | [Motorola MC6809–MC6809E Programming Manual, Appendix D](https://www.maddes.net/m6809pm/appendix_d.htm): 221 unprefixed forms + 38 on page 2 + 9 on page 3, counting mnemonic aliases once |
 | Zilog Z80 | 698 | [Zilog Z80 CPU User Manual, UM008011-0816](https://www.zilog.com/docs/z80/um0080.pdf): 252 unprefixed + 248 CB + 58 ED + 39 DD + 39 FD + 31 DD CB + 31 FD CB forms |
+
+For the 8008, the six absent encodings are `22`, `2A`, `32`, `38`, `39`,
+and `3A`. The documented opcode don't-care bits are expanded: JMP, CAL,
+and RET each have eight encodings, and HLT has three (`00`, `01`, `FF`).
+Counting all these documented encodings follows the same rule as the other
+CPUs; different mnemonic names for one encoding still count once. Immediate
+values and address bytes, including their ignored high bits, do not add forms.
+The full count includes 32 I/O forms even while I/O is deferred.
 
 For the 6809, a prefix and following opcode byte identify one form; prefixes
 alone do not count. Indexed and register-selection postbytes do not create
@@ -81,23 +90,61 @@ so both count, giving 698 rather than the 696 obtained by excluding that pair.
 
 | Area | Implemented scope |
 | --- | --- |
-| Memory connection | Flat 64 KiB RAM; recorded byte reads and writes |
+| Memory connection | Flat RAM with recorded byte reads and writes: 16 KiB for the 8008, 64 KiB for the other current models |
 | Initialization | Explicit caller-supplied registers and flags, copied and validated; no implicit reset |
 | Inspection | Detached state snapshots, recursively readonly in TypeScript, without RAM access |
 | Stepping | At most one instruction attempt; before/after snapshots, fetched instruction bytes, ordered accesses, and outcome |
 | Reset records | Separate before/after snapshots and access list; CPU-specific reset effects |
-| Arithmetic and addresses | Byte results and 16-bit PC/operand fetching wrap at their modeled widths |
+| Arithmetic and addresses | Byte results and PC/operand fetching wrap at their modeled widths: 14-bit addresses for the 8008, 16-bit for the other current models |
 | Unsupported attempts | `reason: "opcode"`, one opcode read, unchanged CPU state and RAM; additional 6502 mode restriction below |
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
-All four currently omit cycle counts, dummy bus accesses, electrical signals,
+All five currently omit cycle counts, dummy bus accesses, electrical signals,
 interrupt delivery, mapped devices, disassembly, and an
-execution UI. Interrupt flags can be stored and inspected before interrupt
-delivery is implemented.
+execution UI. Existing interrupt flags can be stored and inspected before interrupt
+delivery is implemented; the 8008 has no interrupt-enable flag.
 
 The following tables exhaustively list complete and partial opcode forms.
 Unlisted forms remain unsupported. Opcodes and addresses are hexadecimal;
 instruction lengths are in bytes.
+
+## 8008
+
+[Source](../../src/components/cpus/8008.ts) ·
+[Model contract](8008/model.md) ·
+[Arithmetic example](8008/examples/arithmetic.md) ·
+[Example definition](../../src/machines/8008/example.machine)
+
+| Opcode | Instruction | Addressing form | Length | Scope |
+| --- | --- | --- | --- | --- |
+| `00` | HLT | Implied | 1 | Advance PC and stop; preserve flags |
+| `01` | HLT | Implied | 1 | Second documented low-page HLT encoding |
+| `04` | ADI n | Immediate | 2 | Add to A without incoming carry; set S/Z/P/C |
+| `06` | LAI n | Immediate | 2 | Load A; preserve flags |
+| `2E` | LHI n | Immediate | 2 | Load the full H byte; preserve flags |
+| `36` | LLI n | Immediate | 2 | Load L; preserve flags |
+| `F8` | LMA | Indirect through H:L | 1 | Store A at the low 14 bits of H:L; preserve flags |
+| `FF` | HLT | Implied | 1 | HLT occupies the M,M transfer slot |
+
+| Area | Implemented scope |
+| --- | --- |
+| Stored state | A/B/C/D/E/H/L, S/Z/P/C, eight 14-bit address registers, selector 0–7, and halt state |
+| Register views | PC selects an address-stack slot; HL exposes the raw H:L pair |
+| Memory | Exactly 16 KiB RAM; instruction fetches wrap at 14 bits; H bits 7–6 are ignored for LMA addressing |
+| Address stack | Explicit initialization and detached inspection; stepping changes only the selected PC slot; calls/returns and stack movement are not implemented |
+| Reset | Model settled power-on clearing: zero data/address registers, select slot zero, stay stopped, preserve flags and RAM under the documented policy |
+| Stopping | All three documented HLT encodings report once; already halted steps have no instruction or accesses |
+| Remaining scope | Other transfers, arithmetic/logic, rotations, branches, calls/returns, RST, interrupts, I/O, and timing |
+
+Verification: [CPU tests](../../tests/components/cpus/8008.test.ts),
+[example tests](../../tests/machines/8008/example.test.ts), and
+[public type checks](../../tests/types/8008.ts). Checks cover every addition
+operand pair, all load bytes and flag patterns, arithmetic boundaries, every
+H:L combination and PC, all selectors, and every unsupported opcode. Complete
+records and actual RAM calls verify wrapping, overlapping/unchanged-value
+stores, HALT, reset, and retained snapshots. The example checks whole RAM
+images, six complete records, bounded running, caller completion, and restart.
+Parser and generator checks cover the smaller RAM size and explicit address list.
 
 ## 8080
 
@@ -646,7 +693,6 @@ its counting rules when implementation starts.
 | MOS 6510 | 0% | Not started |
 | Ricoh 2A03 | 0% | Not started |
 | Motorola 6800 | 0% | Not started |
-| Intel 8008 | 0% | Not started |
 | Sharp SM83 | 0% | Not started |
 | Motorola 68000 | 0% | Not started |
 | Intel 8088 / 8086 | 0% | Not started |

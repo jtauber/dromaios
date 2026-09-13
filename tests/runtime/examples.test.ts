@@ -1,3 +1,5 @@
+import type { Cpu8008 } from "../../src/components/cpus/8008.js";
+import { create8008Example } from "../../src/machines/generated/8008/example.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Cpu8080 } from "../../src/components/cpus/8080.js";
@@ -27,7 +29,7 @@ import { create6809AddressingExample } from "../../src/machines/generated/6809/a
 
 interface ExampleCase {
   readonly name: string;
-  readonly create: () => { cpu: Cpu8080 | Cpu6502 | Cpu6809 | CpuZ80; ram: Ram; endAddress?: number };
+  readonly create: () => { cpu: Cpu8008 | Cpu8080 | Cpu6502 | Cpu6809 | CpuZ80; ram: Ram; endAddress?: number };
   readonly steps: number;
   readonly pc: number;
   readonly stopReason: "completed" | "halted";
@@ -36,6 +38,7 @@ interface ExampleCase {
 
 // Expectations come from the example specifications, independently of the factories.
 const examples: readonly ExampleCase[] = [
+  { name: "8008 arithmetic", create: create8008Example, steps: 6, pc: 10, stopReason: "halted", writes: [[0x80, 5]] },
   {
     name: "8080 rotates", create: create8080RotatesExample, steps: 21, pc: 0x021d, stopReason: "halted",
     writes: [[0x80, 0], [0x81, 3], [0x82, 0x80], [0x83, 0x81], [0x84, 0x7f]],

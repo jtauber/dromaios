@@ -140,7 +140,9 @@ ram 10000 // The model name above is an identifier; numbers here are hex.\n`;
 test("hexadecimal values and aliases have the same meaning for every CPU", () => {
   for (const source of Object.values(sources)) {
     for (const value of ["100", "0100", "0x100", "0X100", "$100", "100h", "100H"]) {
-      assert.equal(parseMachine(set(source, "PC", value)).initialState.pc, 0x100, value);
+      const machine = parseMachine(set(source, "PC", value));
+      assert.ok(machine.cpu !== "8008");
+      assert.equal(machine.initialState.pc, 0x100, value);
     }
     for (const value of ["ff", "FF", "0xFF", "$ff", "0ffh", "0FFH"]) {
       assert.equal(parseMachine(set(source, "A", value)).initialState.a, 0xff, value);
@@ -272,4 +274,97 @@ test("diagnostics identify the offending token with filename, line, column, and 
     name: "SyntaxError",
     message: 'lesson.machine:3:1: Expected "}" to close memory block\n\n^',
   });
+});
+
+const source8008 = `ram 4000
+cpu 8008 {
+  A=11 B=22 C=33 D=44 E=55 H=E6 L=77
+  flags { S=1 Z=0 P=1 C=0 }
+  addressStack=[0111 1222 2333 2000 3444 0555 1666 3777]
+  stackIndex=3 halted=false
+}`;
+
+test("8008 parsing preserves explicit physical address slots, selector, flags, and 16 KiB RAM", () => {
+  const machine = parseMachine(`${source8008} memory 3FFF { AA } end 0`);
+  assert.equal(machine.cpu, "8008");
+  assert.equal(machine.ramSize, 0x4000);
+  assert.equal(machine.endAddress, 0);
+  assert.deepEqual(machine.memory, [{ address: 0x3fff, bytes: [0xaa] }]);
+  assert.deepEqual(machine.initialState, { a: 0x11, b: 0x22, c: 0x33, d: 0x44, e: 0x55, h: 0xe6, l: 0x77,
+    flags: { s: true, z: false, p: true, c: false },
+    addressStack: [0x111, 0x1222, 0x2333, 0x2000, 0x3444, 0x555, 0x1666, 0x3777], stackIndex: 3, halted: false });
+  Reflect.set(machine.initialState.addressStack, 3, 0);
+  const fresh = parseMachine(source8008);
+  assert.equal(fresh.cpu, "8008");
+  assert.equal(fresh.initialState.addressStack[3], 0x2000);
+  assert.equal(Object.hasOwn(fresh.initialState, "pc"), false);
+});
+
+test("8008 address lists require exactly eight 14-bit values and preserve hexadecimal aliases and comments", () => {
+  const list = /\[[^\]]*\]/;
+  const accepted = parseMachine(source8008.replace(list, '[0 $100 0x200 0300h\n // Slots continue after comments.\n 0400 0500 0600 3FFF]'));
+  assert.equal(accepted.cpu, "8008");
+  assert.deepEqual(accepted.initialState.addressStack, [0, 0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0x3fff]);
+  for (const count of [0, 1, 7, 9]) {
+    assert.throws(() => parseMachine(source8008.replace(list, `[${Array(count).fill("0000").join(" ")}]`)), /exactly eight/);
+  }
+  for (let index = 0; index < 8; index++) {
+    const values = Array<string>(8).fill("0000");
+    for (const value of ["4000", "FFFF", "-1", "1.0", "true", "0000,"]) {
+      values[index] = value;
+      assert.throws(() => parseMachine(source8008.replace(list, `[${values.join(" ")}]`)), SyntaxError);
+    }
+  }
+  for (const value of ["0", "7", "$7", "07h"]) {
+    const machine = parseMachine(set(source8008, "stackIndex", value));
+    assert.equal(machine.cpu, "8008");
+    assert.ok([0, 7].includes(machine.initialState.stackIndex));
+  }
+  for (const value of ["8", "FF", "-1", "0.5", "true"]) {
+    assert.throws(() => parseMachine(set(source8008, "stackIndex", value)), SyntaxError);
+  }
+  assert.throws(() => parseMachine(source8008.replace(list, '{0000}')), /Expected "\["/);
+  assert.throws(() => parseMachine(source8008.slice(0, source8008.indexOf("]"))), /close 8008.addressStack/);
+  for (const field of ["PC", "HL", "SP"]) {
+    assert.throws(() => parseMachine(source8008.replace("A=11", `A=11 ${field}=0`)), /Unknown field/);
+  }
+  for (const [source, expected] of [
+    [source8008.replace(/addressStack=\[[^\]]*\]/, ""), /Missing fields in 8008: addressStack/],
+    [source8008.replace("stackIndex=3", ""), /Missing fields in 8008: stackIndex/],
+    [source8008.replace("stackIndex=3", "stackIndex=3 STACKINDEX=4"), /Duplicate field stackIndex/],
+    [source8008.replace("stackIndex=3", "addressStack=[] stackIndex=3"), /Duplicate field addressStack/],
+  ] as const) assert.throws(() => parseMachine(source), expected);
+});
+
+test("8008 byte registers and flags validate in their own scopes", () => {
+  for (const field of ["A", "B", "C", "D", "E", "H", "L"]) {
+    for (const value of ["00", "FF"]) assert.doesNotThrow(() => parseMachine(set(source8008, field, value)));
+    assert.throws(() => parseMachine(set(source8008, field, "100")), /must be in 0..FF/);
+  }
+  for (const field of ["S", "Z", "P", "C"]) {
+    const setFlag = (value: string) => source8008.replace(/flags \{[^}]*\}/, block => set(block, field, value));
+    for (const value of ["0", "1"]) assert.doesNotThrow(() => parseMachine(setFlag(value)));
+    for (const value of ["2", "true", "false"]) assert.throws(() => parseMachine(setFlag(value)), SyntaxError);
+  }
+  for (const value of ["0", "1", "TRUE"]) {
+    assert.throws(() => parseMachine(set(source8008, "halted", value)), /Expected true or false/);
+  }
+});
+
+test("machine RAM size follows the selected CPU and checks bounds regardless of declaration order", () => {
+  assert.throws(() => parseMachine(source8008.replace("ram 4000", "ram 10000")), /RAM size for 8008 must be 4000/);
+  for (const source of Object.values(sources)) {
+    assert.throws(() => parseMachine(source.replace("ram 10000", "ram 4000")), /RAM size for .* must be 10000/);
+  }
+  for (const suffix of ["memory 4000 {}", "memory 3FFF { AA BB }", "end 4000"]) {
+    assert.throws(() => parseMachine(`${source8008}\n${suffix}`), /3FFF/);
+    assert.throws(() => parseMachine(`${suffix}\n${source8008}`), /3FFF/);
+  }
+  for (const newline of ["\n", "\r\n", "\r"]) {
+    const text = `memory 3FFF {\n  AA BB\n}\n${source8008}`.replaceAll("\n", newline);
+    assert.throws(() => parseMachine(text, "8008.machine"), {
+      name: "SyntaxError", message: "8008.machine:2:6: Memory block extends beyond address 3FFF\n  AA BB\n     ^",
+    });
+  }
+  assert.deepEqual(parseMachine(`memory 3FFF {} end 3FFF ${source8008}`).memory, [{ address: 0x3fff, bytes: [] }]);
 });

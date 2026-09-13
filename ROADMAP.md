@@ -10,7 +10,7 @@ Every commit requires maintainer review and an explicit go-ahead.
 
 The introductory examples were built in the order **8080 → 6502 → 6809**.
 The current priority is a **CPU-only capability checkpoint across eight CPUs**,
-expanding the four existing cores while introducing the other four. Interrupts
+expanding existing cores while introducing the remaining targets. Interrupts
 and I/O wait until all eight reach that checkpoint. Browser work can proceed
 alongside CPU development; the stages below otherwise allow overlapping work.
 Implementation order is independent of the tutorial's historical teaching
@@ -51,7 +51,7 @@ Acceptance checks are defined in the [8080 example specification](docs/cpus/8080
 ## 2. Expand CPU support and test generalizations — current
 
 - Use the [shared CPU runner](docs/runtime/runner.md), now exercised against
-  the existing examples on all four CPUs. It has an explicit step budget,
+  the implemented CPU examples. It has an explicit step budget,
   stops before a caller completion address or after a halt or unsupported
   attempt, and returns captured records and the reason for stopping while
   preserving CPU-specific types.
@@ -67,7 +67,9 @@ Acceptance checks are defined in the [8080 example specification](docs/cpus/8080
   its own state and flags. Paired 8080/Z80 programs test common encodings and
   different semantics. Use further related instruction families to judge which
   implementation details should be shared.
-- Introduce small initial slices for the 8008, 6800, 8088, and 68000 alongside
+- Extend the initial 8008 slice, exercising its native encodings, 14-bit
+  addresses, and internal address stack.
+- Introduce small initial slices for the 6800, 8088, and 68000 alongside
   expansion of the existing cores. Let their distinctions test the shared
   execution and inspection conventions.
 
@@ -99,12 +101,12 @@ checkpoint is met. Existing architectural flags and ordinary memory and
 status-register operations remain in scope. The 8080 can pause at **240/244
 forms (98.4%)**, with `DI`, `EI`, `IN`, and `OUT` deferred.
 
-Expand the 6502, 6809, and Z80 in comparable instruction-family batches while
-introducing the other four CPUs in small slices; the order of those introductions
+Expand the 6502, 6809, Z80, and 8008 in reviewable instruction-family batches
+while introducing the remaining CPUs in small slices; their introduction order
 remains open. Revisit interrupts and I/O once all eight meet the checkpoint.
 
 The introductory [8080](docs/cpus/8080/examples/arithmetic.md), [6502](docs/cpus/6502/examples/arithmetic.md),
-[6809](docs/cpus/6809/examples/arithmetic.md), and [Z80](docs/cpus/z80/examples/arithmetic.md)
+[6809](docs/cpus/6809/examples/arithmetic.md), [Z80](docs/cpus/z80/examples/arithmetic.md), and [8008](docs/cpus/8008/examples/arithmetic.md)
 examples are complete. Their specifications
 define behavior and acceptance checks; the [coverage tracker](docs/cpus/coverage.md)
 records current support. Focused examples are extending this comparison;

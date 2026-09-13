@@ -42,10 +42,10 @@ end 0208
   declaration, zero or more `memory` blocks, and at most one `end` declaration.
   Top-level declarations can appear in any order. Memory blocks are applied in
   their source order.
-- `ram` gives the byte count. This first version describes the existing flat
-  64 KiB machines, so its supported value is `10000` (hexadecimal for 65,536).
+- `ram` gives the byte count: `4000` (16 KiB) for the 8008, or `10000`
+  (64 KiB) for the other current CPUs. The declared size must match the model.
   RAM starts at address zero and is filled with zero before loading images.
-- `cpu` selects the model by name: `8080`, `6502`, `6809`, or `z80`. Its block contains
+- `cpu` selects the model by name: `8008`, `8080`, `6502`, `6809`, or `z80`. Its block contains
   the initial state. Stored registers and control latches use `name = value`;
   `flags { ... }` groups assignments to the flags. The Z80's `alternate { ... }`
   block contains another register bank and its own `flags` block. CPU model
@@ -53,7 +53,8 @@ end 0208
 - CPU state field names are case-insensitive. Uppercase is the convention for
   registers and flags: `A`, `PC`, `SP`, `N`, `CY`. Keywords such as `cpu`, `flags`,
   `alternate`, and `memory` are lowercase. Descriptive control fields retain the
-  spellings `interruptEnabled`, `iff1`, `iff2`, and `halted`. Duplicate detection
+  spellings `interruptEnabled`, `iff1`, `iff2`, and `halted`; the 8008 uses
+  `addressStack` and `stackIndex` for its address registers and selector. Duplicate detection
   ignores case, so assigning both `PC` and `pc` is an error. Register and flag names are resolved within
   their respective blocks for the selected CPU.
 - Inside `flags`, each assignment supplies a bit value: `1` means set and `0`
@@ -80,6 +81,10 @@ end 0208
 - Inside a memory body, every token is exactly two bare hexadecimal digits.
   Single digits, prefixed or suffixed numbers, and tokens longer than two
   digits are errors. No encoding keyword is needed.
+- The 8008's `addressStack = [ ... ]` contains exactly eight hexadecimal
+  addresses in physical slot order, each in `0000`–`3FFF`. Values are separated
+  by whitespace, without commas; comments and hexadecimal aliases are allowed.
+  `stackIndex` selects a slot in `0`–`7`. PC is derived from that slot.
 - Braces delimit blocks; whitespace separates tokens. Indentation and line
   breaks are for readability. Assignments can share a line or occupy separate
   lines. Bytes continue across lines without commas, quotes, or continuation
@@ -93,7 +98,7 @@ end 0208
 - `end` is an optional caller completion address within RAM. It maps to the
   `endAddress` field. It neither executes instructions nor halts the CPU;
   the caller can stop stepping when PC reaches it. Omission leaves this
-  metadata absent, as in the 8080 lessons that use HLT and the Z80 lesson that
+  metadata absent, as in the 8008 and 8080 lessons that use HLT and the Z80 lesson that
   uses HALT.
 
 Constructing a machine allocates RAM, loads its images, and constructs the CPU
@@ -106,10 +111,26 @@ All fields listed for the selected CPU are required, including every flag.
 
 | CPU | Byte registers | Word registers | Flags | Control latches |
 | --- | --- | --- | --- | --- |
+| 8008 | A, B, C, D, E, H, L | Eight 14-bit address-stack entries | S, Z, P, C | halted |
 | 8080 | A, B, C, D, E, H, L | PC, SP | S, Z, AC, P, CY | interruptEnabled, halted |
 | 6502 | A, X, Y, SP | PC | N, V, D, I, Z, C | — |
 | 6809 | A, B, DP | X, Y, S, U, PC | E, F, H, I, N, Z, V, C | — |
 | z80 | A, B, C, D, E, H, L in both banks; I, R | IX, IY, PC, SP | S, Z, H, PV, N, C in both banks | iff1, iff2, halted |
+
+The 8008 also requires its complete address stack and selector. There is no
+separate PC assignment or RAM stack pointer:
+
+```text
+cpu 8008 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    flags { S = 0  Z = 0  P = 0  C = 0 }
+    addressStack = [0000 0000 0000 0000 0000 0000 0000 0000]
+    stackIndex = 0  halted = false
+}
+```
+
+The [8008 example](../cpus/8008/examples/arithmetic.md) pairs this state with
+`ram 4000`. `PC` and raw `HL` are derived snapshot views and cannot be assigned.
 
 The Z80 also requires `IM`, an integer in `0`–`2`, for its interrupt mode.
 `PV` names the manual's P/V flag. Its initial state includes a complete alternate
@@ -151,7 +172,7 @@ lesson.machine:3:6: Memory block extends beyond address FFFF
 ## Scope and future extensions
 
 This version describes explicit state and byte images for one CPU with flat
-64 KiB RAM. More complex device wiring can still use TypeScript. The language
+RAM of the size required by its model. More complex device wiring can still use TypeScript. The language
 does not define instruction behavior or assemble the comments beside the bytes.
 
 Repeated addresses remain a future design question. In the 6502 and 6809

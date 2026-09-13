@@ -6,6 +6,7 @@ interface MemoryBlock {
 }
 
 interface RamExampleDefinition<State> {
+  readonly ramSize?: number;
   readonly memory: readonly MemoryBlock[];
   readonly initialState: State;
 }
@@ -23,7 +24,7 @@ interface ExampleFactories<Machine> {
 
 // Preserve the required completion address only for examples that specify one.
 // Infer State from the constructor, not from the supplied initialization data.
-/** Define fresh 64 KiB setups. CPU constructors own copying and validating state. */
+/** Define fresh flat-RAM setups, defaulting to 64 KiB. CPU constructors validate state. */
 export function defineRamExample<State, Cpu>(
   Cpu: new (ram: Ram, initialState: State) => Cpu,
   definition: RamExampleDefinition<NoInfer<State>> & { readonly endAddress: number },
@@ -34,10 +35,10 @@ export function defineRamExample<State, Cpu>(
 ): ExampleFactories<RamMachine<Cpu>>;
 export function defineRamExample<State, Cpu>(
   Cpu: new (ram: Ram, initialState: State) => Cpu,
-  { memory, initialState, endAddress }: RamExampleDefinition<State> & { readonly endAddress?: number },
+  { ramSize = 0x10000, memory, initialState, endAddress }: RamExampleDefinition<State> & { readonly endAddress?: number },
 ): ExampleFactories<RamMachine<Cpu> & { endAddress?: number }> {
   const createMemory = (): Ram => {
-    const ram = new Ram(0x10000);
+    const ram = new Ram(ramSize);
     for (const { address, bytes } of memory) {
       for (const [offset, value] of bytes.entries()) {
         ram.write(address + offset, value);

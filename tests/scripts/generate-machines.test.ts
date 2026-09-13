@@ -123,3 +123,18 @@ test("the native TypeScript build entry point works outside the repo and prints 
   assert.equal(failure.stderr, '6502/lesson.machine:2:15: Expected a two-digit hexadecimal byte, found "GG"\nmemory 0000 { GG }\n              ^\n');
   assert.equal(readFileSync(join(directory, "src/machines/generated/6502/lesson.ts"), "utf8"), generated);
 });
+
+test("8008 generation preserves the 16 KiB size and eight address registers for Cpu8008", () => {
+  const source = readFileSync("src/machines/8008/example.machine", "utf8");
+  const generated = compileMachine(source, "8008/example.machine");
+  assert.ok(generated.includes('import { Cpu8008 } from "../../../components/cpus/8008.js";'));
+  assert.ok(generated.includes("create: create8008Example, createMemory: create8008ExampleMemory"));
+  assert.ok(generated.includes("defineRamExample(Cpu8008,"));
+  assert.ok(generated.includes('"ramSize": 16384'));
+  assert.ok(generated.includes('"addressStack": ['));
+  assert.ok(generated.includes('"stackIndex": 0'));
+  assert.equal(generated.includes('"pc"'), false);
+  assert.equal(generated.includes('"endAddress"'), false);
+  const existing = compileMachine(readFileSync("src/machines/8080/example.machine", "utf8"), "8080/example.machine");
+  assert.ok(existing.includes('"ramSize": 65536'));
+});

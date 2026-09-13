@@ -43,8 +43,8 @@ data or inventing a configuration language upfront.
 
 The current flat-RAM examples use [defineRamExample](../src/machines/ram-example.ts)
 to share setup code. Each definition supplies a concrete CPU constructor,
-initial state, addressed byte blocks (including any reset vector), and an
-optional caller completion address. The helper creates fresh 64 KiB RAM and
+initial state, RAM size, addressed byte blocks (including any reset vector),
+and an optional caller completion address. The helper creates fresh RAM and
 CPU instances without reset or execution; each CPU constructor still owns
 copying and validating its state. Example exports retain their concrete CPU
 types. More complex machine wiring can use ordinary TypeScript as it develops.
@@ -82,9 +82,8 @@ the same underlying models as a complete machine.
 
 ## Proposed repository layout
 
-The implementation has RAM, 8080, 6502, 6809, and Z80 CPU subsets, example setup, and
-tests. The other source paths show where code and content could go as we
-introduce them; their names can change with experience. No package or framework
+The implementation has RAM, CPU subsets, example setup, and tests. The other
+source paths show where code and content could go as we introduce them; their names can change with experience. No package or framework
 boundaries are implied by this tree. Build and test commands are in the
 [development instructions](../README.md#development).
 
@@ -166,12 +165,15 @@ Re-reading memory or devices afterward cannot reliably reconstruct them. The
 record must make its granularity clear; an instruction-level model does not
 automatically provide a complete cycle-by-cycle bus trace.
 
-The concrete `Cpu8080`, `Cpu6502`, `Cpu6809`, and `CpuZ80` models each take a 64 KiB
-`Ram` instance and explicit initial state. They copy only declared state fields,
-including flags, and expose `snapshot()` and `step()`. Public snapshots and
-records have readonly TypeScript types and own detached values. Internal CPU
+The concrete CPU models take a `Ram` instance and explicit initial state.
+`Cpu8008` requires 16 KiB RAM; `Cpu8080`, `Cpu6502`, `Cpu6809`, and `CpuZ80`
+require 64 KiB. They copy only declared state fields, including flags and
+any nested banks or address arrays, and expose `snapshot()` and `step()`.
+Public snapshots and records have readonly TypeScript types and own detached values. Internal CPU
 state stays mutable. Each model uses a discriminated union for step outcomes
-and retains no execution history. Restarting an example creates fresh components.
+and retains no execution history. The 8008 derives PC from its selected internal
+address register; the runner uses that view through the same snapshot contract.
+Restarting an example creates fresh components.
 
 Reset behavior, step outcomes, and lesson completion remain specific to each
 CPU and example. Their specifications describe the implemented behavior and

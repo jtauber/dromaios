@@ -9,8 +9,8 @@ export function compileMachine(text: string, relativePath: string): string {
   if (relativePath !== `${stem}.machine` || !stem.split("/").every(part => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(part))) {
     throw new Error(`Invalid machine path: ${relativePath}`);
   }
-  // The parser validates the explicit RAM size against the helper's 64 KiB model.
-  const { cpu, ramSize, ...definition } = parseMachine(text, relativePath);
+  // The parser validates the explicit RAM size against the selected CPU model.
+  const { cpu, ...definition } = parseMachine(text, relativePath);
   const data = JSON.stringify(definition, null, 2);
   const cpuClass = `Cpu${cpu.charAt(0).toUpperCase()}${cpu.slice(1)}`;
   const name = `create${stem.split(/[/-]/).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join("")}`;

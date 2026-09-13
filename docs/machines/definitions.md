@@ -6,7 +6,8 @@ byte images, and an optional caller completion address. The
 [example catalog](../README.md#cpu-examples) links to specifications, each with
 its source definition and tests.
 
-Each file explicitly declares 64 KiB RAM. Unspecified memory is zero; blocks
+Each file explicitly declares its CPU's RAM size: 16 KiB for the 8008,
+64 KiB for the other current models. Unspecified memory is zero; blocks
 load in source order, with later bytes overwriting earlier ones where they
 overlap. Reset vectors are ordinary byte blocks. Initial state includes every
 stored field for that CPU. The optional `end` declaration supplies a completion
@@ -61,6 +62,9 @@ CPU and a numeric definition; TypeScript also checks each generated call against
 the actual constructor. CPU constructors retain their own state validation.
 The example tests independently check full memory images, initial state, and
 execution.
+
+The helper accepts `ramSize`, defaulting to 64 KiB for direct TypeScript
+callers. Generated factories always supply the parsed size.
 
 Factories remain synchronous. Every call creates fresh RAM and CPU components
 without reset or execution; the memory-only factory does not construct a CPU.

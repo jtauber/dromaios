@@ -19,7 +19,7 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
   [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint): Intel 8008,
   Intel 8080, Motorola 6800, MOS 6502, Zilog Z80, Motorola 6809, Intel 8088,
   and Motorola 68000. Expand the existing cores while introducing small slices
-  of the remaining four. The order of new introductions remains open.
+  of the remaining targets. The order of new introductions remains open.
 - Defer interrupts and I/O across all eight until that checkpoint is met,
   including interrupt-specific control instructions and memory-mapped devices.
   Ordinary memory and status-register operations remain in scope. Opcode
@@ -31,6 +31,9 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
   will test sharing between related processors. The
   [project roadmap](../../ROADMAP.md) sets out the runner and opcode-expansion
   priorities; browser work can proceed alongside CPU development.
+- The **8008 is the fifth CPU**. Its native encoding, 14-bit addresses,
+  and internal address registers extend the comparison; see its
+  [model contract](8008/model.md).
 - Choose implementation order independently of the microcomputer tutorial's
   historical teaching order.
 
@@ -143,7 +146,7 @@ programmer-managed stack in RAM. See
 ## Current implementation
 
 The introductory [8080](8080/examples/arithmetic.md), [6502](6502/examples/arithmetic.md),
-[6809](6809/examples/arithmetic.md), and [Z80](z80/examples/arithmetic.md) examples are complete.
+[6809](6809/examples/arithmetic.md), [Z80](z80/examples/arithmetic.md), and [8008](8008/examples/arithmetic.md) examples are complete.
 The [coverage tracker](coverage.md) records current instruction and feature support. The
 [model contracts](../README.md#cpu-models) define state, execution records,
 and reset; [example specifications](../README.md#cpu-examples) define programs
