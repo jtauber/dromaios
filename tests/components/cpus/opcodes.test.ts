@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { opcodeAliases, opcodeFamily, opcodeTable } from "../../../src/components/cpus/opcodes.js";
+import { opcodePattern, opcodeFamily, opcodeTable } from "../../../src/components/cpus/opcodes.js";
 
 test("opcode tables keep explicit entries and unsupported gaps without executing handlers", () => {
   let calls = 0;
@@ -27,16 +27,18 @@ test("opcode tables reject invalid byte values and duplicate explicit entries", 
 test("8008 alias patterns produce only their documented opcode bytes and share the handler", () => {
   const handler = () => { throw new Error("Execution during construction"); };
   for (const [pattern, expected] of [
+    ["00 000 00x", [0x00, 0x01]],
     ["00 xxx 111", [0x07, 0x0f, 0x17, 0x1f, 0x27, 0x2f, 0x37, 0x3f]],
     ["01 xxx 100", [0x44, 0x4c, 0x54, 0x5c, 0x64, 0x6c, 0x74, 0x7c]],
     ["01 xxx 110", [0x46, 0x4e, 0x56, 0x5e, 0x66, 0x6e, 0x76, 0x7e]],
   ] as const) {
-    const entries = opcodeAliases(pattern, handler);
+    const entries = opcodePattern(pattern, handler);
     assert.deepEqual(entries.map(([opcode]) => opcode), expected);
     assert.ok(entries.every(([, bound]) => bound === handler));
   }
-  assert.deepEqual(opcodeAliases("1111_1111", handler), [[0xff, handler]]);
-  assert.equal(opcodeAliases("xxxxxxxx", handler).length, 256);
+  assert.deepEqual(opcodePattern("00 000 100", handler), [[0x04, handler]]);
+  assert.deepEqual(opcodePattern("1111_1111", handler), [[0xff, handler]]);
+  assert.equal(opcodePattern("xxxxxxxx", handler).length, 256);
 });
 
 test("6502 branch selectors bind flag names and values to independently listed encodings", () => {
@@ -84,7 +86,7 @@ test("binding captures selectors while handlers read current state at execution"
 
 test("opcode construction rejects overlaps between families, aliases, and explicit entries", () => {
   const handler = () => {};
-  const aliases = opcodeAliases("00 xxx 111", handler);
+  const aliases = opcodePattern("00 xxx 111", handler);
   const family = opcodeFamily("00 fff 111", { f: [0, 1, 2, 3, 4, 5, 6, 7] }, () => handler);
   for (const entries of [
     [...aliases, ...family],
@@ -110,5 +112,5 @@ test("malformed patterns and incomplete or extraneous selector maps fail before 
   assert.throws(() => opcodeFamily("ff010000", { f: sparse }, bind), /Selector f.*missing value 2/);
   assert.throws(() => opcodeFamily("00000000", { f: [0] }, bind), /Selector f is absent/);
   assert.throws(() => opcodeFamily("00xxx111", { x: [0, 1, 2, 3, 4, 5, 6, 7] }, bind), /Selector x is absent/);
-  assert.throws(() => opcodeAliases("ff010000", bind), /Selector f.*requires 4 values/);
+  assert.throws(() => opcodePattern("ff010000", bind), /Selector f.*requires 4 values/);
 });

@@ -3,7 +3,8 @@
 The [opcode helpers](../../src/components/cpus/opcodes.ts) are a small experiment
 in describing existing encodings within TypeScript. The goal is to make the
 hardware easier to read while preserving each CPU's execution behavior. The
-experiment uses three already implemented families:
+8008 table uses patterns throughout; the 6502 and 6809 use them for selected
+families. These examples exercise three encoding relationships:
 
 | CPU | Pattern | Meaning |
 | --- | --- | --- |
@@ -17,9 +18,9 @@ accesses are unchanged. The other CPU models retain their existing tables.
 ## Explicit entries and families
 
 `opcodeTable<OpcodeHandler>(entries)` constructs the dispatch table from an
-ordered list of `[opcode, handler]` pairs. Explicit instructions keep their
-binary encodings and nearby mnemonics. Expanded families appear at their place
-in the CPU's encoding order.
+ordered list of `[opcode, handler]` pairs. Entries can be written directly or
+expanded from patterns and families. Keep meaningful bit grouping and nearby
+mnemonics, with each definition at its place in the CPU's encoding order.
 
 The list preserves every entry until validation. Duplicate opcode bytes throw
 an error, including an overlap between an explicit instruction and a family,
@@ -27,9 +28,11 @@ or two definitions with the same handler. Entries cannot silently replace one
 another. Byte values must be integers from `00` through `FF`; absent entries
 remain unsupported.
 
-`opcodeAliases(pattern, handler)` binds the same handler to every encoding of
-a pattern with ignored bits. For example, the 8008's `00 xxx 111` generates
-`07`, `0F`, `17`, `1F`, `27`, `2F`, `37`, and `3F` for RET.
+`opcodePattern(pattern, handler)` binds the same handler to every encoding of
+a pattern. Fixed bits describe one opcode; ignored bits describe aliases. For
+example, the 8008 uses `00 000 100` for ADI, `00 000 00x` for the adjacent
+`00`/`01` HLT encodings, and `00 xxx 111` for the RET aliases `07`, `0F`, `17`,
+`1F`, `27`, `2F`, `37`, and `3F`. The same notation serves all three cases.
 
 `opcodeFamily(pattern, selectors, bind)` maps encoded fields to typed values
 and binds a handler for each combination. The 6502 branch definition is:

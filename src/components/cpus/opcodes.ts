@@ -21,8 +21,8 @@ export function opcodeTable<Handler>(
   return table;
 }
 
-/** Expand documented aliases: 0/1 are fixed bits, x is ignored; spaces/underscores group bits. */
-export function opcodeAliases<Handler>(pattern: string, handler: Handler): readonly OpcodeEntry<Handler>[] {
+/** Bind a handler to a fixed encoding or aliases: 0/1 are fixed bits, x is ignored. */
+export function opcodePattern<Handler>(pattern: string, handler: Handler): readonly OpcodeEntry<Handler>[] {
   return opcodeFamily(pattern, {}, () => handler);
 }
 
