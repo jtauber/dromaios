@@ -13,20 +13,22 @@ emulators do not count toward implementation here.
 
 ## At a glance
 
-| Model | Introduced | Complete / documented opcode forms | Opcode completion | Additional partial forms | Completed examples |
-| --- | --- | --- | --- | --- | --- |
-| [Intel 8008](#cpus-and-variants-not-started) | 1972 | 0 / TBD | 0.0% | 0 | None |
-| [Intel 8080](#8080) | 1974 | 239 / 244 | 98.0% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [PSW](8080/examples/psw.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md), [transfers](8080/examples/transfers.md), [ALU](8080/examples/alu.md), [counted loop](8080/examples/counted-loop.md), [rotates and carry](8080/examples/rotates.md) |
-| [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 | None |
-| [MOS 6502](#6502) | 1975 | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502/examples/arithmetic.md), [stack](6502/examples/stack.md), [addressing](6502/examples/addressing.md) |
-| [Zilog Z80](#z80) | 1976 | 4 / 698 | 0.6% | 0 | [Arithmetic and 8080 comparison](z80/examples/arithmetic.md) |
-| [Motorola 6809](#6809) | 1978 | 9 / 268 | 3.4% | 0 | [Arithmetic](6809/examples/arithmetic.md), [stack](6809/examples/stack.md), [addressing](6809/examples/addressing.md) |
-| [Intel 8088](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 | None |
-| [Motorola 68000](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 | None |
+| Model | Introduced | Complete / documented opcode forms | Opcode completion | Additional partial forms |
+| --- | --- | --- | --- | --- |
+| [Intel 8008](#cpus-and-variants-not-started) | 1972 | 0 / TBD | 0.0% | 0 |
+| [Intel 8080](#8080) | 1974 | 239 / 244 | 98.0% | 0 |
+| [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 |
+| [MOS 6502](#6502) | 1975 | 7 / 151 | 4.6% | 1: binary-only ADC |
+| [Zilog Z80](#z80) | 1976 | 4 / 698 | 0.6% | 0 |
+| [Motorola 6809](#6809) | 1978 | 9 / 268 | 3.4% | 0 |
+| [Intel 8088](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 |
+| [Motorola 68000](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 |
 
-A completed example establishes its specified program and checks; all four
-implemented CPU models remain incomplete. The 8008, 6800, 8088, and 68000 are
-not started; their documented-form totals will be established when
+Completed examples are linked in each CPU section below and grouped by topic
+in the [example catalog](../README.md#cpu-examples).
+
+All four implemented CPU models remain incomplete. The 8008, 6800, 8088, and
+68000 are not started; their documented-form totals will be established when
 implementation begins.
 
 ## How the percentages are counted
