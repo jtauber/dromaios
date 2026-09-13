@@ -19,7 +19,7 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 1974 | 240 / 244 | 98.4% | 0 |
 | [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 |
 | [MOS 6502](#6502) | 1975 | 25 / 151 | 16.6% | 1: binary-only ADC |
-| [Zilog Z80](#z80) | 1976 | 4 / 698 | 0.6% | 0 |
+| [Zilog Z80](#z80) | 1976 | 30 / 698 | 4.3% | 0 |
 | [Motorola 6809](#6809) | 1978 | 30 / 268 | 11.2% | 0 |
 | [Intel 8088](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 |
 | [Motorola 68000](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 |
@@ -550,9 +550,38 @@ reset preservation, and fresh restart.
 [Arithmetic example](z80/examples/arithmetic.md) ·
 [Example definition](../../src/machines/z80/example.machine)
 
+[Counted-loop specification](z80/examples/counted-loop.md) ·
+[Counted-loop definition](../../src/machines/z80/counted-loop-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
+| `04` | `INC B` | Register | 1 | Increment B; preserve C |
+| `05` | `DEC B` | Register | 1 | Decrement B; preserve C |
+| `06` | `LD B,n` | Immediate | 2 | Load B; preserve flags |
+| `0C` | `INC C` | Register | 1 | Increment C; preserve carry flag |
+| `0D` | `DEC C` | Register | 1 | Decrement C; preserve carry flag |
+| `0E` | `LD C,n` | Immediate | 2 | Load C; preserve flags |
+| `10` | `DJNZ rel` | Relative | 2 | Decrement B; jump if the result is nonzero; preserve all flags |
+| `14` | `INC D` | Register | 1 | Increment D; preserve C |
+| `15` | `DEC D` | Register | 1 | Decrement D; preserve C |
+| `16` | `LD D,n` | Immediate | 2 | Load D; preserve flags |
+| `18` | `JR rel` | Relative | 2 | Jump unconditionally; preserve flags |
+| `1C` | `INC E` | Register | 1 | Increment E; preserve C |
+| `1D` | `DEC E` | Register | 1 | Decrement E; preserve C |
+| `1E` | `LD E,n` | Immediate | 2 | Load E; preserve flags |
+| `20` | `JR NZ,rel` | Relative | 2 | Jump if Z = 0; preserve flags |
+| `24` | `INC H` | Register | 1 | Increment H; preserve C |
+| `25` | `DEC H` | Register | 1 | Decrement H; preserve C |
+| `26` | `LD H,n` | Immediate | 2 | Load H; preserve flags |
+| `28` | `JR Z,rel` | Relative | 2 | Jump if Z = 1; preserve flags |
+| `2C` | `INC L` | Register | 1 | Increment L; preserve C |
+| `2D` | `DEC L` | Register | 1 | Decrement L; preserve C |
+| `2E` | `LD L,n` | Immediate | 2 | Load L; preserve flags |
+| `30` | `JR NC,rel` | Relative | 2 | Jump if C = 0; preserve flags |
 | `32` | `LD (nn),A` | Absolute | 3 | Store A; address bytes low then high; preserve flags |
+| `38` | `JR C,rel` | Relative | 2 | Jump if C = 1; preserve flags |
+| `3C` | `INC A` | Register | 1 | Increment A; preserve C |
+| `3D` | `DEC A` | Register | 1 | Decrement A; preserve C |
 | `3E` | `LD A,n` | Immediate | 2 | Load A; preserve flags |
 | `76` | `HALT` | Implied | 1 | Advance PC, increment R, and halt; preserve flags and interrupt latches |
 | `C6` | `ADD A,n` | Immediate | 2 | Add without incoming carry; set S/Z/H/PV/C from the result and clear N; PV means signed overflow |
@@ -562,13 +591,16 @@ reset preservation, and fresh restart.
 | Stored registers | A/B/C/D/E/H/L in main and alternate banks; IX, IY, PC, SP, I, R |
 | Stored flags | S/Z/H/PV/N/C in both banks; undocumented F bits 3/5 and raw F/AF views are omitted |
 | Register relationships | Snapshots derive BC, DE, and HL in both banks; no bank-exchange or pair-operation instructions yet |
+| Register operations | Immediate A/B/C/D/E/H/L loads preserve flags; INC/DEC wrap byte registers and replace S/Z/H/PV/N, preserving C; the alternate bank is unchanged |
+| Relative jumps | Unconditional JR and NZ/Z/NC/C conditions; signed displacement from PC after the operand, wrapping at 16 bits; fetch operand on every path |
+| Counted loops | DJNZ decrements B and tests its result while preserving all flags; zero wraps to FF; BC follows the updated B |
 | Interrupt state | IFF1, IFF2, and IM 0/1/2 can be initialized and inspected; no interrupt delivery or interrupt-control instructions |
 | Refresh register | Each supported unprefixed opcode increments R bits 0–6 once, preserving bit 7; no increments for operand/data accesses |
 | Reset | Clear PC/I/R, IFF1/IFF2, and IM; release HALT; preserve banks, flags, IX/IY/SP, and RAM under the documented model policy |
 | Prefixes | CB/DD/ED/FD rejected after the first byte; all CPU state, including R, remains unchanged |
 | Stopping | HALT reports its instruction once; already halted steps perform no accesses or refresh updates |
-| Remaining instruction scope | All other transfers, arithmetic and logic, register exchanges, stack operations, control flow, and I/O |
-| Remaining addressing scope | Register, indirect, indexed, relative, and prefixed forms beyond the exact encodings above |
+| Remaining instruction scope | Further transfers, arithmetic and logic, register exchanges, stack operations, absolute jumps, calls/returns, and I/O |
+| Remaining addressing scope | Indirect, indexed, prefixed, and other forms beyond the exact encodings above |
 
 The model covers documented instruction semantics for the listed forms, not
 undocumented flag bits or cycle activity. In particular, a physical Z80 keeps
@@ -577,7 +609,8 @@ those cycles. See the [model contract](z80/model.md) for unsupported-attempt and
 reset-preservation policies.
 
 Verification: [CPU tests](../../tests/components/cpus/z80.test.ts),
-[arithmetic example tests](../../tests/machines/z80/example.test.ts), and
+[arithmetic example tests](../../tests/machines/z80/example.test.ts),
+[counted-loop example tests](../../tests/machines/z80/counted-loop-example.test.ts), and
 [public type checks](../../tests/types/z80.ts). ADD checks every byte operand
 pair against independent column addition and signed-range overflow, with old
 flags clear and set. Boundary programs exercise all flag patterns alongside
@@ -587,6 +620,15 @@ views, exact accesses, PC and R wrapping, current RAM, overlapping stores,
 every unsupported first byte, HALT, reset, and retained records. The generated
 example and runner checks verify complete records, final RAM, and bounded
 resumption with the concrete Z80 types.
+Register load and INC/DEC checks cover every byte and all 64 flag patterns,
+signed overflow, half carry/borrow, carry preservation, pair views, and alternate
+bank isolation. JR conditions cover every flag pattern; DJNZ covers every B
+value and flag pattern. Every displacement is checked on each available path,
+including wrapping and instruction overlap. All supported opcodes are checked
+with every R value. Further checks cover live flags after ADD/INC, current
+operands, and detached records. The counted loop checks ten complete records,
+actual RAM calls, full memory images, refresh wrapping, HALT, bounded resumption,
+reset and restart, and a zero initial count producing 256 iterations.
 
 ## CPUs and variants not started
 

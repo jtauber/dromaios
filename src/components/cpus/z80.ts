@@ -82,6 +82,7 @@ interface InstructionContext {
 }
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
+type ByteRegister = "a" | "b" | "c" | "d" | "e" | "h" | "l";
 
 function copyBank(bank: CpuZ80RegisterBank): CpuZ80RegisterBank {
   const flags = bank.flags;
@@ -188,15 +189,36 @@ export class CpuZ80 {
 
   // Opcode selectors and construction.
 
+  // rrr selects B/C/D/E/H/L/(HL)/A in order. The 110 memory slot is not implemented.
+  readonly #byteRegisters = ["b", "c", "d", "e", "h", "l", undefined, "a"] as const;
+
+  // Conditional JR uses just two condition bits: 00 NZ, 01 Z, 10 NC, 11 C.
+  readonly #relativeConditions = [
+    () => !this.#state.flags.z,
+    () => this.#state.flags.z,
+    () => !this.#state.flags.c,
+    () => this.#state.flags.c,
+  ] as const;
+
   // Unprefixed opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
   // xx selects a block; the other fields select its operation and operands.
   // Pair families split yyy into pp q. Prefixed instructions remain unsupported.
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+    // xx=00, zzz=000: yyy=010 selects DJNZ, 011 JR, and 1cc conditional JR.
+    // yyy=000 (NOP) and 001 (EX AF,AF') remain unsupported.
+    0b00_010_000: ({ fetchByte }) => this.#decrementAndJump(fetchByte()), // DJNZ e
+    0b00_011_000: ({ fetchByte }) => this.#jumpRelative(fetchByte(), true), // JR e
+    ...this.#relativeJumpHandlers(), // JR NZ/Z/NC/C,e
+
     // xx=00, zzz=010: pp=11 selects A at address nn; q=0 stores (q=1 would load).
     0b00_11_0_010: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // LD (nn),A
 
-    // xx=00, zzz=110: 00 ddd 110 loads an immediate byte; ddd=111 selects A.
-    0b00_111_110: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LD A,n
+    // 00 rrr zzz: rrr (bits 5..3) selects the byte register; zzz selects the operation.
+    // rrr=110 selects (HL); these memory forms are omitted.
+    ...this.#byteRegisterHandlers(0b00_000_100, register => this.#adjustRegister(register, 1)), // 00 rrr 100: INC r
+    ...this.#byteRegisterHandlers(0b00_000_101, register => this.#adjustRegister(register, -1)), // 00 rrr 101: DEC r
+    ...this.#byteRegisterHandlers(0b00_000_110, (register, { fetchByte }) =>
+      this.#loadRegister(register, fetchByte())), // 00 rrr 110: LD r,n
 
     // xx=01: 01 ddd sss encodes register/memory loads; 110 selects (HL).
     0b01_110_110: () => this.#halt(), // HALT occupies the (HL),(HL) slot.
@@ -207,19 +229,68 @@ export class CpuZ80 {
     0b11_000_110: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADD A,n
   };
 
+  #relativeJumpHandlers(): Partial<Record<number, OpcodeHandler>> {
+    const handlers: Partial<Record<number, OpcodeHandler>> = {};
+    for (const [conditionCode, condition] of this.#relativeConditions.entries()) {
+      // 00 1 cc 000: cc occupies bits 4..3; bit 5 is fixed at 1.
+      const opcode = 0b00_1_00_000 | (conditionCode << 3);
+      handlers[opcode] = ({ fetchByte }) => this.#jumpRelative(fetchByte(), condition());
+    }
+    return handlers;
+  }
+
+  #byteRegisterHandlers(
+    base: number,
+    operation: (register: ByteRegister, instruction: InstructionContext) => void,
+  ): Partial<Record<number, OpcodeHandler>> {
+    const handlers: Partial<Record<number, OpcodeHandler>> = {};
+    for (const [registerCode, register] of this.#byteRegisters.entries()) {
+      if (register === undefined) continue;
+      // 00 rrr zzz: rrr occupies bits 5..3; the base supplies the operation's zzz.
+      handlers[base | (registerCode << 3)] = instruction => operation(register, instruction);
+    }
+    return handlers;
+  }
+
   // Loads.
 
-  #loadAccumulator(value: number): void {
-    this.#state.a = value;
+  #loadRegister(register: ByteRegister, value: number): void {
+    this.#state[register] = value;
   }
 
   // Control flow.
+
+  #jumpRelative(displacement: number, take: boolean): void {
+    // Both paths fetch the operand; PC now points past both instruction bytes.
+    if (take) {
+      const offset = displacement < 0x80 ? displacement : displacement - 0x100;
+      this.#state.pc = (this.#state.pc + offset) & 0xffff;
+    }
+  }
+
+  #decrementAndJump(displacement: number): void {
+    // DJNZ decrements B without applying DEC's flag changes.
+    this.#state.b = (this.#state.b - 1) & 0xff;
+    this.#jumpRelative(displacement, this.#state.b !== 0);
+  }
 
   #halt(): void {
     this.#state.halted = true;
   }
 
   // Arithmetic and flags.
+
+  #adjustRegister(register: ByteRegister, delta: -1 | 1): void {
+    const value = this.#state[register];
+    const result = (value + delta) & 0xff;
+    this.#state[register] = result;
+    this.#state.flags.s = (result & 0x80) !== 0;
+    this.#state.flags.z = result === 0;
+    // INC carries out of bit 3; DEC borrows from bit 4. Both preserve C.
+    this.#state.flags.h = delta === 1 ? (value & 0x0f) === 0x0f : (value & 0x0f) === 0;
+    this.#state.flags.pv = value === (delta === 1 ? 0x7f : 0x80);
+    this.#state.flags.n = delta === -1;
+  }
 
   #addToAccumulator(value: number): void {
     const a = this.#state.a;

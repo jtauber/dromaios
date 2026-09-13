@@ -34,6 +34,17 @@ function flagPattern(bits: number): CpuZ80Flags {
     pv: Boolean(bits & 8), n: Boolean(bits & 16), c: Boolean(bits & 32) };
 }
 
+// Literal encodings from the manual; the memory selector (HL) is outside this slice.
+const byteRegisterCases = [
+  { register: "a", load: 0x3e, increment: 0x3c, decrement: 0x3d },
+  { register: "b", load: 0x06, increment: 0x04, decrement: 0x05 },
+  { register: "c", load: 0x0e, increment: 0x0c, decrement: 0x0d },
+  { register: "d", load: 0x16, increment: 0x14, decrement: 0x15 },
+  { register: "e", load: 0x1e, increment: 0x1c, decrement: 0x1d },
+  { register: "h", load: 0x26, increment: 0x24, decrement: 0x25 },
+  { register: "l", load: 0x2e, increment: 0x2c, decrement: 0x2d },
+] as const;
+
 test("Z80 owns both banks, flags, and snapshots without reset or memory access", () => {
   const ram = new ObservedRam();
   const supplied = initialState();
@@ -140,25 +151,59 @@ test("Z80 validates both banks, control fields, and RAM size before accessing me
   assert.deepEqual(ram.accesses, []);
 });
 
-test("Z80 LD A,n handles every byte and preserves every flag combination and alternate state", () => {
-  const ram = new ObservedRam();
-  ram.write(0x2000, 0x3e);
-  for (let bits = 0; bits < 64; bits++) {
-    for (let value = 0; value < 256; value++) {
-      ram.write(0x2001, value);
-      ram.accesses.length = 0;
-      const before = initialState({ flags: flagPattern(bits) });
-      const cpu = new CpuZ80(ram, before);
-      const record = cpu.step();
-      assert.deepEqual(record, {
-        before: snapshot(before), after: snapshot({ ...before, a: value, pc: 0x2002, r: 0xff }),
-        instruction: { address: 0x2000, bytes: [0x3e, value] }, outcome: "executed",
-        accesses: [{ kind: "read", address: 0x2000, value: 0x3e }, { kind: "read", address: 0x2001, value }],
-      });
-      assert.deepEqual(ram.accesses, record.accesses);
+for (const { register, load, increment, decrement } of byteRegisterCases) {
+  test(`Z80 LD ${register.toUpperCase()},n handles every byte and preserves every flag combination and alternate state`, () => {
+    const ram = new ObservedRam();
+    for (const [pc, operandAddress, nextPc] of [[0x2000, 0x2001, 0x2002], [0xffff, 0, 1]] as const) {
+      ram.write(pc, load);
+      for (let bits = 0; bits < 64; bits++) {
+        for (let value = 0; value < 256; value++) {
+          ram.write(operandAddress, value);
+          ram.accesses.length = 0;
+          const before = initialState({ pc, flags: flagPattern(bits) });
+          const cpu = new CpuZ80(ram, before);
+          const record = cpu.step();
+          assert.deepEqual(record, {
+            before: snapshot(before), after: snapshot({ ...before, [register]: value, pc: nextPc, r: 0xff }),
+            instruction: { address: pc, bytes: [load, value] }, outcome: "executed",
+            accesses: [{ kind: "read", address: pc, value: load }, { kind: "read", address: operandAddress, value }],
+          });
+          assert.deepEqual(cpu.snapshot(), record.after);
+          assert.deepEqual(ram.accesses, record.accesses);
+        }
+      }
     }
+  });
+
+  for (const [mnemonic, opcode, delta] of [["INC", increment, 1], ["DEC", decrement, -1]] as const) {
+    test(`Z80 ${mnemonic} ${register.toUpperCase()} handles every byte and flag pattern, preserving carry and the alternate bank`, () => {
+      const ram = new ObservedRam();
+      ram.write(0xffff, opcode);
+      for (let value = 0; value < 256; value++) {
+        const result = (value + delta + 256) % 256;
+        const signedResult = (value < 128 ? value : value - 256) + delta;
+        const lowDigitResult = value % 16 + delta;
+        for (let bits = 0; bits < 64; bits++) {
+          const flags = flagPattern(bits);
+          const before = initialState({ [register]: value, flags, pc: 0xffff, r: 0xff });
+          const cpu = new CpuZ80(ram, before);
+          ram.accesses.length = 0;
+          const record = cpu.step();
+          assert.deepEqual(record, {
+            before: snapshot(before),
+            after: snapshot({ ...before, [register]: result, pc: 0, r: 0x80,
+              flags: { s: result >= 128, z: result === 0, h: lowDigitResult < 0 || lowDigitResult > 15,
+                pv: signedResult < -128 || signedResult > 127, n: delta === -1, c: flags.c } }),
+            instruction: { address: 0xffff, bytes: [opcode] }, outcome: "executed",
+            accesses: [{ kind: "read", address: 0xffff, value: opcode }],
+          });
+          assert.deepEqual(cpu.snapshot(), record.after);
+          assert.deepEqual(ram.accesses, record.accesses);
+        }
+      }
+    });
   }
-});
+}
 
 // Independent reference: decimal signed range for overflow and column addition for carries.
 function addition(a: number, value: number) {
@@ -271,33 +316,205 @@ test("Z80 executes self-modified code and keeps earlier records detached", () =>
 
 test("Z80 increments only R bits 0–6 once per supported opcode, including HALT", () => {
   const ram = new ObservedRam();
-  for (const opcode of [0x32, 0x3e, 0x76, 0xc6]) {
-    for (let r = 0; r < 256; r++) {
-      ram.write(0xffff, opcode);
-      ram.write(0, 0x80);
-      ram.write(1, 0);
-      ram.accesses.length = 0;
-      const before = initialState({ pc: 0xffff, r, iff1: false, iff2: true });
-      const cpu = new CpuZ80(ram, before);
-      const record = cpu.step();
-      assert.equal(record.after.r, Math.floor(r / 128) * 128 + (r % 128 + 1) % 128);
-      assert.equal(record.after.pc, opcode === 0x32 ? 2 : opcode === 0x76 ? 0 : 1);
-      assert.equal(record.after.iff1, false);
-      assert.equal(record.after.iff2, true);
-      if (opcode === 0x76) {
-        assert.deepEqual(record.after, snapshot({ ...before, pc: 0, r: record.after.r, halted: true }));
-        assert.equal(record.outcome, "halted");
+  // Initial Z/C are clear, B is 22, and the displacement is 80 (-128).
+  for (const [opcodes, nextPc] of [
+    [[0x04, 0x05, 0x0c, 0x0d, 0x14, 0x15, 0x1c, 0x1d, 0x24, 0x25, 0x2c, 0x2d, 0x3c, 0x3d, 0x76], 0],
+    [[0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x3e, 0xc6, 0x28, 0x38], 1],
+    [[0x10, 0x18, 0x20, 0x30], 0xff81],
+    [[0x32], 2],
+  ] as const) {
+    for (const opcode of opcodes) {
+      for (let r = 0; r < 256; r++) {
+        ram.write(0xffff, opcode);
+        ram.write(0, 0x80);
+        ram.write(1, 0);
+        ram.accesses.length = 0;
+        const before = initialState({ pc: 0xffff, r, iff1: false, iff2: true });
+        const cpu = new CpuZ80(ram, before);
+        const record = cpu.step();
+        assert.equal(record.after.r, Math.floor(r / 128) * 128 + (r % 128 + 1) % 128);
+        assert.equal(record.after.pc, nextPc);
+        assert.equal(record.after.iff1, false);
+        assert.equal(record.after.iff2, true);
+        assert.equal(record.outcome, opcode === 0x76 ? "halted" : "executed");
+        if (opcode === 0x76) {
+          assert.deepEqual(record.after, snapshot({ ...before, pc: 0, r: record.after.r, halted: true }));
+        }
+        assert.deepEqual(ram.accesses, record.accesses);
       }
+    }
+  }
+});
+
+// Truth sets use Z:C as a two-bit value, independent of the CPU's condition selectors.
+const relativeJumps: readonly { mnemonic: string; opcode: number; takenConditions: readonly number[] }[] = [
+  { mnemonic: "JR", opcode: 0x18, takenConditions: [0, 1, 2, 3] },
+  { mnemonic: "JR NZ", opcode: 0x20, takenConditions: [0, 1] },
+  { mnemonic: "JR Z", opcode: 0x28, takenConditions: [2, 3] },
+  { mnemonic: "JR NC", opcode: 0x30, takenConditions: [0, 2] },
+  { mnemonic: "JR C", opcode: 0x38, takenConditions: [1, 3] },
+];
+
+for (const { mnemonic, opcode, takenConditions } of relativeJumps) {
+  test(`Z80 ${mnemonic} checks the correct flags and wraps signed targets while fetching both bytes on every path`, () => {
+    const ram = new ObservedRam();
+    for (const [pc, operandAddress, displacement, fallthrough, target] of [
+      [0x1234, 0x1235, 0x00, 0x1236, 0x1236],
+      [0x1234, 0x1235, 0x7f, 0x1236, 0x12b5],
+      [0x1234, 0x1235, 0x80, 0x1236, 0x11b6],
+      [0x1234, 0x1235, 0xfe, 0x1236, 0x1234],
+      [0x1234, 0x1235, 0xff, 0x1236, 0x1235],
+      [0x12fd, 0x12fe, 0x01, 0x12ff, 0x1300],
+      [0x0000, 0x0001, 0x80, 0x0002, 0xff82],
+      [0xfffd, 0xfffe, 0x01, 0xffff, 0x0000],
+      [0xfffe, 0xffff, 0xff, 0x0000, 0xffff],
+      [0xffff, 0x0000, 0xfe, 0x0001, 0xffff],
+    ] as const) {
+      ram.write(pc, opcode);
+      ram.write(operandAddress, displacement);
+      for (let bits = 0; bits < 64; bits++) {
+        const flags = flagPattern(bits);
+        const before = initialState({ pc, flags, r: 0x7f });
+        const take = takenConditions.includes(Number(flags.z) * 2 + Number(flags.c));
+        const cpu = new CpuZ80(ram, before);
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          before: snapshot(before), after: snapshot({ ...before, pc: take ? target : fallthrough, r: 0 }),
+          instruction: { address: pc, bytes: [opcode, displacement] }, outcome: "executed",
+          accesses: [
+            { kind: "read", address: pc, value: opcode },
+            { kind: "read", address: operandAddress, value: displacement },
+          ],
+        });
+        assert.deepEqual(cpu.snapshot(), record.after);
+        assert.deepEqual(ram.accesses, record.accesses);
+      }
+    }
+  });
+}
+
+test("Z80 DJNZ decrements every B value, ignores and preserves all flags, and updates the BC view", () => {
+  const ram = new ObservedRam();
+  ram.write(0xffff, 0x10);
+  ram.write(0, 0xfe);
+  for (let b = 0; b < 256; b++) {
+    for (let bits = 0; bits < 64; bits++) {
+      const before = initialState({ b, pc: 0xffff, r: 0x7f, flags: flagPattern(bits) });
+      const cpu = new CpuZ80(ram, before);
+      ram.accesses.length = 0;
+      const record = cpu.step();
+      assert.deepEqual(record, {
+        before: snapshot(before),
+        after: snapshot({ ...before, b: (b + 255) % 256, pc: b === 1 ? 1 : 0xffff, r: 0 }),
+        instruction: { address: 0xffff, bytes: [0x10, 0xfe] }, outcome: "executed",
+        accesses: [{ kind: "read", address: 0xffff, value: 0x10 }, { kind: "read", address: 0, value: 0xfe }],
+      });
+      assert.deepEqual(cpu.snapshot(), record.after);
       assert.deepEqual(ram.accesses, record.accesses);
     }
   }
+});
+
+test("Z80 JR and DJNZ decode every displacement from PC after the operand, on each available path", () => {
+  const ram = new ObservedRam();
+  const operand = new DataView(new ArrayBuffer(1));
+  // Opcode, B, flagPattern input, taken. DJNZ includes wrap from B=00 to FF.
+  for (const [opcode, b, bits, take] of [
+    [0x18, 0x22, 0, true],
+    [0x20, 0x22, 0, true], [0x20, 0x22, 2, false],
+    [0x28, 0x22, 2, true], [0x28, 0x22, 0, false],
+    [0x30, 0x22, 0, true], [0x30, 0x22, 32, false],
+    [0x38, 0x22, 32, true], [0x38, 0x22, 0, false],
+    [0x10, 0, 63, true], [0x10, 1, 0, false],
+  ] as const) {
+    for (const pc of [0, 0x2000, 0xffff]) {
+      ram.write(pc, opcode);
+      for (let displacement = 0; displacement < 256; displacement++) {
+        ram.write((pc + 1) % 65536, displacement);
+        operand.setUint8(0, displacement);
+        const before = initialState({ b, pc, r: 0xff, flags: flagPattern(bits) });
+        const target = (pc + 2 + (take ? operand.getInt8(0) : 0) + 65536) % 65536;
+        const cpu = new CpuZ80(ram, before);
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          before: snapshot(before),
+          after: snapshot({ ...before, b: opcode === 0x10 ? (b + 255) % 256 : b, pc: target, r: 0x80 }),
+          instruction: { address: pc, bytes: [opcode, displacement] }, outcome: "executed",
+          accesses: [
+            { kind: "read", address: pc, value: opcode },
+            { kind: "read", address: (pc + 1) % 65536, value: displacement },
+          ],
+        });
+        assert.deepEqual(ram.accesses, record.accesses);
+      }
+    }
+  }
+});
+
+test("Z80 jumps use live flags after ADD replaces them, DJNZ preserves them, and INC changes them", () => {
+  const ram = new ObservedRam();
+  for (const [offset, byte] of [
+    0xc6, 1, 0x10, 2, 0x28, 2, 0, 0, 0x0c, 0x30, 2, 0x20, 2, 0, 0,
+  ].entries()) ram.write(0x2000 + offset, byte);
+  const before = initialState({ a: 0xff, b: 1 });
+  const cpu = new CpuZ80(ram, before);
+  const afterAdd = { ...before, a: 0, pc: 0x2002, r: 0xff,
+    flags: { s: false, z: true, h: true, pv: false, n: false, c: true } };
+  assert.deepEqual(cpu.step().after, snapshot(afterAdd));
+  const afterDjnz = { ...afterAdd, b: 0, pc: 0x2004, r: 0x80 };
+  assert.deepEqual(cpu.step().after, snapshot(afterDjnz));
+  assert.deepEqual(cpu.step().after, snapshot({ ...afterDjnz, pc: 0x2008, r: 0x81 }));
+  const afterIncrement = { ...afterDjnz, c: 0x34, pc: 0x2009, r: 0x82,
+    flags: { s: false, z: false, h: false, pv: false, n: false, c: true } };
+  assert.deepEqual(cpu.step().after, snapshot(afterIncrement));
+  assert.deepEqual(cpu.step().after, snapshot({ ...afterIncrement, pc: 0x200b, r: 0x83 })); // JR NC untaken
+  assert.deepEqual(cpu.step().after, snapshot({ ...afterIncrement, pc: 0x200f, r: 0x84 })); // JR NZ taken
+});
+
+test("Z80 relative jumps and loads fetch current operands and retain independent records across reset and caller edits", () => {
+  const ram = new ObservedRam();
+  ram.write(0x2000, 0x10);
+  ram.write(0x2001, 0xfe);
+  ram.write(0x2002, 0x2e); // LD L,n
+  ram.write(0x2003, 0);
+  const cpu = new CpuZ80(ram, initialState({ b: 3 }));
+  const first = cpu.step();
+  const savedFirst = structuredClone(first);
+  assert.equal(first.after.b, 2);
+  assert.equal(first.after.pc, 0x2000);
+  ram.write(0x2001, 0);
+  const second = cpu.step();
+  assert.equal(second.after.b, 1);
+  assert.equal(second.after.pc, 0x2002);
+  assert.deepEqual(second.instruction?.bytes, [0x10, 0]);
+  ram.write(0x2003, 0x80);
+  const loaded = cpu.step();
+  assert.equal(loaded.after.l, 0x80);
+  assert.equal(loaded.after.hl, 0x6680);
+  assert.deepEqual(loaded.after.alternate, bankSnapshot(initialState().alternate));
+  assert.deepEqual(first, savedFirst);
+  const savedSecond = structuredClone(second);
+  Reflect.set(first.after.flags, "z", true);
+  Reflect.set(first.after.alternate, "l", 0);
+  Reflect.set(first.after, "bc", 0);
+  assert.ok(first.instruction);
+  Reflect.set(first.instruction.bytes, 1, 0xff);
+  assert.deepEqual(cpu.snapshot(), loaded.after);
+  cpu.reset();
+  ram.write(0x2001, 0xff);
+  assert.deepEqual(second, savedSecond);
 });
 
 test("Z80 rejects every unsupported first byte atomically, including prefixes", () => {
   const ram = new ObservedRam();
   const before = initialState({ pc: 0xffff, r: 0xff });
   for (let opcode = 0; opcode < 256; opcode++) {
-    if ([0x32, 0x3e, 0x76, 0xc6].includes(opcode)) continue;
+    if ([
+      0x04, 0x05, 0x06, 0x0c, 0x0d, 0x0e, 0x10, 0x14, 0x15, 0x16, 0x18, 0x1c, 0x1d, 0x1e,
+      0x20, 0x24, 0x25, 0x26, 0x28, 0x2c, 0x2d, 0x2e, 0x30, 0x32, 0x38, 0x3c, 0x3d, 0x3e, 0x76, 0xc6,
+    ].includes(opcode)) continue;
     ram.write(0xffff, opcode);
     ram.write(0, 0x3e);
     const cpu = new CpuZ80(ram, before);

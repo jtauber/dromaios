@@ -1,6 +1,6 @@
 # Z80 model contract
 
-The first Z80 model implements an instruction-level subset against flat 64 KiB
+The Z80 model implements an instruction-level subset against flat 64 KiB
 RAM. It adds a related processor to the initial three-architecture comparison,
 with its own state and flags. The existing RAM setup and CPU runner work with
 this model without adapters.
@@ -9,7 +9,8 @@ this model without adapters.
 [CPU tests](../../../tests/components/cpus/z80.test.ts) ·
 [Public type checks](../../../tests/types/z80.ts) ·
 [Coverage](../coverage.md#z80) ·
-[Arithmetic example](examples/arithmetic.md)
+[Arithmetic example](examples/arithmetic.md) ·
+[Counted-loop example](examples/counted-loop.md)
 
 Expected hardware behavior comes from the
 [Zilog Z80 CPU User Manual, UM008011-0816](https://www.zilog.com/docs/z80/um0080.pdf):
@@ -102,6 +103,31 @@ model. Neither interrupt-enable latch currently changes how a step executes.
 There is no synthetic lesson-completion instruction or state; caller completion
 belongs to the [runner](../../runtime/runner.md).
 
+## Register operations and relative jumps
+
+Immediate byte-register loads preserve all modeled flags. INC/DEC wrap at
+eight bits and replace S/Z/H/PV/N while preserving C. P/V reports signed
+overflow: INC sets it for `7F` → `80`, DEC for `80` → `7F`. H records a carry
+from bit 3 for INC or a borrow from bit 4 for DEC. INC clears N; DEC sets it.
+Pair views reflect the resulting bytes. The alternate bank remains unchanged.
+
+JR supports an unconditional form and the NZ/Z/NC/C conditions. A taken jump
+adds the signed operand byte to PC after both instruction bytes, with 16-bit
+wrapping; an untaken jump continues at that following address. JR preserves
+all flags. DJNZ first decrements B with eight-bit wrapping, then jumps if B
+is nonzero, preserving all flags including Z. B = `00` becomes `FF` and takes
+the jump; B = `01` becomes `00` and falls through.
+See the [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed
+pages 72, 165–171, and 265–279.
+
+At this model's instruction boundary, INC/DEC read only the opcode. Immediate
+loads, JR, and DJNZ read the opcode followed by one operand, including on an
+untaken path. No target or dummy reads are performed. R advances once on either
+path, following the existing opcode-fetch rule. Subsequent steps fetch current
+RAM and inspect current registers and flags. The
+[counted-loop example](examples/counted-loop.md) specifies a full trace using
+DJNZ, derived BC, refresh-register wrapping, a final store, and HALT.
+
 ## CPU reset
 
 `reset()` returns `CpuZ80ResetRecord` with detached `before` and `after`
@@ -126,6 +152,15 @@ all immediate-load bytes and flag patterns, exact memory accesses, PC and R
 wrapping, overlapping stores, current RAM, and retained records. All unsupported
 first bytes are checked, including prefixes. Construction, nested snapshots,
 reset, and readonly public types have separate checks.
+
+Register loads and INC/DEC cover every byte and all 64 incoming flag patterns,
+including half carry/borrow, signed overflow, flag preservation, pair views,
+and unchanged alternate state. JR conditions cover all flag patterns; DJNZ
+covers every B value and flag pattern. Every relative displacement is checked
+on each available path, including page/address-space crossings and instruction
+overlap. All supported opcodes are checked with every R value. Further checks
+cover live flags after ADD/INC, current operands, and retained records across
+execution, reset, and caller edits.
 
 Paired 8080/Z80 programs check common instruction bytes and data effects while
 asserting each CPU's own flags. ADD uses P/V for signed overflow; 8080 ADI uses

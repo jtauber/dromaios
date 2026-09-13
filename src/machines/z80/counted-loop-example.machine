@@ -1,0 +1,22 @@
+ram 10000
+
+cpu z80 {
+    A = 11  B = 22  C = 33  D = 44  E = 55  H = 66  L = 77
+    flags { S = 1  Z = 1  H = 1  PV = 1  N = 1  C = 1 }
+    alternate {
+        A = 88  B = 99  C = AA  D = BB  E = CC  H = DD  L = EE
+        flags { S = 0  Z = 1  H = 0  PV = 1  N = 0  C = 1 }
+    }
+    IX = 1234  IY = 5678  PC = 0200  SP = ABCD
+    I = 42  R = FE  IM = 2
+    iff1 = true  iff2 = false  halted = false
+}
+
+memory 0200 {
+    06 03       // LD B,03H: remaining iterations
+    3E 00       // LD A,00H: running sum
+    C6 05       // ADD A,05H (loop starts at 0204)
+    10 FC       // DJNZ 0204H: -4 from 0208
+    32 80 00    // LD (0080H),A
+    76          // HALT
+}
