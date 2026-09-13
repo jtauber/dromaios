@@ -121,7 +121,8 @@ We will give specialist instruments a home when we introduce the first one.
 
 Use small programs on the 8080, 6502, and 6809 to exercise the differences that
 a shared interface must represent: register widths and aliases, stack
-conventions, addressing modes, and distinct memory or I/O accesses.
+conventions, addressing modes, and memory accesses. Interrupts and I/O follow
+the roadmap's [CPU-only checkpoint across eight CPUs](../ROADMAP.md#cpu-only-checkpoint).
 
 Shared CPU and inspection interfaces remain provisional until these three
 cases provide evidence for them. RAM and straightforward helpers can be shared

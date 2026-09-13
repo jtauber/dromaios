@@ -9,9 +9,10 @@ is a point to discuss the next slice. Later stages are provisional.
 Every commit requires maintainer review and an explicit go-ahead.
 
 The introductory examples were built in the order **8080 → 6502 → 6809**.
-The current priorities are shared execution support, substantial opcode
-expansion, and the **Z80 as the fourth CPU**. Browser work can proceed alongside
-CPU development; the stages below are not strict prerequisites for one another.
+The current priority is a **CPU-only capability checkpoint across eight CPUs**,
+expanding the four existing cores while introducing the other four. Interrupts
+and I/O wait until all eight reach that checkpoint. Browser work can proceed
+alongside CPU development; the stages below otherwise allow overlapping work.
 Implementation order is independent of the tutorial's historical teaching
 order. See [CPU scope](docs/cpus/scope.md) for the rationale,
 eventual targets, and current reference coverage.
@@ -55,13 +56,10 @@ Acceptance checks are defined in the [8080 example specification](docs/cpus/8080
   attempt, and returns captured records and the reason for stopping while
   preserving CPU-specific types.
 - Expand opcode support in reviewable instruction-family batches: control flow,
-  loads and transfers, arithmetic and logic, remaining stack operations, and I/O.
+  loads and transfers, arithmetic and logic, and stack operations.
   Use independent expected behavior and exhaustive checks where practical.
-- Make a complete documented 8080 instruction set the next substantial CPU
-  milestone. Track timing and interrupt delivery as separate milestones.
 - Continue focused comparisons with the 6502 and 6809, expanding their support
-  as we exercise register relationships, stacks, addressing, and memory or I/O
-  access.
+  as we exercise register relationships, stacks, addressing, and memory access.
 - Compare execution records and inspection needs across the current CPUs.
 - Consolidate shared support where the examples justify it. Keep decoding,
   flags, addressing, and timing specific to each CPU where appropriate.
@@ -69,12 +67,41 @@ Acceptance checks are defined in the [8080 example specification](docs/cpus/8080
   its own state and flags. Paired 8080/Z80 programs test common encodings and
   different semantics. Use further related instruction families to judge which
   implementation details should be shared.
+- Introduce small initial slices for the 8008, 6800, 8088, and 68000 alongside
+  expansion of the existing cores. Let their distinctions test the shared
+  execution and inspection conventions.
 
 **Review points:** The runner handles each CPU's stopping behavior correctly.
 Instruction-family additions have explicit expected behavior and documented
-limits, with progress toward complete documented 8080 opcode coverage.
-Generalizations are exercised against the initial three architectures and
-the Z80.
+limits. Each of the eight CPUs reaches the capability checkpoint below;
+generalizations remain open to revision as the new architectures arrive.
+
+### CPU-only checkpoint
+
+The initial eight targets are **Intel 8008, Intel 8080, Motorola 6800, MOS 6502,
+Zilog Z80, Motorola 6809, Intel 8088, and Motorola 68000**. Each should have:
+
+- Explicit state, detached snapshots, instruction stepping, and a defined reset
+  contract.
+- Representative loads and stores, arithmetic, and logic.
+- Branches, calls and returns, and the CPU's own stack conventions.
+- A useful combined CPU-and-RAM program with independently checked execution
+  records and bounded running through the shared runner.
+
+These are capability criteria. They do not require equal opcode percentages or
+nearly complete instruction sets. Coverage continues to use the full documented
+opcode totals, including instructions deferred from this checkpoint; timing and
+interrupt delivery remain separate measures.
+
+Defer interrupt delivery, interrupt-specific control instructions (including
+`DI`/`EI`), port I/O, and memory-mapped devices across all eight until the
+checkpoint is met. Existing architectural flags and ordinary memory and
+status-register operations remain in scope. The 8080 can pause at **240/244
+forms (98.4%)**, with `DI`, `EI`, `IN`, and `OUT` deferred.
+
+Expand the 6502, 6809, and Z80 in comparable instruction-family batches while
+introducing the other four CPUs in small slices; the order of those introductions
+remains open. Revisit interrupts and I/O once all eight meet the checkpoint.
 
 The introductory [8080](docs/cpus/8080/examples/arithmetic.md), [6502](docs/cpus/6502/examples/arithmetic.md),
 [6809](docs/cpus/6809/examples/arithmetic.md), and [Z80](docs/cpus/z80/examples/arithmetic.md)
@@ -87,7 +114,7 @@ Further examples and comparison of the models continue within this stage.
 ## 3. Make the examples explorable in the browser
 
 This work can begin with the existing examples and shared runner, alongside
-opcode expansion and further Z80 comparisons.
+opcode expansion and the introduction of further CPUs.
 
 - Add a small interface for stepping, resetting, and inspecting state.
 - Introduce register, memory, and instruction views that serve the
@@ -99,6 +126,8 @@ opcode expansion and further Z80 comparisons.
 to actual execution. Inspection does not alter the machine's behavior.
 
 ## 4. Prove reuse with another composition
+
+Device integration follows the [CPU-only checkpoint](#cpu-only-checkpoint).
 
 - Put one of the existing CPU models and memory components in another small
   configuration. This tests machine composition as well as CPU conventions.
@@ -123,9 +152,8 @@ users can inspect the relevant internal activity.
 ## 6. Broaden the platform
 
 - Add further CPU models and variants from the [intended scope](docs/cpus/scope.md#intended-eventual-scope),
-  including the confirmed **Motorola 6800** and **Intel 8008** targets. Test shared
-  execution and inspection conventions against each new case. The order after
-  the Z80 remains open.
+  beyond the initial eight. Test shared execution and inspection conventions
+  against each new case; their implementation order remains open.
 - Add machines in an order we choose as the component library develops.
 - Grow reusable device models, teaching views, and specialist instruments.
 - Bring tutorial examples onto the same components used by complete machines.

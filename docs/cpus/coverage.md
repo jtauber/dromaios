@@ -31,6 +31,11 @@ All four implemented CPU models remain incomplete. The 8008, 6800, 8088, and
 68000 are not started; their documented-form totals will be established when
 implementation begins.
 
+The next milestone is the [CPU-only checkpoint across all eight targets](../../ROADMAP.md#cpu-only-checkpoint).
+Interrupt delivery, interrupt-specific control instructions, port I/O, and
+memory-mapped devices are deferred until then. Deferred instructions remain in
+the documented-form totals; the checkpoint does not require a common percentage.
+
 ## How the percentages are counted
 
 Opcode completion is **complete documented opcode forms / total documented
@@ -279,7 +284,7 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | Decimal adjustment | DAA corrects A using incoming AC/CY; updates result flags and AC while retaining or setting CY; no decimal-mode latch |
 | Byte and word arithmetic | INR/DCR update byte results and S/Z/AC/P while preserving CY; INX/DCX wrap pairs and SP without changing flags; DAD adds to HL and updates only CY |
 | Rotates and carry | RLC/RRC rotate within A; RAL/RAR rotate through CY; all preserve S/Z/AC/P. CMA complements A without changing flags; STC/CMC change only CY |
-| Remaining instruction scope | DI/EI and port I/O |
+| Deferred instruction scope | DI, EI, IN, OUT; resume after the eight-CPU checkpoint |
 
 Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [arithmetic example tests](../../tests/machines/8080/example.test.ts),

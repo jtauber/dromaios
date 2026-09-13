@@ -15,9 +15,16 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
   judge generalizations, including examples that expose their differences.
 - Keep changes small and reviewable. The initial examples used minimal
   instruction subsets; broader support now grows in instruction-family batches.
-- Make a **complete documented 8080 instruction set** the next substantial CPU
-  milestone, with continued focused comparisons on the 6502 and 6809. Opcode
-  coverage, timing, and interrupt delivery are separate measures of progress.
+- Bring **eight initial CPU targets** to the roadmap's
+  [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint): Intel 8008,
+  Intel 8080, Motorola 6800, MOS 6502, Zilog Z80, Motorola 6809, Intel 8088,
+  and Motorola 68000. Expand the existing cores while introducing small slices
+  of the remaining four. The order of new introductions remains open.
+- Defer interrupts and I/O across all eight until that checkpoint is met,
+  including interrupt-specific control instructions and memory-mapped devices.
+  Ordinary memory and status-register operations remain in scope. Opcode
+  percentages retain the full documented totals; timing and interrupt delivery
+  are separate measures of progress.
 - The **Z80 is the fourth CPU**, introduced after substantial 8080 opcode
   coverage. Its initial arithmetic example tests common encodings and distinct
   flags while using the shared RAM setup and runner. Further instruction families
@@ -26,14 +33,12 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
   priorities; browser work can proceed alongside CPU development.
 - Choose implementation order independently of the microcomputer tutorial's
   historical teaching order.
-- Include the **Motorola 6800** and **Intel 8008** as confirmed eventual targets.
-  Their machine targets and implementation order after the Z80 remain open.
 
 ## Intended eventual scope
 
 This is the working target list, not a commitment to implement every processor
-immediately. Fidelity, supported variants, software targets, and the order
-after the Z80 will be defined as each case is introduced.
+immediately. Fidelity, supported variants, software targets, and implementation
+order will be defined as each case is introduced.
 
 | CPU group | Specific targets | Machine targets |
 | --- | --- | --- |
@@ -86,8 +91,8 @@ Hardware references for these distinctions:
    support carries over and where the first model made assumptions.
 3. Repeat with the 6809, revisiting those assumptions with a third architecture.
 4. Add focused examples covering register relationships, stack operations,
-   addressing, and I/O. Three versions of the same arithmetic program alone
-   would leave important differences untested.
+   addressing, and memory access. Three versions of the same arithmetic program
+   alone would leave important differences untested.
 5. Consolidate shared execution, memory, and inspection support where the
    examples justify it. Record the limits and expected behavior of each model.
 
@@ -98,9 +103,9 @@ shared earlier. Decoding, flags, addressing, and timing can retain the structure
 that best explains each CPU. Future processors can still challenge an interface
 that worked for the first three.
 
-These early examples test CPU conventions. A further composition using an
-existing CPU and a simple device will test machine wiring and component reuse
-before we build the first complete machine.
+These early examples test CPU conventions. After the CPU-only checkpoint, a
+further composition using an existing CPU and a simple device will test machine
+wiring and component reuse before we build the first complete machine.
 
 ## Existing reference coverage
 
