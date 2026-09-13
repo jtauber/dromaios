@@ -15,7 +15,7 @@ do not count toward implementation here.
 | Model | Complete / documented opcode forms | Opcode completion | Additional partial forms | Completed examples |
 | --- | --- | --- | --- | --- |
 | [Intel 8080](#8080) | 18 / 244 | 7.4% | 0 | [Arithmetic](8080-example.md), [register pairs](8080-register-pairs-example.md), [stack](8080-stack-example.md) |
-| [NMOS MOS 6502](#6502) | 3 / 151 | 2.0% | 1: binary-only ADC | [Arithmetic](6502-example.md) |
+| [NMOS MOS 6502](#6502) | 5 / 151 | 3.3% | 1: binary-only ADC | [Arithmetic](6502-example.md), [stack](6502-stack-example.md) |
 | [Motorola MC6809 / MC6809E](#6809) | 3 / 268 | 1.1% | 0 | [Arithmetic](6809-example.md) |
 
 A completed example establishes its specified program and checks; all three
@@ -33,8 +33,8 @@ An opcode form is a specific encoding, including its addressing form. For
 example, immediate LDA and absolute LDA count separately. Operand values do
 not create additional forms. An opcode with restricted instruction semantics
 is partial and earns no completion credit until the restriction is removed:
-6502 `ADC #n` currently lacks decimal arithmetic, so only CLC, LDA, and STA
-count toward its percentage.
+6502 `ADC #n` currently lacks decimal arithmetic, so it earns no completion
+credit while the fully supported forms do.
 
 The denominators count distinct documented encodings in the manufacturer
 instruction tables, with register fields expanded where they form part of
@@ -136,9 +136,14 @@ nested operations, program overlap, current RAM reads, and retained stack data.
 [Example specification](6502-example.md) ·
 [Example setup](../src/machines/6502-example.machine)
 
+[Stack specification](6502-stack-example.md) ·
+[Stack definition](../src/machines/6502-stack-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `18` | `CLC` | Implied | 1 | Clear carry |
+| `48` | `PHA` | Implied | 1 | Write A at 0100 + SP, then decrement 8-bit SP; preserve flags |
+| `68` | `PLA` | Implied | 1 | Increment 8-bit SP, then read A at 0100 + SP; update N/Z |
 | `69` | `ADC #n` | Immediate | 2 | Partial: binary arithmetic only; D must be false |
 | `8D` | `STA addr` | Absolute | 3 | Store A; address bytes low then high |
 | `A9` | `LDA #n` | Immediate | 2 | Load A and update N/Z |
@@ -147,24 +152,30 @@ nested operations, program overlap, current RAM reads, and retained stack data.
 | --- | --- |
 | Stored registers | A, X, Y, SP, PC |
 | Stored flags | N, V, D, I, Z, C; packed status and B/unused-bit conventions are not implemented |
+| Stack | PHA/PLA in page 01 with wrapping 8-bit SP; pulls retain stored bytes; status stack forms are unsupported |
 | Decimal mode | D can be initialized and inspected; ADC with D set reports `reason: "decimal-mode"` before operand fetch or state changes |
 | Reset | Read `FFFC` then `FFFD` for PC, set I, subtract 3 from the 8-bit SP with wrapping; preserve other registers, flags (including D), and RAM |
 | Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
-| Remaining instruction scope | Other register loads/transfers, arithmetic and logic, decimal arithmetic, stack operations, control flow, and further flag operations |
+| Remaining instruction scope | Other register loads/transfers, arithmetic and logic, decimal arithmetic, status stack operations, control flow, and further flag operations |
 | Remaining addressing scope | Zero page, indexed, indirect, relative, and other forms beyond the exact encodings above |
 
-CLC, LDA, and STA work with either D value. Decimal rejection is an explicit
-implementation limit. Reset preserves D and therefore does not remove it.
+All supported forms except ADC work with either D value. Decimal rejection is
+an explicit implementation limit. Reset preserves D and therefore does not
+remove it.
 The model targets the original NMOS 6502; variant-specific behavior has not
 been implemented.
 
 Verification: [CPU tests](../tests/components/cpus/6502.test.ts),
-[example tests](../tests/machines/6502-example.test.ts), and
+[example tests](../tests/machines/6502-example.test.ts),
+[stack example tests](../tests/machines/6502-stack-example.test.ts), and
 [public type checks](../tests/types/6502.ts). Binary ADC checks cover every byte
 operand pair and carry input with old result flags clear and set. Other checks
 cover decimal rejection, exact accesses, wrapping, self-overwriting stores,
 reset vectors and SP effects, caller completion, unsupported opcodes, input
 validation, and detached records.
+PHA/PLA checks cover page-one addressing, SP and PC wrapping, nested operations,
+flag preservation and replacement, stack/code overlap, current RAM reads,
+retained stack bytes, and reset with an occupied stack.
 
 ## 6809
 

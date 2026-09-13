@@ -49,7 +49,7 @@ CPU instances without reset or execution; each CPU constructor still owns
 copying and validating its state. Example exports retain their concrete CPU
 types. More complex machine wiring can use ordinary TypeScript as it develops.
 
-All five setups are [machine definitions](machine-definitions.md) written in a
+The flat-RAM setups are [machine definitions](machine-definitions.md) written in a
 small language for CPU state and hexadecimal byte images. A build step validates
 the definitions and generates calls to the same helper; TypeScript checks those
 calls against the selected CPU's state type. The generated factories are ordinary

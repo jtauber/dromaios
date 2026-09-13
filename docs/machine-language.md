@@ -5,7 +5,7 @@ has four declarations: `ram`, `cpu`, `memory`, and optional `end`. All numeric
 data is hexadecimal by default. Register and flag names are uppercase by
 convention; flags use `1` for set and `0` for clear.
 
-See [machine definitions](machine-definitions.md) for all five source files and
+See [machine definitions](machine-definitions.md) for example source files and
 the build workflow.
 
 ## Example

@@ -584,11 +584,247 @@ test("6502 STA records keep written values independent of later stores, memory c
   assert.equal(ram.read(0x1234), 0);
 });
 
+test("6502 PHA writes at the current page-one SP, then decrements it, preserving all flags", () => {
+  for (const [sp, destination, nextSp] of [
+    [0xab, 0x01ab, 0xaa], [0xff, 0x01ff, 0xfe], [0x00, 0x0100, 0xff],
+  ] as const) {
+    for (const a of [0x00, 0x01, 0x7f, 0x80, 0xff]) {
+      for (const flags of [
+        { n: false, v: false, d: false, i: false, z: false, c: false },
+        { n: true, v: true, d: true, i: true, z: true, c: true },
+        { n: true, v: false, d: true, i: false, z: false, c: true },
+        { n: false, v: true, d: false, i: true, z: true, c: false },
+      ]) {
+        const ram = new ObservedRam();
+        ram.write(0x1234, 0x48);
+        ram.write(destination, 0x80); // An unchanged value must still be written.
+        ram.accesses.length = 0;
+        const before = initialState({ a, sp, flags });
+        const cpu = new Cpu6502(ram, before);
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: 0x1234, bytes: [0x48] },
+          before,
+          after: { ...before, pc: 0x1235, sp: nextSp },
+          accesses: [
+            { kind: "read", address: 0x1234, value: 0x48 },
+            { kind: "write", address: destination, value: a },
+          ],
+          outcome: "executed",
+        });
+        assert.deepEqual(cpu.snapshot(), record.after);
+        assert.deepEqual(ram.accesses, record.accesses);
+        assert.equal(ram.read(destination), a);
+      }
+    }
+  }
+});
+
+test("6502 PLA increments SP within page one, reads RAM, and replaces only A and N/Z", () => {
+  for (const [sp, source, nextSp] of [
+    [0xab, 0x01ac, 0xac], [0xfe, 0x01ff, 0xff], [0xff, 0x0100, 0x00],
+  ] as const) {
+    for (const [value, n, z] of [
+      [0x00, false, true], [0x01, false, false], [0x11, false, false],
+      [0x7f, false, false], [0x80, true, false], [0xff, true, false],
+    ] as const) {
+      for (const preserved of [
+        { v: false, d: false, i: false, c: false },
+        { v: true, d: true, i: true, c: true },
+        { v: true, d: false, i: true, c: false },
+        { v: false, d: true, i: false, c: true },
+      ]) {
+        for (const oldNZ of [false, true]) {
+          const ram = new ObservedRam();
+          ram.write(0x1234, 0x68);
+          ram.write(source, value);
+          ram.accesses.length = 0;
+          const before = initialState({ sp, flags: { ...preserved, n: oldNZ, z: oldNZ } });
+          const cpu = new Cpu6502(ram, before);
+          const record = cpu.step();
+          assert.deepEqual(record, {
+            instruction: { address: 0x1234, bytes: [0x68] },
+            before,
+            after: { ...before, pc: 0x1235, sp: nextSp, a: value, flags: { ...preserved, n, z } },
+            accesses: [
+              { kind: "read", address: 0x1234, value: 0x68 },
+              { kind: "read", address: source, value },
+            ],
+            outcome: "executed",
+          });
+          assert.deepEqual(cpu.snapshot(), record.after);
+          assert.deepEqual(ram.accesses, record.accesses);
+          assert.equal(ram.read(source), value); // Pulling does not erase the byte.
+        }
+      }
+    }
+  }
+});
+
+test("6502 PHA and PLA wrap PC at FFFF without fetching the following instruction", () => {
+  for (const opcode of [0x48, 0x68]) {
+    const ram = new ObservedRam();
+    ram.write(0xffff, opcode);
+    ram.write(0, 0x18);
+    ram.write(0x0100, 0x80);
+    ram.accesses.length = 0;
+    const before = initialState({ a: 0x80, pc: 0xffff, sp: opcode === 0x48 ? 0 : 0xff });
+    const cpu = new Cpu6502(ram, before);
+    const after = { ...before, pc: 0, sp: opcode === 0x48 ? 0xff : 0 };
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: 0xffff, bytes: [opcode] },
+      before, after,
+      accesses: [
+        { kind: "read", address: 0xffff, value: opcode },
+        { kind: opcode === 0x48 ? "write" : "read", address: 0x0100, value: 0x80 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), after);
+    assert.deepEqual(ram.accesses, record.accesses);
+    ram.accesses.length = 0;
+    assert.deepEqual(cpu.step(), {
+      instruction: { address: 0, bytes: [0x18] },
+      before: after,
+      after: { ...after, pc: 1, flags: { ...after.flags, c: false } },
+      accesses: [{ kind: "read", address: 0, value: 0x18 }],
+      outcome: "executed",
+    });
+    assert.deepEqual(ram.accesses, [{ kind: "read", address: 0, value: 0x18 }]);
+  }
+});
+
+test("6502 nested pushes and pulls restore bytes in reverse order across SP wrapping", () => {
+  const ram = new ObservedRam();
+  // Save 80, save 00, replace A with 55, then retrieve 00 and 80.
+  for (const [offset, value] of [0xa9, 0x80, 0x48, 0xa9, 0, 0x48, 0xa9, 0x55, 0x68, 0x68].entries()) {
+    ram.write(0x0200 + offset, value);
+  }
+  ram.accesses.length = 0;
+  let before = initialState({ pc: 0x0200, sp: 0 });
+  const cpu = new Cpu6502(ram, before);
+  for (const [pc, a, sp, n, z] of [
+    [0x0202, 0x80, 0x00, true, false],
+    [0x0203, 0x80, 0xff, true, false],
+    [0x0205, 0x00, 0xff, false, true],
+    [0x0206, 0x00, 0xfe, false, true],
+    [0x0208, 0x55, 0xfe, false, false],
+    [0x0209, 0x00, 0xff, false, true],
+    [0x020a, 0x80, 0x00, true, false],
+  ] as const) {
+    const record = cpu.step();
+    const after = { ...before, pc, a, sp, flags: { ...before.flags, n, z } };
+    assert.equal(record.outcome, "executed");
+    assert.deepEqual(record.before, before);
+    assert.deepEqual(record.after, after);
+    assert.deepEqual(cpu.snapshot(), after);
+    before = after;
+  }
+  assert.deepEqual(ram.accesses, [
+    { kind: "read", address: 0x0200, value: 0xa9 },
+    { kind: "read", address: 0x0201, value: 0x80 },
+    { kind: "read", address: 0x0202, value: 0x48 },
+    { kind: "write", address: 0x0100, value: 0x80 },
+    { kind: "read", address: 0x0203, value: 0xa9 },
+    { kind: "read", address: 0x0204, value: 0x00 },
+    { kind: "read", address: 0x0205, value: 0x48 },
+    { kind: "write", address: 0x01ff, value: 0x00 },
+    { kind: "read", address: 0x0206, value: 0xa9 },
+    { kind: "read", address: 0x0207, value: 0x55 },
+    { kind: "read", address: 0x0208, value: 0x68 },
+    { kind: "read", address: 0x01ff, value: 0x00 },
+    { kind: "read", address: 0x0209, value: 0x68 },
+    { kind: "read", address: 0x0100, value: 0x80 },
+  ]);
+  assert.equal(ram.read(0x0100), 0x80);
+  assert.equal(ram.read(0x01ff), 0x00);
+});
+
+test("6502 stack accesses can overlap code without changing captured instruction bytes", () => {
+  for (const sp of [0x80, 0x81]) {
+    const ram = new ObservedRam();
+    ram.write(0x0180, 0x48);
+    ram.write(0x0181, 0x68);
+    ram.accesses.length = 0;
+    const before = initialState({ pc: 0x0180, sp, a: 0xa9 });
+    const cpu = new Cpu6502(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: 0x0180, bytes: [0x48] },
+      before,
+      after: { ...before, pc: 0x0181, sp: sp - 1 },
+      accesses: [
+        { kind: "read", address: 0x0180, value: 0x48 },
+        { kind: "write", address: 0x0100 + sp, value: 0xa9 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(ram.accesses, record.accesses);
+    assert.equal(ram.read(0x0100 + sp), 0xa9);
+  }
+  const ram = new ObservedRam();
+  ram.write(0x0180, 0x68);
+  ram.accesses.length = 0;
+  const before = initialState({ pc: 0x0180, sp: 0x7f });
+  const cpu = new Cpu6502(ram, before);
+  const record = cpu.step();
+  assert.deepEqual(record, {
+    instruction: { address: 0x0180, bytes: [0x68] },
+    before,
+    after: { ...before, pc: 0x0181, sp: 0x80, a: 0x68, flags: { ...before.flags, n: false, z: false } },
+    accesses: [
+      { kind: "read", address: 0x0180, value: 0x68 },
+      { kind: "read", address: 0x0180, value: 0x68 },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(ram.accesses, record.accesses);
+});
+
+test("6502 PLA reads current stack RAM and stack records remain detached from later changes", () => {
+  const ram = new ObservedRam();
+  ram.write(0, 0x48);
+  ram.write(1, 0x68);
+  ram.write(2, 0x48);
+  const cpu = new Cpu6502(ram, initialState({ pc: 0, sp: 0, a: 0x80 }));
+  const push = cpu.step();
+  const savedPush = structuredClone(push);
+  ram.write(0x0100, 0);
+  ram.accesses.length = 0;
+  const pull = cpu.step();
+  const savedPull = structuredClone(pull);
+  assert.deepEqual(pull, {
+    instruction: { address: 1, bytes: [0x68] },
+    before: savedPush.after,
+    after: { ...savedPush.after, a: 0, pc: 2, sp: 0, flags: { ...savedPush.after.flags, n: false, z: true } },
+    accesses: [
+      { kind: "read", address: 1, value: 0x68 },
+      { kind: "read", address: 0x0100, value: 0 },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(ram.accesses, pull.accesses);
+  assert.deepEqual(push, savedPush);
+  Reflect.set(push.before.flags, "c", false);
+  assert.deepEqual(push.after, savedPush.after);
+  Reflect.set(push.after, "sp", 0x80);
+  Reflect.set(push.instruction.bytes, 0, 0xff);
+  assert.ok(push.accesses[1]);
+  Reflect.set(push.accesses[1], "value", 0xff);
+  assert.deepEqual(cpu.snapshot(), savedPull.after);
+  assert.equal(cpu.step().outcome, "executed");
+  assert.equal(ram.read(0x0100), 0);
+  ram.write(0x0100, 0xff);
+  cpu.reset();
+  assert.deepEqual(pull, savedPull);
+});
+
 test("every unimplemented 6502 opcode reads once and preserves state on repeated attempts", () => {
   const ram = new ObservedRam();
   ram.write(0, 0xa9);
   for (let opcode = 0; opcode < 256; opcode++) {
-    if (opcode === 0x18 || opcode === 0x69 || opcode === 0x8d || opcode === 0xa9) continue;
+    if ([0x18, 0x48, 0x68, 0x69, 0x8d, 0xa9].includes(opcode)) continue;
     ram.write(0xffff, opcode);
     for (const d of [false, true]) {
       const before = initialState({ pc: 0xffff, flags: { ...initialState().flags, d } });

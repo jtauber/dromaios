@@ -1,6 +1,6 @@
 # Machine definitions
 
-The five examples use the same [machine language](machine-language.md) and setup
+The examples use the same [machine language](machine-language.md) and setup
 code. Their `.machine` files supply the CPU model, all initial state, addressed
 byte images, and an optional caller completion address:
 
@@ -8,6 +8,7 @@ byte images, and an optional caller completion address:
 - [8080 register pairs](../src/machines/8080-register-pairs-example.machine)
 - [8080 stack](../src/machines/8080-stack-example.machine)
 - [6502 arithmetic](../src/machines/6502-example.machine)
+- [6502 stack](../src/machines/6502-stack-example.machine)
 - [6809 arithmetic](../src/machines/6809-example.machine)
 
 Each file explicitly declares 64 KiB RAM. Unspecified memory is zero; blocks

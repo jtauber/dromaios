@@ -1,0 +1,21 @@
+ram 10000
+
+cpu 6502 {
+    A = 11  X = 22  Y = 33
+    PC = 0200  SP = FF
+    flags { N = 0  V = 1  D = 1  I = 0  Z = 1  C = 1 }
+}
+
+memory 0200 {
+    A9 80       // LDA #$80
+    48          // PHA
+    A9 00       // LDA #$00
+    68          // PLA
+    8D 80 00    // STA $0080
+}
+
+memory FFFC {
+    00 02       // Reset vector: 0200, low byte first
+}
+
+end 0209

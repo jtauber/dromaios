@@ -66,7 +66,7 @@ Use state fields `a`, `x`, `y`, `sp`, `pc`, and `flags`; flags contain booleans
 `n`, `v`, `d`, `i`, `z`, and `c`. I is the interrupt-disable flag, with the
 opposite sense to the 8080's interrupt-enable latch. This subset exposes the
 six flags it models; packed status bytes and their B/unused-bit conventions
-will be specified with stack and interrupt instructions.
+will be specified with status stack and interrupt instructions.
 
 `new Cpu6502(ram, initialState)` requires exactly 64 KiB of RAM and copies only
 the declared state fields, including flags, into CPU-owned storage. It performs

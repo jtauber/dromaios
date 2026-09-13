@@ -53,6 +53,7 @@ export interface Cpu6502ResetRecord {
 interface InstructionContext {
   readonly fetchByte: () => number;
   readonly fetchWord: () => number;
+  readonly readByte: (address: number) => number;
   readonly writeByte: (address: number, value: number) => void;
 }
 
@@ -71,12 +72,14 @@ function copyState(state: Cpu6502Snapshot): Cpu6502State {
   };
 }
 
-/** Instruction-level NMOS 6502 subset for the first 6502 example. */
+/** Instruction-level NMOS 6502 subset for the 6502 examples. */
 export class Cpu6502 {
   readonly #ram: Ram;
   readonly #state: Cpu6502State;
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
     0x18: () => this.#clearCarry(), // CLC
+    0x48: ({ writeByte }) => this.#pushByte(this.#state.a, writeByte), // PHA
+    0x68: ({ readByte }) => this.#loadAccumulator(this.#pullByte(readByte)), // PLA
     0x69: ({ fetchByte }) => this.#addWithCarry(fetchByte()), // ADC #n (binary)
     0x8d: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
     0xa9: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
@@ -144,6 +147,7 @@ export class Cpu6502 {
           const high = fetchByte();
           return low | (high << 8);
         },
+        readByte: (address) => this.#read(address, accesses),
         writeByte: (address, value) => this.#write(address, value, accesses),
       });
     }
@@ -157,6 +161,16 @@ export class Cpu6502 {
     return handler && !decimalModeUnsupported
       ? { ...record, outcome: "executed" }
       : { ...record, outcome: "unsupported", reason: decimalModeUnsupported ? "decimal-mode" : "opcode" };
+  }
+
+  #pushByte(value: number, writeByte: InstructionContext["writeByte"]): void {
+    writeByte(0x0100 | this.#state.sp, value);
+    this.#state.sp = (this.#state.sp - 1) & 0xff;
+  }
+
+  #pullByte(readByte: InstructionContext["readByte"]): number {
+    this.#state.sp = (this.#state.sp + 1) & 0xff;
+    return readByte(0x0100 | this.#state.sp);
   }
 
   #clearCarry(): void {
