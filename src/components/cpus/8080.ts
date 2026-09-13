@@ -1,5 +1,6 @@
 import type { Ram } from "../memory/ram.js";
-import { checkUnsigned } from "../validation.js";
+import { defineState, copyState, readState, unsigned, flag, boolean, group } from "./state.ts";
+import type { StateDescription } from "./state.js";
 
 export interface Cpu8080Flags {
   s: boolean;
@@ -23,6 +24,14 @@ export interface Cpu8080State {
   interruptEnabled: boolean;
   halted: boolean;
 }
+
+/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
+export const cpu8080StateDescription = defineState({
+  a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
+  pc: unsigned(16), sp: unsigned(16),
+  flags: group({ s: flag, z: flag, ac: flag, p: flag, cy: flag }),
+  interruptEnabled: boolean, halted: boolean,
+} satisfies StateDescription<Cpu8080State>);
 
 export type Cpu8080Snapshot = Readonly<Omit<Cpu8080State, "flags">> & {
   readonly flags: Readonly<Cpu8080Flags>;
@@ -83,25 +92,6 @@ interface WordOperand {
   readonly write: (value: number) => void;
 }
 
-function copyState(state: Omit<Cpu8080Snapshot, "bc" | "de" | "hl">): Cpu8080State {
-  const flags = state.flags;
-  // Copy declared stored fields only; supplied pair views and metadata are ignored.
-  return {
-    a: state.a,
-    b: state.b,
-    c: state.c,
-    d: state.d,
-    e: state.e,
-    h: state.h,
-    l: state.l,
-    pc: state.pc,
-    sp: state.sp,
-    flags: { s: flags.s, z: flags.z, ac: flags.ac, p: flags.p, cy: flags.cy },
-    interruptEnabled: state.interruptEnabled,
-    halted: state.halted,
-  };
-}
-
 function hasEvenParity(byte: number): boolean {
   let setBits = 0;
   for (let bit = 0; bit < 8; bit++) {
@@ -119,28 +109,13 @@ export class Cpu8080 {
     if (ram.size !== 0x10000) {
       throw new RangeError("The 8080 model requires exactly 64 KiB of RAM.");
     }
-    const state = copyState(initialState);
-    for (const name of ["a", "b", "c", "d", "e", "h", "l"] as const) {
-      checkUnsigned(name, state[name], 0xff);
-    }
-    for (const name of ["pc", "sp"] as const) {
-      checkUnsigned(name, state[name], 0xffff);
-    }
-    for (const name of ["s", "z", "ac", "p", "cy"] as const) {
-      if (typeof state.flags[name] !== "boolean") {
-        throw new TypeError(`Flag ${name} must be a boolean.`);
-      }
-    }
-    if (typeof state.interruptEnabled !== "boolean" || typeof state.halted !== "boolean") {
-      throw new TypeError("Interrupt enable and halted must be booleans.");
-    }
     this.#ram = ram;
-    this.#state = state;
+    this.#state = readState(cpu8080StateDescription, initialState);
   }
 
   /** Inspect a detached copy, readonly to TypeScript, without accessing RAM. */
   snapshot(): Cpu8080Snapshot {
-    return { ...copyState(this.#state), bc: this.#bc, de: this.#de, hl: this.#hl };
+    return { ...copyState(cpu8080StateDescription, this.#state), bc: this.#bc, de: this.#de, hl: this.#hl };
   }
 
   /** Reset PC and control latches, preserving data registers, SP, flags, and RAM. */

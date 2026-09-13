@@ -58,10 +58,12 @@ can share a filename because their generated modules preserve those folders.
 
 The [parser](../../src/machines/machine-language.ts) checks syntax, complete CPU
 state, numeric ranges, and memory bounds, reporting errors with source locations.
-Its field schemas are checked against the CPU state interfaces. The generated
-code calls [defineRamExample](../../src/machines/ram-example.ts) with the selected
-CPU and a numeric definition; TypeScript also checks each generated call against
-the actual constructor. CPU constructors retain their own state validation.
+It imports [stored-state descriptions](../cpus/implementation.md#stored-state-descriptions)
+from the CPU modules, which also use them for constructor validation and
+snapshot copying. The parser owns the text syntax and source diagnostics.
+The generated code calls [defineRamExample](../../src/machines/ram-example.ts)
+with the selected CPU and a numeric definition; TypeScript also checks each
+generated call against the actual constructor.
 The example tests independently check full memory images, initial state, and
 execution.
 
@@ -84,6 +86,8 @@ renamed definitions, including obsolete subdirectories. Both
 `src/machines/generated/` and compiled `dist/` output are ignored by Git and
 removed by `npm run clean`.
 
-The generator runs directly as TypeScript under Node.js 24. The parser is pure
-TypeScript with no runtime dependencies or host APIs; it also passes the
-simulation's check without Node or browser ambient types.
+The generator runs directly as TypeScript under Node.js 24. Its runtime import
+path includes the parser, CPU descriptions, and shared helpers; importing these
+modules performs no CPU construction or execution. The parser and CPU modules
+use no external runtime dependencies or host APIs and pass the simulation's
+check without Node or browser ambient types.

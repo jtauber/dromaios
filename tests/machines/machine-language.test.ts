@@ -349,7 +349,7 @@ test("8008 address lists require exactly eight 14-bit values and preserve hexade
   assert.equal(accepted.cpu, "8008");
   assert.deepEqual(accepted.initialState.addressStack, [0, 0x100, 0x200, 0x300, 0x400, 0x500, 0x600, 0x3fff]);
   for (const count of [0, 1, 7, 9]) {
-    assert.throws(() => parseMachine(source8008.replace(list, `[${Array(count).fill("0000").join(" ")}]`)), /exactly eight/);
+    assert.throws(() => parseMachine(source8008.replace(list, `[${Array(count).fill("0000").join(" ")}]`)), /exactly 8 values/);
   }
   for (let index = 0; index < 8; index++) {
     const values = Array<string>(8).fill("0000");

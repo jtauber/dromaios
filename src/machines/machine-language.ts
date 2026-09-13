@@ -1,4 +1,12 @@
-import type { Cpu8008AddressStack, Cpu8008State } from "../components/cpus/8008.js";
+import { cpu8008StateDescription } from "../components/cpus/8008.ts";
+import { cpu8080StateDescription } from "../components/cpus/8080.ts";
+import { cpu8088StateDescription } from "../components/cpus/8088.ts";
+import { cpu6502StateDescription } from "../components/cpus/6502.ts";
+import { cpu6800StateDescription } from "../components/cpus/6800.ts";
+import { cpu6809StateDescription } from "../components/cpus/6809.ts";
+import { cpuZ80StateDescription } from "../components/cpus/z80.ts";
+import type { StateFields, StateField, GroupField, StateValues } from "../components/cpus/state.js";
+import type { Cpu8008State } from "../components/cpus/8008.js";
 import type { Cpu8080State } from "../components/cpus/8080.js";
 import type { Cpu8088State } from "../components/cpus/8088.js";
 import type { Cpu6502State } from "../components/cpus/6502.js";
@@ -32,67 +40,8 @@ export type MachineDefinition = {
   readonly endAddress?: number;
 };
 
-type ValueKind = "byte" | "word" | "flag" | "boolean" | "interrupt-mode" | "address-stack" | "stack-index";
-interface Schema { readonly [name: string]: ValueKind | Schema }
-type SchemaValues<S extends Schema> = {
-  [Name in keyof S]: S[Name] extends Schema ? SchemaValues<S[Name]>
-    : S[Name] extends "address-stack" ? Cpu8008AddressStack
-    : S[Name] extends "flag" | "boolean" ? boolean : S[Name] extends "interrupt-mode" ? 0 | 1 | 2 : number;
-};
-type CpuSchema<State> = {
-  [Name in keyof State]: Name extends "flags" ? { [Flag in keyof State[Name]]: "flag" }
-    : State[Name] extends Readonly<Cpu8008AddressStack> ? "address-stack"
-    : State[Name] extends object ? CpuSchema<State[Name]>
-    : State[Name] extends 0 | 1 | 2 ? "interrupt-mode"
-    : State[Name] extends number ? "byte" | "word" | "stack-index" : "boolean";
-};
-
-const z80BankSchema = {
-  a: "byte", b: "byte", c: "byte", d: "byte", e: "byte", h: "byte", l: "byte",
-  flags: { s: "flag", z: "flag", h: "flag", pv: "flag", n: "flag", c: "flag" },
-} as const;
-
-// Constructor state types keep field coverage and Boolean/numeric kinds in sync.
-// Widths describe the source format; CPU constructors also validate their state.
-const schemas = {
-  "8008": {
-    a: "byte", b: "byte", c: "byte", d: "byte", e: "byte", h: "byte", l: "byte",
-    flags: { s: "flag", z: "flag", p: "flag", c: "flag" },
-    addressStack: "address-stack", stackIndex: "stack-index", halted: "boolean",
-  },
-  "8080": {
-    a: "byte", b: "byte", c: "byte", d: "byte", e: "byte", h: "byte", l: "byte",
-    pc: "word", sp: "word",
-    flags: { s: "flag", z: "flag", ac: "flag", p: "flag", cy: "flag" },
-    interruptEnabled: "boolean", halted: "boolean",
-  },
-  "8088": {
-    ax: "word", bx: "word", cx: "word", dx: "word", sp: "word", bp: "word", si: "word", di: "word",
-    cs: "word", ds: "word", ss: "word", es: "word", ip: "word",
-    flags: { cf: "flag", pf: "flag", af: "flag", zf: "flag", sf: "flag",
-      tf: "flag", if: "flag", df: "flag", of: "flag" },
-  },
-  "6502": {
-    a: "byte", x: "byte", y: "byte", sp: "byte", pc: "word",
-    flags: { n: "flag", v: "flag", d: "flag", i: "flag", z: "flag", c: "flag" },
-  },
-  "6800": {
-    a: "byte", b: "byte", x: "word", sp: "word", pc: "word",
-    flags: { h: "flag", i: "flag", n: "flag", z: "flag", v: "flag", c: "flag" },
-  },
-  "6809": {
-    a: "byte", b: "byte", dp: "byte", x: "word", y: "word", s: "word", u: "word", pc: "word",
-    flags: { e: "flag", f: "flag", h: "flag", i: "flag", n: "flag", z: "flag", v: "flag", c: "flag" },
-  },
-  "z80": {
-    ...z80BankSchema, alternate: z80BankSchema,
-    ix: "word", iy: "word", pc: "word", sp: "word", i: "byte", r: "byte",
-    iff1: "boolean", iff2: "boolean", im: "interrupt-mode", halted: "boolean",
-  },
-} as const satisfies { [Model in CpuModel]: CpuSchema<CpuStates[Model]> };
-
 interface Token { readonly text: string; readonly offset: number }
-type Value = number | boolean | Cpu8008AddressStack | { [name: string]: Value };
+type Value = number | boolean | number[] | { [name: string]: Value };
 
 /** Parse and validate one flat-RAM machine without constructing or running it. */
 export function parseMachine(source: string, filename = "<machine>"): MachineDefinition {
@@ -137,69 +86,71 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
     }
     return value;
   }
-  function readValue(kind: ValueKind, label: string): number | boolean | Cpu8008AddressStack {
-    if (kind === "address-stack") {
+  function readValue(field: Exclude<StateField, GroupField>, label: string): number | boolean | number[] {
+    if (field.kind === "array") {
       expect("[");
-      const addresses: number[] = [];
+      const values: number[] = [];
       while (current.text !== "]") {
         if (current.text === "") fail(current, `Expected "]" to close ${label}`);
-        if (addresses.length === 8) fail(current, `${label} requires exactly eight addresses`);
-        addresses.push(readNumber(take(), `${label}[${addresses.length}]`, 0x3fff));
+        if (values.length === field.length) fail(current, `${label} requires exactly ${field.length} values`);
+        values.push(readNumber(take(), `${label}[${values.length}]`, field.element.maximum));
       }
-      if (addresses.length !== 8) fail(current, `${label} requires exactly eight addresses`);
+      if (values.length !== field.length) fail(current, `${label} requires exactly ${field.length} values`);
       take();
-      // Length and the 14-bit range of every element have been validated.
-      return addresses as Cpu8008AddressStack;
+      return values;
     }
     const token = take();
-    if (kind === "boolean") {
+    if (field.kind === "boolean") {
       if (token.text !== "true" && token.text !== "false") fail(token, `Expected true or false for ${label}`);
       return token.text === "true";
     }
-    const maximum = kind === "byte" ? 0xff : kind === "word" ? 0xffff
-      : kind === "interrupt-mode" ? 2 : kind === "stack-index" ? 7 : 1;
+    const maximum = field.kind === "unsigned" ? field.maximum
+      : field.kind === "choice" ? Math.max(...field.values) : 1;
     const value = readNumber(token, label, maximum);
-    return kind === "flag" ? value === 1 : value;
+    if (field.kind === "choice" && !field.values.includes(value)) {
+      fail(token, `${label} must be one of ${field.values.map(value => value.toString(16).toUpperCase()).join(", ")} (hexadecimal)`);
+    }
+    return field.kind === "flag" ? value === 1 : value;
   }
-  function fieldLabel(name: string, kind: ValueKind | Schema): string {
-    return typeof kind === "object" || kind === "boolean" || kind === "address-stack" || kind === "stack-index"
+  function fieldLabel(name: string, field: StateField): string {
+    return field.kind === "group" || field.kind === "boolean" || field.kind === "array" || /[A-Z]/.test(name)
       ? name : name.toUpperCase();
   }
-  function readState<S extends Schema>(schema: S, context: string): SchemaValues<S> {
+  function readState<Fields extends StateFields>(description: Fields, context: string): StateValues<Fields> {
     expect("{");
-    const fields = new Map(Object.entries(schema).map(([name, kind]) => [name.toLowerCase(), { name, kind }]));
+    const fields = new Map(Object.entries(description).map(([name, field]) => [name.toLowerCase(), { name, field }]));
     const values: { [name: string]: Value } = {};
     while (current.text !== "}") {
       if (current.text === "") fail(current, `Expected "}" to close ${context}`);
       const token = take();
-      const field = fields.get(token.text.toLowerCase());
-      if (!field) fail(token, `Unknown field ${describe(token)} in ${context}`);
-      const { name, kind } = field;
-      if (Object.hasOwn(values, name)) fail(token, `Duplicate field ${fieldLabel(name, kind)} in ${context}`);
-      if (typeof kind === "object") {
+      const entry = fields.get(token.text.toLowerCase());
+      if (!entry) fail(token, `Unknown field ${describe(token)} in ${context}`);
+      const { name, field } = entry;
+      if (Object.hasOwn(values, name)) fail(token, `Duplicate field ${fieldLabel(name, field)} in ${context}`);
+      if (field.kind === "group") {
         if (token.text !== name) fail(token, `Expected lowercase keyword ${JSON.stringify(name)}`);
-        values[name] = readState(kind, `${context}.${name}`);
+        values[name] = readState(field.fields, `${context}.${name}`);
       } else {
         expect("=");
-        values[name] = readValue(kind, `${context}.${fieldLabel(name, kind)}`);
+        values[name] = readValue(field, `${context}.${fieldLabel(name, field)}`);
       }
     }
     const missing = [...fields.values()].filter(({ name }) => !Object.hasOwn(values, name));
-    if (missing.length) fail(current, `Missing fields in ${context}: ${missing.map(({ name, kind }) => fieldLabel(name, kind)).join(", ")}`);
+    if (missing.length) fail(current, `Missing fields in ${context}: ${missing.map(({ name, field }) => fieldLabel(name, field)).join(", ")}`);
     take();
-    // Every schema field is present exactly once, with its declared kind validated.
-    return values as SchemaValues<S>;
+    // Every described field is present exactly once, including validated choices and fixed array lengths.
+    return values as StateValues<Fields>;
   }
   function readCpu(): CpuDefinition {
     const model = take();
     switch (model.text) {
-      case "8008": return { cpu: model.text, initialState: readState(schemas["8008"], model.text) };
-      case "8080": return { cpu: model.text, initialState: readState(schemas["8080"], model.text) };
-      case "8088": return { cpu: model.text, initialState: readState(schemas["8088"], model.text) };
-      case "6502": return { cpu: model.text, initialState: readState(schemas["6502"], model.text) };
-      case "6800": return { cpu: model.text, initialState: readState(schemas["6800"], model.text) };
-      case "6809": return { cpu: model.text, initialState: readState(schemas["6809"], model.text) };
-      case "z80": return { cpu: model.text, initialState: readState(schemas.z80, model.text) };
+      case "8008": return { cpu: model.text, initialState: readState(cpu8008StateDescription, model.text) };
+      case "8080": return { cpu: model.text, initialState: readState(cpu8080StateDescription, model.text) };
+      case "8088": return { cpu: model.text, initialState: readState(cpu8088StateDescription, model.text) };
+      case "6502": return { cpu: model.text, initialState: readState(cpu6502StateDescription, model.text) };
+      case "6800": return { cpu: model.text, initialState: readState(cpu6800StateDescription, model.text) };
+      case "6809": return { cpu: model.text, initialState: readState(cpu6809StateDescription, model.text) };
+      case "z80": return { cpu: model.text, initialState: readState(cpuZ80StateDescription, model.text) };
       default: return fail(model, `Expected CPU model 8008, 8080, 8088, 6502, 6800, 6809, or z80, found ${describe(model)}`);
     }
   }

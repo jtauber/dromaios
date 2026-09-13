@@ -30,6 +30,11 @@ The first forms could be typed data or helper functions within TypeScript.
 Custom syntax, interpretation, or code generation can follow when concrete
 examples demonstrate a benefit. Some behavior may remain ordinary TypeScript.
 
+The current [stored-state descriptions](cpus/implementation.md#stored-state-descriptions)
+are one such example: CPU-owned fields and constraints drive constructor
+validation, snapshot copying, and machine parsing. Public state interfaces
+remain readable TypeScript, with the descriptions checked against them.
+
 The rule of three applies to these generalizations too. We will use the 8080,
 6502, and 6809 examples to discover useful common descriptions while preserving
 their hardware distinctions. Definitions for other component types should
@@ -60,7 +65,8 @@ The flat-RAM setups are [machine definitions](machines/definitions.md) written i
 small language for CPU state and hexadecimal byte images. Definitions and their
 tests are grouped by CPU, and generated factories mirror the definition folders.
 A build step validates the definitions and generates calls to the same helper;
-TypeScript checks those calls against the selected CPU's state type. The
+the parser imports stored-state descriptions from the CPU modules. TypeScript
+checks generated calls against the selected CPU's state type. The
 generated factories are ordinary ES modules, so loading a machine requires no
 parser, file access, or asynchronous initialization.
 

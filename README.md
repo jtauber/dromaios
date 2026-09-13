@@ -93,9 +93,10 @@ no Node or browser APIs.
 The [GitHub Actions workflow](.github/workflows/ci.yml) runs `npm ci` and
 `npm test` on pushes and pull requests, using the Node version in `.nvmrc`.
 
-Source imports use `.js` extensions so they resolve in the compiled ES modules.
-The build script imports the parser with `.ts` for direct execution by Node;
-TypeScript rewrites that extension when compiling the script for tests.
+Runtime imports along the generator's native TypeScript path use `.ts`
+extensions: the build script, parser, CPU modules, and their shared helpers.
+TypeScript rewrites those extensions to `.js` when compiling. Other imports
+use `.js`, resolving to the same compiled ES modules.
 Tests live under `tests/` and state expected behavior independently of the code
 they exercise. Files under `tests/types/` check public TypeScript contracts
 during compilation; they are not executed as runtime tests.

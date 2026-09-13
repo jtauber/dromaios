@@ -106,7 +106,7 @@ test("8008 validates RAM size, all register widths, eight complete address slots
   for (const value of [[], Array(7).fill(0), Array(9).fill(0), null, {}, new Uint16Array(8)]) {
     const state = initialState();
     Reflect.set(state, "addressStack", value);
-    assert.throws(() => new Cpu8008(ram, state), /exactly eight addresses/);
+    assert.throws(() => new Cpu8008(ram, state), /exactly 8 values/);
   }
   const sparse = initialState();
   Reflect.set(sparse, "addressStack", Array(8));

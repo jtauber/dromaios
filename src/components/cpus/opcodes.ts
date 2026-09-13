@@ -1,4 +1,4 @@
-import { checkUnsigned } from "../validation.js";
+import { checkUnsigned } from "../validation.ts";
 
 export type OpcodeEntry<Handler> = readonly [opcode: number, handler: Handler];
 type Selectors = Readonly<Record<string, readonly unknown[]>>;

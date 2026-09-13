@@ -7,9 +7,9 @@ clarity, elegance, then performance.
 
 ## Reading order
 
-1. **Types and state-copy helpers.** Public flags, stored state, snapshots,
-   instruction/access records, and outcomes come first. Keep the internal
-   instruction-context types and small copying or snapshot helpers nearby.
+1. **Types and state descriptions.** Public flags, stored state, its runtime
+   description, snapshots, instruction/access records, and outcomes come first.
+   Keep internal instruction-context types and small snapshot-view helpers nearby.
 2. **Stored fields and public API.** Start the class with its owned state and
    memory connection, then the constructor, `snapshot()`, `reset()`, and `step()`.
    A reader should be able to follow the execution contract before decoding details.
@@ -29,6 +29,57 @@ Use short section comments where they help navigation. Omit sections that have
 no implementation yet. Small cores can use explicit opcode entries throughout;
 they do not need selector arrays or family builders merely to resemble a larger
 core. Keep a CPU in one file while this organization remains easy to follow.
+
+## Stored-state descriptions
+
+Each CPU module exports a `cpu…StateDescription` beside its public state
+interface. The description owns stored field names and constraints. The
+[shared state helpers](../../src/components/cpus/state.ts) provide:
+
+| Description | Meaning |
+| --- | --- |
+| `unsigned(bits)` | An unsigned register or selector of the given width |
+| `flag` | A Boolean architectural flag |
+| `boolean` | A Boolean control latch |
+| `choices(0, 1, 2)` | An explicit set of permitted integer values |
+| `array(8, unsigned(14))` | Eight unsigned 14-bit values in physical slot order |
+| `group(fields)` | A nested group, such as flags or an alternate register bank |
+
+`defineState(fields)` owns a readonly field map; the field helpers create
+immutable descriptions. `satisfies StateDescription<Cpu…State>` checks fields
+against the readable public interface, including nested types, tuple lengths,
+and permitted-value types. Widths and hardware semantics still require
+independent tests. The Z80 describes its register bank once and reuses that
+description for both banks.
+
+The descriptions have three consumers:
+
+- Constructors use `readState(description, initialState)` to copy and validate
+  caller state. It reads only declared fields, once each, including inherited
+  and non-enumerable properties. Nested groups and arrays get separate storage;
+  sparse arrays fail validation. Extra metadata and derived views are ignored.
+- Snapshots use `copyState(description, storedState)` to detach known-valid
+  state without repeating numeric and Boolean validation. Derived views remain
+  explicit in each CPU's `snapshot()` method.
+- The [machine parser](../../src/machines/machine-language.ts) imports those
+  same descriptions to recognize fields and check values, array lengths, and
+  choices. It retains ownership of hexadecimal notation, braces, capitalization,
+  flag spelling, duplicate/missing-field checks, and source-location diagnostics.
+
+The constructor helper reports `RangeError` for invalid numbers or choices,
+and `TypeError` for invalid groups, array lengths, or Booleans, with a stored
+field path such as `alternate.flags.c` or `addressStack[3]`. The parser reports
+`SyntaxError` with the filename, line, column, and caret. Fixed-array diagnostics
+use the declared count, for example `addressStack requires exactly 8 values`.
+
+Descriptions cover stored state only. Derived register relationships, reset,
+instruction semantics, and RAM requirements remain explicit CPU behavior.
+The [helper tests](../../tests/components/cpus/state.test.ts) and
+[type checks](../../tests/types/state.ts) exercise the shared contracts; CPU
+and machine tests retain their independently authored hardware expectations.
+This is a concrete step toward richer CPU descriptions. Their eventual
+[literate form](../architecture.md#implementation-language-and-future-definition-languages)
+remains open.
 
 ## Make the encoding visible
 

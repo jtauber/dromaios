@@ -1,5 +1,6 @@
 import type { Ram } from "../memory/ram.js";
-import { checkUnsigned } from "../validation.js";
+import { defineState, copyState, readState, unsigned, flag, boolean, choices, group } from "./state.ts";
+import type { StateDescription } from "./state.js";
 
 /** The six documented flags; undocumented F bits 3 and 5 are outside this model. */
 export interface CpuZ80Flags {
@@ -35,6 +36,18 @@ export interface CpuZ80State extends CpuZ80RegisterBank {
   im: 0 | 1 | 2;
   halted: boolean;
 }
+
+const bankFields = defineState({
+  a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
+  flags: group({ s: flag, z: flag, h: flag, pv: flag, n: flag, c: flag }),
+} satisfies StateDescription<CpuZ80RegisterBank>);
+
+/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
+export const cpuZ80StateDescription = defineState({
+  ...bankFields, alternate: group(bankFields),
+  ix: unsigned(16), iy: unsigned(16), pc: unsigned(16), sp: unsigned(16), i: unsigned(8), r: unsigned(8),
+  iff1: boolean, iff2: boolean, im: choices(0, 1, 2), halted: boolean,
+} satisfies StateDescription<CpuZ80State>);
 
 export type CpuZ80BankSnapshot = Readonly<Omit<CpuZ80RegisterBank, "flags">> & {
   readonly flags: Readonly<CpuZ80Flags>;
@@ -84,23 +97,6 @@ interface InstructionContext {
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteRegister = "a" | "b" | "c" | "d" | "e" | "h" | "l";
 
-function copyBank(bank: CpuZ80RegisterBank): CpuZ80RegisterBank {
-  const flags = bank.flags;
-  // Copy declared stored fields only, ignoring derived views and other metadata.
-  return {
-    a: bank.a, b: bank.b, c: bank.c, d: bank.d, e: bank.e, h: bank.h, l: bank.l,
-    flags: { s: flags.s, z: flags.z, h: flags.h, pv: flags.pv, n: flags.n, c: flags.c },
-  };
-}
-
-function copyState(state: CpuZ80State): CpuZ80State {
-  return {
-    ...copyBank(state), alternate: copyBank(state.alternate),
-    ix: state.ix, iy: state.iy, pc: state.pc, sp: state.sp, i: state.i, r: state.r,
-    iff1: state.iff1, iff2: state.iff2, im: state.im, halted: state.halted,
-  };
-}
-
 function pairViews(bank: CpuZ80RegisterBank): { readonly bc: number; readonly de: number; readonly hl: number } {
   return { bc: (bank.b << 8) | bank.c, de: (bank.d << 8) | bank.e, hl: (bank.h << 8) | bank.l };
 }
@@ -112,28 +108,13 @@ export class CpuZ80 {
 
   constructor(ram: Ram, initialState: CpuZ80State) {
     if (ram.size !== 0x10000) throw new RangeError("The Z80 model requires exactly 64 KiB of RAM.");
-    const state = copyState(initialState);
-    for (const [label, bank] of [["", state], ["alternate.", state.alternate]] as const) {
-      for (const name of ["a", "b", "c", "d", "e", "h", "l"] as const) {
-        checkUnsigned(`${label}${name}`, bank[name], 0xff);
-      }
-      for (const name of ["s", "z", "h", "pv", "n", "c"] as const) {
-        if (typeof bank.flags[name] !== "boolean") throw new TypeError(`Flag ${label}${name} must be a boolean.`);
-      }
-    }
-    for (const name of ["ix", "iy", "pc", "sp"] as const) checkUnsigned(name, state[name], 0xffff);
-    for (const name of ["i", "r"] as const) checkUnsigned(name, state[name], 0xff);
-    checkUnsigned("im", state.im, 2);
-    for (const name of ["iff1", "iff2", "halted"] as const) {
-      if (typeof state[name] !== "boolean") throw new TypeError(`${name} must be a boolean.`);
-    }
     this.#ram = ram;
-    this.#state = state;
+    this.#state = readState(cpuZ80StateDescription, initialState);
   }
 
   /** Inspect detached register banks and their derived pair views without reading RAM. */
   snapshot(): CpuZ80Snapshot {
-    const state = copyState(this.#state);
+    const state = copyState(cpuZ80StateDescription, this.#state);
     return { ...state, ...pairViews(state), alternate: { ...state.alternate, ...pairViews(state.alternate) } };
   }
 

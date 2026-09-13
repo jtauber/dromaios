@@ -1,6 +1,7 @@
 import type { Ram } from "../memory/ram.js";
-import { checkUnsigned } from "../validation.js";
-import { opcodePattern, opcodeTable } from "./opcodes.js";
+import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
+import type { StateDescription } from "./state.js";
+import { opcodePattern, opcodeTable } from "./opcodes.ts";
 
 export interface Cpu8088Flags {
   cf: boolean;
@@ -30,6 +31,14 @@ export interface Cpu8088State {
   ip: number;
   flags: Cpu8088Flags;
 }
+
+/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
+export const cpu8088StateDescription = defineState({
+  ax: unsigned(16), bx: unsigned(16), cx: unsigned(16), dx: unsigned(16),
+  sp: unsigned(16), bp: unsigned(16), si: unsigned(16), di: unsigned(16),
+  cs: unsigned(16), ds: unsigned(16), ss: unsigned(16), es: unsigned(16), ip: unsigned(16),
+  flags: group({ cf: flag, pf: flag, af: flag, zf: flag, sf: flag, tf: flag, if: flag, df: flag, of: flag }),
+} satisfies StateDescription<Cpu8088State>);
 
 export type Cpu8088Snapshot = Readonly<Omit<Cpu8088State, "flags">> & {
   readonly flags: Readonly<Cpu8088Flags>;
@@ -81,18 +90,6 @@ interface InstructionContext {
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 
-function copyState(state: Cpu8088State): Cpu8088State {
-  const flags = state.flags;
-  // Read each stored field once; ignore metadata and derived byte/address views.
-  return {
-    ax: state.ax, bx: state.bx, cx: state.cx, dx: state.dx,
-    sp: state.sp, bp: state.bp, si: state.si, di: state.di,
-    cs: state.cs, ds: state.ds, ss: state.ss, es: state.es, ip: state.ip,
-    flags: { cf: flags.cf, pf: flags.pf, af: flags.af, zf: flags.zf, sf: flags.sf,
-      tf: flags.tf, if: flags.if, df: flags.df, of: flags.of },
-  };
-}
-
 // The original 8088 has twenty address lines; carries beyond bit 19 are discarded.
 function physicalAddress(segment: number, offset: number): number {
   return ((segment << 4) + offset) & 0xfffff;
@@ -105,20 +102,13 @@ export class Cpu8088 {
 
   constructor(ram: Ram, initialState: Cpu8088State) {
     if (ram.size !== 0x100000) throw new RangeError("The 8088 model requires exactly 1 MiB of RAM.");
-    const state = copyState(initialState);
-    for (const name of ["ax", "bx", "cx", "dx", "sp", "bp", "si", "di", "cs", "ds", "ss", "es", "ip"] as const) {
-      checkUnsigned(name, state[name], 0xffff);
-    }
-    for (const name of ["cf", "pf", "af", "zf", "sf", "tf", "if", "df", "of"] as const) {
-      if (typeof state.flags[name] !== "boolean") throw new TypeError(`Flag ${name} must be a boolean.`);
-    }
     this.#ram = ram;
-    this.#state = state;
+    this.#state = readState(cpu8088StateDescription, initialState);
   }
 
   /** Inspect detached state, byte-register views, and the physical PC without RAM access. */
   snapshot(): Cpu8088Snapshot {
-    const state = copyState(this.#state);
+    const state = copyState(cpu8088StateDescription, this.#state);
     return {
       ...state,
       al: state.ax & 0xff, ah: state.ax >>> 8,

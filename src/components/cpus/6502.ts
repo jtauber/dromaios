@@ -1,6 +1,7 @@
 import type { Ram } from "../memory/ram.js";
-import { checkUnsigned } from "../validation.js";
-import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.js";
+import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
+import type { StateDescription } from "./state.js";
+import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 
 export interface Cpu6502Flags {
   n: boolean;
@@ -19,6 +20,12 @@ export interface Cpu6502State {
   pc: number;
   flags: Cpu6502Flags;
 }
+
+/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
+export const cpu6502StateDescription = defineState({
+  a: unsigned(8), x: unsigned(8), y: unsigned(8), sp: unsigned(8), pc: unsigned(16),
+  flags: group({ n: flag, v: flag, d: flag, i: flag, z: flag, c: flag }),
+} satisfies StateDescription<Cpu6502State>);
 
 export type Cpu6502Snapshot = Readonly<Omit<Cpu6502State, "flags">> & {
   readonly flags: Readonly<Cpu6502Flags>;
@@ -61,19 +68,6 @@ interface InstructionContext {
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteRegister = "a" | "x" | "y";
 
-function copyState(state: Cpu6502Snapshot): Cpu6502State {
-  const flags = state.flags;
-  // Copy declared fields only, including non-enumerable fields and inherited getters.
-  return {
-    a: state.a,
-    x: state.x,
-    y: state.y,
-    sp: state.sp,
-    pc: state.pc,
-    flags: { n: flags.n, v: flags.v, d: flags.d, i: flags.i, z: flags.z, c: flags.c },
-  };
-}
-
 /** Instruction-level NMOS 6502 subset for the 6502 examples. */
 export class Cpu6502 {
   readonly #ram: Ram;
@@ -83,23 +77,13 @@ export class Cpu6502 {
     if (ram.size !== 0x10000) {
       throw new RangeError("The 6502 model requires exactly 64 KiB of RAM.");
     }
-    const state = copyState(initialState);
-    for (const name of ["a", "x", "y", "sp"] as const) {
-      checkUnsigned(name, state[name], 0xff);
-    }
-    checkUnsigned("pc", state.pc, 0xffff);
-    for (const name of ["n", "v", "d", "i", "z", "c"] as const) {
-      if (typeof state.flags[name] !== "boolean") {
-        throw new TypeError(`Flag ${name} must be a boolean.`);
-      }
-    }
     this.#ram = ram;
-    this.#state = state;
+    this.#state = readState(cpu6502StateDescription, initialState);
   }
 
   /** Inspect a detached copy, readonly to TypeScript, without accessing RAM. */
   snapshot(): Cpu6502Snapshot {
-    return copyState(this.#state);
+    return copyState(cpu6502StateDescription, this.#state);
   }
 
   /** Reset PC, I, and SP with only the vector reads; preserve other state and RAM. */

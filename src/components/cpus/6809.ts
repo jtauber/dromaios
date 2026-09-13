@@ -1,6 +1,7 @@
 import type { Ram } from "../memory/ram.js";
-import { checkUnsigned } from "../validation.js";
-import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.js";
+import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
+import type { StateDescription } from "./state.js";
+import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 
 export interface Cpu6809Flags {
   e: boolean;
@@ -24,6 +25,13 @@ export interface Cpu6809State {
   pc: number;
   flags: Cpu6809Flags;
 }
+
+/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
+export const cpu6809StateDescription = defineState({
+  a: unsigned(8), b: unsigned(8), dp: unsigned(8),
+  x: unsigned(16), y: unsigned(16), s: unsigned(16), u: unsigned(16), pc: unsigned(16),
+  flags: group({ e: flag, f: flag, h: flag, i: flag, n: flag, z: flag, v: flag, c: flag }),
+} satisfies StateDescription<Cpu6809State>);
 
 export type Cpu6809Snapshot = Readonly<Omit<Cpu6809State, "flags">> & {
   readonly flags: Readonly<Cpu6809Flags>;
@@ -68,25 +76,6 @@ type OpcodeHandler = (instruction: InstructionContext) => void;
 type Accumulator = "a" | "b";
 type StackPointer = "s" | "u";
 
-function copyState(state: Omit<Cpu6809Snapshot, "d">): Cpu6809State {
-  const flags = state.flags;
-  // Copy declared stored fields only; a supplied D or metadata getter is ignored.
-  return {
-    a: state.a,
-    b: state.b,
-    dp: state.dp,
-    x: state.x,
-    y: state.y,
-    s: state.s,
-    u: state.u,
-    pc: state.pc,
-    flags: {
-      e: flags.e, f: flags.f, h: flags.h, i: flags.i,
-      n: flags.n, z: flags.z, v: flags.v, c: flags.c,
-    },
-  };
-}
-
 /** Instruction-level MC6809 subset for the 6809 examples. */
 export class Cpu6809 {
   readonly #ram: Ram;
@@ -96,25 +85,13 @@ export class Cpu6809 {
     if (ram.size !== 0x10000) {
       throw new RangeError("The 6809 model requires exactly 64 KiB of RAM.");
     }
-    const state = copyState(initialState);
-    for (const name of ["a", "b", "dp"] as const) {
-      checkUnsigned(name, state[name], 0xff);
-    }
-    for (const name of ["x", "y", "s", "u", "pc"] as const) {
-      checkUnsigned(name, state[name], 0xffff);
-    }
-    for (const name of ["e", "f", "h", "i", "n", "z", "v", "c"] as const) {
-      if (typeof state.flags[name] !== "boolean") {
-        throw new TypeError(`Flag ${name} must be a boolean.`);
-      }
-    }
     this.#ram = ram;
-    this.#state = state;
+    this.#state = readState(cpu6809StateDescription, initialState);
   }
 
   /** Inspect a detached copy, including D derived from A/B, without accessing RAM. */
   snapshot(): Cpu6809Snapshot {
-    const state = copyState(this.#state);
+    const state = copyState(cpu6809StateDescription, this.#state);
     return { ...state, d: (state.a << 8) | state.b };
   }
 

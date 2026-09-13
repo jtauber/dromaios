@@ -104,6 +104,7 @@ test("the native TypeScript build entry point works outside the repo and prints 
   mkdirSync(join(directory, "src/machines/6502"), { recursive: true });
   cpSync("scripts/generate-machines.ts", join(directory, "scripts/generate-machines.ts"));
   cpSync("src/machines/machine-language.ts", join(directory, "src/machines/machine-language.ts"));
+  cpSync("src/components", join(directory, "src/components"), { recursive: true });
   writeFileSync(join(directory, "package.json"), JSON.stringify({ type: "module" }));
   writeFileSync(join(directory, "src/machines/6502/lesson.machine"), source);
   const run = () => spawnSync(process.execPath, [join(directory, "scripts/generate-machines.ts")], {
