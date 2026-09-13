@@ -208,9 +208,10 @@ relationships, including the distinction between reset and step records.
 ## Implementation notes
 
 Private operation helpers compose with recorded operand/address access through
-the opcode table, keeping byte order and flag behavior explicit. There is no
-generic CPU base class, shared opcode schema, or CPU definition language.
-[Focused examples](../scope.md) inform those future interfaces; the
+the opcode table, keeping byte order and flag behavior explicit. The short
+branches use the shared [opcode definition experiment](../opcode-definitions.md)
+to bind encoded conditions and polarity; their execution stays CPU-specific.
+[Focused examples](../scope.md) inform further interfaces; the
 [CoCo reference notes](reference-notes.md) record evidence from the earlier
 implementation and ideas to revisit.
 

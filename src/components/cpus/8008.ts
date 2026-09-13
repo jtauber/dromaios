@@ -1,5 +1,6 @@
 import type { Ram } from "../memory/ram.js";
 import { checkUnsigned } from "../validation.js";
+import { opcodeAliases, opcodeTable } from "./opcodes.js";
 
 export interface Cpu8008Flags {
   s: boolean;
@@ -171,40 +172,33 @@ export class Cpu8008 {
   // Opcode construction. Bits 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
   // Register selectors: 000 A, 001 B, 010 C, 011 D, 100 E, 101 H, 110 L, 111 M.
   // M means RAM at H:L masked to 14 bits. These are native 8008 encodings.
-  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // 00 000 00x: both x values encode HLT, occupying the absent IN A/DC A slots.
-    0b00_000_000: () => this.#halt(), // HLT (00)
-    0b00_000_001: () => this.#halt(), // HLT (01)
+    [0b00_000_000, () => this.#halt()], // HLT (00)
+    [0b00_000_001, () => this.#halt()], // HLT (01)
 
     // 00 ooo 100: immediate ALU; ooo=000 selects ADI. Other operations are omitted.
-    0b00_000_100: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADI n
+    [0b00_000_100, ({ fetchByte }) => this.#addToAccumulator(fetchByte())], // ADI n
 
     // 00 rrr 110: immediate register load; only rrr=000/101/110 (A/H/L) are implemented.
-    0b00_000_110: ({ fetchByte }) => this.#loadRegister("a", fetchByte()), // LAI n
-    0b00_101_110: ({ fetchByte }) => this.#loadRegister("h", fetchByte()), // LHI n
-    0b00_110_110: ({ fetchByte }) => this.#loadRegister("l", fetchByte()), // LLI n
+    [0b00_000_110, ({ fetchByte }) => this.#loadRegister("a", fetchByte())], // LAI n
+    [0b00_101_110, ({ fetchByte }) => this.#loadRegister("h", fetchByte())], // LHI n
+    [0b00_110_110, ({ fetchByte }) => this.#loadRegister("l", fetchByte())], // LLI n
 
     // 00 xxx 111: RET. Bits 5–3 are don't-care bits: all eight encodings return.
-    ...this.#unconditionalHandlers(0b00_000_111, () => this.#return()), // RET
+    ...opcodeAliases("00 xxx 111", () => this.#return()), // RET
 
     // 01 xxx 100/110: JMP/CAL. Again xxx is ignored, not a register or condition.
     // The following bytes supply the address as llllllll, xxhhhhhh (low byte first).
-    ...this.#unconditionalHandlers(0b01_000_100, ({ fetchAddress }) => this.#jump(fetchAddress())), // JMP addr
-    ...this.#unconditionalHandlers(0b01_000_110, ({ fetchAddress }) => this.#call(fetchAddress())), // CAL addr
+    ...opcodeAliases("01 xxx 100", ({ fetchAddress }: InstructionContext) => this.#jump(fetchAddress())), // JMP addr
+    ...opcodeAliases("01 xxx 110", ({ fetchAddress }: InstructionContext) => this.#call(fetchAddress())), // CAL addr
 
     // Conditional jumps/calls/returns, RST, I/O, and xx=10 ALU forms remain unsupported.
 
     // 11 ddd sss: loads; ddd=111 selects M and sss=000 selects A. The M,M slot is HLT.
-    0b11_111_000: ({ writeByte }) => writeByte(this.#hl & 0x3fff, this.#state.a), // LMA
-    0b11_111_111: () => this.#halt(), // HLT (FF), not a memory-to-memory load.
-  };
-
-  #unconditionalHandlers(base: number, handler: OpcodeHandler): Partial<Record<number, OpcodeHandler>> {
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    // Expand the documented xxx don't-care field in bits 5–3.
-    for (let ignored = 0; ignored < 8; ignored++) handlers[base | (ignored << 3)] = handler;
-    return handlers;
-  }
+    [0b11_111_000, ({ writeByte }) => writeByte(this.#hl & 0x3fff, this.#state.a)], // LMA
+    [0b11_111_111, () => this.#halt()], // HLT (FF), not a memory-to-memory load.
+  ]);
 
   // Loads.
 

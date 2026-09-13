@@ -1,5 +1,6 @@
 import type { Ram } from "../memory/ram.js";
 import { checkUnsigned } from "../validation.js";
+import { opcodeFamily, opcodeTable } from "./opcodes.js";
 
 export interface Cpu6502Flags {
   n: boolean;
@@ -162,59 +163,52 @@ export class Cpu6502 {
   // cc selects a group. In cc=01, aaa selects the operation and bbb its addressing mode.
   // The cc=00 and cc=10 instructions below have their own patterns.
   // Only implemented encodings enter the table; this is not a decoder for every combination.
-  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // cc=00, bbb=000: aaa=101 selects LDY immediate.
-    0b101_000_00: ({ fetchByte }) => this.#loadRegister("y", fetchByte()), // LDY #n
+    [0b101_000_00, ({ fetchByte }) => this.#loadRegister("y", fetchByte())], // LDY #n
 
     // cc=00, bbb=010: 01p 010 00 selects push A (p=0) or pull A (p=1).
-    0b01_0_010_00: ({ writeByte }) => this.#pushByte(this.#state.a, writeByte), // PHA
-    0b01_1_010_00: ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte)), // PLA
+    [0b01_0_010_00, ({ writeByte }) => this.#pushByte(this.#state.a, writeByte)], // PHA
+    [0b01_1_010_00, ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte))], // PLA
     // aaa=100..111 selects DEY, TAY, INY, INX in this subgroup.
-    0b100_010_00: () => this.#adjustIndex("y", -1), // DEY
-    0b101_010_00: () => this.#loadRegister("y", this.#state.a), // TAY
-    0b110_010_00: () => this.#adjustIndex("y", 1), // INY
-    0b111_010_00: () => this.#adjustIndex("x", 1), // INX
+    [0b100_010_00, () => this.#adjustIndex("y", -1)], // DEY
+    [0b101_010_00, () => this.#loadRegister("y", this.#state.a)], // TAY
+    [0b110_010_00, () => this.#adjustIndex("y", 1)], // INY
+    [0b111_010_00, () => this.#adjustIndex("x", 1)], // INX
 
     // cc=00, bbb=100: ffv 100 00 selects a flag and the value required to branch.
-    ...this.#branchHandlers(),
+    // ff (bits 7..6): 00 N, 01 V, 10 C, 11 Z.
+    // v (bit 5): 0 clear (BPL/BVC/BCC/BNE), 1 set (BMI/BVS/BCS/BEQ).
+    ...opcodeFamily("ff v 100 00", {
+      f: ["n", "v", "c", "z"],
+      v: [false, true],
+    }, ({ f: flag, v: value }) => ({ fetchByte }: InstructionContext) =>
+      this.#branch(fetchByte(), this.#state.flags[flag] === value)),
 
     // cc=00, bbb=110: aaa=000 selects CLC; aaa=100 selects TYA.
-    0b000_110_00: () => this.#clearCarry(), // CLC
-    0b100_110_00: () => this.#loadRegister("a", this.#state.y), // TYA
+    [0b000_110_00, () => this.#clearCarry()], // CLC
+    [0b100_110_00, () => this.#loadRegister("a", this.#state.y)], // TYA
 
     // cc=01: the operations used here are aaa=011 ADC, 100 STA, 101 LDA.
     // bbb=001 selects zero-page addressing.
-    0b100_001_01: ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.a), // STA zp
-    0b101_001_01: ({ fetchByte, readByte }) => this.#loadRegister("a", readByte(fetchByte())), // LDA zp
+    [0b100_001_01, ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.a)], // STA zp
+    [0b101_001_01, ({ fetchByte, readByte }) => this.#loadRegister("a", readByte(fetchByte()))], // LDA zp
 
     // bbb=010 selects an immediate operand; STA has no immediate form.
-    0b011_010_01: ({ fetchByte }) => this.#addWithCarry(fetchByte()), // ADC #n (binary)
-    0b101_010_01: ({ fetchByte }) => this.#loadRegister("a", fetchByte()), // LDA #n
+    [0b011_010_01, ({ fetchByte }) => this.#addWithCarry(fetchByte())], // ADC #n (binary)
+    [0b101_010_01, ({ fetchByte }) => this.#loadRegister("a", fetchByte())], // LDA #n
 
     // bbb=011 selects absolute addressing.
-    0b100_011_01: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
+    [0b100_011_01, ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a)], // STA addr
 
     // cc=10, bbb=000: aaa=101 selects LDX immediate.
-    0b101_000_10: ({ fetchByte }) => this.#loadRegister("x", fetchByte()), // LDX #n
+    [0b101_000_10, ({ fetchByte }) => this.#loadRegister("x", fetchByte())], // LDX #n
 
     // cc=10, bbb=010: aaa=100..110 selects TXA, TAX, DEX.
-    0b100_010_10: () => this.#loadRegister("a", this.#state.x), // TXA
-    0b101_010_10: () => this.#loadRegister("x", this.#state.a), // TAX
-    0b110_010_10: () => this.#adjustIndex("x", -1), // DEX
-  };
-
-  #branchHandlers(): Partial<Record<number, OpcodeHandler>> {
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    // ff (bits 7..6): 00 N, 01 V, 10 C, 11 Z.
-    // v (bit 5): 0 clear (BPL/BVC/BCC/BNE), 1 set (BMI/BVS/BCS/BEQ).
-    for (const [flagCode, flag] of (["n", "v", "c", "z"] as const).entries()) {
-      for (const [valueCode, value] of [false, true].entries()) {
-        const opcode = 0b00_0_100_00 | (flagCode << 6) | (valueCode << 5);
-        handlers[opcode] = ({ fetchByte }) => this.#branch(fetchByte(), this.#state.flags[flag] === value);
-      }
-    }
-    return handlers;
-  }
+    [0b100_010_10, () => this.#loadRegister("a", this.#state.x)], // TXA
+    [0b101_010_10, () => this.#loadRegister("x", this.#state.a)], // TAX
+    [0b110_010_10, () => this.#adjustIndex("x", -1)], // DEX
+  ]);
 
   // Loads and register operations.
 

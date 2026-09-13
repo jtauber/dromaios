@@ -32,10 +32,11 @@ core. Keep a CPU in one file while this organization remains easy to follow.
 
 ## Make the encoding visible
 
-Use binary opcode keys and family bases, with underscores separating meaningful
+Use binary opcode values and family bases, with underscores separating meaningful
 fields. Explain the bit positions, fixed bits, and selector values beside the
-code. Ordinary addresses, memory images, and arithmetic constants can remain
-hexadecimal.
+code. The [opcode definition experiment](opcode-definitions.md) uses explicit
+patterns and typed selector mappings for selected families. Ordinary addresses,
+memory images, and arithmetic constants can remain hexadecimal.
 
 Choose the grouping from the CPU's encoding:
 

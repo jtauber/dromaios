@@ -15,6 +15,8 @@ see the [development instructions](../README.md#development).
   supported forms and features, and remaining gaps across all CPUs.
 - [CPU source organization](cpus/implementation.md): reading order, bit-encoding
   layout, and the separation of handler construction from instruction behavior.
+- [Opcode definition experiment](cpus/opcode-definitions.md): typed encoding
+  patterns tried on existing 8008, 6502, and 6809 families.
 
 ## CPU models
 

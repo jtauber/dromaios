@@ -1,5 +1,6 @@
 import type { Ram } from "../memory/ram.js";
 import { checkUnsigned } from "../validation.js";
+import { opcodeFamily, opcodeTable } from "./opcodes.js";
 
 export interface Cpu6809Flags {
   e: boolean;
@@ -208,53 +209,46 @@ export class Cpu6809 {
 
   // Base opcode page only; prefix bytes 0x10 and 0x11 remain unsupported.
   // Each family below labels its own fields; stack masks are separate postbytes.
-  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // 0010 ttt p: all sixteen short branches, including BRA and BRN.
-    ...this.#branchHandlers(),
+    ...opcodeFamily("0010 ttt p", {
+      t: this.#branchConditions,
+      p: [false, true],
+    }, ({ t: test, p: invert }) => ({ fetchByte }: InstructionContext) =>
+      this.#branch(fetchByte(), test() !== invert)),
 
     // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
-    0b001101_0_0: ({ fetchByte, writeByte }) => this.#pushRegisters("s", fetchByte(), writeByte), // PSHS
-    0b001101_0_1: ({ fetchByte, readByte }) => this.#pullRegisters("s", fetchByte(), readByte), // PULS
-    0b001101_1_0: ({ fetchByte, writeByte }) => this.#pushRegisters("u", fetchByte(), writeByte), // PSHU
-    0b001101_1_1: ({ fetchByte, readByte }) => this.#pullRegisters("u", fetchByte(), readByte), // PULU
+    [0b001101_0_0, ({ fetchByte, writeByte }) => this.#pushRegisters("s", fetchByte(), writeByte)], // PSHS
+    [0b001101_0_1, ({ fetchByte, readByte }) => this.#pullRegisters("s", fetchByte(), readByte)], // PULS
+    [0b001101_1_0, ({ fetchByte, writeByte }) => this.#pushRegisters("u", fetchByte(), writeByte)], // PSHU
+    [0b001101_1_1, ({ fetchByte, readByte }) => this.#pullRegisters("u", fetchByte(), readByte)], // PULU
 
     // 010 r oooo: r=0 selects A, r=1 selects B; oooo=1010 decrements, 1100 increments.
-    0b010_0_1010: () => this.#adjustAccumulator("a", -1), // DECA
-    0b010_0_1100: () => this.#adjustAccumulator("a", 1), // INCA
-    0b010_1_1010: () => this.#adjustAccumulator("b", -1), // DECB
-    0b010_1_1100: () => this.#adjustAccumulator("b", 1), // INCB
+    [0b010_0_1010, () => this.#adjustAccumulator("a", -1)], // DECA
+    [0b010_0_1100, () => this.#adjustAccumulator("a", 1)], // INCA
+    [0b010_1_1010, () => this.#adjustAccumulator("b", -1)], // DECB
+    [0b010_1_1100, () => this.#adjustAccumulator("b", 1)], // INCB
 
     // These A-register forms use 10 mm oooo: mm selects addressing, oooo the operation.
     // oooo=0110 loads A, 0111 stores A, 1011 adds to A.
     // mm=00 selects an immediate operand; stores have no immediate form.
-    0b10_00_0110: ({ fetchByte }) => this.#loadAccumulator("a", fetchByte()), // LDA #n
-    0b10_00_1011: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADDA #n
+    [0b10_00_0110, ({ fetchByte }) => this.#loadAccumulator("a", fetchByte())], // LDA #n
+    [0b10_00_1011, ({ fetchByte }) => this.#addToAccumulator(fetchByte())], // ADDA #n
 
     // mm=01 selects direct addressing through DP.
-    0b10_01_0110: ({ fetchByte, readByte }) => // LDA direct
-      this.#loadAccumulator("a", readByte(this.#directAddress(fetchByte()))),
-    0b10_01_0111: ({ fetchByte, writeByte }) => // STA direct
-      this.#storeAccumulator(this.#directAddress(fetchByte()), writeByte),
+    [0b10_01_0110, ({ fetchByte, readByte }) => // LDA direct
+      this.#loadAccumulator("a", readByte(this.#directAddress(fetchByte())))],
+    [0b10_01_0111, ({ fetchByte, writeByte }) => // STA direct
+      this.#storeAccumulator(this.#directAddress(fetchByte()), writeByte)],
 
     // mm=10 (indexed) has no implemented forms yet.
     // mm=11 selects an extended address operand.
-    0b10_11_0111: ({ fetchWord, writeByte }) => this.#storeAccumulator(fetchWord(), writeByte), // STA extended
+    [0b10_11_0111, ({ fetchWord, writeByte }) => this.#storeAccumulator(fetchWord(), writeByte)], // STA extended
 
     // 11 mm oooo contains the corresponding B forms for these byte operations.
     // Only mm=00, oooo=0110 (immediate LDB) is implemented in this group.
-    0b11_00_0110: ({ fetchByte }) => this.#loadAccumulator("b", fetchByte()), // LDB #n
-  };
-
-  #branchHandlers(): Partial<Record<number, OpcodeHandler>> {
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [testCode, test] of this.#branchConditions.entries()) {
-      for (const [polarity, invert] of [false, true].entries()) {
-        const opcode = 0b0010_000_0 | (testCode << 1) | polarity;
-        handlers[opcode] = ({ fetchByte }) => this.#branch(fetchByte(), test() !== invert);
-      }
-    }
-    return handlers;
-  }
+    [0b11_00_0110, ({ fetchByte }) => this.#loadAccumulator("b", fetchByte())], // LDB #n
+  ]);
 
   // Addressing.
 
