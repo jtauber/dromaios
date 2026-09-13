@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu6809 } from "../../../src/components/cpus/6809.js";
-import type { Cpu6809Flags, Cpu6809State } from "../../../src/components/cpus/6809.js";
+import type { Cpu6809Flags, Cpu6809Snapshot, Cpu6809State } from "../../../src/components/cpus/6809.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 
@@ -1145,9 +1145,228 @@ test("6809 stack records own flags and values across RAM edits, later execution,
   }
 });
 
+test("6809 immediate LDB loads every byte, updates D and N/Z/V, and preserves all other state", () => {
+  const ram = new ObservedRam();
+  for (const [pc, operandAddress, nextPc] of [[0x1234, 0x1235, 0x1236], [0xffff, 0, 1]] as const) {
+    ram.write(pc, 0xc6);
+    for (let value = 0; value < 256; value++) {
+      ram.write(operandAddress, value);
+      for (let cc = 0; cc < 256; cc++) {
+        const flags = flagsFor(cc);
+        const before = { ...initialState({ pc, flags }), d: 0x1134 };
+        const cpu = new Cpu6809(ram, before);
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: pc, bytes: [0xc6, value] }, before,
+          after: { ...before, b: value, d: 0x1100 + value, pc: nextPc,
+            flags: { ...flags, n: value >= 128, z: value === 0, v: false } },
+          accesses: [
+            { kind: "read", address: pc, value: 0xc6 },
+            { kind: "read", address: operandAddress, value },
+          ],
+          outcome: "executed",
+        });
+        assert.deepEqual(cpu.snapshot(), record.after);
+        assert.deepEqual(ram.accesses, record.accesses);
+      }
+    }
+  }
+});
+
+for (const [mnemonic, opcode, register, delta] of [
+  ["INCA", 0x4c, "a", 1], ["DECA", 0x4a, "a", -1],
+  ["INCB", 0x5c, "b", 1], ["DECB", 0x5a, "b", -1],
+] as const) {
+  test(`6809 ${mnemonic} wraps every byte, replaces N/Z/V, preserves E/F/H/I/C, and updates D`, () => {
+    const ram = new ObservedRam();
+    ram.write(0xffff, opcode);
+    for (let value = 0; value < 256; value++) {
+      const result = (value + delta + 256) % 256;
+      const signedResult = (value < 128 ? value : value - 256) + delta;
+      for (let cc = 0; cc < 256; cc++) {
+        const flags = flagsFor(cc);
+        const before = {
+          ...initialState({ pc: 0xffff, [register]: value, flags }),
+          d: register === "a" ? value * 256 + 0x34 : 0x1100 + value,
+        };
+        const cpu = new Cpu6809(ram, before);
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: 0xffff, bytes: [opcode] }, before,
+          after: { ...before, [register]: result, pc: 0,
+            d: register === "a" ? result * 256 + 0x34 : 0x1100 + result,
+            flags: { ...flags, n: result >= 128, z: result === 0, v: signedResult < -128 || signedResult > 127 } },
+          accesses: [{ kind: "read", address: 0xffff, value: opcode }],
+          outcome: "executed",
+        });
+        assert.deepEqual(cpu.snapshot(), record.after);
+        assert.deepEqual(ram.accesses, record.accesses);
+      }
+    }
+  });
+}
+
+// Literal truth sets for the low CC nibble N Z V C, independent of dispatch
+// construction and its paired predicates. Aliases BHS/BLO share BCC/BCS bytes.
+const branchCases: readonly { mnemonic: string; opcode: number; takenCodes: readonly number[] }[] = [
+  { mnemonic: "BRA", opcode: 0x20, takenCodes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+  { mnemonic: "BRN", opcode: 0x21, takenCodes: [] },
+  { mnemonic: "BHI", opcode: 0x22, takenCodes: [0, 2, 8, 10] },
+  { mnemonic: "BLS", opcode: 0x23, takenCodes: [1, 3, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15] },
+  { mnemonic: "BCC/BHS", opcode: 0x24, takenCodes: [0, 2, 4, 6, 8, 10, 12, 14] },
+  { mnemonic: "BCS/BLO", opcode: 0x25, takenCodes: [1, 3, 5, 7, 9, 11, 13, 15] },
+  { mnemonic: "BNE", opcode: 0x26, takenCodes: [0, 1, 2, 3, 8, 9, 10, 11] },
+  { mnemonic: "BEQ", opcode: 0x27, takenCodes: [4, 5, 6, 7, 12, 13, 14, 15] },
+  { mnemonic: "BVC", opcode: 0x28, takenCodes: [0, 1, 4, 5, 8, 9, 12, 13] },
+  { mnemonic: "BVS", opcode: 0x29, takenCodes: [2, 3, 6, 7, 10, 11, 14, 15] },
+  { mnemonic: "BPL", opcode: 0x2a, takenCodes: [0, 1, 2, 3, 4, 5, 6, 7] },
+  { mnemonic: "BMI", opcode: 0x2b, takenCodes: [8, 9, 10, 11, 12, 13, 14, 15] },
+  { mnemonic: "BGE", opcode: 0x2c, takenCodes: [0, 1, 4, 5, 10, 11, 14, 15] },
+  { mnemonic: "BLT", opcode: 0x2d, takenCodes: [2, 3, 6, 7, 8, 9, 12, 13] },
+  { mnemonic: "BGT", opcode: 0x2e, takenCodes: [0, 1, 10, 11] },
+  { mnemonic: "BLE", opcode: 0x2f, takenCodes: [2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15] },
+];
+
+for (const { mnemonic, opcode, takenCodes } of branchCases) {
+  test(`6809 ${mnemonic} follows its truth table for every CC value and fetches the operand on every path`, () => {
+    const ram = new ObservedRam();
+    // Independently calculated targets: displacement extremes, instruction overlap,
+    // both page crossings, both address-space crossings, and wrapped operand fetch.
+    for (const [pc, operandAddress, displacement, fallthrough, target] of [
+      [0x1234, 0x1235, 0x00, 0x1236, 0x1236],
+      [0x1234, 0x1235, 0x7f, 0x1236, 0x12b5],
+      [0x1234, 0x1235, 0x80, 0x1236, 0x11b6],
+      [0x1234, 0x1235, 0xfe, 0x1236, 0x1234],
+      [0x1234, 0x1235, 0xff, 0x1236, 0x1235],
+      [0x12fd, 0x12fe, 0x01, 0x12ff, 0x1300],
+      [0x0000, 0x0001, 0x80, 0x0002, 0xff82],
+      [0xfffd, 0xfffe, 0x01, 0xffff, 0x0000],
+      [0xfffe, 0xffff, 0xff, 0x0000, 0xffff],
+      [0xffff, 0x0000, 0xfe, 0x0001, 0xffff],
+    ] as const) {
+      ram.write(pc, opcode);
+      ram.write(operandAddress, displacement);
+      for (let cc = 0; cc < 256; cc++) {
+        const before = { ...initialState({ pc, flags: flagsFor(cc) }), d: 0x1134 };
+        const cpu = new Cpu6809(ram, before);
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: pc, bytes: [opcode, displacement] }, before,
+          after: { ...before, pc: takenCodes.includes(cc % 16) ? target : fallthrough },
+          accesses: [
+            { kind: "read", address: pc, value: opcode },
+            { kind: "read", address: operandAddress, value: displacement },
+          ],
+          outcome: "executed",
+        });
+        assert.deepEqual(cpu.snapshot(), record.after);
+        assert.deepEqual(ram.accesses, record.accesses);
+      }
+    }
+  });
+}
+
+test("6809 short branches interpret every displacement relative to the address after the operand", () => {
+  const ram = new ObservedRam();
+  const operand = new DataView(new ArrayBuffer(1));
+  for (const { opcode, takenCodes } of branchCases) {
+    const untakenCode = Array.from({ length: 16 }, (_, cc) => cc).find(cc => !takenCodes.includes(cc));
+    // BRA has only a taken path; BRN only an untaken path.
+    for (const cc of [takenCodes[0], untakenCode]) {
+      if (cc === undefined) continue;
+      for (const pc of [0, 0x1234, 0xffff]) {
+        ram.write(pc, opcode);
+        for (let displacement = 0; displacement < 256; displacement++) {
+          ram.write((pc + 1) % 65536, displacement);
+          operand.setUint8(0, displacement);
+          const before: Cpu6809Snapshot = { ...initialState({ pc, flags: flagsFor(cc) }), d: 0x1134 };
+          const cpu = new Cpu6809(ram, before);
+          ram.accesses.length = 0;
+          const record = cpu.step();
+          const target: number = (pc + 2 + (takenCodes.includes(cc) ? operand.getInt8(0) : 0) + 65536) % 65536;
+          assert.equal(record.outcome, "executed");
+          assert.deepEqual(record.after, { ...before, pc: target });
+          assert.deepEqual(record.instruction, { address: pc, bytes: [opcode, displacement] });
+          assert.deepEqual(record.accesses, [
+            { kind: "read", address: pc, value: opcode },
+            { kind: "read", address: (pc + 1) % 65536, value: displacement },
+          ]);
+          assert.deepEqual(ram.accesses, record.accesses);
+        }
+      }
+    }
+  }
+});
+
+test("6809 signed branches use current overflow after DECB and current CC after a stack pull", () => {
+  const ram = new ObservedRam();
+  for (const [offset, byte] of [0xc6, 0x80, 0x5a, 0x2d, 2, 0, 0, 0x35, 1, 0x26, 0xfe].entries()) {
+    ram.write(0x0200 + offset, byte);
+  }
+  ram.write(0x8000, 0x04); // PULS CC replaces the flag object with Z set.
+  const cpu = new Cpu6809(ram, initialState({ pc: 0x0200, s: 0x8000 }));
+  const loaded = cpu.step();
+  assert.equal(loaded.after.b, 0x80);
+  assert.deepEqual(loaded.after.flags, { ...initialState().flags, n: true, z: false, v: false });
+  const decremented = cpu.step();
+  assert.deepEqual(decremented.after, {
+    ...loaded.after, b: 0x7f, d: 0x117f, pc: 0x0203,
+    flags: { ...loaded.after.flags, n: false, z: false, v: true },
+  });
+  ram.accesses.length = 0;
+  const branch = cpu.step(); // BLT must take the branch even though N is clear.
+  assert.deepEqual(branch, {
+    instruction: { address: 0x0203, bytes: [0x2d, 2] }, before: decremented.after,
+    after: { ...decremented.after, pc: 0x0207 },
+    accesses: [{ kind: "read", address: 0x0203, value: 0x2d }, { kind: "read", address: 0x0204, value: 2 }],
+    outcome: "executed",
+  });
+  assert.deepEqual(ram.accesses, branch.accesses);
+  const pulled = cpu.step();
+  assert.deepEqual(pulled.after, { ...branch.after, pc: 0x0209, s: 0x8001, flags: flagsFor(0x04) });
+  const next = cpu.step();
+  assert.deepEqual(next.after, { ...pulled.after, pc: 0x020b }); // BNE is now untaken.
+  assert.deepEqual(next.instruction.bytes, [0x26, 0xfe]);
+  const saved = structuredClone([loaded, decremented, branch, pulled, next]);
+  cpu.reset();
+  ram.write(0x0204, 0xff);
+  assert.deepEqual([loaded, decremented, branch, pulled, next], saved);
+});
+
+test("6809 branches fetch current operands and return records isolated from caller edits", () => {
+  const ram = new ObservedRam();
+  ram.write(0x1234, 0x26);
+  ram.write(0x1235, 0xfe); // BNE to itself
+  const cpu = new Cpu6809(ram, initialState());
+  const first = cpu.step();
+  const savedFirst = structuredClone(first);
+  assert.equal(first.after.pc, 0x1234);
+  ram.write(0x1235, 0);
+  const next = cpu.step();
+  assert.deepEqual(next.instruction.bytes, [0x26, 0]);
+  assert.equal(next.after.pc, 0x1236);
+  assert.deepEqual(first, savedFirst);
+  const savedNext = structuredClone(next);
+  Reflect.set(first.after.flags, "z", true);
+  Reflect.set(first.after, "d", 0);
+  Reflect.set(first.instruction.bytes, 1, 0x80);
+  assert.ok(first.accesses[1]);
+  Reflect.set(first.accesses[1], "value", 0xff);
+  assert.deepEqual(cpu.snapshot(), savedNext.after);
+  cpu.reset();
+  ram.write(0x1235, 0xff);
+  assert.deepEqual(next, savedNext);
+});
+
 test("every unsupported 6809 byte, including prefixes, repeatedly reads only itself without advancing PC", () => {
   for (let opcode = 0; opcode <= 0xff; opcode++) {
-    if ([0x34, 0x35, 0x36, 0x37, 0x86, 0x8b, 0x96, 0x97, 0xb7].includes(opcode)) continue;
+    if ([
+      0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+      0x34, 0x35, 0x36, 0x37, 0x4a, 0x4c, 0x5a, 0x5c, 0x86, 0x8b, 0x96, 0x97, 0xb7, 0xc6,
+    ].includes(opcode)) continue;
     for (const pc of [0x1234, 0xffff]) {
       const ram = new ObservedRam();
       ram.write(pc, opcode);

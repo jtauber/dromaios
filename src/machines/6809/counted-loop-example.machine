@@ -1,0 +1,23 @@
+ram 10000
+
+cpu 6809 {
+    A = 11  B = 34  DP = 12
+    X = 2345  Y = 4567  S = 8000  U = 4000
+    PC = 0200
+    flags { E = 1  F = 0  H = 1  I = 0  N = 1  Z = 1  V = 1  C = 1 }
+}
+
+memory 0200 {
+    C6 03       // LDB #$03: remaining iterations
+    86 00       // LDA #$00: running sum
+    8B 05       // ADDA #$05 (loop starts at 0204)
+    5A          // DECB
+    26 FB       // BNE $0204: -5 from 0209
+    B7 00 80    // STA >$0080
+}
+
+memory FFFE {
+    02 00       // Reset vector: 0200, high byte first
+}
+
+end 020C

@@ -20,7 +20,7 @@ emulators do not count toward implementation here.
 | [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 |
 | [MOS 6502](#6502) | 1975 | 25 / 151 | 16.6% | 1: binary-only ADC |
 | [Zilog Z80](#z80) | 1976 | 4 / 698 | 0.6% | 0 |
-| [Motorola 6809](#6809) | 1978 | 9 / 268 | 3.4% | 0 |
+| [Motorola 6809](#6809) | 1978 | 30 / 268 | 11.2% | 0 |
 | [Intel 8088](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 |
 | [Motorola 68000](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 |
 
@@ -460,31 +460,57 @@ memory images, bounded resumption and self-looping, reset, and fresh restart.
 [Addressing specification](6809/examples/addressing.md) ·
 [Addressing definition](../../src/machines/6809/addressing-example.machine)
 
+[Counted-loop specification](6809/examples/counted-loop.md) ·
+[Counted-loop definition](../../src/machines/6809/counted-loop-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
+| `20` | `BRA rel` | Short relative | 2 | Branch always |
+| `21` | `BRN rel` | Short relative | 2 | Branch never; fetch displacement and advance PC |
+| `22` | `BHI rel` | Short relative | 2 | Branch if C = 0 and Z = 0 |
+| `23` | `BLS rel` | Short relative | 2 | Branch if C = 1 or Z = 1 |
+| `24` | `BCC rel` / `BHS rel` | Short relative | 2 | Branch if C = 0; aliases count once |
+| `25` | `BCS rel` / `BLO rel` | Short relative | 2 | Branch if C = 1; aliases count once |
+| `26` | `BNE rel` | Short relative | 2 | Branch if Z = 0 |
+| `27` | `BEQ rel` | Short relative | 2 | Branch if Z = 1 |
+| `28` | `BVC rel` | Short relative | 2 | Branch if V = 0 |
+| `29` | `BVS rel` | Short relative | 2 | Branch if V = 1 |
+| `2A` | `BPL rel` | Short relative | 2 | Branch if N = 0 |
+| `2B` | `BMI rel` | Short relative | 2 | Branch if N = 1 |
+| `2C` | `BGE rel` | Short relative | 2 | Branch if N = V |
+| `2D` | `BLT rel` | Short relative | 2 | Branch if N ≠ V |
+| `2E` | `BGT rel` | Short relative | 2 | Branch if Z = 0 and N = V |
+| `2F` | `BLE rel` | Short relative | 2 | Branch if Z = 1 or N ≠ V |
 | `34` | `PSHS mask` | Immediate register mask | 2 | Push any selection of CC/A/B/DP/X/Y/U/PC onto S; preserve flags |
 | `35` | `PULS mask` | Immediate register mask | 2 | Pull any selection of CC/A/B/DP/X/Y/U/PC from S; flags change only if CC is selected |
 | `36` | `PSHU mask` | Immediate register mask | 2 | Push any selection of CC/A/B/DP/X/Y/S/PC onto U; preserve flags |
 | `37` | `PULU mask` | Immediate register mask | 2 | Pull any selection of CC/A/B/DP/X/Y/S/PC from U; flags change only if CC is selected |
+| `4A` | `DECA` | Inherent | 1 | Decrement A; update N/Z/V; preserve E/F/H/I/C |
+| `4C` | `INCA` | Inherent | 1 | Increment A; update N/Z/V; preserve E/F/H/I/C |
+| `5A` | `DECB` | Inherent | 1 | Decrement B; update N/Z/V; preserve E/F/H/I/C |
+| `5C` | `INCB` | Inherent | 1 | Increment B; update N/Z/V; preserve E/F/H/I/C |
 | `86` | `LDA #n` | Immediate | 2 | Load A and update N/Z/V |
 | `8B` | `ADDA #n` | Immediate | 2 | Add without incoming carry; update H/N/Z/V/C |
 | `96` | `LDA direct` | Direct page | 2 | Load A from DP:operand; update N/Z and clear V |
 | `97` | `STA direct` | Direct page | 2 | Store A at DP:operand; update N/Z and clear V |
 | `B7` | `STA addr` | Extended | 3 | Store A and update N/Z/V; address bytes high then low; bypass DP |
+| `C6` | `LDB #n` | Immediate | 2 | Load B; update N/Z and clear V; preserve E/F/H/I/C |
 
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A, B, DP, X, Y, S, U, PC |
 | Stored flags | E, F, H, I, N, Z, V, C; CC is packed/unpacked for stack transfers without a separate public CC state field |
-| Register relationships | Snapshots derive D from A:B, including after stack pulls; other 16-bit D operations and register transfers are not implemented |
+| Register relationships | Snapshots derive D from A:B after loads, accumulator arithmetic, and stack pulls; 16-bit D operations and register transfers are not implemented |
+| Accumulator operations | Immediate A/B loads and wrapping A/B increment/decrement; INC/DEC replace N/Z/V and preserve E/F/H/I/C |
 | Memory addressing | Direct LDA/STA combine current DP with a one-byte operand; extended STA uses an explicit 16-bit address and bypasses DP |
+| Branches | All sixteen encodings `20`–`2F`; signed displacement relative to PC after the operand, with 16-bit wrapping; fetch the operand on every path and preserve flags |
 | Stack | S and U use descending RAM stacks with wrapping 16-bit pointers; all register masks work, including empty/full masks and the other pointer |
 | PC stack transfers | Push saves PC after the postbyte; pull replaces PC and execution resumes there |
 | Reset | Read `FFFE` then `FFFF` for PC, clear DP, set F/I; preserve other modeled state and RAM, including both stack pointers |
 | Prefixes | `10` and `11` are rejected after the prefix byte alone; no second-byte fetch or opcode-page dispatch |
 | Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
-| Remaining instruction scope | Other B/D and register operations, arithmetic and logic beyond ADDA, decimal adjustment, branch/call/return opcodes, and other CC operations |
-| Remaining addressing scope | Indexed, relative, and other forms beyond the exact encodings above |
+| Remaining instruction scope | Further B/D and register operations, arithmetic and logic beyond ADDA and accumulator INC/DEC, decimal adjustment, long branches, calls/returns, and other CC operations |
+| Remaining addressing scope | Indexed, 16-bit relative, and other forms beyond the exact encodings above |
 
 The [reset preservation policy](6809/model.md#cpu-reset) is specified in the
 model contract; it does not claim hardware power-on values for unspecified
@@ -495,7 +521,8 @@ instruction-level model.
 Verification: [CPU tests](../../tests/components/cpus/6809.test.ts),
 [arithmetic example tests](../../tests/machines/6809/example.test.ts),
 [stack example tests](../../tests/machines/6809/stack-example.test.ts),
-[addressing example tests](../../tests/machines/6809/addressing-example.test.ts), and
+[addressing example tests](../../tests/machines/6809/addressing-example.test.ts),
+[counted-loop example tests](../../tests/machines/6809/counted-loop-example.test.ts), and
 [public type checks](../../tests/types/6809.ts). ADDA checks cover every byte
 operand pair with both incoming carry values and old result flags clear and
 set. Other checks cover derived D, exact accesses, wrapping, self-overwriting
@@ -507,6 +534,14 @@ transfers, stack/code overlap, current RAM reads, and occupied-stack reset.
 Direct LDA/STA checks cover page selection, N/Z/V effects and preserved flags,
 PC and operand wrapping, code overlap, unchanged-value writes without destination
 reads, DP changed by a stack pull or reset, current RAM, and detached records.
+LDB and accumulator INC/DEC checks cover every byte with all 256 CC values,
+N/Z/V replacement, signed overflow, preserved E/F/H/I/C, wrapping, and derived D.
+Branch truth tables cover all CC values, with every displacement checked on
+each available path, page/address-space crossings, and instruction-byte overlap.
+Further checks cover live flags after DECB and PULS, current operands, and
+detached records. The counted loop checks twelve complete records, actual RAM
+calls, both BNE paths, full memory images, bounded resumption and self-looping,
+reset preservation, and fresh restart.
 
 ## Z80
 

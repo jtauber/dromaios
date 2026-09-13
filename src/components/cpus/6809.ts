@@ -64,6 +64,7 @@ interface InstructionContext {
 }
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
+type Accumulator = "a" | "b";
 type StackPointer = "s" | "u";
 
 function copyState(state: Omit<Cpu6809Snapshot, "d">): Cpu6809State {
@@ -192,31 +193,68 @@ export class Cpu6809 {
 
   // Opcode selectors and construction.
 
+  // Branches 20–2F use 0010 ttt p: bits 3..1 select the test; bit 0 inverts it.
+  // Each entry gives the p=0 test, followed by its p=0 / p=1 mnemonics.
+  readonly #branchConditions = [
+    () => true, // 000: BRA / BRN
+    () => !this.#state.flags.c && !this.#state.flags.z, // 001: BHI / BLS
+    () => !this.#state.flags.c, // 010: BCC (BHS) / BCS (BLO)
+    () => !this.#state.flags.z, // 011: BNE / BEQ
+    () => !this.#state.flags.v, // 100: BVC / BVS
+    () => !this.#state.flags.n, // 101: BPL / BMI
+    () => this.#state.flags.n === this.#state.flags.v, // 110: BGE / BLT
+    () => !this.#state.flags.z && this.#state.flags.n === this.#state.flags.v, // 111: BGT / BLE
+  ] as const;
+
   // Base opcode page only; prefix bytes 0x10 and 0x11 remain unsupported.
   // Each family below labels its own fields; stack masks are separate postbytes.
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+    // 0010 ttt p: all sixteen short branches, including BRA and BRN.
+    ...this.#branchHandlers(),
+
     // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
     0b001101_0_0: ({ fetchByte, writeByte }) => this.#pushRegisters("s", fetchByte(), writeByte), // PSHS
     0b001101_0_1: ({ fetchByte, readByte }) => this.#pullRegisters("s", fetchByte(), readByte), // PULS
     0b001101_1_0: ({ fetchByte, writeByte }) => this.#pushRegisters("u", fetchByte(), writeByte), // PSHU
     0b001101_1_1: ({ fetchByte, readByte }) => this.#pullRegisters("u", fetchByte(), readByte), // PULU
 
+    // 010 r oooo: r=0 selects A, r=1 selects B; oooo=1010 decrements, 1100 increments.
+    0b010_0_1010: () => this.#adjustAccumulator("a", -1), // DECA
+    0b010_0_1100: () => this.#adjustAccumulator("a", 1), // INCA
+    0b010_1_1010: () => this.#adjustAccumulator("b", -1), // DECB
+    0b010_1_1100: () => this.#adjustAccumulator("b", 1), // INCB
+
     // These A-register forms use 10 mm oooo: mm selects addressing, oooo the operation.
     // oooo=0110 loads A, 0111 stores A, 1011 adds to A.
     // mm=00 selects an immediate operand; stores have no immediate form.
-    0b10_00_0110: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
+    0b10_00_0110: ({ fetchByte }) => this.#loadAccumulator("a", fetchByte()), // LDA #n
     0b10_00_1011: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADDA #n
 
     // mm=01 selects direct addressing through DP.
     0b10_01_0110: ({ fetchByte, readByte }) => // LDA direct
-      this.#loadAccumulator(readByte(this.#directAddress(fetchByte()))),
+      this.#loadAccumulator("a", readByte(this.#directAddress(fetchByte()))),
     0b10_01_0111: ({ fetchByte, writeByte }) => // STA direct
       this.#storeAccumulator(this.#directAddress(fetchByte()), writeByte),
 
     // mm=10 (indexed) has no implemented forms yet.
     // mm=11 selects an extended address operand.
     0b10_11_0111: ({ fetchWord, writeByte }) => this.#storeAccumulator(fetchWord(), writeByte), // STA extended
+
+    // 11 mm oooo contains the corresponding B forms for these byte operations.
+    // Only mm=00, oooo=0110 (immediate LDB) is implemented in this group.
+    0b11_00_0110: ({ fetchByte }) => this.#loadAccumulator("b", fetchByte()), // LDB #n
   };
+
+  #branchHandlers(): Partial<Record<number, OpcodeHandler>> {
+    const handlers: Partial<Record<number, OpcodeHandler>> = {};
+    for (const [testCode, test] of this.#branchConditions.entries()) {
+      for (const [polarity, invert] of [false, true].entries()) {
+        const opcode = 0b0010_000_0 | (testCode << 1) | polarity;
+        handlers[opcode] = ({ fetchByte }) => this.#branch(fetchByte(), test() !== invert);
+      }
+    }
+    return handlers;
+  }
 
   // Addressing.
 
@@ -226,8 +264,8 @@ export class Cpu6809 {
 
   // Loads and stores.
 
-  #loadAccumulator(value: number): void {
-    this.#state.a = value;
+  #loadAccumulator(register: Accumulator, value: number): void {
+    this.#state[register] = value;
     this.#setLoadStoreFlags(value);
   }
 
@@ -235,6 +273,16 @@ export class Cpu6809 {
     const value = this.#state.a;
     writeByte(address, value);
     this.#setLoadStoreFlags(value);
+  }
+
+  // Control flow.
+
+  #branch(displacement: number, take: boolean): void {
+    // Every branch fetches its operand; PC now points past both instruction bytes.
+    if (take) {
+      const offset = displacement < 0x80 ? displacement : displacement - 0x100;
+      this.#state.pc = (this.#state.pc + offset) & 0xffff;
+    }
   }
 
   // Stack operations.
@@ -284,11 +332,18 @@ export class Cpu6809 {
 
   // Arithmetic and flags.
 
+  #adjustAccumulator(register: Accumulator, delta: -1 | 1): void {
+    const value = this.#state[register];
+    this.#loadAccumulator(register, (value + delta) & 0xff);
+    // Incrementing +127 or decrementing -128 overflows the signed byte range.
+    this.#state.flags.v = value === (delta === 1 ? 0x7f : 0x80);
+  }
+
   #addToAccumulator(value: number): void {
     const accumulator = this.#state.a;
     const sum = accumulator + value;
     const result = sum & 0xff;
-    this.#loadAccumulator(result);
+    this.#loadAccumulator("a", result);
     this.#state.flags.h = (accumulator & 0x0f) + (value & 0x0f) > 0x0f;
     this.#state.flags.c = sum > 0xff;
     // Like-signed operands producing an opposite-signed result indicate overflow.
