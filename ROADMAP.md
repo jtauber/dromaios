@@ -9,7 +9,9 @@ is a point to discuss the next slice. Later stages are provisional.
 Every commit requires maintainer review and an explicit go-ahead.
 
 The introductory examples were built in the order **8080 → 6502 → 6809**.
-Focused examples will now inform shared CPU and inspection interfaces.
+The next priorities are a small shared execution runner, substantial opcode
+expansion, and the **Z80 as the fourth CPU**. Browser work can proceed alongside
+CPU development; the stages below are not strict prerequisites for one another.
 Implementation order is independent of the tutorial's historical teaching
 order. See [CPU scope](docs/cpus/scope.md) for the rationale,
 eventual targets, and current reference coverage.
@@ -45,19 +47,32 @@ The supported instruction subset and execution granularity are documented.
 Current support is tracked in [CPU implementation coverage](docs/cpus/coverage.md).
 Acceptance checks are defined in the [8080 example specification](docs/cpus/8080/examples/arithmetic.md).
 
-## 2. Test generalizations across three CPUs — current
+## 2. Expand CPU support and test generalizations — current
 
-- Introduce equivalent small programs on the 6502, then the 6809, in separate
-  reviewable changes. Implement only the instruction subsets they need.
-- Add focused examples that expose differences in register relationships,
-  stack conventions, addressing, and memory or I/O access.
+- Introduce a small shared runner, exercised against the existing examples on
+  all three CPUs. Give it an explicit instruction budget, stop before a caller
+  completion address or after a halt or unsupported attempt, and return captured
+  records and the reason for stopping while preserving CPU-specific types.
+- Expand opcode support in reviewable instruction-family batches: control flow,
+  loads and transfers, arithmetic and logic, remaining stack operations, and I/O.
+  Use independent expected behavior and exhaustive checks where practical.
+- Make a complete documented 8080 instruction set the next substantial CPU
+  milestone. Track timing and interrupt delivery as separate milestones.
+- Continue focused comparisons with the 6502 and 6809, expanding their support
+  as we exercise register relationships, stacks, addressing, and memory or I/O
+  access.
 - Compare execution records and inspection needs across all three CPUs.
 - Consolidate shared support where the examples justify it. Keep decoding,
   flags, addressing, and timing specific to each CPU where appropriate.
+- Introduce the Z80 once the 8080 instruction set is substantially established.
+  Use it to test how related processors should share implementation. Its start
+  does not depend on completing the other CPUs or building a complete machine.
 
-**Review point:** Three small examples run with explicit expected behavior and
-documented limits. Proposed generalizations have been exercised against their
-architectural differences, beyond simply running the same arithmetic example.
+**Review points:** The runner handles each CPU's stopping behavior correctly.
+Instruction-family additions have explicit expected behavior and documented
+limits, with progress toward complete documented 8080 opcode coverage.
+Generalizations are exercised against the initial three architectures and,
+when introduced, the Z80.
 
 The introductory [8080](docs/cpus/8080/examples/arithmetic.md), [6502](docs/cpus/6502/examples/arithmetic.md),
 and [6809](docs/cpus/6809/examples/arithmetic.md) examples are complete. Their specifications
@@ -67,6 +82,9 @@ the [example catalog](docs/README.md#cpu-examples) lists the completed programs.
 Further examples and comparison of the three models continue within this stage.
 
 ## 3. Make the examples explorable in the browser
+
+This work can begin with the existing examples and shared runner, alongside
+opcode expansion and the introduction of the Z80.
 
 - Add a small interface for stepping, resetting, and inspecting state.
 - Introduce register, memory, and instruction views that serve the three
@@ -101,9 +119,9 @@ users can inspect the relevant internal activity.
 
 ## 6. Broaden the platform
 
-- Add CPU models and variants from the intended scope, testing shared execution
-  and inspection conventions against each new case. The order beyond the
-  initial three remains open.
+- Add further CPU models and variants from the intended scope, testing shared
+  execution and inspection conventions against each new case. The order after
+  the Z80 remains open.
 - Add machines in an order we choose as the component library develops.
 - Grow reusable device models, teaching views, and specialist instruments.
 - Bring tutorial examples onto the same components used by complete machines.

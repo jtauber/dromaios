@@ -1,6 +1,6 @@
 # CPU scope
 
-This records the CPU discussion and working direction as of 12 September 2026.
+This records the working CPU scope and implementation priorities.
 The [project roadmap](../../ROADMAP.md) describes the implementation stages;
 [architecture.md](../architecture.md) describes component responsibilities.
 
@@ -9,12 +9,20 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
 - Use **TypeScript** as the initial implementation language. Future DSLs for
   CPU and component definitions remain a possible direction; see
   [implementation language and future definition languages](../architecture.md#implementation-language-and-future-definition-languages).
-- Build small examples in the order **8080 → 6502 → 6809** before settling
-  shared CPU and inspection interfaces.
+- The introductory examples were built in the order **8080 → 6502 → 6809**
+  to inform shared CPU and inspection interfaces.
 - Apply a **rule of three**: use evidence from three distinct architectures to
   judge generalizations, including examples that expose their differences.
-- Keep changes small and reviewable. Initially implement only the instruction
-  subsets required by the examples.
+- Keep changes small and reviewable. The initial examples used minimal
+  instruction subsets; broader support now grows in instruction-family batches.
+- Make a **complete documented 8080 instruction set** the next substantial CPU
+  milestone, with continued focused comparisons on the 6502 and 6809. Opcode
+  coverage, timing, and interrupt delivery are separate measures of progress.
+- Introduce the **Z80 as the fourth CPU**, once the 8080 instruction set is
+  substantially established. This tests sharing between related processors
+  without waiting for the other CPUs or a complete machine. The
+  [project roadmap](../../ROADMAP.md) sets out the runner and opcode-expansion
+  priorities; browser work can proceed alongside CPU development.
 - Choose implementation order independently of the microcomputer tutorial's
   historical teaching order.
 
@@ -22,7 +30,7 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
 
 This is the working target list, not a commitment to implement every processor
 immediately. Fidelity, supported variants, software targets, and the order
-beyond the first three will be defined as each case is introduced.
+after the Z80 will be defined as each case is introduced.
 
 | CPU group | Specific targets | Machine targets |
 | --- | --- | --- |
