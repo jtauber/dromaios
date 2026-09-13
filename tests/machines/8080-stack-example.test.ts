@@ -4,7 +4,7 @@ import type { Ram } from "../../src/components/memory/ram.js";
 import {
   create8080StackExample,
   create8080StackExampleMemory,
-} from "../../src/machines/8080-stack-example.js";
+} from "../../src/machines/generated/8080-stack-example.js";
 
 function expectedInitialState() {
   return {

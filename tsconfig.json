@@ -11,7 +11,8 @@
     "noUncheckedIndexedAccess": true,
     "noEmitOnError": true,
     "verbatimModuleSyntax": true,
+    "rewriteRelativeImportExtensions": true,
     "sourceMap": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"]
 }

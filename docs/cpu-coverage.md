@@ -78,13 +78,13 @@ instruction lengths are in bytes.
 
 [Source](../src/components/cpus/8080.ts) ·
 [Example specification](8080-example.md) ·
-[Example setup](../src/machines/8080-example.ts)
+[Example definition](../src/machines/8080-example.machine)
 
 [Register-pair specification](8080-register-pairs-example.md) ·
-[Register-pair setup](../src/machines/8080-register-pairs-example.ts)
+[Register-pair definition](../src/machines/8080-register-pairs-example.machine)
 
 [Stack specification](8080-stack-example.md) ·
-[Stack setup](../src/machines/8080-stack-example.ts)
+[Stack definition](../src/machines/8080-stack-example.machine)
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -134,7 +134,7 @@ nested operations, program overlap, current RAM reads, and retained stack data.
 
 [Source](../src/components/cpus/6502.ts) ·
 [Example specification](6502-example.md) ·
-[Example setup](../src/machines/6502-example.ts)
+[Example setup](../src/machines/6502-example.machine)
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -170,7 +170,7 @@ validation, and detached records.
 
 [Source](../src/components/cpus/6809.ts) ·
 [Example specification](6809-example.md) ·
-[Example setup](../src/machines/6809-example.ts)
+[Example setup](../src/machines/6809-example.machine)
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |

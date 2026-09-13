@@ -1,0 +1,16 @@
+ram 10000
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0000  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false
+    halted = false
+}
+
+memory 0000 {
+    3E 02       // MVI A,2
+    C6 03       // ADI 3
+    32 80 00    // STA 0080H
+    76          // HLT
+}

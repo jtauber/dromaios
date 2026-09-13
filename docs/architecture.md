@@ -26,8 +26,8 @@ examples demonstrate a benefit. Some behavior may remain ordinary TypeScript.
 The rule of three applies to these generalizations too. We will use the 8080,
 6502, and 6809 examples to discover useful common descriptions while preserving
 their hardware distinctions. Definitions for other component types should
-likewise develop through concrete examples. No DSL syntax or processing model
-is being chosen upfront.
+likewise develop through concrete examples. No CPU or component DSL syntax or
+processing model is being chosen upfront.
 
 ## The pieces
 
@@ -40,6 +40,21 @@ memory maps, device connections, clock relationships, and initial state where
 needed. Configuration may include small amounts of machine-specific code.
 Making a machine a configuration does not require expressing all behavior as
 data or inventing a configuration language upfront.
+
+The current flat-RAM examples use [defineRamExample](../src/machines/ram-example.ts)
+to share setup code. Each definition supplies a concrete CPU constructor,
+initial state, addressed byte blocks (including any reset vector), and an
+optional caller completion address. The helper creates fresh 64 KiB RAM and
+CPU instances without reset or execution; each CPU constructor still owns
+copying and validating its state. Example exports retain their concrete CPU
+types. More complex machine wiring can use ordinary TypeScript as it develops.
+
+All five setups are [machine definitions](machine-definitions.md) written in a
+small language for CPU state and hexadecimal byte images. A build step validates
+the definitions and generates calls to the same helper; TypeScript checks those
+calls against the selected CPU's state type. The generated factories are ordinary
+ES modules, so loading a machine requires no parser, file access, or asynchronous
+initialization.
 
 **Execution support** coordinates stepping, running, pausing, and eventually
 emulated time. Browser display updates should not define the machine's timing.
@@ -159,6 +174,6 @@ being treated as correctness references.
 ## Decisions to defer
 
 Worker placement, performance optimizations, cycle-level bus simulation,
-save states, reverse execution, a public plugin API, and DSLs or declarative
-file formats for CPU, component, or machine definitions can be considered when
-concrete examples justify them.
+save states, reverse execution, a public plugin API, CPU and component DSLs,
+and declarative descriptions of more complex machine wiring can be considered
+when concrete examples justify them.

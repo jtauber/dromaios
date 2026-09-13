@@ -9,8 +9,9 @@
     "node": "24.x"
   },
   "scripts": {
-    "clean": "node --input-type=module -e \"import { rmSync } from 'node:fs'; rmSync('dist', { recursive: true, force: true });\"",
-    "check:src": "tsc --project tsconfig.src.json",
+    "clean": "node --input-type=module -e \"import { rmSync } from 'node:fs'; for (const path of ['dist', 'src/machines/generated']) rmSync(path, { recursive: true, force: true });\"",
+    "generate:machines": "node scripts/generate-machines.ts",
+    "check:src": "npm run generate:machines && tsc --project tsconfig.src.json",
     "build": "npm run clean && npm run check:src && tsc",
     "test": "npm run build && node --test \"dist/tests/**/*.test.js\""
   },

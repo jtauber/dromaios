@@ -8,6 +8,9 @@ Development uses TypeScript compiled to ES modules and Node.js 24's built-in
 test runner; see the
 [development instructions](../README.md#development).
 
+[Example definition](../src/machines/8080-example.machine) uses the shared
+[machine format](machine-definitions.md).
+
 The example loads 2 into the accumulator, adds 3, stores 5 in RAM, and halts.
 Its purpose is to make each instruction's state changes and memory accesses
 observable and independently checkable.

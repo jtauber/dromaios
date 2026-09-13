@@ -4,7 +4,7 @@ import type { Ram } from "../../src/components/memory/ram.js";
 import {
   create8080RegisterPairsExample,
   create8080RegisterPairsExampleMemory,
-} from "../../src/machines/8080-register-pairs-example.js";
+} from "../../src/machines/generated/8080-register-pairs-example.js";
 
 function expectedInitialState() {
   return {

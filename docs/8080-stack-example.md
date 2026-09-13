@@ -5,7 +5,7 @@ It saves BC on a RAM stack, clears the pair, and restores it. The records show
 how SP selects memory and how stack data reads differ from instruction fetching.
 Current support is tracked in [8080 implementation coverage](cpu-coverage.md#8080).
 
-[Example setup](../src/machines/8080-stack-example.ts) ·
+[Example definition](../src/machines/8080-stack-example.machine) ·
 [Example tests](../tests/machines/8080-stack-example.test.ts) ·
 [CPU tests](../tests/components/cpus/8080.test.ts)
 
