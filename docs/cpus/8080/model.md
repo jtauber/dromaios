@@ -176,6 +176,30 @@ AC on page 1-12 and illustrates subtraction AC on page 3-64.
 The [ALU example](examples/alu.md) combines carry and borrow propagation,
 logical operations, and comparison with a conditional jump.
 
+### Rotates and carry
+
+The four rotates move bits within A and replace only CY. All bit sources in
+the table refer to the state before the instruction. Bit 7 is the high bit;
+bit 0 is the low bit.
+
+| Instruction | Direction | Incoming bit in A | CY after |
+| --- | --- | --- | --- |
+| RLC | Left | Old A bit 7 enters bit 0 | Old A bit 7 |
+| RRC | Right | Old A bit 0 enters bit 7 | Old A bit 0 |
+| RAL | Left | Old CY enters bit 0 | Old A bit 7 |
+| RAR | Right | Old CY enters bit 7 | Old A bit 0 |
+
+RLC/RRC ignore incoming CY. RAL/RAR include it as a ninth bit in the rotation.
+All four preserve S/Z/AC/P, even when the resulting A is zero or changes sign.
+CMA complements every bit of A and preserves all five flags. STC sets CY to
+one and CMC complements CY; both preserve A and S/Z/AC/P.
+
+Each instruction fetches only its opcode, advances PC by one with 16-bit
+wrapping, and reports `executed`. Other registers, SP, control latches, and RAM
+are preserved. Intel's [instruction descriptions][counters], pages 14–15 and
+21–22, define these operations. The [rotates example](examples/rotates.md)
+uses carry to rotate a word across two bytes and then restore it.
+
 ### Increment, decrement, and word arithmetic
 
 INR/DCR add or subtract one from the selected byte register or memory at HL.
@@ -286,8 +310,8 @@ SP, flags, and RAM, returns fresh records, and allows execution to resume at
   encodings, arithmetic flags, and HLT semantics.
 - [Intel 8080/8085 Assembly Language Programming Manual][alu], pages 1-12
   and 3-64: 8080 auxiliary carry for AND and subtraction.
-- [Intel 8080 Assembly Language Programming Manual][counters], pages 15 and
-  24: INR/DCR, DCX, and DAD.
+- [Intel 8080 Assembly Language Programming Manual][counters], pages 14–15,
+  21–22, and 24: carry operations, CMA, rotates, INR/DCR, DCX, and DAD.
 
 Record ownership, unsupported-opcode reporting, and explicit initialization
 are choices for this model.

@@ -1,0 +1,34 @@
+ram 10000
+
+cpu 8080 {
+    A = 11  B = 22  C = 33  D = 44
+    E = 55  H = 66  L = 77
+    PC = 0200  SP = ABCD
+    flags { S = 1  Z = 0  AC = 1  P = 0  CY = 0 }
+    interruptEnabled = true
+    halted = false
+}
+
+memory 0200 {
+    21 80 81    // LXI H,8180H: word to rotate through carry
+    37          // STC
+    3F          // CMC: start with carry clear
+    7D          // MOV A,L
+    17          // RAL: low byte 80 -> 00, carry = 1
+    6F          // MOV L,A
+    7C          // MOV A,H: preserve carry between bytes
+    17          // RAL: high byte 81 -> 03, carry = 1
+    67          // MOV H,A: HL = 0300
+    22 80 00    // SHLD 0080H: save rotated word
+    1F          // RAR: high byte 03 -> 81, carry = 1
+    67          // MOV H,A
+    7D          // MOV A,L
+    1F          // RAR: low byte 00 -> 80, carry = 0
+    6F          // MOV L,A: HL = 8180 again
+    22 82 00    // SHLD 0082H: save restored word
+    07          // RLC: A = 01, carry = 1
+    0F          // RRC: A = 80, carry = 1
+    2F          // CMA: A = 7F, preserve all flags
+    32 84 00    // STA 0084H: save complemented byte
+    76          // HLT
+}

@@ -127,27 +127,34 @@ export class Cpu8080 {
     0x01: ({ fetchWord }) => { this.#bc = fetchWord(); }, // LXI B,nn
     0x02: ({ writeByte }) => writeByte(this.#bc, this.#state.a), // STAX B
     0x03: () => { this.#bc = (this.#bc + 1) & 0xffff; }, // INX B
+    0x07: () => this.#rotateLeft(this.#state.a >>> 7), // RLC
     0x09: () => this.#addToHl(this.#bc), // DAD B
     0x0a: ({ readByte }) => this.#loadAccumulator(readByte(this.#bc)), // LDAX B
     0x0b: () => { this.#bc = (this.#bc - 1) & 0xffff; }, // DCX B
+    0x0f: () => this.#rotateRight(this.#state.a & 1), // RRC
     0x11: ({ fetchWord }) => { this.#de = fetchWord(); }, // LXI D,nn
     0x12: ({ writeByte }) => writeByte(this.#de, this.#state.a), // STAX D
     0x13: () => { this.#de = (this.#de + 1) & 0xffff; }, // INX D
+    0x17: () => this.#rotateLeft(Number(this.#state.flags.cy)), // RAL
     0x19: () => this.#addToHl(this.#de), // DAD D
     0x1a: ({ readByte }) => this.#loadAccumulator(readByte(this.#de)), // LDAX D
     0x1b: () => { this.#de = (this.#de - 1) & 0xffff; }, // DCX D
+    0x1f: () => this.#rotateRight(Number(this.#state.flags.cy)), // RAR
     0x21: ({ fetchWord }) => { this.#hl = fetchWord(); }, // LXI H,nn
     0x22: ({ fetchWord, writeByte }) => this.#storeHl(fetchWord(), writeByte), // SHLD addr
     0x23: () => { this.#hl = (this.#hl + 1) & 0xffff; }, // INX H
     0x29: () => this.#addToHl(this.#hl), // DAD H
     0x2a: ({ fetchWord, readByte }) => this.#loadHl(fetchWord(), readByte), // LHLD addr
     0x2b: () => { this.#hl = (this.#hl - 1) & 0xffff; }, // DCX H
+    0x2f: () => { this.#state.a ^= 0xff; }, // CMA
     0x31: ({ fetchWord }) => { this.#state.sp = fetchWord(); }, // LXI SP,nn
     0x32: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
     0x33: () => { this.#state.sp = (this.#state.sp + 1) & 0xffff; }, // INX SP
+    0x37: () => { this.#state.flags.cy = true; }, // STC
     0x39: () => this.#addToHl(this.#state.sp), // DAD SP
     0x3a: ({ fetchWord, readByte }) => this.#loadAccumulator(readByte(fetchWord())), // LDA addr
     0x3b: () => { this.#state.sp = (this.#state.sp - 1) & 0xffff; }, // DCX SP
+    0x3f: () => { this.#state.flags.cy = !this.#state.flags.cy; }, // CMC
     0x76: () => this.#halt(), // HLT
     0xc0: ({ readByte }) => this.#return(readByte, !this.#state.flags.z), // RNZ
     0xc1: ({ readByte }) => { this.#bc = this.#popWord(readByte); }, // POP B
@@ -456,6 +463,18 @@ export class Cpu8080 {
     const sum = this.#hl + value;
     this.#hl = sum & 0xffff;
     this.#state.flags.cy = sum > 0xffff;
+  }
+
+  #rotateLeft(lowBit: number): void {
+    const accumulator = this.#state.a;
+    this.#state.a = ((accumulator << 1) & 0xff) | lowBit;
+    this.#state.flags.cy = (accumulator & 0x80) !== 0;
+  }
+
+  #rotateRight(highBit: number): void {
+    const accumulator = this.#state.a;
+    this.#state.a = (accumulator >>> 1) | (highBit << 7);
+    this.#state.flags.cy = (accumulator & 1) !== 0;
   }
 
   #aluResult(value: number, ac: boolean, cy: boolean): number {

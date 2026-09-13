@@ -15,6 +15,7 @@ import { create8080ControlFlowExample } from "../../src/machines/generated/8080/
 import { create8080TransfersExample } from "../../src/machines/generated/8080/transfers-example.js";
 import { create8080AluExample } from "../../src/machines/generated/8080/alu-example.js";
 import { create8080CountedLoopExample } from "../../src/machines/generated/8080/counted-loop-example.js";
+import { create8080RotatesExample } from "../../src/machines/generated/8080/rotates-example.js";
 import { create6502Example } from "../../src/machines/generated/6502/example.js";
 import { create6502StackExample } from "../../src/machines/generated/6502/stack-example.js";
 import { create6502AddressingExample } from "../../src/machines/generated/6502/addressing-example.js";
@@ -33,6 +34,10 @@ interface ExampleCase {
 
 // Expectations come from the example specifications, independently of the factories.
 const examples: readonly ExampleCase[] = [
+  {
+    name: "8080 rotates", create: create8080RotatesExample, steps: 21, pc: 0x021d, stopReason: "halted",
+    writes: [[0x80, 0], [0x81, 3], [0x82, 0x80], [0x83, 0x81], [0x84, 0x7f]],
+  },
   { name: "Z80 arithmetic", create: createZ80Example, steps: 4, pc: 8, stopReason: "halted", writes: [[0x80, 5]] },
   { name: "8080 arithmetic", create: create8080Example, steps: 4, pc: 0x0008, stopReason: "halted", writes: [[0x0080, 5]] },
   { name: "8080 register pairs", create: create8080RegisterPairsExample, steps: 3, pc: 0x0005, stopReason: "halted", writes: [] },

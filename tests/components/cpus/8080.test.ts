@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu8080 } from "../../../src/components/cpus/8080.js";
-import type { Cpu8080Flags, Cpu8080MemoryAccess, Cpu8080Snapshot, Cpu8080State } from "../../../src/components/cpus/8080.js";
+import type { Cpu8080Flags, Cpu8080MemoryAccess, Cpu8080Snapshot, Cpu8080State, Cpu8080StepRecord } from "../../../src/components/cpus/8080.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 
@@ -1118,6 +1118,110 @@ for (const { name, opcodes, reference } of [
   });
 }
 
+// Move characters in a bit string independently of the CPU's shifts and masks.
+function referenceRotation(a: number, cy: boolean, direction: "left" | "right", throughCarry: boolean): {
+  result: number; cy: boolean;
+} {
+  const bits = a.toString(2).padStart(8, "0");
+  const outgoing = direction === "left" ? bits.slice(0, 1) : bits.slice(-1);
+  const incoming = throughCarry ? String(Number(cy)) : outgoing;
+  const rotated = direction === "left" ? bits.slice(1) + incoming : incoming + bits.slice(0, -1);
+  return { result: Number.parseInt(rotated, 2), cy: outgoing === "1" };
+}
+
+const accumulatorCases: readonly {
+  name: string; opcode: number; reference: (a: number, cy: boolean) => { result: number; cy: boolean };
+}[] = [
+  { name: "RLC", opcode: 0x07, reference: (a, cy) => referenceRotation(a, cy, "left", false) },
+  { name: "RRC", opcode: 0x0f, reference: (a, cy) => referenceRotation(a, cy, "right", false) },
+  { name: "RAL", opcode: 0x17, reference: (a, cy) => referenceRotation(a, cy, "left", true) },
+  { name: "RAR", opcode: 0x1f, reference: (a, cy) => referenceRotation(a, cy, "right", true) },
+  { name: "CMA", opcode: 0x2f, reference: (a, cy) => ({ result: 255 - a, cy }) },
+  { name: "STC", opcode: 0x37, reference: a => ({ result: a, cy: true }) },
+  { name: "CMC", opcode: 0x3f, reference: (a, cy) => ({ result: a, cy: !cy }) },
+];
+
+for (const { name, opcode, reference } of accumulatorCases) {
+  test(`8080 ${name} checks every accumulator and flag combination, preserving unrelated state and wrapping PC`, () => {
+    const ram = new ObservedRam();
+    ram.write(0xffff, opcode);
+    for (let a = 0; a <= 0xff; a++) {
+      for (const [bits, flags] of flagCombinations.entries()) {
+        const expected = reference(a, flags.cy);
+        for (const interruptEnabled of [false, true]) {
+          const before = expectedSnapshot({ a, flags, interruptEnabled, pc: 0xffff });
+          const cpu = new Cpu8080(ram, before);
+          ram.accesses.length = 0;
+          const record = cpu.step();
+          assert.deepEqual(record, {
+            instruction: { address: 0xffff, bytes: [opcode] }, before,
+            after: { ...before, a: expected.result, pc: 0, flags: { ...flags, cy: expected.cy } },
+            accesses: [{ kind: "read", address: 0xffff, value: opcode }], outcome: "executed",
+          }, `${name}: A=${a}, flags=${bits}, IE=${interruptEnabled}`);
+          assert.deepEqual(ram.accesses, record.accesses);
+          assert.deepEqual(cpu.snapshot(), record.after);
+        }
+      }
+    }
+  });
+}
+
+test("8080 rotates distinguish circular bits from incoming carry, and complements preserve result flags", () => {
+  const ram = new Ram(0x10000);
+  // Literal results, including the examples on Intel's printed pages 15, 21, and 22.
+  for (const [opcode, a, cy, result, carry] of [
+    [0x07, 0xf2, false, 0xe5, true], [0x0f, 0xf2, true, 0x79, false],
+    [0x17, 0xb5, false, 0x6a, true], [0x17, 0xb5, true, 0x6b, true],
+    [0x1f, 0x6a, true, 0xb5, false], [0x1f, 0x6a, false, 0x35, false],
+    [0x17, 0x80, false, 0x00, true], [0x1f, 0x01, false, 0x00, true],
+    [0x2f, 0x51, false, 0xae, false], [0x2f, 0xff, true, 0x00, true],
+    [0x37, 0x80, false, 0x80, true], [0x3f, 0x00, true, 0x00, false],
+  ] as const) {
+    ram.write(0, opcode);
+    const before = expectedSnapshot({ a, pc: 0, flags: { s: true, z: false, ac: true, p: false, cy } });
+    const cpu = new Cpu8080(ram, before);
+    const record = cpu.step();
+    assert.equal(record.outcome, "executed");
+    assert.deepEqual(record.after, {
+      ...before, a: result, pc: 1, flags: { ...before.flags, cy: carry },
+    });
+  }
+});
+
+test("8080 rotate and flag instructions use current A and CY across PC wrapping and retain their records", () => {
+  const ram = new ObservedRam();
+  const steps = [
+    [0x37, 0xb5, true], [0x17, 0x6b, true], [0x3f, 0x6b, false],
+    [0x1f, 0x35, true], [0x07, 0x6a, false], [0x0f, 0x35, false],
+    [0x2f, 0xca, false], [0x17, 0x94, true], [0x1f, 0xca, false],
+    [0x3f, 0xca, true], [0x2f, 0x35, true], [0x37, 0x35, true],
+  ] as const;
+  for (const [offset, [opcode]] of steps.entries()) ram.write((0xfffc + offset) % 0x10000, opcode);
+  let state = expectedSnapshot({ a: 0xb5, pc: 0xfffc, flags: { s: false, z: true, ac: false, p: true, cy: false } });
+  const cpu = new Cpu8080(ram, state);
+  const records: Cpu8080StepRecord[] = [];
+  const saved: Cpu8080StepRecord[] = [];
+  for (const [opcode, a, cy] of steps) {
+    const before = state;
+    state = { ...before, a, pc: (before.pc + 1) % 0x10000, flags: { ...before.flags, cy } };
+    ram.accesses.length = 0;
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: before.pc, bytes: [opcode] }, before, after: state,
+      accesses: [{ kind: "read", address: before.pc, value: opcode }], outcome: "executed",
+    });
+    assert.deepEqual(ram.accesses, record.accesses);
+    records.push(record);
+    saved.push(structuredClone(record));
+  }
+  assert.deepEqual(cpu.snapshot(), state);
+  cpu.reset();
+  ram.write(0xffff, 0);
+  const snapshot = cpu.snapshot();
+  Reflect.set(snapshot.flags, "cy", false);
+  assert.deepEqual(records, saved);
+});
+
 test("8080 INR and DCR wrap A and set auxiliary carry without replacing incoming carry", () => {
   const ram = new Ram(0x10000);
   for (const { opcode, a, result, flags } of [
@@ -2119,6 +2223,7 @@ test("every other 8080 opcode reports unsupported repeatedly with one read and u
       0x04, 0x0c, 0x14, 0x1c, 0x24, 0x2c, 0x34, 0x3c,
       0x05, 0x0d, 0x15, 0x1d, 0x25, 0x2d, 0x35, 0x3d,
       0x09, 0x19, 0x29, 0x39, 0x0b, 0x1b, 0x2b, 0x3b,
+      0x07, 0x0f, 0x17, 0x1f, 0x2f, 0x37, 0x3f,
     ].includes(opcode)) continue;
     ram.write(0xffff, opcode);
     for (let attempt = 0; attempt < 2; attempt++) {

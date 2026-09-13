@@ -33,7 +33,7 @@ The arithmetic examples provide a starting point for following execution.
 
 | CPU | Arithmetic | Register pairs | Stack | Addressing | Transfers | Control flow |
 | --- | --- | --- | --- | --- | --- | --- |
-| Intel 8080 | [Load, add, and store](cpus/8080/examples/arithmetic.md); [carry, borrow, and logic](cpus/8080/examples/alu.md) | [HL and register views](cpus/8080/examples/register-pairs.md) | [Save and restore BC](cpus/8080/examples/stack.md) | [Memory through HL](cpus/8080/examples/addressing.md) | [Registers, memory, and exchanges](cpus/8080/examples/transfers.md) | [Loop and subroutine](cpus/8080/examples/control-flow.md); [counted loop](cpus/8080/examples/counted-loop.md) |
+| Intel 8080 | [Load, add, and store](cpus/8080/examples/arithmetic.md); [carry, borrow, and logic](cpus/8080/examples/alu.md); [rotates and carry](cpus/8080/examples/rotates.md) | [HL and register views](cpus/8080/examples/register-pairs.md) | [Save and restore BC](cpus/8080/examples/stack.md) | [Memory through HL](cpus/8080/examples/addressing.md) | [Registers, memory, and exchanges](cpus/8080/examples/transfers.md) | [Loop and subroutine](cpus/8080/examples/control-flow.md); [counted loop](cpus/8080/examples/counted-loop.md) |
 | MOS 6502 | [Load, add, and store](cpus/6502/examples/arithmetic.md) | — | [Save and restore A](cpus/6502/examples/stack.md) | [Zero page](cpus/6502/examples/addressing.md) | — | — |
 | Motorola 6809 | [Load, add, and store](cpus/6809/examples/arithmetic.md) | — | [Two stack pointers](cpus/6809/examples/stack.md) | [Configurable direct page](cpus/6809/examples/addressing.md) | — | — |
 | Zilog Z80 | [Arithmetic and 8080 comparison](cpus/z80/examples/arithmetic.md) | — | — | — | — | — |

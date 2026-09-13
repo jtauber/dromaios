@@ -16,7 +16,7 @@ emulators do not count toward implementation here.
 | Model | Introduced | Complete / documented opcode forms | Opcode completion | Additional partial forms | Completed examples |
 | --- | --- | --- | --- | --- | --- |
 | [Intel 8008](#cpus-and-variants-not-started) | 1972 | 0 / TBD | 0.0% | 0 | None |
-| [Intel 8080](#8080) | 1974 | 229 / 244 | 93.9% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md), [transfers](8080/examples/transfers.md), [ALU](8080/examples/alu.md), [counted loop](8080/examples/counted-loop.md) |
+| [Intel 8080](#8080) | 1974 | 236 / 244 | 96.7% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md), [transfers](8080/examples/transfers.md), [ALU](8080/examples/alu.md), [counted loop](8080/examples/counted-loop.md), [rotates and carry](8080/examples/rotates.md) |
 | [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 | None |
 | [MOS 6502](#6502) | 1975 | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502/examples/arithmetic.md), [stack](6502/examples/stack.md), [addressing](6502/examples/addressing.md) |
 | [Zilog Z80](#z80) | 1976 | 4 / 698 | 0.6% | 0 | [Arithmetic and 8080 comparison](z80/examples/arithmetic.md) |
@@ -120,6 +120,9 @@ instruction lengths are in bytes.
 [Counted-loop specification](8080/examples/counted-loop.md) ·
 [Counted-loop definition](../../src/machines/8080/counted-loop-example.machine)
 
+[Rotates specification](8080/examples/rotates.md) ·
+[Rotates definition](../../src/machines/8080/rotates-example.machine)
+
 The MOV row groups 63 forms: all B/C/D/E/H/L/M/A source and destination
 combinations except M,M, whose encoding is HLT. M means memory at current HL.
 The two three-bit selector fields use the order B, C, D, E, H, L, M, A.
@@ -137,24 +140,28 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | `04` | `INR B` | Register | 1 | Increment byte; update S/Z/AC/P; preserve CY |
 | `05` | `DCR B` | Register | 1 | Decrement byte; update S/Z/AC/P; preserve CY |
 | `06` | `MVI B,n` | Immediate | 2 | Load B; preserve flags |
+| `07` | `RLC` | Implied | 1 | Rotate A left circularly; update only CY |
 | `09` | `DAD B` | Register pair | 1 | Add to HL with 16-bit wrapping; update only CY |
 | `0A` | `LDAX B` | Register indirect through BC | 1 | Load A; preserve pair and flags |
 | `0B` | `DCX B` | Register pair | 1 | Decrement with 16-bit wrapping; preserve flags |
 | `0C` | `INR C` | Register | 1 | Increment byte; update S/Z/AC/P; preserve CY |
 | `0D` | `DCR C` | Register | 1 | Decrement byte; update S/Z/AC/P; preserve CY |
 | `0E` | `MVI C,n` | Immediate | 2 | Load C; preserve flags |
+| `0F` | `RRC` | Implied | 1 | Rotate A right circularly; update only CY |
 | `11` | `LXI D,nn` | Immediate | 3 | Load D:E; low byte then high; preserve flags |
 | `12` | `STAX D` | Register indirect through DE | 1 | Store A; preserve pair and flags |
 | `13` | `INX D` | Register pair | 1 | Increment D:E with 16-bit wrapping; preserve flags |
 | `14` | `INR D` | Register | 1 | Increment byte; update S/Z/AC/P; preserve CY |
 | `15` | `DCR D` | Register | 1 | Decrement byte; update S/Z/AC/P; preserve CY |
 | `16` | `MVI D,n` | Immediate | 2 | Load D; preserve flags |
+| `17` | `RAL` | Implied | 1 | Rotate A left through carry; update only CY |
 | `19` | `DAD D` | Register pair | 1 | Add to HL with 16-bit wrapping; update only CY |
 | `1A` | `LDAX D` | Register indirect through DE | 1 | Load A; preserve pair and flags |
 | `1B` | `DCX D` | Register pair | 1 | Decrement with 16-bit wrapping; preserve flags |
 | `1C` | `INR E` | Register | 1 | Increment byte; update S/Z/AC/P; preserve CY |
 | `1D` | `DCR E` | Register | 1 | Decrement byte; update S/Z/AC/P; preserve CY |
 | `1E` | `MVI E,n` | Immediate | 2 | Load E; preserve flags |
+| `1F` | `RAR` | Implied | 1 | Rotate A right through carry; update only CY |
 | `21` | `LXI H,nn` | Immediate | 3 | Load H:L; low byte then high; preserve flags |
 | `22` | `SHLD addr` | Direct memory address | 3 | Store L then H at consecutive wrapped addresses; preserve flags |
 | `23` | `INX H` | Register pair | 1 | Increment H:L with 16-bit wrapping; preserve flags |
@@ -167,18 +174,21 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | `2C` | `INR L` | Register | 1 | Increment byte; update S/Z/AC/P; preserve CY |
 | `2D` | `DCR L` | Register | 1 | Decrement byte; update S/Z/AC/P; preserve CY |
 | `2E` | `MVI L,n` | Immediate | 2 | Load L; preserve flags |
+| `2F` | `CMA` | Implied | 1 | Complement A; preserve every flag |
 | `31` | `LXI SP,nn` | Immediate | 3 | Load SP; low byte then high; preserve flags |
 | `32` | `STA addr` | Direct memory address | 3 | Store A; address bytes low then high |
 | `33` | `INX SP` | Register pair | 1 | Increment SP with 16-bit wrapping; preserve flags |
 | `34` | `INR M` | Memory through HL | 1 | Increment byte; update S/Z/AC/P; preserve CY |
 | `35` | `DCR M` | Memory through HL | 1 | Decrement byte; update S/Z/AC/P; preserve CY |
 | `36` | `MVI M,n` | Immediate | 2 | Load memory at HL; preserve flags |
+| `37` | `STC` | Implied | 1 | Set CY; preserve A and other flags |
 | `39` | `DAD SP` | Register pair | 1 | Add to HL with 16-bit wrapping; update only CY |
 | `3A` | `LDA addr` | Direct memory address | 3 | Load A; address bytes low then high; preserve flags |
 | `3B` | `DCX SP` | Register pair | 1 | Decrement with 16-bit wrapping; preserve flags |
 | `3C` | `INR A` | Register | 1 | Increment byte; update S/Z/AC/P; preserve CY |
 | `3D` | `DCR A` | Register | 1 | Decrement byte; update S/Z/AC/P; preserve CY |
 | `3E` | `MVI A,n` | Immediate | 2 | Load A; preserve flags |
+| `3F` | `CMC` | Implied | 1 | Complement CY; preserve A and other flags |
 | `40–75`, `77–7F` | `MOV dst,src` | Register or indirect through HL | 1 | All 63 forms; read source before writing destination; preserve flags |
 | `76` | `HLT` | Implied | 1 | Advance PC and enter halted state |
 | `80–87` | `ADD r` | Register or memory through HL | 1 | Add to A without incoming carry |
@@ -255,7 +265,8 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
 | Accumulator arithmetic/logic | ADD/ADC, SUB/SBB, ANA/XRA/ORA, CMP and all immediate counterparts; 8-bit results, carry/borrow propagation, comparison without changing A, and 8080 auxiliary carry rules |
 | Byte and word arithmetic | INR/DCR update byte results and S/Z/AC/P while preserving CY; INX/DCX wrap pairs and SP without changing flags; DAD adds to HL and updates only CY |
-| Remaining instruction scope | Rotates, DAA, CMA, STC/CMC, PSW stack forms, DI/EI, NOP, and port I/O |
+| Rotates and carry | RLC/RRC rotate within A; RAL/RAR rotate through CY; all preserve S/Z/AC/P. CMA complements A without changing flags; STC/CMC change only CY |
+| Remaining instruction scope | DAA, PSW stack forms, DI/EI, NOP, and port I/O |
 
 Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [arithmetic example tests](../../tests/machines/8080/example.test.ts),
@@ -265,7 +276,8 @@ Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [control-flow example tests](../../tests/machines/8080/control-flow-example.test.ts),
 [transfers example tests](../../tests/machines/8080/transfers-example.test.ts),
 [ALU example tests](../../tests/machines/8080/alu-example.test.ts),
-[counted-loop example tests](../../tests/machines/8080/counted-loop-example.test.ts), and
+[counted-loop example tests](../../tests/machines/8080/counted-loop-example.test.ts),
+[rotates example tests](../../tests/machines/8080/rotates-example.test.ts), and
 [public type checks](../../tests/types/8080.ts). ALU checks cover every byte operand
 pair and both incoming carry values for all eight operations, using independent
 bit-by-bit arithmetic and logic references. Other checks cover exact accesses,
@@ -303,6 +315,12 @@ BC = 0000/0001/FFFF, and every DAD H input. Independent byte additions supply
 word-result expectations. Successive operations verify current pair values and
 retained records; the counted loop checks all records, final RAM, and resumption
 after address wrapping.
+Rotate/CMA/STC/CMC checks cover every accumulator value, all 32 flag combinations,
+and both interrupt-enable values, using bit-string rotations and literal
+regressions as independent expectations. They verify flag preservation, wrapped
+PC, exact opcode reads, and current A/CY across successive operations. The
+rotates example checks a word rotated through carry and restored, complete
+records, final RAM, resumption between bytes, reset, and restart.
 
 ## 6502
 
