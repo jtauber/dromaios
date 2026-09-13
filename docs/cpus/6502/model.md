@@ -75,6 +75,26 @@ and writes appear only in `accesses`. Record the actual accesses during executio
 without rereading an instruction or the old contents of a write destination.
 These records omit dummy bus accesses and carry no cycle-count claim.
 
+## Register operations and relative branches
+
+Register loads, transfers between A and X/Y, and index increments/decrements
+replace N/Z from their result and preserve V/D/I/C. Index arithmetic wraps
+within eight bits. Transfers preserve their source register.
+
+The eight conditional branches test the stored N, V, C, or Z flag for its
+specified set/clear value. Every branch fetches its signed eight-bit displacement,
+including when untaken. A taken target is relative to PC after both bytes,
+with 16-bit wrapping; otherwise PC stays at that following address. Branches
+preserve all registers other than PC and all flags. See the
+[manufacturer manual][1], sections 4.1 and 7, and Appendix B.
+
+At this model's instruction boundary, register-only steps read just the opcode;
+immediate loads and branches read the opcode then the operand. There are no
+target or dummy reads, including on a taken branch or page crossing. Subsequent
+steps fetch current RAM at the resulting PC. The
+[counted-loop example](examples/counted-loop.md) specifies a complete trace
+combining register updates, arithmetic, branching, and a final store.
+
 ## Unsupported instructions and modes
 
 Opcodes outside the [coverage inventory](../coverage.md#6502) return
@@ -127,6 +147,12 @@ The CPU and public type tests check every constructor field and RAM size,
 copying declared fields only, no construction or inspection accesses, detached
 snapshots and records, and readonly fields and outcome/reason relationships.
 
+Register checks cover every byte and incoming flag combination, preserving
+unrelated state and checking exact accesses. Branch checks cover each condition
+with all flag combinations, every displacement, both paths, page and address-space
+crossings, instruction-byte overlap, live flags after arithmetic and register
+updates, current operands, and retained records.
+
 Unsupported opcodes and decimal ADC are checked on repeated attempts, with no
 operand read or state changes. Reset checks cover ordered reads of the current
 vector, SP wrapping and repeated decrements, preservation of RAM and unrelated
@@ -148,9 +174,9 @@ previews, opcode metadata, lesson annotations, addressing, and timing.
 
 ## References
 
-- [Synertek/MOS MCS6500 Programming Manual][1], sections 2.1–2.2 and 3:
-  registers, flags, and reset. Its startup discussion is supplemented by the
-  transistor-level analysis below.
+- [Synertek/MOS MCS6500 Programming Manual][1], sections 2.1–2.2, 3, 4.1, 7,
+  and 9.1–9.4, and Appendix B: registers, flags, branches, reset, and encodings.
+  Its startup discussion is supplemented by the transistor-level analysis below.
 - [Michael Steil's Visual6502 analysis of BRK/IRQ/NMI/RESET][2]: reset vector
   order, discarded stack reads, and the three stack-pointer decrements.
 - [Arithmetic example](examples/arithmetic.md#references): instruction

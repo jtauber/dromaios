@@ -58,6 +58,7 @@ interface InstructionContext {
 }
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
+type ByteRegister = "a" | "x" | "y";
 
 function copyState(state: Cpu6502Snapshot): Cpu6502State {
   const flags = state.flags;
@@ -159,35 +160,82 @@ export class Cpu6502 {
 
   // Opcode bits: 7 6 5 | 4 3 2 | 1 0 = aaa bbb cc.
   // cc selects a group. In cc=01, aaa selects the operation and bbb its addressing mode.
-  // The cc=00 implied instructions below have their own patterns.
+  // The cc=00 and cc=10 instructions below have their own patterns.
   // Only implemented encodings enter the table; this is not a decoder for every combination.
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+    // cc=00, bbb=000: aaa=101 selects LDY immediate.
+    0b101_000_00: ({ fetchByte }) => this.#loadRegister("y", fetchByte()), // LDY #n
+
     // cc=00, bbb=010: 01p 010 00 selects push A (p=0) or pull A (p=1).
     0b01_0_010_00: ({ writeByte }) => this.#pushByte(this.#state.a, writeByte), // PHA
-    0b01_1_010_00: ({ readByte }) => this.#loadAccumulator(this.#pullByte(readByte)), // PLA
+    0b01_1_010_00: ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte)), // PLA
+    // aaa=100..111 selects DEY, TAY, INY, INX in this subgroup.
+    0b100_010_00: () => this.#adjustIndex("y", -1), // DEY
+    0b101_010_00: () => this.#loadRegister("y", this.#state.a), // TAY
+    0b110_010_00: () => this.#adjustIndex("y", 1), // INY
+    0b111_010_00: () => this.#adjustIndex("x", 1), // INX
 
-    // cc=00, bbb=110: aaa=000 selects clear carry.
+    // cc=00, bbb=100: ffv 100 00 selects a flag and the value required to branch.
+    ...this.#branchHandlers(),
+
+    // cc=00, bbb=110: aaa=000 selects CLC; aaa=100 selects TYA.
     0b000_110_00: () => this.#clearCarry(), // CLC
+    0b100_110_00: () => this.#loadRegister("a", this.#state.y), // TYA
 
     // cc=01: the operations used here are aaa=011 ADC, 100 STA, 101 LDA.
     // bbb=001 selects zero-page addressing.
     0b100_001_01: ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.a), // STA zp
-    0b101_001_01: ({ fetchByte, readByte }) => this.#loadAccumulator(readByte(fetchByte())), // LDA zp
+    0b101_001_01: ({ fetchByte, readByte }) => this.#loadRegister("a", readByte(fetchByte())), // LDA zp
 
     // bbb=010 selects an immediate operand; STA has no immediate form.
     0b011_010_01: ({ fetchByte }) => this.#addWithCarry(fetchByte()), // ADC #n (binary)
-    0b101_010_01: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
+    0b101_010_01: ({ fetchByte }) => this.#loadRegister("a", fetchByte()), // LDA #n
 
     // bbb=011 selects absolute addressing.
     0b100_011_01: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
+
+    // cc=10, bbb=000: aaa=101 selects LDX immediate.
+    0b101_000_10: ({ fetchByte }) => this.#loadRegister("x", fetchByte()), // LDX #n
+
+    // cc=10, bbb=010: aaa=100..110 selects TXA, TAX, DEX.
+    0b100_010_10: () => this.#loadRegister("a", this.#state.x), // TXA
+    0b101_010_10: () => this.#loadRegister("x", this.#state.a), // TAX
+    0b110_010_10: () => this.#adjustIndex("x", -1), // DEX
   };
 
-  // Loads.
+  #branchHandlers(): Partial<Record<number, OpcodeHandler>> {
+    const handlers: Partial<Record<number, OpcodeHandler>> = {};
+    // ff (bits 7..6): 00 N, 01 V, 10 C, 11 Z.
+    // v (bit 5): 0 clear (BPL/BVC/BCC/BNE), 1 set (BMI/BVS/BCS/BEQ).
+    for (const [flagCode, flag] of (["n", "v", "c", "z"] as const).entries()) {
+      for (const [valueCode, value] of [false, true].entries()) {
+        const opcode = 0b00_0_100_00 | (flagCode << 6) | (valueCode << 5);
+        handlers[opcode] = ({ fetchByte }) => this.#branch(fetchByte(), this.#state.flags[flag] === value);
+      }
+    }
+    return handlers;
+  }
 
-  #loadAccumulator(value: number): void {
-    this.#state.a = value;
+  // Loads and register operations.
+
+  #loadRegister(register: ByteRegister, value: number): void {
+    this.#state[register] = value;
     this.#state.flags.n = (value & 0x80) !== 0;
     this.#state.flags.z = value === 0;
+  }
+
+  #adjustIndex(register: "x" | "y", delta: -1 | 1): void {
+    this.#loadRegister(register, (this.#state[register] + delta) & 0xff);
+  }
+
+  // Control flow.
+
+  #branch(displacement: number, take: boolean): void {
+    // The operand is fetched on either path; PC now points past both instruction bytes.
+    if (take) {
+      const offset = displacement < 0x80 ? displacement : displacement - 0x100;
+      this.#state.pc = (this.#state.pc + offset) & 0xffff;
+    }
   }
 
   // Stack operations.
@@ -212,7 +260,7 @@ export class Cpu6502 {
     const accumulator = this.#state.a;
     const sum = accumulator + value + (this.#state.flags.c ? 1 : 0);
     const result = sum & 0xff;
-    this.#loadAccumulator(result);
+    this.#loadRegister("a", result);
     this.#state.flags.c = sum > 0xff;
     // Like-signed operands producing an opposite-signed result indicate overflow.
     this.#state.flags.v = (~(accumulator ^ value) & (accumulator ^ result) & 0x80) !== 0;

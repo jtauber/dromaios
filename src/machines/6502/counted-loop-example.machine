@@ -1,0 +1,25 @@
+ram 10000
+
+cpu 6502 {
+    A = 11  X = 22  Y = 33
+    PC = 0200  SP = FF
+    flags { N = 1  V = 1  D = 0  I = 0  Z = 1  C = 1 }
+}
+
+memory 0200 {
+    A2 03       // LDX #$03: remaining iterations
+    A0 00       // LDY #$00: completed iterations
+    A9 00       // LDA #$00: running sum
+    18          // CLC (loop starts at 0206)
+    69 05       // ADC #$05
+    C8          // INY
+    CA          // DEX
+    D0 F9       // BNE $0206: -7 from 020D
+    8D 80 00    // STA $0080
+}
+
+memory FFFC {
+    00 02       // Reset vector: 0200, low byte first
+}
+
+end 0210

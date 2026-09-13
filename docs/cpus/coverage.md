@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#cpus-and-variants-not-started) | 1972 | 0 / TBD | 0.0% | 0 |
 | [Intel 8080](#8080) | 1974 | 240 / 244 | 98.4% | 0 |
 | [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 |
-| [MOS 6502](#6502) | 1975 | 7 / 151 | 4.6% | 1: binary-only ADC |
+| [MOS 6502](#6502) | 1975 | 25 / 151 | 16.6% | 1: binary-only ADC |
 | [Zilog Z80](#z80) | 1976 | 4 / 698 | 0.6% | 0 |
 | [Motorola 6809](#6809) | 1978 | 9 / 268 | 3.4% | 0 |
 | [Intel 8088](#cpus-and-variants-not-started) | 1979 | 0 / TBD | 0.0% | 0 |
@@ -370,28 +370,51 @@ final RAM, resumption before adjustment, reset, and restart.
 [Addressing specification](6502/examples/addressing.md) ·
 [Addressing definition](../../src/machines/6502/addressing-example.machine)
 
+[Counted-loop specification](6502/examples/counted-loop.md) ·
+[Counted-loop definition](../../src/machines/6502/counted-loop-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
+| `10` | `BPL rel` | Relative | 2 | Branch if N = 0 |
 | `18` | `CLC` | Implied | 1 | Clear carry |
+| `30` | `BMI rel` | Relative | 2 | Branch if N = 1 |
 | `48` | `PHA` | Implied | 1 | Write A at 0100 + SP, then decrement 8-bit SP; preserve flags |
+| `50` | `BVC rel` | Relative | 2 | Branch if V = 0 |
 | `68` | `PLA` | Implied | 1 | Increment 8-bit SP, then read A at 0100 + SP; update N/Z |
 | `69` | `ADC #n` | Immediate | 2 | Partial: binary arithmetic only; D must be false |
+| `70` | `BVS rel` | Relative | 2 | Branch if V = 1 |
 | `85` | `STA zp` | Zero page | 2 | Store A at 00:operand; preserve flags |
+| `88` | `DEY` | Implied | 1 | Decrement Y; update N/Z |
+| `8A` | `TXA` | Implied | 1 | Copy X to A; update N/Z |
 | `8D` | `STA addr` | Absolute | 3 | Store A; address bytes low then high |
+| `90` | `BCC rel` | Relative | 2 | Branch if C = 0 |
+| `98` | `TYA` | Implied | 1 | Copy Y to A; update N/Z |
+| `A0` | `LDY #n` | Immediate | 2 | Load Y; update N/Z |
+| `A2` | `LDX #n` | Immediate | 2 | Load X; update N/Z |
 | `A5` | `LDA zp` | Zero page | 2 | Load A from 00:operand; update N/Z |
+| `A8` | `TAY` | Implied | 1 | Copy A to Y; update N/Z |
 | `A9` | `LDA #n` | Immediate | 2 | Load A and update N/Z |
+| `AA` | `TAX` | Implied | 1 | Copy A to X; update N/Z |
+| `B0` | `BCS rel` | Relative | 2 | Branch if C = 1 |
+| `C8` | `INY` | Implied | 1 | Increment Y; update N/Z |
+| `CA` | `DEX` | Implied | 1 | Decrement X; update N/Z |
+| `D0` | `BNE rel` | Relative | 2 | Branch if Z = 0 |
+| `E8` | `INX` | Implied | 1 | Increment X; update N/Z |
+| `F0` | `BEQ rel` | Relative | 2 | Branch if Z = 1 |
 
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A, X, Y, SP, PC |
 | Stored flags | N, V, D, I, Z, C; packed status and B/unused-bit conventions are not implemented |
+| Register operations | Immediate A/X/Y loads, A↔X and A↔Y transfers, wrapping X/Y increment/decrement; replace N/Z and preserve V/D/I/C |
 | Memory addressing | LDA and STA with one-byte addresses in fixed page zero; STA with an explicit 16-bit absolute address |
+| Branches | All eight conditions; signed displacement relative to PC after the operand, with 16-bit wrapping; fetch the operand on both paths and preserve flags |
 | Stack | PHA/PLA in page 01 with wrapping 8-bit SP; pulls retain stored bytes; status stack forms are unsupported |
 | Decimal mode | D can be initialized and inspected; ADC with D set reports `reason: "decimal-mode"` before operand fetch or state changes |
 | Reset | Read `FFFC` then `FFFD` for PC, set I, subtract 3 from the 8-bit SP with wrapping; preserve other registers, flags (including D), and RAM |
 | Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
-| Remaining instruction scope | Other register loads/transfers, arithmetic and logic, decimal arithmetic, status stack operations, control flow, and further flag operations |
-| Remaining addressing scope | Indexed, indirect, relative, and other forms beyond the exact encodings above |
+| Remaining instruction scope | Further loads/stores, SP transfers, arithmetic and logic, decimal arithmetic, status stack operations, jumps, calls/returns, and further flag operations |
+| Remaining addressing scope | Indexed, indirect, and other forms beyond the exact encodings above |
 
 All supported forms except ADC work with either D value. Decimal rejection is
 an explicit implementation limit. Reset preserves D and therefore does not
@@ -402,7 +425,8 @@ been implemented.
 Verification: [CPU tests](../../tests/components/cpus/6502.test.ts),
 [arithmetic example tests](../../tests/machines/6502/example.test.ts),
 [stack example tests](../../tests/machines/6502/stack-example.test.ts),
-[addressing example tests](../../tests/machines/6502/addressing-example.test.ts), and
+[addressing example tests](../../tests/machines/6502/addressing-example.test.ts),
+[counted-loop example tests](../../tests/machines/6502/counted-loop-example.test.ts), and
 [public type checks](../../tests/types/6502.ts). Binary ADC checks cover every byte
 operand pair and carry input with old result flags clear and set. Other checks
 cover decimal rejection, exact accesses, wrapping, self-overwriting stores,
@@ -414,6 +438,14 @@ retained stack bytes, and reset with an occupied stack.
 Zero-page LDA/STA checks cover fixed-page addressing, N/Z replacement and flag
 preservation with either D value, PC and operand wrapping, code overlap,
 current RAM, unchanged-value writes without destination reads, and detached records.
+Register loads/transfers and index increments/decrements check every byte and
+all 64 incoming flag combinations, N/Z replacement, preserved unrelated state,
+and wrapping. All branch conditions are checked with every flag combination;
+displacement checks cover every byte, both paths, page/address-space crossings,
+and instruction-byte overlap. Further checks cover live flags after ADC and
+register operations, current operands, and record ownership. The counted loop
+checks nineteen complete records, actual RAM calls, both branch paths, full
+memory images, bounded resumption and self-looping, reset, and fresh restart.
 
 ## 6809
 
