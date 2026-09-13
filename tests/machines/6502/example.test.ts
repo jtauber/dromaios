@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Cpu6502StepRecord } from "../../../src/components/cpus/6502.js";
+import { runCpu } from "../../../src/runtime/run-cpu.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
 import { create6502Example } from "../../../src/machines/generated/6502/example.js";
 
@@ -36,12 +36,8 @@ test("the complete 6502 lesson stores 5 and stops before fetching at its complet
   // Observe real calls without changing the factory's CPU or RAM.
   const read = t.mock.method(ram, "read");
   const write = t.mock.method(ram, "write");
-  const records: Cpu6502StepRecord[] = [];
-  for (let remaining = 8; remaining > 0 && cpu.snapshot().pc !== endAddress; remaining--) {
-    const record = cpu.step();
-    records.push(record);
-    if (record.outcome === "unsupported") break;
-  }
+  const { records, stopReason } = runCpu(cpu, { maxSteps: 8, endAddress });
+  assert.equal(stopReason, "completed");
   const before = expectedInitialState();
   const afterClear = { ...before, pc: 0x0201, flags: { ...before.flags, c: false } };
   const afterLoad = { ...afterClear, a: 2, pc: 0x0203 };

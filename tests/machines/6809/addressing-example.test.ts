@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Cpu6809StepRecord } from "../../../src/components/cpus/6809.js";
+import { runCpu } from "../../../src/runtime/run-cpu.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
 import {
   create6809AddressingExample,
@@ -48,12 +48,8 @@ test("the 6809 addressing lesson copies A5 from 1280 to 1281 and stops before fe
   const { cpu, ram, endAddress } = create6809AddressingExample();
   const read = t.mock.method(ram, "read");
   const write = t.mock.method(ram, "write");
-  const records: Cpu6809StepRecord[] = [];
-  for (let remaining = 4; remaining > 0 && cpu.snapshot().pc !== endAddress; remaining--) {
-    const record = cpu.step();
-    records.push(record);
-    if (record.outcome === "unsupported") break;
-  }
+  const { records, stopReason } = runCpu(cpu, { maxSteps: 4, endAddress });
+  assert.equal(stopReason, "completed");
   const before = expectedInitialState();
   const afterLoad = {
     ...before, a: 0xa5, d: 0xa534, pc: 0x0202,

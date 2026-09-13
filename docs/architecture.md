@@ -60,6 +60,9 @@ parser, file access, or asynchronous initialization.
 **Execution support** coordinates stepping, running, pausing, and eventually
 emulated time. Browser display updates should not define the machine's timing.
 The execution granularity and fidelity of each model need to be explicit.
+The [CPU runner](runtime/runner.md) provides synchronous execution with an
+explicit step budget, caller completion addresses, and CPU-specific records.
+It stops on completion, halt, unsupported attempts, or the step limit.
 
 **Inspection** exposes state and activity for exploration. Common views should
 work across components where meaningful, with specific views for distinctive

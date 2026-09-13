@@ -144,8 +144,9 @@ In particular, `1280` remains zero despite DP = `12`.
 
 The caller checks `cpu.snapshot().pc === endAddress` before stepping, stops on
 unsupported results, and uses a bounded instruction budget. The unchanged
-lesson finishes after three records without reading `0207`. Tests can exercise
-this directly; no generic runner is introduced.
+lesson finishes after three records without reading `0207`. The fixture tests
+use the [shared CPU runner](../../../runtime/runner.md) and check the complete
+records and memory image independently.
 
 A direct fourth CPU step at `0207` reads `00` and reports `unsupported`, reason
 `opcode`, with equal before/after snapshots. On hardware, `00` is direct NEG,

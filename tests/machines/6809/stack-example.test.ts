@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { runCpu } from "../../../src/runtime/run-cpu.js";
 import type { Cpu6809StepRecord } from "../../../src/components/cpus/6809.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
 import {
@@ -45,12 +46,8 @@ test("the 6809 stack lesson retrieves independent S and U values with exact stat
   const { cpu, ram, endAddress } = create6809StackExample();
   const read = t.mock.method(ram, "read");
   const write = t.mock.method(ram, "write");
-  const records: Cpu6809StepRecord[] = [];
-  for (let remaining = 12; remaining > 0 && cpu.snapshot().pc !== endAddress; remaining--) {
-    const record = cpu.step();
-    records.push(record);
-    if (record.outcome === "unsupported") break;
-  }
+  const { records, stopReason } = runCpu(cpu, { maxSteps: 12, endAddress });
+  assert.equal(stopReason, "completed");
   const before = expectedInitialState();
   const loadS = { ...before, a: 0x12, d: 0x1278, pc: 0x0202, flags: { ...before.flags, n: false, v: false } };
   const pushS = { ...loadS, s: 0x7fff, pc: 0x0204 };

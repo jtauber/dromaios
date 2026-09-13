@@ -39,6 +39,11 @@ The arithmetic examples provide a starting point for following execution.
 A dash means there is no separate example for that topic. Supported instructions
 and processor features are tracked in the coverage document.
 
+## Execution support
+
+- [CPU runner](runtime/runner.md): bounded execution, completion and stopping
+  rules, retained records, and CPU-specific result types.
+
 ## Machine definitions
 
 - [Definition guide](machines/definitions.md): initial state and memory images,

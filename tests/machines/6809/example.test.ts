@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Cpu6809StepRecord } from "../../../src/components/cpus/6809.js";
+import { runCpu } from "../../../src/runtime/run-cpu.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
 import { create6809Example } from "../../../src/machines/generated/6809/example.js";
 
@@ -35,12 +35,8 @@ test("the complete 6809 lesson stores 5 and stops before fetching at its complet
   const { cpu, ram, endAddress } = create6809Example();
   const read = t.mock.method(ram, "read");
   const write = t.mock.method(ram, "write");
-  const records: Cpu6809StepRecord[] = [];
-  for (let remaining = 8; remaining > 0 && cpu.snapshot().pc !== endAddress; remaining--) {
-    const record = cpu.step();
-    records.push(record);
-    if (record.outcome === "unsupported") break;
-  }
+  const { records, stopReason } = runCpu(cpu, { maxSteps: 8, endAddress });
+  assert.equal(stopReason, "completed");
   const before = expectedInitialState();
   const afterLoad = { ...before, a: 2, d: 0x0234, pc: 0x0202, flags: { ...before.flags, v: false } };
   const afterAdd = {

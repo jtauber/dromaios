@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Cpu6502StepRecord } from "../../../src/components/cpus/6502.js";
+import { runCpu } from "../../../src/runtime/run-cpu.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
 import {
   create6502StackExample,
@@ -42,12 +42,8 @@ test("the 6502 stack lesson restores A, stores 80, and stops before its completi
   const { cpu, ram, endAddress } = create6502StackExample();
   const read = t.mock.method(ram, "read");
   const write = t.mock.method(ram, "write");
-  const records: Cpu6502StepRecord[] = [];
-  for (let remaining = 8; remaining > 0 && cpu.snapshot().pc !== endAddress; remaining--) {
-    const record = cpu.step();
-    records.push(record);
-    if (record.outcome === "unsupported") break;
-  }
+  const { records, stopReason } = runCpu(cpu, { maxSteps: 8, endAddress });
+  assert.equal(stopReason, "completed");
   const before = expectedInitialState();
   const afterLoad = { ...before, pc: 0x0202, a: 0x80, flags: { ...before.flags, n: true, z: false } };
   const afterPush = { ...afterLoad, pc: 0x0203, sp: 0xfe };

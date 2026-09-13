@@ -116,8 +116,9 @@ image equals the initial image with `0080` changed to `05`.
 
 The caller checks `cpu.snapshot().pc === endAddress` before calling `step()`.
 For this fixed program it stops after four records, with no fetch at `0208`
-and no fifth CPU record. The fixture tests perform this check directly;
-there is no generic runner or new runner API.
+and no fifth CPU record. The fixture tests use the
+[shared CPU runner](../../../runtime/runner.md) for bounded execution and
+check the complete records and memory image independently.
 
 Completion describes the lesson boundary, not a CPU latch. A caller must also
 stop on an unsupported result and use a bounded instruction budget if it runs

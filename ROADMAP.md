@@ -9,7 +9,7 @@ is a point to discuss the next slice. Later stages are provisional.
 Every commit requires maintainer review and an explicit go-ahead.
 
 The introductory examples were built in the order **8080 → 6502 → 6809**.
-The next priorities are a small shared execution runner, substantial opcode
+The current priorities are shared execution support, substantial opcode
 expansion, and the **Z80 as the fourth CPU**. Browser work can proceed alongside
 CPU development; the stages below are not strict prerequisites for one another.
 Implementation order is independent of the tutorial's historical teaching
@@ -49,10 +49,11 @@ Acceptance checks are defined in the [8080 example specification](docs/cpus/8080
 
 ## 2. Expand CPU support and test generalizations — current
 
-- Introduce a small shared runner, exercised against the existing examples on
-  all three CPUs. Give it an explicit instruction budget, stop before a caller
-  completion address or after a halt or unsupported attempt, and return captured
-  records and the reason for stopping while preserving CPU-specific types.
+- Use the [shared CPU runner](docs/runtime/runner.md), now exercised against
+  the existing examples on all three CPUs. It has an explicit step budget,
+  stops before a caller completion address or after a halt or unsupported
+  attempt, and returns captured records and the reason for stopping while
+  preserving CPU-specific types.
 - Expand opcode support in reviewable instruction-family batches: control flow,
   loads and transfers, arithmetic and logic, remaining stack operations, and I/O.
   Use independent expected behavior and exhaustive checks where practical.
