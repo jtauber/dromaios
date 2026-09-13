@@ -19,6 +19,13 @@ Where useful, the same definitions could support execution, disassembly,
 inspection, and explanations. Expected behavior would still be checked
 independently against hardware documentation.
 
+A long-term aspiration for the CPU DSL is **literate programming**: a detailed
+description of a CPU would combine explanations with formal definitions from
+which its emulator is generated. The authored description would serve as both
+readable documentation and implementation source. The document format, language
+syntax, and generation tooling remain open. Keep this direction in mind as
+definitions develop; choosing its concrete shape can wait.
+
 The first forms could be typed data or helper functions within TypeScript.
 Custom syntax, interpretation, or code generation can follow when concrete
 examples demonstrate a benefit. Some behavior may remain ordinary TypeScript.
