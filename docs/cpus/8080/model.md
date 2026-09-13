@@ -148,6 +148,34 @@ loading zero or copying a register to itself. The
 [transfers example](examples/transfers.md) specifies a combined program and its
 records. These are instruction-level accesses, without dummy bus operations.
 
+### Accumulator arithmetic and logic
+
+ADD/ADC, SUB/SBB, ANA/XRA/ORA, and CMP use a byte register or memory at current
+HL; their immediate counterparts use the fetched operand byte. Register forms
+fetch only the opcode. Memory forms add exactly one data read, even when HL
+overlaps the opcode. Immediate forms fetch two instruction bytes. None writes
+RAM. Sources, including A itself, are read before A changes.
+
+Results wrap to eight bits. S reflects result bit 7, Z means the result is zero,
+and P means even parity. CMP/CPI set flags from the subtraction result while
+preserving A. All these instructions replace all five arithmetic flags and
+preserve other registers, SP, and control latches. PC advances by the instruction
+length, wrapping at 16 bits; the outcome is `executed`.
+
+Only ADC/ACI and SBB/SBI include incoming CY, as carry or borrow respectively.
+Addition sets CY on a carry beyond bit 7 and AC on a carry beyond bit 3.
+Subtraction and comparison set CY for an unsigned borrow. Their AC is the
+adder's carry from bit 3, **the inverse of a low-nibble borrow**: SUB A therefore
+sets AC as well as Z and P, while clearing S and CY.
+
+ANA/ANI clear CY and set AC if bit 3 is set in either original operand.
+XRA/XRI and ORA/ORI clear both AC and CY. These are the 8080 rules; Intel's
+[8080/8085 manual][alu] distinguishes the 8080 AND rule from the 8085's always-set
+AC on page 1-12 and illustrates subtraction AC on page 3-64.
+
+The [ALU example](examples/alu.md) combines carry and borrow propagation,
+logical operations, and comparison with a conditional jump.
+
 ### Control-flow accesses
 
 Jumps and calls with immediate targets fetch both address bytes, low then high,
@@ -230,8 +258,11 @@ SP, flags, and RAM, returns fresh records, and allows execution to resume at
   register-pair instruction descriptions.
 - [Arithmetic example](examples/arithmetic.md#references): instruction
   encodings, arithmetic flags, and HLT semantics.
+- [Intel 8080/8085 Assembly Language Programming Manual][alu], pages 1-12
+  and 3-64: 8080 auxiliary carry for AND and subtraction.
 
 Record ownership, unsupported-opcode reporting, and explicit initialization
 are choices for this model.
 
 [reset]: https://bitsavers.org/components/intel/MCS80/Intellec_8_Mod_80/Intel_Intellec_8_Mod_80_Reference_Manual_Feb75.pdf
+[alu]: https://device.report/m/8985a7044b63dafadf8a713690af2e4d2ef632c256d27343044e212ceaa86a3c

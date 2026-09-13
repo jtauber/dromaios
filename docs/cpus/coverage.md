@@ -15,12 +15,12 @@ emulators do not count toward implementation here.
 
 | Model | Complete / documented opcode forms | Opcode completion | Additional partial forms | Completed examples |
 | --- | --- | --- | --- | --- |
-| [Intel 8080](#8080) | 134 / 244 | 54.9% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md), [transfers](8080/examples/transfers.md) |
+| [Intel 8080](#8080) | 205 / 244 | 84.0% | 0 | [Arithmetic](8080/examples/arithmetic.md), [register pairs](8080/examples/register-pairs.md), [stack](8080/examples/stack.md), [addressing](8080/examples/addressing.md), [control flow](8080/examples/control-flow.md), [transfers](8080/examples/transfers.md), [ALU](8080/examples/alu.md) |
 | [NMOS MOS 6502](#6502) | 7 / 151 | 4.6% | 1: binary-only ADC | [Arithmetic](6502/examples/arithmetic.md), [stack](6502/examples/stack.md), [addressing](6502/examples/addressing.md) |
 | [Motorola MC6809 / MC6809E](#6809) | 9 / 268 | 3.4% | 0 | [Arithmetic](6809/examples/arithmetic.md), [stack](6809/examples/stack.md), [addressing](6809/examples/addressing.md) |
 
 A completed example establishes its specified program and checks; all three
-CPU models remain small subsets.
+CPU models remain incomplete.
 
 ## How the percentages are counted
 
@@ -97,9 +97,16 @@ instruction lengths are in bytes.
 [Transfers specification](8080/examples/transfers.md) ·
 [Transfers definition](../../src/machines/8080/transfers-example.machine)
 
+[ALU specification](8080/examples/alu.md) ·
+[ALU definition](../../src/machines/8080/alu-example.machine)
+
 The MOV row groups 63 forms: all B/C/D/E/H/L/M/A source and destination
 combinations except M,M, whose encoding is HLT. M means memory at current HL.
 The two three-bit selector fields use the order B, C, D, E, H, L, M, A.
+Each register/memory ALU row groups eight forms with the same source-selector
+order. Their immediate counterparts are listed separately. All ALU forms
+update S/Z/AC/P/CY according to the
+[8080 flag contract](8080/model.md#accumulator-arithmetic-and-logic).
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -129,29 +136,40 @@ The two three-bit selector fields use the order B, C, D, E, H, L, M, A.
 | `3E` | `MVI A,n` | Immediate | 2 | Load A; preserve flags |
 | `40–75`, `77–7F` | `MOV dst,src` | Register or indirect through HL | 1 | All 63 forms; read source before writing destination; preserve flags |
 | `76` | `HLT` | Implied | 1 | Advance PC and enter halted state |
+| `80–87` | `ADD r` | Register or memory through HL | 1 | Add to A without incoming carry |
+| `88–8F` | `ADC r` | Register or memory through HL | 1 | Add to A with incoming carry |
+| `90–97` | `SUB r` | Register or memory through HL | 1 | Subtract from A without incoming borrow |
+| `98–9F` | `SBB r` | Register or memory through HL | 1 | Subtract from A with incoming borrow |
+| `A0–A7` | `ANA r` | Register or memory through HL | 1 | AND with A; clear CY; AC is bit 3 of A OR operand |
+| `A8–AF` | `XRA r` | Register or memory through HL | 1 | XOR with A; clear AC and CY |
+| `B0–B7` | `ORA r` | Register or memory through HL | 1 | OR with A; clear AC and CY |
+| `B8–BF` | `CMP r` | Register or memory through HL | 1 | Subtraction flags without incoming borrow; preserve A |
 | `C0` | `RNZ` | Stack | 1 | Return if Z = 0 |
 | `C1` | `POP B` | Stack | 1 | Read low then high into B:C; increment SP by 2; preserve flags |
 | `C2` | `JNZ addr` | Absolute target | 3 | Jump if Z = 0 |
 | `C3` | `JMP addr` | Absolute target | 3 | Replace PC with target |
 | `C4` | `CNZ addr` | Absolute target / stack | 3 | Call if Z = 0 |
 | `C5` | `PUSH B` | Stack | 1 | Write B:C high then low; decrement SP by 2; preserve flags |
-| `C6` | `ADI n` | Immediate | 2 | Add without incoming carry; update S/Z/AC/P/CY |
+| `C6` | `ADI n` | Immediate | 2 | Add to A without incoming carry |
 | `C7` | `RST 0` | Encoded vector / stack | 1 | Push following PC; jump to `0000`; preserve interrupt enable |
 | `C8` | `RZ` | Stack | 1 | Return if Z = 1 |
 | `C9` | `RET` | Stack | 1 | Pop PC low then high |
 | `CA` | `JZ addr` | Absolute target | 3 | Jump if Z = 1 |
 | `CC` | `CZ addr` | Absolute target / stack | 3 | Call if Z = 1 |
 | `CD` | `CALL addr` | Absolute target / stack | 3 | Push following PC, then jump to target |
+| `CE` | `ACI n` | Immediate | 2 | Add to A with incoming carry |
 | `CF` | `RST 1` | Encoded vector / stack | 1 | Push following PC; jump to `0008`; preserve interrupt enable |
 | `D0` | `RNC` | Stack | 1 | Return if CY = 0 |
 | `D1` | `POP D` | Stack | 1 | Read low then high into D:E; increment SP by 2; preserve flags |
 | `D2` | `JNC addr` | Absolute target | 3 | Jump if CY = 0 |
 | `D4` | `CNC addr` | Absolute target / stack | 3 | Call if CY = 0 |
 | `D5` | `PUSH D` | Stack | 1 | Write D:E high then low; decrement SP by 2; preserve flags |
+| `D6` | `SUI n` | Immediate | 2 | Subtract from A without incoming borrow |
 | `D7` | `RST 2` | Encoded vector / stack | 1 | Push following PC; jump to `0010`; preserve interrupt enable |
 | `D8` | `RC` | Stack | 1 | Return if CY = 1 |
 | `DA` | `JC addr` | Absolute target | 3 | Jump if CY = 1 |
 | `DC` | `CC addr` | Absolute target / stack | 3 | Call if CY = 1 |
+| `DE` | `SBI n` | Immediate | 2 | Subtract from A with incoming borrow |
 | `DF` | `RST 3` | Encoded vector / stack | 1 | Push following PC; jump to `0018`; preserve interrupt enable |
 | `E0` | `RPO` | Stack | 1 | Return if P = 0 |
 | `E1` | `POP H` | Stack | 1 | Read low then high into H:L; increment SP by 2; preserve flags |
@@ -159,21 +177,25 @@ The two three-bit selector fields use the order B, C, D, E, H, L, M, A.
 | `E3` | `XTHL` | Stack | 1 | Exchange HL with the word at SP; preserve SP and flags |
 | `E4` | `CPO addr` | Absolute target / stack | 3 | Call if P = 0 |
 | `E5` | `PUSH H` | Stack | 1 | Write H:L high then low; decrement SP by 2; preserve flags |
+| `E6` | `ANI n` | Immediate | 2 | AND with A; clear CY; AC is bit 3 of A OR operand |
 | `E7` | `RST 4` | Encoded vector / stack | 1 | Push following PC; jump to `0020`; preserve interrupt enable |
 | `E8` | `RPE` | Stack | 1 | Return if P = 1 |
 | `E9` | `PCHL` | Register indirect through HL | 1 | Replace PC with current HL; no data read |
 | `EA` | `JPE addr` | Absolute target | 3 | Jump if P = 1 |
 | `EB` | `XCHG` | Register pairs | 1 | Exchange DE and HL; preserve flags |
 | `EC` | `CPE addr` | Absolute target / stack | 3 | Call if P = 1 |
+| `EE` | `XRI n` | Immediate | 2 | XOR with A; clear AC and CY |
 | `EF` | `RST 5` | Encoded vector / stack | 1 | Push following PC; jump to `0028`; preserve interrupt enable |
 | `F0` | `RP` | Stack | 1 | Return if S = 0 |
 | `F2` | `JP addr` | Absolute target | 3 | Jump if S = 0 |
 | `F4` | `CP addr` | Absolute target / stack | 3 | Call if S = 0 |
+| `F6` | `ORI n` | Immediate | 2 | OR with A; clear AC and CY |
 | `F7` | `RST 6` | Encoded vector / stack | 1 | Push following PC; jump to `0030`; preserve interrupt enable |
 | `F8` | `RM` | Stack | 1 | Return if S = 1 |
 | `F9` | `SPHL` | Register pair | 1 | Copy HL to SP; preserve HL and flags |
 | `FA` | `JM addr` | Absolute target | 3 | Jump if S = 1 |
 | `FC` | `CM addr` | Absolute target / stack | 3 | Call if S = 1 |
+| `FE` | `CPI n` | Immediate | 2 | Subtraction flags without incoming borrow; preserve A |
 | `FF` | `RST 7` | Encoded vector / stack | 1 | Push following PC; jump to `0038`; preserve interrupt enable |
 
 | Area | Current coverage |
@@ -181,12 +203,13 @@ The two three-bit selector fields use the order B, C, D, E, H, L, M, A.
 | Stored registers | A, B, C, D, E, H, L, PC, SP |
 | Stored flags/control | S, Z, AC, P, CY; interrupt-enable and halted latches |
 | Register relationships | Snapshots derive BC, DE, and HL from stored bytes; byte transfers and pair operations update those views; XCHG exchanges DE/HL and SPHL copies HL to SP |
-| Memory addressing | MOV/MVI through current HL; LDAX/STAX through BC or DE; LDA/STA and LHLD/SHLD with an explicit 16-bit address |
+| Memory addressing | MOV/MVI and ALU operands through current HL; LDAX/STAX through BC or DE; LDA/STA and LHLD/SHLD with an explicit 16-bit address |
 | Stack | PUSH/POP for BC, DE, and HL plus control-flow return addresses, using a descending RAM stack and wrapping 16-bit SP; XTHL exchanges HL with stack memory without moving SP; PSW forms are unsupported |
 | Control flow | JMP, CALL, RET and all eight conditions for each; PCHL and RST 0–7; preserve arithmetic flags and interrupt enable |
 | Reset | Set PC to `0000`, clear interrupt-enable and halted; preserve data registers, SP, flags, and RAM; no memory accesses |
 | Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
-| Remaining instruction scope | Register and memory arithmetic, logical operations, DAD/DCX, PSW stack forms, flag-control instructions, NOP, and port I/O |
+| Accumulator arithmetic/logic | ADD/ADC, SUB/SBB, ANA/XRA/ORA, CMP and all immediate counterparts; 8-bit results, carry/borrow propagation, comparison without changing A, and 8080 auxiliary carry rules |
+| Remaining instruction scope | INR/DCR, DAD/DCX, rotates, DAA, CMA, STC/CMC, PSW stack forms, DI/EI, NOP, and port I/O |
 
 Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [arithmetic example tests](../../tests/machines/8080/example.test.ts),
@@ -194,9 +217,11 @@ Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [stack example tests](../../tests/machines/8080/stack-example.test.ts),
 [addressing example tests](../../tests/machines/8080/addressing-example.test.ts),
 [control-flow example tests](../../tests/machines/8080/control-flow-example.test.ts),
-[transfers example tests](../../tests/machines/8080/transfers-example.test.ts), and
-[public type checks](../../tests/types/8080.ts). ADI checks cover every byte operand
-pair with incoming flags clear and set. Other checks cover exact accesses,
+[transfers example tests](../../tests/machines/8080/transfers-example.test.ts),
+[ALU example tests](../../tests/machines/8080/alu-example.test.ts), and
+[public type checks](../../tests/types/8080.ts). ALU checks cover every byte operand
+pair and both incoming carry values for all eight operations, using independent
+bit-by-bit arithmetic and logic references. Other checks cover exact accesses,
 wrapping, self-overwriting stores, halt/reset behavior, rejection of every
 unimplemented opcode, input validation, and detached records.
 LXI/INX checks cover all pair and SP forms, derived views, byte carry and
@@ -216,6 +241,12 @@ self-moves, register/pair views, current HL/BC/DE and RAM, flags and control
 preservation, wrapped operand/data addresses, code overlap, ordered accesses,
 and unchanged-value writes. The transfers example checks all records and the
 full memory image, including different successive writes to one address.
+ALU encoding checks cover all register/memory and immediate forms, all 32 flag
+combinations, both interrupt-enable values, accumulator aliases, comparison
+preservation, wrapped PC, memory/code overlap, and current HL/RAM across
+successive operations. Literal regressions pin down subtraction and AND auxiliary
+carry. The combined example checks complete records, two-byte carry/borrow
+propagation, comparison-driven branching, final RAM, and bounded resumption.
 
 ## 6502
 

@@ -122,6 +122,7 @@ export class Cpu8080 {
   ];
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
     ...this.#transferHandlers(),
+    ...this.#aluHandlers(),
     0x01: ({ fetchWord }) => { this.#bc = fetchWord(); }, // LXI B,nn
     0x02: ({ writeByte }) => writeByte(this.#bc, this.#state.a), // STAX B
     0x03: () => { this.#bc = (this.#bc + 1) & 0xffff; }, // INX B
@@ -145,7 +146,6 @@ export class Cpu8080 {
     0xc3: ({ fetchWord }) => this.#jump(fetchWord()), // JMP addr
     0xc4: ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte, !this.#state.flags.z), // CNZ addr
     0xc5: ({ writeByte }) => this.#pushWord(this.#bc, writeByte), // PUSH B
-    0xc6: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADI n
     0xc7: ({ writeByte }) => this.#call(0x00, writeByte), // RST 0
     0xc8: ({ readByte }) => this.#return(readByte, this.#state.flags.z), // RZ
     0xc9: ({ readByte }) => this.#return(readByte), // RET
@@ -296,6 +296,32 @@ export class Cpu8080 {
     return handlers;
   }
 
+  #aluHandlers(): Partial<Record<number, OpcodeHandler>> {
+    // Intel's three-bit ALU encoding; comparison updates flags but retains A.
+    const operations: readonly ((value: number) => number)[] = [
+      value => this.#add(value), // ADD / ADI
+      value => this.#add(value, Number(this.#state.flags.cy)), // ADC / ACI
+      value => this.#subtract(value), // SUB / SUI
+      value => this.#subtract(value, Number(this.#state.flags.cy)), // SBB / SBI
+      value => this.#aluResult(this.#state.a & value, ((this.#state.a | value) & 0x08) !== 0, false), // ANA / ANI
+      value => this.#aluResult(this.#state.a ^ value, false, false), // XRA / XRI
+      value => this.#aluResult(this.#state.a | value, false, false), // ORA / ORI
+      value => { this.#subtract(value); return this.#state.a; }, // CMP / CPI
+    ];
+    const handlers: Partial<Record<number, OpcodeHandler>> = {};
+    for (const [operationCode, operation] of operations.entries()) {
+      for (const [sourceCode, source] of this.#byteOperands.entries()) {
+        handlers[0x80 | (operationCode << 3) | sourceCode] = instruction => {
+          this.#state.a = operation(source.read(instruction));
+        };
+      }
+      handlers[0xc6 | (operationCode << 3)] = ({ fetchByte }) => {
+        this.#state.a = operation(fetchByte());
+      };
+    }
+    return handlers;
+  }
+
   get #bc(): number {
     return (this.#state.b << 8) | this.#state.c;
   }
@@ -384,18 +410,29 @@ export class Cpu8080 {
     this.#state.a = value;
   }
 
-  #addToAccumulator(value: number): void {
+  #add(value: number, carry = 0): number {
     const accumulator = this.#state.a;
-    const sum = accumulator + value;
-    const result = sum & 0xff;
-    this.#state.a = result;
+    const sum = accumulator + value + carry;
+    return this.#aluResult(sum, (accumulator & 0x0f) + (value & 0x0f) + carry > 0x0f, sum > 0xff);
+  }
+
+  #subtract(value: number, borrow = 0): number {
+    const accumulator = this.#state.a;
+    const difference = accumulator - value - borrow;
+    // The 8080 complements the adder's full carry for subtraction, but not AC.
+    return this.#aluResult(difference, (accumulator & 0x0f) >= (value & 0x0f) + borrow, difference < 0);
+  }
+
+  #aluResult(value: number, ac: boolean, cy: boolean): number {
+    const result = value & 0xff;
     this.#state.flags = {
       s: (result & 0x80) !== 0,
       z: result === 0,
-      ac: (accumulator & 0x0f) + (value & 0x0f) > 0x0f,
+      ac,
       p: hasEvenParity(result),
-      cy: sum > 0xff,
+      cy,
     };
+    return result;
   }
 
   #halt(): void {

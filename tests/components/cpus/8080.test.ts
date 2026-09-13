@@ -675,10 +675,9 @@ test("8080 ADI replaces all arithmetic flags, preserves unrelated state, and rec
 });
 
 // Reference addition works one binary column at a time, independently of the
-// CPU's whole-byte sum, bit masks, and parity helper. Carry starts at zero for ADI.
-function referenceAddition(a: number, immediate: number): { result: number; flags: Cpu8080Flags } {
+// CPU's whole-byte sum, bit masks, and parity helper.
+function referenceAddition(a: number, immediate: number, carry = 0): { result: number; flags: Cpu8080Flags } {
   let result = 0;
-  let carry = 0;
   let auxiliaryCarry = false;
   let setBits = 0;
   for (let bit = 0; bit < 8; bit++) {
@@ -703,24 +702,219 @@ function referenceAddition(a: number, immediate: number): { result: number; flag
   };
 }
 
-test("8080 ADI matches reference addition for all operand pairs with old flags clear and set", () => {
-  const ram = new Ram(0x10000);
-  ram.write(0, 0xc6);
-  for (let immediate = 0; immediate < 256; immediate++) {
-    ram.write(1, immediate);
-    for (let a = 0; a < 256; a++) {
-      const expected = referenceAddition(a, immediate);
-      for (const setFlags of [false, true]) {
-        const cpu = new Cpu8080(ram, initialState({
-          a, pc: 0,
-          flags: { s: setFlags, z: setFlags, ac: setFlags, p: setFlags, cy: setFlags },
-        }));
-        const record = cpu.step();
-        assert.equal(record.outcome, "executed");
-        assert.deepEqual({ result: record.after.a, flags: record.after.flags }, expected,
-          `A=${a}, immediate=${immediate}, initial flags=${setFlags}`);
+// Subtract one binary column at a time. Unlike the CPU implementation, this
+// propagates borrows directly; 8080 AC is the complement of the bit-3 borrow.
+function referenceSubtraction(a: number, value: number, borrow = 0): { result: number; flags: Cpu8080Flags } {
+  let result = 0;
+  let auxiliaryCarry = false;
+  let setBits = 0;
+  for (let bit = 0; bit < 8; bit++) {
+    const column = (a % 2) - (value % 2) - borrow;
+    const digit = column < 0 ? column + 2 : column;
+    result += digit * 2 ** bit;
+    setBits += digit;
+    borrow = column < 0 ? 1 : 0;
+    if (bit === 3) auxiliaryCarry = borrow === 0;
+    a = Math.floor(a / 2);
+    value = Math.floor(value / 2);
+  }
+  return { result, flags: {
+    s: result >= 128, z: result === 0, ac: auxiliaryCarry, p: setBits % 2 === 0, cy: borrow === 1,
+  } };
+}
+
+function referenceLogic(a: number, value: number, operation: "and" | "xor" | "or"): { result: number; flags: Cpu8080Flags } {
+  let result = 0;
+  let setBits = 0;
+  let auxiliaryCarry = false;
+  for (let bit = 0; bit < 8; bit++) {
+    const left = a % 2 === 1;
+    const right = value % 2 === 1;
+    const set = operation === "and" ? left && right : operation === "xor" ? left !== right : left || right;
+    if (set) { result += 2 ** bit; setBits++; }
+    if (bit === 3 && operation === "and") auxiliaryCarry = left || right;
+    a = Math.floor(a / 2);
+    value = Math.floor(value / 2);
+  }
+  return { result, flags: {
+    s: result >= 128, z: result === 0, ac: auxiliaryCarry, p: setBits % 2 === 0, cy: false,
+  } };
+}
+
+interface AluCase {
+  readonly name: string;
+  readonly opcodes: readonly number[];
+  readonly immediate: number;
+  readonly reference: (a: number, value: number, carry: number) => { result: number; flags: Cpu8080Flags };
+}
+
+// Separately authored Intel opcode rows, with no imports from the dispatch table.
+const aluCases: readonly AluCase[] = [
+  { name: "ADD/ADI", opcodes: [0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87], immediate: 0xc6,
+    reference: (a, value) => referenceAddition(a, value) },
+  { name: "ADC/ACI", opcodes: [0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f], immediate: 0xce,
+    reference: referenceAddition },
+  { name: "SUB/SUI", opcodes: [0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97], immediate: 0xd6,
+    reference: (a, value) => referenceSubtraction(a, value) },
+  { name: "SBB/SBI", opcodes: [0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f], immediate: 0xde,
+    reference: referenceSubtraction },
+  { name: "ANA/ANI", opcodes: [0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7], immediate: 0xe6,
+    reference: (a, value) => referenceLogic(a, value, "and") },
+  { name: "XRA/XRI", opcodes: [0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf], immediate: 0xee,
+    reference: (a, value) => referenceLogic(a, value, "xor") },
+  { name: "ORA/ORI", opcodes: [0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7], immediate: 0xf6,
+    reference: (a, value) => referenceLogic(a, value, "or") },
+  { name: "CMP/CPI", opcodes: [0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf], immediate: 0xfe,
+    reference: (a, value) => ({ result: a, flags: referenceSubtraction(a, value).flags }) },
+];
+
+const aluSources = ["b", "c", "d", "e", "h", "l", "m", "a", "immediate"] as const;
+
+for (const { name, opcodes, immediate, reference } of aluCases) {
+  test(`8080 ${name} matches its reference for every byte pair and both incoming carry values`, () => {
+    const ram = new Ram(0x10000);
+    ram.write(0, immediate);
+    for (let value = 0; value < 256; value++) {
+      ram.write(1, value);
+      for (let a = 0; a < 256; a++) {
+        for (const cy of [false, true]) {
+          const expected = reference(a, value, Number(cy));
+          const cpu = new Cpu8080(ram, initialState({ a, pc: 0,
+            flags: { s: cy, z: cy, ac: cy, p: cy, cy },
+          }));
+          const record = cpu.step();
+          assert.equal(record.outcome, "executed");
+          assert.deepEqual({ result: record.after.a, flags: record.after.flags }, expected,
+            `A=${a}, operand=${value}, incoming CY=${cy}`);
+        }
       }
     }
+  });
+
+  test(`8080 ${name} decodes every source, replaces flags, preserves other state, and records exact reads`, () => {
+    const ram = new ObservedRam();
+    for (const [sourceIndex, opcode] of [...opcodes, immediate].entries()) {
+      const source = aluSources[sourceIndex];
+      assert.ok(source);
+      for (const [a, value] of [
+        [0, 0], [0, 1], [0, 8], [8, 0], [0x0f, 1], [0x10, 1],
+        [0x7f, 1], [0x80, 0x80], [0xff, 1], [0xff, 0xff], [0xa5, 0x5a],
+      ] as const) {
+        for (let bits = 0; bits < 32; bits++) {
+          for (const interruptEnabled of [false, true]) {
+            const state = initialState({ a, pc: 0xffff, interruptEnabled,
+              flags: { s: (bits & 16) !== 0, z: (bits & 8) !== 0, ac: (bits & 4) !== 0,
+                p: (bits & 2) !== 0, cy: (bits & 1) !== 0 },
+            });
+            if (source !== "m" && source !== "a" && source !== "immediate") state[source] = value;
+            const before = expectedSnapshot(state);
+            ram.write(0xffff, opcode);
+            ram.write(0, value);
+            ram.write(before.hl, value);
+            ram.accesses.length = 0;
+            const operand = source === "a" ? a : value;
+            const expected = reference(a, operand, Number(state.flags.cy));
+            const bytes: number[] = source === "immediate" ? [opcode, value] : [opcode];
+            const accesses: Cpu8080MemoryAccess[] = [{ kind: "read", address: 0xffff, value: opcode }];
+            if (source === "immediate") accesses.push({ kind: "read", address: 0, value });
+            if (source === "m") accesses.push({ kind: "read", address: before.hl, value });
+            const cpu = new Cpu8080(ram, state);
+            const record = cpu.step();
+            const context: string = `${name} ${source}, A=${a}, operand=${operand}, flags=${bits}, IE=${interruptEnabled}`;
+            assert.deepEqual(record, {
+              instruction: { address: 0xffff, bytes }, before,
+              after: { ...before, a: expected.result, flags: expected.flags, pc: source === "immediate" ? 1 : 0 },
+              accesses, outcome: "executed",
+            }, context);
+            assert.deepEqual(cpu.snapshot(), record.after, context);
+            assert.deepEqual(ram.accesses, accesses, context);
+          }
+        }
+      }
+    }
+  });
+
+  test(`8080 ${name} reads M even when it overlaps code or lies at an address-space boundary`, () => {
+    const opcode = opcodes[6];
+    assert.ok(opcode !== undefined);
+    for (const address of [0, 0xffff, 0x1234]) {
+      const ram = new ObservedRam();
+      const value: number = address === 0xffff ? opcode : 0x81;
+      ram.write(address, value);
+      ram.write(0xffff, opcode);
+      ram.accesses.length = 0;
+      const before = expectedSnapshot({ pc: 0xffff, h: address >>> 8, l: address & 0xff });
+      const expected = reference(before.a, value, Number(before.flags.cy));
+      const cpu = new Cpu8080(ram, before);
+      const record = cpu.step();
+      assert.deepEqual(record, {
+        instruction: { address: 0xffff, bytes: [opcode] }, before,
+        after: { ...before, a: expected.result, flags: expected.flags, pc: 0 },
+        accesses: [{ kind: "read", address: 0xffff, value: opcode }, { kind: "read", address, value }],
+        outcome: "executed",
+      });
+      assert.deepEqual(ram.accesses, record.accesses);
+    }
+  });
+
+  test(`8080 ${name} uses current HL and RAM on successive M operations and retains earlier records`, () => {
+    const opcode = opcodes[6];
+    assert.ok(opcode !== undefined);
+    const ram = new ObservedRam();
+    for (const [offset, byte] of [opcode, 0x23, opcode, opcode].entries()) ram.write(0x2000 + offset, byte);
+    ram.write(0xffff, 0x81);
+    ram.write(0, 0x42);
+    const cpu = new Cpu8080(ram, initialState({ pc: 0x2000, h: 0xff, l: 0xff }));
+    const first = cpu.step();
+    const saved = structuredClone(first);
+    cpu.step(); // INX H wraps HL from FFFF to 0000.
+    for (const [pc, value] of [[0x2002, 0x42], [0x2003, 0x18]] as const) {
+      ram.write(0, value);
+      const before = cpu.snapshot();
+      const expected = reference(before.a, value, Number(before.flags.cy));
+      ram.accesses.length = 0;
+      assert.deepEqual(cpu.step(), {
+        instruction: { address: pc, bytes: [opcode] }, before,
+        after: { ...before, a: expected.result, flags: expected.flags, pc: pc + 1 },
+        accesses: [{ kind: "read", address: pc, value: opcode }, { kind: "read", address: 0, value }],
+        outcome: "executed",
+      });
+      assert.deepEqual(ram.accesses, [{ kind: "read", address: pc, value: opcode }, { kind: "read", address: 0, value }]);
+    }
+    assert.deepEqual(first, saved);
+  });
+}
+
+test("8080 auxiliary carry follows Intel's subtraction and AND rules, including SUB A", () => {
+  const cases = [
+    { opcode: 0x97, a: 0x3e, value: 0, cy: true, result: 0,
+      flags: { s: false, z: true, ac: true, p: true, cy: false } },
+    { opcode: 0xd6, a: 0, value: 1, cy: false, result: 0xff,
+      flags: { s: true, z: false, ac: false, p: true, cy: true } },
+    { opcode: 0xd6, a: 1, value: 0, cy: true, result: 1,
+      flags: { s: false, z: false, ac: true, p: false, cy: false } },
+    { opcode: 0xde, a: 0, value: 0xff, cy: true, result: 0,
+      flags: { s: false, z: true, ac: false, p: true, cy: true } },
+    { opcode: 0xce, a: 0, value: 0xff, cy: true, result: 0,
+      flags: { s: false, z: true, ac: true, p: true, cy: true } },
+    { opcode: 0xe6, a: 0x07, value: 0x07, cy: true, result: 0x07,
+      flags: { s: false, z: false, ac: false, p: false, cy: false } },
+    { opcode: 0xe6, a: 0x08, value: 0, cy: true, result: 0,
+      flags: { s: false, z: true, ac: true, p: true, cy: false } },
+    { opcode: 0xe6, a: 0, value: 0x08, cy: true, result: 0,
+      flags: { s: false, z: true, ac: true, p: true, cy: false } },
+    { opcode: 0xfe, a: 0x08, value: 0x08, cy: true, result: 0x08,
+      flags: { s: false, z: true, ac: true, p: true, cy: false } },
+  ];
+  const ram = new Ram(0x10000);
+  for (const { opcode, a, value, cy, result, flags } of cases) {
+    ram.write(0, opcode);
+    ram.write(1, value);
+    const cpu = new Cpu8080(ram, initialState({ a, pc: 0, flags: { s: true, z: false, ac: false, p: false, cy } }));
+    const record = cpu.step();
+    assert.equal(record.outcome, "executed");
+    assert.equal(record.after.a, result);
+    assert.deepEqual(record.after.flags, flags);
   }
 });
 
@@ -1659,7 +1853,7 @@ test("every other 8080 opcode reports unsupported repeatedly with one read and u
   const cpu = new Cpu8080(ram, before);
   for (let opcode = 0; opcode <= 0xff; opcode++) {
     // Explicit supported encodings, independent of the CPU's dispatch table.
-    if (opcode >= 0x40 && opcode <= 0x7f) continue; // All MOV forms and HLT.
+    if (opcode >= 0x40 && opcode <= 0xbf) continue; // MOV, HLT, and register/memory ALU forms.
     if ([
       0x02, 0x06, 0x0a, 0x0e, 0x12, 0x16, 0x1a, 0x1e, 0x22, 0x26, 0x2a, 0x2e, 0x36, 0x3a,
       0xe3, 0xeb, 0xf9,
@@ -1669,6 +1863,7 @@ test("every other 8080 opcode reports unsupported repeatedly with one read and u
       0xd0, 0xd2, 0xd4, 0xd7, 0xd8, 0xda, 0xdc, 0xdf,
       0xe0, 0xe2, 0xe4, 0xe7, 0xe8, 0xe9, 0xea, 0xec, 0xef,
       0xf0, 0xf2, 0xf4, 0xf7, 0xf8, 0xfa, 0xfc, 0xff,
+      0xce, 0xd6, 0xde, 0xe6, 0xee, 0xf6, 0xfe,
     ].includes(opcode)) continue;
     ram.write(0xffff, opcode);
     for (let attempt = 0; attempt < 2; attempt++) {

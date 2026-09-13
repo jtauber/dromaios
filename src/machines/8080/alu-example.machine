@@ -1,0 +1,39 @@
+ram 10000
+
+cpu 8080 {
+    A = 11  B = 22  C = 33  D = 44
+    E = 55  H = 66  L = 77
+    PC = 0000  SP = ABCD
+    flags { S = 1  Z = 0  AC = 1  P = 0  CY = 1 }
+    interruptEnabled = false
+    halted = false
+}
+
+memory 0000 {
+    21 80 00    // LXI H,0080H
+    3E F0       // MVI A,F0H
+    86          // ADD M: low byte of 01F0H + 0020H
+    47          // MOV B,A
+    32 82 00    // STA 0082H
+    3E 01       // MVI A,01H
+    CE 00       // ACI 00H: propagate the low-byte carry
+    32 83 00    // STA 0083H
+    78          // MOV A,B
+    96          // SUB M: low byte of 0210H - 0020H
+    4F          // MOV C,A
+    32 84 00    // STA 0084H
+    3A 83 00    // LDA 0083H
+    DE 00       // SBI 00H: propagate the low-byte borrow
+    32 85 00    // STA 0085H
+    79          // MOV A,C
+    E6 3F       // ANI 3FH
+    EE 55       // XRI 55H
+    B0          // ORA B
+    FE 75       // CPI 75H: compare without replacing A
+    CA 2C 00    // JZ 002CH
+    3E FF       // MVI A,FFH: skipped on a matching comparison
+    32 86 00    // STA 0086H
+    76          // HLT
+}
+
+memory 0080 { 20 }
