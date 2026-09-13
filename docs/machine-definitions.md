@@ -7,6 +7,7 @@ byte images, and an optional caller completion address:
 - [8080 arithmetic](../src/machines/8080/example.machine)
 - [8080 register pairs](../src/machines/8080/register-pairs-example.machine)
 - [8080 stack](../src/machines/8080/stack-example.machine)
+- [8080 addressing](../src/machines/8080/addressing-example.machine)
 - [6502 arithmetic](../src/machines/6502/example.machine)
 - [6502 stack](../src/machines/6502/stack-example.machine)
 - [6809 arithmetic](../src/machines/6809/example.machine)
@@ -25,6 +26,7 @@ Machine definitions are grouped by CPU, with matching test folders:
 ```text
 src/machines/                       tests/machines/
   8080/                               8080/
+    addressing-example.machine          addressing-example.test.ts
     example.machine                     example.test.ts
     register-pairs-example.machine      register-pairs-example.test.ts
     stack-example.machine               stack-example.test.ts

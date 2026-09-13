@@ -871,6 +871,187 @@ test("8080 STA can overwrite its opcode or either operand without changing fetch
   }
 });
 
+test("8080 MOV A,M reads the byte at HL, preserving flags, HL, and unrelated state", () => {
+  for (const address of [0x0000, 0x00ff, 0x0100, 0x12ff, 0x1300, 0x8000, 0xffff]) {
+    for (const value of [0x00, 0x5a, 0x80, 0xff]) {
+      for (const flags of [
+        { s: true, z: false, ac: true, p: false, cy: true },
+        { s: false, z: true, ac: false, p: true, cy: false },
+      ]) {
+        const ram = new ObservedRam();
+        ram.write(0x2000, 0x7e);
+        const before = expectedSnapshot({ h: Math.floor(address / 256), l: address % 256, pc: 0x2000, flags });
+        const cpu = new Cpu8080(ram, before);
+        // Data comes from current RAM, including edits made after construction.
+        ram.write(address, value);
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: 0x2000, bytes: [0x7e] },
+          before,
+          after: { ...before, a: value, pc: 0x2001 },
+          accesses: [
+            { kind: "read", address: 0x2000, value: 0x7e },
+            { kind: "read", address, value },
+          ],
+          outcome: "executed",
+        }, `HL=${address}, value=${value}`);
+        assert.deepEqual(cpu.snapshot(), record.after);
+        assert.deepEqual(ram.accesses, record.accesses);
+        assert.equal(ram.read(address), value);
+      }
+    }
+  }
+});
+
+test("8080 MOV M,A writes once at HL without reading the destination or changing flags and registers", () => {
+  for (const address of [0x0000, 0x00ff, 0x0100, 0x12ff, 0x1300, 0x8000, 0xffff]) {
+    for (const a of [0x00, 0x5a, 0x80, 0xff]) {
+      for (const flags of [
+        { s: true, z: false, ac: true, p: false, cy: true },
+        { s: false, z: true, ac: false, p: true, cy: false },
+      ]) {
+        const ram = new ObservedRam();
+        ram.write(0x2000, 0x77);
+        ram.write(address, 0x5a); // Still write when the destination already contains A.
+        ram.accesses.length = 0;
+        const before = expectedSnapshot({ a, h: Math.floor(address / 256), l: address % 256, pc: 0x2000, flags });
+        const cpu = new Cpu8080(ram, before);
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: 0x2000, bytes: [0x77] },
+          before,
+          after: { ...before, pc: 0x2001 },
+          accesses: [
+            { kind: "read", address: 0x2000, value: 0x77 },
+            { kind: "write", address, value: a },
+          ],
+          outcome: "executed",
+        }, `HL=${address}, A=${a}`);
+        assert.deepEqual(cpu.snapshot(), record.after);
+        assert.deepEqual(ram.accesses, record.accesses);
+        assert.equal(ram.read(address), a);
+      }
+    }
+  }
+});
+
+test("8080 memory MOV instructions wrap PC independently of HL and fetch no operand bytes", () => {
+  for (const opcode of [0x7e, 0x77]) {
+    const ram = new ObservedRam();
+    ram.write(0xffff, opcode);
+    ram.write(0x12ff, 0xa5);
+    ram.accesses.length = 0;
+    const before = expectedSnapshot({ h: 0x12, l: 0xff, pc: 0xffff });
+    const cpu = new Cpu8080(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: 0xffff, bytes: [opcode] },
+      before,
+      after: { ...before, a: opcode === 0x7e ? 0xa5 : 0x11, pc: 0 },
+      accesses: [
+        { kind: "read", address: 0xffff, value: opcode },
+        opcode === 0x7e
+          ? { kind: "read", address: 0x12ff, value: 0xa5 }
+          : { kind: "write", address: 0x12ff, value: 0x11 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), record.after);
+    assert.deepEqual(ram.accesses, record.accesses);
+  }
+});
+
+test("8080 MOV A,M can read its own opcode or the following byte as data", () => {
+  for (const [low, address, value] of [[0x00, 0x2000, 0x7e], [0x01, 0x2001, 0xa5]] as const) {
+    const ram = new ObservedRam();
+    ram.write(0x2000, 0x7e);
+    ram.write(0x2001, 0xa5);
+    ram.accesses.length = 0;
+    const before = expectedSnapshot({ h: 0x20, l: low, pc: 0x2000 });
+    const cpu = new Cpu8080(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: 0x2000, bytes: [0x7e] },
+      before,
+      after: { ...before, a: value, pc: 0x2001 },
+      accesses: [
+        { kind: "read", address: 0x2000, value: 0x7e },
+        { kind: "read", address, value },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), record.after);
+    assert.deepEqual(ram.accesses, record.accesses);
+  }
+});
+
+test("8080 MOV M,A can overwrite instruction bytes while retaining the captured opcode", () => {
+  for (const [low, address] of [[0x00, 0x2000], [0x01, 0x2001]] as const) {
+    const ram = new ObservedRam();
+    ram.write(0x2000, 0x77);
+    ram.write(0x2001, 0x7e);
+    ram.accesses.length = 0;
+    const before = expectedSnapshot({ a: 0x76, h: 0x20, l: low, pc: 0x2000 });
+    const cpu = new Cpu8080(ram, before);
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: 0x2000, bytes: [0x77] },
+      before,
+      after: { ...before, pc: 0x2001 },
+      accesses: [
+        { kind: "read", address: 0x2000, value: 0x77 },
+        { kind: "write", address, value: 0x76 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(cpu.snapshot(), record.after);
+    assert.deepEqual(ram.accesses, record.accesses);
+    assert.equal(ram.read(address), 0x76);
+
+    const saved = structuredClone(record);
+    const next = cpu.step();
+    assert.equal(next.outcome, address === 0x2001 ? "halted" : "executed");
+    assert.deepEqual(next.instruction, { address: 0x2001, bytes: [address === 0x2001 ? 0x76 : 0x7e] });
+    ram.write(address, 0);
+    cpu.reset();
+    assert.deepEqual(record, saved);
+  }
+});
+
+test("8080 memory MOV uses the current HL after INX wraps FFFF to 0000", () => {
+  const ram = new ObservedRam();
+  ram.write(0x2000, 0x7e);
+  ram.write(0x2001, 0x23);
+  ram.write(0x2002, 0x77);
+  ram.write(0xffff, 0xa5);
+  const before = expectedSnapshot({ h: 0xff, l: 0xff, pc: 0x2000 });
+  const cpu = new Cpu8080(ram, before);
+  const load = cpu.step();
+  const saved = structuredClone(load);
+  assert.deepEqual(load.after, { ...before, a: 0xa5, pc: 0x2001 });
+  const increment = cpu.step();
+  assert.deepEqual(increment.after, { ...load.after, h: 0, l: 0, hl: 0, pc: 0x2002 });
+  ram.write(0xffff, 0x5a); // The accumulator retains the byte loaded earlier.
+  ram.accesses.length = 0;
+  const store = cpu.step();
+  assert.deepEqual(store, {
+    instruction: { address: 0x2002, bytes: [0x77] },
+    before: increment.after,
+    after: { ...increment.after, pc: 0x2003 },
+    accesses: [
+      { kind: "read", address: 0x2002, value: 0x77 },
+      { kind: "write", address: 0x0000, value: 0xa5 },
+    ],
+    outcome: "executed",
+  });
+  assert.deepEqual(cpu.snapshot(), store.after);
+  assert.deepEqual(ram.accesses, store.accesses);
+  assert.equal(ram.read(0x0000), 0xa5);
+  assert.equal(ram.read(0xffff), 0x5a);
+  assert.deepEqual(load, saved);
+});
+
 test("8080 HLT advances PC with wrapping, preserves unrelated state, and stops further fetching", () => {
   for (const [address, nextPc] of [
     [0x0000, 0x0001], [0x1234, 0x1235], [0xffff, 0x0000],
@@ -930,7 +1111,7 @@ test("every other 8080 opcode reports unsupported repeatedly with one read and u
     // Explicit supported encodings, independent of the CPU's dispatch table.
     if ([
       0x01, 0x03, 0x11, 0x13, 0x21, 0x23, 0x31, 0x32, 0x33,
-      0x3e, 0x76, 0xc1, 0xc5, 0xc6, 0xd1, 0xd5, 0xe1, 0xe5,
+      0x3e, 0x76, 0x77, 0x7e, 0xc1, 0xc5, 0xc6, 0xd1, 0xd5, 0xe1, 0xe5,
     ].includes(opcode)) continue;
     ram.write(0xffff, opcode);
     for (let attempt = 0; attempt < 2; attempt++) {

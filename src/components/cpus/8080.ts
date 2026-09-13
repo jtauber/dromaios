@@ -114,6 +114,8 @@ export class Cpu8080 {
     0x33: () => { this.#state.sp = (this.#state.sp + 1) & 0xffff; }, // INX SP
     0x3e: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // MVI A,n
     0x76: () => this.#halt(), // HLT
+    0x77: ({ writeByte }) => writeByte(this.#hl, this.#state.a), // MOV M,A
+    0x7e: ({ readByte }) => this.#loadAccumulator(readByte(this.#hl)), // MOV A,M
     0xc1: ({ readByte }) => { this.#bc = this.#popWord(readByte); }, // POP B
     0xc5: ({ writeByte }) => this.#pushWord(this.#bc, writeByte), // PUSH B
     0xc6: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADI n

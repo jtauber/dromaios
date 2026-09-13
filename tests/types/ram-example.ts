@@ -7,6 +7,7 @@ import { defineRamExample } from "../../src/machines/ram-example.js";
 import { create8080Example, create8080ExampleMemory } from "../../src/machines/generated/8080/example.js";
 import { create8080RegisterPairsExample } from "../../src/machines/generated/8080/register-pairs-example.js";
 import { create8080StackExample } from "../../src/machines/generated/8080/stack-example.js";
+import { create8080AddressingExample } from "../../src/machines/generated/8080/addressing-example.js";
 import { create6502Example } from "../../src/machines/generated/6502/example.js";
 import { create6809Example } from "../../src/machines/generated/6809/example.js";
 
@@ -36,6 +37,7 @@ export function checkExistingFactories(): void {
   const arithmetic: { cpu: Cpu8080; ram: Ram } = create8080Example();
   const pairs: { cpu: Cpu8080; ram: Ram } = create8080RegisterPairsExample();
   const stack: { cpu: Cpu8080; ram: Ram } = create8080StackExample();
+  const addressing: { cpu: Cpu8080; ram: Ram } = create8080AddressingExample();
   const memory: Ram = create8080ExampleMemory();
   const mos: { cpu: Cpu6502; ram: Ram; endAddress: number } = create6502Example();
   const motorola: { cpu: Cpu6809; ram: Ram; endAddress: number } = create6809Example();

@@ -14,7 +14,7 @@ do not count toward implementation here.
 
 | Model | Complete / documented opcode forms | Opcode completion | Additional partial forms | Completed examples |
 | --- | --- | --- | --- | --- |
-| [Intel 8080](#8080) | 18 / 244 | 7.4% | 0 | [Arithmetic](8080-example.md), [register pairs](8080-register-pairs-example.md), [stack](8080-stack-example.md) |
+| [Intel 8080](#8080) | 20 / 244 | 8.2% | 0 | [Arithmetic](8080-example.md), [register pairs](8080-register-pairs-example.md), [stack](8080-stack-example.md), [addressing](8080-addressing-example.md) |
 | [NMOS MOS 6502](#6502) | 5 / 151 | 3.3% | 1: binary-only ADC | [Arithmetic](6502-example.md), [stack](6502-stack-example.md) |
 | [Motorola MC6809 / MC6809E](#6809) | 7 / 268 | 2.6% | 0 | [Arithmetic](6809-example.md), [stack](6809-stack-example.md) |
 
@@ -86,6 +86,9 @@ instruction lengths are in bytes.
 [Stack specification](8080-stack-example.md) ·
 [Stack definition](../src/machines/8080/stack-example.machine)
 
+[Addressing specification](8080-addressing-example.md) ·
+[Addressing definition](../src/machines/8080/addressing-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `01` | `LXI B,nn` | Immediate | 3 | Load B:C; low byte then high; preserve flags |
@@ -99,6 +102,8 @@ instruction lengths are in bytes.
 | `33` | `INX SP` | Register pair | 1 | Increment SP with 16-bit wrapping; preserve flags |
 | `3E` | `MVI A,n` | Immediate | 2 | Accumulator destination only |
 | `76` | `HLT` | Implied | 1 | Advance PC and enter halted state |
+| `77` | `MOV M,A` | Register indirect through HL | 1 | Store A at HL; preserve HL and flags |
+| `7E` | `MOV A,M` | Register indirect through HL | 1 | Load A from HL; preserve HL and flags |
 | `C1` | `POP B` | Stack | 1 | Read low then high into B:C; increment SP by 2; preserve flags |
 | `C5` | `PUSH B` | Stack | 1 | Write B:C high then low; decrement SP by 2; preserve flags |
 | `C6` | `ADI n` | Immediate | 2 | Add without incoming carry; update S/Z/AC/P/CY |
@@ -112,6 +117,7 @@ instruction lengths are in bytes.
 | Stored registers | A, B, C, D, E, H, L, PC, SP |
 | Stored flags/control | S, Z, AC, P, CY; interrupt-enable and halted latches |
 | Register relationships | Snapshots derive BC, DE, and HL from stored bytes; LXI, INX, and POP update the pairs |
+| Memory addressing | STA with an explicit 16-bit address; MOV A,M and MOV M,A use the current HL without changing it |
 | Stack | PUSH/POP for BC, DE, and HL using a descending RAM stack and wrapping 16-bit SP; PSW forms are unsupported |
 | Reset | Set PC to `0000`, clear interrupt-enable and halted; preserve data registers, SP, flags, and RAM; no memory accesses |
 | Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
@@ -120,7 +126,8 @@ instruction lengths are in bytes.
 Verification: [CPU tests](../tests/components/cpus/8080.test.ts),
 [arithmetic example tests](../tests/machines/8080/example.test.ts),
 [register-pair example tests](../tests/machines/8080/register-pairs-example.test.ts),
-[stack example tests](../tests/machines/8080/stack-example.test.ts), and
+[stack example tests](../tests/machines/8080/stack-example.test.ts),
+[addressing example tests](../tests/machines/8080/addressing-example.test.ts), and
 [public type checks](../tests/types/8080.ts). ADI checks cover every byte operand
 pair with incoming flags clear and set. Other checks cover exact accesses,
 wrapping, self-overwriting stores, halt/reset behavior, rejection of every
@@ -129,6 +136,9 @@ LXI/INX checks cover all pair and SP forms, derived views, byte carry and
 16-bit wrapping, flag preservation, operand order, and successive operations.
 PUSH/POP checks cover all three pairs, stack-access order, SP and PC wrapping,
 nested operations, program overlap, current RAM reads, and retained stack data.
+Memory MOV checks cover HL addressing, flag preservation, PC wrapping, exact
+data accesses, instruction-byte overlap, current RAM, and successive operations
+across page and address-space boundaries.
 
 ## 6502
 
