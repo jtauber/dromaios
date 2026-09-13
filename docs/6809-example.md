@@ -111,10 +111,10 @@ freezing is required. D is consistent with A/B when a snapshot is produced;
 bypassing readonly checks does not make the returned copy a live register view.
 
 F and I are stored interrupt-mask bits; E is a stored stacking indicator.
-Interrupt handling and packed CC access are deferred. S is the hardware stack
-pointer used by calls and interrupts; U is a separate programmer-controlled
-stack pointer. Neither stack is exercised by this program. See the
-[register descriptions][model].
+Interrupt handling is deferred; this arithmetic example does not use packed
+CC. S is the hardware stack pointer used by calls and interrupts; U is a
+separate programmer-controlled stack pointer. Neither stack is exercised by
+this program. See the [register descriptions][model].
 
 `create6809Example()` returns fresh `{ cpu, ram, endAddress }` values, with
 `endAddress` equal to `0207`. Setup supplies the initial PC directly and does
@@ -179,12 +179,12 @@ export type Cpu6809StepRecord = {
 Every attempt returns a non-null instruction. Executed records have no
 `reason`; the CPU has no `halted` or `complete` outcome. It retains no record
 history. Instruction bytes come from actual opcode and operand fetches; data
-writes appear only in `accesses`. Do not reread RAM to construct a record.
+reads and writes appear only in `accesses`. Do not reread RAM to construct a
+record.
 
-Every first byte other than `86`, `8B`, and `B7` is unsupported in the completed
-subset. Record one opcode read and unchanged state and RAM. A repeated attempt
-repeats the same read and leaves PC in place. During implementation, an opcode
-remains unsupported until its handler is added.
+For an unsupported first byte, record one opcode read and unchanged state and
+RAM. A repeated attempt repeats the same read and leaves PC in place. The
+[coverage tracker](cpu-coverage.md#6809) lists the current supported forms.
 
 **Prefix policy:** `10` and `11` select additional opcode pages in the
 [hardware opcode map][opcodes]. This subset stops after reading the prefix

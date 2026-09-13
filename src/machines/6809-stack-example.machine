@@ -1,0 +1,26 @@
+ram 10000
+
+cpu 6809 {
+    A = 56  B = 78  DP = 12
+    X = 3456  Y = 789A  S = 8000  U = 4000
+    PC = 0200
+    flags { E = 0  F = 0  H = 1  I = 0  N = 1  Z = 0  V = 1  C = 1 }
+}
+
+memory 0200 {
+    86 12       // LDA #$12
+    34 02       // PSHS A
+    86 34       // LDA #$34
+    36 02       // PSHU A
+    86 00       // LDA #$00
+    35 02       // PULS A
+    B7 00 80    // STA >$0080
+    37 02       // PULU A
+    B7 00 81    // STA >$0081
+}
+
+memory FFFE {
+    02 00       // Reset vector: 0200, high byte first
+}
+
+end 0214

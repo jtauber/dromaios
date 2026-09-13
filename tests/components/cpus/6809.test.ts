@@ -13,6 +13,20 @@ function initialState(overrides: Partial<Cpu6809State> = {}): Cpu6809State {
   };
 }
 
+const stacks = [
+  { stack: "s", other: "u", push: 0x34, pull: 0x35 },
+  { stack: "u", other: "s", push: 0x36, pull: 0x37 },
+] as const;
+
+// An independent CC oracle: read the printed binary digits, not the CPU's masks.
+function flagsFor(cc: number): Cpu6809Flags {
+  const bits = cc.toString(2).padStart(8, "0");
+  return {
+    e: bits[0] === "1", f: bits[1] === "1", h: bits[2] === "1", i: bits[3] === "1",
+    n: bits[4] === "1", z: bits[5] === "1", v: bits[6] === "1", c: bits[7] === "1",
+  };
+}
+
 test("6809 owns its initial state and detached numeric D snapshots without RAM accesses", () => {
   const ram = new ObservedRam();
   const supplied = initialState();
@@ -532,9 +546,367 @@ test("6809 STA records keep written values independent of later stores, memory c
   assert.equal(ram.read(0x1234), 0);
 });
 
+test("6809 pushes every register mask in the specified memory layout, including empty masks and wrapping", () => {
+  for (const { stack, other, push } of stacks) {
+    for (const start of [0x8000, 0x0000, 0x0001]) {
+      const before = { ...initialState({ [stack]: start }), d: 0x1134 };
+      // Final frame in ascending address order, with literal byte values.
+      const parts = [
+        { bit: 0x01, bytes: [0xab] },
+        { bit: 0x02, bytes: [0x11] },
+        { bit: 0x04, bytes: [0x34] },
+        { bit: 0x08, bytes: [0x56] },
+        { bit: 0x10, bytes: [0x23, 0x45] },
+        { bit: 0x20, bytes: [0x45, 0x67] },
+        { bit: 0x40, bytes: other === "u" ? [0xcd, 0xef] : [0x89, 0xab] },
+        { bit: 0x80, bytes: [0x12, 0x36] }, // PC after the two-byte instruction.
+      ];
+      for (let mask = 0; mask < 256; mask++) {
+        const ram = new ObservedRam();
+        ram.write(0x1234, push);
+        ram.write(0x1235, mask);
+        const frame = parts.filter(part => mask & part.bit).flatMap(part => part.bytes);
+        const writes = [...frame].reverse().map((value, offset) => ({
+          kind: "write" as const, address: (start - 1 - offset + 65_536) % 65_536, value,
+        }));
+        // Rewriting identical bytes must still issue all the writes.
+        for (const { address, value } of writes) ram.write(address, value);
+        ram.accesses.length = 0;
+        const cpu = new Cpu6809(ram, before);
+        const record = cpu.step();
+        const context = `${stack}, start=${start}, mask=${mask}`;
+        assert.deepEqual(record, {
+          instruction: { address: 0x1234, bytes: [push, mask] },
+          before,
+          after: { ...before, pc: 0x1236, [stack]: (start - frame.length + 65_536) % 65_536 },
+          accesses: [
+            { kind: "read", address: 0x1234, value: push },
+            { kind: "read", address: 0x1235, value: mask },
+            ...writes,
+          ],
+          outcome: "executed",
+        }, context);
+        assert.deepEqual(cpu.snapshot(), record.after, context);
+        assert.deepEqual(ram.accesses, record.accesses, context);
+        for (const { address, value } of writes) assert.equal(ram.read(address), value, context);
+      }
+    }
+  }
+});
+
+test("6809 pulls every register mask from independently supplied frames without load-instruction flag effects", () => {
+  for (const { stack, other, pull } of stacks) {
+    for (const start of [0x8000, 0xffff]) {
+      const before = { ...initialState({ [stack]: start }), d: 0x1134 };
+      const parts: readonly { bit: number; bytes: readonly number[]; state: Partial<Cpu6809State> }[] = [
+        // E is clear: the postbyte still controls the entire pull, unlike RTI.
+        { bit: 0x01, bytes: [0x05], state: { flags: flagsFor(0x05) } },
+        { bit: 0x02, bytes: [0x80], state: { a: 0x80 } },
+        { bit: 0x04, bytes: [0x00], state: { b: 0 } },
+        { bit: 0x08, bytes: [0xfe], state: { dp: 0xfe } },
+        { bit: 0x10, bytes: [0x9a, 0xbc], state: { x: 0x9abc } },
+        { bit: 0x20, bytes: [0xde, 0xf0], state: { y: 0xdef0 } },
+        { bit: 0x40, bytes: [0x13, 0x57], state: { [other]: 0x1357 } },
+        { bit: 0x80, bytes: [0x24, 0x68], state: { pc: 0x2468 } },
+      ];
+      for (let mask = 0; mask < 256; mask++) {
+        const ram = new ObservedRam();
+        ram.write(0x1234, pull);
+        ram.write(0x1235, mask);
+        const selected = parts.filter(part => mask & part.bit);
+        const frame = selected.flatMap(part => part.bytes);
+        const reads = frame.map((value, offset) => ({
+          kind: "read" as const, address: (start + offset) % 65_536, value,
+        }));
+        for (const { address, value } of reads) ram.write(address, value);
+        ram.accesses.length = 0;
+        const cpu = new Cpu6809(ram, before);
+        let after = { ...before, pc: 0x1236, [stack]: (start + frame.length) % 65_536 };
+        for (const part of selected) after = { ...after, ...part.state };
+        after.d = after.a * 256 + after.b;
+        const record = cpu.step();
+        const context = `${stack}, start=${start}, mask=${mask}`;
+        assert.deepEqual(record, {
+          instruction: { address: 0x1234, bytes: [pull, mask] },
+          before, after,
+          accesses: [
+            { kind: "read", address: 0x1234, value: pull },
+            { kind: "read", address: 0x1235, value: mask },
+            ...reads,
+          ],
+          outcome: "executed",
+        }, context);
+        assert.deepEqual(cpu.snapshot(), after, context);
+        assert.deepEqual(ram.accesses, record.accesses, context);
+        for (const { address, value } of reads) assert.equal(ram.read(address), value, context);
+      }
+    }
+  }
+});
+
+test("6809 stack CC encoding handles every flag combination without forcing E or changing masks", () => {
+  for (const { stack, push, pull } of stacks) {
+    for (let cc = 0; cc < 256; cc++) {
+      for (const mask of [0x01, 0xff]) {
+        const ram = new ObservedRam();
+        ram.write(0x1234, push);
+        ram.write(0x1235, mask);
+        const flags = flagsFor(cc);
+        const cpu = new Cpu6809(ram, initialState({ [stack]: 0x8000, flags }));
+        const pushed = cpu.step();
+        assert.equal(pushed.outcome, "executed");
+        assert.equal(ram.read(mask === 0x01 ? 0x7fff : 0x7ff4), cc);
+        assert.deepEqual(pushed.after.flags, flags);
+        assert.deepEqual(cpu.snapshot().flags, flags);
+
+        // Pull a separately authored frame, not the preceding push's output.
+        ram.write(0x1234, pull);
+        ram.write(0x8000, cc);
+        const receiver = new Cpu6809(ram, initialState({ [stack]: 0x8000, flags: flagsFor(255 - cc) }));
+        const pulled = receiver.step();
+        assert.equal(pulled.outcome, "executed");
+        assert.deepEqual(pulled.after.flags, flags);
+        assert.deepEqual(receiver.snapshot().flags, flags);
+        assert.equal(pulled.after[stack], mask === 0x01 ? 0x8001 : 0x800c);
+      }
+    }
+  }
+});
+
+test("6809 stack instructions fetch wrapping postbytes and save the following PC or resume at a pulled PC", () => {
+  for (const { stack, push, pull } of stacks) {
+    for (const [pc, postbyte, nextPc] of [[0xfffe, 0xffff, 0], [0xffff, 0, 1]] as const) {
+      for (const opcode of [push, pull]) {
+        const ram = new ObservedRam();
+        ram.write(pc, opcode);
+        ram.write(postbyte, 0x80);
+        ram.write(0x4000, 0x9a);
+        ram.write(0x4001, 0xbc);
+        ram.write(0x9abc, 0x86);
+        ram.write(0x9abd, 0xff);
+        ram.accesses.length = 0;
+        const before = { ...initialState({ pc, [stack]: 0x4000 }), d: 0x1134 };
+        const cpu = new Cpu6809(ram, before);
+        const after = {
+          ...before, pc: opcode === push ? nextPc : 0x9abc, [stack]: opcode === push ? 0x3ffe : 0x4002,
+        };
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: pc, bytes: [opcode, 0x80] },
+          before, after,
+          accesses: [
+            { kind: "read", address: pc, value: opcode },
+            { kind: "read", address: postbyte, value: 0x80 },
+            ...(opcode === push ? [
+              { kind: "write", address: 0x3fff, value: nextPc },
+              { kind: "write", address: 0x3ffe, value: 0x00 },
+            ] : [
+              { kind: "read", address: 0x4000, value: 0x9a },
+              { kind: "read", address: 0x4001, value: 0xbc },
+            ]),
+          ],
+          outcome: "executed",
+        });
+        assert.deepEqual(cpu.snapshot(), after);
+        assert.deepEqual(ram.accesses, record.accesses);
+        if (opcode === pull) {
+          ram.accesses.length = 0;
+          const resumed = cpu.step();
+          assert.deepEqual(resumed, {
+            instruction: { address: 0x9abc, bytes: [0x86, 0xff] },
+            before: after,
+            after: { ...after, pc: 0x9abe, a: 0xff, d: 0xff34, flags: { ...after.flags, n: true, z: false, v: false } },
+            accesses: [
+              { kind: "read", address: 0x9abc, value: 0x86 },
+              { kind: "read", address: 0x9abd, value: 0xff },
+            ],
+            outcome: "executed",
+          });
+          assert.deepEqual(ram.accesses, resumed.accesses);
+        }
+      }
+    }
+  }
+});
+
+test("6809 nested saves restore mixed-width registers while preserving the flags from intervening operations", () => {
+  for (const { stack, push, pull } of stacks) {
+    const ram = new ObservedRam();
+    const program = [push, 0x12, 0x86, 0x80, push, 0x02, 0x86, 0x00, pull, 0x02, pull, 0x12];
+    for (const [address, value] of program.entries()) ram.write(address, value);
+    let before = { ...initialState({ pc: 0, [stack]: 0x8000 }), d: 0x1134 };
+    const cpu = new Cpu6809(ram, before);
+    // The last two pulls retain Z=1 even as they restore nonzero A values.
+    for (const [pc, a, pointer, n, z, v] of [
+      [2, 0x11, 0x7ffd, true, false, true],
+      [4, 0x80, 0x7ffd, true, false, false],
+      [6, 0x80, 0x7ffc, true, false, false],
+      [8, 0x00, 0x7ffc, false, true, false],
+      [10, 0x80, 0x7ffd, false, true, false],
+      [12, 0x11, 0x8000, false, true, false],
+    ] as const) {
+      ram.accesses.length = 0;
+      const record = cpu.step();
+      const after = { ...before, pc, a, d: a * 256 + 0x34, [stack]: pointer, flags: { ...before.flags, n, z, v } };
+      assert.equal(record.outcome, "executed");
+      assert.deepEqual(record.before, before);
+      assert.deepEqual(record.after, after);
+      assert.deepEqual(cpu.snapshot(), after);
+      assert.deepEqual(ram.accesses, record.accesses);
+      before = after;
+    }
+    assert.deepEqual([ram.read(0x7ffc), ram.read(0x7ffd), ram.read(0x7ffe), ram.read(0x7fff)],
+      [0x80, 0x11, 0x23, 0x45]);
+  }
+});
+
+test("6809 bit 6 transfers the other pointer even when S and U initially hold the same address", () => {
+  for (const { stack, other, push, pull } of stacks) {
+    const ram = new ObservedRam();
+    ram.write(0x1234, push);
+    ram.write(0x1235, 0x40);
+    ram.write(0x1236, pull);
+    ram.write(0x1237, 0x40);
+    ram.write(0x1238, other === "s" ? 0x34 : 0x36);
+    ram.write(0x1239, 0x02); // Use the newly loaded other pointer for a push of A.
+    ram.accesses.length = 0;
+    const before = { ...initialState({ s: 0x8000, u: 0x8000 }), d: 0x1134 };
+    const cpu = new Cpu6809(ram, before);
+    const afterPush = { ...before, pc: 0x1236, [stack]: 0x7ffe };
+    assert.deepEqual(cpu.step(), {
+      instruction: { address: 0x1234, bytes: [push, 0x40] },
+      before, after: afterPush,
+      accesses: [
+        { kind: "read", address: 0x1234, value: push },
+        { kind: "read", address: 0x1235, value: 0x40 },
+        { kind: "write", address: 0x7fff, value: 0x00 },
+        { kind: "write", address: 0x7ffe, value: 0x80 },
+      ],
+      outcome: "executed",
+    });
+    ram.write(0x7ffe, 0x01);
+    ram.write(0x7fff, 0x00);
+    ram.accesses.length = 0;
+    const pulled = cpu.step();
+    const afterPull = { ...before, pc: 0x1238, [other]: 0x0100 };
+    assert.deepEqual(pulled, {
+      instruction: { address: 0x1236, bytes: [pull, 0x40] },
+      before: afterPush, after: afterPull,
+      accesses: [
+        { kind: "read", address: 0x1236, value: pull },
+        { kind: "read", address: 0x1237, value: 0x40 },
+        { kind: "read", address: 0x7ffe, value: 0x01 },
+        { kind: "read", address: 0x7fff, value: 0x00 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(ram.accesses, pulled.accesses);
+    ram.accesses.length = 0;
+    const usedOther = cpu.step();
+    assert.deepEqual(usedOther.after, { ...afterPull, pc: 0x123a, [other]: 0x00ff });
+    assert.deepEqual(ram.accesses, [
+      { kind: "read", address: 0x1238, value: other === "s" ? 0x34 : 0x36 },
+      { kind: "read", address: 0x1239, value: 0x02 },
+      { kind: "write", address: 0x00ff, value: 0x11 },
+    ]);
+    assert.equal(ram.read(0x00ff), 0x11);
+  }
+});
+
+test("6809 stack writes may overwrite both fetched bytes and pulls may reread them as data", () => {
+  for (const { stack, other, push, pull } of stacks) {
+    const ram = new ObservedRam();
+    ram.write(0x0200, push);
+    ram.write(0x0201, 0xff);
+    ram.accesses.length = 0;
+    const before = { ...initialState({ pc: 0x0200, [stack]: 0x0202 }), d: 0x1134 };
+    const cpu = new Cpu6809(ram, before);
+    const values = [0x02, 0x02, ...(other === "u" ? [0xef, 0xcd] : [0xab, 0x89]),
+      0x67, 0x45, 0x45, 0x23, 0x56, 0x34, 0x11, 0xab];
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: 0x0200, bytes: [push, 0xff] },
+      before, after: { ...before, pc: 0x0202, [stack]: 0x01f6 },
+      accesses: [
+        { kind: "read", address: 0x0200, value: push },
+        { kind: "read", address: 0x0201, value: 0xff },
+        ...values.map((value, offset) => ({ kind: "write", address: 0x0201 - offset, value })),
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(ram.accesses, record.accesses);
+    assert.equal(ram.read(0x0200), 0x02);
+    assert.equal(ram.read(0x0201), 0x02);
+
+    ram.write(0x0200, pull);
+    ram.write(0x0201, 0x06);
+    ram.accesses.length = 0;
+    const pullBefore = { ...initialState({ pc: 0x0200, [stack]: 0x0200 }), d: 0x1134 };
+    const receiver = new Cpu6809(ram, pullBefore);
+    const pulled = receiver.step();
+    assert.deepEqual(pulled, {
+      instruction: { address: 0x0200, bytes: [pull, 0x06] },
+      before: pullBefore,
+      after: { ...pullBefore, pc: 0x0202, [stack]: 0x0202, a: pull, b: 0x06, d: pull * 256 + 0x06 },
+      accesses: [
+        { kind: "read", address: 0x0200, value: pull },
+        { kind: "read", address: 0x0201, value: 0x06 },
+        { kind: "read", address: 0x0200, value: pull },
+        { kind: "read", address: 0x0201, value: 0x06 },
+      ],
+      outcome: "executed",
+    });
+    assert.deepEqual(ram.accesses, pulled.accesses);
+  }
+});
+
+test("6809 stack records own flags and values across RAM edits, later execution, reset, and caller edits", () => {
+  for (const { stack, push, pull } of stacks) {
+    const ram = new ObservedRam();
+    for (const [address, value] of [push, 0x07, pull, 0x07, push, 0x07].entries()) ram.write(address, value);
+    const cpu = new Cpu6809(ram, initialState({ pc: 0, [stack]: 0x8000 }));
+    const pushed = cpu.step();
+    const savedPush = structuredClone(pushed);
+    ram.write(0x7ffd, 0x44); // CC: F and Z set, all other bits clear.
+    ram.write(0x7ffe, 0x00);
+    ram.write(0x7fff, 0xff);
+    ram.accesses.length = 0;
+    const pulled = cpu.step();
+    const savedPull = structuredClone(pulled);
+    assert.deepEqual(pulled.after, {
+      ...savedPush.after, pc: 4, [stack]: 0x8000, a: 0, b: 0xff, d: 0x00ff, flags: flagsFor(0x44),
+    });
+    assert.deepEqual(ram.accesses, [
+      { kind: "read", address: 2, value: pull },
+      { kind: "read", address: 3, value: 0x07 },
+      { kind: "read", address: 0x7ffd, value: 0x44 },
+      { kind: "read", address: 0x7ffe, value: 0x00 },
+      { kind: "read", address: 0x7fff, value: 0xff },
+    ]);
+    assert.deepEqual(pushed, savedPush);
+    Reflect.set(pushed.before.flags, "e", false);
+    assert.deepEqual(pushed.after, savedPush.after);
+    Reflect.set(pulled.before.flags, "f", true);
+    assert.deepEqual(pulled.after, savedPull.after);
+    Reflect.set(pulled.after.flags, "z", false);
+    Reflect.set(pulled.after, stack, 0);
+    Reflect.set(pulled.instruction.bytes, 1, 0xff);
+    assert.ok(pulled.accesses[2]);
+    Reflect.set(pulled.accesses[2], "value", 0xff);
+    assert.deepEqual(cpu.snapshot(), savedPull.after);
+    const editedPull = structuredClone(pulled);
+    assert.equal(cpu.step().outcome, "executed");
+    assert.equal(ram.read(0x7ffd), 0x44);
+    ram.write(0x7ffd, 0xff);
+    cpu.reset();
+    assert.deepEqual(pushed.after, savedPush.after);
+    assert.deepEqual(pulled, editedPull);
+  }
+});
+
 test("every unsupported 6809 byte, including prefixes, repeatedly reads only itself without advancing PC", () => {
   for (let opcode = 0; opcode <= 0xff; opcode++) {
-    if (opcode === 0x86 || opcode === 0x8b || opcode === 0xb7) continue;
+    if ([0x34, 0x35, 0x36, 0x37, 0x86, 0x8b, 0xb7].includes(opcode)) continue;
     for (const pc of [0x1234, 0xffff]) {
       const ram = new ObservedRam();
       ram.write(pc, opcode);
