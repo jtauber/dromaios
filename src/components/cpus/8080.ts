@@ -65,6 +65,7 @@ export interface Cpu8080ResetRecord {
 interface InstructionContext {
   readonly fetchByte: () => number;
   readonly fetchWord: () => number;
+  readonly readByte: (address: number) => number;
   readonly writeByte: (address: number, value: number) => void;
 }
 
@@ -113,7 +114,13 @@ export class Cpu8080 {
     0x33: () => { this.#state.sp = (this.#state.sp + 1) & 0xffff; }, // INX SP
     0x3e: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // MVI A,n
     0x76: () => this.#halt(), // HLT
+    0xc1: ({ readByte }) => { this.#bc = this.#popWord(readByte); }, // POP B
+    0xc5: ({ writeByte }) => this.#pushWord(this.#bc, writeByte), // PUSH B
     0xc6: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADI n
+    0xd1: ({ readByte }) => { this.#de = this.#popWord(readByte); }, // POP D
+    0xd5: ({ writeByte }) => this.#pushWord(this.#de, writeByte), // PUSH D
+    0xe1: ({ readByte }) => { this.#hl = this.#popWord(readByte); }, // POP H
+    0xe5: ({ writeByte }) => this.#pushWord(this.#hl, writeByte), // PUSH H
   };
 
   constructor(ram: Ram, initialState: Omit<Cpu8080Snapshot, "bc" | "de" | "hl">) {
@@ -188,6 +195,7 @@ export class Cpu8080 {
           const high = fetchByte();
           return low | (high << 8);
         },
+        readByte: (address) => this.#read(address, accesses),
         writeByte: (address, value) => this.#write(address, value, accesses),
       });
     }
@@ -228,6 +236,21 @@ export class Cpu8080 {
   set #hl(value: number) {
     this.#state.h = value >>> 8;
     this.#state.l = value & 0xff;
+  }
+
+  #pushWord(value: number, writeByte: InstructionContext["writeByte"]): void {
+    this.#state.sp = (this.#state.sp - 1) & 0xffff;
+    writeByte(this.#state.sp, value >>> 8);
+    this.#state.sp = (this.#state.sp - 1) & 0xffff;
+    writeByte(this.#state.sp, value & 0xff);
+  }
+
+  #popWord(readByte: InstructionContext["readByte"]): number {
+    const low = readByte(this.#state.sp);
+    this.#state.sp = (this.#state.sp + 1) & 0xffff;
+    const high = readByte(this.#state.sp);
+    this.#state.sp = (this.#state.sp + 1) & 0xffff;
+    return low | (high << 8);
   }
 
   #loadAccumulator(value: number): void {

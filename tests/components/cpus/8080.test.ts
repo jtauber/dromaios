@@ -128,15 +128,17 @@ test("8080 ignores supplied pair getters and reconstructs pair views from snapsh
 // Literal opcode assignments from Intel's instruction table. SP is a stored
 // word; the other targets split a word across two stored bytes.
 const registerPairs = [
-  { name: "BC", lxi: 0x01, inx: 0x03, view: "bc",
+  { name: "BC", lxi: 0x01, inx: 0x03, push: 0xc5, pop: 0xc1, view: "bc",
     bytes: (high: number, low: number) => ({ b: high, c: low }) },
-  { name: "DE", lxi: 0x11, inx: 0x13, view: "de",
+  { name: "DE", lxi: 0x11, inx: 0x13, push: 0xd5, pop: 0xd1, view: "de",
     bytes: (high: number, low: number) => ({ d: high, e: low }) },
-  { name: "HL", lxi: 0x21, inx: 0x23, view: "hl",
+  { name: "HL", lxi: 0x21, inx: 0x23, push: 0xe5, pop: 0xe1, view: "hl",
     bytes: (high: number, low: number) => ({ h: high, l: low }) },
   { name: "SP", lxi: 0x31, inx: 0x33, view: "sp",
     bytes: (high: number, low: number) => ({ sp: high * 256 + low }) },
 ] as const;
+
+const stackPairs = registerPairs.filter((pair) => "push" in pair);
 
 test("8080 derives unsigned register pairs with the first register as the high byte", () => {
   const ram = new ObservedRam();
@@ -294,6 +296,275 @@ test("8080 pair records retain captured values across later instructions, reset,
     assert.deepEqual(ram.accesses, []);
     assert.deepEqual(second, savedSecond);
   }
+});
+
+test("8080 PUSH writes high then low, wraps SP, and preserves flags and register pairs", () => {
+  for (const pair of stackPairs) {
+    for (const [high, low] of [[0x00, 0x00], [0x12, 0x34], [0x80, 0xff], [0xff, 0xff]] as const) {
+      for (const [sp, highAddress, lowAddress] of [
+        [0x2000, 0x1fff, 0x1ffe], [0x0000, 0xffff, 0xfffe],
+        [0x0001, 0x0000, 0xffff], [0xffff, 0xfffe, 0xfffd],
+      ] as const) {
+        for (const flags of [
+          { s: true, z: false, ac: true, p: false, cy: true },
+          { s: false, z: true, ac: false, p: true, cy: false },
+        ]) {
+          const ram = new ObservedRam();
+          ram.write(0x1234, pair.push);
+          ram.accesses.length = 0;
+          const before = expectedSnapshot({ ...pair.bytes(high, low), sp, flags });
+          const cpu = new Cpu8080(ram, before);
+          const record = cpu.step();
+          assert.deepEqual(record, {
+            instruction: { address: 0x1234, bytes: [pair.push] },
+            before,
+            after: { ...before, sp: lowAddress, pc: 0x1235 },
+            accesses: [
+              { kind: "read", address: 0x1234, value: pair.push },
+              { kind: "write", address: highAddress, value: high },
+              { kind: "write", address: lowAddress, value: low },
+            ],
+            outcome: "executed",
+          }, `${pair.name}, SP=${sp}`);
+          assert.deepEqual(cpu.snapshot(), record.after);
+          assert.deepEqual(ram.accesses, record.accesses);
+          assert.equal(ram.read(highAddress), high);
+          assert.equal(ram.read(lowAddress), low);
+        }
+      }
+    }
+  }
+});
+
+test("8080 POP reads low then high without fetching operands, wraps SP, and preserves flags", () => {
+  for (const pair of stackPairs) {
+    for (const [high, low, word] of [
+      [0x00, 0x00, 0x0000], [0x12, 0x34, 0x1234], [0x80, 0xff, 0x80ff], [0xff, 0xff, 0xffff],
+    ] as const) {
+      for (const [sp, highAddress, nextSp] of [
+        [0x1ffe, 0x1fff, 0x2000], [0xfffe, 0xffff, 0x0000],
+        [0xffff, 0x0000, 0x0001], [0x0000, 0x0001, 0x0002],
+      ] as const) {
+        for (const flags of [
+          { s: true, z: false, ac: true, p: false, cy: true },
+          { s: false, z: true, ac: false, p: true, cy: false },
+        ]) {
+          const ram = new ObservedRam();
+          ram.write(0x1234, pair.pop);
+          ram.write(sp, low);
+          ram.write(highAddress, high);
+          ram.accesses.length = 0;
+          const before = expectedSnapshot({ sp, flags });
+          const cpu = new Cpu8080(ram, before);
+          const record = cpu.step();
+          assert.deepEqual(record, {
+            instruction: { address: 0x1234, bytes: [pair.pop] },
+            before,
+            after: { ...before, ...pair.bytes(high, low), [pair.view]: word, sp: nextSp, pc: 0x1235 },
+            accesses: [
+              { kind: "read", address: 0x1234, value: pair.pop },
+              { kind: "read", address: sp, value: low },
+              { kind: "read", address: highAddress, value: high },
+            ],
+            outcome: "executed",
+          }, `${pair.name}, SP=${sp}`);
+          assert.deepEqual(cpu.snapshot(), record.after);
+          assert.deepEqual(ram.accesses, record.accesses);
+          assert.equal(ram.read(sp), low);
+          assert.equal(ram.read(highAddress), high);
+        }
+      }
+    }
+  }
+});
+
+test("8080 PUSH and POP wrap PC independently of their stack accesses", () => {
+  for (const pair of stackPairs) {
+    for (const operation of ["push", "pop"] as const) {
+      const ram = new ObservedRam();
+      ram.write(0xffff, pair[operation]);
+      ram.write(0x2000, 0x34);
+      ram.write(0x2001, 0x12);
+      ram.accesses.length = 0;
+      const before = expectedSnapshot({ ...pair.bytes(0x12, 0x34), pc: 0xffff, sp: 0x2000 });
+      const cpu = new Cpu8080(ram, before);
+      const record = cpu.step();
+      assert.deepEqual(record, {
+        instruction: { address: 0xffff, bytes: [pair[operation]] },
+        before,
+        after: { ...before, pc: 0, sp: operation === "push" ? 0x1ffe : 0x2002 },
+        accesses: [
+          { kind: "read", address: 0xffff, value: pair[operation] },
+          ...(operation === "push" ? [
+            { kind: "write", address: 0x1fff, value: 0x12 },
+            { kind: "write", address: 0x1ffe, value: 0x34 },
+          ] : [
+            { kind: "read", address: 0x2000, value: 0x34 },
+            { kind: "read", address: 0x2001, value: 0x12 },
+          ]),
+        ],
+        outcome: "executed",
+      });
+      assert.deepEqual(ram.accesses, record.accesses);
+      assert.deepEqual(cpu.snapshot(), record.after);
+    }
+  }
+});
+
+test("8080 PUSH can overwrite its own opcode with either byte without changing captured instruction bytes", () => {
+  for (const pair of stackPairs) {
+    for (const [sp, highAddress, lowAddress, overwritten] of [
+      [0x2001, 0x2000, 0x1fff, 0xa5], [0x2002, 0x2001, 0x2000, 0x3c],
+    ] as const) {
+      const ram = new ObservedRam();
+      ram.write(0x2000, pair.push);
+      ram.accesses.length = 0;
+      const before = expectedSnapshot({ ...pair.bytes(0xa5, 0x3c), sp, pc: 0x2000 });
+      const cpu = new Cpu8080(ram, before);
+      const record = cpu.step();
+      assert.deepEqual(record, {
+        instruction: { address: 0x2000, bytes: [pair.push] },
+        before,
+        after: { ...before, sp: lowAddress, pc: 0x2001 },
+        accesses: [
+          { kind: "read", address: 0x2000, value: pair.push },
+          { kind: "write", address: highAddress, value: 0xa5 },
+          { kind: "write", address: lowAddress, value: 0x3c },
+        ],
+        outcome: "executed",
+      });
+      assert.deepEqual(ram.accesses, record.accesses);
+      assert.equal(ram.read(0x2000), overwritten);
+      assert.deepEqual(cpu.snapshot(), record.after);
+    }
+  }
+});
+
+test("8080 POP rereads an overlapping opcode as stack data without extending the instruction", () => {
+  for (const pair of stackPairs) {
+    for (const [sp, highAddress, low, high, nextSp] of [
+      [0x2000, 0x2001, pair.pop, 0xa5, 0x2002],
+      [0x1fff, 0x2000, 0x3c, pair.pop, 0x2001],
+    ] as const) {
+      const ram = new ObservedRam();
+      ram.write(sp, low);
+      ram.write(highAddress, high);
+      ram.accesses.length = 0;
+      const before = expectedSnapshot({ sp, pc: 0x2000 });
+      const cpu = new Cpu8080(ram, before);
+      const record = cpu.step();
+      assert.deepEqual(record, {
+        instruction: { address: 0x2000, bytes: [pair.pop] },
+        before,
+        after: { ...before, ...pair.bytes(high, low), [pair.view]: high * 256 + low, sp: nextSp, pc: 0x2001 },
+        accesses: [
+          { kind: "read", address: 0x2000, value: pair.pop },
+          { kind: "read", address: sp, value: low },
+          { kind: "read", address: highAddress, value: high },
+        ],
+        outcome: "executed",
+      });
+      assert.deepEqual(ram.accesses, record.accesses);
+      assert.deepEqual(cpu.snapshot(), record.after);
+    }
+  }
+});
+
+test("8080 nested pushes and pops use a shared last-in first-out stack across register pairs", () => {
+  const ram = new ObservedRam();
+  const opcodes = [0xc5, 0xd5, 0xe5, 0xc1, 0xd1, 0xe1];
+  for (const [offset, opcode] of opcodes.entries()) ram.write(0x0200 + offset, opcode);
+  const initial = expectedSnapshot({ pc: 0x0200, sp: 0x2000 });
+  const cpu = new Cpu8080(ram, initial);
+  const steps = [
+    { after: { ...initial, pc: 0x0201, sp: 0x1ffe }, stack: [
+      { kind: "write", address: 0x1fff, value: 0x22 },
+      { kind: "write", address: 0x1ffe, value: 0x33 },
+    ] },
+    { after: { ...initial, pc: 0x0202, sp: 0x1ffc }, stack: [
+      { kind: "write", address: 0x1ffd, value: 0x44 },
+      { kind: "write", address: 0x1ffc, value: 0x55 },
+    ] },
+    { after: { ...initial, pc: 0x0203, sp: 0x1ffa }, stack: [
+      { kind: "write", address: 0x1ffb, value: 0x66 },
+      { kind: "write", address: 0x1ffa, value: 0x77 },
+    ] },
+    { after: { ...initial, b: 0x66, c: 0x77, bc: 0x6677, pc: 0x0204, sp: 0x1ffc }, stack: [
+      { kind: "read", address: 0x1ffa, value: 0x77 },
+      { kind: "read", address: 0x1ffb, value: 0x66 },
+    ] },
+    { after: { ...initial, b: 0x66, c: 0x77, bc: 0x6677, pc: 0x0205, sp: 0x1ffe }, stack: [
+      { kind: "read", address: 0x1ffc, value: 0x55 },
+      { kind: "read", address: 0x1ffd, value: 0x44 },
+    ] },
+    { after: { ...initial, b: 0x66, c: 0x77, bc: 0x6677, h: 0x22, l: 0x33, hl: 0x2233, pc: 0x0206, sp: 0x2000 }, stack: [
+      { kind: "read", address: 0x1ffe, value: 0x33 },
+      { kind: "read", address: 0x1fff, value: 0x22 },
+    ] },
+  ];
+  let before = initial;
+  for (const [index, { after, stack }] of steps.entries()) {
+    const opcode = opcodes[index];
+    ram.accesses.length = 0;
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: before.pc, bytes: [opcode] },
+      before, after,
+      accesses: [{ kind: "read", address: before.pc, value: opcode }, ...stack],
+      outcome: "executed",
+    });
+    assert.deepEqual(ram.accesses, record.accesses);
+    assert.deepEqual(cpu.snapshot(), after);
+    before = after;
+  }
+  for (const [offset, value] of [0x77, 0x66, 0x55, 0x44, 0x33, 0x22].entries()) {
+    assert.equal(ram.read(0x1ffa + offset), value);
+  }
+});
+
+test("8080 stack records preserve captured reads and writes across RAM edits, reset, and caller edits", () => {
+  const ram = new ObservedRam();
+  ram.write(0, 0xc5); // PUSH B
+  ram.write(1, 0xe1); // POP H
+  const cpu = new Cpu8080(ram, initialState({ pc: 0, sp: 0x2000 }));
+  const pushed = cpu.step();
+  const savedPush = structuredClone(pushed);
+  ram.write(0x1ffe, 0xcd);
+  ram.write(0x1fff, 0xab);
+  ram.accesses.length = 0;
+  const popped = cpu.step();
+  const savedPop = structuredClone(popped);
+  assert.equal(popped.after.hl, 0xabcd);
+  assert.deepEqual(popped.instruction, { address: 1, bytes: [0xe1] });
+  assert.deepEqual(popped.accesses, [
+    { kind: "read", address: 1, value: 0xe1 },
+    { kind: "read", address: 0x1ffe, value: 0xcd },
+    { kind: "read", address: 0x1fff, value: 0xab },
+  ]);
+  assert.deepEqual(ram.accesses, popped.accesses);
+  assert.deepEqual(pushed, savedPush);
+  const live = cpu.snapshot();
+  assert.ok(pushed.accesses[1]);
+  assert.ok(popped.accesses[1]);
+  Reflect.set(pushed.accesses[1], "value", 0);
+  Reflect.set(pushed.after, "sp", 0);
+  Reflect.set(popped.accesses[1], "value", 0);
+  Reflect.set(popped.after, "h", 0);
+  assert.deepEqual(cpu.snapshot(), live);
+  assert.equal(ram.read(0x1ffe), 0xcd);
+  assert.equal(ram.read(0x1fff), 0xab);
+  const editedPush = structuredClone(pushed);
+  const editedPop = structuredClone(popped);
+  ram.accesses.length = 0;
+  assert.deepEqual(cpu.reset(), {
+    before: savedPop.after,
+    after: { ...savedPop.after, pc: 0, interruptEnabled: false, halted: false },
+    accesses: [],
+  });
+  assert.deepEqual(ram.accesses, []);
+  cpu.step();
+  assert.deepEqual(pushed, editedPush);
+  assert.deepEqual(popped, editedPop);
 });
 
 test("8080 MVI A,n preserves unrelated state and records exactly the two actual reads", () => {
@@ -657,7 +928,10 @@ test("every other 8080 opcode reports unsupported repeatedly with one read and u
   const cpu = new Cpu8080(ram, before);
   for (let opcode = 0; opcode <= 0xff; opcode++) {
     // Explicit supported encodings, independent of the CPU's dispatch table.
-    if ([0x01, 0x03, 0x11, 0x13, 0x21, 0x23, 0x31, 0x32, 0x33, 0x3e, 0x76, 0xc6].includes(opcode)) continue;
+    if ([
+      0x01, 0x03, 0x11, 0x13, 0x21, 0x23, 0x31, 0x32, 0x33,
+      0x3e, 0x76, 0xc1, 0xc5, 0xc6, 0xd1, 0xd5, 0xe1, 0xe5,
+    ].includes(opcode)) continue;
     ram.write(0xffff, opcode);
     for (let attempt = 0; attempt < 2; attempt++) {
       ram.accesses.length = 0;

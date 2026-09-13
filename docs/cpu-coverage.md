@@ -14,7 +14,7 @@ do not count toward implementation here.
 
 | Model | Complete / documented opcode forms | Opcode completion | Additional partial forms | Completed examples |
 | --- | --- | --- | --- | --- |
-| [Intel 8080](#8080) | 12 / 244 | 4.9% | 0 | [Arithmetic](8080-example.md), [register pairs](8080-register-pairs-example.md) |
+| [Intel 8080](#8080) | 18 / 244 | 7.4% | 0 | [Arithmetic](8080-example.md), [register pairs](8080-register-pairs-example.md), [stack](8080-stack-example.md) |
 | [NMOS MOS 6502](#6502) | 3 / 151 | 2.0% | 1: binary-only ADC | [Arithmetic](6502-example.md) |
 | [Motorola MC6809 / MC6809E](#6809) | 3 / 268 | 1.1% | 0 | [Arithmetic](6809-example.md) |
 
@@ -66,9 +66,9 @@ postbyte choices work.
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
 All three currently omit cycle counts, dummy bus accesses, electrical signals,
-interrupt delivery, stack instructions, branches and calls, mapped devices,
-disassembly, and an execution UI. Interrupt flags and stack pointers can be
-stored and inspected before the corresponding execution features exist.
+interrupt delivery, branches and calls, mapped devices, disassembly, and an
+execution UI. Interrupt flags can be stored and inspected before interrupt
+delivery is implemented.
 
 The following tables exhaustively list complete and partial opcode forms.
 Unlisted forms remain unsupported. Opcodes and addresses are hexadecimal;
@@ -83,6 +83,9 @@ instruction lengths are in bytes.
 [Register-pair specification](8080-register-pairs-example.md) ·
 [Register-pair setup](../src/machines/8080-register-pairs-example.ts)
 
+[Stack specification](8080-stack-example.md) ·
+[Stack setup](../src/machines/8080-stack-example.ts)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `01` | `LXI B,nn` | Immediate | 3 | Load B:C; low byte then high; preserve flags |
@@ -96,26 +99,36 @@ instruction lengths are in bytes.
 | `33` | `INX SP` | Register pair | 1 | Increment SP with 16-bit wrapping; preserve flags |
 | `3E` | `MVI A,n` | Immediate | 2 | Accumulator destination only |
 | `76` | `HLT` | Implied | 1 | Advance PC and enter halted state |
+| `C1` | `POP B` | Stack | 1 | Read low then high into B:C; increment SP by 2; preserve flags |
+| `C5` | `PUSH B` | Stack | 1 | Write B:C high then low; decrement SP by 2; preserve flags |
 | `C6` | `ADI n` | Immediate | 2 | Add without incoming carry; update S/Z/AC/P/CY |
+| `D1` | `POP D` | Stack | 1 | Read low then high into D:E; increment SP by 2; preserve flags |
+| `D5` | `PUSH D` | Stack | 1 | Write D:E high then low; decrement SP by 2; preserve flags |
+| `E1` | `POP H` | Stack | 1 | Read low then high into H:L; increment SP by 2; preserve flags |
+| `E5` | `PUSH H` | Stack | 1 | Write H:L high then low; decrement SP by 2; preserve flags |
 
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A, B, C, D, E, H, L, PC, SP |
 | Stored flags/control | S, Z, AC, P, CY; interrupt-enable and halted latches |
-| Register relationships | Snapshots derive BC, DE, and HL from stored bytes; LXI and INX update those bytes or the separately stored SP |
+| Register relationships | Snapshots derive BC, DE, and HL from stored bytes; LXI, INX, and POP update the pairs |
+| Stack | PUSH/POP for BC, DE, and HL using a descending RAM stack and wrapping 16-bit SP; PSW forms are unsupported |
 | Reset | Set PC to `0000`, clear interrupt-enable and halted; preserve data registers, SP, flags, and RAM; no memory accesses |
 | Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
-| Remaining instruction scope | Other loads/moves, register and memory arithmetic, logical operations, other pair operations, stack operations, control flow, flag-control instructions, and port I/O |
+| Remaining instruction scope | Other loads/moves, register and memory arithmetic, logical operations, other pair operations, PSW stack forms, control flow, flag-control instructions, and port I/O |
 
 Verification: [CPU tests](../tests/components/cpus/8080.test.ts),
 [arithmetic example tests](../tests/machines/8080-example.test.ts),
-[register-pair example tests](../tests/machines/8080-register-pairs-example.test.ts), and
+[register-pair example tests](../tests/machines/8080-register-pairs-example.test.ts),
+[stack example tests](../tests/machines/8080-stack-example.test.ts), and
 [public type checks](../tests/types/8080.ts). ADI checks cover every byte operand
 pair with incoming flags clear and set. Other checks cover exact accesses,
 wrapping, self-overwriting stores, halt/reset behavior, rejection of every
 unimplemented opcode, input validation, and detached records.
 LXI/INX checks cover all pair and SP forms, derived views, byte carry and
 16-bit wrapping, flag preservation, operand order, and successive operations.
+PUSH/POP checks cover all three pairs, stack-access order, SP and PC wrapping,
+nested operations, program overlap, current RAM reads, and retained stack data.
 
 ## 6502
 
