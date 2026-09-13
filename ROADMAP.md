@@ -69,7 +69,9 @@ Acceptance checks are defined in the [8080 example specification](docs/cpus/8080
   implementation details should be shared.
 - Extend the initial 8008 slice, exercising its native encodings, 14-bit
   addresses, and internal address stack.
-- Introduce small initial slices for the 6800, 8088, and 68000 alongside
+- Extend the initial 6800 slice with further addressing, control-flow, and
+  stack operations while checking its distinctions from the 6809.
+- Introduce small initial slices for the 8088 and 68000 alongside
   expansion of the existing cores. Let their distinctions test the shared
   execution and inspection conventions.
 
@@ -106,7 +108,7 @@ while introducing the remaining CPUs in small slices; their introduction order
 remains open. Revisit interrupts and I/O once all eight meet the checkpoint.
 
 The introductory [8080](docs/cpus/8080/examples/arithmetic.md), [6502](docs/cpus/6502/examples/arithmetic.md),
-[6809](docs/cpus/6809/examples/arithmetic.md), [Z80](docs/cpus/z80/examples/arithmetic.md), and [8008](docs/cpus/8008/examples/arithmetic.md)
+[6809](docs/cpus/6809/examples/arithmetic.md), [Z80](docs/cpus/z80/examples/arithmetic.md), [8008](docs/cpus/8008/examples/arithmetic.md), and [6800](docs/cpus/6800/examples/arithmetic.md)
 examples are complete. Their specifications
 define behavior and acceptance checks; the [coverage tracker](docs/cpus/coverage.md)
 records current support. Focused examples are extending this comparison;

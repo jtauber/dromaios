@@ -124,6 +124,21 @@ test("the native TypeScript build entry point works outside the repo and prints 
   assert.equal(readFileSync(join(directory, "src/machines/generated/6502/lesson.ts"), "utf8"), generated);
 });
 
+test("6800 generation uses Cpu6800, preserves its state and high-byte-first vector, and exports a completion address", () => {
+  const source = readFileSync("src/machines/6800/example.machine", "utf8");
+  const generated = compileMachine(source, "6800/example.machine");
+  assert.ok(generated.includes('import { Cpu6800 } from "../../../components/cpus/6800.js";'));
+  assert.ok(generated.includes("create: create6800Example, createMemory: create6800ExampleMemory"));
+  assert.ok(generated.includes("defineRamExample(Cpu6800,"));
+  assert.ok(generated.includes('"sp": 32767'));
+  assert.ok(generated.includes('"h": true'));
+  assert.ok(generated.includes('"i": false'));
+  assert.ok(generated.includes('"address": 65534'));
+  assert.ok(generated.includes('"endAddress": 519'));
+  assert.equal(generated.includes('"dp"'), false);
+  assert.equal(generated.includes('"halted"'), false);
+});
+
 test("8008 generation preserves the 16 KiB size and eight address registers for Cpu8008", () => {
   const source = readFileSync("src/machines/8008/example.machine", "utf8");
   const generated = compileMachine(source, "8008/example.machine");

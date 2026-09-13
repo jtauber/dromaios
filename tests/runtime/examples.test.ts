@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Cpu8080 } from "../../src/components/cpus/8080.js";
 import type { Cpu6502 } from "../../src/components/cpus/6502.js";
+import type { Cpu6800 } from "../../src/components/cpus/6800.js";
+import { create6800Example } from "../../src/machines/generated/6800/example.js";
 import type { Cpu6809 } from "../../src/components/cpus/6809.js";
 import type { CpuZ80 } from "../../src/components/cpus/z80.js";
 import { createZ80Example } from "../../src/machines/generated/z80/example.js";
@@ -30,7 +32,7 @@ import { create6809AddressingExample } from "../../src/machines/generated/6809/a
 
 interface ExampleCase {
   readonly name: string;
-  readonly create: () => { cpu: Cpu8008 | Cpu8080 | Cpu6502 | Cpu6809 | CpuZ80; ram: Ram; endAddress?: number };
+  readonly create: () => { cpu: Cpu8008 | Cpu8080 | Cpu6502 | Cpu6800 | Cpu6809 | CpuZ80; ram: Ram; endAddress?: number };
   readonly steps: number;
   readonly pc: number;
   readonly stopReason: "completed" | "halted";
@@ -41,6 +43,7 @@ interface ExampleCase {
 const examples: readonly ExampleCase[] = [
   { name: "8008 arithmetic", create: create8008Example, steps: 6, pc: 10, stopReason: "halted", writes: [[0x80, 5]] },
   { name: "8008 stack", create: create8008StackExample, steps: 11, pc: 0x020b, stopReason: "halted", writes: [[0x80, 0x0a]] },
+  { name: "6800 arithmetic", create: create6800Example, steps: 3, pc: 0x0207, stopReason: "completed", writes: [[0x80, 5]] },
   {
     name: "8080 rotates", create: create8080RotatesExample, steps: 21, pc: 0x021d, stopReason: "halted",
     writes: [[0x80, 0], [0x81, 3], [0x82, 0x80], [0x83, 0x81], [0x84, 0x7f]],

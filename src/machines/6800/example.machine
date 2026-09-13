@@ -1,0 +1,18 @@
+ram 10000
+
+cpu 6800 {
+    A = 11  B = 22  X = 3456  SP = 7FFF  PC = 0200
+    flags { H = 1  I = 0  N = 1  Z = 1  V = 1  C = 1 }
+}
+
+memory 0200 {
+    86 02       // LDAA #2
+    8B 03       // ADDA #3
+    B7 00 80    // STAA $0080
+}
+
+memory FFFE {
+    02 00       // Reset vector: 0200, high byte first
+}
+
+end 0207

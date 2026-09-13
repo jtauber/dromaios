@@ -44,6 +44,7 @@ Choose the grouping from the CPU's encoding:
 | [8008](../../src/components/cpus/8008.ts) | Native `xx yyy zzz` groups; A is register selector `000`, M is `111`; preserve documented HLT exceptions |
 | [8080](../../src/components/cpus/8080.ts) | `xx yyy zzz`; leading `xx` blocks, then `zzz` subgroups where it selects the family; split `yyy` into `pp q` for pair operations |
 | [6502](../../src/components/cpus/6502.ts) | `aaa bbb cc`; `cc` groups, then the relevant `bbb` subgroups; explain the distinct meanings of implied and addressing forms |
+| [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation |
 | [6809](../../src/components/cpus/6809.ts) | Opcode page and family-specific fields; the current A-register forms use `10 mm oooo`, while stack instructions use `001101 s p` and a separate register-mask postbyte |
 | [Z80](../../src/components/cpus/z80.ts) | Unprefixed `xx yyy zzz` groups; preserve distinct prefix pages as support grows |
 

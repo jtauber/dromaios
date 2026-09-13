@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 | --- | --- | --- | --- | --- |
 | [Intel 8008](#8008) | 1972 | 32 / 250 | 12.8% | 0 |
 | [Intel 8080](#8080) | 1974 | 240 / 244 | 98.4% | 0 |
-| [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 |
+| [Motorola 6800](#6800) | 1974 | 3 / 197 | 1.5% | 0 |
 | [MOS 6502](#6502) | 1975 | 25 / 151 | 16.6% | 1: binary-only ADC |
 | [Zilog Z80](#z80) | 1976 | 30 / 698 | 4.3% | 0 |
 | [Motorola 6809](#6809) | 1978 | 30 / 268 | 11.2% | 0 |
@@ -27,8 +27,8 @@ emulators do not count toward implementation here.
 Completed examples are linked in each CPU section below and grouped by topic
 in the [example catalog](../README.md#cpu-examples).
 
-All five implemented CPU models remain incomplete. The 6800, 8088, and
-68000 are not started; their documented-form totals will be established when
+All six implemented CPU models remain incomplete. The 8088 and 68000
+are not started; their documented-form totals will be established when
 implementation begins.
 
 The next milestone is the [CPU-only checkpoint across all eight targets](../../ROADMAP.md#cpu-only-checkpoint).
@@ -60,6 +60,7 @@ encodings and instructions belonging to other CPU variants are excluded.
 | --- | --- | --- |
 | Intel 8008 | 250 | [Intel 8008 User's Manual, Basic Instruction Set and Appendix I](https://www.bitsavers.org/components/intel/MCS8/Intel_8008_8-Bit_Parallel_Central_Processing_Unit_Rev1_Apr72.pdf): expand documented selectors and opcode don't-care bits; 58 forms in `00`, and 64 each in `01`, `10`, and `11` |
 | Intel 8080 | 244 | [Intel 8080 Assembly Language Programming Manual, Appendix B](https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf): expand the opcode bit patterns, excluding the 12 undocumented byte encodings |
+| Motorola 6800 | 197 | [Motorola MC6800 data sheet, tables 3–6](https://vtda.org/docs/computing/Motorola/M6800SystemsReferenceDataSheets_May75.pdf): 140 accumulator/memory + 24 index/stack + 25 jump/branch + 8 condition-code forms |
 | MOS 6502 | 151 | [Synertek 6500 Programming Manual, Appendix B](https://syncopate.us/books/Synertek6502ProgrammingManual.html#ap-b): count the documented instruction/addressing forms |
 | Motorola 6809 | 268 | [Motorola MC6809–MC6809E Programming Manual, Appendix D](https://www.maddes.net/m6809pm/appendix_d.htm): 221 unprefixed forms + 38 on page 2 + 9 on page 3, counting mnemonic aliases once |
 | Zilog Z80 | 698 | [Zilog Z80 CPU User Manual, UM008011-0816](https://www.zilog.com/docs/z80/um0080.pdf): 252 unprefixed + 248 CB + 58 ED + 39 DD + 39 FD + 31 DD CB + 31 FD CB forms |
@@ -71,6 +72,11 @@ Counting all these documented encodings follows the same rule as the other
 CPUs; different mnemonic names for one encoding still count once. Immediate
 values and address bytes, including their ignored high bits, do not add forms.
 The full count includes 32 I/O forms even while I/O is deferred.
+
+For the 6800, count each instruction/addressing encoding in tables 3–6 on
+printed pages 18–21, expanding A/B choices. The total includes interrupt
+instructions even while they are deferred. Undocumented encodings and
+later-family additions are excluded; operand and address bytes do not add forms.
 
 For the 6809, a prefix and following opcode byte identify one form; prefixes
 alone do not count. Indexed and register-selection postbytes do not create
@@ -99,7 +105,7 @@ so both count, giving 698 rather than the 696 obtained by excluding that pair.
 | Unsupported attempts | `reason: "opcode"`, one opcode read, unchanged CPU state and RAM; additional 6502 mode restriction below |
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
-All five currently omit cycle counts, dummy bus accesses, electrical signals,
+All six currently omit cycle counts, dummy bus accesses, electrical signals,
 interrupt delivery, mapped devices, disassembly, and an
 execution UI. Existing interrupt flags can be stored and inspected before interrupt
 delivery is implemented; the 8008 has no interrupt-enable flag.
@@ -434,6 +440,39 @@ and incoming carries. Successive adjustments retain independent records; the
 decimal example checks carry propagation between bytes, complete records,
 final RAM, resumption before adjustment, reset, and restart.
 
+## 6800
+
+[Source](../../src/components/cpus/6800.ts) ·
+[Model contract](6800/model.md) ·
+[Arithmetic example](6800/examples/arithmetic.md) ·
+[Example definition](../../src/machines/6800/example.machine)
+
+| Opcode | Instruction | Addressing form | Length | Scope |
+| --- | --- | --- | --- | --- |
+| `86` | LDAA #n | Immediate | 2 | Load A; set N/Z, clear V, preserve H/I/C |
+| `8B` | ADDA #n | Immediate | 2 | Add to A without incoming carry; set H/N/Z/V/C, preserve I |
+| `B7` | STAA addr | Extended | 3 | Store A; set N/Z, clear V, preserve H/I/C |
+
+| Area | Implemented scope |
+| --- | --- |
+| Stored state | Byte A/B, word X/SP/PC, and H/I/N/Z/V/C flags |
+| Inspection | Detached registers and flags; no derived register pairs |
+| Memory | Exactly 64 KiB RAM; 16-bit PC wrapping; extended addresses fetched high byte first |
+| Reset | Read FFFE then FFFF into PC, set I; preserve other registers, flags, and RAM under the model policy |
+| Stopping | Caller completion address or step budget; unsupported instructions preserve state; no halt/wait latch |
+| Remaining scope | Other loads/stores, arithmetic/logic, addressing forms, branches, stack operations, interrupts, mapped devices, and timing |
+
+Verification: [CPU tests](../../tests/components/cpus/6800.test.ts),
+[example tests](../../tests/machines/6800/example.test.ts), and
+[public type checks](../../tests/types/6800.ts). Checks cover every addition
+operand pair, every load/store byte and incoming flag pattern, arithmetic
+boundaries, every destination, PC, and reset-vector value. Complete records
+and observed RAM calls verify wrapping, byte order, self-modifying code,
+unchanged-value stores, unsupported attempts, reset, and detached snapshots.
+The example checks whole RAM images, three complete records, bounded running,
+caller completion, reset, and fresh restart. Parser and generator checks
+preserve the 6800's own state schema and generated factory types.
+
 ## 6502
 
 [Source](../../src/components/cpus/6502.ts) ·
@@ -722,7 +761,6 @@ its counting rules when implementation starts.
 | MOS 6507 | 0% | Not started |
 | MOS 6510 | 0% | Not started |
 | Ricoh 2A03 | 0% | Not started |
-| Motorola 6800 | 0% | Not started |
 | Sharp SM83 | 0% | Not started |
 | Motorola 68000 | 0% | Not started |
 | Intel 8088 / 8086 | 0% | Not started |

@@ -34,6 +34,9 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
 - The **8008 is the fifth CPU**. Its native encoding, 14-bit addresses,
   and internal address registers extend the comparison; see its
   [model contract](8008/model.md).
+- The **6800 is the sixth CPU**, with its own state, flags, reset contract,
+  and [arithmetic example](6800/examples/arithmetic.md). Further families will
+  test sharing with the related 6809.
 - Choose implementation order independently of the microcomputer tutorial's
   historical teaching order.
 

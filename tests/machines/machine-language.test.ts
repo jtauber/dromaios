@@ -25,12 +25,50 @@ cpu 6502 {
   A=00 X=00 Y=00 PC=0000 SP=00
   flags { N=0 V=0 D=0 I=0 Z=0 C=0 }
 }`,
+  "6800": `ram 10000
+cpu 6800 {
+  A=00 B=00 X=3456 SP=9ABC PC=0000
+  flags { H=1 I=0 N=1 Z=0 V=1 C=0 }
+}`,
   "6809": `ram 10000
 cpu 6809 {
   A=00 B=00 DP=00 X=0000 Y=0000 S=0000 U=0000 PC=0000
   flags { E=0 F=0 H=0 I=0 N=0 Z=0 V=0 C=0 }
 }`,
 };
+
+test("6800 parsing preserves its word-sized X/SP and six condition flags in any declaration order", () => {
+  const state = { a: 0, b: 0, x: 0x3456, sp: 0x9abc, pc: 0,
+    flags: { h: true, i: false, n: true, z: false, v: true, c: false } };
+  const suffix = "memory FFFE { 12 AB } end FFFF";
+  for (const text of [`${sources["6800"]} ${suffix}`, `${suffix} ${sources["6800"]}`]) {
+    assert.deepEqual(parseMachine(text), { cpu: "6800", ramSize: 0x10000, initialState: state,
+      memory: [{ address: 0xfffe, bytes: [0x12, 0xab] }], endAddress: 0xffff });
+  }
+  const first = parseMachine(sources["6800"]);
+  assert.equal(first.cpu, "6800");
+  first.initialState.flags.h = false;
+  first.initialState.sp = 0;
+  assert.deepEqual(parseMachine(sources["6800"]).initialState, state);
+});
+
+test("6800 parsing validates every flag, rejects foreign registers and latches, and requires complete 64 KiB state", () => {
+  const source = sources["6800"];
+  for (const name of ["H", "I", "N", "Z", "V", "C"]) {
+    for (const value of ["2", "true", "false"]) {
+      assert.throws(() => parseMachine(set(source, name, value)), SyntaxError);
+    }
+    const missing = source.replace(new RegExp(`\\b${name}=\\w+`), "");
+    assert.throws(() => parseMachine(missing), new RegExp(`Missing fields in 6800.flags: ${name}`));
+  }
+  for (const field of ["D=0000", "DP=00", "Y=0000", "S=0000", "U=0000", "halted=false"]) {
+    assert.throws(() => parseMachine(source.replace("A=00", `A=00 ${field}`)), /Unknown field/);
+  }
+  assert.throws(() => parseMachine(source.replace("SP=9ABC", "")), /Missing fields in 6800: SP/);
+  assert.throws(() => parseMachine(source.replace("SP=9ABC", "SP=9ABC sp=0")), /Duplicate field SP/);
+  assert.throws(() => parseMachine(source.replace("H=1", "H=1 h=0")), /Duplicate field H/);
+  assert.throws(() => parseMachine(source.replace("ram 10000", "ram 4000")), /RAM size for 6800 must be 10000/);
+});
 
 function set(source: string, name: string, value: string): string {
   return source.replace(new RegExp(`\\b${name}=\\w+`), `${name}=${value}`);
@@ -160,10 +198,11 @@ test("each CPU's stored registers use their actual byte or word width", () => {
   const widths = {
     "8080": { byte: ["A", "B", "C", "D", "E", "H", "L"], word: ["PC", "SP"] },
     "6502": { byte: ["A", "X", "Y", "SP"], word: ["PC"] },
+    "6800": { byte: ["A", "B"], word: ["X", "SP", "PC"] },
     "z80": { byte: ["A", "B", "C", "D", "E", "H", "L", "I", "R"], word: ["IX", "IY", "PC", "SP"] },
     "6809": { byte: ["A", "B", "DP"], word: ["X", "Y", "S", "U", "PC"] },
   };
-  for (const model of ["8080", "6502", "6809", "z80"] as const) {
+  for (const model of ["8080", "6502", "6800", "6809", "z80"] as const) {
     for (const width of ["byte", "word"] as const) {
       for (const register of widths[model][width]) {
         const maximum = width === "byte" ? "FF" : "FFFF";
@@ -233,7 +272,7 @@ test("malformed values and syntax are rejected as whole tokens", () => {
     [`${sources["8080"]} ram 10000`, /Duplicate ram/],
     [`${sources["8080"]} cpu 8080 {}`, /Duplicate cpu/],
     [`${sources["8080"]} end 0 end 1`, /Duplicate end/],
-    ["cpu 6800 {}", /Expected CPU model/],
+    ["cpu 68000 {}", /Expected CPU model/],
     ["cpu Z80 {}", /Expected CPU model/],
     ["cpu 0x8080 {}", /Expected CPU model/],
     ["RAM 10000", /Unknown declaration "RAM"/],

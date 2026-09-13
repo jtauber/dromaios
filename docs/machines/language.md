@@ -45,7 +45,7 @@ end 0208
 - `ram` gives the byte count: `4000` (16 KiB) for the 8008, or `10000`
   (64 KiB) for the other current CPUs. The declared size must match the model.
   RAM starts at address zero and is filled with zero before loading images.
-- `cpu` selects the model by name: `8008`, `8080`, `6502`, `6809`, or `z80`. Its block contains
+- `cpu` selects the model by name: `8008`, `8080`, `6502`, `6800`, `6809`, or `z80`. Its block contains
   the initial state. Stored registers and control latches use `name = value`;
   `flags { ... }` groups assignments to the flags. The Z80's `alternate { ... }`
   block contains another register bank and its own `flags` block. CPU model
@@ -114,6 +114,7 @@ All fields listed for the selected CPU are required, including every flag.
 | 8008 | A, B, C, D, E, H, L | Eight 14-bit address-stack entries | S, Z, P, C | halted |
 | 8080 | A, B, C, D, E, H, L | PC, SP | S, Z, AC, P, CY | interruptEnabled, halted |
 | 6502 | A, X, Y, SP | PC | N, V, D, I, Z, C | — |
+| 6800 | A, B | X, SP, PC | H, I, N, Z, V, C | — |
 | 6809 | A, B, DP | X, Y, S, U, PC | E, F, H, I, N, Z, V, C | — |
 | z80 | A, B, C, D, E, H, L in both banks; I, R | IX, IY, PC, SP | S, Z, H, PV, N, C in both banks | iff1, iff2, halted |
 
@@ -175,7 +176,7 @@ This version describes explicit state and byte images for one CPU with flat
 RAM of the size required by its model. More complex device wiring can still use TypeScript. The language
 does not define instruction behavior or assemble the comments beside the bytes.
 
-Repeated addresses remain a future design question. In the 6502 and 6809
+Repeated addresses remain a future design question. In the 6502, 6800, and 6809
 examples, the starting address appears in PC, the program origin, and the
 reset-vector bytes. The end address must also track the program length. Named
 images with start/end references could reduce that maintenance, but would

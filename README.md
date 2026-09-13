@@ -54,7 +54,7 @@ agents follow this rule in [AGENTS.md](AGENTS.md).
 ## Status
 
 The platform has instruction-level CPU subsets and small RAM-based examples
-for the 8008, 8080, 6502, 6809, and Z80, tested independently of the browser. The
+for the 8008, 8080, 6502, 6800, 6809, and Z80, tested independently of the browser. The
 [example catalog](docs/README.md#cpu-examples) links to their specifications.
 [CPU implementation coverage](docs/cpus/coverage.md) tracks supported
 instructions, features, and remaining gaps; the [roadmap](ROADMAP.md) describes

@@ -1,6 +1,7 @@
 import type { Cpu8008State } from "../../src/components/cpus/8008.js";
 import type { Cpu8080State } from "../../src/components/cpus/8080.js";
 import type { Cpu6502State } from "../../src/components/cpus/6502.js";
+import type { Cpu6800State } from "../../src/components/cpus/6800.js";
 import type { Cpu6809State } from "../../src/components/cpus/6809.js";
 import type { CpuZ80State } from "../../src/components/cpus/z80.js";
 import { parseMachine } from "../../src/machines/machine-language.js";
@@ -44,6 +45,16 @@ export function checkParsedState(source: string): void {
       const state: Cpu6809State = machine.initialState;
       // @ts-expect-error Derived registers are absent from stored initial state.
       machine.initialState.d;
+      break;
+    }
+    case "6800": {
+      const state: Cpu6800State = machine.initialState;
+      const size: 0x10000 = machine.ramSize;
+      const sp: number = state.sp;
+      // @ts-expect-error The 6800 has no 6809 direct-page register.
+      state.dp;
+      // @ts-expect-error The 6800 has no 6809 F interrupt mask.
+      state.flags.f;
       break;
     }
   }

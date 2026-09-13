@@ -1,6 +1,7 @@
 import type { Cpu8008AddressStack, Cpu8008State } from "../components/cpus/8008.js";
 import type { Cpu8080State } from "../components/cpus/8080.js";
 import type { Cpu6502State } from "../components/cpus/6502.js";
+import type { Cpu6800State } from "../components/cpus/6800.js";
 import type { Cpu6809State } from "../components/cpus/6809.js";
 import type { CpuZ80State } from "../components/cpus/z80.js";
 
@@ -8,6 +9,7 @@ interface CpuStates {
   "8008": Cpu8008State;
   "8080": Cpu8080State;
   "6502": Cpu6502State;
+  "6800": Cpu6800State;
   "6809": Cpu6809State;
   "z80": CpuZ80State;
 }
@@ -65,6 +67,10 @@ const schemas = {
   "6502": {
     a: "byte", x: "byte", y: "byte", sp: "byte", pc: "word",
     flags: { n: "flag", v: "flag", d: "flag", i: "flag", z: "flag", c: "flag" },
+  },
+  "6800": {
+    a: "byte", b: "byte", x: "word", sp: "word", pc: "word",
+    flags: { h: "flag", i: "flag", n: "flag", z: "flag", v: "flag", c: "flag" },
   },
   "6809": {
     a: "byte", b: "byte", dp: "byte", x: "word", y: "word", s: "word", u: "word", pc: "word",
@@ -182,9 +188,10 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
       case "8008": return { cpu: model.text, initialState: readState(schemas["8008"], model.text) };
       case "8080": return { cpu: model.text, initialState: readState(schemas["8080"], model.text) };
       case "6502": return { cpu: model.text, initialState: readState(schemas["6502"], model.text) };
+      case "6800": return { cpu: model.text, initialState: readState(schemas["6800"], model.text) };
       case "6809": return { cpu: model.text, initialState: readState(schemas["6809"], model.text) };
       case "z80": return { cpu: model.text, initialState: readState(schemas.z80, model.text) };
-      default: return fail(model, `Expected CPU model 8008, 8080, 6502, 6809, or z80, found ${describe(model)}`);
+      default: return fail(model, `Expected CPU model 8008, 8080, 6502, 6800, 6809, or z80, found ${describe(model)}`);
     }
   }
 
