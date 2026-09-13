@@ -352,6 +352,8 @@ its counting rules when implementation starts.
 | MOS 6510 | 0% | Not started |
 | Ricoh 2A03 | 0% | Not started |
 | Zilog Z80 | 0% | Not started |
+| Motorola 6800 | 0% | Not started |
+| Intel 8008 | 0% | Not started |
 | Sharp SM83 | 0% | Not started |
 | Motorola 68000 | 0% | Not started |
 | Intel 8088 / 8086 | 0% | Not started |
@@ -359,7 +361,6 @@ its counting rules when implementation starts.
 | Intel 80386 | 0% | Not started |
 | ARM2 | 0% | Not started |
 | ARM7TDMI | 0% | Not started |
-| Intel 8008 | 0% | Not started; optional target |
 
 ## Keeping this tracker current
 

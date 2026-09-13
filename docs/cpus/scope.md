@@ -25,6 +25,8 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
   priorities; browser work can proceed alongside CPU development.
 - Choose implementation order independently of the microcomputer tutorial's
   historical teaching order.
+- Include the **Motorola 6800** and **Intel 8008** as confirmed eventual targets.
+  Their machine targets and implementation order after the Z80 remain open.
 
 ## Intended eventual scope
 
@@ -38,6 +40,8 @@ after the Z80 will be defined as each case is introduced.
 | MOS 6502 family | 6502, 6507, 6510, Ricoh 2A03 | Apple II, Atari 2600, C64, NES |
 | Motorola 6809 | 6809 / 6809E | TRS-80 Color Computer |
 | Zilog Z80 | Z80 | ZX Spectrum |
+| Motorola 6800 | 6800 | To be selected |
+| Intel 8008 | 8008 | To be selected |
 | Sharp SM83 | SM83 | Game Boy and Game Boy Color |
 | Motorola 68000 | 68000 | Macintosh 128K, Amiga |
 | Intel x86 | 8088 / 8086, 80286, 80386 | PC/XT, PC AT, later DOS machines |
@@ -51,8 +55,6 @@ These names identify support targets. Grouping related processors does not
 predetermine how much implementation they share. Variants must preserve the
 hardware differences that matter to their machines.
 
-The **8008 remains an optional additional target**. It offers an interesting
-small architecture, but none of the machine targets above depends on it.
 **Modern ARM / Apple M1 remains a conceptual visualization topic**; full modern
 system emulation would require a separate scope decision. This follows the
 tutorial's distinction between emulators and later architectural explorers.

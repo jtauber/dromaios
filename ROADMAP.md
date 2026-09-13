@@ -120,7 +120,8 @@ users can inspect the relevant internal activity.
 
 ## 6. Broaden the platform
 
-- Add further CPU models and variants from the intended scope, testing shared
+- Add further CPU models and variants from the [intended scope](docs/cpus/scope.md#intended-eventual-scope),
+  including the confirmed **Motorola 6800** and **Intel 8008** targets. Test shared
   execution and inspection conventions against each new case. The order after
   the Z80 remains open.
 - Add machines in an order we choose as the component library develops.
