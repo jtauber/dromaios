@@ -1314,6 +1314,150 @@ for (const { name, opcodes, reference } of [
   });
 }
 
+// Adjust base-16 digits sequentially, retaining carry into the high digit.
+// This is independent of the CPU's whole-byte thresholds and combined correction.
+function referenceDecimalAdjust(a: number, ac: boolean, cy: boolean): { result: number; flags: Cpu8080Flags } {
+  const low = a % 16;
+  const correctedLow = low + (low >= 10 || ac ? 6 : 0);
+  let high = Math.floor(a / 16) + Math.floor(correctedLow / 16);
+  if (high >= 10 || cy) high += 6;
+  const result = (high % 16) * 16 + correctedLow % 16;
+  return { result, flags: {
+    s: result >= 128, z: result === 0, ac: correctedLow >= 16,
+    p: result.toString(2).replaceAll("0", "").length % 2 === 0, cy: cy || high >= 16,
+  } };
+}
+
+test("8080 DAA adjusts every accumulator and flag combination, preserves unrelated state, and wraps PC", () => {
+  const ram = new ObservedRam();
+  for (const pc of [0x1234, 0xffff]) {
+    ram.write(pc, 0x27);
+    for (let a = 0; a <= 0xff; a++) {
+      for (const [bits, flags] of flagCombinations.entries()) {
+        const expected = referenceDecimalAdjust(a, flags.ac, flags.cy);
+        for (const interruptEnabled of [false, true]) {
+          const before = expectedSnapshot({ a, pc, flags, interruptEnabled });
+          const cpu = new Cpu8080(ram, before);
+          ram.accesses.length = 0;
+          const record = cpu.step();
+          assert.deepEqual(record, {
+            instruction: { address: pc, bytes: [0x27] }, before,
+            after: { ...before, a: expected.result, flags: expected.flags, pc: (pc + 1) % 0x10000 },
+            accesses: [{ kind: "read", address: pc, value: 0x27 }], outcome: "executed",
+          }, `A=${a}, flags=${bits}, PC=${pc}, IE=${interruptEnabled}`);
+          assert.deepEqual(cpu.snapshot(), record.after);
+          assert.deepEqual(ram.accesses, record.accesses);
+        }
+      }
+    }
+  }
+});
+
+test("8080 DAA handles decimal boundaries, incoming carries, and non-BCD inputs with literal flags", () => {
+  const ram = new Ram(0x10000);
+  ram.write(0, 0x27);
+  for (const { a, ac, cy, result, flags } of [
+    { a: 0x00, ac: false, cy: false, result: 0x00,
+      flags: { s: false, z: true, ac: false, p: true, cy: false } },
+    { a: 0x0a, ac: false, cy: false, result: 0x10,
+      flags: { s: false, z: false, ac: true, p: false, cy: false } },
+    { a: 0x10, ac: true, cy: false, result: 0x16,
+      flags: { s: false, z: false, ac: false, p: false, cy: false } },
+    { a: 0x99, ac: false, cy: false, result: 0x99,
+      flags: { s: true, z: false, ac: false, p: true, cy: false } },
+    { a: 0x9a, ac: false, cy: false, result: 0x00,
+      flags: { s: false, z: true, ac: true, p: true, cy: true } },
+    // Intel's 9BH example corrects to 01H with both carry flags set.
+    { a: 0x9b, ac: false, cy: false, result: 0x01,
+      flags: { s: false, z: false, ac: true, p: false, cy: true } },
+    { a: 0xa0, ac: false, cy: false, result: 0x00,
+      flags: { s: false, z: true, ac: false, p: true, cy: true } },
+    { a: 0xfa, ac: false, cy: false, result: 0x60,
+      flags: { s: false, z: false, ac: true, p: true, cy: true } },
+    { a: 0xff, ac: true, cy: false, result: 0x65,
+      flags: { s: false, z: false, ac: true, p: true, cy: true } },
+    { a: 0x32, ac: true, cy: true, result: 0x98,
+      flags: { s: true, z: false, ac: false, p: false, cy: true } },
+    { a: 0x00, ac: false, cy: true, result: 0x60,
+      flags: { s: false, z: false, ac: false, p: true, cy: true } },
+    { a: 0x95, ac: true, cy: false, result: 0x9b,
+      flags: { s: true, z: false, ac: false, p: false, cy: false } },
+  ]) {
+    const before = expectedSnapshot({ a, pc: 0, flags: { s: !flags.s, z: !flags.z, ac, p: !flags.p, cy } });
+    const cpu = new Cpu8080(ram, before);
+    const record = cpu.step();
+    assert.equal(record.outcome, "executed");
+    assert.deepEqual(record.after, { ...before, a: result, pc: 1, flags });
+  }
+});
+
+function packedDecimal(value: number): number {
+  return Math.floor(value / 10) * 16 + value % 10;
+}
+
+for (const [name, opcode] of [["ADI", 0xc6], ["ACI", 0xce]] as const) {
+  test(`8080 ${name} followed by DAA matches decimal addition for all two-digit operands and incoming carries`, () => {
+    const ram = new Ram(0x10000);
+    ram.write(0xfffe, opcode);
+    ram.write(0, 0x27);
+    for (let left = 0; left < 100; left++) {
+      for (let right = 0; right < 100; right++) {
+        ram.write(0xffff, packedDecimal(right));
+        for (const cy of [false, true]) {
+          const cpu = new Cpu8080(ram, initialState({ a: packedDecimal(left), pc: 0xfffe,
+            flags: { s: true, z: false, ac: true, p: false, cy } }));
+          assert.equal(cpu.step().outcome, "executed");
+          const adjusted = cpu.step();
+          const sum = left + right + (name === "ACI" ? Number(cy) : 0);
+          assert.equal(adjusted.outcome, "executed");
+          assert.deepEqual({ a: adjusted.after.a, cy: adjusted.after.flags.cy }, {
+            a: packedDecimal(sum % 100), cy: sum >= 100,
+          }, `${left} + ${right}, ${name}, CY=${cy}`);
+        }
+      }
+    }
+  });
+}
+
+test("8080 successive DAA instructions use current A and carry flags and retain independent records", () => {
+  const ram = new ObservedRam();
+  for (const address of [0xffff, 0, 1]) ram.write(address, 0x27);
+  let state = expectedSnapshot({ a: 0x9b, pc: 0xffff,
+    flags: { s: true, z: true, ac: false, p: true, cy: false } });
+  const cpu = new Cpu8080(ram, state);
+  const records: Cpu8080StepRecord[] = [];
+  const saved: Cpu8080StepRecord[] = [];
+  for (const [a, pc, flags] of [
+    [0x01, 0, { s: false, z: false, ac: true, p: false, cy: true }],
+    [0x67, 1, { s: false, z: false, ac: false, p: false, cy: true }],
+    [0xc7, 2, { s: true, z: false, ac: false, p: false, cy: true }],
+  ] as const) {
+    const before = state;
+    state = { ...before, a, pc, flags };
+    ram.accesses.length = 0;
+    const record = cpu.step();
+    assert.deepEqual(record, {
+      instruction: { address: before.pc, bytes: [0x27] }, before, after: state,
+      accesses: [{ kind: "read", address: before.pc, value: 0x27 }], outcome: "executed",
+    });
+    assert.deepEqual(ram.accesses, record.accesses);
+    records.push(record);
+    saved.push(structuredClone(record));
+  }
+  assert.deepEqual(cpu.snapshot(), state);
+  assert.deepEqual(records, saved);
+  const first = records[0];
+  assert.ok(first && first.accesses[0]);
+  Reflect.set(first.after.flags, "cy", false);
+  Reflect.set(first.after, "a", 0xff);
+  Reflect.set(first.accesses[0], "value", 0);
+  assert.deepEqual(cpu.snapshot(), state);
+  const edited = structuredClone(records);
+  cpu.reset();
+  ram.write(0xffff, 0);
+  assert.deepEqual(records, edited);
+});
+
 // Move characters in a bit string independently of the CPU's shifts and masks.
 function referenceRotation(a: number, cy: boolean, direction: "left" | "right", throughCarry: boolean): {
   result: number; cy: boolean;
@@ -2421,6 +2565,7 @@ test("every other 8080 opcode reports unsupported repeatedly with one read and u
       0x09, 0x19, 0x29, 0x39, 0x0b, 0x1b, 0x2b, 0x3b,
       0x07, 0x0f, 0x17, 0x1f, 0x2f, 0x37, 0x3f,
       0x00, 0xf1, 0xf5,
+      0x27,
     ].includes(opcode)) continue;
     ram.write(0xffff, opcode);
     for (let attempt = 0; attempt < 2; attempt++) {

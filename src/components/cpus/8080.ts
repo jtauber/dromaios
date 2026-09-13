@@ -144,6 +144,7 @@ export class Cpu8080 {
     0x21: ({ fetchWord }) => { this.#hl = fetchWord(); }, // LXI H,nn
     0x22: ({ fetchWord, writeByte }) => this.#storeHl(fetchWord(), writeByte), // SHLD addr
     0x23: () => { this.#hl = (this.#hl + 1) & 0xffff; }, // INX H
+    0x27: () => this.#decimalAdjust(), // DAA
     0x29: () => this.#addToHl(this.#hl), // DAD H
     0x2a: ({ fetchWord, readByte }) => this.#loadHl(fetchWord(), readByte), // LHLD addr
     0x2b: () => { this.#hl = (this.#hl - 1) & 0xffff; }, // DCX H
@@ -481,6 +482,16 @@ export class Cpu8080 {
     const sum = this.#hl + value;
     this.#hl = sum & 0xffff;
     this.#state.flags.cy = sum > 0xffff;
+  }
+
+  #decimalAdjust(): void {
+    const accumulator = this.#state.a;
+    const low = accumulator & 0x0f;
+    const lowCorrection = low > 9 || this.#state.flags.ac ? 0x06 : 0;
+    // Select both corrections from the original state; preserve incoming CY.
+    const cy = accumulator > 0x99 || this.#state.flags.cy;
+    const correction = lowCorrection + (cy ? 0x60 : 0);
+    this.#state.a = this.#aluResult(accumulator + correction, low + lowCorrection > 0x0f, cy);
   }
 
   #rotateLeft(lowBit: number): void {

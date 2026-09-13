@@ -15,6 +15,7 @@ import { create8080AddressingExample } from "../../src/machines/generated/8080/a
 import { create8080ControlFlowExample } from "../../src/machines/generated/8080/control-flow-example.js";
 import { create8080TransfersExample } from "../../src/machines/generated/8080/transfers-example.js";
 import { create8080AluExample } from "../../src/machines/generated/8080/alu-example.js";
+import { create8080DecimalExample } from "../../src/machines/generated/8080/decimal-example.js";
 import { create8080CountedLoopExample } from "../../src/machines/generated/8080/counted-loop-example.js";
 import { create8080RotatesExample } from "../../src/machines/generated/8080/rotates-example.js";
 import { create6502Example } from "../../src/machines/generated/6502/example.js";
@@ -55,6 +56,10 @@ const examples: readonly ExampleCase[] = [
   {
     name: "8080 ALU", create: create8080AluExample, steps: 23, pc: 0x0030, stopReason: "halted",
     writes: [[0x82, 0x10], [0x83, 2], [0x84, 0xf0], [0x85, 1], [0x86, 0x75]],
+  },
+  {
+    name: "8080 decimal", create: create8080DecimalExample, steps: 9, pc: 0x0211, stopReason: "halted",
+    writes: [[0x80, 0x98], [0x81, 0x11]],
   },
   {
     name: "8080 transfers", create: create8080TransfersExample, steps: 15, pc: 0x001b, stopReason: "halted",

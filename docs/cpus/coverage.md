@@ -16,7 +16,7 @@ emulators do not count toward implementation here.
 | Model | Introduced | Complete / documented opcode forms | Opcode completion | Additional partial forms |
 | --- | --- | --- | --- | --- |
 | [Intel 8008](#cpus-and-variants-not-started) | 1972 | 0 / TBD | 0.0% | 0 |
-| [Intel 8080](#8080) | 1974 | 239 / 244 | 98.0% | 0 |
+| [Intel 8080](#8080) | 1974 | 240 / 244 | 98.4% | 0 |
 | [Motorola 6800](#cpus-and-variants-not-started) | 1974 | 0 / TBD | 0.0% | 0 |
 | [MOS 6502](#6502) | 1975 | 7 / 151 | 4.6% | 1: binary-only ADC |
 | [Zilog Z80](#z80) | 1976 | 4 / 698 | 0.6% | 0 |
@@ -122,6 +122,9 @@ instruction lengths are in bytes.
 [ALU specification](8080/examples/alu.md) ·
 [ALU definition](../../src/machines/8080/alu-example.machine)
 
+[Decimal specification](8080/examples/decimal.md) ·
+[Decimal definition](../../src/machines/8080/decimal-example.machine)
+
 [Counted-loop specification](8080/examples/counted-loop.md) ·
 [Counted-loop definition](../../src/machines/8080/counted-loop-example.machine)
 
@@ -174,6 +177,7 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | `24` | `INR H` | Register | 1 | Increment byte; update S/Z/AC/P; preserve CY |
 | `25` | `DCR H` | Register | 1 | Decrement byte; update S/Z/AC/P; preserve CY |
 | `26` | `MVI H,n` | Immediate | 2 | Load H; preserve flags |
+| `27` | `DAA` | Implied | 1 | Decimal-adjust A using incoming AC/CY; replace S/Z/AC/P/CY |
 | `29` | `DAD H` | Register pair | 1 | Add to HL with 16-bit wrapping; update only CY |
 | `2A` | `LHLD addr` | Direct memory address | 3 | Load L then H from consecutive wrapped addresses; preserve flags |
 | `2B` | `DCX H` | Register pair | 1 | Decrement with 16-bit wrapping; preserve flags |
@@ -272,9 +276,10 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | Reset | Set PC to `0000`, clear interrupt-enable and halted; preserve data registers, SP, flags, and RAM; no memory accesses |
 | Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
 | Accumulator arithmetic/logic | ADD/ADC, SUB/SBB, ANA/XRA/ORA, CMP and all immediate counterparts; 8-bit results, carry/borrow propagation, comparison without changing A, and 8080 auxiliary carry rules |
+| Decimal adjustment | DAA corrects A using incoming AC/CY; updates result flags and AC while retaining or setting CY; no decimal-mode latch |
 | Byte and word arithmetic | INR/DCR update byte results and S/Z/AC/P while preserving CY; INX/DCX wrap pairs and SP without changing flags; DAD adds to HL and updates only CY |
 | Rotates and carry | RLC/RRC rotate within A; RAL/RAR rotate through CY; all preserve S/Z/AC/P. CMA complements A without changing flags; STC/CMC change only CY |
-| Remaining instruction scope | DAA, DI/EI, and port I/O |
+| Remaining instruction scope | DI/EI and port I/O |
 
 Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [arithmetic example tests](../../tests/machines/8080/example.test.ts),
@@ -285,6 +290,7 @@ Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [control-flow example tests](../../tests/machines/8080/control-flow-example.test.ts),
 [transfers example tests](../../tests/machines/8080/transfers-example.test.ts),
 [ALU example tests](../../tests/machines/8080/alu-example.test.ts),
+[decimal example tests](../../tests/machines/8080/decimal-example.test.ts),
 [counted-loop example tests](../../tests/machines/8080/counted-loop-example.test.ts),
 [rotates example tests](../../tests/machines/8080/rotates-example.test.ts), and
 [public type checks](../../tests/types/8080.ts). ALU checks cover every byte operand
@@ -337,6 +343,14 @@ fixed-bit reconstruction, and retained records. NOP checks all flag combinations
 control preservation, wrapped PC, and exactly one opcode read. The PSW example
 checks saved/restored state, use of restored carry, final RAM, and resumption
 after a NOP step.
+DAA checks cover every accumulator value and all 32 incoming flag combinations
+with both interrupt-enable values, ordinary and wrapped PC, exact opcode reads,
+and preserved unrelated state. Independent digit-wise correction and literal
+regressions check all result flags, incoming carry retention, and non-BCD states.
+ADI/ACI followed by DAA match decimal arithmetic for all two-digit operand pairs
+and incoming carries. Successive adjustments retain independent records; the
+decimal example checks carry propagation between bytes, complete records,
+final RAM, resumption before adjustment, reset, and restart.
 
 ## 6502
 

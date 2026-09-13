@@ -210,6 +210,31 @@ AC on page 1-12 and illustrates subtraction AC on page 3-64.
 The [ALU example](examples/alu.md) combines carry and borrow propagation,
 logical operations, and comparison with a conditional jump.
 
+### Decimal adjustment
+
+DAA explicitly adjusts A after packed-decimal addition; there is no decimal-mode
+latch. Using the original A and flags, add `06` if its low nibble exceeds 9 or
+AC is set, and add `60` if A exceeds `99` or CY is set. The combined correction
+is therefore `00`, `06`, `60`, or `66`; the result wraps to eight bits.
+
+S/Z/P reflect the adjusted byte. AC is replaced by the carry out of bit 3
+from the low correction, so an incoming AC can become zero. CY is set when
+the high correction is selected, preserving an incoming CY even if adding
+the correction does not overflow the byte. For example, A = `32` with AC/CY
+set becomes `98` with AC clear and CY still set.
+
+DAA applies these rules to every initialized A/AC/CY combination. Arbitrary
+input flags can produce non-decimal result digits; there is no validation or
+unsupported outcome for such inputs. Every execution uses the current state,
+so repeating DAA can change A again. Other registers, SP, control latches,
+and RAM are preserved. It fetches only its opcode, advances PC by one with
+16-bit wrapping, and reports `executed`.
+
+Intel's [8080 instruction description][counters], pages 15–16, specifies
+the corrections and carry effects; the [8080/8085 manual][alu], pages 3-18–3-19,
+illustrates `9B` becoming `01` with both carries set. The
+[decimal example](examples/decimal.md) combines two byte additions and adjustments.
+
 ### Rotates and carry
 
 The four rotates move bits within A and replace only CY. All bit sources in
@@ -342,10 +367,10 @@ SP, flags, and RAM, returns fresh records, and allows execution to resume at
   register-pair instruction descriptions.
 - [Arithmetic example](examples/arithmetic.md#references): instruction
   encodings, arithmetic flags, and HLT semantics.
-- [Intel 8080/8085 Assembly Language Programming Manual][alu], pages 1-12
-  and 3-64: 8080 auxiliary carry for AND and subtraction.
+- [Intel 8080/8085 Assembly Language Programming Manual][alu], pages 1-12,
+  3-18–3-19, and 3-64: 8080 auxiliary carry for AND and subtraction, and DAA.
 - [Intel 8080 Assembly Language Programming Manual][counters], pages 14–16
-  and 21–24: carry operations, CMA, rotates, INR/DCR, DCX, DAD, NOP, and
+  and 21–24: carry operations, CMA, rotates, INR/DCR, DCX, DAD, DAA, NOP, and
   PUSH/POP including the PSW flag-byte layout.
 
 Record ownership, unsupported-opcode reporting, and explicit initialization
