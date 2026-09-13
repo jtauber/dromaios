@@ -1,0 +1,26 @@
+ram 10000
+
+cpu 8080 {
+    A = 11  B = 22  C = 33  D = 44
+    E = 55  H = 66  L = 77
+    PC = 0200  SP = ABCD
+    flags { S = 1  Z = 0  AC = 1  P = 0  CY = 1 }
+    interruptEnabled = false
+    halted = false
+}
+
+memory 0200 {
+    21 FF FF    // LXI H,FFFFH: first byte to increment
+    11 01 00    // LXI D,0001H: address stride
+    06 03       // MVI B,03H: number of bytes
+    34          // INR M
+    19          // DAD D
+    05          // DCR B
+    C2 08 02    // JNZ 0208H
+    2B          // DCX H: point back to the last byte changed
+    22 80 00    // SHLD 0080H: store that address
+    76          // HLT
+}
+
+memory FFFF { FF }
+memory 0000 { 0F 7F }

@@ -176,6 +176,32 @@ AC on page 1-12 and illustrates subtraction AC on page 3-64.
 The [ALU example](examples/alu.md) combines carry and borrow propagation,
 logical operations, and comparison with a conditional jump.
 
+### Increment, decrement, and word arithmetic
+
+INR/DCR add or subtract one from the selected byte register or memory at HL.
+Results wrap to eight bits. They set S/Z/P from the result and replace AC while
+preserving CY. INR sets AC when the original low nibble is `F`; DCR sets AC
+when the original low nibble is nonzero, following the 8080 subtraction rule.
+Incoming CY is never added or subtracted. Updating H or L changes only that
+byte; it does not propagate into the other half of the pair.
+
+Register forms fetch only the opcode. Memory forms then read and write once
+at current HL, including when that address overlaps code. The captured
+instruction byte remains the fetched opcode even if the write replaces it.
+The memory form preserves all registers apart from PC.
+
+DCX decrements BC, DE, HL, or SP with 16-bit wrapping and preserves every flag.
+DAD adds BC, DE, HL, or SP to HL, wraps the result to 16 bits, and replaces
+only CY with the carry beyond bit 15. Incoming CY is ignored. DAD H uses the
+original HL twice; other source pairs and SP are preserved. Both families
+fetch only their opcode, without accessing memory through the register pairs.
+
+All four families preserve control latches, advance PC by one with wrapping,
+and report `executed`. Intel's [instruction descriptions][counters] cover the
+byte operations on page 15 and word operations on page 24. The
+[counted-loop example](examples/counted-loop.md) combines their different flag
+rules while traversing the memory boundary.
+
 ### Control-flow accesses
 
 Jumps and calls with immediate targets fetch both address bytes, low then high,
@@ -260,9 +286,12 @@ SP, flags, and RAM, returns fresh records, and allows execution to resume at
   encodings, arithmetic flags, and HLT semantics.
 - [Intel 8080/8085 Assembly Language Programming Manual][alu], pages 1-12
   and 3-64: 8080 auxiliary carry for AND and subtraction.
+- [Intel 8080 Assembly Language Programming Manual][counters], pages 15 and
+  24: INR/DCR, DCX, and DAD.
 
 Record ownership, unsupported-opcode reporting, and explicit initialization
 are choices for this model.
 
 [reset]: https://bitsavers.org/components/intel/MCS80/Intellec_8_Mod_80/Intel_Intellec_8_Mod_80_Reference_Manual_Feb75.pdf
 [alu]: https://device.report/m/8985a7044b63dafadf8a713690af2e4d2ef632c256d27343044e212ceaa86a3c
+[counters]: https://altairclone.com/downloads/manuals/8080%20Programmers%20Manual.pdf

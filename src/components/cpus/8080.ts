@@ -123,22 +123,31 @@ export class Cpu8080 {
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
     ...this.#transferHandlers(),
     ...this.#aluHandlers(),
+    ...this.#incrementDecrementHandlers(),
     0x01: ({ fetchWord }) => { this.#bc = fetchWord(); }, // LXI B,nn
     0x02: ({ writeByte }) => writeByte(this.#bc, this.#state.a), // STAX B
     0x03: () => { this.#bc = (this.#bc + 1) & 0xffff; }, // INX B
+    0x09: () => this.#addToHl(this.#bc), // DAD B
     0x0a: ({ readByte }) => this.#loadAccumulator(readByte(this.#bc)), // LDAX B
+    0x0b: () => { this.#bc = (this.#bc - 1) & 0xffff; }, // DCX B
     0x11: ({ fetchWord }) => { this.#de = fetchWord(); }, // LXI D,nn
     0x12: ({ writeByte }) => writeByte(this.#de, this.#state.a), // STAX D
     0x13: () => { this.#de = (this.#de + 1) & 0xffff; }, // INX D
+    0x19: () => this.#addToHl(this.#de), // DAD D
     0x1a: ({ readByte }) => this.#loadAccumulator(readByte(this.#de)), // LDAX D
+    0x1b: () => { this.#de = (this.#de - 1) & 0xffff; }, // DCX D
     0x21: ({ fetchWord }) => { this.#hl = fetchWord(); }, // LXI H,nn
     0x22: ({ fetchWord, writeByte }) => this.#storeHl(fetchWord(), writeByte), // SHLD addr
     0x23: () => { this.#hl = (this.#hl + 1) & 0xffff; }, // INX H
+    0x29: () => this.#addToHl(this.#hl), // DAD H
     0x2a: ({ fetchWord, readByte }) => this.#loadHl(fetchWord(), readByte), // LHLD addr
+    0x2b: () => { this.#hl = (this.#hl - 1) & 0xffff; }, // DCX H
     0x31: ({ fetchWord }) => { this.#state.sp = fetchWord(); }, // LXI SP,nn
     0x32: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
     0x33: () => { this.#state.sp = (this.#state.sp + 1) & 0xffff; }, // INX SP
+    0x39: () => this.#addToHl(this.#state.sp), // DAD SP
     0x3a: ({ fetchWord, readByte }) => this.#loadAccumulator(readByte(fetchWord())), // LDA addr
+    0x3b: () => { this.#state.sp = (this.#state.sp - 1) & 0xffff; }, // DCX SP
     0x76: () => this.#halt(), // HLT
     0xc0: ({ readByte }) => this.#return(readByte, !this.#state.flags.z), // RNZ
     0xc1: ({ readByte }) => { this.#bc = this.#popWord(readByte); }, // POP B
@@ -322,6 +331,17 @@ export class Cpu8080 {
     return handlers;
   }
 
+  #incrementDecrementHandlers(): Partial<Record<number, OpcodeHandler>> {
+    const handlers: Partial<Record<number, OpcodeHandler>> = {};
+    for (const [operandCode, operand] of this.#byteOperands.entries()) {
+      handlers[0x04 | (operandCode << 3)] = instruction =>
+        operand.write(instruction, this.#increment(operand.read(instruction))); // INR r
+      handlers[0x05 | (operandCode << 3)] = instruction =>
+        operand.write(instruction, this.#decrement(operand.read(instruction))); // DCR r
+    }
+    return handlers;
+  }
+
   get #bc(): number {
     return (this.#state.b << 8) | this.#state.c;
   }
@@ -421,6 +441,21 @@ export class Cpu8080 {
     const difference = accumulator - value - borrow;
     // The 8080 complements the adder's full carry for subtraction, but not AC.
     return this.#aluResult(difference, (accumulator & 0x0f) >= (value & 0x0f) + borrow, difference < 0);
+  }
+
+  #increment(value: number): number {
+    return this.#aluResult(value + 1, (value & 0x0f) === 0x0f, this.#state.flags.cy);
+  }
+
+  #decrement(value: number): number {
+    // As with SUB, AC is the inverse of the low-nibble borrow; CY is preserved.
+    return this.#aluResult(value - 1, (value & 0x0f) !== 0, this.#state.flags.cy);
+  }
+
+  #addToHl(value: number): void {
+    const sum = this.#hl + value;
+    this.#hl = sum & 0xffff;
+    this.#state.flags.cy = sum > 0xffff;
   }
 
   #aluResult(value: number, ac: boolean, cy: boolean): number {
