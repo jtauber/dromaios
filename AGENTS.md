@@ -33,3 +33,7 @@ For code under `src/`, prioritize the following, in order:
 
 An improvement lower on this list needs justification if it compromises
 something higher up. The implementation itself should help explain the hardware.
+
+For CPU models, follow the [CPU source organization guide](docs/cpus/implementation.md).
+Use its common reading order while preserving each processor's encoding and
+execution conventions.

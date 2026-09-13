@@ -76,16 +76,6 @@ function copyState(state: Cpu6502Snapshot): Cpu6502State {
 export class Cpu6502 {
   readonly #ram: Ram;
   readonly #state: Cpu6502State;
-  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
-    0x18: () => this.#clearCarry(), // CLC
-    0x48: ({ writeByte }) => this.#pushByte(this.#state.a, writeByte), // PHA
-    0x68: ({ readByte }) => this.#loadAccumulator(this.#pullByte(readByte)), // PLA
-    0x69: ({ fetchByte }) => this.#addWithCarry(fetchByte()), // ADC #n (binary)
-    0x85: ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.a), // STA zp
-    0x8d: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
-    0xa5: ({ fetchByte, readByte }) => this.#loadAccumulator(readByte(fetchByte())), // LDA zp
-    0xa9: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
-  };
 
   constructor(ram: Ram, initialState: Cpu6502Snapshot) {
     if (ram.size !== 0x10000) {
@@ -131,7 +121,7 @@ export class Cpu6502 {
     const bytes = [opcode];
     const handler = this.#opcodeHandlers[opcode];
     // Reject decimal ADC before advancing PC or fetching its operand.
-    const decimalModeUnsupported = opcode === 0x69 && this.#state.flags.d;
+    const decimalModeUnsupported = opcode === 0b011_010_01 && this.#state.flags.d;
     if (handler && !decimalModeUnsupported) {
       // Advance only for supported instructions; operand fetches advance themselves.
       this.#state.pc = (address + 1) & 0xffff;
@@ -165,6 +155,43 @@ export class Cpu6502 {
       : { ...record, outcome: "unsupported", reason: decimalModeUnsupported ? "decimal-mode" : "opcode" };
   }
 
+  // Opcode selectors and construction.
+
+  // Opcode bits: 7 6 5 | 4 3 2 | 1 0 = aaa bbb cc.
+  // cc selects a group. In cc=01, aaa selects the operation and bbb its addressing mode.
+  // The cc=00 implied instructions below have their own patterns.
+  // Only implemented encodings enter the table; this is not a decoder for every combination.
+  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+    // cc=00, bbb=010: 01p 010 00 selects push A (p=0) or pull A (p=1).
+    0b01_0_010_00: ({ writeByte }) => this.#pushByte(this.#state.a, writeByte), // PHA
+    0b01_1_010_00: ({ readByte }) => this.#loadAccumulator(this.#pullByte(readByte)), // PLA
+
+    // cc=00, bbb=110: aaa=000 selects clear carry.
+    0b000_110_00: () => this.#clearCarry(), // CLC
+
+    // cc=01: the operations used here are aaa=011 ADC, 100 STA, 101 LDA.
+    // bbb=001 selects zero-page addressing.
+    0b100_001_01: ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.a), // STA zp
+    0b101_001_01: ({ fetchByte, readByte }) => this.#loadAccumulator(readByte(fetchByte())), // LDA zp
+
+    // bbb=010 selects an immediate operand; STA has no immediate form.
+    0b011_010_01: ({ fetchByte }) => this.#addWithCarry(fetchByte()), // ADC #n (binary)
+    0b101_010_01: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
+
+    // bbb=011 selects absolute addressing.
+    0b100_011_01: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
+  };
+
+  // Loads.
+
+  #loadAccumulator(value: number): void {
+    this.#state.a = value;
+    this.#state.flags.n = (value & 0x80) !== 0;
+    this.#state.flags.z = value === 0;
+  }
+
+  // Stack operations.
+
   #pushByte(value: number, writeByte: InstructionContext["writeByte"]): void {
     writeByte(0x0100 | this.#state.sp, value);
     this.#state.sp = (this.#state.sp - 1) & 0xff;
@@ -175,14 +202,10 @@ export class Cpu6502 {
     return readByte(0x0100 | this.#state.sp);
   }
 
+  // Arithmetic and flags.
+
   #clearCarry(): void {
     this.#state.flags.c = false;
-  }
-
-  #loadAccumulator(value: number): void {
-    this.#state.a = value;
-    this.#state.flags.n = (value & 0x80) !== 0;
-    this.#state.flags.z = value === 0;
   }
 
   #addWithCarry(value: number): void {
@@ -194,6 +217,8 @@ export class Cpu6502 {
     // Like-signed operands producing an opposite-signed result indicate overflow.
     this.#state.flags.v = (~(accumulator ^ value) & (accumulator ^ result) & 0x80) !== 0;
   }
+
+  // Recorded memory access.
 
   #read(address: number, accesses: Cpu6502MemoryAccess[]): number {
     const value = this.#ram.read(address);

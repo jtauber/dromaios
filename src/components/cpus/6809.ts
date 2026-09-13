@@ -89,17 +89,6 @@ function copyState(state: Omit<Cpu6809Snapshot, "d">): Cpu6809State {
 export class Cpu6809 {
   readonly #ram: Ram;
   readonly #state: Cpu6809State;
-  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
-    0x34: ({ fetchByte, writeByte }) => this.#pushRegisters("s", fetchByte(), writeByte), // PSHS
-    0x35: ({ fetchByte, readByte }) => this.#pullRegisters("s", fetchByte(), readByte), // PULS
-    0x36: ({ fetchByte, writeByte }) => this.#pushRegisters("u", fetchByte(), writeByte), // PSHU
-    0x37: ({ fetchByte, readByte }) => this.#pullRegisters("u", fetchByte(), readByte), // PULU
-    0x86: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
-    0x8b: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADDA #n
-    0x96: ({ fetchByte, readByte }) => this.#loadAccumulator(readByte(this.#directAddress(fetchByte()))), // LDA direct
-    0x97: ({ fetchByte, writeByte }) => this.#storeAccumulator(this.#directAddress(fetchByte()), writeByte), // STA direct
-    0xb7: ({ fetchWord, writeByte }) => this.#storeAccumulator(fetchWord(), writeByte), // STA extended
-  };
 
   constructor(ram: Ram, initialState: Omit<Cpu6809Snapshot, "d">) {
     if (ram.size !== 0x10000) {
@@ -181,8 +170,11 @@ export class Cpu6809 {
       : { ...record, outcome: "unsupported", reason: "opcode" };
   }
 
+  // Register and flag views.
+
   get #cc(): number {
     const flags = this.#state.flags;
+    // CC bits 7..0: E F H I N Z V C.
     return (Number(flags.e) << 7) | (Number(flags.f) << 6)
       | (Number(flags.h) << 5) | (Number(flags.i) << 4)
       | (Number(flags.n) << 3) | (Number(flags.z) << 2)
@@ -197,6 +189,57 @@ export class Cpu6809 {
       v: (value & 0x02) !== 0, c: (value & 0x01) !== 0,
     };
   }
+
+  // Opcode selectors and construction.
+
+  // Base opcode page only; prefix bytes 0x10 and 0x11 remain unsupported.
+  // Each family below labels its own fields; stack masks are separate postbytes.
+  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+    // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
+    0b001101_0_0: ({ fetchByte, writeByte }) => this.#pushRegisters("s", fetchByte(), writeByte), // PSHS
+    0b001101_0_1: ({ fetchByte, readByte }) => this.#pullRegisters("s", fetchByte(), readByte), // PULS
+    0b001101_1_0: ({ fetchByte, writeByte }) => this.#pushRegisters("u", fetchByte(), writeByte), // PSHU
+    0b001101_1_1: ({ fetchByte, readByte }) => this.#pullRegisters("u", fetchByte(), readByte), // PULU
+
+    // These A-register forms use 10 mm oooo: mm selects addressing, oooo the operation.
+    // oooo=0110 loads A, 0111 stores A, 1011 adds to A.
+    // mm=00 selects an immediate operand; stores have no immediate form.
+    0b10_00_0110: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LDA #n
+    0b10_00_1011: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADDA #n
+
+    // mm=01 selects direct addressing through DP.
+    0b10_01_0110: ({ fetchByte, readByte }) => // LDA direct
+      this.#loadAccumulator(readByte(this.#directAddress(fetchByte()))),
+    0b10_01_0111: ({ fetchByte, writeByte }) => // STA direct
+      this.#storeAccumulator(this.#directAddress(fetchByte()), writeByte),
+
+    // mm=10 (indexed) has no implemented forms yet.
+    // mm=11 selects an extended address operand.
+    0b10_11_0111: ({ fetchWord, writeByte }) => this.#storeAccumulator(fetchWord(), writeByte), // STA extended
+  };
+
+  // Addressing.
+
+  #directAddress(offset: number): number {
+    return (this.#state.dp << 8) | offset;
+  }
+
+  // Loads and stores.
+
+  #loadAccumulator(value: number): void {
+    this.#state.a = value;
+    this.#setLoadStoreFlags(value);
+  }
+
+  #storeAccumulator(address: number, writeByte: InstructionContext["writeByte"]): void {
+    const value = this.#state.a;
+    writeByte(address, value);
+    this.#setLoadStoreFlags(value);
+  }
+
+  // Stack operations.
+  // Postbyte bits 7..0: PC, other stack pointer, Y, X, DP, B, A, CC.
+  // Bit 6 always names the pointer not selected by the opcode's s bit.
 
   #pushRegisters(stack: StackPointer, mask: number, writeByte: InstructionContext["writeByte"]): void {
     const pushByte = (value: number): void => {
@@ -239,26 +282,7 @@ export class Cpu6809 {
     if (mask & 0x80) this.#state.pc = pullWord();
   }
 
-  #directAddress(offset: number): number {
-    return (this.#state.dp << 8) | offset;
-  }
-
-  #loadAccumulator(value: number): void {
-    this.#state.a = value;
-    this.#setLoadStoreFlags(value);
-  }
-
-  #storeAccumulator(address: number, writeByte: InstructionContext["writeByte"]): void {
-    const value = this.#state.a;
-    writeByte(address, value);
-    this.#setLoadStoreFlags(value);
-  }
-
-  #setLoadStoreFlags(value: number): void {
-    this.#state.flags.n = (value & 0x80) !== 0;
-    this.#state.flags.z = value === 0;
-    this.#state.flags.v = false;
-  }
+  // Arithmetic and flags.
 
   #addToAccumulator(value: number): void {
     const accumulator = this.#state.a;
@@ -270,6 +294,14 @@ export class Cpu6809 {
     // Like-signed operands producing an opposite-signed result indicate overflow.
     this.#state.flags.v = (~(accumulator ^ value) & (accumulator ^ result) & 0x80) !== 0;
   }
+
+  #setLoadStoreFlags(value: number): void {
+    this.#state.flags.n = (value & 0x80) !== 0;
+    this.#state.flags.z = value === 0;
+    this.#state.flags.v = false;
+  }
+
+  // Recorded memory access.
 
   #read(address: number, accesses: Cpu6809MemoryAccess[]): number {
     const value = this.#ram.read(address);

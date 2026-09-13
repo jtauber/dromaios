@@ -13,6 +13,8 @@ see the [development instructions](../README.md#development).
   and the reasons for testing generalizations across three architectures.
 - [CPU implementation coverage](cpus/coverage.md): current opcode percentages,
   supported forms and features, and remaining gaps across all CPUs.
+- [CPU source organization](cpus/implementation.md): reading order, bit-encoding
+  layout, and the separation of handler construction from instruction behavior.
 
 ## CPU models
 

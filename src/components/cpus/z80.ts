@@ -108,12 +108,6 @@ function pairViews(bank: CpuZ80RegisterBank): { readonly bc: number; readonly de
 export class CpuZ80 {
   readonly #ram: Ram;
   readonly #state: CpuZ80State;
-  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
-    0x32: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // LD (nn),A
-    0x3e: ({ fetchByte }) => { this.#state.a = fetchByte(); }, // LD A,n
-    0x76: () => { this.#state.halted = true; }, // HALT
-    0xc6: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADD A,n
-  };
 
   constructor(ram: Ram, initialState: CpuZ80State) {
     if (ram.size !== 0x10000) throw new RangeError("The Z80 model requires exactly 64 KiB of RAM.");
@@ -183,10 +177,7 @@ export class CpuZ80 {
           const high = fetchByte();
           return low | (high << 8);
         },
-        writeByte: (address, value) => {
-          this.#ram.write(address, value);
-          accesses.push({ kind: "write", address, value });
-        },
+        writeByte: (address, value) => this.#write(address, value, accesses),
       });
     }
     const record = { instruction: { address, bytes }, before, after: this.snapshot(), accesses };
@@ -194,6 +185,41 @@ export class CpuZ80 {
       ? { ...record, outcome: this.#state.halted ? "halted" : "executed" }
       : { ...record, outcome: "unsupported", reason: "opcode" };
   }
+
+  // Opcode selectors and construction.
+
+  // Unprefixed opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
+  // xx selects a block; the other fields select its operation and operands.
+  // Pair families split yyy into pp q. Prefixed instructions remain unsupported.
+  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+    // xx=00, zzz=010: pp=11 selects A at address nn; q=0 stores (q=1 would load).
+    0b00_11_0_010: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // LD (nn),A
+
+    // xx=00, zzz=110: 00 ddd 110 loads an immediate byte; ddd=111 selects A.
+    0b00_111_110: ({ fetchByte }) => this.#loadAccumulator(fetchByte()), // LD A,n
+
+    // xx=01: 01 ddd sss encodes register/memory loads; 110 selects (HL).
+    0b01_110_110: () => this.#halt(), // HALT occupies the (HL),(HL) slot.
+
+    // xx=10 register/memory ALU forms are not implemented yet.
+
+    // xx=11, zzz=110: 11 ooo 110 selects immediate ALU; ooo=000 is ADD.
+    0b11_000_110: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADD A,n
+  };
+
+  // Loads.
+
+  #loadAccumulator(value: number): void {
+    this.#state.a = value;
+  }
+
+  // Control flow.
+
+  #halt(): void {
+    this.#state.halted = true;
+  }
+
+  // Arithmetic and flags.
 
   #addToAccumulator(value: number): void {
     const a = this.#state.a;
@@ -210,9 +236,16 @@ export class CpuZ80 {
     };
   }
 
+  // Recorded memory access.
+
   #read(address: number, accesses: CpuZ80MemoryAccess[]): number {
     const value = this.#ram.read(address);
     accesses.push({ kind: "read", address, value });
     return value;
+  }
+
+  #write(address: number, value: number, accesses: CpuZ80MemoryAccess[]): void {
+    this.#ram.write(address, value);
+    accesses.push({ kind: "write", address, value });
   }
 }

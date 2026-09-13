@@ -139,6 +139,10 @@ refresh register. Paired programs expose common encodings but different flag
 semantics. This establishes reuse of execution support; CPU implementation
 sharing remains a question for further instruction families.
 
+The [CPU source organization guide](cpus/implementation.md) defines a common
+reading order and encoding-table conventions while preserving each processor's
+distinct decoding and execution rules.
+
 ## Model contracts and example specifications
 
 The introductory [8080](cpus/8080/examples/arithmetic.md), [6502](cpus/6502/examples/arithmetic.md),
