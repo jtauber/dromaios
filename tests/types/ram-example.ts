@@ -4,11 +4,11 @@ import type { Cpu6502, Cpu6502State } from "../../src/components/cpus/6502.js";
 import type { Cpu6809 } from "../../src/components/cpus/6809.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { defineRamExample } from "../../src/machines/ram-example.js";
-import { create8080Example, create8080ExampleMemory } from "../../src/machines/generated/8080-example.js";
-import { create8080RegisterPairsExample } from "../../src/machines/generated/8080-register-pairs-example.js";
-import { create8080StackExample } from "../../src/machines/generated/8080-stack-example.js";
-import { create6502Example } from "../../src/machines/generated/6502-example.js";
-import { create6809Example } from "../../src/machines/generated/6809-example.js";
+import { create8080Example, create8080ExampleMemory } from "../../src/machines/generated/8080/example.js";
+import { create8080RegisterPairsExample } from "../../src/machines/generated/8080/register-pairs-example.js";
+import { create8080StackExample } from "../../src/machines/generated/8080/stack-example.js";
+import { create6502Example } from "../../src/machines/generated/6502/example.js";
+import { create6809Example } from "../../src/machines/generated/6809/example.js";
 
 // Compiled by npm test; never called. Guard inference at the shared setup boundary.
 export function checkDefinitions(state8080: Cpu8080State, state6502: Cpu6502State): Cpu8080 {

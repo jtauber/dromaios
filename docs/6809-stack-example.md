@@ -5,8 +5,8 @@ This example saves `12` on S and `34` on U, then retrieves them into separate
 result locations. Pulling from S before U demonstrates that each pointer has
 its own sequence of saved values. Both stacks occupy ordinary shared RAM.
 
-[Machine definition](../src/machines/6809-stack-example.machine) ·
-[Example tests](../tests/machines/6809-stack-example.test.ts) ·
+[Machine definition](../src/machines/6809/stack-example.machine) ·
+[Example tests](../tests/machines/6809/stack-example.test.ts) ·
 [CPU coverage](cpu-coverage.md#6809)
 
 ## Instruction behavior

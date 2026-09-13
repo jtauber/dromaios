@@ -4,8 +4,8 @@ This focused example follows the [load, add, and store example](8080-example.md)
 It shows how the same stored bytes can be inspected and changed as a 16-bit
 register pair. Current support is tracked in [8080 implementation coverage](cpu-coverage.md#8080).
 
-[Example definition](../src/machines/8080-register-pairs-example.machine) ·
-[Example tests](../tests/machines/8080-register-pairs-example.test.ts) ·
+[Example definition](../src/machines/8080/register-pairs-example.machine) ·
+[Example tests](../tests/machines/8080/register-pairs-example.test.ts) ·
 [CPU tests](../tests/components/cpus/8080.test.ts)
 
 ## Register views and ownership

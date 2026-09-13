@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Ram } from "../../src/components/memory/ram.js";
+import type { Ram } from "../../../src/components/memory/ram.js";
 import {
   create8080StackExample,
   create8080StackExampleMemory,
-} from "../../src/machines/generated/8080-stack-example.js";
+} from "../../../src/machines/generated/8080/stack-example.js";
 
 function expectedInitialState() {
   return {

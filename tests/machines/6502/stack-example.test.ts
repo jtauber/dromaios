@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Cpu6502StepRecord } from "../../src/components/cpus/6502.js";
-import type { Ram } from "../../src/components/memory/ram.js";
+import type { Cpu6502StepRecord } from "../../../src/components/cpus/6502.js";
+import type { Ram } from "../../../src/components/memory/ram.js";
 import {
   create6502StackExample,
   create6502StackExampleMemory,
-} from "../../src/machines/generated/6502-stack-example.js";
+} from "../../../src/machines/generated/6502/stack-example.js";
 
 function expectedInitialState() {
   return {

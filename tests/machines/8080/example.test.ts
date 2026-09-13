@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Ram } from "../../src/components/memory/ram.js";
-import { create8080Example, create8080ExampleMemory } from "../../src/machines/generated/8080-example.js";
+import type { Ram } from "../../../src/components/memory/ram.js";
+import { create8080Example, create8080ExampleMemory } from "../../../src/machines/generated/8080/example.js";
 
 function expectedInitialState() {
   return {

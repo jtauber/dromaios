@@ -50,11 +50,12 @@ copying and validating its state. Example exports retain their concrete CPU
 types. More complex machine wiring can use ordinary TypeScript as it develops.
 
 The flat-RAM setups are [machine definitions](machine-definitions.md) written in a
-small language for CPU state and hexadecimal byte images. A build step validates
-the definitions and generates calls to the same helper; TypeScript checks those
-calls against the selected CPU's state type. The generated factories are ordinary
-ES modules, so loading a machine requires no parser, file access, or asynchronous
-initialization.
+small language for CPU state and hexadecimal byte images. Definitions and their
+tests are grouped by CPU, and generated factories mirror the definition folders.
+A build step validates the definitions and generates calls to the same helper;
+TypeScript checks those calls against the selected CPU's state type. The
+generated factories are ordinary ES modules, so loading a machine requires no
+parser, file access, or asynchronous initialization.
 
 **Execution support** coordinates stepping, running, pausing, and eventually
 emulated time. Browser display updates should not define the machine's timing.

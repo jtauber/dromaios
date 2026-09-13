@@ -78,13 +78,13 @@ instruction lengths are in bytes.
 
 [Source](../src/components/cpus/8080.ts) ·
 [Example specification](8080-example.md) ·
-[Example definition](../src/machines/8080-example.machine)
+[Example definition](../src/machines/8080/example.machine)
 
 [Register-pair specification](8080-register-pairs-example.md) ·
-[Register-pair definition](../src/machines/8080-register-pairs-example.machine)
+[Register-pair definition](../src/machines/8080/register-pairs-example.machine)
 
 [Stack specification](8080-stack-example.md) ·
-[Stack definition](../src/machines/8080-stack-example.machine)
+[Stack definition](../src/machines/8080/stack-example.machine)
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -118,9 +118,9 @@ instruction lengths are in bytes.
 | Remaining instruction scope | Other loads/moves, register and memory arithmetic, logical operations, other pair operations, PSW stack forms, control flow, flag-control instructions, and port I/O |
 
 Verification: [CPU tests](../tests/components/cpus/8080.test.ts),
-[arithmetic example tests](../tests/machines/8080-example.test.ts),
-[register-pair example tests](../tests/machines/8080-register-pairs-example.test.ts),
-[stack example tests](../tests/machines/8080-stack-example.test.ts), and
+[arithmetic example tests](../tests/machines/8080/example.test.ts),
+[register-pair example tests](../tests/machines/8080/register-pairs-example.test.ts),
+[stack example tests](../tests/machines/8080/stack-example.test.ts), and
 [public type checks](../tests/types/8080.ts). ADI checks cover every byte operand
 pair with incoming flags clear and set. Other checks cover exact accesses,
 wrapping, self-overwriting stores, halt/reset behavior, rejection of every
@@ -134,10 +134,10 @@ nested operations, program overlap, current RAM reads, and retained stack data.
 
 [Source](../src/components/cpus/6502.ts) ·
 [Example specification](6502-example.md) ·
-[Example setup](../src/machines/6502-example.machine)
+[Example setup](../src/machines/6502/example.machine)
 
 [Stack specification](6502-stack-example.md) ·
-[Stack definition](../src/machines/6502-stack-example.machine)
+[Stack definition](../src/machines/6502/stack-example.machine)
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -166,8 +166,8 @@ The model targets the original NMOS 6502; variant-specific behavior has not
 been implemented.
 
 Verification: [CPU tests](../tests/components/cpus/6502.test.ts),
-[example tests](../tests/machines/6502-example.test.ts),
-[stack example tests](../tests/machines/6502-stack-example.test.ts), and
+[example tests](../tests/machines/6502/example.test.ts),
+[stack example tests](../tests/machines/6502/stack-example.test.ts), and
 [public type checks](../tests/types/6502.ts). Binary ADC checks cover every byte
 operand pair and carry input with old result flags clear and set. Other checks
 cover decimal rejection, exact accesses, wrapping, self-overwriting stores,
@@ -181,10 +181,10 @@ retained stack bytes, and reset with an occupied stack.
 
 [Source](../src/components/cpus/6809.ts) ·
 [Example specification](6809-example.md) ·
-[Example setup](../src/machines/6809-example.machine)
+[Example setup](../src/machines/6809/example.machine)
 
 [Stack specification](6809-stack-example.md) ·
-[Stack definition](../src/machines/6809-stack-example.machine)
+[Stack definition](../src/machines/6809/stack-example.machine)
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -215,8 +215,8 @@ including NMI arming after reset, remains unimplemented. MC6809/MC6809E clock
 and pin differences are outside this instruction-level model.
 
 Verification: [CPU tests](../tests/components/cpus/6809.test.ts),
-[example tests](../tests/machines/6809-example.test.ts),
-[stack example tests](../tests/machines/6809-stack-example.test.ts), and
+[example tests](../tests/machines/6809/example.test.ts),
+[stack example tests](../tests/machines/6809/stack-example.test.ts), and
 [public type checks](../tests/types/6809.ts). ADDA checks cover every byte
 operand pair with both incoming carry values and old result flags clear and
 set. Other checks cover derived D, exact accesses, wrapping, self-overwriting

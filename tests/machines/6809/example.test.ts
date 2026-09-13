@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { Cpu6809StepRecord } from "../../src/components/cpus/6809.js";
-import type { Ram } from "../../src/components/memory/ram.js";
-import { create6809Example } from "../../src/machines/generated/6809-example.js";
+import type { Cpu6809StepRecord } from "../../../src/components/cpus/6809.js";
+import type { Ram } from "../../../src/components/memory/ram.js";
+import { create6809Example } from "../../../src/machines/generated/6809/example.js";
 
 function expectedInitialState() {
   return {

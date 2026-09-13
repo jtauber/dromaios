@@ -5,8 +5,8 @@ This example saves A on the stack, replaces it with zero, restores it, and
 stores the restored value. It complements the [8080 stack example](8080-stack-example.md)
 with the 6502's fixed stack page and different pointer convention.
 
-[Machine definition](../src/machines/6502-stack-example.machine) ·
-[Example tests](../tests/machines/6502-stack-example.test.ts) ·
+[Machine definition](../src/machines/6502/stack-example.machine) ·
+[Example tests](../tests/machines/6502/stack-example.test.ts) ·
 [CPU coverage](cpu-coverage.md#6502)
 
 ## Model boundary
