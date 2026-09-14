@@ -1,6 +1,20 @@
 import { CpuZ80 } from "../../src/components/cpus/z80.js";
 import type { CpuZ80State, CpuZ80Snapshot, CpuZ80StepRecord, CpuZ80ResetRecord } from "../../src/components/cpus/z80.js";
 import type { Ram } from "../../src/components/memory/ram.js";
+import { createZ80TransfersExample } from "../../src/machines/generated/z80/transfers-example.js";
+import { runCpu } from "../../src/runtime/run-cpu.js";
+import type { CpuRunResult } from "../../src/runtime/run-cpu.js";
+
+export function checkZ80TransfersExample(): void {
+  const machine: { cpu: CpuZ80; ram: Ram } = createZ80TransfersExample();
+  const result: CpuRunResult<CpuZ80StepRecord> = runCpu(machine.cpu, { maxSteps: 23 });
+  if (result.records[0]) {
+    const pair: number = result.records[0].after.hl;
+    const overflow: boolean = result.records[0].after.flags.pv;
+    // @ts-expect-error The runner preserves Z80 flags rather than the 8080 flag set.
+    result.records[0].after.flags.p;
+  }
+}
 
 // Compiled, never called: keep the public state and record contracts precise.
 export function checkZ80(ram: Ram, state: CpuZ80State, snapshot: CpuZ80Snapshot): void {

@@ -17,6 +17,7 @@ import { create68000Example } from "../../src/machines/generated/68000/example.j
 import { create68000TransfersExample } from "../../src/machines/generated/68000/transfers-example.js";
 import type { CpuZ80 } from "../../src/components/cpus/z80.js";
 import { createZ80Example } from "../../src/machines/generated/z80/example.js";
+import { createZ80TransfersExample } from "../../src/machines/generated/z80/transfers-example.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import { create8080Example } from "../../src/machines/generated/8080/example.js";
@@ -48,6 +49,8 @@ interface ExampleCase {
 
 // Expectations come from the example specifications, independently of the factories.
 const examples: readonly ExampleCase[] = [
+  { name: "Z80 transfers", create: createZ80TransfersExample, steps: 23, pc: 0x021d, stopReason: "halted",
+    writes: [[0x80, 0x7f], [0x81, 0x80], [0x82, 0x81], [0x83, 0]] },
   { name: "8088 transfers", create: create8088TransfersExample, steps: 12, pc: 0x12560, stopReason: "completed",
     writes: [[0x20081, 0xff], [0x20082, 0x7f], [0x20083, 0x12]] },
   { name: "68000 transfers", create: create68000TransfersExample, steps: 8, pc: 0xab002024, stopReason: "completed",

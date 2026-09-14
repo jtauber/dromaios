@@ -4,7 +4,9 @@ The [opcode helpers](../../src/components/cpus/opcodes.ts) are a small experimen
 in describing existing encodings within TypeScript. The goal is to make the
 hardware easier to read while preserving each CPU's execution behavior. The
 8008, 6502, 6800, 6809, 8088, and 68000 tables use patterns throughout, with typed selector
-mappings for families. These examples exercise several encoding relationships:
+mappings for families. The Z80 also uses them for its load and jump families,
+retaining a CPU-local builder for register INC/DEC with their omitted memory
+slots. These examples exercise several encoding relationships:
 
 | CPU | Pattern | Meaning |
 | --- | --- | --- |
@@ -12,6 +14,7 @@ mappings for families. These examples exercise several encoding relationships:
 | [6502](../../src/components/cpus/6502.ts) | `ff v 100 00` | `ff` selects N/V/C/Z; `v` selects the value required to branch |
 | [6800](../../src/components/cpus/6800.ts) | `0010 ttt p` | Seven conditional pairs expand `p`; BRA is explicit because `21` is unused |
 | [6809](../../src/components/cpus/6809.ts) | `0010 ttt p` | `ttt` selects a condition; `p` selects whether to invert it |
+| [Z80](../../src/components/cpus/z80.ts) | `01 ddd sss` | Both fields select B/C/D/E/H/L/(HL)/A; the `(HL),(HL)` combination binds HALT instead of a transfer |
 | [8088](../../src/components/cpus/8088.ts) | `1011 w rrr` | `w` selects byte/word width; separate `rrr` mappings expose byte halves versus full word registers |
 | [68000](../../src/components/cpus/68000.ts) | `0111 rrr 0 iiiiiiii` | MOVEQ selects D0–D7 with `rrr` and embeds its signed immediate in `iiiiiiii` |
 
@@ -23,8 +26,8 @@ Uppercase letters here distinguish explanatory fields; parsed selector letters
 remain lowercase.
 
 The helper describes encodings; each CPU still defines supported instructions,
-public types, flags, reset, wrapping, and recorded memory accesses. The other
-CPU models retain their existing tables.
+public types, flags, reset, wrapping, and recorded memory accesses. The 8080
+retains its existing table.
 
 ## Explicit entries and families
 

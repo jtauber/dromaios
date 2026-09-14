@@ -1,6 +1,8 @@
 import type { Ram } from "../memory/ram.js";
 import { defineState, copyState, readState, unsigned, flag, boolean, choices, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
+import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
+import type { OpcodeEntry } from "./opcodes.js";
 
 /** The six documented flags; undocumented F bits 3 and 5 are outside this model. */
 export interface CpuZ80Flags {
@@ -91,11 +93,14 @@ export interface CpuZ80ResetRecord {
 interface InstructionContext {
   readonly fetchByte: () => number;
   readonly fetchWord: () => number;
+  readonly readByte: (address: number) => number;
   readonly writeByte: (address: number, value: number) => void;
 }
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteRegister = "a" | "b" | "c" | "d" | "e" | "h" | "l";
+type ByteOperand = ByteRegister | "(hl)";
+type RegisterPair = readonly [ByteRegister, ByteRegister] | "sp";
 
 function pairViews(bank: CpuZ80RegisterBank): { readonly bc: number; readonly de: number; readonly hl: number } {
   return { bc: (bank.b << 8) | bank.c, de: (bank.d << 8) | bank.e, hl: (bank.h << 8) | bank.l };
@@ -159,6 +164,7 @@ export class CpuZ80 {
           const high = fetchByte();
           return low | (high << 8);
         },
+        readByte: address => this.#read(address, accesses),
         writeByte: (address, value) => this.#write(address, value, accesses),
       });
     }
@@ -168,10 +174,19 @@ export class CpuZ80 {
       : { ...record, outcome: "unsupported", reason: "opcode" };
   }
 
+  // Register views.
+
+  get #hl(): number {
+    return (this.#state.h << 8) | this.#state.l;
+  }
+
   // Opcode selectors and construction.
 
-  // rrr selects B/C/D/E/H/L/(HL)/A in order. The 110 memory slot is not implemented.
-  readonly #byteRegisters = ["b", "c", "d", "e", "h", "l", undefined, "a"] as const;
+  // rrr/ddd/sss select B/C/D/E/H/L/(HL)/A in order; 110 addresses RAM through HL.
+  readonly #byteOperands = ["b", "c", "d", "e", "h", "l", "(hl)", "a"] as const;
+
+  // pp selects BC/DE/HL/SP. Pairs name their high and low stored bytes.
+  readonly #registerPairs = [["b", "c"], ["d", "e"], ["h", "l"], "sp"] as const;
 
   // Conditional JR uses just two condition bits: 00 NZ, 01 Z, 10 NC, 11 C.
   readonly #relativeConditions = [
@@ -184,59 +199,70 @@ export class CpuZ80 {
   // Unprefixed opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
   // xx selects a block; the other fields select its operation and operands.
   // Pair families split yyy into pp q. Prefixed instructions remain unsupported.
-  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // xx=00, zzz=000: yyy=010 selects DJNZ, 011 JR, and 1cc conditional JR.
     // yyy=000 (NOP) and 001 (EX AF,AF') remain unsupported.
-    0b00_010_000: ({ fetchByte }) => this.#decrementAndJump(fetchByte()), // DJNZ e
-    0b00_011_000: ({ fetchByte }) => this.#jumpRelative(fetchByte(), true), // JR e
-    ...this.#relativeJumpHandlers(), // JR NZ/Z/NC/C,e
+    ...opcodePattern("00 010 000", ({ fetchByte }: InstructionContext) => this.#decrementAndJump(fetchByte())), // DJNZ e
+    ...opcodePattern("00 011 000", ({ fetchByte }: InstructionContext) => this.#jumpRelative(fetchByte(), true)), // JR e
+    ...opcodeFamily("00 1cc 000", { c: this.#relativeConditions }, ({ c: condition }) => ({ fetchByte }: InstructionContext) => this.#jumpRelative(fetchByte(), condition())), // JR NZ/Z/NC/C,e
+
+    // 00 pp q 001: pp (bits 5..4) selects the pair; q=0 loads nn (low byte first).
+    ...opcodeFamily("00 pp 0 001", { p: this.#registerPairs }, ({ p: pair }) => ({ fetchWord }: InstructionContext) => this.#loadPair(pair, fetchWord())), // LD dd,nn
 
     // xx=00, zzz=010: pp=11 selects A at address nn; q=0 stores (q=1 would load).
-    0b00_11_0_010: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // LD (nn),A
+    ...opcodePattern("00 11 0 010", ({ fetchWord, writeByte }: InstructionContext) => writeByte(fetchWord(), this.#state.a)), // LD (nn),A
 
     // 00 rrr zzz: rrr (bits 5..3) selects the byte register; zzz selects the operation.
-    // rrr=110 selects (HL); these memory forms are omitted.
+    // rrr=110 selects (HL); INC/DEC omit that slot, while LD includes it.
     ...this.#byteRegisterHandlers(0b00_000_100, register => this.#adjustRegister(register, 1)), // 00 rrr 100: INC r
     ...this.#byteRegisterHandlers(0b00_000_101, register => this.#adjustRegister(register, -1)), // 00 rrr 101: DEC r
-    ...this.#byteRegisterHandlers(0b00_000_110, (register, { fetchByte }) =>
-      this.#loadRegister(register, fetchByte())), // 00 rrr 110: LD r,n
+    ...opcodeFamily("00 rrr 110", { r: this.#byteOperands }, ({ r: operand }) => (instruction: InstructionContext) => this.#writeOperand(operand, instruction.fetchByte(), instruction)), // LD r,n / LD (HL),n
 
-    // xx=01: 01 ddd sss encodes register/memory loads; 110 selects (HL).
-    0b01_110_110: () => this.#halt(), // HALT occupies the (HL),(HL) slot.
+    // 01 ddd sss: ddd (bits 5..3) selects destination; sss (bits 2..0) selects source.
+    // 01 110 110 is HALT, not LD (HL),(HL); the binding handles this exception.
+    ...opcodeFamily("01 ddd sss", { d: this.#byteOperands, s: this.#byteOperands }, ({ d: destination, s: source }) => this.#transferHandler(destination, source)), // LD r,r' / LD r,(HL) / LD (HL),r / HALT
 
     // xx=10 register/memory ALU forms are not implemented yet.
 
     // xx=11, zzz=110: 11 ooo 110 selects immediate ALU; ooo=000 is ADD.
-    0b11_000_110: ({ fetchByte }) => this.#addToAccumulator(fetchByte()), // ADD A,n
-  };
-
-  #relativeJumpHandlers(): Partial<Record<number, OpcodeHandler>> {
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [conditionCode, condition] of this.#relativeConditions.entries()) {
-      // 00 1 cc 000: cc occupies bits 4..3; bit 5 is fixed at 1.
-      const opcode = 0b00_1_00_000 | (conditionCode << 3);
-      handlers[opcode] = ({ fetchByte }) => this.#jumpRelative(fetchByte(), condition());
-    }
-    return handlers;
-  }
+    ...opcodePattern("11 000 110", ({ fetchByte }: InstructionContext) => this.#addToAccumulator(fetchByte())), // ADD A,n
+  ]);
 
   #byteRegisterHandlers(
     base: number,
-    operation: (register: ByteRegister, instruction: InstructionContext) => void,
-  ): Partial<Record<number, OpcodeHandler>> {
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [registerCode, register] of this.#byteRegisters.entries()) {
-      if (register === undefined) continue;
+    operation: (register: ByteRegister) => void,
+  ): readonly OpcodeEntry<OpcodeHandler>[] {
+    const handlers: OpcodeEntry<OpcodeHandler>[] = [];
+    for (const [registerCode, register] of this.#byteOperands.entries()) {
+      if (register === "(hl)") continue;
       // 00 rrr zzz: rrr occupies bits 5..3; the base supplies the operation's zzz.
-      handlers[base | (registerCode << 3)] = instruction => operation(register, instruction);
+      handlers.push([base | (registerCode << 3), () => operation(register)]);
     }
     return handlers;
   }
 
-  // Loads.
+  #transferHandler(destination: ByteOperand, source: ByteOperand): OpcodeHandler {
+    if (destination === "(hl)" && source === "(hl)") return () => this.#halt();
+    return instruction => this.#writeOperand(destination, this.#readOperand(source, instruction), instruction);
+  }
 
-  #loadRegister(register: ByteRegister, value: number): void {
-    this.#state[register] = value;
+  // Addressing and loads.
+
+  #readOperand(operand: ByteOperand, { readByte }: InstructionContext): number {
+    return operand === "(hl)" ? readByte(this.#hl) : this.#state[operand];
+  }
+
+  #writeOperand(operand: ByteOperand, value: number, { writeByte }: InstructionContext): void {
+    if (operand === "(hl)") writeByte(this.#hl, value);
+    else this.#state[operand] = value;
+  }
+
+  #loadPair(pair: RegisterPair, value: number): void {
+    if (pair === "sp") this.#state.sp = value;
+    else {
+      this.#state[pair[0]] = value >>> 8;
+      this.#state[pair[1]] = value & 0xff;
+    }
   }
 
   // Control flow.

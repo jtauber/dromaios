@@ -10,7 +10,8 @@ this model without adapters.
 [Public type checks](../../../tests/types/z80.ts) ·
 [Coverage](../coverage.md#z80) ·
 [Arithmetic example](examples/arithmetic.md) ·
-[Counted-loop example](examples/counted-loop.md)
+[Counted-loop example](examples/counted-loop.md) ·
+[Transfer example](examples/transfers.md)
 
 Expected hardware behavior comes from the
 [Zilog Z80 CPU User Manual, UM008011-0816](https://www.zilog.com/docs/z80/um0080.pdf):
@@ -41,9 +42,11 @@ remain separate fields in their respective register and flag objects.
 
 Snapshots derive readonly BC, DE, and HL views in each bank from its stored
 bytes, high byte first. These pair views are not separate state and cannot be
-initialized independently. No implemented instruction exchanges the banks or
-uses the index registers, interrupt vector, or stack pointer yet; they can be
-initialized and inspected and are preserved by this instruction subset.
+initialized independently. Immediate pair loads update the stored bytes of BC,
+DE, or HL, or replace SP. No implemented instruction exchanges the banks or
+uses the index registers or interrupt vector yet; they can be initialized and
+inspected and are preserved by this instruction subset. Stack operations remain
+unsupported even though SP can be loaded.
 
 ## Construction and inspection
 
@@ -77,7 +80,8 @@ snapshot. The CPU keeps mutable private state and retains no record history.
   `reason: "opcode"`.
 
 Supported instructions advance PC while fetching bytes, wrapping at 16 bits.
-The absolute store fetches its low address byte before its high address byte.
+Word operands, including immediate pair loads and the absolute store address,
+are fetched low byte first.
 Stores record the write even when the value is unchanged, and never read the
 destination to reconstruct an old value. Captured instruction bytes survive
 stores that overwrite code. Subsequent steps fetch current RAM.
@@ -103,13 +107,28 @@ model. Neither interrupt-enable latch currently changes how a step executes.
 There is no synthetic lesson-completion instruction or state; caller completion
 belongs to the [runner](../../runtime/runner.md).
 
-## Register operations and relative jumps
+## Loads and register operations
 
-Immediate byte-register loads preserve all modeled flags. INC/DEC wrap at
-eight bits and replace S/Z/H/PV/N while preserving C. P/V reports signed
+Byte loads transfer between main registers, read or write RAM through HL, or
+fetch an immediate byte. A data read through HL precedes any destination change,
+including loads into H or L. Register self-transfers perform no data accesses.
+`LD (HL),n` fetches its immediate before writing, including when HL points at
+the opcode or operand. `LD dd,nn` loads BC, DE, HL, or SP, low byte first.
+All these loads preserve all modeled flags and the alternate bank.
+
+The `01 ddd sss` load matrix uses B/C/D/E/H/L/(HL)/A in both fields. Its 63
+transfers share operand reading and writing; `01 110 110` selects HALT during
+table construction and performs no data access through HL. The opcode patterns
+keep this exception beside the family definition. See the
+[Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages
+71–74, 79–80, 85, and 99, and the [transfer example](examples/transfers.md).
+
+INC/DEC wrap at eight bits and replace S/Z/H/PV/N while preserving C. P/V reports signed
 overflow: INC sets it for `7F` → `80`, DEC for `80` → `7F`. H records a carry
 from bit 3 for INC or a borrow from bit 4 for DEC. INC clears N; DEC sets it.
 Pair views reflect the resulting bytes. The alternate bank remains unchanged.
+
+## Relative jumps
 
 JR supports an unconditional form and the NZ/Z/NC/C conditions. A taken jump
 adds the signed operand byte to PC after both instruction bytes, with 16-bit
@@ -120,8 +139,8 @@ the jump; B = `01` becomes `00` and falls through.
 See the [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed
 pages 72, 165–171, and 265–279.
 
-At this model's instruction boundary, INC/DEC read only the opcode. Immediate
-loads, JR, and DJNZ read the opcode followed by one operand, including on an
+At this model's instruction boundary, register INC/DEC read only the opcode.
+JR and DJNZ read the opcode followed by one operand, including on an
 untaken path. No target or dummy reads are performed. R advances once on either
 path, following the existing opcode-fetch rule. Subsequent steps fetch current
 RAM and inspect current registers and flags. The
@@ -155,7 +174,11 @@ reset, and readonly public types have separate checks.
 
 Register loads and INC/DEC cover every byte and all 64 incoming flag patterns,
 including half carry/borrow, signed overflow, flag preservation, pair views,
-and unchanged alternate state. JR conditions cover all flag patterns; DJNZ
+and unchanged alternate state. The transfer matrix checks every encoding and
+byte, cycling through all incoming flag patterns; memory cases also check
+address-space boundaries, opcode overlap, and H/L destination aliasing. Pair
+loads check each selector with boundary words, all flag patterns, and wrapped
+operand fetches. JR conditions cover all flag patterns; DJNZ
 covers every B value and flag pattern. Every relative displacement is checked
 on each available path, including page/address-space crossings and instruction
 overlap. All supported opcodes are checked with every R value. Further checks

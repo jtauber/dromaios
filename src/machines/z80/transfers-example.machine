@@ -1,0 +1,33 @@
+ram 10000
+
+cpu z80 {
+    A = 11  B = 22  C = 33  D = 44  E = 55  H = 66  L = 77
+    flags { S = 1  Z = 1  H = 1  PV = 1  N = 1  C = 1 }
+    alternate {
+        A = 88  B = 99  C = AA  D = BB  E = CC  H = DD  L = EE
+        flags { S = 0  Z = 1  H = 0  PV = 1  N = 0  C = 1 }
+    }
+    IX = 1234  IY = 5678  PC = 0200  SP = ABCD
+    I = 42  R = FE  IM = 2
+    iff1 = true  iff2 = false  halted = false
+}
+
+memory 007F { CC 00 00 00 CC CC } // Buffer at 0080–0083, with guards on either side.
+
+memory 0200 {
+    01 00 03    // LD BC,0300H: B counts three iterations; C receives the first byte later.
+    11 55 7F    // LD DE,7F55H: D supplies the byte to store; E receives the last byte later.
+    21 80 00    // LD HL,0080H: buffer pointer
+    31 00 F0    // LD SP,F000H
+    72          // LD (HL),D (loop starts at 020C)
+    14          // INC D: next value
+    2C          // INC L: next address within this page; no carry into H
+    10 FB       // DJNZ 020CH: -5 from 0211
+    36 00       // LD (HL),00H: terminate the buffer
+    21 80 00    // LD HL,0080H
+    7E          // LD A,(HL): read the first byte
+    4F          // LD C,A: copy it to C
+    21 82 00    // LD HL,0082H
+    5E          // LD E,(HL): read the last data byte
+    76          // HALT
+}

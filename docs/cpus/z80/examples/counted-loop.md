@@ -6,7 +6,7 @@ fifteen in RAM, and halts. It complements the
 [6809](../../6809/examples/counted-loop.md) loops with a combined decrement
 and branch that preserves flags, plus visible refresh-register updates.
 
-[Model contract](../model.md#register-operations-and-relative-jumps) ·
+[Model contract](../model.md#relative-jumps) ·
 [Example definition](../../../../src/machines/z80/counted-loop-example.machine) ·
 [Example tests](../../../../tests/machines/z80/counted-loop-example.test.ts) ·
 [CPU coverage](../../coverage.md#z80)
@@ -42,7 +42,7 @@ The destination `0080` and reset address `0000` start at zero.
 These are explicit example choices. Distinct banks reveal accidental changes
 to alternate state. R starts near a boundary so its low seven bits wrap during
 setup. Instruction behavior follows the
-[model contract](../model.md#register-operations-and-relative-jumps) and the
+[model contract](../model.md#relative-jumps) and the
 [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages
 72, 147, 278–279, and the refresh-register description.
 

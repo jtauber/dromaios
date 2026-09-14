@@ -19,7 +19,7 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [693](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [232](../../src/components/cpus/6800.ts) | 25 / 197 | 12.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [259](../../src/components/cpus/6502.ts) | 25 / 151 | 16.6% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [303](../../src/components/cpus/z80.ts) | 30 / 698 | 4.3% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [329](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [340](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [262](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [255](../../src/components/cpus/68000.ts) | 96 / 36,029 | 0.3% |
@@ -762,8 +762,12 @@ reset preservation, and fresh restart.
 [Counted-loop specification](z80/examples/counted-loop.md) ·
 [Counted-loop definition](../../src/machines/z80/counted-loop-example.machine)
 
+[Transfer specification](z80/examples/transfers.md) ·
+[Transfer definition](../../src/machines/z80/transfers-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
+| `01/11/21/31` | `LD dd,nn` | Immediate word | 3 | Load BC/DE/HL/SP, low byte first; preserve flags |
 | `04` | `INC B` | Register | 1 | Increment B; preserve C |
 | `05` | `DEC B` | Register | 1 | Decrement B; preserve C |
 | `06` | `LD B,n` | Immediate | 2 | Load B; preserve flags |
@@ -788,10 +792,12 @@ reset preservation, and fresh restart.
 | `2E` | `LD L,n` | Immediate | 2 | Load L; preserve flags |
 | `30` | `JR NC,rel` | Relative | 2 | Jump if C = 0; preserve flags |
 | `32` | `LD (nn),A` | Absolute | 3 | Store A; address bytes low then high; preserve flags |
+| `36` | `LD (HL),n` | Immediate byte to indirect memory | 2 | Fetch the byte, then write RAM at HL; preserve flags |
 | `38` | `JR C,rel` | Relative | 2 | Jump if C = 1; preserve flags |
 | `3C` | `INC A` | Register | 1 | Increment A; preserve C |
 | `3D` | `DEC A` | Register | 1 | Decrement A; preserve C |
 | `3E` | `LD A,n` | Immediate | 2 | Load A; preserve flags |
+| `40`–`7F`, except `76` | `LD r,r'` / `LD r,(HL)` / `LD (HL),r` | Register or indirect memory | 1 | All 49 register transfers, seven indirect reads, and seven indirect writes; preserve flags |
 | `76` | `HALT` | Implied | 1 | Advance PC, increment R, and halt; preserve flags and interrupt latches |
 | `C6` | `ADD A,n` | Immediate | 2 | Add without incoming carry; set S/Z/H/PV/C from the result and clear N; PV means signed overflow |
 
@@ -799,8 +805,9 @@ reset preservation, and fresh restart.
 | --- | --- |
 | Stored registers | A/B/C/D/E/H/L in main and alternate banks; IX, IY, PC, SP, I, R |
 | Stored flags | S/Z/H/PV/N/C in both banks; undocumented F bits 3/5 and raw F/AF views are omitted |
-| Register relationships | Snapshots derive BC, DE, and HL in both banks; no bank-exchange or pair-operation instructions yet |
-| Register operations | Immediate A/B/C/D/E/H/L loads preserve flags; INC/DEC wrap byte registers and replace S/Z/H/PV/N, preserving C; the alternate bank is unchanged |
+| Register relationships | Snapshots derive BC, DE, and HL in both banks; pair loads update the main bank's stored bytes or SP; no bank exchanges yet |
+| Register operations | Immediate and register/memory byte loads and immediate pair loads preserve flags; INC/DEC wrap byte registers and replace S/Z/H/PV/N, preserving C; the alternate bank is unchanged |
+| Indirect transfers | HL addresses RAM for reads and writes; H/L destinations use the original HL address; HALT occupies the absent memory-to-memory transfer slot |
 | Relative jumps | Unconditional JR and NZ/Z/NC/C conditions; signed displacement from PC after the operand, wrapping at 16 bits; fetch operand on every path |
 | Counted loops | DJNZ decrements B and tests its result while preserving all flags; zero wraps to FF; BC follows the updated B |
 | Interrupt state | IFF1, IFF2, and IM 0/1/2 can be initialized and inspected; no interrupt delivery or interrupt-control instructions |
@@ -809,7 +816,7 @@ reset preservation, and fresh restart.
 | Prefixes | CB/DD/ED/FD rejected after the first byte; all CPU state, including R, remains unchanged |
 | Stopping | HALT reports its instruction once; already halted steps perform no accesses or refresh updates |
 | Remaining instruction scope | Further transfers, arithmetic and logic, register exchanges, stack operations, absolute jumps, calls/returns, and I/O |
-| Remaining addressing scope | Indirect, indexed, prefixed, and other forms beyond the exact encodings above |
+| Remaining addressing scope | Indirect forms beyond these HL byte transfers, indexed, prefixed, and other forms beyond the exact encodings above |
 
 The model covers documented instruction semantics for the listed forms, not
 undocumented flag bits or cycle activity. In particular, a physical Z80 keeps
@@ -819,7 +826,8 @@ reset-preservation policies.
 
 Verification: [CPU tests](../../tests/components/cpus/z80.test.ts),
 [arithmetic example tests](../../tests/machines/z80/example.test.ts),
-[counted-loop example tests](../../tests/machines/z80/counted-loop-example.test.ts), and
+[counted-loop example tests](../../tests/machines/z80/counted-loop-example.test.ts),
+[transfer example tests](../../tests/machines/z80/transfers-example.test.ts), and
 [public type checks](../../tests/types/z80.ts). ADD checks every byte operand
 pair against independent column addition and signed-range overflow, with old
 flags clear and set. Boundary programs exercise all flag patterns alongside
@@ -829,6 +837,11 @@ views, exact accesses, PC and R wrapping, current RAM, overlapping stores,
 every unsupported first byte, HALT, reset, and retained records. The generated
 example and runner checks verify complete records, final RAM, and bounded
 resumption with the concrete Z80 types.
+The transfer matrix checks every encoding and byte while cycling through all
+flag patterns, with additional code-overlap and H/L aliasing cases. Immediate
+memory stores check every byte and flag combination; pair loads check all four
+selectors, boundary words, flag patterns, and wrapped fetches. The buffer-fill
+example combines these loads with DJNZ and verifies its 23-step trace and RAM.
 Register load and INC/DEC checks cover every byte and all 64 flag patterns,
 signed overflow, half carry/borrow, carry preservation, pair views, and alternate
 bank isolation. JR conditions cover every flag pattern; DJNZ covers every B

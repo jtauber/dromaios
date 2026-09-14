@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CpuZ80 } from "../../../src/components/cpus/z80.js";
-import type { CpuZ80Flags, CpuZ80RegisterBank, CpuZ80State } from "../../../src/components/cpus/z80.js";
+import type { CpuZ80Flags, CpuZ80RegisterBank, CpuZ80State, CpuZ80MemoryAccess } from "../../../src/components/cpus/z80.js";
 import { Cpu8080 } from "../../../src/components/cpus/8080.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
@@ -34,7 +34,7 @@ function flagPattern(bits: number): CpuZ80Flags {
     pv: Boolean(bits & 8), n: Boolean(bits & 16), c: Boolean(bits & 32) };
 }
 
-// Literal encodings from the manual; the memory selector (HL) is outside this slice.
+// Literal encodings from the manual; INC/DEC (HL) remain outside this subset.
 const byteRegisterCases = [
   { register: "a", load: 0x3e, increment: 0x3c, decrement: 0x3d },
   { register: "b", load: 0x06, increment: 0x04, decrement: 0x05 },
@@ -44,6 +44,159 @@ const byteRegisterCases = [
   { register: "h", load: 0x26, increment: 0x24, decrement: 0x25 },
   { register: "l", load: 0x2e, increment: 0x2c, decrement: 0x2d },
 ] as const;
+
+// Literal rows from the documented load matrix; columns are B/C/D/E/H/L/(HL)/A.
+const transferColumns = ["b", "c", "d", "e", "h", "l", "(hl)", "a"] as const;
+const transferRows = [
+  { destination: "b", opcodes: [0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47] },
+  { destination: "c", opcodes: [0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f] },
+  { destination: "d", opcodes: [0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57] },
+  { destination: "e", opcodes: [0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f] },
+  { destination: "h", opcodes: [0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67] },
+  { destination: "l", opcodes: [0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f] },
+  { destination: "(hl)", opcodes: [0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77] },
+  { destination: "a", opcodes: [0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f] },
+] as const;
+
+for (const { destination, opcodes } of transferRows) {
+  test(`Z80 load-matrix destination ${destination.toUpperCase()} covers every source and byte, including self-transfers and HALT`, () => {
+    const ram = new ObservedRam();
+    for (const [column, source] of transferColumns.entries()) {
+      const opcode = opcodes[column]!;
+      for (let value = 0; value < 256; value++) {
+        const before = initialState({ flags: flagPattern(value % 64) });
+        if (source !== "(hl)") before[source] = value;
+        const address = before.h * 256 + before.l;
+        ram.write(address, value);
+        ram.write(before.pc, opcode);
+        ram.accesses.length = 0;
+        const after = { ...before, pc: 0x2001, r: 0xff, halted: opcode === 0x76 };
+        const accesses: CpuZ80MemoryAccess[] = [{ kind: "read", address: before.pc, value: opcode }];
+        if (opcode !== 0x76) {
+          if (source === "(hl)") accesses.push({ kind: "read", address, value });
+          if (destination === "(hl)") accesses.push({ kind: "write", address, value });
+          else after[destination] = value;
+        }
+        const record = new CpuZ80(ram, before).step();
+        assert.deepEqual(record, {
+          before: snapshot(before), after: snapshot(after), instruction: { address: before.pc, bytes: [opcode] },
+          accesses, outcome: after.halted ? "halted" : "executed",
+        });
+        assert.deepEqual(ram.accesses, accesses);
+        // A store still writes when the byte at its destination already matches.
+        assert.equal(ram.read(address), value);
+      }
+    }
+  });
+}
+
+test("Z80 indirect loads use the original HL and distinguish data reads from instruction bytes at address-space and code overlaps", () => {
+  for (const { destination, opcodes } of transferRows) {
+    for (const [column, source] of transferColumns.entries()) {
+      const opcode = opcodes[column]!;
+      if (opcode === 0x76 || (destination !== "(hl)" && source !== "(hl)")) continue;
+      for (const pc of [0, 0x2000, 0xffff]) {
+        for (const address of [0, 0xffff, 0x1234, pc, (pc + 1) % 0x10000]) {
+          const ram = new ObservedRam();
+          const before = initialState({ pc, h: Math.floor(address / 256), l: address % 256 });
+          ram.write(address, 0xa5);
+          ram.write(pc, opcode);
+          const value = source === "(hl)" ? ram.read(address) : before[source];
+          ram.accesses.length = 0;
+          const after = { ...before, pc: (pc + 1) % 0x10000, r: 0xff };
+          if (destination !== "(hl)") after[destination] = value;
+          const accesses: CpuZ80MemoryAccess[] = [
+            { kind: "read", address: pc, value: opcode },
+            { kind: destination === "(hl)" ? "write" : "read", address, value },
+          ];
+          assert.deepEqual(new CpuZ80(ram, before).step(), {
+            before: snapshot(before), after: snapshot(after), instruction: { address: pc, bytes: [opcode] },
+            accesses, outcome: "executed",
+          });
+          assert.deepEqual(ram.accesses, accesses);
+          assert.equal(ram.read(address), value);
+        }
+      }
+    }
+  }
+});
+
+test("Z80 LD (HL),n stores every byte with every incoming flag pattern, including wrapped fetches", () => {
+  const ram = new ObservedRam();
+  ram.write(0xffff, 0x36);
+  for (let bits = 0; bits < 64; bits++) {
+    for (let value = 0; value < 256; value++) {
+      ram.write(0, value);
+      ram.accesses.length = 0;
+      const before = initialState({ pc: 0xffff, flags: flagPattern(bits) });
+      const record = new CpuZ80(ram, before).step();
+      assert.deepEqual(record, {
+        before: snapshot(before), after: snapshot({ ...before, pc: 1, r: 0xff }),
+        instruction: { address: 0xffff, bytes: [0x36, value] }, outcome: "executed",
+        accesses: [{ kind: "read", address: 0xffff, value: 0x36 }, { kind: "read", address: 0, value },
+          { kind: "write", address: 0x6677, value }],
+      });
+      assert.deepEqual(ram.accesses, record.accesses);
+      assert.equal(ram.read(0x6677), value);
+    }
+  }
+});
+
+test("Z80 LD (HL),n fetches its operand before an overlapping write and retains captured bytes", () => {
+  for (const pc of [0, 0x2000, 0xffff]) {
+    for (const address of [0, 0xffff, pc, (pc + 1) % 0x10000]) {
+      const ram = new ObservedRam();
+      ram.write(pc, 0x36);
+      ram.write((pc + 1) % 0x10000, 0x76);
+      ram.accesses.length = 0;
+      const before = initialState({ pc, h: Math.floor(address / 256), l: address % 256 });
+      const cpu = new CpuZ80(ram, before);
+      const record = cpu.step();
+      const saved = structuredClone(record);
+      assert.deepEqual(record, {
+        before: snapshot(before), after: snapshot({ ...before, pc: (pc + 2) % 0x10000, r: 0xff }),
+        instruction: { address: pc, bytes: [0x36, 0x76] }, outcome: "executed",
+        accesses: [{ kind: "read", address: pc, value: 0x36 },
+          { kind: "read", address: (pc + 1) % 0x10000, value: 0x76 }, { kind: "write", address, value: 0x76 }],
+      });
+      assert.deepEqual(ram.accesses, record.accesses);
+      assert.equal(ram.read(address), 0x76);
+      ram.write(address, 0);
+      cpu.reset();
+      assert.deepEqual(record, saved);
+    }
+  }
+});
+
+for (const { opcode, high, low } of [
+  { opcode: 0x01, high: "b", low: "c" }, { opcode: 0x11, high: "d", low: "e" },
+  { opcode: 0x21, high: "h", low: "l" }, { opcode: 0x31, high: null, low: null },
+] as const) {
+  test(`Z80 pair load ${opcode.toString(16)} reads low then high, updates only its stored registers, and preserves flags`, () => {
+    const ram = new ObservedRam();
+    for (const pc of [0x2000, 0xfffe, 0xffff]) {
+      for (const value of [0, 1, 0x00ff, 0x0100, 0x1234, 0x7fff, 0x8000, 0xff00, 0xffff]) {
+        for (let bits = 0; bits < 64; bits++) {
+          const bytes = [opcode, value % 256, Math.floor(value / 256)];
+          bytes.forEach((byte, offset) => ram.write((pc + offset) % 0x10000, byte));
+          ram.accesses.length = 0;
+          const before = initialState({ pc, flags: flagPattern(bits) });
+          const after = { ...before, pc: (pc + 3) % 0x10000, r: 0xff };
+          if (high !== null) {
+            after[high] = Math.floor(value / 256);
+            after[low] = value % 256;
+          } else after.sp = value;
+          const record = new CpuZ80(ram, before).step();
+          assert.deepEqual(record, {
+            before: snapshot(before), after: snapshot(after), instruction: { address: pc, bytes }, outcome: "executed",
+            accesses: bytes.map((byte, offset) => ({ kind: "read", address: (pc + offset) % 0x10000, value: byte })),
+          });
+          assert.deepEqual(ram.accesses, record.accesses);
+        }
+      }
+    }
+  });
+}
 
 test("Z80 owns both banks, flags, and snapshots without reset or memory access", () => {
   const ram = new ObservedRam();
@@ -318,10 +471,11 @@ test("Z80 increments only R bits 0–6 once per supported opcode, including HALT
   const ram = new ObservedRam();
   // Initial Z/C are clear, B is 22, and the displacement is 80 (-128).
   for (const [opcodes, nextPc] of [
-    [[0x04, 0x05, 0x0c, 0x0d, 0x14, 0x15, 0x1c, 0x1d, 0x24, 0x25, 0x2c, 0x2d, 0x3c, 0x3d, 0x76], 0],
-    [[0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x3e, 0xc6, 0x28, 0x38], 1],
+    [[0x04, 0x05, 0x0c, 0x0d, 0x14, 0x15, 0x1c, 0x1d, 0x24, 0x25, 0x2c, 0x2d, 0x3c, 0x3d,
+      ...transferRows.flatMap(row => [...row.opcodes])], 0],
+    [[0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x36, 0x3e, 0xc6, 0x28, 0x38], 1],
     [[0x10, 0x18, 0x20, 0x30], 0xff81],
-    [[0x32], 2],
+    [[0x01, 0x11, 0x21, 0x31, 0x32], 2],
   ] as const) {
     for (const opcode of opcodes) {
       for (let r = 0; r < 256; r++) {
@@ -511,7 +665,9 @@ test("Z80 rejects every unsupported first byte atomically, including prefixes", 
   const ram = new ObservedRam();
   const before = initialState({ pc: 0xffff, r: 0xff });
   for (let opcode = 0; opcode < 256; opcode++) {
+    if (opcode >= 0x40 && opcode <= 0x7f) continue;
     if ([
+      0x01, 0x11, 0x21, 0x31, 0x36,
       0x04, 0x05, 0x06, 0x0c, 0x0d, 0x0e, 0x10, 0x14, 0x15, 0x16, 0x18, 0x1c, 0x1d, 0x1e,
       0x20, 0x24, 0x25, 0x26, 0x28, 0x2c, 0x2d, 0x2e, 0x30, 0x32, 0x38, 0x3c, 0x3d, 0x3e, 0x76, 0xc6,
     ].includes(opcode)) continue;
