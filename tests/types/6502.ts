@@ -48,7 +48,7 @@ export function checkOutcomes(record: Cpu6502StepRecord): readonly number[] {
       record.reason;
       return record.instruction.bytes;
     case "unsupported": {
-      const reason: "opcode" | "decimal-mode" = record.reason;
+      const reason: "opcode" = record.reason;
       // @ts-expect-error Unsupported reasons are readonly.
       record.reason = reason;
       return record.instruction.bytes;
@@ -69,11 +69,12 @@ export function checkRecordConstruction(cpu: Cpu6502): readonly Cpu6502StepRecor
   const extraReason: Cpu6502StepRecord = { ...common, outcome: "executed", reason: "opcode" };
   // @ts-expect-error The CPU does not report lesson completion or a halt outcome.
   const invalidOutcome: Cpu6502StepRecord = { ...common, outcome: "halted" };
+  // @ts-expect-error Decimal arithmetic is supported, not an unsupported outcome.
+  const invalidReason: Cpu6502StepRecord = { ...common, outcome: "unsupported", reason: "decimal-mode" };
 
   return [
     { ...common, outcome: "executed" },
     { ...common, outcome: "unsupported", reason: "opcode" },
-    { ...common, outcome: "unsupported", reason: "decimal-mode" },
   ];
 }
 

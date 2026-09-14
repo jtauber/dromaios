@@ -84,7 +84,7 @@ by the CPU, in order; the runner does not copy, reinterpret, or freeze them.
 Record contents and isolation guarantees belong to the CPU's model contract.
 
 TypeScript infers the record type from the supplied CPU. A 6502 run retains
-its non-null instruction and `opcode | decimal-mode` unsupported reasons;
+its non-null instruction and `opcode` unsupported reason;
 an 8080 run retains its halted-record union; a 6809 run retains D and both
 stack pointers in snapshots; a Z80 run retains both register banks, P/V, and R;
 an 8088 run retains CS:IP, word registers, derived byte views, and physical PC;

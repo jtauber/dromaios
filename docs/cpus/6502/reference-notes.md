@@ -89,17 +89,18 @@ and page crossings. Cycle totals and complete bus traces are distinct claims;
 the current instruction-level access records promise neither. The notes are
 design inspiration, not a verified timing specification.
 
-## Decimal arithmetic: keep the explicit boundary in the specification
+## Decimal arithmetic: verify NMOS behavior independently
 
 [Applepy's ADC][applepy-adc] asserts that decimal mode is off.
 [Dromaios-apple2's ADC][apple2-adc] performs binary arithmetic without checking
 D. A focused check with A = `$09`, operand = `$01`, C false, and D true produced
 A = `$0A` while leaving D true in that implementation.
 
-Keep the [model contract's explicit unsupported decimal-mode result](model.md#unsupported-instructions-and-modes), checked
-before advancing PC or reading the operand. These older implementations do not
-establish decimal-mode correctness. The model contract defines the exact
-rejection behavior; the arithmetic example specifies the binary ADC checks.
+These older implementations do not establish decimal-mode correctness. The
+[arithmetic contract](model.md#arithmetic-and-decimal-mode) instead specifies
+NMOS digit correction and intermediate flags, checked exhaustively and against
+independent reference cases. The [decimal example](examples/decimal.md) exercises
+carry and borrow between packed-decimal bytes.
 
 [applepy-operations]: https://github.com/jtauber/applepy/blob/934bf1a495583e7b4b08d42eae27e3532b51c3f2/cpu6502.py#L806-L880
 [applepy-tests]: https://github.com/jtauber/applepy/blob/934bf1a495583e7b4b08d42eae27e3532b51c3f2/tests.py#L951-L997

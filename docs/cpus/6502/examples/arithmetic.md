@@ -5,7 +5,7 @@ The example loads 2, adds 3, and stores 5, providing a second architecture
 against which to examine the [8080 example](../../8080/examples/arithmetic.md).
 
 The [6502 model contract](../model.md) defines state, records, reset, and the
-decimal-mode boundary. Current support is tracked in
+binary arithmetic mode. Current support is tracked in
 [6502 implementation coverage](../../coverage.md#6502).
 
 [Example definition](../../../../src/machines/6502/example.machine) ·
@@ -83,7 +83,7 @@ The [manufacturer manual][1] defines these operations and encodings.
 
 Fetch all address bytes before STA writes, even when it overwrites itself.
 The example initializes D = false. A CPU initialized with D true follows the
-model's [unsupported decimal-mode policy](../model.md#unsupported-instructions-and-modes).
+model's [NMOS decimal arithmetic rules](../model.md#arithmetic-and-decimal-mode).
 
 ## Expected execution
 
@@ -160,8 +160,8 @@ The tests cover:
    both incoming carry values. Derive expected carry from unsigned arithmetic
    and overflow from signed arithmetic independently of the implementation;
    check replacement of old N/V/Z and preservation of I/D.
-5. Decimal ADC stops after its opcode without changing state or RAM. The other
-   three forms still execute with D true. Opcodes outside the
+5. Decimal ADC uses NMOS correction and flag rules; the other three forms
+   behave identically with either D value. Opcodes outside the
    [coverage inventory](../../coverage.md#6502) follow the model's rejection policy.
 6. STA uses low/high addressing, performs three reads then one write, preserves
    flags, and handles identical-value writes and overwriting its own bytes.

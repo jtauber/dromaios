@@ -35,8 +35,7 @@ The destination `0080` and completion address `0210` start at zero.
 | PC, SP | `0200`, `FF` |
 | N, V, D, I, Z, C | `1`, `1`, `0`, `0`, `1`, `1` |
 
-These are explicit example choices. D is clear so the existing binary ADC
-can execute; each iteration clears C before adding. Register and branch
+These are explicit example choices. D is clear to select binary ADC; each iteration clears C before adding. Register and branch
 behavior follows the [model contract](../model.md#register-operations-and-relative-branches)
 and the [manufacturer manual](https://syncopate.us/books/Synertek6502ProgrammingManual.html),
 sections 4.1 and 7, with encodings in Appendix B.

@@ -129,19 +129,22 @@ test("6502 status and return frames resume from RAM and snapshots and survive re
   }
 });
 
-test("6502 indirect dispatch uses an edited pointer and rejects ADC when the new entry skips CLD", () => {
+test("6502 indirect dispatch uses decimal arithmetic when an edited pointer skips CLD", () => {
   const { cpu, ram, endAddress } = create6502StatusExample();
   runCpu(cpu, { maxSteps: 2, endAddress });
   ram.write(0x30ff, 0x61);
-  const run = runCpu(cpu, { maxSteps: 5, endAddress });
-  assert.equal(run.stopReason, "unsupported");
-  assert.deepEqual(run.records.map(record => record.instruction.address), [0x0240, 0x0261, 0x0262, 0x0264]);
-  const last = run.records.at(-1)!;
-  assert.equal(last.outcome, "unsupported");
-  if (last.outcome === "unsupported") assert.equal(last.reason, "decimal-mode");
-  assert.deepEqual(last.instruction.bytes, [0x69]);
-  assert.deepEqual(last.accesses, [{ kind: "read", address: 0x0264, value: 0x69 }]);
-  assert.equal(cpu.snapshot().sp, 0xfd);
+  const run = runCpu(cpu, { maxSteps: 9, endAddress });
+  assert.equal(run.stopReason, "completed");
+  assert.deepEqual(run.records.map(record => record.instruction.address),
+    [0x0240, 0x0261, 0x0262, 0x0264, 0x0266, 0x0204, 0x0205, 0x0209, 0x020c]);
+  const adc = run.records[3]!;
+  assert.equal(adc.outcome, "executed");
+  assert.equal(adc.after.a, 0x86); // The invalid BCD digit F still follows NMOS correction.
+  assert.deepEqual(adc.after.flags, { n: true, v: true, d: true, i: false, z: false, c: false });
+  assert.deepEqual(adc.instruction.bytes, [0x69, 1]);
+  assert.deepEqual(adc.accesses, [{ kind: "read", address: 0x0264, value: 0x69 },
+    { kind: "read", address: 0x0265, value: 1 }]);
+  assert.deepEqual(cpu.snapshot(), { ...expectedInitialState(), a: 0x86, pc: endAddress });
   assert.equal(ram.read(0x0100), 0xbb);
-  assert.equal(ram.read(0x80), 0xcc);
+  assert.equal(ram.read(0x80), 0x86);
 });

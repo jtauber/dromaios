@@ -93,8 +93,9 @@ Reset after completion reads the vector, sets PC/SP to `0200/FD`, sets I, and
 preserves other state and all RAM. Captured records survive reset and host edits.
 
 Changing `30FF` to `61` after JSR makes the dispatch skip CLD. The subsequent
-ADC then returns `unsupported` with reason `decimal-mode`, reading only its
-opcode. The result remains `CC` and both stack frames remain present.
+ADC then executes in decimal mode, producing `86` from the invalid BCD
+operand `7F` plus `01`. The program completes in eleven instructions, stores
+`86`, and restores the caller's flags and SP through RTS/PLP.
 
 The [model contract](../model.md#status-stack) cites manufacturer instruction
 rules and the independent PHP/PLP/JMP reference cases, and defines the omitted

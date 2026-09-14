@@ -46,7 +46,7 @@ export type Cpu6502StepRecord = StateTransition<Cpu6502Snapshot> & {
   readonly instruction: Cpu6502Instruction;
 } & (
   | { readonly outcome: "executed" }
-  | { readonly outcome: "unsupported"; readonly reason: "opcode" | "decimal-mode" }
+  | { readonly outcome: "unsupported"; readonly reason: "opcode" }
 );
 
 export type Cpu6502ResetRecord = StateTransition<Cpu6502Snapshot>;
@@ -90,7 +90,7 @@ export class Cpu6502 {
     return { before, after: this.snapshot(), accesses };
   }
 
-  /** Attempt one instruction; unsupported opcodes or modes leave all state unchanged. */
+  /** Attempt one instruction; unsupported opcodes leave all state unchanged. */
   step(): Cpu6502StepRecord {
     const before = this.snapshot();
     const { accesses, readByte, writeByte } = recordMemory(this.#ram);
@@ -98,9 +98,7 @@ export class Cpu6502 {
     const opcode = readByte(address);
     const bytes = [opcode];
     const handler = this.#opcodeHandlers[opcode];
-    // Reject decimal ADC before advancing PC or fetching its operand.
-    const decimalModeUnsupported = opcode === 0b011_010_01 && this.#state.flags.d;
-    if (handler && !decimalModeUnsupported) {
+    if (handler) {
       // Advance only for supported instructions; operand fetches advance themselves.
       this.#state.pc = (address + 1) & 0xffff;
       const fetchByte = (): number => {
@@ -124,9 +122,9 @@ export class Cpu6502 {
       after: this.snapshot(),
       accesses,
     };
-    return handler && !decimalModeUnsupported
+    return handler
       ? { ...record, outcome: "executed" }
-      : { ...record, outcome: "unsupported", reason: decimalModeUnsupported ? "decimal-mode" : "opcode" };
+      : { ...record, outcome: "unsupported", reason: "opcode" };
   }
 
   // Register and flag views.
@@ -231,12 +229,12 @@ export class Cpu6502 {
     ...instructionPattern("101 111 00", instruction => this.#loadRegister("y", instruction.readByte(this.#absoluteIndexed("x", instruction)))), // LDY addr,X
 
     // cc=01: aaa selects ORA, AND, EOR, ADC, STA, LDA, CMP, SBC in that order.
-    // Complete read families use all eight bbb readers above. ADC remains immediate/binary only;
-    // SBC is unsupported. STA has seven memory forms and no bbb=010 immediate encoding.
+    // Read families use all eight bbb readers above. STA has seven memory forms
+    // and no bbb=010 immediate encoding.
     ...this.#accumulatorHandlers("000 bbb 01", value => this.#loadRegister("a", this.#state.a | value)), // ORA
     ...this.#accumulatorHandlers("001 bbb 01", value => this.#loadRegister("a", this.#state.a & value)), // AND
     ...this.#accumulatorHandlers("010 bbb 01", value => this.#loadRegister("a", this.#state.a ^ value)), // EOR
-    ...instructionPattern("011 010 01", ({ fetchByte }) => this.#addWithCarry(fetchByte())), // ADC #n (binary)
+    ...this.#accumulatorHandlers("011 bbb 01", value => this.#addWithCarry(value)), // ADC
     ...instructionPattern("100 000 01", instruction => instruction.writeByte(this.#indexedIndirect(instruction), this.#state.a)), // STA (zp,X)
     ...instructionPattern("100 001 01", ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.a)), // STA zp
     ...instructionPattern("100 011 01", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a)), // STA addr
@@ -246,6 +244,7 @@ export class Cpu6502 {
     ...instructionPattern("100 111 01", instruction => instruction.writeByte(this.#absoluteIndexed("x", instruction), this.#state.a)), // STA addr,X
     ...this.#accumulatorHandlers("101 bbb 01", value => this.#loadRegister("a", value)), // LDA
     ...this.#accumulatorHandlers("110 bbb 01", value => this.#compare("a", value)), // CMP
+    ...this.#accumulatorHandlers("111 bbb 01", value => this.#subtractWithCarry(value)), // SBC
 
     // cc=10, bbb=000: aaa=101 selects LDX immediate.
     ...instructionPattern("101 000 10", ({ fetchByte }) => this.#loadRegister("x", fetchByte())), // LDX #n
@@ -423,9 +422,42 @@ export class Cpu6502 {
   }
 
   #addWithCarry(value: number): void {
-    const { result, carry, overflow } = add8(this.#state.a, value, this.#state.flags.c ? 1 : 0);
+    const { a, flags } = this.#state;
+    const carryIn = flags.c ? 1 : 0;
+    const { result, carry, overflow } = add8(a, value, carryIn);
+    if (!flags.d) {
+      this.#loadRegister("a", result);
+      flags.c = carry;
+      flags.v = overflow;
+      return;
+    }
+
+    // Decimal digits pass at most one carry, even for invalid BCD nibbles.
+    let low = (a & 0x0f) + (value & 0x0f) + carryIn;
+    if (low > 9) low = ((low + 6) & 0x0f) + 0x10;
+    const intermediate = (a & 0xf0) + (value & 0xf0) + low;
+    // NMOS Z uses the binary result; N/V follow the low-digit correction only.
+    flags.z = result === 0;
+    flags.n = (intermediate & 0x80) !== 0;
+    flags.v = (~(a ^ value) & (a ^ intermediate) & 0x80) !== 0;
+    flags.c = intermediate >= 0xa0;
+    this.#state.a = (intermediate + (flags.c ? 0x60 : 0)) & 0xff;
+  }
+
+  #subtractWithCarry(value: number): void {
+    const { a, flags } = this.#state;
+    const borrow = flags.c ? 0 : 1;
+    const { result, carry, overflow } = add8(a, value ^ 0xff, flags.c ? 1 : 0);
+    // NMOS SBC derives all four flags from binary subtraction, even with D set.
     this.#loadRegister("a", result);
-    this.#state.flags.c = carry;
-    this.#state.flags.v = overflow;
+    flags.c = carry; // Set means no borrow, allowing multi-byte subtraction.
+    flags.v = overflow;
+    if (flags.d) {
+      let low = (a & 0x0f) - (value & 0x0f) - borrow;
+      if (low < 0) low = ((low - 6) & 0x0f) - 0x10;
+      let decimal = (a & 0xf0) - (value & 0xf0) + low;
+      if (decimal < 0) decimal -= 0x60;
+      this.#state.a = decimal & 0xff;
+    }
   }
 }

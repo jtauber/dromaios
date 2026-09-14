@@ -137,21 +137,22 @@ test("a completed run is distinct from an unsupported attempt at the same PC", (
   assert.deepEqual(direct.records[0]?.instruction, { address: endAddress, bytes: [0] });
 });
 
-test("decimal-mode rejection retains its CPU-specific reason without reading an operand", (t) => {
+test("the runner executes decimal ADC and records its operand within the step budget", (t) => {
   const { cpu: initial, ram } = create6502Example();
   const state = initial.snapshot();
-  const cpu = new Cpu6502(ram, { ...state, pc: 0x0203, flags: { ...state.flags, d: true } });
+  const cpu = new Cpu6502(ram, { ...state, a: 9, pc: 0x0203, flags: { ...state.flags, d: true, c: false } });
   const before = cpu.snapshot();
   const read = t.mock.method(ram, "read");
-  const result = runCpu(cpu, { maxSteps: 10, endAddress: 0x0208 });
-  assert.equal(result.stopReason, "unsupported");
+  const result = runCpu(cpu, { maxSteps: 1, endAddress: 0x0208 });
+  assert.equal(result.stopReason, "step-limit");
   assert.deepEqual(result.records, [{
-    outcome: "unsupported", reason: "decimal-mode",
-    instruction: { address: 0x0203, bytes: [0x69] },
-    before, after: before,
-    accesses: [{ kind: "read", address: 0x0203, value: 0x69 }],
+    outcome: "executed",
+    instruction: { address: 0x0203, bytes: [0x69, 3] },
+    before, after: { ...before, a: 0x12, pc: 0x0205,
+      flags: { ...before.flags, n: false, v: false, z: false, c: false } },
+    accesses: [{ kind: "read", address: 0x0203, value: 0x69 }, { kind: "read", address: 0x0204, value: 3 }],
   }]);
-  assert.deepEqual(read.mock.calls.map(call => call.arguments), [[0x0203]]);
+  assert.deepEqual(read.mock.calls.map(call => call.arguments), [[0x0203], [0x0204]]);
 });
 
 test("an unsupported 6809 prefix is retained as a partial attempt", (t) => {

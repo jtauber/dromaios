@@ -64,7 +64,7 @@ The CPU-specific `Cpu6502StepRecord` has these fields:
 | `before`, `after` | Complete detached CPU snapshots |
 | `accesses` | Ordered `{ kind, address, value }` entries, with kind `read` or `write` |
 | `outcome` | `executed` or `unsupported` |
-| `reason` | Present only with `unsupported`: `opcode` or `decimal-mode` |
+| `reason` | Present only with `unsupported`: `opcode` |
 
 The outcome/reason relationship is a discriminated union. All public record
 fields, nested snapshots, byte arrays, and access entries are readonly. There
@@ -145,9 +145,9 @@ one-byte instructions read only their opcode at this instruction boundary;
 undocumented NOP encodings remain unsupported. See [manual][1], chapter 3
 and Appendix B. Interrupt-specific CLI/SEI remain deferred.
 
-CLD enables the existing binary ADC; SED makes ADC return the
-[unsupported decimal-mode result](#unsupported-instructions-and-modes).
-Other supported instructions remain available with D set. The
+CLD selects binary ADC/SBC; SED selects
+[NMOS decimal arithmetic](#arithmetic-and-decimal-mode). D does not change
+the behavior of other instructions. The
 [comparison/flag example](examples/flags.md) combines these controls with
 BIT, index comparisons, branches, and a stack slot selected by TXS.
 
@@ -234,8 +234,8 @@ Each records only the opcode fetch and its stack write/read; dummy reads
 are omitted. Code/stack overlap follows that access order, with fetched
 opcode bytes retained in records. See [manual][1], sections 8.10–8.12.
 
-PLP restores D and I in the after-state. D immediately controls the existing
-ADC restriction; I remains stored state without interrupt delivery or polling
+PLP restores D and I in the after-state. D immediately selects the
+arithmetic mode for ADC/SBC; I remains stored state without interrupt delivery or polling
 timing. BRK/RTI/CLI/SEI remain deferred with interrupts.
 
 All 10,000 independent cases for each of [PHP][4], [PLP][5], and
@@ -249,26 +249,60 @@ The [status/dispatch example](examples/status.md) saves flags around an
 indirectly dispatched subroutine, then uses restored Z to branch while
 retaining the subroutine's accumulator result.
 
-## Unsupported instructions and modes
+## Arithmetic and decimal mode
+
+ADC adds A, the operand, and incoming C. SBC subtracts the operand and the
+incoming borrow (`1 - C`) from A. Both support immediate, zero page, zero
+page X, absolute, absolute X/Y, `(zp,X)`, and `(zp),Y` addressing. They change
+A and N/V/Z/C, preserve X/Y/SP/D/I, and read operands through the same
+address resolvers as other accumulator operations. Neither writes memory.
+
+With D clear, A receives the low eight bits. N reflects result bit 7, Z
+indicates a zero byte, and V indicates signed overflow. ADC sets C for
+an unsigned carry; SBC sets C when no borrow is needed. Thus C can pass
+between successive low/high-byte operations, with CLC starting addition
+and SEC starting subtraction without an incoming borrow.
+
+With D set, each nibble represents a decimal digit. ADC corrects digit sums
+above nine; SBC corrects digits that borrow. Each low digit passes at most
+one carry or borrow to the high digit, including for invalid BCD nibbles
+`A`–`F`. A receives the corrected byte. NMOS flag sources differ:
+
+| Flag | Decimal ADC | Decimal SBC |
+| --- | --- | --- |
+| N | Bit 7 after correcting the low digit, before correcting the high digit | Bit 7 of the binary subtraction result |
+| V | Signed overflow at that same ADC intermediate stage | Signed overflow of binary subtraction |
+| Z | Whether the binary sum's low byte is zero | Whether the binary difference's low byte is zero |
+| C | Decimal carry out of the high digit | No borrow from binary subtraction |
+
+For example, decimal `99 + 01` with C clear produces A = `00`, C = 1,
+N = 1, and Z = 0. Decimal `79 + 00` with C set produces A = `80` and
+V = 1, despite binary addition producing `7A` without overflow. Decimal
+`00 - 01` with C set produces A = `99` and C = 0. These are NMOS rules;
+do not update N/Z from the final corrected byte as a 65C02 would.
+
+The [manufacturer manual][1], sections 2.2.1–2.2.2, 3.3 and Appendix B,
+defines decimal arithmetic but does not promise usable decimal N/V/Z.
+This model also reproduces the NMOS intermediate flags and invalid-digit
+results described by [Bruce Clark's decimal test predictions][7]. All
+10,000 [SingleStepTests cases][8] for each of the sixteen ADC/SBC encodings
+were checked against final CPU state, RAM, fetched bytes, and ordered
+meaningful accesses (160,000 cases total). Discarded bus reads were omitted
+in accordance with this model's instruction-level boundary. These are
+independent emulator reference cases, not a claim of hardware testing here.
+
+The [decimal example](examples/decimal.md) adds and subtracts packed-decimal
+values across two bytes. Repository tests exhaust all byte pairs and carry
+inputs in both modes, including invalid BCD digits, and separately compare
+valid BCD results with base-100 arithmetic. Tests remain self-contained.
+
+## Unsupported instructions
 
 Opcodes outside the [coverage inventory](../coverage.md#6502) return
 `unsupported` with reason `opcode`, read only the opcode, and leave CPU state
 and RAM unchanged. Repeating the call repeats that read; it does not advance
 past the limitation. The caller must stop on unsupported results and use a
 bounded instruction budget when running programs.
-
-**Decimal arithmetic is deferred, and must never silently use binary ADC.**
-The constructor accepts either D value; CLD/SED can change it and PLP can restore it during execution.
-If opcode `69` is encountered with D true, `step()` returns `unsupported` with
-reason `decimal-mode`: one opcode
-read, no operand read, and unchanged CPU state and RAM. Check this limitation
-before advancing PC or reading the operand. This restriction does not block other supported
-instructions. It is an implementation limitation, not an illegal hardware
-operation.
-
-Reset preserves D, so resetting a D = true CPU does not remove this limitation.
-Supporting NMOS decimal ADC, including its flag behavior, will require a
-separate reviewed change.
 
 ## CPU reset
 
@@ -315,9 +349,10 @@ forms with every incoming flag pattern, live operands, PC wrapping, and
 instruction/data overlap. BIT checks distinguish memory N/V from the AND result.
 TSX/TXS check every source byte and flag combination without memory access
 beyond the opcode. Flag controls and NOP check exact preservation, repeated
-execution, and PC wrapping. SED, reset, and CLD are checked around ADC's
-decimal restriction; the example checks live flags and SP across instruction
-sequences and snapshot resumption.
+execution, and PC wrapping. SED/CLD select the next ADC/SBC mode, PLP restores
+D/C, and reset preserves decimal mode and the carry between operations.
+Examples check live flags and SP across instruction sequences and snapshot
+resumption.
 Memory checks cover every X/Y load and A/X/Y store value, index selection,
 zero-page and 16-bit wrapping, low/high pointer order, overlap, current RAM,
 unchanged-value stores, and retained records. Opcode/operand reads are checked
@@ -339,10 +374,10 @@ FFFF, and overlapping instruction/pointer reads. PHP checks every flag
 combination and SP, including unchanged writes; PLP checks every stacked
 byte against every incoming flag pattern with SP values spanning the page.
 Further checks cover ignored bits, PHP after PLP, code/stack overlap, and
-restored D/C affecting ADC. The status/dispatch example checks complete
+restored D/C affecting ADC/SBC. The status/dispatch example checks complete
 records, RAM images, current pointers, snapshot resumption, and reset.
 
-Unsupported opcodes and decimal ADC are checked on repeated attempts, with no
+Unsupported opcodes are checked on repeated attempts, with no
 operand read or state changes. Reset checks cover ordered reads of the current
 vector, SP wrapping and repeated decrements, preservation of RAM and unrelated
 state including D, and resumed execution at the new PC. Records remain
@@ -376,7 +411,7 @@ previews, opcode metadata, lesson annotations, addressing, and timing.
 - [Arithmetic example](examples/arithmetic.md#references): instruction
   semantics and encodings.
 
-Explicit initialization, unsupported-mode reporting, record shapes, and
+Explicit initialization, unsupported-opcode reporting, record shapes, and
 omitted bus accesses are deliberate choices for this model.
 
 [1]: https://syncopate.us/books/Synertek6502ProgrammingManual.html
@@ -386,3 +421,6 @@ omitted bus accesses are deliberate choices for this model.
 [4]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/08.json
 [5]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/28.json
 [6]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/6c.json
+
+[7]: https://github.com/Klaus2m5/6502_65C02_functional_tests/blob/master/6502_decimal_test.a65
+[8]: https://github.com/SingleStepTests/65x02/tree/main/6502/v1

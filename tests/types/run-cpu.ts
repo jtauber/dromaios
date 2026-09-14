@@ -51,7 +51,7 @@ export function checkRecordTypes(intel: Cpu8080, mos: Cpu6502, motorola: Cpu6809
     // @ts-expect-error Instruction bytes remain readonly.
     mosRecord.instruction.bytes.push(0);
     if (mosRecord.outcome === "unsupported") {
-      const reason: "opcode" | "decimal-mode" = mosRecord.reason;
+      const reason: "opcode" = mosRecord.reason;
     } else {
       // @ts-expect-error Executed records do not acquire an unsupported reason.
       mosRecord.reason;

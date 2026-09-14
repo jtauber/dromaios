@@ -279,8 +279,8 @@ without reading CPU state or updating flags:
 These internal helpers rely on their callers for input ranges. Their return
 values do not prescribe a CPU's flags: the 8080 selects parity, the Z80 selects
 overflow for addition's P/V, and each CPU keeps its flag-preservation rules
-beside the instruction. Decimal adjustments and the 6502's existing decimal-mode
-rejection also remain CPU behavior. Addition is shared by the 8008, 8080, 6502,
+beside the instruction. Decimal corrections and the NMOS 6502's intermediate
+flag rules also remain CPU behavior. Addition is shared by the 8008, 8080, 6502,
 6800, 6809, and Z80; parity by the 8008, 8080, and 8088. The 8088's combined
 byte/word addition and the 68000's long addition retain their width-specific
 calculations.

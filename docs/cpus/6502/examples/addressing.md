@@ -52,7 +52,7 @@ no pointer increment or indexed address calculation.
 
 These are explicit lesson choices. Initial N/Z differ from the flags produced
 by the load, and D is set to exercise the supported behavior with decimal mode
-enabled. Only ADC currently has a decimal-mode restriction.
+enabled. D affects ADC/SBC arithmetic, but does not change loads or stores.
 
 `create6502AddressingExample()` returns fresh `{ cpu, ram, endAddress }`, with
 `endAddress = 0204`. `create6502AddressingExampleMemory()` loads the same RAM

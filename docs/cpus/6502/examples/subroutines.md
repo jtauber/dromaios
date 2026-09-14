@@ -51,7 +51,7 @@ All numbers below are hexadecimal. Initialize zero-filled 64 KiB RAM with:
 | PC, SP | `0200`, `01` |
 | N, V, D, I, Z, C | `0`, `1`, `0`, `0`, `1`, `1` |
 
-These are explicit lesson choices. D is clear for the supported binary ADC.
+These are explicit lesson choices. D is clear to select binary ADC.
 `create6502SubroutinesExample()` returns fresh `{ cpu, ram, endAddress }`, with
 `endAddress = 0240`. `create6502SubroutinesExampleMemory()` creates the same
 memory image without constructing a CPU. Neither factory executes or resets.

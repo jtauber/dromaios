@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [270](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [651](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [250](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [431](../../src/components/cpus/6502.ts) | 131 / 151 | 86.8% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [463](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [294](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [305](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [227](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
@@ -63,9 +63,9 @@ below and do not contribute to this percentage.
 An opcode form is a specific encoding, including its addressing form. For
 example, immediate LDA and absolute LDA count separately. Operand values do
 not create additional forms. An opcode with restricted instruction semantics
-is partial and earns no completion credit until the restriction is removed:
-6502 `ADC #n` currently lacks decimal arithmetic, so it earns no completion
-credit while the fully supported forms do.
+is partial and earns no completion credit until the restriction is removed.
+For example, an arithmetic form earns credit only once every supported
+arithmetic mode is implemented.
 
 The denominators count distinct documented encodings in the manufacturer
 instruction tables, with register fields expanded where they form part of
@@ -688,15 +688,17 @@ factory types.
 [Comparison/flag definition](../../src/machines/6502/flags-example.machine)
 
 [Status/dispatch specification](6502/examples/status.md) ·
-[Status/dispatch definition](../../src/machines/6502/status-example.machine)
+[Status/dispatch definition](../../src/machines/6502/status-example.machine) ·
+[Decimal specification](6502/examples/decimal.md) ·
+[Decimal definition](../../src/machines/6502/decimal-example.machine)
 
-**131 of 151 documented forms are complete (86.8%).** The accumulator families
-below contribute 47 forms; X/Y loads and stores contribute 16; shifts, rotates,
+**147 of 151 documented forms are complete (97.4%).** The accumulator families
+below contribute 63 forms; X/Y loads and stores contribute 16; shifts, rotates,
 and memory INC/DEC contribute 28; CPX/CPY/BIT contribute 8. The remaining 32
-complete forms appear in the final instruction table. Binary-only `ADC #n` is additional supported
-behavior and contributes no completion credit.
+complete forms appear in the final instruction table. Only BRK/RTI/CLI/SEI
+remain deferred with interrupts.
 
-All documented addressing forms of ORA, AND, EOR, CMP, LDA, STA, LDX, LDY,
+All documented addressing forms of ORA, AND, EOR, ADC, SBC, CMP, LDA, STA, LDX, LDY,
 STX, STY, ASL, LSR, ROL, ROR, INC, DEC, CPX, CPY, and BIT are implemented.
 A dash in these matrices means the original 6502 has no such form, rather than an implementation
 gap. Length includes the opcode; absolute operands are low byte first.
@@ -707,9 +709,11 @@ gap. Length includes the opcode; absolute operands are low byte first.
 | ORA | `01` | `05` | `09` | `0D` | `11` | `15` | `19` | `1D` |
 | AND | `21` | `25` | `29` | `2D` | `31` | `35` | `39` | `3D` |
 | EOR | `41` | `45` | `49` | `4D` | `51` | `55` | `59` | `5D` |
+| ADC | `61` | `65` | `69` | `6D` | `71` | `75` | `79` | `7D` |
 | STA | `81` | `85` | — | `8D` | `91` | `95` | `99` | `9D` |
 | LDA | `A1` | `A5` | `A9` | `AD` | `B1` | `B5` | `B9` | `BD` |
 | CMP | `C1` | `C5` | `C9` | `CD` | `D1` | `D5` | `D9` | `DD` |
+| SBC | `E1` | `E5` | `E9` | `ED` | `F1` | `F5` | `F9` | `FD` |
 
 | Instruction | `#n` | `zp` | `addr` | `zp,X` | `zp,Y` | `addr,X` | `addr,Y` |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -750,7 +754,6 @@ gap. Length includes the opcode; absolute operands are low byte first.
 | `50` | `BVC rel` | Relative | 2 | Branch if V = 0 |
 | `60` | `RTS` | Implied / stack | 1 | Pull PC low then high and add one with 16-bit wrapping; preserve flags |
 | `68` | `PLA` | Implied | 1 | Increment 8-bit SP, then read A at 0100 + SP; update N/Z |
-| `69` | `ADC #n` | Immediate | 2 | Partial: binary arithmetic only; D must be false |
 | `6C` | `JMP (addr)` | Absolute indirect | 3 | Read target low/high from a pointer whose high-byte read stays on the same page; preserve flags |
 | `70` | `BVS rel` | Relative | 2 | Branch if V = 1 |
 | `88` | `DEY` | Implied | 1 | Decrement Y; update N/Z |
@@ -784,15 +787,14 @@ gap. Length includes the opcode; absolute operands are low byte first.
 | Jumps and subroutines | Absolute/indirect JMP, absolute JSR, and RTS; JSR's final operand fetch follows its stack writes; RTS adds one to the saved pointer; preserve flags |
 | Stack | PHA/PLA, PHP/PLP, and subroutine return pointers in page 01 with wrapping 8-bit SP; pulls retain stored bytes; TSX copies SP to X and updates N/Z; TXS copies X to SP without changing flags |
 | Flag controls | CLC/SEC, CLV, and CLD/SED affect only their named flag; NOP changes only PC |
-| Decimal mode | D can be initialized, inspected, changed with CLD/SED, and restored by PLP; ADC with D set reports `reason: "decimal-mode"` before operand fetch or state changes |
+| Arithmetic | All ADC/SBC forms, binary and NMOS decimal, with carry/borrow propagation; replace N/V/Z/C and preserve D/I |
+| Decimal mode | CLD/SED and PLP select the live mode; ADC uses NMOS intermediate N/V and binary Z, SBC uses binary N/V/Z/C; invalid BCD nibbles follow NMOS correction |
 | Reset | Read `FFFC` then `FFFD` for PC, set I, subtract 3 from the 8-bit SP with wrapping; preserve other registers, flags (including D), and RAM |
 | Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
-| Remaining instruction scope | ADC/SBC including decimal arithmetic (16 forms), and deferred BRK/RTI/CLI/SEI (4): 20 forms |
-| Remaining addressing scope | ADC/SBC forms using the already implemented addressing modes |
+| Remaining instruction scope | Deferred BRK/RTI/CLI/SEI: 4 forms |
+| Remaining addressing scope | None; all documented addressing modes are implemented |
 
-All supported forms except ADC work with either D value. Decimal rejection is
-an explicit implementation limit. Reset preserves D and therefore does not
-remove it.
+All supported forms work with either D value. Reset preserves D.
 The model targets the original NMOS 6502; variant-specific behavior has not
 been implemented.
 
@@ -805,10 +807,12 @@ Verification: [CPU tests](../../tests/components/cpus/6502.test.ts),
 [buffer example tests](../../tests/machines/6502/buffer-example.test.ts),
 [shift example tests](../../tests/machines/6502/shifts-example.test.ts),
 [comparison/flag example tests](../../tests/machines/6502/flags-example.test.ts),
-[status/dispatch example tests](../../tests/machines/6502/status-example.test.ts), and
-[public type checks](../../tests/types/6502.ts). Binary ADC checks cover every byte
-operand pair and carry input with old result flags clear and set. Other checks
-cover decimal rejection, exact accesses, wrapping, self-overwriting stores,
+[status/dispatch example tests](../../tests/machines/6502/status-example.test.ts),
+[decimal example tests](../../tests/machines/6502/decimal-example.test.ts), and
+[public type checks](../../tests/types/6502.ts). ADC/SBC checks cover every byte
+operand pair and carry input in both binary and NMOS decimal modes, plus
+all incoming flag patterns through every addressing form. Valid BCD inputs
+also match base-100 arithmetic. Other checks cover exact accesses, wrapping, self-overwriting stores,
 reset vectors and SP effects, caller completion, unsupported opcodes, input
 validation, and detached records.
 PHA/PLA checks cover page-one addressing, SP and PC wrapping, nested operations,
@@ -863,23 +867,30 @@ reset, restart, and a bounded self-loop, all with D set.
 CPX/CPY and BIT exhaust every register/operand pair with D clear and set.
 All eight forms also check incoming flag patterns, PC wrapping, live operands,
 and overlapping instruction/data reads. TSX/TXS check every byte and flag pattern;
-flag controls and NOP check preservation, idempotence, and PC wrapping. SED makes
-ADC reject before its operand fetch; reset preserves D, and executing CLD permits
-binary ADC again. The comparison/flag example checks 26 complete records,
+flag controls and NOP check preservation, idempotence, and PC wrapping. SED/CLD
+select live ADC/SBC modes, and reset preserves D and carry. The comparison/flag example checks 26 complete records,
 selected stack addressing, both CPY loop paths, BIT/CLV branches, SEC feeding
 ADC, NOP and stores after SED, snapshot resumption, reset, fresh factories,
 complete memory images, and a failure branch after a host edit to the BIT operand.
 
 PHP checks every flag pattern and SP, including unchanged writes; PLP checks
 every stacked byte and incoming flag pattern, ignores bits 5/4, and restores
-live D/C for ADC. Indirect JMP checks every pointer address and target, all
+live D/C for ADC/SBC. Indirect JMP checks every pointer address and target, all
 flag patterns, operand fetching across FFFF, and instruction/pointer overlap.
 All three also match 10,000 independent reference cases each; the
 [model contract](6502/model.md#status-stack) documents those supplementary checks.
 The status/dispatch example checks twelve complete records, nested status and
 return frames across stack wrapping, indirect dispatch across a pointer-page
 boundary, flags restored independently of A, current pointers, snapshot
-resumption, reset, full RAM images, and fresh factories.
+resumption, reset, full RAM images, and fresh factories. Editing the dispatch
+pointer to skip CLD exercises NMOS correction of an invalid BCD operand.
+
+All sixteen ADC/SBC forms also match 10,000 independent reference cases each;
+the [arithmetic contract](6502/model.md#arithmetic-and-decimal-mode) describes
+those supplementary checks and the NMOS flag rules. The decimal example
+checks sixteen complete records for two-byte carry/borrow propagation,
+including N/Z differing from the corrected accumulator, snapshot resumption
+between bytes, full memory images, and fresh factories.
 
 ## 6809
 

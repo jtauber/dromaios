@@ -58,7 +58,7 @@ All other bytes start at zero, including result address `0080`, stack location
 
 These are explicit lesson choices. Flags are supplied independently of A;
 the first LDA replaces N/Z. D is set to demonstrate that this program works
-in either decimal mode; only the existing ADC implementation restricts D.
+with either D value; D affects ADC/SBC arithmetic, but does not change stack transfers.
 
 `create6502StackExample()` returns fresh `{ cpu, ram, endAddress }` values, with
 `endAddress = 0209`. `create6502StackExampleMemory()` loads the same RAM image

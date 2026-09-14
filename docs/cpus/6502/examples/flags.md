@@ -111,9 +111,9 @@ state and all RAM. Captured records survive reset and subsequent host writes.
 
 Changing the status byte to `C1` just before BIT leaves N/V set but clears Z,
 so BEQ falls through to the failure jump. The result slot remains `CC` and
-the stack byte remains saved. CPU tests separately check that SED causes ADC
-to reject before reading its operand, including after reset, until CLD executes.
+the stack byte remains saved. CPU tests separately check that SED selects decimal
+ADC/SBC, reset preserves D, and CLD restores binary arithmetic.
 
 Instruction rules follow the [manufacturer manual](https://syncopate.us/books/Synertek6502ProgrammingManual.html),
 chapters 3–4 and sections 7.8–7.9, 8.8–8.9. The
-[model contract](../model.md) defines the decimal restriction and recorded access boundary.
+[model contract](../model.md) defines arithmetic modes and the recorded access boundary.

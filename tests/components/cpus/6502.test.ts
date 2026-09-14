@@ -357,39 +357,6 @@ test("6502 binary ADC immediate replaces N/V/Z/C, preserves other state, and rea
   }
 });
 
-test("6502 binary ADC matches unsigned and signed addition for every operand pair and carry input", () => {
-  const ram = new Ram(0x10000);
-  ram.write(0, 0x69);
-  for (let value = 0; value < 256; value++) {
-    ram.write(1, value);
-    for (let a = 0; a < 256; a++) {
-      for (const carry of [false, true]) {
-        // Arithmetic expectations are independent of the CPU's bit masks and XORs.
-        const unsignedSum = a + value + Number(carry);
-        const signedSum = (a < 128 ? a : a - 256)
-          + (value < 128 ? value : value - 256) + Number(carry);
-        const result = unsignedSum % 256;
-        for (const oldNVZ of [false, true]) {
-          const before = initialState({
-            a, pc: 0,
-            flags: { n: oldNVZ, v: oldNVZ, d: false, i: oldNVZ, z: oldNVZ, c: carry },
-          });
-          const cpu = new Cpu6502(ram, before);
-          const record = cpu.step();
-          assert.equal(record.outcome, "executed");
-          assert.deepEqual(record.after, {
-            ...before, a: result, pc: 2,
-            flags: {
-              n: result >= 128, v: signedSum < -128 || signedSum > 127,
-              d: false, i: oldNVZ, z: result === 0, c: unsignedSum >= 256,
-            },
-          }, `A=${a}, operand=${value}, C=${carry}, old N/V/Z=${oldNVZ}`);
-        }
-      }
-    }
-  }
-});
-
 test("6502 binary ADC wraps operand fetching and PC advancement at the 16-bit boundary", () => {
   for (const [address, operandAddress, nextPc] of [
     [0xfffe, 0xffff, 0x0000],
@@ -462,78 +429,182 @@ test("successive 6502 ADC instructions use live carry and operands while keeping
   assert.deepEqual(second, savedSecond);
 });
 
-test("6502 decimal ADC repeatedly reads only its opcode and preserves all state, including at FFFF", () => {
-  for (const address of [0x1234, 0xfffe, 0xffff]) {
-    for (const setFlags of [false, true]) {
-      const ram = new ObservedRam();
-      ram.write(address, 0x69);
-      ram.write((address + 1) & 0xffff, 0x80);
-      const before = initialState({
-        pc: address,
-        flags: { n: setFlags, v: setFlags, d: true, i: setFlags, z: setFlags, c: setFlags },
-      });
-      const cpu = new Cpu6502(ram, before);
-      for (let attempt = 0; attempt < 2; attempt++) {
-        ram.accesses.length = 0;
-        const record = cpu.step();
-        assert.deepEqual(record, {
-          instruction: { address, bytes: [0x69] },
-          before,
-          after: before,
-          accesses: [{ kind: "read", address, value: 0x69 }],
-          outcome: "unsupported",
-          reason: "decimal-mode",
-        });
-        assert.deepEqual(cpu.snapshot(), before);
-        assert.deepEqual(ram.accesses, record.accesses);
-      }
-    }
+const arithmeticForms = [
+  { name: "ADC", opcodes: [0x61, 0x65, 0x69, 0x6d, 0x71, 0x75, 0x79, 0x7d] },
+  { name: "SBC", opcodes: [0xe1, 0xe5, 0xe9, 0xed, 0xf1, 0xf5, 0xf9, 0xfd] },
+] as const;
+
+type ArithmeticName = typeof arithmeticForms[number]["name"];
+
+test("6502 NMOS decimal edge cases distinguish intermediate flags and invalid-digit correction", () => {
+  const cases = [
+    // opcode, A, operand, incoming C, result, N, V, Z, C
+    [0x69, 0x79, 0x00, 1, 0x80, 1, 1, 0, 0], // N/V differ from the binary sum 7A.
+    [0x69, 0x50, 0x50, 0, 0x00, 1, 1, 0, 1], // Corrected zero does not set Z.
+    [0x69, 0xff, 0x00, 1, 0x66, 0, 0, 1, 1], // Binary zero sets Z despite corrected A=66.
+    [0x69, 0x0f, 0x0f, 0, 0x14, 0, 0, 0, 0], // Low digit passes only one carry.
+    [0x69, 0xff, 0xff, 1, 0x55, 1, 0, 0, 1],
+    [0xe9, 0x00, 0x01, 1, 0x99, 1, 0, 0, 0],
+    [0xe9, 0x00, 0x80, 1, 0x20, 1, 1, 0, 0], // N/V describe binary 80, not corrected 20.
+    [0xe9, 0x10, 0x0f, 1, 0x0b, 0, 0, 0, 1], // Low digit passes only one borrow.
+  ] as const;
+  for (const [opcode, a, operand, carry, result, n, v, z, c] of cases) {
+    const ram = new Ram(0x10000);
+    ram.write(0x1234, opcode);
+    ram.write(0x1235, operand);
+    const before = initialState({ a, flags: { n: !n, v: !v, d: true, i: false, z: !z, c: !!carry } });
+    const record = new Cpu6502(ram, before).step();
+    assert.equal(record.outcome, "executed");
+    assert.deepEqual(record.after, { ...before, a: result, pc: 0x1236,
+      flags: { n: !!n, v: !!v, d: true, i: false, z: !!z, c: !!c } });
   }
 });
 
-test("6502 reset preserves the decimal ADC limitation, and replacing the opcode permits execution", () => {
-  const ram = new ObservedRam();
-  ram.write(0x1234, 0x69);
-  ram.write(0x1235, 0);
-  ram.write(0xfffc, 0x34);
-  ram.write(0xfffd, 0x12);
-  const cpu = new Cpu6502(ram, initialState());
-  const first = cpu.step();
-  const savedFirst = structuredClone(first);
-  const reset = cpu.reset();
-  assert.equal(reset.after.flags.d, true);
-  ram.accesses.length = 0;
-  const second = cpu.step();
-  const savedSecond = structuredClone(second);
-  assert.deepEqual(second, {
-    ...savedFirst, before: reset.after, after: reset.after,
-  });
-  assert.deepEqual(ram.accesses, second.accesses);
-  assert.deepEqual(first, savedFirst);
-  Reflect.set(first.before.flags, "d", false);
-  assert.deepEqual(first.after, savedFirst.after);
-  Reflect.set(first.after.flags, "d", false);
-  Reflect.set(first.instruction.bytes, 0, 0xa9);
-  Reflect.set(first.accesses, 0, { kind: "write", address: 0, value: 0xff });
-  assert.deepEqual(cpu.snapshot(), reset.after);
+function expectedArithmetic(name: ArithmeticName, a: number, operand: number, flags: Cpu6502Flags) {
+  const signed = (value: number) => value < 128 ? value : value - 256;
+  const carry = Number(flags.c), borrow = 1 - carry;
+  const binary = name === "ADC" ? a + operand + carry : a - operand - borrow;
+  const signedResult = name === "ADC" ? signed(a) + signed(operand) + carry : signed(a) - signed(operand) - borrow;
+  const result = (binary + 256) % 256;
+  const next = { a: result, flags: { ...flags, n: result >= 128, z: result === 0,
+    v: signedResult < -128 || signedResult > 127, c: name === "ADC" ? binary >= 256 : binary >= 0 } };
+  if (!flags.d) return next;
 
-  ram.write(0x1234, 0xa9);
-  ram.accesses.length = 0;
-  const resumed = cpu.step();
-  assert.deepEqual(resumed, {
-    instruction: { address: 0x1234, bytes: [0xa9, 0] },
-    before: reset.after,
-    after: { ...reset.after, a: 0, pc: 0x1236, flags: { ...reset.after.flags, n: false, z: true } },
-    accesses: [
-      { kind: "read", address: 0x1234, value: 0xa9 },
-      { kind: "read", address: 0x1235, value: 0 },
-    ],
-    outcome: "executed",
+  // Independent radix-10 digit arithmetic, including nibble values A–F.
+  // NMOS flag sources follow Bruce Clark's A6502/S6502 reference predictions:
+  // https://github.com/Klaus2m5/6502_65C02_functional_tests/blob/master/6502_decimal_test.a65
+  const digit = (value: number) => (value + 16) % 16;
+  const aHigh = Math.floor(a / 16), operandHigh = Math.floor(operand / 16);
+  if (name === "ADC") {
+    const low = a % 16 + operand % 16 + carry;
+    const high = aHigh + operandHigh + Number(low >= 10);
+    const signedHigh = (aHigh < 8 ? aHigh : aHigh - 16)
+      + (operandHigh < 8 ? operandHigh : operandHigh - 16) + Number(low >= 10);
+    next.a = digit(high >= 10 ? high - 10 : high) * 16 + digit(low >= 10 ? low - 10 : low);
+    next.flags.n = high % 16 >= 8;
+    next.flags.v = signedHigh < -8 || signedHigh > 7;
+    next.flags.c = high >= 10;
+  } else {
+    const low = a % 16 - operand % 16 - borrow;
+    const high = aHigh - operandHigh - Number(low < 0);
+    next.a = digit(high < 0 ? high + 10 : high) * 16 + digit(low < 0 ? low + 10 : low);
+  }
+  return next;
+}
+
+for (const { name, opcodes } of arithmeticForms) {
+  for (const d of [false, true]) {
+    test(`6502 ${name} exhausts every byte pair and carry input in ${d ? "NMOS decimal" : "binary"} mode`, () => {
+      const ram = new Ram(0x10000);
+      for (const c of [false, true]) {
+        for (let a = 0; a < 256; a++) {
+          // Reload A and carry for each pair; a single CPU runs each truth-table row.
+          for (let operand = 0; operand < 256; operand++) {
+            [0xa9, a, c ? 0x38 : 0x18, opcodes[2], operand].forEach((byte, offset) =>
+              ram.write(0x2000 + operand * 5 + offset, byte));
+          }
+          const flags = { n: true, v: true, d, i: true, z: true, c };
+          const before = initialState({ pc: 0x2000, flags });
+          const cpu = new Cpu6502(ram, before);
+          for (let operand = 0; operand < 256; operand++) {
+            cpu.step(); // LDA
+            cpu.step(); // SEC/CLC
+            const record = cpu.step();
+            assert.equal(record.outcome, "executed");
+            assert.deepEqual(record.after, {
+              ...before, ...expectedArithmetic(name, a, operand, flags), pc: 0x2005 + operand * 5,
+            }, `${name}: A=${a}, operand=${operand}, C=${c}, D=${d}`);
+          }
+        }
+      }
+    });
+  }
+
+  test(`6502 decimal ${name} matches base-100 arithmetic for every valid BCD pair and carry`, () => {
+    const bcd = (value: number) => Math.floor(value / 10) * 16 + value % 10;
+    const ram = new Ram(0x10000);
+    for (const c of [false, true]) {
+      for (let a = 0; a < 100; a++) {
+        for (let operand = 0; operand < 100; operand++) {
+          [0xa9, bcd(a), c ? 0x38 : 0x18, opcodes[2], bcd(operand)].forEach((byte, offset) =>
+            ram.write(0x2000 + operand * 5 + offset, byte));
+        }
+        const cpu = new Cpu6502(ram, initialState({ pc: 0x2000, flags: { ...initialState().flags, d: true } }));
+        for (let operand = 0; operand < 100; operand++) {
+          cpu.step();
+          cpu.step();
+          const after = cpu.step().after;
+          const result = name === "ADC" ? a + operand + Number(c) : a - operand - Number(!c);
+          assert.equal(after.a, bcd((result + 100) % 100));
+          assert.equal(after.flags.c, name === "ADC" ? result >= 100 : result >= 0);
+        }
+      }
+    }
   });
-  assert.deepEqual(cpu.snapshot(), resumed.after);
-  assert.deepEqual(ram.accesses, resumed.accesses);
-  assert.deepEqual(second, savedSecond);
-});
+
+  test(`6502 ${name} implements all eight forms with exact accesses and every incoming flag combination`, () => {
+    const ram = new ObservedRam();
+    for (const [index, opcode] of opcodes.entries()) {
+      const fixture = operandFixtures[index]!;
+      for (const operand of [0, 1, 0x09, 0x0f, 0x79, 0x80, 0x99, 0xff]) {
+        const bytes = [opcode, ...(fixture.address === null ? [operand] : fixture.bytes)];
+        bytes.forEach((byte, offset) => ram.write(0x1234 + offset, byte));
+        for (const [address, value] of fixture.pointers) ram.write(address, value);
+        if (fixture.address !== null) ram.write(fixture.address, operand);
+        for (const flags of flagCombinations()) {
+          for (const a of [0, 0x09, 0x7f, 0x80, 0x99, 0xff]) {
+            const before = initialState({ a, x: 2, y: 3, flags });
+            const cpu = new Cpu6502(ram, before);
+            ram.accesses.length = 0;
+            const record = cpu.step();
+            const reads = [
+              ...bytes.map((value, offset) => [0x1234 + offset, value] as const),
+              ...fixture.pointers,
+              ...(fixture.address === null ? [] : [[fixture.address, operand] as const]),
+            ];
+            assert.deepEqual(record, {
+              instruction: { address: 0x1234, bytes }, before,
+              after: { ...before, ...expectedArithmetic(name, a, operand, flags), pc: 0x1234 + bytes.length },
+              accesses: reads.map(([address, value]) => ({ kind: "read", address, value })), outcome: "executed",
+            }, `${name} ${fixture.name}: A=${a}, operand=${operand}, C=${flags.c}, D=${flags.d}`);
+            assert.deepEqual(ram.accesses, record.accesses);
+            assert.deepEqual(cpu.snapshot(), record.after);
+          }
+        }
+      }
+    }
+  });
+
+  test(`6502 decimal ${name} fetches its operand across FFFF and uses live carry after reset`, () => {
+    const ram = new ObservedRam();
+    ram.write(0xffff, opcodes[2]);
+    ram.write(0, 1);
+    ram.write(0xfffc, 0xff);
+    ram.write(0xfffd, 0xff);
+    const before = initialState({ a: name === "ADC" ? 0x99 : 0, pc: 0xffff,
+      flags: { n: true, v: true, d: true, i: false, z: true, c: name === "SBC" } });
+    const cpu = new Cpu6502(ram, before);
+    ram.accesses.length = 0;
+    const first = cpu.step();
+    assert.deepEqual(first, { before, after: { ...before, pc: 1, a: name === "ADC" ? 0 : 0x99,
+      flags: { n: true, v: false, d: true, i: false, z: false, c: name === "ADC" } },
+      instruction: { address: 0xffff, bytes: [opcodes[2], 1] }, outcome: "executed",
+      accesses: [{ kind: "read", address: 0xffff, value: opcodes[2] }, { kind: "read", address: 0, value: 1 }] });
+    assert.deepEqual(ram.accesses, first.accesses);
+    const saved = structuredClone(first);
+    const reset = cpu.reset();
+    assert.deepEqual(reset.after, { ...first.after, pc: 0xffff, sp: 0xa8, flags: { ...first.after.flags, i: true } });
+    ram.write(0, 0); // The second execution reads the new operand and uses the previous carry.
+    const second = cpu.step();
+    assert.equal(second.outcome, "executed");
+    assert.deepEqual(second.after, { ...reset.after, pc: 1, a: name === "ADC" ? 1 : 0x98,
+      flags: { n: name === "SBC", v: false, d: true, i: true, z: false, c: name === "SBC" } });
+    assert.deepEqual(second.instruction.bytes, [opcodes[2], 0]);
+    assert.deepEqual(first, saved);
+    Reflect.set(first.after.flags, "c", !saved.after.flags.c);
+    assert.deepEqual(cpu.snapshot(), second.after);
+  });
+}
 
 test("6502 STA absolute decodes low/high bytes and writes once while preserving state, including D", () => {
   for (const [low, high, destination] of [
@@ -1438,12 +1509,13 @@ test("every unimplemented 6502 opcode reads once and preserves state on repeated
       0x24, 0x2c, 0x38, 0x9a, 0xb8, 0xba, 0xc0, 0xc4, 0xcc, 0xd8, 0xe0, 0xe4, 0xea, 0xec, 0xf8,
       0x08, 0x28, 0x6c,
       ...accumulatorForms.flatMap(form => [...form.opcodes]),
+      ...arithmeticForms.flatMap(form => [...form.opcodes]),
       ...modifyForms.flatMap(form => form.opcodes.filter(opcode => opcode !== null)),
       ...registerMemoryForms.flatMap(form => [
         ...("load" in form ? [form.load] : []), ...("store" in form ? [form.store] : []),
       ]),
   ]);
-  assert.equal(implemented.size, 132); // 131 complete documented forms plus binary-only ADC #n.
+  assert.equal(implemented.size, 147); // All documented forms except BRK/RTI/CLI/SEI.
   for (let opcode = 0; opcode < 256; opcode++) {
     if (implemented.has(opcode)) continue;
     ram.write(0xffff, opcode);
@@ -2408,33 +2480,23 @@ test("6502 flag controls and NOP preserve unrelated state, wrap PC, and are idem
   }
 });
 
-test("6502 SED blocks decimal ADC before its operand, and reset followed by CLD enables binary ADC", () => {
-  const ram = new ObservedRam();
-  [0xf8, 0x69, 0xff].forEach((byte, offset) => ram.write(0x2000 + offset, byte));
-  [0xd8, 0x38, 0x69, 1].forEach((byte, offset) => ram.write(0x3000 + offset, byte));
-  ram.write(0xfffc, 0);
-  ram.write(0xfffd, 0x30);
-  const cpu = new Cpu6502(ram, initialState({ a: 0x7f, pc: 0x2000, flags: { ...initialState().flags, d: false } }));
-  const sed = cpu.step();
-  assert.equal(sed.outcome, "executed");
-  assert.equal(sed.after.flags.d, true);
-  const saved = structuredClone(sed);
-  for (let attempt = 0; attempt < 2; attempt++) {
-    ram.accesses.length = 0;
-    assert.deepEqual(cpu.step(), { before: sed.after, after: sed.after, instruction: { address: 0x2001, bytes: [0x69] },
-      accesses: [{ kind: "read", address: 0x2001, value: 0x69 }], outcome: "unsupported", reason: "decimal-mode" });
-    assert.deepEqual(ram.accesses, [{ kind: "read", address: 0x2001, value: 0x69 }]);
-  }
-  const reset = cpu.reset();
-  assert.equal(reset.after.flags.d, true);
-  assert.equal(reset.after.pc, 0x3000);
-  assert.equal(cpu.step().after.flags.d, false); // CLD reads live D after reset.
-  assert.equal(cpu.step().after.flags.c, true); // SEC supplies ADC's carry-in.
-  const adc = cpu.step();
-  assert.equal(adc.outcome, "executed");
-  assert.deepEqual(adc.after, { ...reset.after, a: 0x81, pc: 0x3004,
-    flags: { ...reset.after.flags, d: false, n: true, z: false, v: true, c: false } });
-  assert.deepEqual(sed, saved);
+test("6502 SED and CLD select decimal and binary ADC/SBC using live D and carry", () => {
+  const ram = new Ram(0x10000);
+  // Decimal 09 + 01 = 10, then 10 - 01 = 09; binary 09 + 01 = 0A, then 0A - 01 = 09.
+  const program = [0xf8, 0x18, 0x69, 1, 0x38, 0xe9, 1, 0xd8, 0x18, 0x69, 1, 0x38, 0xe9, 1];
+  program.forEach((byte, offset) => ram.write(0x2000 + offset, byte));
+  const cpu = new Cpu6502(ram, initialState({ a: 9, pc: 0x2000, flags: { ...initialState().flags, d: false } }));
+  assert.equal(cpu.step().after.flags.d, true);
+  cpu.step();
+  assert.equal(cpu.step().after.a, 0x10);
+  cpu.step();
+  assert.equal(cpu.step().after.a, 9);
+  assert.equal(cpu.step().after.flags.d, false);
+  cpu.step();
+  assert.equal(cpu.step().after.a, 0x0a);
+  cpu.step();
+  assert.equal(cpu.step().after.a, 9);
+  assert.equal(cpu.snapshot().pc, 0x200e);
 });
 
 function expectedStatusFlags(value: number): Cpu6502Flags {
@@ -2527,31 +2589,28 @@ test("6502 status stack operations preserve captured opcodes when code and stack
   assert.deepEqual(ram.accesses, pulled.accesses);
 });
 
-test("6502 PLP controls the next ADC's decimal restriction and carry using the restored flags", () => {
-  for (const value of [0x08, 0x01]) {
-    const ram = new ObservedRam();
-    [0x28, 0x69, 1].forEach((byte, offset) => ram.write(0x2000 + offset, byte));
-    ram.write(0x0100, value);
-    const cpu = new Cpu6502(ram, initialState({ a: 0x7f, sp: 0xff, pc: 0x2000,
-      flags: { ...initialState().flags, d: value !== 0x08, c: false } }));
-    const pulled = cpu.step();
-    const saved = structuredClone(pulled);
-    const before = cpu.snapshot();
-    assert.deepEqual(before.flags, expectedStatusFlags(value));
-    ram.accesses.length = 0;
-    const adc = cpu.step();
-    if (value === 0x08) {
-      assert.deepEqual(adc, { before, after: before, instruction: { address: 0x2001, bytes: [0x69] },
-        accesses: [{ kind: "read", address: 0x2001, value: 0x69 }], outcome: "unsupported", reason: "decimal-mode" });
-      assert.deepEqual(cpu.step(), adc);
-    } else {
-      assert.equal(adc.outcome, "executed");
-      assert.deepEqual(adc.after, { ...before, a: 0x81, pc: 0x2003,
-        flags: { n: true, v: true, d: false, i: false, z: false, c: false } });
-      assert.deepEqual(ram.accesses, [{ kind: "read", address: 0x2001, value: 0x69 },
-        { kind: "read", address: 0x2002, value: 1 }]);
+test("6502 PLP controls the next ADC/SBC mode and carry using the restored flags", () => {
+  for (const { name, opcodes } of arithmeticForms) {
+    for (const [value, adcResult, sbcResult] of [[0, 0x0a, 7], [1, 0x0b, 8], [8, 0x10, 7], [9, 0x11, 8]] as const) {
+      const ram = new ObservedRam();
+      [0x28, opcodes[2], 1].forEach((byte, offset) => ram.write(0x2000 + offset, byte));
+      ram.write(0x0100, value);
+      const flags = expectedStatusFlags(value);
+      const cpu = new Cpu6502(ram, initialState({ a: 9, sp: 0xff, pc: 0x2000,
+        flags: { ...flags, d: !flags.d, c: !flags.c } }));
+      const pulled = cpu.step();
+      const saved = structuredClone(pulled);
+      assert.deepEqual(pulled.after.flags, flags);
+      ram.accesses.length = 0;
+      const record = cpu.step();
+      assert.deepEqual(record, { before: pulled.after,
+        after: { ...pulled.after, a: name === "ADC" ? adcResult : sbcResult, pc: 0x2003,
+          flags: { ...flags, n: false, v: false, z: false, c: name === "SBC" } },
+        instruction: { address: 0x2001, bytes: [opcodes[2], 1] }, outcome: "executed",
+        accesses: [{ kind: "read", address: 0x2001, value: opcodes[2] }, { kind: "read", address: 0x2002, value: 1 }] });
+      assert.deepEqual(ram.accesses, record.accesses);
+      assert.deepEqual(pulled, saved);
     }
-    assert.deepEqual(pulled, saved);
   }
 });
 
