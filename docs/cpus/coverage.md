@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [304](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [685](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [230](../../src/components/cpus/6800.ts) | 25 / 197 | 12.7% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [277](../../src/components/cpus/6800.ts) | 33 / 197 | 16.8% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [257](../../src/components/cpus/6502.ts) | 25 / 151 | 16.6% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [328](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [338](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
@@ -560,6 +560,9 @@ final RAM, resumption before adjustment, reset, and restart.
 [Counted-loop specification](6800/examples/counted-loop.md) ·
 [Counted-loop definition](../../src/machines/6800/counted-loop-example.machine)
 
+[Stack specification](6800/examples/stack.md) ·
+[Stack definition](../../src/machines/6800/stack-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `16` | TAB | Inherent | 1 | Copy A to B; set N/Z, clear V, preserve H/I/C |
@@ -579,13 +582,21 @@ final RAM, resumption before adjustment, reset, and restart.
 | `2D` | BLT rel | Relative | 2 | Branch if N ≠ V |
 | `2E` | BGT rel | Relative | 2 | Branch if Z = 0 and N = V |
 | `2F` | BLE rel | Relative | 2 | Branch if Z = 1 or N ≠ V |
+| `32` | PULA | Inherent | 1 | Increment SP, then read A; preserve all flags |
+| `33` | PULB | Inherent | 1 | Increment SP, then read B; preserve all flags |
+| `36` | PSHA | Inherent | 1 | Write A at SP, then decrement SP; preserve all flags |
+| `37` | PSHB | Inherent | 1 | Write B at SP, then decrement SP; preserve all flags |
+| `39` | RTS | Inherent | 1 | Pull return address high byte first; preserve all flags |
 | `4A` | DECA | Inherent | 1 | Decrement A; set N/Z/V, preserve H/I/C |
 | `4C` | INCA | Inherent | 1 | Increment A; set N/Z/V, preserve H/I/C |
 | `5A` | DECB | Inherent | 1 | Decrement B; set N/Z/V, preserve H/I/C |
 | `5C` | INCB | Inherent | 1 | Increment B; set N/Z/V, preserve H/I/C |
 | `86` | LDAA #n | Immediate | 2 | Load A; set N/Z, clear V, preserve H/I/C |
 | `8B` | ADDA #n | Immediate | 2 | Add to A without incoming carry; set H/N/Z/V/C, preserve I |
+| `8D` | BSR rel | Relative | 2 | Push return PC low byte first, then branch relative to it; preserve flags |
+| `8E` | LDS #nn | Immediate | 3 | Load SP; set N/Z from the full word, clear V, preserve H/I/C |
 | `B7` | STAA addr | Extended | 3 | Store A; set N/Z, clear V, preserve H/I/C |
+| `BD` | JSR addr | Extended | 3 | Push return PC low byte first, then jump to the high-byte-first target; preserve flags |
 | `C6` | LDAB #n | Immediate | 2 | Load B; set N/Z, clear V, preserve H/I/C |
 
 Opcode `21` is unused on the original 6800 and remains unsupported. It is not
@@ -596,25 +607,32 @@ the 6809's BRN instruction.
 | Stored state | Byte A/B, word X/SP/PC, and H/I/N/Z/V/C flags |
 | Inspection | Detached registers and flags; no derived register pairs |
 | Accumulator operations | Immediate A/B loads, A↔B transfers, and wrapping A/B increment/decrement; preserve H/I/C |
-| Control flow | BRA and all fourteen short conditional branches; signed displacement relative to the end of the instruction, 16-bit target wrapping, unchanged flags |
+| Control flow | BRA and all fourteen short conditional branches, relative BSR, extended JSR, and RTS; 16-bit targets and unchanged flags |
+| Stack | Immediate LDS; A/B pushes and pulls; calls and returns share ordinary RAM, with SP pointing to the next free byte and wrapping at 16 bits |
 | Memory | Exactly 64 KiB RAM; 16-bit PC wrapping; extended addresses fetched high byte first |
 | Reset | Read FFFE then FFFF into PC, set I; preserve other registers, flags, and RAM under the model policy |
 | Stopping | Caller completion address or step budget; unsupported instructions preserve state; no halt/wait latch |
-| Remaining scope | Other loads/stores, arithmetic/logic, addressing forms, jumps, subroutine and stack operations, interrupts, mapped devices, and timing |
+| Remaining scope | Other loads/stores, arithmetic/logic, addressing forms including indexed JSR, jumps, remaining stack operations, interrupts, mapped devices, and timing |
 
 Verification: [CPU tests](../../tests/components/cpus/6800.test.ts),
 [arithmetic example tests](../../tests/machines/6800/example.test.ts),
-[counted-loop tests](../../tests/machines/6800/counted-loop-example.test.ts), and
+[counted-loop tests](../../tests/machines/6800/counted-loop-example.test.ts),
+[stack tests](../../tests/machines/6800/stack-example.test.ts), and
 [public type checks](../../tests/types/6800.ts). Checks cover every addition
 operand pair, every load/store/transfer/increment/decrement byte and incoming
 flag pattern, arithmetic boundaries, every store destination, PC, and
 reset-vector value. Literal branch truth tables check all flag combinations;
 displacement checks cover every byte, both paths, and address boundaries.
+Stack checks cover every LDS word, push/pull byte and flag pattern, full-width
+SP, BSR displacement, and JSR/RTS target. Boundary cases verify LDS word flags,
+code/stack overlap, PC/SP wrapping, byte order, and reads of edited stack RAM.
 Complete records and observed RAM calls verify wrapping, byte order,
 self-modifying code, unchanged-value stores, unsupported attempts, reset, and
 detached snapshots. The examples check whole RAM images, complete records,
 bounded running, caller completion, reset, and fresh restart. The counted loop
 also checks resumption and an edited displacement that branches to itself.
+The stack example checks nested calls, saved accumulators, residual stack bytes,
+resumption from snapshots and RAM at different call depths, and reset during a call.
 Parser and generator checks preserve the 6800's own state schema and generated
 factory types.
 

@@ -9,12 +9,13 @@ addresses and the reset vector use the high byte first.
 [Public type checks](../../../tests/types/6800.ts) ·
 [Coverage](../coverage.md#6800) ·
 [Arithmetic example](examples/arithmetic.md) ·
-[Counted-loop example](examples/counted-loop.md)
+[Counted-loop example](examples/counted-loop.md) ·
+[Stack example](examples/stack.md)
 
 Hardware references are Motorola's
 [M6800 Programming Reference Manual, November 1976](https://manualzz.com/doc/1063126/motorola-m6800-microprocessor-programming-reference-manual),
-sections 1 and 3.3.1 and Appendix A's ADD, LDA, STA, TAB, TBA, INC, DEC,
-and branch definitions; and the
+sections 1, 3.3.1, and 3.4–3.5 and Appendix A's ADD, LDA, STA, TAB, TBA,
+INC, DEC, branch, LDS, PSH, PUL, JSR, and RTS definitions; and the
 [MC6800 data sheet in M6800 Systems Reference and Data Sheets](https://vtda.org/docs/computing/Motorola/M6800SystemsReferenceDataSheets_May75.pdf),
 reset description on pages 13–14 and instruction tables on pages 18–21.
 The supported encodings are for the original 6800; later-family additions
@@ -63,7 +64,11 @@ Supported instructions fetch the opcode and then their operands, advancing PC
 after each byte with wrap from `FFFF` to `0000`. LDAA, LDAB, and ADDA fetch one
 immediate byte. Transfers and accumulator increments/decrements fetch only
 their opcode. Branches always fetch a displacement byte, whether taken or
-untaken. STAA fetches the high and low address bytes, then writes A
+untaken. LDS and extended JSR fetch a high-byte-first word. Stack pushes,
+pulls, and RTS fetch only their opcode; BSR fetches a displacement byte.
+Stack data reads appear in `accesses`, but not in the fetched instruction
+bytes, and do not advance PC. All instruction bytes are fetched before
+stack reads or writes. STAA fetches the high and low address bytes, then writes A
 without reading the destination. Writes are recorded even when the value is
 unchanged. Stores can overwrite instruction or vector bytes; retained records
 keep the values fetched at the time, while subsequent operations read current RAM.
@@ -80,6 +85,9 @@ cycles, dummy bus accesses, pin transitions, and electrical behavior are omitted
 LDAA and LDAB load their immediate operand into A or B respectively. STAA
 stores A without changing it. All set N from bit 7 of the value and Z from
 whether it is zero, clear V, and preserve H, I, and C.
+
+LDS loads its immediate word into SP. It sets N from bit 15 and Z from whether
+the entire word is zero, clears V, and preserves H/I/C. A/B/X are unchanged.
 
 ADDA adds the immediate byte to A without incoming carry and wraps the result
 to a byte. It replaces H/N/Z/V/C: H indicates carry from bit 3, N the result's
@@ -115,6 +123,29 @@ at 16 bits. Untaken branches leave PC at that fallthrough address. Neither
 path prefetches a target instruction, writes RAM, or changes other registers
 or flags. Subsequent instructions see current state and current RAM operands.
 
+## Stack and subroutines
+
+SP points to the next free stack byte in the full 16-bit address space.
+A push writes at SP, then decrements SP; a pull increments SP, then reads
+at SP. Both wrap between `0000` and `FFFF`. PSHA/PSHB push the named
+accumulator; PULA/PULB pull a byte into it. All four preserve every flag,
+including N/Z on pulls, and leave the other accumulator and X unchanged.
+Pulls do not clear memory.
+
+BSR and extended JSR push the address immediately after the instruction,
+low byte first and then high byte, using two stack bytes. BSR adds its signed
+displacement to that return address, with the same 16-bit wrapping as short
+branches. Extended JSR takes its target from the high-byte-first address
+operand. RTS pulls the high byte and then the low byte and uses that return
+address directly. Calls and returns preserve A/B/X and all flags; they do not
+prefetch the target instruction. Indexed JSR remains unsupported.
+
+Stack accesses use ordinary current RAM and the current SP. Saved accumulator
+values and return addresses share the same stack; there is no hidden call
+history, frame type, depth limit, or underflow check. RTS can consume bytes
+placed in RAM without a preceding call. Editing stack memory changes what
+the next pull or return reads, and stack writes may overwrite code or vectors.
+
 ## CPU reset
 
 `reset()` reads `FFFE` followed by `FFFF`, loads their high-byte-first address
@@ -125,7 +156,8 @@ it does not claim defined power-on values for those registers.
 
 The `Cpu6800ResetRecord` has detached before/after snapshots and the two vector
 reads, without an instruction or step outcome. Every reset rereads the current
-vector. A later step executes from the resulting PC.
+vector. A later step executes from the resulting PC. Reset inside a subroutine
+preserves the current SP and saved stack bytes; it does not unwind calls.
 
 Reset does not restore an example's original registers or memory image.
 Creating a fresh example performs that lesson restart. A caller completion
@@ -142,13 +174,22 @@ Complete records and observed RAM calls check byte order, preserved state,
 unchanged-value writes, self-modifying code, unsupported attempts (including
 `21`), repeated reset, and detached snapshots.
 
-The generated arithmetic and counted-loop examples check full initial/final
+Stack checks cover every LDS word, accumulator byte and incoming flag pattern,
+every push/pull SP, every BSR displacement, and every JSR/RTS target. Boundary
+cases cover word-wide LDS flags, PC/SP wrapping, overlapping code and stack
+bytes, low-first call writes, high-first return reads, unchanged flags, and
+edited stack RAM without hidden return state.
+
+The generated arithmetic, counted-loop, and stack examples check full initial/final
 memory images, explicit state, complete execution records, bounded running,
 caller completion, reset, and fresh restart. The loop also checks pause/resume
 and an edited displacement that repeats BNE until the step budget expires.
+The stack example nests BSR inside JSR, saves/restores both accumulators,
+resumes from snapshots and RAM at different call depths, and checks residual
+stack bytes and reset during a call.
 Parser, generator, and type checks preserve CPU-specific state and record
 contracts.
 
-Other instruction forms, jumps, subroutine and stack operations, interrupt delivery,
+Other instruction forms, jumps, remaining stack operations, interrupt delivery,
 interrupt-control instructions, mapped devices, and timing remain deferred.
 Only complete implemented forms contribute to the coverage percentage.

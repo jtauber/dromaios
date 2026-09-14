@@ -14,6 +14,7 @@ import type { Cpu6502 } from "../../src/components/cpus/6502.js";
 import type { Cpu6800 } from "../../src/components/cpus/6800.js";
 import { create6800Example } from "../../src/machines/generated/6800/example.js";
 import { create6800CountedLoopExample } from "../../src/machines/generated/6800/counted-loop-example.js";
+import { create6800StackExample } from "../../src/machines/generated/6800/stack-example.js";
 import type { Cpu6809 } from "../../src/components/cpus/6809.js";
 import type { Cpu68000 } from "../../src/components/cpus/68000.js";
 import { create68000Example } from "../../src/machines/generated/68000/example.js";
@@ -71,6 +72,8 @@ const examples: readonly ExampleCase[] = [
   { name: "8008 stack", create: create8008StackExample, steps: 11, pc: 0x020b, stopReason: "halted", writes: [[0x80, 0x0a]] },
   { name: "6800 arithmetic", create: create6800Example, steps: 3, pc: 0x0207, stopReason: "completed", writes: [[0x80, 5]] },
   { name: "6800 counted loop", create: create6800CountedLoopExample, steps: 12, pc: 0x020c, stopReason: "completed", writes: [[0x80, 0x0f]] },
+  { name: "6800 stack", create: create6800StackExample, steps: 14, pc: 0x020d, stopReason: "completed",
+    writes: [[0x0101, 0x80], [0x0100, 0], [0x00ff, 8], [0x00fe, 2], [0x00fd, 0x26], [0x00fc, 2], [0x0080, 0x10]] },
   {
     name: "8080 rotates", create: create8080RotatesExample, steps: 21, pc: 0x021d, stopReason: "halted",
     writes: [[0x80, 0], [0x81, 3], [0x82, 0x80], [0x83, 0x81], [0x84, 0x7f]],

@@ -2,6 +2,7 @@ import { Cpu6800 } from "../../src/components/cpus/6800.js";
 import type { Cpu6800State, Cpu6800Snapshot, Cpu6800StepRecord, Cpu6800ResetRecord } from "../../src/components/cpus/6800.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { create6800Example } from "../../src/machines/generated/6800/example.js";
+import { create6800StackExample } from "../../src/machines/generated/6800/stack-example.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import type { CpuRunResult } from "../../src/runtime/run-cpu.js";
 
@@ -24,6 +25,8 @@ export function check6800(ram: Ram, state: Cpu6800State, snapshot: Cpu6800Snapsh
   // @ts-expect-error Snapshot flags are readonly.
   snapshot.flags.i = false;
   const machine: { cpu: Cpu6800; ram: Ram; endAddress: number } = create6800Example();
+  const stack: { cpu: Cpu6800; ram: Ram; endAddress: number } = create6800StackExample();
+  const stackResult: CpuRunResult<Cpu6800StepRecord> = runCpu(stack.cpu, { maxSteps: 14, endAddress: stack.endAddress });
   const result: CpuRunResult<Cpu6800StepRecord> = runCpu(cpu, { maxSteps: 3, endAddress: machine.endAddress });
   if (result.records[0]) {
     const i: boolean = result.records[0].after.flags.i;

@@ -63,6 +63,7 @@ export interface Cpu6800ResetRecord {
 interface InstructionContext {
   readonly fetchByte: () => number;
   readonly fetchWord: () => number;
+  readonly readByte: (address: number) => number;
   readonly writeByte: (address: number, value: number) => void;
 }
 
@@ -120,6 +121,7 @@ export class Cpu6800 {
           const low = fetchByte();
           return (high << 8) | low;
         },
+        readByte: address => this.#read(address, accesses),
         writeByte: (address, value) => this.#write(address, value, accesses),
       });
     }
@@ -147,6 +149,12 @@ export class Cpu6800 {
     ...this.#branchPair("0010 110 p", () => this.#state.flags.n === this.#state.flags.v), // BGE / BLT
     ...this.#branchPair("0010 111 p", () => !this.#state.flags.z && this.#state.flags.n === this.#state.flags.v), // BGT / BLE
 
+    // 00110 p 1 r: p (bit 2) selects pull=0/push=1; r (bit 0) selects A=0/B=1.
+    // Pulls preserve flags, unlike ordinary accumulator loads.
+    ...opcodeFamily("00110 0 1 r", { r: ["a", "b"] }, ({ r: register }) => ({ readByte }: InstructionContext) => { this.#state[register] = this.#pullByte(readByte); }), // PULA / PULB
+    ...opcodeFamily("00110 1 1 r", { r: ["a", "b"] }, ({ r: register }) => ({ writeByte }: InstructionContext) => this.#pushByte(this.#state[register], writeByte)), // PSHA / PSHB
+    ...opcodePattern("0011 1001", ({ readByte }: InstructionContext) => this.#return(readByte)), // RTS
+
     // 010 r oooo: r (bit 4) selects A=0/B=1; oooo=1010 decrements, 1100 increments.
     ...opcodeFamily("010 r 1010", { r: ["a", "b"] }, ({ r: register }) => () => this.#adjustAccumulator(register, -1)), // DECA / DECB
     ...opcodeFamily("010 r 1100", { r: ["a", "b"] }, ({ r: register }) => () => this.#adjustAccumulator(register, 1)), // INCA / INCB
@@ -157,11 +165,18 @@ export class Cpu6800 {
     ...opcodeFamily("1 r 00 0110", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#loadAccumulator(register, fetchByte())), // LDAA / LDAB #n
     ...opcodePattern("1 0 00 1011", ({ fetchByte }: InstructionContext) => this.#addToAccumulator(fetchByte())), // ADDA #n
 
+    // 10 mm 1101: mm=00 is relative BSR; mm=11 is extended JSR below.
+    ...opcodePattern("10 00 1101", ({ fetchByte, writeByte }: InstructionContext) => this.#call(this.#relativeAddress(fetchByte()), writeByte)), // BSR rel
+
+    // 1 r mm 1110: r selects SP=0/X=1 rather than an accumulator; only immediate LDS is supported.
+    ...opcodePattern("1 0 00 1110", ({ fetchWord }: InstructionContext) => this.#loadStackPointer(fetchWord())), // LDS #nn
+
     // mm=01 (direct) and mm=10 (indexed) remain unsupported.
     // 1 0 11 0111: STAA with an extended address, fetched high byte first.
     ...opcodePattern("1 0 11 0111", ({ fetchWord, writeByte }: InstructionContext) => this.#storeAccumulator(fetchWord(), writeByte)), // STAA addr
+    ...opcodePattern("10 11 1101", ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte)), // JSR addr
 
-    // Other instruction groups, including stack operations and interrupt controls, are unsupported.
+    // Other instruction groups, including interrupt controls, are unsupported.
   ]);
 
   #branchPair(pattern: string, test: () => boolean): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -174,6 +189,11 @@ export class Cpu6800 {
   #loadAccumulator(register: Accumulator, value: number): void {
     this.#state[register] = value;
     this.#setLoadStoreFlags(value);
+  }
+
+  #loadStackPointer(value: number): void {
+    this.#state.sp = value;
+    this.#setLoadStoreFlags(value, 0x8000);
   }
 
   #storeAccumulator(address: number, writeByte: InstructionContext["writeByte"]): void {
@@ -189,14 +209,41 @@ export class Cpu6800 {
     this.#state.flags.v = value === (delta === 1 ? 0x7f : 0x80);
   }
 
-  // Control flow.
+  // Control flow and stack operations.
 
   #branch(displacement: number, take: boolean): void {
-    // Both paths fetch the displacement; PC now points past the two instruction bytes.
-    if (take) {
-      const offset = displacement < 0x80 ? displacement : displacement - 0x100;
-      this.#state.pc = (this.#state.pc + offset) & 0xffff;
-    }
+    if (take) this.#state.pc = this.#relativeAddress(displacement);
+  }
+
+  #relativeAddress(displacement: number): number {
+    // Branches and BSR fetch the displacement before computing this relative address.
+    const offset = displacement < 0x80 ? displacement : displacement - 0x100;
+    return (this.#state.pc + offset) & 0xffff;
+  }
+
+  #call(address: number, writeByte: InstructionContext["writeByte"]): void {
+    // All instruction bytes are fetched before stacking the return PC, low byte first.
+    const returnAddress = this.#state.pc;
+    this.#pushByte(returnAddress & 0xff, writeByte);
+    this.#pushByte(returnAddress >>> 8, writeByte);
+    this.#state.pc = address;
+  }
+
+  #return(readByte: InstructionContext["readByte"]): void {
+    const high = this.#pullByte(readByte);
+    const low = this.#pullByte(readByte);
+    this.#state.pc = (high << 8) | low;
+  }
+
+  #pushByte(value: number, writeByte: InstructionContext["writeByte"]): void {
+    // SP points at the next free byte: write first, then decrement across the full address space.
+    writeByte(this.#state.sp, value);
+    this.#state.sp = (this.#state.sp - 1) & 0xffff;
+  }
+
+  #pullByte(readByte: InstructionContext["readByte"]): number {
+    this.#state.sp = (this.#state.sp + 1) & 0xffff;
+    return readByte(this.#state.sp);
   }
 
   // Arithmetic and flags.
@@ -209,8 +256,8 @@ export class Cpu6800 {
     this.#state.flags.v = overflow;
   }
 
-  #setLoadStoreFlags(value: number): void {
-    this.#state.flags.n = (value & 0x80) !== 0;
+  #setLoadStoreFlags(value: number, signBit = 0x80): void {
+    this.#state.flags.n = (value & signBit) !== 0;
     this.#state.flags.z = value === 0;
     this.#state.flags.v = false;
   }

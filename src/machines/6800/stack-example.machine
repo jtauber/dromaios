@@ -1,0 +1,36 @@
+ram 10000
+
+cpu 6800 {
+    A = 80  B = 00  X = 3456  SP = 0101  PC = 0200
+    flags { H = 1  I = 0  N = 1  Z = 1  V = 1  C = 1 }
+}
+
+memory 0200 {
+    8E 01 01    // LDS #$0101: next free stack byte
+    36          // PSHA: save the caller's accumulators
+    37          // PSHB
+    BD 02 20    // JSR $0220: return to 0208
+    B7 00 80    // STAA $0080: save the computed result
+    33          // PULB: restore B and A without changing flags
+    32          // PULA
+}
+
+memory 0220 {
+    86 05       // LDAA #$05
+    C6 07       // LDAB #$07: temporary value
+    8D 0A       // BSR $0230: +10 from return address 0226
+    8B 01       // ADDA #$01: 0F + 01 = 10
+    39          // RTS: return to 0208
+}
+
+memory 0230 {
+    8B 0A       // ADDA #$0A: 05 + 0A = 0F
+    39          // RTS: return to 0226
+}
+
+memory 007F { AA CC 55 } // Result at 0080, between guards
+memory 00FB { A5 }       // Guard below the six stack bytes (00FC–0101)
+memory 0102 { 5A }       // Guard above the stack
+memory FFFE { 02 00 }    // Reset vector: 0200, high byte first
+
+end 020D
