@@ -82,9 +82,13 @@ export type CpuZ80StepRecord = StateTransition<CpuZ80Snapshot> & (
 export type CpuZ80ResetRecord = StateTransition<CpuZ80Snapshot>;
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
+type ByteOperation = (value: number) => number;
 type ByteRegister = "a" | "b" | "c" | "d" | "e" | "h" | "l";
 type ByteOperand = ByteRegister | "(hl)";
-type RegisterPair = readonly [ByteRegister, ByteRegister] | "sp" | "af";
+type RegisterPair = readonly ["b", "c"] | readonly ["d", "e"] | readonly ["h", "l"] | "sp" | "af";
+
+// Fix the handler type once so pattern callbacks infer their instruction context.
+const instructionPattern = opcodePattern<OpcodeHandler>;
 
 function pairViews(bank: CpuZ80RegisterBank): { readonly bc: number; readonly de: number; readonly hl: number } {
   return { bc: (bank.b << 8) | bank.c, de: (bank.d << 8) | bank.e, hl: (bank.h << 8) | bank.l };
@@ -198,14 +202,14 @@ export class CpuZ80 {
 
   // ooo selects the ALU operation in both 10 ooo rrr and 11 ooo 110.
   // Operations read live state and return the next A; CP returns A unchanged.
-  readonly #aluOperations: readonly ((value: number) => number)[] = [
+  readonly #aluOperations: readonly ByteOperation[] = [
     value => this.#add(value), // 000 ADD
     value => this.#add(value, this.#state.flags.c ? 1 : 0), // 001 ADC
     value => this.#subtract(value), // 010 SUB
     value => this.#subtract(value, this.#state.flags.c ? 1 : 0), // 011 SBC
-    value => this.#logicResult(this.#state.a & value, true), // 100 AND: H is set.
-    value => this.#logicResult(this.#state.a ^ value, false), // 101 XOR
-    value => this.#logicResult(this.#state.a | value, false), // 110 OR
+    value => this.#parityResult(this.#state.a & value, { h: true, c: false }), // 100 AND
+    value => this.#parityResult(this.#state.a ^ value, { h: false, c: false }), // 101 XOR
+    value => this.#parityResult(this.#state.a | value, { h: false, c: false }), // 110 OR
     value => this.#compare(value), // 111 CP
   ];
 
@@ -227,15 +231,15 @@ export class CpuZ80 {
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // xx=00, zzz=000: yyy=010 selects DJNZ, 011 JR, and 1cc conditional JR.
     // yyy=000 (NOP) and 001 (EX AF,AF') remain unsupported.
-    ...opcodePattern("00 010 000", ({ fetchByte }: InstructionContext) => this.#decrementAndJump(fetchByte())), // DJNZ e
-    ...opcodePattern("00 011 000", ({ fetchByte }: InstructionContext) => this.#jumpRelative(fetchByte(), true)), // JR e
+    ...instructionPattern("00 010 000", ({ fetchByte }) => this.#decrementAndJump(fetchByte())), // DJNZ e
+    ...instructionPattern("00 011 000", ({ fetchByte }) => this.#jumpRelative(fetchByte(), true)), // JR e
     ...opcodeFamily("00 1cc 000", { c: this.#conditions.slice(0, 4) }, ({ c: condition }) => ({ fetchByte }: InstructionContext) => this.#jumpRelative(fetchByte(), condition())), // JR NZ/Z/NC/C,e
 
     // 00 pp q 001: pp (bits 5..4) selects the pair; q=0 loads nn (low byte first).
-    ...opcodeFamily("00 pp 0 001", { p: this.#registerPairs }, ({ p: pair }) => ({ fetchWord }: InstructionContext) => this.#loadPair(pair, fetchWord())), // LD dd,nn
+    ...opcodeFamily("00 pp 0 001", { p: this.#registerPairs }, ({ p: pair }) => ({ fetchWord }: InstructionContext) => this.#writePair(pair, fetchWord())), // LD dd,nn
 
     // xx=00, zzz=010: pp=11 selects A at address nn; q=0 stores (q=1 would load).
-    ...opcodePattern("00 11 0 010", ({ fetchWord, writeByte }: InstructionContext) => writeByte(fetchWord(), this.#state.a)), // LD (nn),A
+    ...instructionPattern("00 11 0 010", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a)), // LD (nn),A
 
     // 00 rrr zzz: rrr (bits 5..3) selects the byte register; zzz selects the operation.
     // rrr=110 selects (HL); INC/DEC omit that slot, while LD includes it.
@@ -255,15 +259,15 @@ export class CpuZ80 {
     ...opcodeFamily("11 ccc 000", { c: this.#conditions }, ({ c: condition }) => ({ readByte }: InstructionContext) => this.#return(readByte, condition())), // RET cc
 
     // 11 qq 0 001: POP uses BC/DE/HL/AF. Bit 3=1 includes unconditional RET.
-    ...opcodeFamily("11 qq 0 001", { q: this.#stackPairs }, ({ q: pair }) => ({ readByte }: InstructionContext) => this.#loadPair(pair, this.#popWord(readByte))), // POP qq
-    ...opcodePattern("11 00 1 001", ({ readByte }: InstructionContext) => this.#return(readByte)), // RET
+    ...opcodeFamily("11 qq 0 001", { q: this.#stackPairs }, ({ q: pair }) => ({ readByte }: InstructionContext) => this.#writePair(pair, this.#popWord(readByte))), // POP qq
+    ...instructionPattern("11 00 1 001", ({ readByte }) => this.#return(readByte)), // RET
 
     // 11 ccc 100: conditional calls always fetch nn, then push only on a taken path.
     ...opcodeFamily("11 ccc 100", { c: this.#conditions }, ({ c: condition }) => ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte, condition())), // CALL cc,nn
 
     // 11 qq 0 101: PUSH uses BC/DE/HL/AF. Bit 3=1 includes unconditional CALL.
     ...opcodeFamily("11 qq 0 101", { q: this.#stackPairs }, ({ q: pair }) => ({ writeByte }: InstructionContext) => this.#pushWord(this.#readPair(pair), writeByte)), // PUSH qq
-    ...opcodePattern("11 00 1 101", ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte)), // CALL nn
+    ...instructionPattern("11 00 1 101", ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte)), // CALL nn
 
     // 11 ooo 110: the same ooo operations with an immediate byte instead of a register/memory selector.
     ...opcodeFamily("11 ooo 110", { o: this.#aluOperations }, ({ o: operate }) =>
@@ -273,18 +277,18 @@ export class CpuZ80 {
   // After CB (11001011), xx yyy rrr selects the operation and B/C/D/E/H/L/(HL)/A.
   // xx=00 uses yyy as the rotate/shift selector; xx=01/10/11 uses it as bit number bbb.
   readonly #cbOpcodeHandlers = opcodeTable<OpcodeHandler>([
-    ...this.#rotateHandlers("00 000 rrr", value => this.#shiftLeft(value, value >>> 7)), // RLC r / (HL)
-    ...this.#rotateHandlers("00 001 rrr", value => this.#shiftRight(value, value & 1)), // RRC r / (HL)
-    ...this.#rotateHandlers("00 010 rrr", value => this.#shiftLeft(value, Number(this.#state.flags.c))), // RL r / (HL)
-    ...this.#rotateHandlers("00 011 rrr", value => this.#shiftRight(value, Number(this.#state.flags.c))), // RR r / (HL)
-    ...this.#rotateHandlers("00 100 rrr", value => this.#shiftLeft(value, 0)), // SLA r / (HL)
-    ...this.#rotateHandlers("00 101 rrr", value => this.#shiftRight(value, value >>> 7)), // SRA r / (HL)
+    ...this.#shiftRotateHandlers("00 000 rrr", value => this.#shiftLeft(value, (value & 0x80) !== 0 ? 1 : 0)), // RLC r / (HL)
+    ...this.#shiftRotateHandlers("00 001 rrr", value => this.#shiftRight(value, (value & 1) !== 0 ? 1 : 0)), // RRC r / (HL)
+    ...this.#shiftRotateHandlers("00 010 rrr", value => this.#shiftLeft(value, this.#state.flags.c ? 1 : 0)), // RL r / (HL)
+    ...this.#shiftRotateHandlers("00 011 rrr", value => this.#shiftRight(value, this.#state.flags.c ? 1 : 0)), // RR r / (HL)
+    ...this.#shiftRotateHandlers("00 100 rrr", value => this.#shiftLeft(value, 0)), // SLA r / (HL)
+    ...this.#shiftRotateHandlers("00 101 rrr", value => this.#shiftRight(value, (value & 0x80) !== 0 ? 1 : 0)), // SRA r / (HL)
     // 00 110 rrr is undocumented SLL and remains unsupported.
-    ...this.#rotateHandlers("00 111 rrr", value => this.#shiftRight(value, 0)), // SRL r / (HL)
+    ...this.#shiftRotateHandlers("00 111 rrr", value => this.#shiftRight(value, 0)), // SRL r / (HL)
 
-    ...opcodeFamily("01 bbb rrr", { b: this.#bitMasks, r: this.#byteOperands }, ({ b: mask, r: operand }) => (instruction: InstructionContext) => this.#testBit(mask, this.#readOperand(operand, instruction))), // BIT b,r / (HL)
-    ...opcodeFamily("10 bbb rrr", { b: this.#bitMasks, r: this.#byteOperands }, ({ b: mask, r: operand }) => (instruction: InstructionContext) => this.#modifyOperand(operand, value => value & ~mask, instruction)), // RES b,r / (HL)
-    ...opcodeFamily("11 bbb rrr", { b: this.#bitMasks, r: this.#byteOperands }, ({ b: mask, r: operand }) => (instruction: InstructionContext) => this.#modifyOperand(operand, value => value | mask, instruction)), // SET b,r / (HL)
+    ...this.#bitTestHandlers("01 bbb rrr"), // BIT b,r / (HL)
+    ...this.#bitModifyHandlers("10 bbb rrr", (value, mask) => value & ~mask), // RES b,r / (HL)
+    ...this.#bitModifyHandlers("11 bbb rrr", (value, mask) => value | mask), // SET b,r / (HL)
   ]);
 
   #byteRegisterHandlers(
@@ -305,9 +309,21 @@ export class CpuZ80 {
     return instruction => this.#writeOperand(destination, this.#readOperand(source, instruction), instruction);
   }
 
-  #rotateHandlers(pattern: string, operation: (value: number) => number): readonly OpcodeEntry<OpcodeHandler>[] {
+  #shiftRotateHandlers(pattern: string, operation: ByteOperation): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { r: this.#byteOperands }, ({ r: operand }) =>
       instruction => this.#modifyOperand(operand, operation, instruction));
+  }
+
+  #bitTestHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { b: this.#bitMasks, r: this.#byteOperands }, ({ b: mask, r: operand }) =>
+      instruction => this.#testBit(mask, this.#readOperand(operand, instruction)));
+  }
+
+  #bitModifyHandlers(pattern: string, operation: (value: number, mask: number) => number): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { b: this.#bitMasks, r: this.#byteOperands }, ({ b: mask, r: operand }) => {
+      const modify: ByteOperation = value => operation(value, mask);
+      return instruction => this.#modifyOperand(operand, modify, instruction);
+    });
   }
 
   // Addressing and loads.
@@ -321,7 +337,7 @@ export class CpuZ80 {
     else this.#state[operand] = value;
   }
 
-  #modifyOperand(operand: ByteOperand, operation: (value: number) => number, instruction: InstructionContext): void {
+  #modifyOperand(operand: ByteOperand, operation: ByteOperation, instruction: InstructionContext): void {
     this.#writeOperand(operand, operation(this.#readOperand(operand, instruction)), instruction);
   }
 
@@ -331,7 +347,7 @@ export class CpuZ80 {
     return (this.#state[pair[0]] << 8) | this.#state[pair[1]];
   }
 
-  #loadPair(pair: RegisterPair, value: number): void {
+  #writePair(pair: RegisterPair, value: number): void {
     if (pair === "sp") this.#state.sp = value;
     else if (pair === "af") this.#af = value;
     else {
@@ -388,16 +404,14 @@ export class CpuZ80 {
 
   // Arithmetic, logic, and flags.
 
-  #shiftLeft(value: number, incomingBit: number): number {
-    const result = this.#logicResult(((value << 1) | incomingBit) & 0xff, false);
-    this.#state.flags.c = (value & 0x80) !== 0;
-    return result;
+  #shiftLeft(value: number, incomingBit: 0 | 1): number {
+    const result = ((value << 1) | incomingBit) & 0xff;
+    return this.#parityResult(result, { h: false, c: (value & 0x80) !== 0 });
   }
 
-  #shiftRight(value: number, incomingBit: number): number {
-    const result = this.#logicResult((value >>> 1) | (incomingBit << 7), false);
-    this.#state.flags.c = (value & 1) !== 0;
-    return result;
+  #shiftRight(value: number, incomingBit: 0 | 1): number {
+    const result = (value >>> 1) | (incomingBit << 7);
+    return this.#parityResult(result, { h: false, c: (value & 1) !== 0 });
   }
 
   #testBit(mask: number, value: number): void {
@@ -450,14 +464,15 @@ export class CpuZ80 {
     return result;
   }
 
-  #logicResult(result: number, halfCarry: boolean): number {
+  // Logic and CB shifts use parity; callers supply H/C, and all these operations clear N.
+  #parityResult(result: number, { h, c }: Pick<CpuZ80Flags, "h" | "c">): number {
     this.#state.flags = {
       s: (result & 0x80) !== 0,
       z: result === 0,
-      h: halfCarry,
-      pv: evenParity8(result), // Logic uses parity; arithmetic uses signed overflow.
+      h,
+      pv: evenParity8(result),
       n: false,
-      c: false,
+      c,
     };
     return result;
   }

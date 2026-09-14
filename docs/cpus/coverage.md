@@ -19,7 +19,7 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [651](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [250](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [463](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [469](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [484](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [305](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [227](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [243](../../src/components/cpus/68000.ts) | 96 / 36,029 | 0.3% |
