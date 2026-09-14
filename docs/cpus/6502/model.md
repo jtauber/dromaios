@@ -95,6 +95,24 @@ steps fetch current RAM at the resulting PC. The
 [counted-loop example](examples/counted-loop.md) specifies a complete trace
 combining register updates, arithmetic, branching, and a final store.
 
+## Jumps and subroutines
+
+Absolute JMP fetches a low/high target and replaces PC. JSR saves the address
+of its last operand byte on the page-one stack, high byte first. RTS pulls
+low then high and adds one, wrapping at 16 bits. All three preserve flags;
+JSR decrements SP twice and RTS increments it twice, wrapping within page one.
+
+JSR interleaves instruction fetches and stack writes: opcode, target low,
+saved-PC high, saved-PC low, target high. Its final operand fetch observes
+any overlapping stack write; earlier captured instruction bytes remain intact.
+RTS reads current stack RAM even without a preceding call, retains those
+bytes, and does not maintain a separate call stack or check nesting depth.
+See the [manufacturer manual][1], sections 4.0.2 and 8.1–8.3.
+
+Records retain this meaningful access order but omit discarded bus reads and
+next-instruction prefetches. The [subroutine example](examples/subroutines.md)
+checks nested calls, saved accumulator data, and stack wrapping together.
+
 ## Unsupported instructions and modes
 
 Opcodes outside the [coverage inventory](../coverage.md#6502) return
@@ -153,6 +171,11 @@ with all flag combinations, every displacement, both paths, page and address-spa
 crossings, instruction-byte overlap, live flags after arithmetic and register
 updates, current operands, and retained records.
 
+Jump and subroutine checks cover every target or stacked return pointer, all
+SP values and flag patterns, PC/SP wrapping, unchanged-value pushes, and
+code/stack overlap. They verify ordered RAM calls, JSR's late high-byte fetch,
+RTS's increment, edited stack contents, and subsequent execution at the target.
+
 Unsupported opcodes and decimal ADC are checked on repeated attempts, with no
 operand read or state changes. Reset checks cover ordered reads of the current
 vector, SP wrapping and repeated decrements, preservation of RAM and unrelated
@@ -174,8 +197,9 @@ previews, opcode metadata, lesson annotations, addressing, and timing.
 
 ## References
 
-- [Synertek/MOS MCS6500 Programming Manual][1], sections 2.1–2.2, 3, 4.1, 7,
-  and 9.1–9.4, and Appendix B: registers, flags, branches, reset, and encodings.
+- [Synertek/MOS MCS6500 Programming Manual][1], sections 2.1–2.2, 3, 4, 7,
+  8.1–8.3, and 9.1–9.4, and Appendix B: registers, flags, control flow,
+  stack access order, reset, and encodings.
   Its startup discussion is supplemented by the transistor-level analysis below.
 - [Michael Steil's Visual6502 analysis of BRK/IRQ/NMI/RESET][2]: reset vector
   order, discarded stack reads, and the three stack-pointer decrements.

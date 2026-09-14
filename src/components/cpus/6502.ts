@@ -141,7 +141,9 @@ export class Cpu6502 {
   // The cc=00 and cc=10 instructions below have their own patterns.
   // Only implemented encodings enter the table; this is not a decoder for every combination.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // cc=00, bbb=000: aaa=101 selects LDY immediate.
+    // cc=00, bbb=000: aaa=001/011 select JSR absolute/RTS implied; 101 selects LDY immediate.
+    ...opcodePattern("001 000 00", (instruction: InstructionContext) => this.#call(instruction)), // JSR addr
+    ...opcodePattern("011 000 00", ({ readByte }: InstructionContext) => this.#return(readByte)), // RTS
     ...opcodePattern("101 000 00", ({ fetchByte }: InstructionContext) => this.#loadRegister("y", fetchByte())), // LDY #n
 
     // cc=00, bbb=010: 01p 010 00 selects push A (p=0) or pull A (p=1).
@@ -152,6 +154,9 @@ export class Cpu6502 {
     ...opcodePattern("101 010 00", () => this.#loadRegister("y", this.#state.a)), // TAY
     ...opcodePattern("110 010 00", () => this.#adjustIndex("y", 1)), // INY
     ...opcodePattern("111 010 00", () => this.#adjustIndex("x", 1)), // INX
+
+    // cc=00, bbb=011: aaa=010 selects JMP absolute; aaa=011 (indirect) remains unsupported.
+    ...opcodePattern("010 011 00", ({ fetchWord }: InstructionContext) => this.#jump(fetchWord())), // JMP addr
 
     // cc=00, bbb=100: ffv 100 00 selects a flag and the value required to branch.
     // ff (bits 7..6): 00 N, 01 V, 10 C, 11 Z.
@@ -200,6 +205,26 @@ export class Cpu6502 {
   }
 
   // Control flow.
+
+  #jump(address: number): void {
+    this.#state.pc = address;
+  }
+
+  #call({ fetchByte, writeByte }: InstructionContext): void {
+    const low = fetchByte();
+    // PC points at JSR's last byte. Push that address high first, before fetching the target high byte.
+    // A stack write can replace that operand; the target low byte has already been captured.
+    this.#pushByte(this.#state.pc >>> 8, writeByte);
+    this.#pushByte(this.#state.pc & 0xff, writeByte);
+    const high = fetchByte();
+    this.#jump(low | (high << 8));
+  }
+
+  #return(readByte: InstructionContext["readByte"]): void {
+    const low = this.#pullByte(readByte);
+    const high = this.#pullByte(readByte);
+    this.#jump(((low | (high << 8)) + 1) & 0xffff);
+  }
 
   #branch(displacement: number, take: boolean): void {
     // The operand is fetched on either path; PC now points past both instruction bytes.

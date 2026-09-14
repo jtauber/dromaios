@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [283](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [664](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [262](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [236](../../src/components/cpus/6502.ts) | 25 / 151 | 16.6% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [261](../../src/components/cpus/6502.ts) | 28 / 151 | 18.5% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [307](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [317](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [238](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
@@ -675,13 +675,19 @@ factory types.
 [Counted-loop specification](6502/examples/counted-loop.md) ·
 [Counted-loop definition](../../src/machines/6502/counted-loop-example.machine)
 
+[Subroutine specification](6502/examples/subroutines.md) ·
+[Subroutine definition](../../src/machines/6502/subroutines-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `10` | `BPL rel` | Relative | 2 | Branch if N = 0 |
 | `18` | `CLC` | Implied | 1 | Clear carry |
+| `20` | `JSR addr` | Absolute / stack | 3 | Fetch target low; push the last operand's address high then low; fetch target high and jump |
 | `30` | `BMI rel` | Relative | 2 | Branch if N = 1 |
 | `48` | `PHA` | Implied | 1 | Write A at 0100 + SP, then decrement 8-bit SP; preserve flags |
+| `4C` | `JMP addr` | Absolute | 3 | Set PC from a low/high target; preserve flags |
 | `50` | `BVC rel` | Relative | 2 | Branch if V = 0 |
+| `60` | `RTS` | Implied / stack | 1 | Pull PC low then high and add one with 16-bit wrapping; preserve flags |
 | `68` | `PLA` | Implied | 1 | Increment 8-bit SP, then read A at 0100 + SP; update N/Z |
 | `69` | `ADC #n` | Immediate | 2 | Partial: binary arithmetic only; D must be false |
 | `70` | `BVS rel` | Relative | 2 | Branch if V = 1 |
@@ -711,11 +717,12 @@ factory types.
 | Register operations | Immediate A/X/Y loads, A↔X and A↔Y transfers, wrapping X/Y increment/decrement; replace N/Z and preserve V/D/I/C |
 | Memory addressing | LDA and STA with one-byte addresses in fixed page zero; STA with an explicit 16-bit absolute address |
 | Branches | All eight conditions; signed displacement relative to PC after the operand, with 16-bit wrapping; fetch the operand on both paths and preserve flags |
-| Stack | PHA/PLA in page 01 with wrapping 8-bit SP; pulls retain stored bytes; status stack forms are unsupported |
+| Subroutines | Absolute JMP/JSR and RTS; JSR's final operand fetch follows its stack writes; RTS adds one to the saved pointer; preserve flags |
+| Stack | PHA/PLA and subroutine return pointers in page 01 with wrapping 8-bit SP; pulls retain stored bytes; status stack forms are unsupported |
 | Decimal mode | D can be initialized and inspected; ADC with D set reports `reason: "decimal-mode"` before operand fetch or state changes |
 | Reset | Read `FFFC` then `FFFD` for PC, set I, subtract 3 from the 8-bit SP with wrapping; preserve other registers, flags (including D), and RAM |
 | Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
-| Remaining instruction scope | Further loads/stores, SP transfers, arithmetic and logic, decimal arithmetic, status stack operations, jumps, calls/returns, and further flag operations |
+| Remaining instruction scope | Further loads/stores, SP transfers, arithmetic and logic, decimal arithmetic, status stack operations, indirect JMP, and further flag operations |
 | Remaining addressing scope | Indexed, indirect, and other forms beyond the exact encodings above |
 
 All supported forms except ADC work with either D value. Decimal rejection is
@@ -728,7 +735,8 @@ Verification: [CPU tests](../../tests/components/cpus/6502.test.ts),
 [arithmetic example tests](../../tests/machines/6502/example.test.ts),
 [stack example tests](../../tests/machines/6502/stack-example.test.ts),
 [addressing example tests](../../tests/machines/6502/addressing-example.test.ts),
-[counted-loop example tests](../../tests/machines/6502/counted-loop-example.test.ts), and
+[counted-loop example tests](../../tests/machines/6502/counted-loop-example.test.ts),
+[subroutine example tests](../../tests/machines/6502/subroutines-example.test.ts), and
 [public type checks](../../tests/types/6502.ts). Binary ADC checks cover every byte
 operand pair and carry input with old result flags clear and set. Other checks
 cover decimal rejection, exact accesses, wrapping, self-overwriting stores,
@@ -748,6 +756,15 @@ and instruction-byte overlap. Further checks cover live flags after ADC and
 register operations, current operands, and record ownership. The counted loop
 checks nineteen complete records, actual RAM calls, both branch paths, full
 memory images, bounded resumption and self-looping, reset, and fresh restart.
+
+JMP/JSR checks cover every 16-bit target; RTS checks every stacked pointer and
+its increment. All SP values and flag combinations, PC/SP wrapping, retained
+stack data, unchanged-value writes, current operands, and code/stack overlap
+are checked through complete records and observed RAM calls. Overlap cases
+specifically check JSR's high operand after the pushes and RTS reading its own
+opcode as stack data. The subroutine example checks thirteen complete records,
+nested calls across page-one wrapping, a saved accumulator, the result store,
+JMP completion, bounded resumption at different call depths, reset, and restart.
 
 ## 6809
 

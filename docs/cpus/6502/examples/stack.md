@@ -30,7 +30,8 @@ outside the current instruction-level model.
 Stack storage is ordinary RAM: pulling leaves the byte in memory, and a pull
 reads its current contents even if no matching push preceded it. There is no
 separate stack container or depth check. Stack/code overlap follows ordinary
-memory access order. PHP, PLP, calls, returns, and interrupt delivery remain
+memory access order. The [subroutine example](subroutines.md) extends this
+stack with calls and returns. PHP, PLP, and interrupt delivery remain
 unsupported; this example introduces no packed status representation.
 
 ## Definition and initial state
