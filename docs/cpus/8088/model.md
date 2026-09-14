@@ -10,12 +10,13 @@ address is CS:IP; the physical PC is a derived view.
 [Coverage](../coverage.md#8088) ·
 [Arithmetic example](examples/arithmetic.md) ·
 [Transfer example](examples/transfers.md) ·
+[Control-flow example](examples/control-flow.md) ·
 [dromaios-pc comparison](reference-notes.md)
 
 Hardware behavior follows Intel's
 [8086 Family User's Manual, October 1979](https://www.ardent-tool.com/CPU/docs/Intel/808x/manuals/9800722-03_alt.pdf):
 sections 2.2–2.3 (registers, flags, and addressing), table 2-4 (reset), section
-2.7 (MOV and ADD), and tables 4-12–4-14 (encodings). The 8086 and 8088 share
+2.7 (data transfer, arithmetic, and control flow), and tables 4-12–4-14 (encodings). The 8086 and 8088 share
 these instruction semantics; this model targets the original 8088. Later x86
 instructions and undocumented encodings are outside its scope.
 
@@ -70,12 +71,16 @@ translated separately. For example, a fetch at `1234:FFFF` reads `2233F`, then
 the next fetch reads `12340`. At `FFFF:000F`, consecutive fetches read `FFFFF`
 and `00000` because the physical address itself wraps.
 
-Direct memory MOV forms load or store AL or AX at DS:offset. Their two operand
-bytes encode the offset, low byte first. A data word occupies consecutive physical
-bytes, with the low byte first; the second byte's physical address wraps at
-`FFFFF`. This differs from fetching two instruction bytes through advancing
-IP. A word at `1234:FFFF` uses physical `2233F` and `22340`; a word at
-`FFFF:000F` uses `FFFFF` and `00000`. Odd word addresses are valid.
+Direct memory MOV forms load or store AL or AX at DS:offset; stack operations
+use SS:SP. Words are low byte first. Each byte's **offset wraps within its
+segment before translation** to a 20-bit physical address. A word at
+`1234:FFFF` uses physical `2233F` and `12340`; a word at `FFFF:000F` uses
+`FFFFF` and `00000`. Odd word addresses are valid. Data transfers leave IP
+alone, while instruction fetching advances it after every byte.
+
+This corrects the earlier model's assumption that a word always continued at
+the next physical byte. The hardware POP fixture at SS:FFFF and the hardware-test
+author's word-bus routines supply the [boundary evidence](reference-notes.md#stack-and-control-flow-comparison).
 
 RAM accesses and `instruction.address` contain physical addresses.
 `record.before.cs` and `record.before.ip` retain the instruction's logical
@@ -93,15 +98,22 @@ The supported unprefixed forms are:
 
 | Opcode | Form | Effects |
 | --- | --- | --- |
-| `B0`–`B7` | `MOV r8,n` | Fetch an immediate byte and replace AL/CL/DL/BL/AH/CH/DH/BH; preserve the other half and all flags |
-| `B8`–`BF` | `MOV r16,n` | Fetch a little-endian immediate word and replace AX/CX/DX/BX/SP/BP/SI/DI; preserve all flags |
 | `04`, `05` | `ADD AL,n`, `ADD AX,n` | Add an immediate byte/word without incoming carry; replace CF/PF/AF/ZF/SF/OF |
+| `3C`, `3D` | `CMP AL,n`, `CMP AX,n` | Compare an immediate byte/word; replace CF/PF/AF/ZF/SF/OF and preserve AX |
+| `50`–`57` | `PUSH r16` | Push AX/CX/DX/BX/SP/BP/SI/DI through SS; preserve flags |
+| `58`–`5F` | `POP r16` | Pop AX/CX/DX/BX/SP/BP/SI/DI through SS; preserve flags |
+| `70`–`7F` | `Jcc rel8` | All sixteen conditions; fetch the signed byte on both paths |
 | `A0`, `A1` | `MOV AL,[offset]`, `MOV AX,[offset]` | Fetch a word offset and read one/two bytes through DS; preserve all flags and, for AL, AH |
 | `A2`, `A3` | `MOV [offset],AL`, `MOV [offset],AX` | Fetch a word offset and write one/two bytes through DS; preserve all registers and flags except advancing IP |
+| `B0`–`B7` | `MOV r8,n` | Fetch an immediate byte and replace AL/CL/DL/BL/AH/CH/DH/BH; preserve the other half and all flags |
+| `B8`–`BF` | `MOV r16,n` | Fetch a little-endian immediate word and replace AX/CX/DX/BX/SP/BP/SI/DI; preserve all flags |
+| `C2`, `C3` | `RET n`, `RET` | Pop IP; optionally discard an unsigned word-sized byte count from SP |
+| `E8` | `CALL rel16` | Push the following IP and take a near relative branch |
+| `E9`, `EB` | `JMP rel16`, `JMP rel8` | Near or short relative branch without a stack access |
 
 Immediate byte instructions fetch two instruction bytes; immediate word
-instructions and all direct memory transfers fetch three. Data accesses follow
-the complete instruction encoding and do not appear in `instruction.bytes`.
+ALU/MOV instructions and all direct memory transfers fetch three. Data accesses
+follow the complete instruction encoding and do not appear in `instruction.bytes`.
 Loads read their source once, low byte then high for words. Stores perform
 one or two writes without reading the destination or touching neighboring
 bytes. Writes are recorded even when their values are unchanged. Stores may
@@ -114,6 +126,48 @@ overflow at the selected width. PF indicates an even number of
 one bits in the **low byte only**, including for word arithmetic. TF, IF, and DF
 are preserved. ADD has no decimal mode; decimal adjustment is a separate,
 currently unsupported instruction.
+
+CMP subtracts the immediate from AL or AX to set flags without storing the
+result; incoming CF is ignored and all of AX is preserved. CF indicates borrow,
+AF borrow from bit 4 into the low nibble, ZF zero, SF the result's sign bit,
+and OF signed overflow. PF uses the low result byte. TF/IF/DF are preserved.
+
+## Control flow and stack
+
+All supported jumps and calls are near: CS remains unchanged. Short JMP and
+Jcc add a signed byte to IP after the operand; near JMP/CALL add a signed word.
+The resulting IP wraps to 16 bits. Jcc always fetches its displacement,
+including when untaken. No transfer reads or prefetches its target.
+
+| Opcodes | Condition for first mnemonic | First / inverted mnemonic (aliases) |
+| --- | --- | --- |
+| `70` / `71` | OF | JO / JNO |
+| `72` / `73` | CF | JB (JC/JNAE) / JAE (JNC/JNB) |
+| `74` / `75` | ZF | JE (JZ) / JNE (JNZ) |
+| `76` / `77` | CF or ZF | JBE (JNA) / JA (JNBE) |
+| `78` / `79` | SF | JS / JNS |
+| `7A` / `7B` | PF | JP (JPE) / JNP (JPO) |
+| `7C` / `7D` | SF differs from OF | JL (JNGE) / JGE (JNL) |
+| `7E` / `7F` | ZF or SF differs from OF | JLE (JNG) / JG (JNLE) |
+
+PUSH decrements SP by two, wrapping to 16 bits, then writes the selected word
+low byte first at SS:SP and SS:(SP+1). **PUSH SP stores the decremented SP** on
+the original 8088. POP reads those bytes, increments SP by two, then assigns
+the word to its destination. **POP SP ends with the popped value**, replacing
+the increment. All register stack forms preserve every flag.
+
+CALL fetches the complete displacement before pushing the following IP,
+including when the stack overlaps the fetched encoding. It then branches from
+that following IP. RET reads IP from the stack without further adjustment to
+that returned address; `RET n` subsequently adds its unsigned immediate byte
+count to SP, with 16-bit wrapping. The count may be odd or zero. Discarded
+parameters cause no reads. All calls and returns preserve CS and every flag.
+
+The [control-flow example](examples/control-flow.md) saves an AX loop counter
+while two nested calls accumulate a sum in RAM, then restores the counter and
+compares it before branching. IP, SP, and the physical PC stay distinct.
+
+## Unsupported instructions
 
 All other opcode bytes, including prefixes, produce `outcome: "unsupported"`
 and `reason: "opcode"` after one opcode read, preserving IP and every other
@@ -157,8 +211,18 @@ The [transfer example](examples/transfers.md) additionally checks byte writes
 sharing word storage, byte versus word flags, direct readback, memory sentinels,
 snapshot restoration, and physical completion through a different CS:IP alias.
 
+CMP tests cover every byte pair and every AX value against signed/unsigned
+word boundaries. PUSH/POP tests cover all register selectors and flags,
+segment/bus boundaries, every PUSH SP/POP SP value, and the hardware POP DX
+regression. Jcc uses independently listed truth sets for every flag pattern,
+plus every displacement on both paths. Call/return checks cover wrapping,
+operand overlap, unchanged CS, current stack memory, and optional cleanup.
+The 39-step control-flow example checks complete records, saved loop counters,
+full RAM images, nested-call resumption from snapshots, physical completion,
+reset preservation, fresh restart, and bounded loops.
+
 Other instruction forms, ModR/M addressing, segment overrides and other
-prefixes, control flow, stack operations, interrupts, I/O, mapped devices,
+prefixes, far transfers, loop instructions, segment/FLAGS stack operations, interrupts, I/O, mapped devices,
 timing, bus arbitration, and prefetching remain deferred. The instruction-level
 records are not a cycle trace; self-modifying code observes current RAM without
 the original chip's prefetch-queue effects.

@@ -21,7 +21,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [463](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [484](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [443](../../src/components/cpus/6809.ts) | 137 / 268 | 51.1% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [227](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [326](../../src/components/cpus/8088.ts) | 61 / 291 | 21.0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [243](../../src/components/cpus/68000.ts) | 96 / 36,029 | 0.3% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
@@ -1224,19 +1224,36 @@ input buffers exercising both conditional-call paths.
 [Arithmetic example](8088/examples/arithmetic.md) ·
 [Example definition](../../src/machines/8088/example.machine) ·
 [Transfer example](8088/examples/transfers.md) ·
-[PC reference review](8088/reference-notes.md)
+[PC reference review](8088/reference-notes.md) ·
+[Control-flow example](8088/examples/control-flow.md)
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `04`, `05` | `ADD AL,n`, `ADD AX,nn` | Immediate byte/word | 2/3 | Add without incoming carry; set CF/PF/AF/ZF/SF/OF at operand width, preserve TF/IF/DF and AH for byte operations |
+| `3C`, `3D` | `CMP AL,n`, `CMP AX,nn` | Immediate byte/word | 2/3 | Subtraction flags without changing AX; update CF/PF/AF/ZF/SF/OF, preserve TF/IF/DF |
+| `50`–`57` | `PUSH r16` | Register to stack | 1 | Decrement SP by two; store the selected register through SS; original-8088 PUSH SP stores the decremented pointer |
+| `58`–`5F` | `POP r16` | Stack to register | 1 | Read a word through SS and increment SP by two; POP SP replaces SP with the popped word |
+| `70`–`7F` | `Jcc rel8` | Short relative | 2 | All sixteen conditions; fetch displacement on both paths; preserve CS, other registers, and flags |
 | `A0`, `A1` | `MOV AL,[offset]`, `MOV AX,[offset]` | Direct offset in DS | 3 | Read one/two bytes after fetching the word offset; preserve all flags and AH for byte loads |
-| `A2`, `A3` | `MOV [offset],AL`, `MOV [offset],AX` | Direct offset in DS | 3 | Write one/two bytes without destination reads; words use consecutive physical addresses; preserve all flags |
+| `A2`, `A3` | `MOV [offset],AL`, `MOV [offset],AX` | Direct offset in DS | 3 | Write one/two bytes without destination reads; word offsets wrap within DS; preserve all flags |
 | `B0`–`B7` | `MOV r8,n` | Immediate byte | 2 | All eight byte registers; preserve the other half of the word and all flags |
 | `B8`–`BF` | `MOV r16,nn` | Immediate word | 3 | All eight general word registers; replace the whole word and preserve all flags |
+| `C2`, `C3` | `RET n`, `RET` | Near return | 3/1 | Pop IP from SS:SP, then optionally discard an unsigned byte count; preserve CS and flags |
+| `E8` | `CALL rel16` | Near relative | 3 | Fetch displacement, push the following IP, then branch within CS |
+| `E9`, `EB` | `JMP rel16`, `JMP rel8` | Near/short relative | 3/2 | Add displacement to following IP with 16-bit wrapping; no stack or target access |
 
-These families contribute **2 + 2 + 2 + 8 + 8 = 22** complete forms. Byte
-and word register selectors follow their distinct encoded orders. Immediate
-values and direct offsets are operands and do not add coverage forms.
+**61 / 291 forms (21.0%).** The original 22 forms are joined by two CMP,
+16 register-stack, 16 conditional-jump, two RET, one CALL, and two JMP forms.
+Byte and word register selectors follow their distinct encoded orders;
+mnemonic aliases count once. Immediate values, displacements, and stack
+adjustments are operands and do not add coverage forms.
+
+PUSH/POP use **`0101 p rrr`**, with `p=0/1` selecting push/pop and `rrr`
+selecting AX/CX/DX/BX/SP/BP/SI/DI. Conditional jumps use **`0111 ttt p`**:
+`ttt` selects OF, CF, ZF, CF-or-ZF, SF, PF, SF-xor-OF, or ZF-or-(SF-xor-OF);
+`p=1` inverts the selected condition. The
+[model contract](8088/model.md#control-flow-and-stack) specifies stack quirks,
+relative-address rules, and preserved state.
 
 | Area | Implemented scope |
 | --- | --- |
@@ -1245,15 +1262,18 @@ values and direct offsets are operands and do not add coverage forms.
 | Register views | AL/AH, BL/BH, CL/CH, DL/DH derived from word registers; byte writes preserve the other half; physical PC derived from CS:IP |
 | Memory | Exactly 1 MiB RAM; segment × 16 + offset wraps at 20 bits; byte transfers and unaligned word loads/stores supported |
 | Instruction fetching | CS:IP, with IP wrapping at 16 bits between bytes; low-byte-first immediate words and offsets |
-| Data words | Translate DS:offset once, then read/write consecutive physical bytes with 20-bit wrapping |
-| Arithmetic | Operand width determines CF/ZF/SF/OF; PF uses only the low byte; AF records carry out of bit 3 |
+| Data words | Low byte first; wrap each successive offset to 16 bits within DS or SS, then translate to the 20-bit bus |
+| Arithmetic | Operand width determines CF/ZF/SF/OF; PF uses only the low byte; AF records nibble carry for ADD or borrow for CMP |
+| Control flow | All Jcc conditions, near relative CALL/JMP, short JMP, and near RET with optional parameter cleanup; preserve CS and all flags |
+| Stack | Eight general registers plus return IP; descending SS:SP with word transfers, 16-bit offset wrapping, and original PUSH SP / POP SP behavior |
 | Reset | CS=FFFF, IP=0000, DS/SS/ES=0000, all flags clear; preserve general registers and RAM under the documented model policy; no vector reads |
 | Prefixes | All rejected after the first byte with unchanged state and RAM; no segment overrides, LOCK, or repetition yet |
-| Remaining scope | Other transfers and arithmetic, ModR/M addressing, logic, branches, calls/returns, stack operations, HALT, interrupts, I/O, and timing/prefetch behavior |
+| Remaining scope | Other transfers and arithmetic, ModR/M addressing, logic, loop instructions, far control flow, segment/FLAGS stack operations, HALT, interrupts, I/O, and timing/prefetch behavior |
 
 Verification: [CPU tests](../../tests/components/cpus/8088.test.ts),
 [arithmetic example tests](../../tests/machines/8088/example.test.ts),
-[transfer example tests](../../tests/machines/8088/transfers-example.test.ts), and
+[transfer example tests](../../tests/machines/8088/transfers-example.test.ts),
+[control-flow example tests](../../tests/machines/8088/control-flow-example.test.ts), and
 [public type checks](../../tests/types/8088.ts). Checks cover every load/store
 word, direct offset, and IP; all flag patterns; independent arithmetic
 expectations; register aliases; logical and physical boundary cases; every
@@ -1266,8 +1286,22 @@ operand pair, preserved byte halves, byte versus word flag boundaries, direct
 load/store widths, data reads after complete offset fetches, and sentinels.
 The transfer example checks all five families together, physical completion
 aliases, snapshot restoration, and detached earlier records.
-An additional [hardware-test comparison](8088/reference-notes.md#independent-hardware-comparison)
-passed all 109,996 unprefixed cases supplied for the 22 supported encodings.
+CMP checks exhaust byte pairs and compare every AX value with word boundaries,
+using independent signed/unsigned subtraction and low-byte parity. Stack checks
+cover every register, all flag patterns, SP/segment/bus wrapping, and every
+PUSH SP/POP SP value. Jcc checks use literal truth tables for every flag pattern
+and every displacement on both paths. Calls and returns cover nested stacks,
+current RAM, wrapped fetches, operand overlap, and odd/maximum cleanup counts.
+The control-flow example checks 39 complete records, saved counters, result
+RAM, restored SP, physical completion aliases, snapshot resumption, and reset.
+
+The [hardware-test comparison](8088/reference-notes.md#independent-hardware-comparison)
+now passes **475,170 unprefixed cases across all 61 supported encodings**.
+It exposed a segment-end word-access error inherited from the earlier PC
+reference; the core and its MOV/stack boundary tests now use wrapping offsets.
+Hardware fixtures, the test author's bus implementation, and the
+[reference notes](8088/reference-notes.md#stack-and-control-flow-comparison)
+record the evidence and the remaining instruction-level limits.
 
 ## 68000
 

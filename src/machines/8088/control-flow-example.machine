@@ -1,0 +1,37 @@
+// Add five to a memory word three times; save the loop counter across nested calls.
+ram 100000
+
+cpu 8088 {
+  AX = 1122  BX = 3344  CX = 5566  DX = 7788
+  SP = 8000  BP = 9000  SI = 0010  DI = 0020
+  CS = 1234  DS = 2000  SS = 3000  ES = 4000  IP = 0200
+  flags { CF = 1  PF = 0  AF = 1  ZF = 1  SF = 1  TF = 0  IF = 1  DF = 1  OF = 1 }
+}
+
+memory 12540 {
+  B8 03 00    // MOV AX,0003h: loop counter
+  E8 1A 00    // CALL 0220h: add five to DS:0080
+  05 FF FF    // ADD AX,FFFFh: decrement the restored counter
+  3D 00 00    // CMP AX,0000h: test without changing the counter
+  75 F5       // JNE 0203h: -11 from 020E
+  A1 80 00    // MOV AX,[0080h]: inspect the completed sum
+  E9 03 00    // JMP 0217h: skip the failure marker
+  B8 FF FF    // MOV AX,FFFFh: skipped
+}
+
+memory 12560 {
+  50          // PUSH AX: preserve the caller's counter on SS:SP
+  A1 80 00    // MOV AX,[0080h]: current sum
+  E8 09 00    // CALL 0230h: nested arithmetic helper
+  A3 80 00    // MOV [0080h],AX: store the new sum
+  58          // POP AX: restore the counter without changing flags
+  C3          // RET
+}
+
+memory 12570 {
+  05 05 00    // ADD AX,0005h
+  C3          // RET
+}
+
+memory 2007F { DE 00 00 AD } // Sentinels surround the little-endian result word.
+end 12557

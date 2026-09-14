@@ -15,10 +15,11 @@ core keeps this ownership rule, exposing detached byte views in snapshots and
 mapping each writable byte to its stored word and shift.
 
 Instruction fetching increments a 16-bit IP and translates each byte through
-CS. Word data access translates its starting address once, then accesses the
-next physical byte. Keeping these paths separate makes their boundary behavior
-visible. The new tests distinguish segment-end instruction fetching from
-segment-end data transfers, as well as wrapping on the twenty-bit address bus.
+CS. The older core's data-word helpers instead translate once and access the
+next physical byte. That distinction was initially carried into Dromaios;
+the [expanded hardware comparison](#stack-and-control-flow-comparison) exposed
+it as incorrect at offset FFFF. Data words now wrap their offsets within the
+selected segment, independently of wrapping on the twenty-bit physical bus.
 
 The [instruction table](https://github.com/jtauber/dromaios-pc/blob/a6fb9d10f4274dbd8ba40400e0b6761aec1d4b54/js/instructions_86.js)
 groups ALU operations by encoded fields and gives immediate-register moves a
@@ -55,8 +56,8 @@ interrupts, and display logic remain outside this initial CPU-and-RAM slice.
   for reading and writing; the older core caches the address in mutable fields.
 - Treat prefixes as instruction-local context. Segment overrides, repeat
   behavior, and invalid combinations need their own contracts and tests.
-- Preserve the original 8088's stack quirks and flag semantics as those
-  instruction families arrive; later x86 behavior is not automatically suitable.
+- Preserve original-8088 behavior when extending stack and flag families;
+  PUSH SP already demonstrates why later x86 behavior is not automatically suitable.
 
 ## Independent hardware comparison
 
@@ -72,3 +73,43 @@ This was a development cross-check using downloaded fixtures, not a new
 network-dependent test-suite requirement. The committed CPU and example tests
 use independent local expectations. Prefetch queues and cycle traces were not
 compared, consistent with the instruction-level model.
+
+## Stack and control-flow comparison
+
+The expansion adds **365,174 unprefixed hardware cases across 39 encodings**:
+`3C`–`3D`, `50`–`5F`, `70`–`7F`, `C2`–`C3`, `E8`–`E9`, and `EB`, using the
+same pinned V2 fixture revision. All pass, as do the earlier 109,996 cases
+rerun after the memory correction: **475,170 cases across 61 encodings**.
+The comparison checks fetched bytes, stored state and modeled flags, final
+RAM, and recorded accesses against fixture memory. It omits prefetch queues,
+cycle traces, and unsupported prefixes. The hardware suite does not exercise
+TF/IF; local tests cover preservation of all 512 modeled flag combinations.
+
+Two distinctions were checked against the pinned `dromaios-pc` code:
+
+- **PUSH SP stores the decremented pointer.** The old register handler reads SP
+  before its push helper decrements it, storing the original value. Dromaios
+  implements the original-8088 behavior; every SP value has a local regression.
+- **Word accesses wrap the offset inside the segment.** V2 `5A` case 3252
+  (hash `445ddb088cd7d3f60bfb27947ee7c2152b3b4e82`) pops DX with SS=`4B5A`,
+  SP=`FFFF`: it reads `A7` at physical `5B59F`, then `11` at `4B5A0`, producing
+  DX=`11A7`, SP=`0001`. The earlier core read the second byte at `5B5A0`.
+  This case is now a focused local regression with a conflicting sentinel at
+  the wrong address.
+
+Daniel Balsom's [MartyPC word-bus implementation][marty-biu] independently
+translates the second byte using a wrapping 16-bit offset for reads and writes;
+its [stack implementation][marty-stack] applies that behavior to pushes and
+pops. The same bus routines handle data words, so the correction also applies
+to existing direct MOV word forms. The earlier unprefixed `A1`/`A3` hardware
+sample contained no offset-FFFF cases. Local tests now cover all MOV offsets
+with the corrected rule and explicit segment/bus boundary cases. This changes
+behavior at offset FFFF; the modeled opcode count is unaffected by the fix.
+
+The [control-flow example](examples/control-flow.md) was separately run through
+the pinned PC emulator: all 39 steps matched stored state, flags, ordered
+accesses, and the full final RAM image. Its stack stays away from the segment
+boundary and it does not use PUSH SP; dedicated tests cover those differences.
+
+[marty-biu]: https://github.com/dbalsom/martypc/blob/05c0d088e84ad6bbfac9b3f0d051e7eadefd9f44/crates/lib/marty_core/src/cpu_808x/biu.rs
+[marty-stack]: https://github.com/dbalsom/martypc/blob/05c0d088e84ad6bbfac9b3f0d051e7eadefd9f44/crates/lib/marty_core/src/cpu_808x/stack.rs

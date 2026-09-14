@@ -309,10 +309,10 @@ test("8088 direct word loads cover every offset and value, with data reads after
     const low = value % 256;
     const high = Math.floor(value / 256);
     ram.write(0x20000 + offset, low);
-    ram.write(0x20001 + offset, high);
+    ram.write(0x20000 + (offset + 1) % 65536, high);
     const before = initialState();
     checkStep(ram, before, [0xa1, offset % 256, Math.floor(offset / 256)], { ...before, ax: value, ip: 0x103 }, undefined,
-      [{ kind: "read", address: 0x20000 + offset, value: low }, { kind: "read", address: 0x20001 + offset, value: high }]);
+      [{ kind: "read", address: 0x20000 + offset, value: low }, { kind: "read", address: 0x20000 + (offset + 1) % 65536, value: high }]);
   }
 });
 
@@ -336,15 +336,15 @@ test("8088 word stores cover every DS offset, including odd words, without desti
   for (let offset = 0; offset < 65536; offset++) {
     const before = initialState({ ax: 0xa55a });
     checkStep(ram, before, [0xa3, offset % 256, Math.floor(offset / 256)], { ...before, ip: 0x103 }, undefined,
-      [{ kind: "write", address: 0x20000 + offset, value: 0x5a }, { kind: "write", address: 0x20001 + offset, value: 0xa5 }]);
+      [{ kind: "write", address: 0x20000 + offset, value: 0x5a }, { kind: "write", address: 0x20000 + (offset + 1) % 65536, value: 0xa5 }]);
   }
 });
 
-test("8088 data words cross the segment end physically, wrap at one MiB, and record unchanged-value writes", () => {
+test("8088 data words wrap within their segment and at one MiB, and record unchanged-value writes", () => {
   const ram = new ObservedRam(0x100000);
   for (const [ds, offset, low, high] of [
-    [0x1234, 0xffff, 0x2233f, 0x22340], [0xffff, 0xf, 0xfffff, 0],
-    [0xffff, 0x10, 0, 1], [0xffff, 0xffff, 0xffef, 0xfff0],
+    [0x1234, 0xffff, 0x2233f, 0x12340], [0xffff, 0xf, 0xfffff, 0],
+    [0xffff, 0x10, 0, 1], [0xffff, 0xffff, 0xffef, 0xffff0],
   ] as const) {
     const before = initialState({ ds, ax: 0xa55a });
     ram.write(low, 0x34);
@@ -378,7 +378,9 @@ test("8088 rejects every other opcode and prefix with one fetch and no state cha
   const ram = new ObservedRam(0x100000);
   for (const [cs, ip, address] of [[0x1234, 0x100, 0x12440], [0xffff, 0xf, 0xfffff], [0xffff, 0x10, 0]] as const) {
     for (let opcode = 0; opcode < 256; opcode++) {
-      if ([4, 5, 0xa0, 0xa1, 0xa2, 0xa3, ...wordMoves.map(([code]) => code), ...byteMoves.map(([code]) => code)].includes(opcode)) continue;
+      if ([4, 5, 0x3c, 0x3d, 0xc2, 0xc3, 0xe8, 0xe9, 0xeb,
+        ...wordStacks.flatMap(([push, pop]) => [push, pop]), ...conditionalJumps.map(([opcode]) => opcode),
+        0xa0, 0xa1, 0xa2, 0xa3, ...wordMoves.map(([code]) => code), ...byteMoves.map(([code]) => code)].includes(opcode)) continue;
       ram.write(address, opcode);
       const before = snapshot(initialState({ cs, ip }));
       const cpu = new Cpu8088(ram, before);
@@ -436,4 +438,242 @@ test("8088 stores can overwrite future instructions and saved records remain det
   Reflect.set(load.after, "ah", 0);
   assert.equal(load.before.flags.cf, true);
   assert.equal(cpu.snapshot().ah, 0xa5);
+});
+
+const wordStacks = [
+  [0x50, 0x58, "ax"], [0x51, 0x59, "cx"], [0x52, 0x5a, "dx"], [0x53, 0x5b, "bx"],
+  [0x54, 0x5c, "sp"], [0x55, 0x5d, "bp"], [0x56, 0x5e, "si"], [0x57, 0x5f, "di"],
+] as const;
+
+function comparison(before: Cpu8088State, operand: number, width: 8 | 16): Cpu8088State {
+  const modulus = 2 ** width;
+  const sign = modulus / 2;
+  const left = before.ax % modulus;
+  const difference = left - operand;
+  const result = (difference + modulus) % modulus;
+  const signedDifference = (left < sign ? left : left - modulus) - (operand < sign ? operand : operand - modulus);
+  return { ...before, ip: (before.ip + 1 + width / 8) % 65536, flags: { ...before.flags,
+    cf: difference < 0, af: left % 16 < operand % 16, zf: result === 0, sf: result >= sign,
+    of: signedDifference < -sign || signedDifference >= sign,
+    pf: (result % 256).toString(2).replaceAll("0", "").length % 2 === 0 } };
+}
+
+test("8088 CMP AL covers every byte pair, preserves AX, ignores incoming carry, and computes subtraction flags", () => {
+  const ram = new ObservedRam(0x100000);
+  for (let left = 0; left < 256; left++) {
+    for (let right = 0; right < 256; right++) {
+      for (const bits of [0, 511]) {
+        const before = initialState({ ax: 0xa500 + left, flags: flags(bits) });
+        checkStep(ram, before, [0x3c, right], comparison(before, right, 8));
+      }
+    }
+  }
+});
+
+test("8088 CMP AX covers every word against signed and unsigned boundaries with low-byte parity", () => {
+  const ram = new ObservedRam(0x100000);
+  for (let ax = 0; ax < 65536; ax++) {
+    for (const right of [0, 1, 0x7fff, 0x8000, 0xffff]) {
+      const before = initialState({ ax, flags: flags(ax % 512) });
+      checkStep(ram, before, [0x3d, right % 256, Math.floor(right / 256)], comparison(before, right, 16));
+    }
+  }
+});
+
+test("8088 CMP preserves TF/IF/DF for every flag combination and wraps both operand widths through CS:IP", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [cs, ip, addresses] of [
+    [0x1234, 0xffff, [0x2233f, 0x12340, 0x12341]],
+    [0xffff, 0x000f, [0xfffff, 0, 1]], [0xffff, 0xffff, [0xffef, 0xffff0, 0xffff1]],
+  ] as const) {
+    for (let bits = 0; bits < 512; bits++) {
+      for (const [ax, value] of [[0x8000, 1], [0x7fff, 0xffff], [0x0100, 0], [0xab00, 1], [0xffff, 0xffff]] as const) {
+        const before = initialState({ cs, ip, ax, flags: flags(bits) });
+        checkStep(ram, before, [0x3c, value % 256], comparison(before, value % 256, 8), addresses);
+        checkStep(ram, before, [0x3d, value % 256, Math.floor(value / 256)], comparison(before, value, 16), addresses);
+      }
+    }
+  }
+});
+
+for (const [push, pop, register] of wordStacks) {
+  test(`8088 PUSH/POP ${register.toUpperCase()} preserve flags, use SS, and wrap SP and physical addresses`, () => {
+    const ram = new ObservedRam(0x100000);
+    for (const [ss, sp, pushedSp, pushLow, pushHigh, poppedSp, popLow, popHigh] of [
+      [0x3000, 0x8000, 0x7ffe, 0x37ffe, 0x37fff, 0x8002, 0x38000, 0x38001],
+      [0x1234, 0, 0xfffe, 0x2233e, 0x2233f, 2, 0x12340, 0x12341],
+      [0x1234, 1, 0xffff, 0x2233f, 0x12340, 3, 0x12341, 0x12342],
+      [0x1234, 0xffff, 0xfffd, 0x2233d, 0x2233e, 1, 0x2233f, 0x12340],
+      [0xffff, 0x11, 0x0f, 0xfffff, 0, 0x13, 1, 2],
+      [0xffff, 0x0f, 0x0d, 0xffffd, 0xffffe, 0x11, 0xfffff, 0],
+    ] as const) {
+      for (let bits = 0; bits < 512; bits++) {
+        const before = initialState({ cs: 0x4000, ip: 0xffff, ss, sp, flags: flags(bits) });
+        const value = register === "sp" ? pushedSp : before[register];
+        checkStep(ram, before, [push], { ...before, sp: pushedSp, ip: 0 }, [0x4ffff], [
+          { kind: "write", address: pushLow, value: value % 256 },
+          { kind: "write", address: pushHigh, value: Math.floor(value / 256) },
+        ]);
+        ram.write(popLow, 0xef);
+        ram.write(popHigh, 0xbe);
+        checkStep(ram, before, [pop], { ...before, ip: 0, sp: poppedSp, [register]: 0xbeef }, [0x4ffff], [
+          { kind: "read", address: popLow, value: 0xef }, { kind: "read", address: popHigh, value: 0xbe },
+        ]);
+      }
+    }
+  });
+}
+
+test("8088 PUSH SP stores its decremented value and POP SP replaces the increment for every pointer value", () => {
+  const ram = new ObservedRam(0x100000);
+  for (let sp = 0; sp < 65536; sp++) {
+    const before = initialState({ sp });
+    const pushed = (sp + 65534) % 65536;
+    const low = 0x30000 + pushed;
+    const high = 0x30000 + (pushed + 1) % 65536;
+    checkStep(ram, before, [0x54], { ...before, sp: pushed, ip: 0x101 }, undefined, [
+      { kind: "write", address: low, value: pushed % 256 },
+      { kind: "write", address: high, value: Math.floor(pushed / 256) },
+    ]);
+    const value = 65535 - sp;
+    ram.write(0x30000 + sp, value % 256);
+    ram.write(0x30000 + (sp + 1) % 65536, Math.floor(value / 256));
+    checkStep(ram, before, [0x5c], { ...before, sp: value, ip: 0x101 }, undefined, [
+      { kind: "read", address: 0x30000 + sp, value: value % 256 },
+      { kind: "read", address: 0x30000 + (sp + 1) % 65536, value: Math.floor(value / 256) },
+    ]);
+  }
+});
+
+test("8088 POP DX reproduces the hardware case that wraps the stack word from SS:FFFF to SS:0000", () => {
+  // SingleStepTests/8088 V2 5A, idx 3252, hash 445ddb088cd7d3f60bfb27947ee7c2152b3b4e82.
+  const ram = new ObservedRam(0x100000);
+  const before = initialState({ cs: 0x4afa, ip: 0x5854, ss: 0x4b5a, sp: 0xffff });
+  ram.write(0x5b59f, 0xa7);
+  ram.write(0x4b5a0, 0x11);
+  ram.write(0x5b5a0, 0xde); // A physically consecutive high byte would be wrong.
+  checkStep(ram, before, [0x5a], { ...before, ip: 0x5855, sp: 1, dx: 0x11a7 }, [0x507f4], [
+    { kind: "read", address: 0x5b59f, value: 0xa7 }, { kind: "read", address: 0x4b5a0, value: 0x11 },
+  ]);
+});
+
+// Literal truth sets for O S Z P C (bits 4..0), independent of the paired opcode builder.
+const conditionalJumps = [
+  [0x70, "JO", [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]],
+  [0x71, "JNO", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]],
+  [0x72, "JB", [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31]],
+  [0x73, "JAE", [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30]],
+  [0x74, "JE", [4, 5, 6, 7, 12, 13, 14, 15, 20, 21, 22, 23, 28, 29, 30, 31]],
+  [0x75, "JNE", [0, 1, 2, 3, 8, 9, 10, 11, 16, 17, 18, 19, 24, 25, 26, 27]],
+  [0x76, "JBE", [1, 3, 4, 5, 6, 7, 9, 11, 12, 13, 14, 15, 17, 19, 20, 21, 22, 23, 25, 27, 28, 29, 30, 31]],
+  [0x77, "JA", [0, 2, 8, 10, 16, 18, 24, 26]],
+  [0x78, "JS", [8, 9, 10, 11, 12, 13, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31]],
+  [0x79, "JNS", [0, 1, 2, 3, 4, 5, 6, 7, 16, 17, 18, 19, 20, 21, 22, 23]],
+  [0x7a, "JP", [2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31]],
+  [0x7b, "JNP", [0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29]],
+  [0x7c, "JL", [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]],
+  [0x7d, "JGE", [0, 1, 2, 3, 4, 5, 6, 7, 24, 25, 26, 27, 28, 29, 30, 31]],
+  [0x7e, "JLE", [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 28, 29, 30, 31]],
+  [0x7f, "JG", [0, 1, 2, 3, 24, 25, 26, 27]],
+] as const satisfies readonly (readonly [number, string, readonly number[]])[];
+
+function conditionCode(f: Cpu8088Flags): number {
+  return Number(f.of) * 16 + Number(f.sf) * 8 + Number(f.zf) * 4 + Number(f.pf) * 2 + Number(f.cf);
+}
+
+for (const [opcode, mnemonic, codes] of conditionalJumps) {
+  const takenCodes: readonly number[] = codes;
+  test(`8088 ${mnemonic} follows its independent truth table for all flags and preserves CS across boundaries`, () => {
+    const ram = new ObservedRam(0x100000);
+    for (const [cs, ip, displacement, fallthrough, target, addresses] of [
+      [0x1234, 0xffff, 0x80, 1, 0xff81, [0x2233f, 0x12340]],
+      [0x1234, 0xfffd, 1, 0xffff, 0, [0x2233d, 0x2233e]],
+      [0x1234, 0, 0xff, 2, 1, [0x12340, 0x12341]],
+      [0xffff, 0x000f, 0x7f, 0x11, 0x90, [0xfffff, 0]],
+      [0xffff, 0xffff, 0xfe, 1, 0xffff, [0xffef, 0xffff0]],
+    ] as const) {
+      for (let bits = 0; bits < 512; bits++) {
+        const before = initialState({ cs, ip, flags: flags(bits) });
+        const taken = takenCodes.includes(conditionCode(before.flags));
+        checkStep(ram, before, [opcode, displacement], { ...before, ip: taken ? target : fallthrough }, addresses);
+      }
+    }
+  });
+  test(`8088 ${mnemonic} reads every displacement on both paths and interprets taken offsets as signed bytes`, () => {
+    const ram = new ObservedRam(0x100000);
+    for (const take of [false, true]) {
+      const bits = Array.from({ length: 512 }, (_, bits) => bits)
+        .find(bits => takenCodes.includes(conditionCode(flags(bits))) === take)!;
+      const before = initialState({ flags: flags(bits) });
+      for (let byte = 0; byte < 256; byte++) {
+        const offset = new DataView(Uint8Array.of(byte).buffer).getInt8(0);
+        checkStep(ram, before, [opcode, byte], { ...before, ip: take ? (0x102 + offset) % 65536 : 0x102 });
+      }
+    }
+  });
+}
+
+test("8088 relative CALL fetches its word before stacking the following IP, preserving CS and every flag", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [cs, ip, displacement, target, addresses] of [
+    [0x1234, 0x100, 0, 0x103, [0x12440, 0x12441, 0x12442]],
+    [0x1234, 0xfffe, 0x7fff, 0x8000, [0x2233e, 0x2233f, 0x12340]],
+    [0x1234, 0xffff, 0x8000, 0x8002, [0x2233f, 0x12340, 0x12341]],
+    [0xffff, 0xd, 0xffff, 0xf, [0xffffd, 0xffffe, 0xfffff]],
+  ] as const) {
+    for (const [ss, sp] of [[0x3000, 0x8000], [0x1234, 1], [0xffff, 0x11], [cs, (ip + 2) % 65536]] as const) {
+      for (let bits = 0; bits < 512; bits++) {
+        const before = initialState({ cs, ip, ss, sp, flags: flags(bits) });
+        const returnIp = (ip + 3) % 65536;
+        const newSp = (sp + 65534) % 65536;
+        checkStep(ram, before, [0xe8, displacement % 256, Math.floor(displacement / 256)],
+          { ...before, ip: target, sp: newSp }, addresses, [
+            { kind: "write", address: (ss * 16 + newSp) % 1048576, value: returnIp % 256 },
+            { kind: "write", address: (ss * 16 + (newSp + 1) % 65536) % 1048576, value: Math.floor(returnIp / 256) },
+          ]);
+      }
+    }
+  }
+});
+
+test("8088 near RET pops an unadjusted IP and optionally discards an unsigned byte count without reading parameters", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [ss, sp, low, high] of [
+    [0x3000, 0x8000, 0x38000, 0x38001], [0x1234, 0xffff, 0x2233f, 0x12340],
+    [0xffff, 0x000f, 0xfffff, 0],
+  ] as const) {
+    for (const target of [0, 1, 0x7fff, 0x8000, 0xffff]) {
+      for (const discard of [undefined, 0, 1, 2, 0x7fff, 0x8000, 0xffff]) {
+        for (let bits = 0; bits < 512; bits++) {
+          const before = initialState({ cs: 0x4000, ip: 0xfffe, ss, sp, flags: flags(bits) });
+          ram.write(low, target % 256);
+          ram.write(high, Math.floor(target / 256));
+          const bytes = discard === undefined ? [0xc3] : [0xc2, discard % 256, Math.floor(discard / 256)];
+          checkStep(ram, before, bytes, { ...before, ip: target, sp: (sp + 2 + (discard ?? 0)) % 65536 },
+            [0x4fffe, 0x4ffff, 0x40000], [
+              { kind: "read", address: low, value: target % 256 },
+              { kind: "read", address: high, value: Math.floor(target / 256) },
+            ]);
+        }
+      }
+    }
+  }
+});
+
+test("8088 short and near JMP wrap IP, preserve CS and flags, and never access their targets", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [bytes, cs, ip, target, addresses] of [
+    [[0xeb, 0x80], 0x1234, 0, 0xff82, [0x12340, 0x12341]],
+    [[0xeb, 0x7f], 0x1234, 0xfffe, 0x7f, [0x2233e, 0x2233f]],
+    [[0xeb, 0xfe], 0xffff, 0xf, 0xf, [0xfffff, 0]],
+    [[0xe9, 0, 0], 0x1234, 0xffff, 2, [0x2233f, 0x12340, 0x12341]],
+    [[0xe9, 0xff, 0x7f], 0x1234, 0xfffe, 0x8000, [0x2233e, 0x2233f, 0x12340]],
+    [[0xe9, 0, 0x80], 0xffff, 0xe, 0x8011, [0xffffe, 0xfffff, 0]],
+    [[0xe9, 0xfd, 0xff], 0xffff, 0xffff, 0xffff, [0xffef, 0xffff0, 0xffff1]],
+  ] as const) {
+    for (let bits = 0; bits < 512; bits++) {
+      const before = initialState({ cs, ip, flags: flags(bits) });
+      checkStep(ram, before, bytes, { ...before, ip: target }, addresses);
+    }
+  }
 });

@@ -1,12 +1,12 @@
 import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
-import { readWordLE } from "./binary.ts";
+import { signed8, readWordLE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
-import { opcodeFamily, opcodeTable } from "./opcodes.ts";
+import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import { evenParity8 } from "./alu.ts";
 
 export interface Cpu8088Flags {
@@ -77,6 +77,9 @@ export type Cpu8088ResetRecord = StateTransition<Cpu8088Snapshot>;
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type OperandWidth = 8 | 16;
+type WordRegister = "ax" | "cx" | "dx" | "bx" | "sp" | "bp" | "si" | "di";
+
+const instructionPattern = opcodePattern<OpcodeHandler>;
 
 interface ByteRegister {
   readonly word: "ax" | "cx" | "dx" | "bx";
@@ -172,9 +175,30 @@ export class Cpu8088 {
   ] as const;
   readonly #operandWidths = [8, 16] as const;
 
+  // 0111 ttt p: ttt selects the p=0 condition; p=1 inverts it.
+  readonly #jumpConditions = [
+    () => this.#state.flags.of, // 000: JO / JNO
+    () => this.#state.flags.cf, // 001: JB (JC/JNAE) / JAE (JNC/JNB)
+    () => this.#state.flags.zf, // 010: JE (JZ) / JNE (JNZ)
+    () => this.#state.flags.cf || this.#state.flags.zf, // 011: JBE (JNA) / JA (JNBE)
+    () => this.#state.flags.sf, // 100: JS / JNS
+    () => this.#state.flags.pf, // 101: JP (JPE) / JNP (JPO)
+    () => this.#state.flags.sf !== this.#state.flags.of, // 110: JL (JNGE) / JGE (JNL)
+    () => this.#state.flags.zf || this.#state.flags.sf !== this.#state.flags.of, // 111: JLE (JNG) / JG (JNLE)
+  ] as const;
+
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // 00 ooo 10 w: ooo=000 selects ADD; 10 selects immediate-to-accumulator; w=0 AL, w=1 AX.
+    // 00 ooo 10 w: ooo=000 ADD / 111 CMP; 10 selects immediate-to-accumulator; w=0 AL, w=1 AX.
     ...opcodeFamily("00 000 10 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#addToAccumulator(width, instruction)), // ADD AL/AX,n
+    ...opcodeFamily("00 111 10 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#compareAccumulator(width, instruction)), // CMP AL/AX,n
+
+    // 0101 p rrr: p=0 pushes, p=1 pops; rrr selects AX,CX,DX,BX,SP,BP,SI,DI.
+    ...opcodeFamily("0101 0 rrr", { r: this.#wordRegisters }, ({ r: register }) => ({ writeByte }: InstructionContext) => this.#pushRegister(register, writeByte)), // PUSH r16
+    ...opcodeFamily("0101 1 rrr", { r: this.#wordRegisters }, ({ r: register }) => ({ readByte }: InstructionContext) => { this.#state[register] = this.#popWord(readByte); }), // POP r16
+
+    // 0111 ttt p: all sixteen conditions above; every form fetches a signed byte displacement.
+    ...opcodeFamily("0111 ttt p", { t: this.#jumpConditions, p: [false, true] },
+      ({ t: test, p: invert }) => ({ fetchByte }: InstructionContext) => this.#jump(signed8(fetchByte()), test() !== invert)), // Jcc rel8
 
     // 1010 00 d w: d=0 loads, d=1 stores; w=0 AL, w=1 AX. The DS offset is always a word.
     ...opcodeFamily("1010 00 0 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#loadAccumulator(width, instruction)), // MOV AL/AX,[offset]
@@ -185,15 +209,24 @@ export class Cpu8088 {
     ...opcodeFamily("1011 0 rrr", { r: this.#byteRegisters }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#writeByteRegister(register, fetchByte())), // MOV r8,n
     ...opcodeFamily("1011 1 rrr", { r: this.#wordRegisters }, ({ r: register }) => ({ fetchWord }: InstructionContext) => { this.#state[register] = fetchWord(); }), // MOV r16,n
 
-    // ModR/M forms, prefixes, control flow, stack operations, interrupts, and I/O are deferred.
+    // 1100 001i: i=0 includes an unsigned word stack adjustment; i=1 pops only IP.
+    ...instructionPattern("1100 0010", ({ fetchWord, readByte }) => this.#return(fetchWord(), readByte)), // RET n
+    ...instructionPattern("1100 0011", ({ readByte }) => this.#return(0, readByte)), // RET
+
+    // E8/E9 use word displacements; EB is short JMP. EA (far JMP) remains unsupported.
+    ...instructionPattern("1110 1000", ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte)), // CALL rel16
+    ...instructionPattern("1110 1001", ({ fetchWord }) => this.#jump(fetchWord())), // JMP rel16
+    ...instructionPattern("1110 1011", ({ fetchByte }) => this.#jump(signed8(fetchByte()))), // JMP rel8
+
+    // ModR/M forms, far transfers, prefixes, interrupts, and I/O remain deferred.
   ]);
 
   // Addressing, loads, and stores.
 
   #loadAccumulator(width: OperandWidth, { fetchWord, readByte }: InstructionContext): void {
-    const address = physicalAddress(this.#state.ds, fetchWord());
-    const low = readByte(address);
-    const value = width === 8 ? low : low | (readByte((address + 1) & 0xfffff) << 8);
+    const offset = fetchWord();
+    const value = width === 8 ? readByte(physicalAddress(this.#state.ds, offset))
+      : this.#readMemoryWord(this.#state.ds, offset, readByte);
     this.#writeAccumulator(width, value);
   }
 
@@ -201,9 +234,44 @@ export class Cpu8088 {
     const offset = fetchWord();
     const { ax, ds } = this.#state;
     const address = physicalAddress(ds, offset);
-    // A data word occupies consecutive physical bytes, even at offset FFFF.
-    writeByte(address, ax & 0xff);
-    if (width === 16) writeByte((address + 1) & 0xfffff, ax >>> 8);
+    if (width === 8) writeByte(address, ax & 0xff);
+    else this.#writeMemoryWord(ds, offset, ax, writeByte);
+  }
+
+  // Control flow and stack operations.
+
+  #jump(displacement: number, take = true): void {
+    // IP is past the operand. Modulo 65536 also interprets a word's two's-complement displacement.
+    if (take) this.#state.ip = (this.#state.ip + displacement) & 0xffff;
+  }
+
+  #call(displacement: number, writeByte: InstructionContext["writeByte"]): void {
+    // Fetch the complete displacement before writing the following IP to SS:SP.
+    this.#pushWord(this.#state.ip, writeByte);
+    this.#jump(displacement);
+  }
+
+  #return(discardBytes: number, readByte: InstructionContext["readByte"]): void {
+    this.#state.ip = this.#popWord(readByte);
+    this.#state.sp = (this.#state.sp + discardBytes) & 0xffff;
+  }
+
+  #pushRegister(register: WordRegister, writeByte: InstructionContext["writeByte"]): void {
+    // The original 8088's PUSH SP stores the decremented pointer, unlike later x86 CPUs.
+    const value = register === "sp" ? (this.#state.sp - 2) & 0xffff : this.#state[register];
+    this.#pushWord(value, writeByte);
+  }
+
+  #pushWord(value: number, writeByte: InstructionContext["writeByte"]): void {
+    this.#state.sp = (this.#state.sp - 2) & 0xffff;
+    this.#writeMemoryWord(this.#state.ss, this.#state.sp, value, writeByte);
+  }
+
+  #popWord(readByte: InstructionContext["readByte"]): number {
+    const value = this.#readMemoryWord(this.#state.ss, this.#state.sp, readByte);
+    // POP SP assigns the popped value after this increment, replacing it entirely.
+    this.#state.sp = (this.#state.sp + 2) & 0xffff;
+    return value;
   }
 
   // Arithmetic and flags.
@@ -218,10 +286,41 @@ export class Cpu8088 {
     this.#writeAccumulator(width, result);
     this.#state.flags.cf = sum > mask;
     this.#state.flags.af = (accumulator & 0xf) + (value & 0xf) > 0xf;
-    this.#state.flags.zf = result === 0;
-    this.#state.flags.sf = (result & signBit) !== 0;
     this.#state.flags.of = (~(accumulator ^ value) & (accumulator ^ result) & signBit) !== 0;
+    this.#setResultFlags(width, result);
+  }
+
+  #compareAccumulator(width: OperandWidth, { fetchByte, fetchWord }: InstructionContext): void {
+    const value = width === 8 ? fetchByte() : fetchWord();
+    const mask = width === 8 ? 0xff : 0xffff;
+    const signBit = width === 8 ? 0x80 : 0x8000;
+    const accumulator = this.#state.ax & mask;
+    const difference = accumulator - value;
+    const result = difference & mask;
+    this.#state.flags.cf = difference < 0;
+    this.#state.flags.af = (accumulator & 0xf) < (value & 0xf);
+    this.#state.flags.of = ((accumulator ^ value) & (accumulator ^ result) & signBit) !== 0;
+    this.#setResultFlags(width, result);
+  }
+
+  #setResultFlags(width: OperandWidth, result: number): void {
+    this.#state.flags.zf = result === 0;
+    this.#state.flags.sf = (result & (width === 8 ? 0x80 : 0x8000)) !== 0;
     // Parity is defined by the low byte even for word operations.
     this.#state.flags.pf = evenParity8(result & 0xff);
+  }
+
+  // Memory words. Each byte uses a wrapping 16-bit offset within its segment;
+  // physicalAddress then wraps that byte's address onto the 20-bit bus.
+
+  #readMemoryWord(segment: number, offset: number, readByte: InstructionContext["readByte"]): number {
+    const low = readByte(physicalAddress(segment, offset));
+    const high = readByte(physicalAddress(segment, (offset + 1) & 0xffff));
+    return low | (high << 8);
+  }
+
+  #writeMemoryWord(segment: number, offset: number, value: number, writeByte: InstructionContext["writeByte"]): void {
+    writeByte(physicalAddress(segment, offset), value & 0xff);
+    writeByte(physicalAddress(segment, (offset + 1) & 0xffff), value >>> 8);
   }
 }

@@ -102,7 +102,7 @@ Choose the grouping from the CPU's encoding:
 | [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; short branches use `0010 ttt p`, keeping the unused `21` explicit |
 | [6809](../../src/components/cpus/6809.ts) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte |
 | [Z80](../../src/components/cpus/z80.ts) | Unprefixed `xx yyy zzz` groups and a separate CB `xx yyy rrr` table; decode the complete supported encoding before committing state |
-| [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 10 w` for immediate accumulator arithmetic, `1010 00 d w` for direct accumulator transfers, and `1011 w rrr` for immediate register loads; keep logical instruction offsets distinct from physical data-word accesses |
+| [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 10 w` for immediate accumulator arithmetic, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
 | [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; ADDI uses a size field and source-independent effective address |
 
 Keep each encoded subgroup contiguous, including its alternate selector cases
