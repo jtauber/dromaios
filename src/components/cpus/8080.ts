@@ -7,7 +7,7 @@ import type { WordInstructionContext as InstructionContext } from "./instruction
 import { defineState, copyState, readState, unsigned, flag, boolean, group } from "./state.ts";
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { add8, evenParity8 } from "./alu.ts";
+import { add, subtract, evenParity8 } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu8080StateDescription = defineState({
@@ -188,7 +188,7 @@ export class Cpu8080 {
     value => this.#add(value), // 000 ADD / ADI
     value => this.#add(value, this.#state.flags.cy ? 1 : 0), // 001 ADC / ACI
     value => this.#subtract(value), // 010 SUB / SUI
-    value => this.#subtract(value, Number(this.#state.flags.cy)), // 011 SBB / SBI
+    value => this.#subtract(value, this.#state.flags.cy ? 1 : 0), // 011 SBB / SBI
     value => this.#and(value), // 100 ANA / ANI
     value => this.#xor(value), // 101 XRA / XRI
     value => this.#or(value), // 110 ORA / ORI
@@ -376,15 +376,14 @@ export class Cpu8080 {
   // Arithmetic, logic, and flags.
 
   #add(value: number, carryIn: 0 | 1 = 0): number {
-    const { result, halfCarry, carry } = add8(this.#state.a, value, carryIn);
+    const { result, halfCarry, carry } = add(8, this.#state.a, value, carryIn);
     return this.#aluResult(result, halfCarry, carry);
   }
 
-  #subtract(value: number, borrow = 0): number {
-    const accumulator = this.#state.a;
-    const difference = accumulator - value - borrow;
-    // The 8080 complements the adder's full carry for subtraction, but not AC.
-    return this.#aluResult(difference, (accumulator & 0x0f) >= (value & 0x0f) + borrow, difference < 0);
+  #subtract(value: number, borrowIn: 0 | 1 = 0): number {
+    const { result, borrow, halfBorrow } = subtract(8, this.#state.a, value, borrowIn);
+    // CY reports a borrow; AC is the inverse of the low-nibble borrow.
+    return this.#aluResult(result, !halfBorrow, borrow);
   }
 
   #and(value: number): number {
@@ -417,9 +416,9 @@ export class Cpu8080 {
   }
 
   #addToHl(value: number): void {
-    const sum = this.#hl + value;
-    this.#hl = sum & 0xffff;
-    this.#state.flags.cy = sum > 0xffff;
+    const { result, carry } = add(16, this.#hl, value);
+    this.#hl = result;
+    this.#state.flags.cy = carry;
   }
 
   #decimalAdjust(): void {

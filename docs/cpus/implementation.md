@@ -307,27 +307,37 @@ records and memory behavior.
 The [ALU helpers](../../src/components/cpus/alu.ts) express arithmetic facts
 without reading CPU state or updating flags:
 
-- `add8(left, right, carryIn = 0)` returns an eight-bit result, carry out,
-  half carry from bit 3, and signed overflow. Operands must already be unsigned
-  bytes; the carry input is typed as `0 | 1`. It performs binary addition.
+- `add(width, left, right, carryIn = 0)` returns an unsigned result, carry out,
+  half carry, and signed overflow.
+- `subtract(width, left, right, borrowIn = 0)` computes `left - right - borrowIn`
+  and returns an unsigned result, borrow, half borrow, and signed overflow.
+  Borrow means the unsigned subtraction fell below zero.
 - `evenParity8(byte)` reports whether an unsigned byte contains an even number
   of set bits, including zero. The 8088 explicitly selects the low byte of a
   word result before calling it.
 
-These internal helpers rely on their callers for input ranges. Their return
-values do not prescribe a CPU's flags: the 8080 selects parity, the Z80 selects
-overflow for addition's P/V, and each CPU keeps its flag-preservation rules
-beside the instruction. Decimal corrections and the NMOS 6502's intermediate
-flag rules also remain CPU behavior. Addition is shared by the 8008, 8080, 6502,
-6800, 6809, and Z80; parity by the 8008, 8080, Z80, and 8088. The 8088's combined
-byte/word addition and the 68000's long addition retain their width-specific
-calculations.
+Arithmetic widths are `8 | 16 | 32`; incoming carry and borrow are `0 | 1`.
+Operands must already be unsigned integers within that width. Results wrap to
+the selected width and remain unsigned, including 32-bit values with bit 31
+set. Half carry and half borrow always describe the low nibble's boundary
+between bits 3 and 4, even for wider operands.
+
+All eight CPUs use shared addition; the 8008, 8080, 6502, 6809, Z80, and 8088
+also use subtraction. The 8088 supplies its selected byte/word width directly,
+and the 68000 selects 32 bits. CPU flag assignments remain beside the instruction:
+the 6502 sets C when there is no borrow; the 8080 uses borrow for CY and inverted
+half borrow for AC; the Z80 and 8088 use both borrow facts directly; the 6809
+preserves H during subtraction. The 68000 copies addition's carry to both X
+and C. Parity, flag preservation, decimal corrections, and the NMOS 6502's
+intermediate flag rules remain CPU behavior.
 
 [Helper tests](../../tests/components/cpus/alu.test.ts) exhaust every byte pair
-and carry input against unsigned and signed range calculations, and every
-parity byte against a binary-string count. [Type checks](../../tests/types/alu.ts)
-check the carry-input and readonly-result contracts. Existing CPU and example
-tests retain their independently authored expectations.
+and incoming carry/borrow against unsigned and signed range calculations.
+For 16 and 32 bits, tests use independent `BigInt` ranges around every bit
+boundary and across seeded operand pairs. Every parity byte is checked against
+a binary-string count. [Type checks](../../tests/types/alu.ts) check widths,
+incoming bits, distinct carry/borrow names, and readonly results. Existing CPU
+and example tests retain their independently authored expectations.
 
 ## Verify a reorganization
 

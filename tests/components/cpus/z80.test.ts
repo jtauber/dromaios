@@ -399,7 +399,7 @@ function expectedAlu(name: AluName, a: number, value: number, carry: boolean) {
     return { a: result, flags: { s: result >= 128, z: result === 0, h: name === "AND",
       pv: setBits % 2 === 0, n: false, c: false } };
   }
-  // Signed/unsigned arithmetic and decimal low-digit comparisons, independent of add8.
+  // Signed/unsigned arithmetic and decimal low-digit comparisons, independent of the shared ALU helpers.
   const signed = (value: number) => value < 128 ? value : value - 256;
   const input = (name === "ADC" || name === "SBC") && carry ? 1 : 0;
   const subtract = name === "SUB" || name === "SBC" || name === "CP";

@@ -8,7 +8,7 @@ import { defineState, copyState, readState, unsigned, flag, boolean, choices, gr
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.js";
-import { add8, evenParity8 } from "./alu.ts";
+import { add, subtract, evenParity8 } from "./alu.ts";
 
 const bankFields = defineState({
   a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
@@ -409,7 +409,7 @@ export class CpuZ80 {
   }
 
   #add(value: number, carryIn: 0 | 1 = 0): number {
-    const { result, carry, halfCarry, overflow } = add8(this.#state.a, value, carryIn);
+    const { result, carry, halfCarry, overflow } = add(8, this.#state.a, value, carryIn);
     this.#state.flags = {
       s: (result & 0x80) !== 0,
       z: result === 0,
@@ -421,16 +421,16 @@ export class CpuZ80 {
     return result;
   }
 
-  #subtract(value: number, borrow: 0 | 1 = 0): number {
-    const { result, carry, halfCarry, overflow } = add8(this.#state.a, value ^ 0xff, borrow ? 0 : 1);
-    // Complemented addition produces no-borrow carries; Z80 H and C both report borrows.
+  #subtract(value: number, borrowIn: 0 | 1 = 0): number {
+    const { result, borrow, halfBorrow, overflow } = subtract(8, this.#state.a, value, borrowIn);
+    // Z80 H and C both report borrows; N identifies subtraction.
     this.#state.flags = {
       s: (result & 0x80) !== 0,
       z: result === 0,
-      h: !halfCarry,
+      h: halfBorrow,
       pv: overflow,
       n: true,
-      c: !carry,
+      c: borrow,
     };
     return result;
   }

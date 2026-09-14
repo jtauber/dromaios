@@ -7,7 +7,7 @@ import type { WordInstructionContext as InstructionContext } from "./instruction
 import { defineState, copyState, readState, unsigned, flag, boolean, array, group } from "./state.ts";
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { add8, evenParity8 } from "./alu.ts";
+import { add, subtract, evenParity8 } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu8008StateDescription = defineState({
@@ -232,14 +232,14 @@ export class Cpu8008 {
   // Arithmetic, logic, and flags.
 
   #add(value: number, carryIn: 0 | 1 = 0): number {
-    const { result, carry } = add8(this.#state.a, value, carryIn);
+    const { result, carry } = add(8, this.#state.a, value, carryIn);
     return this.#aluResult(result, carry);
   }
 
-  #subtract(value: number, borrow: 0 | 1 = 0): number {
-    const difference = this.#state.a - value - borrow;
+  #subtract(value: number, borrowIn: 0 | 1 = 0): number {
+    const { result, borrow } = subtract(8, this.#state.a, value, borrowIn);
     // C represents a borrow, including when value + incoming borrow is 100H.
-    return this.#aluResult(difference & 0xff, difference < 0);
+    return this.#aluResult(result, borrow);
   }
 
   #compare(value: number): number {

@@ -6,6 +6,7 @@ import type { MemoryAccess, RecordedMemory } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodeTable } from "./opcodes.ts";
+import { add } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu68000StateDescription = defineState({
@@ -172,14 +173,12 @@ export class Cpu68000 {
   // Arithmetic and flags.
 
   #addToRegister(register: DataRegister, value: number): void {
-    const original = this.#state[register];
-    const sum = original + value;
-    const result = sum >>> 0;
+    const { result, carry, overflow } = add(32, this.#state[register], value);
     this.#state[register] = result;
-    this.#state.flags.x = this.#state.flags.c = sum > 0xffffffff;
+    this.#state.flags.x = this.#state.flags.c = carry;
     this.#state.flags.n = (result & 0x80000000) !== 0;
     this.#state.flags.z = result === 0;
-    this.#state.flags.v = (~(original ^ value) & (original ^ result) & 0x80000000) !== 0;
+    this.#state.flags.v = overflow;
   }
 
   #moveFlags(value: number): void {

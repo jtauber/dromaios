@@ -9,7 +9,7 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { add8 } from "./alu.ts";
+import { add, subtract } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu6502StateDescription = defineState({
@@ -369,8 +369,9 @@ export class Cpu6502 {
 
   #compare(register: ByteRegister, value: number): void {
     // CMP/CPX/CPY discard register - operand. C means no borrow; V and D are unaffected.
-    this.#setNegativeZero((this.#state[register] - value) & 0xff);
-    this.#state.flags.c = this.#state[register] >= value;
+    const { result, borrow } = subtract(8, this.#state[register], value);
+    this.#setNegativeZero(result);
+    this.#state.flags.c = !borrow;
   }
 
   #testBits(value: number): void {
@@ -383,7 +384,7 @@ export class Cpu6502 {
   #addWithCarry(value: number): void {
     const { a, flags } = this.#state;
     const carryIn = flags.c ? 1 : 0;
-    const { result, carry, overflow } = add8(a, value, carryIn);
+    const { result, carry, overflow } = add(8, a, value, carryIn);
     if (!flags.d) {
       this.#loadRegister("a", result);
       flags.c = carry;
@@ -405,14 +406,14 @@ export class Cpu6502 {
 
   #subtractWithCarry(value: number): void {
     const { a, flags } = this.#state;
-    const borrow = flags.c ? 0 : 1;
-    const { result, carry, overflow } = add8(a, value ^ 0xff, flags.c ? 1 : 0);
+    const borrowIn = flags.c ? 0 : 1;
+    const { result, borrow, overflow } = subtract(8, a, value, borrowIn);
     // NMOS SBC derives all four flags from binary subtraction, even with D set.
     this.#loadRegister("a", result);
-    flags.c = carry; // Set means no borrow, allowing multi-byte subtraction.
+    flags.c = !borrow; // Set means no borrow, allowing multi-byte subtraction.
     flags.v = overflow;
     if (flags.d) {
-      let low = (a & 0x0f) - (value & 0x0f) - borrow;
+      let low = (a & 0x0f) - (value & 0x0f) - borrowIn;
       if (low < 0) low = ((low - 6) & 0x0f) - 0x10;
       let decimal = (a & 0xf0) - (value & 0xf0) + low;
       if (decimal < 0) decimal -= 0x60;

@@ -7,7 +7,7 @@ import type { WordInstructionContext as InstructionContext } from "./instruction
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { evenParity8 } from "./alu.ts";
+import { add, subtract, evenParity8 } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu8088StateDescription = defineState({
@@ -164,8 +164,8 @@ export class Cpu8088 {
   readonly #aluOperations: readonly AluOperation[] = [
     (width, left, right) => this.#add(width, left, right), // 000: ADD
     (width, left, right) => this.#logic(width, left | right), // 001: OR
-    (width, left, right) => this.#add(width, left, right, Number(this.#state.flags.cf)), // 010: ADC
-    (width, left, right) => this.#subtract(width, left, right, Number(this.#state.flags.cf)), // 011: SBB
+    (width, left, right) => this.#add(width, left, right, this.#state.flags.cf ? 1 : 0), // 010: ADC
+    (width, left, right) => this.#subtract(width, left, right, this.#state.flags.cf ? 1 : 0), // 011: SBB
     (width, left, right) => this.#logic(width, left & right), // 100: AND
     (width, left, right) => this.#subtract(width, left, right), // 101: SUB
     (width, left, right) => this.#logic(width, left ^ right), // 110: XOR
@@ -379,26 +379,20 @@ export class Cpu8088 {
     this.#state.flags.cf = carry;
   }
 
-  #add(width: OperandWidth, left: number, right: number, carry = 0): number {
-    const mask = width === 8 ? 0xff : 0xffff;
-    const signBit = width === 8 ? 0x80 : 0x8000;
-    const sum = left + right + carry;
-    const result = sum & mask;
-    this.#state.flags.cf = sum > mask;
-    this.#state.flags.af = (left & 0xf) + (right & 0xf) + carry > 0xf;
-    this.#state.flags.of = (~(left ^ right) & (left ^ result) & signBit) !== 0;
+  #add(width: OperandWidth, left: number, right: number, carryIn: 0 | 1 = 0): number {
+    const { result, carry, halfCarry, overflow } = add(width, left, right, carryIn);
+    this.#state.flags.cf = carry;
+    this.#state.flags.af = halfCarry;
+    this.#state.flags.of = overflow;
     this.#setResultFlags(width, result);
     return result;
   }
 
-  #subtract(width: OperandWidth, left: number, right: number, borrow = 0): number {
-    const mask = width === 8 ? 0xff : 0xffff;
-    const signBit = width === 8 ? 0x80 : 0x8000;
-    const difference = left - right - borrow;
-    const result = difference & mask;
-    this.#state.flags.cf = difference < 0;
-    this.#state.flags.af = (left & 0xf) < (right & 0xf) + borrow;
-    this.#state.flags.of = ((left ^ right) & (left ^ result) & signBit) !== 0;
+  #subtract(width: OperandWidth, left: number, right: number, borrowIn: 0 | 1 = 0): number {
+    const { result, borrow, halfBorrow, overflow } = subtract(width, left, right, borrowIn);
+    this.#state.flags.cf = borrow;
+    this.#state.flags.af = halfBorrow;
+    this.#state.flags.of = overflow;
     this.#setResultFlags(width, result);
     return result;
   }

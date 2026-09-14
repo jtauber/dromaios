@@ -9,7 +9,7 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { add8 } from "./alu.ts";
+import { add } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu6800StateDescription = defineState({
@@ -200,7 +200,7 @@ export class Cpu6800 {
   // Arithmetic, logic, and flags.
 
   #addToAccumulator(value: number): void {
-    const { result, carry, halfCarry, overflow } = add8(this.#state.a, value);
+    const { result, carry, halfCarry, overflow } = add(8, this.#state.a, value);
     this.#loadAccumulator("a", result);
     this.#state.flags.h = halfCarry;
     this.#state.flags.c = carry;

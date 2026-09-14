@@ -9,7 +9,7 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateValues } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { add8 } from "./alu.ts";
+import { add, subtract } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu6809StateDescription = defineState({
@@ -318,7 +318,7 @@ export class Cpu6809 {
   // Arithmetic, logic, and flags.
 
   #add(left: number, right: number, carryIn: 0 | 1 = 0): number {
-    const { result, carry, halfCarry, overflow } = add8(left, right, carryIn);
+    const { result, carry, halfCarry, overflow } = add(8, left, right, carryIn);
     this.#setNZ(result);
     this.#state.flags.h = halfCarry;
     this.#state.flags.c = carry;
@@ -327,11 +327,10 @@ export class Cpu6809 {
   }
 
   #subtract(left: number, right: number, borrowIn: 0 | 1 = 0): number {
-    const difference = left - right - borrowIn;
-    const result = difference & 0xff;
+    const { result, borrow, overflow } = subtract(8, left, right, borrowIn);
     this.#setNZ(result);
-    this.#state.flags.v = ((left ^ right) & (left ^ result) & 0x80) !== 0;
-    this.#state.flags.c = difference < 0;
+    this.#state.flags.v = overflow;
+    this.#state.flags.c = borrow;
     // H is undefined for subtraction; this model preserves it.
     return result;
   }
