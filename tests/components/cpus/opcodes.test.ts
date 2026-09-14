@@ -24,6 +24,26 @@ test("opcode tables reject invalid byte values and duplicate explicit entries", 
   assert.throws(() => opcodeTable([[0x76, handler], [0x76, handler]]), /Duplicate opcode 0x76/);
 });
 
+test("sixteen-bit patterns preserve high bits, selectors, aliases, and explicit table bounds", () => {
+  const handler = () => {};
+  assert.deepEqual(opcodePattern("0000 0110 10 000 000", handler), [[0x0680, handler]]);
+  assert.deepEqual(opcodePattern("00 10 000 000 111 100", handler), [[0x203c, handler]]);
+  assert.deepEqual(opcodePattern("00 10 001 111 000 000", handler), [[0x23c0, handler]]);
+  assert.deepEqual(opcodePattern("1111 1111 1111 1111", handler), [[0xffff, handler]]);
+  const entries = opcodeFamily("f000_0000_0000_00xf", { f: [0, 1, 2, 3] }, selected => () => selected);
+  const table = opcodeTable(entries, 16);
+  assert.deepEqual(Object.entries(table).map(([opcode, handler]) => [Number(opcode), handler!()]), [
+    [0, { f: 0 }], [1, { f: 1 }], [2, { f: 0 }], [3, { f: 1 }],
+    [0x8000, { f: 2 }], [0x8001, { f: 3 }], [0x8002, { f: 2 }], [0x8003, { f: 3 }],
+  ]);
+  assert.throws(() => opcodeTable(entries), RangeError);
+  assert.throws(() => opcodeTable([[0xffff, handler], [0xffff, handler]], 16), /Duplicate opcode/);
+  assert.throws(() => opcodeTable([[0x0680, handler], [0x0680, handler]], 16), /Duplicate opcode 0x0680/);
+  for (const opcode of [-1, 65536, 0.5, NaN, Infinity]) assert.throws(() => opcodeTable([[opcode, handler]], 16), RangeError);
+  for (const width of [0, 7, 15, 32, NaN, "16"]) assert.throws(() => Reflect.apply(opcodeTable, undefined, [[], width]), /Opcode width/);
+  for (const pattern of ["0".repeat(15), "0".repeat(17), "0".repeat(32)]) assert.throws(() => opcodePattern(pattern, handler), /must contain/);
+});
+
 test("8008 alias patterns produce only their documented opcode bytes and share the handler", () => {
   const handler = () => { throw new Error("Execution during construction"); };
   for (const [pattern, expected] of [

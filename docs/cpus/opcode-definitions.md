@@ -3,7 +3,7 @@
 The [opcode helpers](../../src/components/cpus/opcodes.ts) are a small experiment
 in describing existing encodings within TypeScript. The goal is to make the
 hardware easier to read while preserving each CPU's execution behavior. The
-8008, 6502, 6800, 6809, and 8088 tables use patterns throughout, with typed selector
+8008, 6502, 6800, 6809, 8088, and 68000 tables use patterns throughout, with typed selector
 mappings for families. These examples exercise several encoding relationships:
 
 | CPU | Pattern | Meaning |
@@ -13,6 +13,12 @@ mappings for families. These examples exercise several encoding relationships:
 | [6800](../../src/components/cpus/6800.ts) | `0010 ttt p` | Seven conditional pairs expand `p`; BRA is explicit because `21` is unused |
 | [6809](../../src/components/cpus/6809.ts) | `0010 ttt p` | `ttt` selects a condition; `p` selects whether to invert it |
 | [8088](../../src/components/cpus/8088.ts) | `1011 w rrr` | `w` selects byte/word width and `rrr` the register; the initial slice explicitly fixes `w=1`, `rrr=000` for AX |
+
+The 68000 uses `00 ss ddd mmm MMM rrr` for MOVE: destination register then
+mode, source mode then register. Its current fixed patterns make the two
+long-word forms explicit without introducing a general effective-address decoder.
+Uppercase letters here distinguish explanatory fields; parsed selector letters
+remain lowercase.
 
 The helper describes encodings; each CPU still defines supported instructions,
 public types, flags, reset, wrapping, and recorded memory accesses. The other
@@ -25,11 +31,12 @@ ordered list of `[opcode, handler]` pairs. Entries can be written directly or
 expanded from patterns and families. Keep meaningful bit grouping and nearby
 mnemonics, with each definition at its place in the CPU's encoding order.
 
-The list preserves every entry until validation. Duplicate opcode bytes throw
+The list preserves every entry until validation. Duplicate opcode values throw
 an error, including an overlap between an explicit instruction and a family,
 or two definitions with the same handler. Entries cannot silently replace one
-another. Byte values must be integers from `00` through `FF`; absent entries
-remain unsupported.
+another. By default values must be integers from `00` through `FF`.
+`opcodeTable(entries, 16)` accepts operation words from `0000` through `FFFF`,
+as used by the 68000. Absent entries remain unsupported.
 
 `opcodePattern(pattern, handler)` binds the same handler to every encoding of
 a pattern. Fixed bits describe one opcode; ignored bits describe aliases. For
@@ -55,7 +62,8 @@ names and `value` as Boolean. The instruction context remains CPU-specific.
 
 ## Pattern rules
 
-- A pattern describes exactly one eight-bit opcode, most significant bit first.
+- A pattern describes exactly one eight-bit opcode or sixteen-bit operation word,
+  most significant bit first.
   Spaces, other whitespace, and underscores are ignored for grouping.
 - `0` and `1` are fixed bits. `x` is a reserved marker for ignored bits and has
   no selector binding.

@@ -1,0 +1,25 @@
+// Long arithmetic with a 32-bit PC and absolute address on the 24-bit bus.
+ram 1000000
+
+cpu 68000 {
+  D0 = 11223344  D1 = 55667788  D2 = 99AABBCC  D3 = DDEEFF00
+  D4 = 01234567  D5 = 89ABCDEF  D6 = FEDCBA98  D7 = 76543210
+  A0 = 10000000  A1 = 20000000  A2 = 30000000  A3 = 40000000
+  A4 = 50000000  A5 = 60000000  A6 = 70000000
+  USP = 34FFE000  SSP = 56FFD000  PC = AB001000
+  interruptMask = 2
+  flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 0 }
+}
+
+memory 000000 {
+  12 FF F0 00  // External-reset SSP: 12FFF000
+  AB 00 10 00  // External-reset PC: AB001000
+}
+
+memory 001000 {
+  20 3C 7F FF FF FF  // MOVE.L #7FFFFFFF,D0
+  06 80 00 00 00 01  // ADDI.L #1,D0
+  23 C0 CD 02 00 82  // MOVE.L D0,(CD020082).L; physical address 020082
+}
+
+end AB001012

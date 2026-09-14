@@ -7,13 +7,14 @@ byte images, and an optional caller completion address. The
 its source definition and tests.
 
 Each file explicitly declares its CPU's RAM size: 16 KiB for the 8008,
-1 MiB for the 8088, and 64 KiB for the other current models. Unspecified memory
+1 MiB for the 8088, 16 MiB for the 68000, and 64 KiB for the other current models. Unspecified memory
 is zero; blocks load in source order, with later bytes overwriting earlier ones where they
 overlap. Reset vectors are ordinary byte blocks. Initial state includes every
 stored field for that CPU. The optional `end` declaration supplies a completion
 address for the caller; it does not make the CPU stop there automatically.
-Memory images and completion addresses use physical RAM addresses, including
-for the [8088's segmented model](../cpus/8088/model.md#logical-and-physical-addresses).
+Memory images use physical RAM addresses. Completion compares `snapshot().pc`: a
+physical address for the [8088](../cpus/8088/model.md#logical-and-physical-addresses),
+but the full 32-bit register for the [68000](../cpus/68000/model.md#logical-and-physical-addresses).
 
 ## RAM and CPU ownership
 

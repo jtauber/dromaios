@@ -86,7 +86,7 @@ remains open.
 Use binary opcode values or explicit bit patterns, grouping meaningful fields
 with underscores or spaces. Explain the bit positions, fixed bits, and selector
 values beside the code. The [opcode definition experiment](opcode-definitions.md)
-uses patterns throughout the 8008, 6502, 6800, 6809, and 8088 tables, with typed selector
+uses patterns throughout the 8008, 6502, 6800, 6809, 8088, and 68000 tables, with typed selector
 mappings for families. Ordinary addresses, memory images, and arithmetic
 constants can remain hexadecimal.
 
@@ -101,6 +101,7 @@ Choose the grouping from the CPU's encoding:
 | [6809](../../src/components/cpus/6809.ts) | Opcode page and family-specific fields; the current A-register forms use `10 mm oooo`, while stack instructions use `001101 s p` and a separate register-mask postbyte |
 | [Z80](../../src/components/cpus/z80.ts) | Unprefixed `xx yyy zzz` groups; preserve distinct prefix pages as support grows |
 | [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 10 w` for immediate accumulator arithmetic, `1010 00 d w` for direct accumulator transfers, and `1011 w rrr` for immediate register loads; keep logical instruction offsets distinct from physical data-word accesses |
+| [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; ADDI uses a size field and source-independent effective address |
 
 Keep each encoded subgroup contiguous, including its alternate selector cases
 and exceptions. For example, the 8080's `11 pp q 001` group contains both the

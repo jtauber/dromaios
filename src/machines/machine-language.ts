@@ -4,6 +4,7 @@ import { cpu8088StateDescription } from "../components/cpus/8088.ts";
 import { cpu6502StateDescription } from "../components/cpus/6502.ts";
 import { cpu6800StateDescription } from "../components/cpus/6800.ts";
 import { cpu6809StateDescription } from "../components/cpus/6809.ts";
+import { cpu68000StateDescription } from "../components/cpus/68000.ts";
 import { cpuZ80StateDescription } from "../components/cpus/z80.ts";
 import type { StateFields, StateField, GroupField, StateValues } from "../components/cpus/state.js";
 import type { Cpu8008State } from "../components/cpus/8008.js";
@@ -12,6 +13,7 @@ import type { Cpu8088State } from "../components/cpus/8088.js";
 import type { Cpu6502State } from "../components/cpus/6502.js";
 import type { Cpu6800State } from "../components/cpus/6800.js";
 import type { Cpu6809State } from "../components/cpus/6809.js";
+import type { Cpu68000State } from "../components/cpus/68000.js";
 import type { CpuZ80State } from "../components/cpus/z80.js";
 
 interface CpuStates {
@@ -21,6 +23,7 @@ interface CpuStates {
   "6502": Cpu6502State;
   "6800": Cpu6800State;
   "6809": Cpu6809State;
+  "68000": Cpu68000State;
   "z80": CpuZ80State;
 }
 
@@ -33,7 +36,8 @@ export type MachineDefinition = {
   [Model in CpuModel]: {
     readonly cpu: Model;
     readonly initialState: CpuStates[Model];
-    readonly ramSize: Model extends "8008" ? 0x4000 : Model extends "8088" ? 0x100000 : 0x10000;
+    readonly ramSize: Model extends "8008" ? 0x4000 : Model extends "8088" ? 0x100000
+      : Model extends "68000" ? 0x1000000 : 0x10000;
   };
 }[CpuModel] & {
   readonly memory: readonly { readonly address: number; readonly bytes: readonly number[] }[];
@@ -150,8 +154,9 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
       case "6502": return { cpu: model.text, initialState: readState(cpu6502StateDescription, model.text) };
       case "6800": return { cpu: model.text, initialState: readState(cpu6800StateDescription, model.text) };
       case "6809": return { cpu: model.text, initialState: readState(cpu6809StateDescription, model.text) };
+      case "68000": return { cpu: model.text, initialState: readState(cpu68000StateDescription, model.text) };
       case "z80": return { cpu: model.text, initialState: readState(cpuZ80StateDescription, model.text) };
-      default: return fail(model, `Expected CPU model 8008, 8080, 8088, 6502, 6800, 6809, or z80, found ${describe(model)}`);
+      default: return fail(model, `Expected CPU model 8008, 8080, 8088, 6502, 6800, 6809, 68000, or z80, found ${describe(model)}`);
     }
   }
 
@@ -167,9 +172,9 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
       case "ram": {
         if (ram !== undefined) fail(declaration, "Duplicate ram declaration");
         const size = take();
-        const value = readNumber(size, "RAM size", 0x100000);
-        if (value !== 0x4000 && value !== 0x10000 && value !== 0x100000) {
-          fail(size, "RAM size must be 4000 (16 KiB), 10000 (64 KiB), or 100000 (1 MiB)");
+        const value = readNumber(size, "RAM size", 0x1000000);
+        if (value !== 0x4000 && value !== 0x10000 && value !== 0x100000 && value !== 0x1000000) {
+          fail(size, "RAM size must be 4000 (16 KiB), 10000 (64 KiB), 100000 (1 MiB), or 1000000 (16 MiB)");
         }
         ram = { size: value, token: size };
         break;
@@ -182,12 +187,12 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
       case "end": {
         if (completion !== undefined) fail(declaration, "Duplicate end declaration");
         const token = take();
-        completion = { address: readNumber(token, "Completion address", 0xfffff), token };
+        completion = { address: readNumber(token, "Completion address", 0xffffffff), token };
         break;
       }
       case "memory": {
         const addressToken = take();
-        const address = readNumber(addressToken, "Memory address", 0xfffff);
+        const address = readNumber(addressToken, "Memory address", 0xffffff);
         memoryBounds.push({ token: addressToken, address, isByte: false });
         expect("{");
         const bytes: number[] = [];
@@ -195,7 +200,7 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
           if (current.text === "") fail(current, 'Expected "}" to close memory block');
           const token = take();
           if (!/^[\da-fA-F]{2}$/.test(token.text)) fail(token, `Expected a two-digit hexadecimal byte, found ${describe(token)}`);
-          const limit = ram?.size ?? 0x100000;
+          const limit = ram?.size ?? 0x1000000;
           if (address + bytes.length >= limit) {
             fail(token, `Memory block extends beyond address ${(limit - 1).toString(16).toUpperCase()}`);
           }
@@ -211,19 +216,23 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
   }
   if (ram === undefined) fail(current, "Missing ram declaration");
   if (cpu === undefined) fail(current, "Missing cpu declaration");
-  const requiredSize = cpu.cpu === "8008" ? 0x4000 : cpu.cpu === "8088" ? 0x100000 : 0x10000;
+  const requiredSize = cpu.cpu === "8008" ? 0x4000 : cpu.cpu === "8088" ? 0x100000
+    : cpu.cpu === "68000" ? 0x1000000 : 0x10000;
   if (ram.size !== requiredSize) fail(ram.token, `RAM size for ${cpu.cpu} must be ${requiredSize.toString(16).toUpperCase()}`);
   const lastAddress = (requiredSize - 1).toString(16).toUpperCase();
   for (const { token, address, isByte } of memoryBounds) {
     if (address >= requiredSize) fail(token, isByte ? `Memory block extends beyond address ${lastAddress}`
       : `Memory address must be in 0..${lastAddress}`);
   }
-  if (completion !== undefined && completion.address >= requiredSize) {
-    fail(completion.token, `Completion address must be in 0..${lastAddress}`);
+  // Completion compares snapshot.pc: the 68000 retains all 32 bits of that register.
+  const maximumPc = cpu.cpu === "68000" ? 0xffffffff : requiredSize - 1;
+  if (completion !== undefined && completion.address > maximumPc) {
+    fail(completion.token, `Completion address must be in 0..${maximumPc.toString(16).toUpperCase()}`);
   }
   const machine = cpu.cpu === "8008"
     ? { ...cpu, ramSize: 0x4000 as const, memory }
     : cpu.cpu === "8088" ? { ...cpu, ramSize: 0x100000 as const, memory }
+    : cpu.cpu === "68000" ? { ...cpu, ramSize: 0x1000000 as const, memory }
     : { ...cpu, ramSize: 0x10000 as const, memory };
   return completion === undefined ? machine : { ...machine, endAddress: completion.address };
 }

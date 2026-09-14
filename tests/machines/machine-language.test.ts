@@ -186,7 +186,7 @@ test("hexadecimal values and aliases have the same meaning for every CPU", () =>
     }
     for (const value of ["ff", "FF", "0xFF", "$ff", "0ffh", "0FFH"]) {
       const machine = parseMachine(set(source, "A", value));
-      assert.ok(machine.cpu !== "8088");
+      assert.ok(machine.cpu !== "8088" && machine.cpu !== "68000");
       assert.equal(machine.initialState.a, 0xff, value);
     }
   }
@@ -276,7 +276,7 @@ test("malformed values and syntax are rejected as whole tokens", () => {
     [`${sources["8080"]} ram 10000`, /Duplicate ram/],
     [`${sources["8080"]} cpu 8080 {}`, /Duplicate cpu/],
     [`${sources["8080"]} end 0 end 1`, /Duplicate end/],
-    ["cpu 68000 {}", /Expected CPU model/],
+    ["cpu 68020 {}", /Expected CPU model/],
     ["cpu Z80 {}", /Expected CPU model/],
     ["cpu 0x8080 {}", /Expected CPU model/],
     ["RAM 10000", /Unknown declaration "RAM"/],
@@ -477,5 +477,67 @@ test("larger 8088 images do not relax the smaller CPUs' bounds and memory blocks
     assert.throws(() => parseMachine(text, "8088.machine"), {
       name: "SyntaxError", message: "8088.machine:2:6: Memory block extends beyond address FFFFF\n  AA BB\n     ^",
     });
+  }
+});
+
+const source68000 = `ram 1000000
+cpu 68000 {
+  D0=11223344 D1=55667788 D2=99AABBCC D3=DDEEFF00 D4=01234567 D5=89ABCDEF D6=FEDCBA98 D7=76543210
+  A0=10000000 A1=20000000 A2=30000000 A3=40000000 A4=50000000 A5=60000000 A6=70000000
+  USP=34FFE000 SSP=56FFD000 PC=AB001000 interruptMask=2
+  flags { X=1 N=0 Z=1 V=1 C=1 T=0 S=0 }
+}`;
+
+test("68000 parsing keeps full long registers and logical completion separate from physical memory bounds", () => {
+  const suffix = "memory FFFFFE { 12 AB } end FFFFFFFF";
+  for (const source of [`${source68000} ${suffix}`, `${suffix} ${source68000}`]) {
+    const machine = parseMachine(source);
+    assert.equal(machine.cpu, "68000");
+    assert.equal(machine.ramSize, 0x1000000);
+    assert.equal(machine.endAddress, 0xffffffff);
+    assert.deepEqual(machine.memory, [{ address: 0xfffffe, bytes: [0x12, 0xab] }]);
+    assert.deepEqual(machine.initialState, {
+      d0: 0x11223344, d1: 0x55667788, d2: 0x99aabbcc, d3: 0xddeeff00,
+      d4: 0x01234567, d5: 0x89abcdef, d6: 0xfedcba98, d7: 0x76543210,
+      a0: 0x10000000, a1: 0x20000000, a2: 0x30000000, a3: 0x40000000,
+      a4: 0x50000000, a5: 0x60000000, a6: 0x70000000, usp: 0x34ffe000, ssp: 0x56ffd000,
+      pc: 0xab001000, interruptMask: 2, flags: { x: true, n: false, z: true, v: true, c: true, t: false, s: false },
+    });
+  }
+  for (const suffix of ["memory 1000000 {}", "memory FFFFFF { AA BB }", "end 100000000"]) {
+    for (const source of [`${source68000} ${suffix}`, `${suffix} ${source68000}`]) assert.throws(() => parseMachine(source), SyntaxError);
+  }
+  for (const size of ["4000", "10000", "100000"]) {
+    assert.throws(() => parseMachine(source68000.replace("ram 1000000", `ram ${size}`)), /RAM size for 68000 must be 1000000/);
+  }
+  for (const source of [...Object.values(sources), source8008, source8088]) {
+    for (const suffix of ["memory FFFFFF {}", "end AB001012"]) {
+      for (const text of [`${source} ${suffix}`, `${suffix} ${source}`]) assert.throws(() => parseMachine(text), SyntaxError);
+    }
+    assert.throws(() => parseMachine(source.replace(/ram \w+/, "ram 1000000")), /RAM size for/);
+  }
+});
+
+test("68000 parsing validates complete long state, three-bit mask, and original-68000 flags", () => {
+  for (const name of ["D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "A0", "A1", "A2", "A3", "A4", "A5", "A6", "USP", "SSP", "PC"]) {
+    for (const value of ["0", "FFFFFFFF", "$FFFFFFFF", "0xFFFFFFFF", "0FFFFFFFFh"]) {
+      const machine = parseMachine(set(source68000, name, value));
+      assert.equal(Object.entries(machine.initialState).find(([key]) => key === name.toLowerCase())?.[1], value === "0" ? 0 : 0xffffffff);
+    }
+    assert.throws(() => parseMachine(set(source68000, name, "100000000")), /must be in 0..FFFFFFFF/);
+    assert.throws(() => parseMachine(source68000.replace(new RegExp(`\\b${name}=\\w+`), "")), /Missing fields/);
+    assert.throws(() => parseMachine(source68000.replace(`${name}=`, `${name.toLowerCase()}=0 ${name}=`)), /Duplicate field/);
+  }
+  for (const name of ["X", "N", "Z", "V", "C", "T", "S"]) {
+    for (const value of ["2", "true", "false"]) assert.throws(() => parseMachine(set(source68000, name, value)), SyntaxError);
+    assert.throws(() => parseMachine(source68000.replace(new RegExp(`\\b${name}=\\w+`), "")), /Missing fields/);
+  }
+  for (const value of ["0", "7"]) assert.doesNotThrow(() => parseMachine(set(source68000, "interruptMask", value)));
+  for (const value of ["8", "true", "-1"]) assert.throws(() => parseMachine(set(source68000, "interruptMask", value)), SyntaxError);
+  for (const field of ["A7=0", "physicalPc=0", "SR=0", "halted=false"]) {
+    assert.throws(() => parseMachine(source68000.replace("D0=11223344", `D0=11223344 ${field}`)), /Unknown field/);
+  }
+  for (const field of ["M", "T0", "T1"]) {
+    assert.throws(() => parseMachine(source68000.replace("X=1", `X=1 ${field}=0`)), /Unknown field/);
   }
 });

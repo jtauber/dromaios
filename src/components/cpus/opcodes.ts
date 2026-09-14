@@ -6,15 +6,17 @@ type Selected<Choices extends Selectors> = {
   readonly [Field in keyof Choices]: Choices[Field][number];
 };
 
-/** Construct a byte-opcode table, rejecting duplicate entries even if their handlers agree. */
+/** Construct an opcode table, rejecting duplicate entries even if their handlers agree. */
 export function opcodeTable<Handler>(
   entries: readonly OpcodeEntry<Handler>[],
+  width: 8 | 16 = 8,
 ): Readonly<Partial<Record<number, Handler>>> {
+  if (width !== 8 && width !== 16) throw new RangeError("Opcode width must be 8 or 16 bits.");
   const table: Partial<Record<number, Handler>> = {};
   for (const [opcode, handler] of entries) {
-    checkUnsigned("opcode", opcode, 0xff);
+    checkUnsigned("opcode", opcode, 2 ** width - 1);
     if (Object.hasOwn(table, opcode)) {
-      throw new Error(`Duplicate opcode 0x${opcode.toString(16).padStart(2, "0")}.`);
+      throw new Error(`Duplicate opcode 0x${opcode.toString(16).padStart(width / 4, "0")}.`);
     }
     table[opcode] = handler;
   }
@@ -27,7 +29,7 @@ export function opcodePattern<Handler>(pattern: string, handler: Handler): reado
 }
 
 /**
- * Expand an eight-bit pattern into handlers. Lowercase letters name selector fields;
+ * Expand an eight- or sixteen-bit pattern into handlers. Lowercase letters name selector fields;
  * x marks ignored bits. Each selector supplies every encoded value, in numeric order.
  * bind runs during construction; the returned handler performs instruction execution.
  */
@@ -76,14 +78,14 @@ export function opcodeFamily<const Choices extends Selectors, Handler>(
 
 function parsePattern(pattern: string) {
   const bits = pattern.replace(/[\s_]/g, "");
-  if (!/^[01a-z]{8}$/.test(bits)) {
-    throw new Error(`Opcode pattern "${pattern}" must contain eight bits: 0, 1, or lowercase field letters.`);
+  if (!/^(?:[01a-z]{8}|[01a-z]{16})$/.test(bits)) {
+    throw new Error(`Opcode pattern "${pattern}" must contain eight bits or sixteen bits: 0, 1, or lowercase field letters.`);
   }
   let fixed = 0;
   const variables: number[] = [];
   const fields = new Map<string, number[]>();
   for (const [index, bit] of [...bits].entries()) {
-    const position = 7 - index;
+    const position = bits.length - 1 - index;
     if (bit === "1") fixed |= 1 << position;
     else if (bit !== "0") {
       variables.push(position);

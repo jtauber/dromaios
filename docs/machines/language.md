@@ -43,11 +43,13 @@ end 0208
   Top-level declarations can appear in any order. Memory blocks are applied in
   their source order.
 - `ram` gives the byte count: `4000` (16 KiB) for the 8008, `100000`
-  (1 MiB) for the 8088, or `10000` (64 KiB) for the other current CPUs.
+  (1 MiB) for the 8088, `1000000` (16 MiB) for the 68000, or `10000` (64 KiB)
+  for the other current CPUs.
   The declared size must match the model.
   RAM starts at address zero and is filled with zero before loading images.
-- `cpu` selects the model by name: `8008`, `8080`, `6502`, `6800`, `6809`, `z80`, or `8088`. Its block contains
-  the initial state. Stored registers and control latches use `name = value`;
+- `cpu` selects the model by name: `8008`, `8080`, `6502`, `6800`, `6809`, `z80`,
+  `8088`, or `68000`. Its block contains the initial state. Stored registers
+  and control latches use `name = value`;
   `flags { ... }` groups assignments to the flags. The Z80's `alternate { ... }`
   block contains another register bank and its own `flags` block. CPU model
   names are case-sensitive identifiers, not numeric data.
@@ -55,8 +57,9 @@ end 0208
   registers and flags: `A`, `PC`, `SP`, `N`, `CY`. Keywords such as `cpu`, `flags`,
   `alternate`, and `memory` are lowercase. Descriptive control fields retain the
   spellings `interruptEnabled`, `iff1`, `iff2`, and `halted`; the 8008 uses
-  `addressStack` and `stackIndex` for its address registers and selector. Duplicate detection
-  ignores case, so assigning both `PC` and `pc` is an error. Register and flag names are resolved within
+  `addressStack` and `stackIndex` for its address registers and selector, and the
+  68000 uses `interruptMask`. Duplicate detection ignores case, so assigning
+  both `PC` and `pc` is an error. Register and flag names are resolved within
   their respective blocks for the selected CPU.
 - Inside `flags`, each assignment supplies a bit value: `1` means set and `0`
   means clear. Every flag must appear exactly once; assignments can appear in
@@ -77,9 +80,10 @@ end 0208
   form is simply `FF`.
 - Hexadecimal digits accept either letter case. By convention, examples use
   uppercase digits `A` through `F`, two digits for byte registers, four for
-  word registers and 16-bit addresses, five for 8088 physical addresses, and
-  a single digit for flag bits. Register
-  ranges come from the CPU model; padding does not determine a register's width.
+  word registers and 16-bit addresses, five for 8088 physical addresses, six for
+  68000 physical addresses, eight for long registers, and a single digit for flag
+  bits. Register ranges come from the CPU model; padding does not determine a
+  register's width.
 - Inside a memory body, every token is exactly two bare hexadecimal digits.
   Single digits, prefixed or suffixed numbers, and tokens longer than two
   digits are errors. No encoding keyword is needed.
@@ -99,7 +103,10 @@ end 0208
   Where blocks overlap, later bytes overwrite earlier ones.
   The 8088 uses physical addresses in `00000`–`FFFFF` for both `memory` and `end`;
   its logical code address is supplied separately through `CS` and `IP`.
-- `end` is an optional caller completion address within RAM. It maps to the
+- `end` is an optional caller completion address in the range of `snapshot().pc`.
+  For the 68000, `memory` addresses are in `000000`–`FFFFFF`, while `PC` and
+  `end` retain all 32 bits (`00000000`–`FFFFFFFF`). Other current models require
+  completion addresses within RAM. It maps to the
   `endAddress` field. It neither executes instructions nor halts the CPU;
   the caller can stop stepping when PC reaches it. Omission leaves this
   metadata absent, as in the 8008 and 8080 lessons that use HLT and the Z80 lesson that
@@ -166,6 +173,12 @@ The 8088 instead stores word registers: byte views such as `AL` and `AH`
 derive from `AX`. Its physical `PC` derives from `CS:IP`. Neither the byte
 views nor `PC` can be assigned. See the [8088 example](../cpus/8088/examples/arithmetic.md)
 for a complete definition using different code and data segments.
+
+The 68000 stores `D0`–`D7`, `A0`–`A6`, `USP`, `SSP`, and `PC` as unsigned
+32-bit values, plus `interruptMask` in `0`–`7` and flags `X/N/Z/V/C/T/S`.
+`A7` and `physicalPc` are derived and cannot be assigned. The original processor
+has one trace bit and no master-mode bit. See the
+[68000 example](../cpus/68000/examples/arithmetic.md) for a complete definition.
 
 ## Errors
 

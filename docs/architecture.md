@@ -160,7 +160,8 @@ distinct decoding and execution rules.
 The introductory [8080](cpus/8080/examples/arithmetic.md), [6502](cpus/6502/examples/arithmetic.md),
 [6809](cpus/6809/examples/arithmetic.md), [Z80](cpus/z80/examples/arithmetic.md),
 [8008](cpus/8008/examples/arithmetic.md), [6800](cpus/6800/examples/arithmetic.md),
-and [8088](cpus/8088/examples/arithmetic.md) examples are complete.
+[8088](cpus/8088/examples/arithmetic.md), and [68000](cpus/68000/examples/arithmetic.md)
+examples are complete.
 Each example's document records its program, initial state, instruction behavior, expected execution,
 and acceptance checks. The [CPU model contracts](README.md#cpu-models) define
 state ownership, record formats, unsupported-instruction policies, and reset.
@@ -181,8 +182,9 @@ record must make its granularity clear; an instruction-level model does not
 automatically provide a complete cycle-by-cycle bus trace.
 
 The concrete CPU models take a `Ram` instance and explicit initial state.
-`Cpu8008` requires 16 KiB RAM; `Cpu8088` requires 1 MiB; `Cpu8080`, `Cpu6502`,
-`Cpu6800`, `Cpu6809`, and `CpuZ80` require 64 KiB. They copy only declared state
+`Cpu8008` requires 16 KiB RAM; `Cpu8088` requires 1 MiB; `Cpu68000` requires
+16 MiB; `Cpu8080`, `Cpu6502`, `Cpu6800`, `Cpu6809`, and `CpuZ80` require 64 KiB.
+They copy only declared state
 fields, including flags and any nested banks or address arrays, and expose
 `snapshot()` and `step()`.
 Public snapshots and records have readonly TypeScript types and own detached values. Internal CPU
@@ -190,8 +192,11 @@ state stays mutable. Each model uses a discriminated union for step outcomes
 and retains no execution history. The 8008 derives PC from its selected internal
 address register. The 8088 derives physical PC from CS:IP and byte-register
 views from word registers; records use physical RAM addresses and retain the
-logical registers in their snapshots. The runner uses each model's PC view
-through the same snapshot contract.
+logical registers in their snapshots. The 68000 preserves its full 32-bit PC,
+uses the low 24 bits for RAM access, and derives A7 from USP/SSP and supervisor
+mode. The runner compares each model's `snapshot().pc`; a 68000 completion
+address therefore retains all 32 bits. Alignment faults are reported as
+unsupported attempts until address-error exceptions are implemented.
 Restarting an example creates fresh components.
 
 Reset behavior, step outcomes, and lesson completion remain specific to each

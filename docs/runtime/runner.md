@@ -33,6 +33,8 @@ The runner accepts addresses beyond 16 bits so that it does not impose the
 initial CPUs' address width on other models. For the 8088, `endAddress` is the
 physical address derived from `CS:IP`, rather than IP alone; different logical
 addresses that translate to the same physical address match the same endpoint.
+For the 68000, `snapshot().pc` is the full 32-bit register; high-byte aliases
+of the same physical address therefore remain distinct completion addresses.
 The caller chooses an endpoint
 appropriate to its CPU and program; machine definitions retain their own
 address validation.
@@ -85,7 +87,9 @@ TypeScript infers the record type from the supplied CPU. A 6502 run retains
 its non-null instruction and `opcode | decimal-mode` unsupported reasons;
 an 8080 run retains its halted-record union; a 6809 run retains D and both
 stack pointers in snapshots; a Z80 run retains both register banks, P/V, and R;
-an 8088 run retains CS:IP, word registers, derived byte views, and physical PC.
+an 8088 run retains CS:IP, word registers, derived byte views, and physical PC;
+a 68000 run retains long registers, both stack pointers, and alignment-fault
+details, including a null instruction when an odd PC prevents fetching.
 Selecting between CPU types produces the union of their record types. Run-level `stopReason` is separate from each record's
 CPU-level `outcome` and optional `reason`.
 

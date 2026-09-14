@@ -13,6 +13,7 @@ see the [development instructions](../README.md#development).
   and the reasons for testing generalizations across three architectures.
 - [CPU implementation coverage](cpus/coverage.md): current opcode percentages,
   supported forms and features, and remaining gaps across all CPUs.
+  The [68000 count audit](cpus/68000/opcode-count.md) details its denominator.
 - [CPU source organization](cpus/implementation.md): reading order, bit-encoding
   layout, and the separation of handler construction from instruction behavior.
 - [Opcode definition experiment](cpus/opcode-definitions.md): typed encoding
@@ -27,6 +28,7 @@ see the [development instructions](../README.md#development).
 - [Motorola 6809](cpus/6809/model.md)
 - [Zilog Z80](cpus/z80/model.md)
 - [Intel 8088](cpus/8088/model.md)
+- [Motorola 68000](cpus/68000/model.md)
 
 Each model contract defines stored state, initialization, snapshots, execution
 records, unsupported-instruction policies, and CPU reset. Coverage stays in
@@ -47,6 +49,7 @@ The arithmetic examples provide a starting point for following execution.
 | Motorola 6809 | [Load, add, and store](cpus/6809/examples/arithmetic.md) | — | [Two stack pointers](cpus/6809/examples/stack.md) | [Configurable direct page](cpus/6809/examples/addressing.md) | — | [Counted loop](cpus/6809/examples/counted-loop.md) |
 | Zilog Z80 | [Arithmetic and 8080 comparison](cpus/z80/examples/arithmetic.md) | — | — | — | — | [Counted loop](cpus/z80/examples/counted-loop.md) |
 | Intel 8088 | [Word arithmetic and segmented addressing](cpus/8088/examples/arithmetic.md) | — | — | — | — | — |
+| Motorola 68000 | [Long arithmetic and physical addressing](cpus/68000/examples/arithmetic.md) | — | — | — | — | — |
 
 A dash means there is no separate example for that topic. Supported instructions
 and processor features are tracked in the coverage document.
@@ -71,6 +74,8 @@ and processor features are tracked in the coverage document.
   findings from the existing CoCo implementation and their limits.
 - [8088: dromaios-pc](cpus/8088/reference-notes.md): register views, segmented
   addresses, reset differences, and independent hardware-test comparisons.
+- [68000: dromaios-mac](cpus/68000/reference-notes.md): original-68000 state,
+  big-endian accesses, reset, and instruction boundaries.
 
 These notes record evidence and design ideas from earlier projects. The CPU
 and example specifications cite hardware documentation for expected behavior.

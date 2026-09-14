@@ -11,6 +11,8 @@ import type { Cpu6800 } from "../../src/components/cpus/6800.js";
 import { create6800Example } from "../../src/machines/generated/6800/example.js";
 import { create6800CountedLoopExample } from "../../src/machines/generated/6800/counted-loop-example.js";
 import type { Cpu6809 } from "../../src/components/cpus/6809.js";
+import type { Cpu68000 } from "../../src/components/cpus/68000.js";
+import { create68000Example } from "../../src/machines/generated/68000/example.js";
 import type { CpuZ80 } from "../../src/components/cpus/z80.js";
 import { createZ80Example } from "../../src/machines/generated/z80/example.js";
 import type { Ram } from "../../src/components/memory/ram.js";
@@ -35,7 +37,7 @@ import { create6809AddressingExample } from "../../src/machines/generated/6809/a
 
 interface ExampleCase {
   readonly name: string;
-  readonly create: () => { cpu: Cpu8008 | Cpu8080 | Cpu8088 | Cpu6502 | Cpu6800 | Cpu6809 | CpuZ80; ram: Ram; endAddress?: number };
+  readonly create: () => { cpu: Cpu8008 | Cpu8080 | Cpu8088 | Cpu6502 | Cpu6800 | Cpu6809 | Cpu68000 | CpuZ80; ram: Ram; endAddress?: number };
   readonly steps: number;
   readonly pc: number;
   readonly stopReason: "completed" | "halted";
@@ -44,6 +46,8 @@ interface ExampleCase {
 
 // Expectations come from the example specifications, independently of the factories.
 const examples: readonly ExampleCase[] = [
+  { name: "68000 arithmetic", create: create68000Example, steps: 3, pc: 0xab001012, stopReason: "completed",
+    writes: [[0x20082, 0x80], [0x20083, 0], [0x20084, 0], [0x20085, 0]] },
   { name: "8088 arithmetic", create: create8088Example, steps: 3, pc: 0x12449, stopReason: "completed",
     writes: [[0x20081, 1], [0x20082, 0x13]] },
   { name: "8008 arithmetic", create: create8008Example, steps: 6, pc: 10, stopReason: "halted", writes: [[0x80, 5]] },

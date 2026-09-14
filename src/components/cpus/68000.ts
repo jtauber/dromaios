@@ -1,0 +1,240 @@
+import type { Ram } from "../memory/ram.js";
+import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
+import type { StateDescription } from "./state.js";
+import { opcodePattern, opcodeTable } from "./opcodes.ts";
+
+export interface Cpu68000Flags {
+  x: boolean;
+  n: boolean;
+  z: boolean;
+  v: boolean;
+  c: boolean;
+  t: boolean;
+  s: boolean;
+}
+
+export interface Cpu68000State {
+  d0: number;
+  d1: number;
+  d2: number;
+  d3: number;
+  d4: number;
+  d5: number;
+  d6: number;
+  d7: number;
+  a0: number;
+  a1: number;
+  a2: number;
+  a3: number;
+  a4: number;
+  a5: number;
+  a6: number;
+  usp: number;
+  ssp: number;
+  pc: number;
+  interruptMask: number;
+  flags: Cpu68000Flags;
+}
+
+/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
+export const cpu68000StateDescription = defineState({
+  d0: unsigned(32), d1: unsigned(32), d2: unsigned(32), d3: unsigned(32),
+  d4: unsigned(32), d5: unsigned(32), d6: unsigned(32), d7: unsigned(32),
+  a0: unsigned(32), a1: unsigned(32), a2: unsigned(32), a3: unsigned(32),
+  a4: unsigned(32), a5: unsigned(32), a6: unsigned(32),
+  usp: unsigned(32), ssp: unsigned(32), pc: unsigned(32), interruptMask: unsigned(3),
+  flags: group({ x: flag, n: flag, z: flag, v: flag, c: flag, t: flag, s: flag }),
+} satisfies StateDescription<Cpu68000State>);
+
+export type Cpu68000Snapshot = Readonly<Omit<Cpu68000State, "flags">> & {
+  readonly flags: Readonly<Cpu68000Flags>;
+  /** Active stack pointer: SSP in supervisor mode, USP in user mode. */
+  readonly a7: number;
+  /** Low 24 bits of the full 32-bit PC. */
+  readonly physicalPc: number;
+};
+
+export interface Cpu68000MemoryAccess {
+  readonly kind: "read" | "write";
+  /** Physical byte address on the 24-bit memory bus. */
+  readonly address: number;
+  readonly value: number;
+}
+
+export interface Cpu68000Instruction {
+  /** Full 32-bit start address; accesses contain the physical addresses. */
+  readonly address: number;
+  readonly bytes: readonly number[];
+}
+
+export interface Cpu68000AlignmentFault {
+  readonly operation: "fetch" | "write";
+  /** Full address of the unaligned instruction or operand. */
+  readonly address: number;
+}
+
+export type Cpu68000StepRecord = {
+  readonly before: Cpu68000Snapshot;
+  readonly after: Cpu68000Snapshot;
+  readonly accesses: readonly Cpu68000MemoryAccess[];
+} & (
+  | { readonly outcome: "executed"; readonly instruction: Cpu68000Instruction }
+  | { readonly outcome: "unsupported"; readonly reason: "opcode"; readonly instruction: Cpu68000Instruction }
+  | { readonly outcome: "unsupported"; readonly reason: "unaligned-address";
+      readonly instruction: Cpu68000Instruction | null; readonly fault: Cpu68000AlignmentFault }
+);
+
+export interface Cpu68000ResetRecord {
+  readonly before: Cpu68000Snapshot;
+  readonly after: Cpu68000Snapshot;
+  readonly accesses: readonly Cpu68000MemoryAccess[];
+}
+
+interface InstructionContext {
+  readonly fetchLong: () => number;
+  readonly writeLong: (address: number, value: number) => void;
+}
+
+type OpcodeHandler = (instruction: InstructionContext) => Cpu68000AlignmentFault | void;
+
+/** Instruction-level Motorola 68000 subset with 32-bit registers and flat 16 MiB RAM. */
+export class Cpu68000 {
+  readonly #ram: Ram;
+  readonly #state: Cpu68000State;
+
+  constructor(ram: Ram, initialState: Cpu68000State) {
+    if (ram.size !== 0x1000000) throw new RangeError("The 68000 model requires exactly 16 MiB of RAM.");
+    this.#ram = ram;
+    this.#state = readState(cpu68000StateDescription, initialState);
+  }
+
+  /** Inspect detached state, the active stack pointer, and the physical PC without RAM access. */
+  snapshot(): Cpu68000Snapshot {
+    const state = copyState(cpu68000StateDescription, this.#state);
+    return { ...state, a7: state.flags.s ? state.ssp : state.usp, physicalPc: state.pc & 0xffffff };
+  }
+
+  /** Read the external-reset vectors, enter supervisor mode, clear trace, and mask interrupts. */
+  reset(): Cpu68000ResetRecord {
+    const before = this.snapshot();
+    const accesses: Cpu68000MemoryAccess[] = [];
+    this.#state.ssp = this.#readLong(0, accesses);
+    this.#state.pc = this.#readLong(4, accesses);
+    this.#state.flags.s = true;
+    this.#state.flags.t = false;
+    this.#state.interruptMask = 7;
+    // Registers and condition codes not specified by reset retain their supplied values.
+    return { before, after: this.snapshot(), accesses };
+  }
+
+  /** Attempt one instruction; unsupported opcodes and alignment faults preserve all state and RAM. */
+  step(): Cpu68000StepRecord {
+    const before = this.snapshot();
+    const accesses: Cpu68000MemoryAccess[] = [];
+    const address = before.pc;
+    if (address % 2 !== 0) {
+      return { before, after: this.snapshot(), accesses, instruction: null,
+        outcome: "unsupported", reason: "unaligned-address", fault: { operation: "fetch", address } };
+    }
+    const bytes: number[] = [];
+    // Keep a local cursor so a rejected operand leaves the architectural PC unchanged.
+    let cursor = address;
+    const fetchWord = (): number => {
+      const high = this.#read(cursor, accesses);
+      const low = this.#read(cursor + 1, accesses);
+      cursor = (cursor + 2) >>> 0;
+      bytes.push(high, low);
+      return (high << 8) | low;
+    };
+    const opcode = fetchWord();
+    const instruction = { address, bytes };
+    const handler = this.#opcodeHandlers[opcode];
+    if (!handler) {
+      return { before, after: this.snapshot(), accesses, instruction, outcome: "unsupported", reason: "opcode" };
+    }
+    const fault = handler({
+      fetchLong: () => {
+        const high = fetchWord();
+        return ((high << 16) | fetchWord()) >>> 0;
+      },
+      writeLong: (address, value) => this.#writeLong(address, value, accesses),
+    });
+    if (fault) {
+      return { before, after: this.snapshot(), accesses, instruction, fault,
+        outcome: "unsupported", reason: "unaligned-address" };
+    }
+    this.#state.pc = cursor;
+    return { before, after: this.snapshot(), accesses, instruction, outcome: "executed" };
+  }
+
+  // Opcode construction. Each pattern describes one 16-bit operation word.
+
+  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
+    // 0000 0110 ss mmm rrr: ss=10 selects long; EA mmm=000 selects Dn, rrr=000 selects D0.
+    ...opcodePattern("0000 0110 10 000 000", ({ fetchLong }: InstructionContext) => this.#addToD0(fetchLong())), // ADDI.L #n,D0
+
+    // MOVE: 00 ss ddd mmm MMM rrr. ss=10 selects long (01 byte, 11 word).
+    // Destination is register ddd then mode mmm; source is mode MMM then register rrr.
+    // EA mode 000 selects Dn; mode 111 uses register 001 for absolute long, 100 for immediate.
+    ...opcodePattern("00 10 000 000 111 100", ({ fetchLong }: InstructionContext) => this.#loadD0(fetchLong())), // MOVE.L #n,D0
+    ...opcodePattern("00 10 001 111 000 000", ({ fetchLong, writeLong }: InstructionContext) => this.#storeD0(fetchLong(), writeLong)), // MOVE.L D0,(addr).L
+
+    // Other registers, operand sizes, addressing modes, control flow, and exceptions are deferred.
+  ], 16);
+
+  // Loads and stores.
+
+  #loadD0(value: number): void {
+    this.#state.d0 = value;
+    this.#moveFlags(value);
+  }
+
+  #storeD0(address: number, writeLong: InstructionContext["writeLong"]): Cpu68000AlignmentFault | void {
+    // Long operands require word alignment, not four-byte alignment.
+    if (address % 2 !== 0) return { operation: "write", address };
+    writeLong(address, this.#state.d0);
+    this.#moveFlags(this.#state.d0);
+  }
+
+  // Arithmetic and flags.
+
+  #addToD0(value: number): void {
+    const original = this.#state.d0;
+    const sum = original + value;
+    const result = sum >>> 0;
+    this.#state.d0 = result;
+    this.#state.flags.x = this.#state.flags.c = sum > 0xffffffff;
+    this.#state.flags.n = (result & 0x80000000) !== 0;
+    this.#state.flags.z = result === 0;
+    this.#state.flags.v = (~(original ^ value) & (original ^ result) & 0x80000000) !== 0;
+  }
+
+  #moveFlags(value: number): void {
+    this.#state.flags.n = (value & 0x80000000) !== 0;
+    this.#state.flags.z = value === 0;
+    this.#state.flags.v = this.#state.flags.c = false;
+  }
+
+  // Recorded memory access. Only bus addresses discard the high eight bits.
+
+  #read(address: number, accesses: Cpu68000MemoryAccess[]): number {
+    const physical = address & 0xffffff;
+    const value = this.#ram.read(physical);
+    accesses.push({ kind: "read", address: physical, value });
+    return value;
+  }
+
+  #readLong(address: number, accesses: Cpu68000MemoryAccess[]): number {
+    const high = (this.#read(address, accesses) << 8) | this.#read(address + 1, accesses);
+    const low = (this.#read(address + 2, accesses) << 8) | this.#read(address + 3, accesses);
+    return ((high << 16) | low) >>> 0;
+  }
+
+  #writeLong(address: number, value: number, accesses: Cpu68000MemoryAccess[]): void {
+    for (const [offset, byte] of [value >>> 24, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff].entries()) {
+      const physical = (address + offset) & 0xffffff;
+      this.#ram.write(physical, byte);
+      accesses.push({ kind: "write", address: physical, value: byte });
+    }
+  }
+}

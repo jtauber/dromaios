@@ -18,8 +18,8 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
 - Bring **eight initial CPU targets** to the roadmap's
   [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint): Intel 8008,
   Intel 8080, Motorola 6800, MOS 6502, Zilog Z80, Motorola 6809, Intel 8088,
-  and Motorola 68000. Expand the existing cores while introducing the remaining
-  target, the 68000, in a small slice.
+  and Motorola 68000. All eight have initial slices; expand them through
+  instruction-family batches that exercise the checkpoint's capabilities.
 - Defer interrupts and I/O across all eight until that checkpoint is met,
   including interrupt-specific control instructions and memory-mapped devices.
   Ordinary memory and status-register operations remain in scope. Opcode
@@ -42,6 +42,11 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
   byte-register views from stored words. Its [arithmetic example](8088/examples/arithmetic.md)
   exercises the shared runner without changes. The [PC reference review](8088/reference-notes.md)
   records comparisons with `dromaios-pc` and hardware-generated instruction tests.
+- The **68000 is the eighth CPU**. Its [model contract](68000/model.md) preserves
+  32-bit registers on a 24-bit bus and derives the active stack pointer from
+  user/supervisor state. Its [arithmetic example](68000/examples/arithmetic.md)
+  uses word encodings and big-endian long operands. The
+  [Mac reference review](68000/reference-notes.md) records findings from `dromaios-mac`.
 - Choose implementation order independently of the microcomputer tutorial's
   historical teaching order.
 
@@ -155,7 +160,8 @@ programmer-managed stack in RAM. See
 
 The introductory [8080](8080/examples/arithmetic.md), [6502](6502/examples/arithmetic.md),
 [6809](6809/examples/arithmetic.md), [Z80](z80/examples/arithmetic.md), [8008](8008/examples/arithmetic.md),
-[6800](6800/examples/arithmetic.md), and [8088](8088/examples/arithmetic.md) examples are complete.
+[6800](6800/examples/arithmetic.md), [8088](8088/examples/arithmetic.md), and
+[68000](68000/examples/arithmetic.md) examples are complete.
 The [coverage tracker](coverage.md) records current instruction and feature support. The
 [model contracts](../README.md#cpu-models) define state, execution records,
 and reset; [example specifications](../README.md#cpu-examples) define programs

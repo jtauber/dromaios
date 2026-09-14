@@ -73,13 +73,13 @@ Acceptance checks are defined in the [8080 example specification](docs/cpus/8080
   stack operations while checking its distinctions from the 6809.
 - Extend the initial 8088 slice, exercising its word and byte register views,
   segmented addresses, and instruction forms.
-- Introduce a small initial 68000 slice alongside expansion of the existing
-  cores. Let its distinctions test the shared execution and inspection conventions.
+- Extend the initial 68000 slice, exercising long registers, word encodings,
+  effective addresses, and separate user and supervisor stacks.
 
 **Review points:** The runner handles each CPU's stopping behavior correctly.
 Instruction-family additions have explicit expected behavior and documented
 limits. Each of the eight CPUs reaches the capability checkpoint below;
-generalizations remain open to revision as the new architectures arrive.
+generalizations remain open to revision as their instruction families expand.
 
 ### CPU-only checkpoint
 
@@ -104,14 +104,13 @@ checkpoint is met. Existing architectural flags and ordinary memory and
 status-register operations remain in scope. The 8080 can pause at **240/244
 forms (98.4%)**, with `DI`, `EI`, `IN`, and `OUT` deferred.
 
-Expand the implemented cores in reviewable instruction-family batches while
-introducing the 68000 in a small slice. Revisit interrupts and I/O once all
-eight meet the checkpoint.
+All eight now have initial slices. Expand them in reviewable instruction-family
+batches, and revisit interrupts and I/O once all eight meet the checkpoint.
 
 The introductory [8080](docs/cpus/8080/examples/arithmetic.md), [6502](docs/cpus/6502/examples/arithmetic.md),
 [6809](docs/cpus/6809/examples/arithmetic.md), [Z80](docs/cpus/z80/examples/arithmetic.md), [8008](docs/cpus/8008/examples/arithmetic.md),
-[6800](docs/cpus/6800/examples/arithmetic.md), and [8088](docs/cpus/8088/examples/arithmetic.md)
-examples are complete. Their specifications
+[6800](docs/cpus/6800/examples/arithmetic.md), [8088](docs/cpus/8088/examples/arithmetic.md),
+and [68000](docs/cpus/68000/examples/arithmetic.md) examples are complete. Their specifications
 define behavior and acceptance checks; the [coverage tracker](docs/cpus/coverage.md)
 records current support. Focused examples are extending this comparison;
 the [example catalog](docs/README.md#cpu-examples) lists the completed programs.

@@ -4,6 +4,7 @@ import type { Cpu8088State } from "../../src/components/cpus/8088.js";
 import type { Cpu6502State } from "../../src/components/cpus/6502.js";
 import type { Cpu6800State } from "../../src/components/cpus/6800.js";
 import type { Cpu6809State } from "../../src/components/cpus/6809.js";
+import type { Cpu68000State } from "../../src/components/cpus/68000.js";
 import type { CpuZ80State } from "../../src/components/cpus/z80.js";
 import { parseMachine } from "../../src/machines/machine-language.js";
 
@@ -12,6 +13,16 @@ export function checkParsedState(source: string): void {
   const machine = parseMachine(source);
   const endAddress: number | undefined = machine.endAddress;
   switch (machine.cpu) {
+    case "68000": {
+      const state: Cpu68000State = machine.initialState;
+      const size: 0x1000000 = machine.ramSize;
+      const pc: number = state.pc;
+      // @ts-expect-error A7 is derived from the two stored stack pointers.
+      state.a7;
+      // @ts-expect-error The original 68000 has no later-family master bit.
+      state.flags.m;
+      break;
+    }
     case "8088": {
       const state: Cpu8088State = machine.initialState;
       const size: 0x100000 = machine.ramSize;
