@@ -1,6 +1,7 @@
 import type { Ram } from "../memory/ram.js";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
+import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, array, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
@@ -67,13 +68,6 @@ export interface Cpu8008ResetRecord {
   readonly accesses: readonly Cpu8008MemoryAccess[];
 }
 
-interface InstructionContext {
-  readonly fetchByte: () => number;
-  readonly fetchAddress: () => number;
-  readonly readByte: (address: number) => number;
-  readonly writeByte: (address: number, value: number) => void;
-}
-
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperand = "a" | "b" | "c" | "d" | "e" | "h" | "l" | "m";
 type StoredState = Omit<Cpu8008State, "addressStack"> & { addressStack: Cpu8008AddressStack };
@@ -126,10 +120,10 @@ export class Cpu8008 {
       };
       handler({
         fetchByte,
-        fetchAddress: () => {
+        fetchWord: () => {
           const low = fetchByte();
           const high = fetchByte();
-          return ((high & 0x3f) << 8) | low;
+          return (high << 8) | low;
         },
         readByte,
         writeByte,
@@ -207,12 +201,12 @@ export class Cpu8008 {
 
     // 01 ccc 000/010: conditional jump/call; ccc = vff uses the same conditions as returns.
     // Both paths fetch llllllll, xxhhhhhh (low byte first), ignoring the high two address bits.
-    ...opcodeFamily("01 ccc 000", { c: this.#conditions }, ({ c: condition }) => ({ fetchAddress }: InstructionContext) => this.#jump(fetchAddress(), condition())), // JFc / JTc addr
-    ...opcodeFamily("01 ccc 010", { c: this.#conditions }, ({ c: condition }) => ({ fetchAddress }: InstructionContext) => this.#call(fetchAddress(), condition())), // CFc / CTc addr
+    ...opcodeFamily("01 ccc 000", { c: this.#conditions }, ({ c: condition }) => ({ fetchWord }: InstructionContext) => this.#jump(fetchWord(), condition())), // JFc / JTc addr
+    ...opcodeFamily("01 ccc 010", { c: this.#conditions }, ({ c: condition }) => ({ fetchWord }: InstructionContext) => this.#call(fetchWord(), condition())), // CFc / CTc addr
 
     // 01 xxx 100/110: unconditional JMP/CAL; xxx is ignored, not a condition.
-    ...opcodePattern("01 xxx 100", ({ fetchAddress }: InstructionContext) => this.#jump(fetchAddress())), // JMP addr
-    ...opcodePattern("01 xxx 110", ({ fetchAddress }: InstructionContext) => this.#call(fetchAddress())), // CAL addr
+    ...opcodePattern("01 xxx 100", ({ fetchWord }: InstructionContext) => this.#jump(fetchWord())), // JMP addr
+    ...opcodePattern("01 xxx 110", ({ fetchWord }: InstructionContext) => this.#call(fetchWord())), // CAL addr
 
     // RST and I/O remain unsupported.
 
@@ -243,7 +237,7 @@ export class Cpu8008 {
   // Control flow.
 
   #jump(address: number, taken = true): void {
-    if (taken) this.#pc = address;
+    if (taken) this.#pc = address & 0x3fff;
   }
 
   #call(address: number, taken = true): void {
@@ -251,7 +245,7 @@ export class Cpu8008 {
     // All three bytes have advanced the caller's slot to the return address.
     // The next physical slot becomes PC; an eighth nested call overwrites the oldest return.
     this.#state.stackIndex = (this.#state.stackIndex + 1) & 7;
-    this.#pc = address;
+    this.#jump(address);
   }
 
   #return(taken = true): void {

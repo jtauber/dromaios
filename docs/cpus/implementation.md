@@ -9,7 +9,8 @@ clarity, elegance, then performance.
 
 1. **Types and state descriptions.** Public flags, stored state, its runtime
    description, snapshots, instruction/access records, and outcomes come first.
-   Keep internal instruction-context types and small snapshot-view helpers nearby.
+   Keep CPU-specific instruction-context extensions and small snapshot-view
+   helpers nearby; import the shared contexts where they fit.
 2. **Stored fields and public API.** Start the class with its owned state and
    memory connection, then the constructor, `snapshot()`, `reset()`, and `step()`.
    A reader should be able to follow the execution contract before decoding details.
@@ -145,6 +146,38 @@ Use family builders when they reveal an encoding relationship and remove useful
 duplication. Keep them aligned with encoded subgroup boundaries and retain
 explicit exceptional entries. This convention does not require a common decoder,
 CPU base class, or definition language.
+
+## Shared instruction contexts
+
+The [instruction-context types](../../src/components/cpus/instruction-context.ts)
+describe the callbacks available to an opcode handler:
+
+| Type | Callbacks |
+| --- | --- |
+| `ByteMemory` | `readByte`, `writeByte` |
+| `ByteInstructionContext` | Byte-memory callbacks plus `fetchByte` |
+| `WordInstructionContext` | Byte context plus `fetchWord` for a 16-bit operand |
+
+`ByteMemory` lives beside the [memory recorder](../../src/components/cpus/memory-access.ts).
+`RecordedMemory` extends it with an access log. Instruction contexts expose the
+callbacks without exposing that log, and all callback properties are readonly.
+
+The 8008, 8080, 6502, 6800, 6809, Z80, and 8088 import `WordInstructionContext`
+as their local `InstructionContext`. The 8008 fetches a full two-byte operand
+and masks it to a 14-bit address when jumping or calling. The 68000 currently
+declares its own two callbacks, `fetchLong` and `writeLong`.
+Contexts require the operations they advertise; unavailable operations are
+absent rather than optional.
+
+These are shared types only. Each CPU constructs its callbacks in `step()`:
+instruction fetches track fetched bytes and advance PC according to that
+CPU's execution policy, while data accesses leave the instruction stream alone.
+Byte order, address masking, alignment, and rejection rules stay in the CPU.
+Handler return types also remain local, including the 68000's alignment fault.
+
+[Type checks](../../tests/types/instruction-context.ts) cover required callbacks
+and readonly inheritance. Existing CPU tests retain their independent execution
+expectations.
 
 ## Shared memory-access recording
 

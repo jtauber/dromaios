@@ -7,10 +7,14 @@ export interface MemoryAccess {
   readonly value: number;
 }
 
-export interface RecordedMemory {
-  readonly accesses: readonly MemoryAccess[];
+/** Byte-memory callbacks; their caller selects the addresses to access. */
+export interface ByteMemory {
   readonly readByte: (address: number) => number;
   readonly writeByte: (address: number, value: number) => void;
+}
+
+export interface RecordedMemory extends ByteMemory {
+  readonly accesses: readonly MemoryAccess[];
 }
 
 /** Create a fresh access log for one step or reset. Creation does not access RAM. */

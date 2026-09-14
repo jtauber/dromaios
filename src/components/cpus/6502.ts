@@ -1,6 +1,7 @@
 import type { Ram } from "../memory/ram.js";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
+import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
@@ -55,13 +56,6 @@ export interface Cpu6502ResetRecord {
   readonly before: Cpu6502Snapshot;
   readonly after: Cpu6502Snapshot;
   readonly accesses: readonly Cpu6502MemoryAccess[];
-}
-
-interface InstructionContext {
-  readonly fetchByte: () => number;
-  readonly fetchWord: () => number;
-  readonly readByte: (address: number) => number;
-  readonly writeByte: (address: number, value: number) => void;
 }
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
