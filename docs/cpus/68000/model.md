@@ -64,6 +64,15 @@ addresses. Machine images must fit RAM; loading an image never wraps.
 
 ## Stepping and records
 
+The current data-register families cover all D0–D7 choices. `MOVE.L #n,Dn`
+and `ADDI.L #n,Dn` fetch a long immediate. `MOVE.L Dn,(addr).L` stores the
+selected register to an absolute long address. `MOVE.L Dm,Dn` and
+`MOVEQ #n,Dn` consist of the operation word alone. MOVEQ's low eight bits
+are a signed immediate, extended to the full 32-bit destination; bit 8 must
+be zero. All register transfers replace the full destination, including
+self-transfers, and update MOVE flags. The
+[transfer example](examples/transfers.md) specifies a program using every family.
+
 `step()` attempts one instruction using current RAM. The
 [coverage tracker](../coverage.md#68000) lists the exact supported operation
 words. Each successful instruction returns:
@@ -134,7 +143,8 @@ in that manual are excluded.
 
 [CPU tests](../../../tests/components/cpus/68000.test.ts) check state ownership,
 validation, every unsupported operation word, arithmetic boundaries against a
-BigInt oracle, every incoming flag pattern, byte order, logical and physical
-wrapping, alignment rejection, reset, current RAM, overlapping stores, and
-detached records. [Public type checks](../../../tests/types/68000.ts) establish
+BigInt oracle, every register pair and MOVEQ byte, every incoming flag pattern,
+byte order, logical and physical wrapping, alignment rejection, reset, current
+RAM, overlapping stores, and detached records.
+[Public type checks](../../../tests/types/68000.ts) establish
 readonly records, outcome narrowing, and concrete runner results.

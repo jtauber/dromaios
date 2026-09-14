@@ -13,16 +13,33 @@ emulators do not count toward implementation here.
 
 ## At a glance
 
-| Model | Introduced | Complete / documented opcode forms | Opcode completion | Additional partial forms |
-| --- | --- | --- | --- | --- |
-| [Intel 8008](#8008) | 1972 | 32 / 250 | 12.8% | 0 |
-| [Intel 8080](#8080) | 1974 | 240 / 244 | 98.4% | 0 |
-| [Motorola 6800](#6800) | 1974 | 25 / 197 | 12.7% | 0 |
-| [MOS 6502](#6502) | 1975 | 25 / 151 | 16.6% | 1: binary-only ADC |
-| [Zilog Z80](#z80) | 1976 | 30 / 698 | 4.3% | 0 |
-| [Motorola 6809](#6809) | 1978 | 30 / 268 | 11.2% | 0 |
-| [Intel 8088](#8088) | 1979 | 3 / 291 | 1.0% | 0 |
-| [Motorola 68000](#68000) | 1979 | 3 / 36,029 | <0.1% | 0 |
+| Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
+| --- | --- | ---: | ---: | --- | --- |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [240](../../src/components/cpus/8008.ts) | 32 / 250 | 12.8% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [693](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [232](../../src/components/cpus/6800.ts) | 25 / 197 | 12.7% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [259](../../src/components/cpus/6502.ts) | 25 / 151 | 16.6% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [303](../../src/components/cpus/z80.ts) | 30 / 698 | 4.3% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [340](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [221](../../src/components/cpus/8088.ts) | 3 / 291 | 1.0% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [255](../../src/components/cpus/68000.ts) | 96 / 36,029 | 0.3% |
+
+[intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
+[6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
+[6502-transistors]: http://www.visual6502.org/docs/6502_in_action_14_web.pdf "Visual6502: Visualizing a Classic CPU in Action"
+[z80-transistors]: https://bitsavers.computerhistory.org/magazines/Datamation/19781115.pdf "Zilog die photograph and caption, Datamation, November 15, 1978, page 18"
+[6809-transistors]: https://classiccmp.org/mailman3/hyperkitty/list/test-drb%40ccmp.vtda.org/message/FQT5Q6A5Z72YYRFD2XIYELPGINCANG3U/ "Microprocessor Report figures, as transcribed by Mike Cheponis in May 2001"
+[68000-transistors]: https://www.eetimes.com/motorolas-68000-microprocessor-receives-technology-award/ "Motorola Semiconductor Products Sector announcement, November 1996"
+
+Transistor figures describe the original chips and link to their sources.
+Treat them as approximate historical counts: conventions differ, including
+whether pull-up devices and unused transistor sites are included. The 6502
+figure follows Visual6502's 3,510-transistor model; the 6809 figure comes from
+an archived transcription of Microprocessor Report data.
+
+Source lines count the entire linked CPU implementation file, including
+comments and blank lines, using `wc -l`. Shared helpers, tests, and machine
+definitions are excluded. These counts describe the current incomplete models.
 
 Completed examples are linked in each CPU section below and grouped by topic
 in the [example catalog](../README.md#cpu-examples).
@@ -129,7 +146,9 @@ immediates, ADDQ/SUBQ and shift counts, branch displacements, and TRAP vectors
 are collapsed. Index extension words and MOVEM register masks do not multiply
 forms, but each form must support all its documented choices to be complete.
 The [count audit](68000/opcode-count.md) gives the permitted address sets and
-family arithmetic. This first slice's 3 / 36,029 is approximately 0.0083%.
+family arithmetic. The current data-register subset has 88 long-operation
+forms and eight MOVEQ forms. Those eight MOVEQ forms accept 2,048 operation
+words because the low byte is an immediate operand, not an additional form.
 
 ## Support shared by the current models
 
@@ -868,21 +887,31 @@ passed all 15,089 unprefixed cases supplied for these three encodings.
 [Mac reference review](68000/reference-notes.md) ·
 [Opcode-count audit](68000/opcode-count.md)
 
-| Operation word | Instruction | Addressing form | Length | Scope |
+[Transfer example](68000/examples/transfers.md) ·
+[Transfer definition](../../src/machines/68000/transfers-example.machine)
+
+The operation-word patterns below are binary. Register fields `ddd` and `rrr`
+select D0–D7 in numeric order; `iiiiiiii` is MOVEQ's signed immediate byte.
+All combinations shown are supported, including register self-transfers.
+
+| Operation-word pattern | Instruction | Forms | Length | Scope |
 | --- | --- | --- | --- | --- |
-| `0680` | `ADDI.L #n,D0` | Immediate long | 6 | Unsigned long result; set X/N/Z/V/C, preserve T/S and interrupt mask |
-| `203C` | `MOVE.L #n,D0` | Immediate long | 6 | Load D0; set N/Z, clear V/C, preserve X and control state |
-| `23C0` | `MOVE.L D0,(addr).L` | Absolute long | 6 | Store high byte first at an even address; set N/Z, clear V/C, preserve X and control state |
+| `0000 0110 10 000 rrr` | `ADDI.L #n,Dn` | 8 | 6 | Unsigned long result; set X/N/Z/V/C, preserve T/S and interrupt mask |
+| `00 10 ddd 000 000 rrr` | `MOVE.L Dm,Dn` | 64 | 2 | Replace the full destination and preserve the source; set N/Z, clear V/C, preserve X and control state |
+| `00 10 ddd 000 111 100` | `MOVE.L #n,Dn` | 8 | 6 | Load the full long; set N/Z, clear V/C, preserve X and control state |
+| `00 10 001 111 000 rrr` | `MOVE.L Dn,(addr).L` | 8 | 6 | Store high byte first at an even address; set N/Z, clear V/C, preserve X and control state |
+| `0111 rrr 0 iiiiiiii` | `MOVEQ #n,Dn` | 8 | 2 | Sign-extend the embedded byte to a long; set N/Z, clear V/C, preserve X and control state |
 
 | Area | Implemented scope |
 | --- | --- |
 | Stored state | D0–D7, A0–A6, USP/SSP, and PC as unsigned 32-bit values; X/N/Z/V/C/T/S and three-bit interrupt mask |
 | Views | A7 derived from S and USP/SSP; physical PC derived from the low 24 bits of PC |
+| Data-register families | All D0–D7 choices for long immediate load/add/store, register transfers, and MOVEQ; no register or quick transfer extension fetches |
 | Memory | Exactly 16 MiB; mask addresses at RAM access, preserving full register values; big-endian words and longs |
 | Instruction fetching | Even PC; 16-bit operation word; 32-bit immediate/address extensions; sequential PC wraps at 32 bits |
 | Alignment | Word alignment for instructions and long operands; odd addresses rejected without state changes; address-error exceptions deferred |
 | Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts; preserve other registers, condition codes, and RAM under the documented policy |
-| Remaining scope | Other registers and sizes, effective-address families, logic, branches, calls/returns, stack operations, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
+| Remaining scope | Address-register operations, byte/word sizes, other effective-address families, logic, branches, calls/returns, stack operations, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [example tests](../../tests/machines/68000/example.test.ts), and
@@ -895,6 +924,16 @@ The example checks literal complete traces, actual RAM calls, full memory images
 logical completion, bounded resumption, reset, and restart. Parser and generator
 checks cover unsigned long state, derived-view rejection, 16 MiB bounds, and
 32-bit completion addresses without relaxing the smaller CPUs' limits.
+
+Register-family checks cover every data register, all 64 transfer pairs,
+self-transfers, every embedded MOVEQ byte, and all incoming flag patterns.
+Literal operation words provide expectations independently of the pattern helper.
+Further checks cover reserved MOVEQ encodings, two-byte PC wrapping, current
+register values and modified immediates, and rejected stores followed by corrected
+operands. The [transfer example tests](../../tests/machines/68000/transfers-example.test.ts)
+verify all five families together, carry versus overflow, complete traces,
+actual RAM calls, full memory images with sentinels, snapshot restoration,
+bounded resumption, reset and rerunning, and detached records.
 
 ## CPUs and variants not started
 
@@ -922,6 +961,12 @@ its counting rules when implementation starts.
 
 When support changes, update the relevant opcode rows, complete and partial
 counts, percentages, restrictions, and feature status in the same change.
+Refresh source-line counts whenever a CPU implementation file changes:
+
+```sh
+wc -l src/components/cpus/{8008,8080,6800,6502,z80,6809,8088,68000}.ts
+```
+
 Keep each denominator tied to its stated CPU variant and counting rules.
 Link to the tests, model contracts, and example specifications that establish
 the behavior. Keep current progress here; update the relevant contract or

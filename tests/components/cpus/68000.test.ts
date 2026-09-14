@@ -5,6 +5,24 @@ import type { Cpu68000Flags, Cpu68000State, Cpu68000Snapshot, Cpu68000MemoryAcce
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 
+// Literal operation words from the manual, independent of the core's pattern expansion.
+// Each transfer row has this destination and sources D0–D7, in that order.
+const registerForms = [
+  { register: "d0", load: 0x203c, add: 0x0680, store: 0x23c0, quick: 0x7000, moves: [0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005, 0x2006, 0x2007] },
+  { register: "d1", load: 0x223c, add: 0x0681, store: 0x23c1, quick: 0x7200, moves: [0x2200, 0x2201, 0x2202, 0x2203, 0x2204, 0x2205, 0x2206, 0x2207] },
+  { register: "d2", load: 0x243c, add: 0x0682, store: 0x23c2, quick: 0x7400, moves: [0x2400, 0x2401, 0x2402, 0x2403, 0x2404, 0x2405, 0x2406, 0x2407] },
+  { register: "d3", load: 0x263c, add: 0x0683, store: 0x23c3, quick: 0x7600, moves: [0x2600, 0x2601, 0x2602, 0x2603, 0x2604, 0x2605, 0x2606, 0x2607] },
+  { register: "d4", load: 0x283c, add: 0x0684, store: 0x23c4, quick: 0x7800, moves: [0x2800, 0x2801, 0x2802, 0x2803, 0x2804, 0x2805, 0x2806, 0x2807] },
+  { register: "d5", load: 0x2a3c, add: 0x0685, store: 0x23c5, quick: 0x7a00, moves: [0x2a00, 0x2a01, 0x2a02, 0x2a03, 0x2a04, 0x2a05, 0x2a06, 0x2a07] },
+  { register: "d6", load: 0x2c3c, add: 0x0686, store: 0x23c6, quick: 0x7c00, moves: [0x2c00, 0x2c01, 0x2c02, 0x2c03, 0x2c04, 0x2c05, 0x2c06, 0x2c07] },
+  { register: "d7", load: 0x2e3c, add: 0x0687, store: 0x23c7, quick: 0x7e00, moves: [0x2e00, 0x2e01, 0x2e02, 0x2e03, 0x2e04, 0x2e05, 0x2e06, 0x2e07] },
+] as const;
+type DataRegister = typeof registerForms[number]["register"];
+
+function wordBytes(value: number): number[] {
+  return [Math.floor(value / 256), value % 256];
+}
+
 function flags(bits: number): Cpu68000Flags {
   return { x: Boolean(bits & 1), n: Boolean(bits & 2), z: Boolean(bits & 4), v: Boolean(bits & 8),
     c: Boolean(bits & 16), t: Boolean(bits & 32), s: Boolean(bits & 64) };
@@ -31,21 +49,21 @@ function moveFlags(before: Cpu68000Flags, value: number): Cpu68000Flags {
 }
 
 // BigInt unsigned arithmetic and signed ranges are independent of the core's bitwise formulas.
-function addition(before: Cpu68000State, operand: number): Cpu68000State {
-  const total = BigInt(before.d0) + BigInt(operand);
+function addition(before: Cpu68000State, operand: number, register: DataRegister = "d0"): Cpu68000State {
+  const total = BigInt(before[register]) + BigInt(operand);
   const result = Number(total % 4294967296n);
-  const signedTotal = BigInt.asIntN(32, BigInt(before.d0)) + BigInt.asIntN(32, BigInt(operand));
-  return { ...before, d0: result, pc: (before.pc + 6) % 4294967296,
+  const signedTotal = BigInt.asIntN(32, BigInt(before[register])) + BigInt.asIntN(32, BigInt(operand));
+  return { ...before, [register]: result, pc: (before.pc + 6) % 4294967296,
     flags: { ...before.flags, x: total >= 4294967296n, c: total >= 4294967296n, n: result >= 2147483648,
       z: result === 0, v: signedTotal < -2147483648n || signedTotal > 2147483647n } };
 }
 
 function checkStep(ram: ObservedRam, before: Cpu68000State, bytes: readonly number[], after: Cpu68000State,
-  writes: readonly Cpu68000MemoryAccess[] = []): void {
+  writes: readonly Cpu68000MemoryAccess[] = [], runningCpu?: Cpu68000): void {
   const reads = bytes.map((value, offset) => ({ kind: "read" as const, address: (before.pc + offset) % 16777216, value }));
   for (const { address, value } of reads) ram.write(address, value);
   ram.accesses.length = 0;
-  const cpu = new Cpu68000(ram, before);
+  const cpu = runningCpu ?? new Cpu68000(ram, before);
   const accesses = [...reads, ...writes];
   assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after),
     instruction: { address: before.pc, bytes }, outcome: "executed", accesses });
@@ -119,15 +137,17 @@ test("68000 validates eighteen unsigned long registers, a three-bit mask, seven 
   assert.deepEqual(ram.accesses, []);
 });
 
-test("68000 long loads and stores use all 32 bits, set NZ, clear VC, and preserve X and control state", () => {
+test("68000 long loads and stores select every data register, set NZ, clear VC, and preserve X and control state", () => {
   const ram = new ObservedRam(0x1000000);
-  for (let bits = 0; bits < 128; bits++) {
-    for (const value of [0, 1, 0xffff, 0x10000, 0x7fffffff, 0x80000000, 0xff00ff00, 0xffffffff]) {
-      const before = initialState({ d0: value, flags: flags(bits), interruptMask: bits % 8 });
-      const after = { ...before, pc: 0xab001006, flags: moveFlags(before.flags, value) };
-      checkStep(ram, { ...before, d0: 0x12345678 }, [0x20, 0x3c, ...longBytes(value)], after);
-      checkStep(ram, before, [0x23, 0xc0, 0xcd, 2, 0, 0x82], after,
-        longBytes(value).map((byte, offset) => ({ kind: "write", address: 0x20082 + offset, value: byte })));
+  for (const { register, load, store } of registerForms) {
+    for (let bits = 0; bits < 128; bits++) {
+      for (const value of [0, 1, 0xffff, 0x10000, 0x7fffffff, 0x80000000, 0xff00ff00, 0xffffffff]) {
+        const before = initialState({ [register]: value, flags: flags(bits), interruptMask: bits % 8 });
+        const after = { ...before, pc: 0xab001006, flags: moveFlags(before.flags, value) };
+        checkStep(ram, { ...before, [register]: 0x12345678 }, [...wordBytes(load), ...longBytes(value)], after);
+        checkStep(ram, before, [...wordBytes(store), 0xcd, 2, 0, 0x82], after,
+          longBytes(value).map((byte, offset) => ({ kind: "write", address: 0x20082 + offset, value: byte })));
+      }
     }
   }
 });
@@ -145,12 +165,69 @@ test("68000 ADDI.L checks carry and signed overflow at byte, word, and long boun
   }
 });
 
+test("68000 ADDI.L selects every data register and replaces XNZVC without changing other state", () => {
+  const ram = new ObservedRam(0x1000000);
+  const pairs = [[0, 0], [0xffff, 1], [0x7fffffff, 1], [0x80000000, 0x80000000],
+    [0xffffffff, 1], [0xffffffff, 0xffffffff], [0x80000000, 0xffffffff]] as const;
+  for (const { register, add } of registerForms) {
+    for (let bits = 0; bits < 128; bits++) {
+      for (const [value, operand] of pairs) {
+        const before = initialState({ [register]: value, flags: flags(bits), interruptMask: bits % 8 });
+        checkStep(ram, before, [...wordBytes(add), ...longBytes(operand)], addition(before, operand, register));
+      }
+    }
+  }
+});
+
+test("68000 register MOVE covers all 64 pairs including self-transfers, preserves sources, and updates flags", () => {
+  const ram = new ObservedRam(0x1000000);
+  const values = [0, 1, 0xffff, 0x10000, 0x7fffffff, 0x80000000, 0xff00ff00, 0xffffffff];
+  for (const { register: destination, moves } of registerForms) {
+    for (const [sourceIndex, { register: source }] of registerForms.entries()) {
+      for (let bits = 0; bits < 128; bits++) {
+        const value = values[(bits + sourceIndex) % values.length]!;
+        const before = initialState({ [source]: value, flags: flags(bits), interruptMask: bits % 8 });
+        const after = { ...before, [destination]: value, pc: 0xab001002, flags: moveFlags(before.flags, value) };
+        checkStep(ram, before, wordBytes(moves[sourceIndex]!), after);
+      }
+    }
+  }
+});
+
+test("68000 MOVEQ covers every embedded byte and destination, sign-extends to the full long, and fetches no extension", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const { register, quick } of registerForms) {
+    for (let byte = 0; byte < 256; byte++) {
+      const value = Number(BigInt.asUintN(32, BigInt.asIntN(8, BigInt(byte))));
+      for (const bits of [0, 127]) {
+        const before = initialState({ flags: flags(bits), interruptMask: bits % 8 });
+        const after = { ...before, [register]: value, pc: 0xab001002, flags: moveFlags(before.flags, value) };
+        checkStep(ram, before, wordBytes(quick + byte), after);
+      }
+    }
+    for (let bits = 0; bits < 128; bits++) {
+      for (const [byte, value] of [[0, 0], [0x7f, 0x7f], [0x80, 0xffffff80], [0xff, 0xffffffff]] as const) {
+        const before = initialState({ flags: flags(bits), interruptMask: bits % 8 });
+        checkStep(ram, before, wordBytes(quick + byte),
+          { ...before, [register]: value, pc: 0xab001002, flags: moveFlags(before.flags, value) });
+      }
+    }
+  }
+});
+
 test("68000 ADDI.L sweeps every low word across positive, negative, and unsigned carry boundaries", () => {
   const ram = new ObservedRam(0x1000000);
   for (const high of [0, 0x7fff0000, 0xffff0000]) {
+    let before = initialState();
+    const cpu = new Cpu68000(ram, before);
     for (let low = 0; low < 65536; low++) {
-      const before = initialState({ d0: high + low });
-      checkStep(ram, before, [6, 0x80, 0, 1, 0, 1], addition(before, 0x10001));
+      // Run a sequence of load/add pairs, retaining independently predicted state.
+      // This exercises the same operand sweep without rebuilding a decoder for each pair.
+      const loaded = { ...before, d0: high + low, pc: before.pc + 6, flags: moveFlags(before.flags, high + low) };
+      checkStep(ram, before, [0x20, 0x3c, ...longBytes(high + low)], loaded, [], cpu);
+      const after = addition(loaded, 0x10001);
+      checkStep(ram, loaded, [6, 0x80, 0, 1, 0, 1], after, [], cpu);
+      before = after;
     }
   }
 });
@@ -161,6 +238,19 @@ test("68000 fetches wrap the physical bus independently of the full PC and read 
     const before = initialState({ pc });
     checkStep(ram, before, [0x20, 0x3c, 0x89, 0xab, 0xcd, 0xef],
       { ...before, d0: 0x89abcdef, pc: (pc + 6) % 4294967296, flags: moveFlags(before.flags, 0x89abcdef) });
+  }
+});
+
+test("68000 register and quick moves wrap PC after one operation word and keep the full selected value", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const pc of [0x12fffffe, 0xfffffffe]) {
+    for (const { register, moves, quick } of registerForms) {
+      const before = initialState({ pc });
+      checkStep(ram, before, wordBytes(moves[7]), { ...before, [register]: before.d7,
+        pc: (pc + 2) % 4294967296, flags: moveFlags(before.flags, before.d7) });
+      checkStep(ram, before, wordBytes(quick + 0x80), { ...before, [register]: 0xffffff80,
+        pc: (pc + 2) % 4294967296, flags: moveFlags(before.flags, 0xffffff80) });
+    }
   }
 });
 
@@ -178,8 +268,11 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
   const ram = new ObservedRam(0x1000000);
   const before = snapshot(initialState());
   const cpu = new Cpu68000(ram, before);
+  const supported = new Set(registerForms.flatMap(({ load, add, store, quick, moves }) =>
+    [load, add, store, ...moves, ...Array.from({ length: 256 }, (_, byte) => quick + byte)]));
+  assert.equal(supported.size, 2136); // 88 long forms plus 8 × 256 embedded MOVEQ operands.
   for (let opcode = 0; opcode < 65536; opcode++) {
-    if ([0x203c, 0x0680, 0x23c0].includes(opcode)) continue;
+    if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
     ram.write(0x1000, bytes[0]!);
     ram.write(0x1001, bytes[1]!);
@@ -215,6 +308,52 @@ test("68000 rejects odd instruction addresses before reading and odd store addre
       assert.deepEqual(ram.accesses, accesses);
     }
   }
+});
+
+test("68000 every register store rejects odd addresses atomically and writes current values across the bus boundary", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const { register, store } of registerForms) {
+    const state = initialState();
+    const bytes = [...wordBytes(store), 0xff, 0xff, 0xff, 0xff];
+    bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
+    ram.accesses.length = 0;
+    const cpu = new Cpu68000(ram, state);
+    const accesses = bytes.map((value, offset) => ({ kind: "read", address: 0x1000 + offset, value }));
+    const rejected = cpu.step();
+    assert.deepEqual(rejected, { outcome: "unsupported", reason: "unaligned-address", before: snapshot(state), after: snapshot(state),
+      instruction: { address: state.pc, bytes }, accesses, fault: { operation: "write", address: 0xffffffff } });
+    assert.deepEqual(ram.accesses, accesses);
+    const saved = structuredClone(rejected);
+    const writes = longBytes(state[register]).map((value, offset) => ({ kind: "write" as const,
+      address: (0xfffffe + offset) % 16777216, value }));
+    checkStep(ram, state, [...wordBytes(store), 0xff, 0xff, 0xff, 0xfe],
+      { ...state, pc: 0xab001006, flags: moveFlags(state.flags, state[register]) }, writes, cpu);
+    assert.deepEqual(rejected, saved);
+  }
+});
+
+test("68000 handlers read current registers and fetch modified embedded immediates on later steps", () => {
+  const ram = new ObservedRam(0x1000000);
+  const before = initialState();
+  const cpu = new Cpu68000(ram, before);
+  const quick = { ...before, d7: 0xffffff80, pc: 0xab001002, flags: moveFlags(before.flags, 0xffffff80) };
+  checkStep(ram, before, [0x7e, 0x80], quick, [], cpu);
+  const move = { ...quick, d2: 0xffffff80, pc: 0xab001004 };
+  checkStep(ram, quick, [0x24, 0x07], move, [], cpu);
+  const add = addition(move, 0x80, "d2");
+  checkStep(ram, move, [6, 0x82, 0, 0, 0, 0x80], add, [], cpu);
+  // Store D2=0 over a later MOVEQ operand word that originally encodes -1.
+  ram.write(0x1011, 0xff);
+  const stored = { ...add, pc: 0xab001010, flags: moveFlags(add.flags, 0) };
+  checkStep(ram, add, [0x23, 0xc2, 0xab, 0, 0x10, 0x10], stored,
+    [0, 1, 2, 3].map(offset => ({ kind: "write", address: 0x1010 + offset, value: 0 })), cpu);
+  ram.write(0x1010, 0x76); // Restore only the opcode's high byte: the next immediate is now zero.
+  ram.accesses.length = 0;
+  const record = cpu.step();
+  assert.deepEqual(record, { before: snapshot(stored), after: snapshot({ ...stored, d3: 0, pc: 0xab001012 }),
+    instruction: { address: 0xab001010, bytes: [0x76, 0] }, outcome: "executed",
+    accesses: [{ kind: "read", address: 0x1010, value: 0x76 }, { kind: "read", address: 0x1011, value: 0 }] });
+  assert.deepEqual(ram.accesses, record.accesses);
 });
 
 test("68000 reset reads current vectors high byte first and preserves unspecified registers, USP, and condition codes", () => {

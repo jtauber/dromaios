@@ -36,7 +36,7 @@ with `>>> 0`, including high-bit immediates and both reset vectors.
 
 The [instruction definitions](https://github.com/jtauber/dromaios-mac/blob/9fa206830687b3ccdec4943d7ea5e318d6ba05ee/js/instructions.js)
 illustrate MOVE's asymmetric layout: destination register/mode precedes source
-mode/register. Dromaios's table explains that full layout beside fixed patterns.
+mode/register. Dromaios's table explains that full layout beside family patterns.
 The reference's MOVE generation includes byte sources in address registers;
 the original instruction disallows those. Future effective-address expansion
 must follow the manual's permitted sets, not fill every selector combination.

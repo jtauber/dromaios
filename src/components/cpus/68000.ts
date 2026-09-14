@@ -1,7 +1,7 @@
 import type { Ram } from "../memory/ram.js";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
-import { opcodePattern, opcodeTable } from "./opcodes.ts";
+import { opcodeFamily, opcodeTable } from "./opcodes.ts";
 
 export interface Cpu68000Flags {
   x: boolean;
@@ -96,6 +96,7 @@ interface InstructionContext {
 }
 
 type OpcodeHandler = (instruction: InstructionContext) => Cpu68000AlignmentFault | void;
+type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
 
 /** Instruction-level Motorola 68000 subset with 32-bit registers and flat 16 MiB RAM. */
 export class Cpu68000 {
@@ -167,42 +168,56 @@ export class Cpu68000 {
     return { before, after: this.snapshot(), accesses, instruction, outcome: "executed" };
   }
 
-  // Opcode construction. Each pattern describes one 16-bit operation word.
+  // Opcode selectors and construction. Register fields encode D0–D7 in numeric order.
+
+  readonly #dataRegisters = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
+  readonly #immediateBytes = Array.from({ length: 0x100 }, (_, value) => value);
 
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // 0000 0110 ss mmm rrr: ss=10 selects long; EA mmm=000 selects Dn, rrr=000 selects D0.
-    ...opcodePattern("0000 0110 10 000 000", ({ fetchLong }: InstructionContext) => this.#addToD0(fetchLong())), // ADDI.L #n,D0
+    // 0000 0110 ss mmm rrr: ss=10 selects long (00 byte, 01 word); EA mmm=000 selects Dn.
+    ...opcodeFamily("0000 0110 10 000 rrr", { r: this.#dataRegisters }, ({ r: register }) => ({ fetchLong }: InstructionContext) => this.#addToRegister(register, fetchLong())), // ADDI.L #n,Dn
 
     // MOVE: 00 ss ddd mmm MMM rrr. ss=10 selects long (01 byte, 11 word).
     // Destination is register ddd then mode mmm; source is mode MMM then register rrr.
     // EA mode 000 selects Dn; mode 111 uses register 001 for absolute long, 100 for immediate.
-    ...opcodePattern("00 10 000 000 111 100", ({ fetchLong }: InstructionContext) => this.#loadD0(fetchLong())), // MOVE.L #n,D0
-    ...opcodePattern("00 10 001 111 000 000", ({ fetchLong, writeLong }: InstructionContext) => this.#storeD0(fetchLong(), writeLong)), // MOVE.L D0,(addr).L
+    ...opcodeFamily("00 10 ddd 000 000 rrr", { d: this.#dataRegisters, r: this.#dataRegisters }, ({ d: destination, r: source }) => () => this.#loadRegister(destination, this.#state[source])), // MOVE.L Dm,Dn
+    ...opcodeFamily("00 10 ddd 000 111 100", { d: this.#dataRegisters }, ({ d: destination }) => ({ fetchLong }: InstructionContext) => this.#loadRegister(destination, fetchLong())), // MOVE.L #n,Dn
+    ...opcodeFamily("00 10 001 111 000 rrr", { r: this.#dataRegisters }, ({ r: source }) => ({ fetchLong, writeLong }: InstructionContext) => this.#storeRegister(source, fetchLong(), writeLong)), // MOVE.L Dn,(addr).L
 
-    // Other registers, operand sizes, addressing modes, control flow, and exceptions are deferred.
+    // 0111 rrr 0 iiiiiiii: rrr selects Dn; i is the signed immediate byte, extended to a long.
+    // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
+    ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => () => this.#loadQuickRegister(register, value)), // MOVEQ #n,Dn
+
+    // Address-register operations, other sizes and addressing modes, control flow, and exceptions are deferred.
   ], 16);
 
   // Loads and stores.
 
-  #loadD0(value: number): void {
-    this.#state.d0 = value;
+  #loadRegister(register: DataRegister, value: number): void {
+    this.#state[register] = value;
     this.#moveFlags(value);
   }
 
-  #storeD0(address: number, writeLong: InstructionContext["writeLong"]): Cpu68000AlignmentFault | void {
+  #loadQuickRegister(register: DataRegister, byte: number): void {
+    const signed = byte < 0x80 ? byte : byte - 0x100;
+    this.#loadRegister(register, signed >>> 0);
+  }
+
+  #storeRegister(register: DataRegister, address: number, writeLong: InstructionContext["writeLong"]): Cpu68000AlignmentFault | void {
     // Long operands require word alignment, not four-byte alignment.
     if (address % 2 !== 0) return { operation: "write", address };
-    writeLong(address, this.#state.d0);
-    this.#moveFlags(this.#state.d0);
+    const value = this.#state[register];
+    writeLong(address, value);
+    this.#moveFlags(value);
   }
 
   // Arithmetic and flags.
 
-  #addToD0(value: number): void {
-    const original = this.#state.d0;
+  #addToRegister(register: DataRegister, value: number): void {
+    const original = this.#state[register];
     const sum = original + value;
     const result = sum >>> 0;
-    this.#state.d0 = result;
+    this.#state[register] = result;
     this.#state.flags.x = this.#state.flags.c = sum > 0xffffffff;
     this.#state.flags.n = (result & 0x80000000) !== 0;
     this.#state.flags.z = result === 0;

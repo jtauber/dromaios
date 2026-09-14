@@ -13,10 +13,12 @@ mappings for families. These examples exercise several encoding relationships:
 | [6800](../../src/components/cpus/6800.ts) | `0010 ttt p` | Seven conditional pairs expand `p`; BRA is explicit because `21` is unused |
 | [6809](../../src/components/cpus/6809.ts) | `0010 ttt p` | `ttt` selects a condition; `p` selects whether to invert it |
 | [8088](../../src/components/cpus/8088.ts) | `1011 w rrr` | `w` selects byte/word width and `rrr` the register; the initial slice explicitly fixes `w=1`, `rrr=000` for AX |
+| [68000](../../src/components/cpus/68000.ts) | `0111 rrr 0 iiiiiiii` | MOVEQ selects D0–D7 with `rrr` and embeds its signed immediate in `iiiiiiii` |
 
 The 68000 uses `00 ss ddd mmm MMM rrr` for MOVE: destination register then
-mode, source mode then register. Its current fixed patterns make the two
-long-word forms explicit without introducing a general effective-address decoder.
+mode, source mode then register. Its current families expand the data-register
+selectors for long loads, transfers, and stores without introducing a general
+effective-address decoder.
 Uppercase letters here distinguish explanatory fields; parsed selector letters
 remain lowercase.
 
@@ -59,6 +61,13 @@ The first arrow binds a flag name and required value during table construction.
 The second arrow fetches the operand and checks the CPU's current flag when
 the instruction executes. TypeScript infers `flag` as the four literal flag
 names and `value` as Boolean. The instruction context remains CPU-specific.
+
+The 68000's MOVEQ also binds an embedded operand field: `i` supplies byte
+values 0–255, and its CPU helper sign-extends that value when executing. These
+are real operand bits, so they use a named field instead of the ignored-bit
+marker `x`. The 2,048 operation-word values are still only eight coverage
+forms, one per destination register. Expanding a dispatch table and counting
+documented forms answer different questions.
 
 ## Pattern rules
 

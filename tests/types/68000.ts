@@ -2,6 +2,7 @@ import { Cpu68000 } from "../../src/components/cpus/68000.js";
 import type { Cpu68000State, Cpu68000Snapshot, Cpu68000StepRecord, Cpu68000ResetRecord } from "../../src/components/cpus/68000.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { create68000Example } from "../../src/machines/generated/68000/example.js";
+import { create68000TransfersExample } from "../../src/machines/generated/68000/transfers-example.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import type { CpuRunResult } from "../../src/runtime/run-cpu.js";
 
@@ -22,6 +23,8 @@ export function check68000(ram: Ram, state: Cpu68000State, snapshot: Cpu68000Sna
   // @ts-expect-error Nested flags are readonly.
   snapshot.flags.s = true;
   const machine: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000Example();
+  const transfers: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000TransfersExample();
+  const transferResult: CpuRunResult<Cpu68000StepRecord> = runCpu(transfers.cpu, { maxSteps: 8, endAddress: transfers.endAddress });
   const result: CpuRunResult<Cpu68000StepRecord> = runCpu(cpu, { maxSteps: 3, endAddress: machine.endAddress });
   if (result.records[0]) {
     const d0: number = result.records[0].after.d0;

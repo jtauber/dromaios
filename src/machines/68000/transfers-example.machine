@@ -1,0 +1,37 @@
+// Data-register families, embedded signed immediates, and long arithmetic.
+ram 1000000
+
+cpu 68000 {
+  D0 = 11223344  D1 = 55667788  D2 = 99AABBCC  D3 = DDEEFF00
+  D4 = 01234567  D5 = 89ABCDEF  D6 = FEDCBA98  D7 = 76543210
+  A0 = 10000000  A1 = 20000000  A2 = 30000000  A3 = 40000000
+  A4 = 50000000  A5 = 60000000  A6 = 70000000
+  USP = 34FFE000  SSP = 56FFD000  PC = AB002000
+  interruptMask = 2
+  flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 0 }
+}
+
+memory 000000 {
+  12 FF F0 00  // External-reset SSP: 12FFF000
+  AB 00 20 00  // External-reset PC: AB002000
+}
+
+memory 002000 {
+  7E FF              // MOVEQ #-1,D7
+  24 07              // MOVE.L D7,D2
+  06 82 00 00 00 01  // ADDI.L #1,D2
+  2A 3C 7F FF FF FF  // MOVE.L #7FFFFFFF,D5
+  06 85 00 00 00 01  // ADDI.L #1,D5
+  22 05              // MOVE.L D5,D1
+  23 C1 CD 02 00 82  // MOVE.L D1,(CD020082).L
+  23 C2 CD 02 00 86  // MOVE.L D2,(CD020086).L
+}
+
+memory 020080 {
+  DE AD              // Sentinels before the two result slots
+  11 22 33 44
+  AA BB CC DD
+  BE EF              // Sentinels after the slots
+}
+
+end AB002024
