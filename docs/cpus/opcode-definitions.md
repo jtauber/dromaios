@@ -10,7 +10,7 @@ slots. These examples exercise several encoding relationships:
 
 | CPU | Pattern | Meaning |
 | --- | --- | --- |
-| [8008](../../src/components/cpus/8008.ts) | `00 xxx 111`, `01 xxx 100`, `01 xxx 110` | RET, JMP, and CAL ignore bits 5–3, giving eight aliases each |
+| [8008](../../src/components/cpus/8008.ts) | `00 xxx 111`, `11 ddd sss` | RET ignores bits 5–3; loads select A/B/C/D/E/H/L/M in each field, with HLT in the M,M slot |
 | [6502](../../src/components/cpus/6502.ts) | `ff v 100 00` | `ff` selects N/V/C/Z; `v` selects the value required to branch |
 | [6800](../../src/components/cpus/6800.ts) | `0010 ttt p` | Seven conditional pairs expand `p`; BRA is explicit because `21` is unused |
 | [6809](../../src/components/cpus/6809.ts) | `0010 ttt p` | `ttt` selects a condition; `p` selects whether to invert it |

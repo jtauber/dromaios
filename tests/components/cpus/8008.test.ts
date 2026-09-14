@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu8008 } from "../../../src/components/cpus/8008.js";
-import type { Cpu8008AddressStack, Cpu8008Flags, Cpu8008Snapshot, Cpu8008State } from "../../../src/components/cpus/8008.js";
+import type { Cpu8008AddressStack, Cpu8008Flags, Cpu8008MemoryAccess, Cpu8008Snapshot, Cpu8008State } from "../../../src/components/cpus/8008.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 
@@ -35,6 +35,19 @@ function advanced(state: Cpu8008State, pc: number, changes: Partial<Cpu8008State
 function flags(bits: number): Cpu8008Flags {
   return { s: Boolean(bits & 1), z: Boolean(bits & 2), p: Boolean(bits & 4), c: Boolean(bits & 8) };
 }
+
+// Literal rows from Intel's load matrix; columns are A/B/C/D/E/H/L/M.
+const transferColumns = ["a", "b", "c", "d", "e", "h", "l", "m"] as const;
+const transferRows = [
+  { destination: "a", opcodes: [0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7] },
+  { destination: "b", opcodes: [0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf] },
+  { destination: "c", opcodes: [0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7] },
+  { destination: "d", opcodes: [0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf] },
+  { destination: "e", opcodes: [0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7] },
+  { destination: "h", opcodes: [0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef] },
+  { destination: "l", opcodes: [0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7] },
+  { destination: "m", opcodes: [0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff] },
+] as const;
 
 // Independent arithmetic oracle: decimal range and a count of binary digits.
 function addition(a: number, operand: number) {
@@ -129,7 +142,9 @@ test("8008 validates RAM size, all register widths, eight complete address slots
   assert.deepEqual(ram.accesses, []);
 });
 
-for (const [opcode, register] of [[0x06, "a"], [0x2e, "h"], [0x36, "l"]] as const) {
+for (const [opcode, register] of [
+  [0x06, "a"], [0x0e, "b"], [0x16, "c"], [0x1e, "d"], [0x26, "e"], [0x2e, "h"], [0x36, "l"],
+] as const) {
   test(`8008 immediate ${register.toUpperCase()} load preserves all flag patterns and inactive address registers`, () => {
     const ram = new ObservedRam(0x4000);
     ram.write(0x3fff, opcode);
@@ -148,6 +163,144 @@ for (const [opcode, register] of [[0x06, "a"], [0x2e, "h"], [0x36, "l"]] as cons
     }
   });
 }
+
+for (const { destination, opcodes } of transferRows) {
+  test(`8008 transfers into ${destination.toUpperCase()} cover every source, byte, and flag pattern, including self-transfers and HLT`, () => {
+    const ram = new ObservedRam(0x4000);
+    for (const [column, source] of transferColumns.entries()) {
+      const opcode = opcodes[column]!;
+      for (let bits = 0; bits < 16; bits++) {
+        for (let value = 0; value < 256; value++) {
+          const before = atPc(0x3fff, bits % 8, { flags: flags(bits) });
+          if (source !== "m") before[source] = value;
+          const address = (before.h % 64) * 256 + before.l;
+          // Exercise both changed-value and unchanged-value stores.
+          const memoryBefore = source === "m" || bits % 2 === 0 ? value : 255 - value;
+          ram.write(address, memoryBefore);
+          ram.write(0x3fff, opcode);
+          ram.accesses.length = 0;
+          const changes: Partial<Cpu8008State> = { halted: opcode === 0xff };
+          const accesses: Cpu8008MemoryAccess[] = [{ kind: "read", address: 0x3fff, value: opcode }];
+          if (opcode !== 0xff) {
+            if (source === "m") accesses.push({ kind: "read", address, value });
+            if (destination === "m") accesses.push({ kind: "write", address, value });
+            else changes[destination] = value;
+          }
+          const expected = { before: snapshot(before), after: advanced(before, 0, changes),
+            instruction: { address: 0x3fff, bytes: [opcode] }, accesses,
+            outcome: opcode === 0xff ? "halted" : "executed" };
+          assert.deepEqual(new Cpu8008(ram, before).step(), expected);
+          assert.deepEqual(ram.accesses, accesses);
+          assert.equal(ram.read(address), destination === "m" && opcode !== 0xff ? value : memoryBefore);
+        }
+      }
+    }
+  });
+}
+
+test("8008 memory transfers use the original H:L for every register at aliased boundaries and instruction overlaps", () => {
+  for (const { destination, opcodes } of transferRows) {
+    for (const [column, source] of transferColumns.entries()) {
+      const opcode = opcodes[column]!;
+      if (opcode === 0xff || (destination !== "m" && source !== "m")) continue;
+      for (const pc of [0, 0x2000, 0x3fff]) {
+        for (const address of [0, 0x00ff, 0x0100, 0x3fff, pc, (pc + 1) % 0x4000]) {
+          for (const highBits of [0, 0x40, 0x80, 0xc0]) {
+            const ram = new ObservedRam(0x4000);
+            const before = atPc(pc, highBits / 64, { h: highBits + Math.floor(address / 256), l: address % 256 });
+            ram.write(address, 0xa5);
+            ram.write(pc, opcode);
+            const value: number = source === "m" ? (address === pc ? opcode : 0xa5) : before[source];
+            ram.accesses.length = 0;
+            const changes: Partial<Cpu8008State> = {};
+            if (destination !== "m") changes[destination] = value;
+            const accesses: Cpu8008MemoryAccess[] = [{ kind: "read", address: pc, value: opcode },
+              { kind: destination === "m" ? "write" : "read", address, value }];
+            assert.deepEqual(new Cpu8008(ram, before).step(), {
+              before: snapshot(before), after: advanced(before, (pc + 1) % 0x4000, changes),
+              instruction: { address: pc, bytes: [opcode] }, accesses, outcome: "executed",
+            });
+            assert.deepEqual(ram.accesses, accesses);
+            assert.equal(ram.read(address), value);
+          }
+        }
+      }
+    }
+  }
+});
+
+test("8008 LMI stores every immediate byte and preserves every flag pattern with wrapped fetches", () => {
+  const ram = new ObservedRam(0x4000);
+  ram.write(0x3fff, 0x3e);
+  for (let bits = 0; bits < 16; bits++) {
+    for (let value = 0; value < 256; value++) {
+      const before = atPc(0x3fff, value % 8, { flags: flags(bits) });
+      ram.write(0, value);
+      ram.accesses.length = 0;
+      const accesses: Cpu8008MemoryAccess[] = [{ kind: "read", address: 0x3fff, value: 0x3e },
+        { kind: "read", address: 0, value }, { kind: "write", address: 0x2677, value }];
+      assert.deepEqual(new Cpu8008(ram, before).step(), {
+        before: snapshot(before), after: advanced(before, 1), outcome: "executed",
+        instruction: { address: 0x3fff, bytes: [0x3e, value] }, accesses,
+      });
+      assert.deepEqual(ram.accesses, accesses);
+      assert.equal(ram.read(0x2677), value);
+    }
+  }
+});
+
+test("8008 LMI fetches its immediate before an overlapping write and preserves the full H byte", () => {
+  for (const pc of [0, 0x2000, 0x3fff]) {
+    for (const address of [0, 0x3fff, pc, (pc + 1) % 0x4000]) {
+      for (const highBits of [0, 0x40, 0x80, 0xc0]) {
+        const ram = new ObservedRam(0x4000);
+        ram.write(pc, 0x3e);
+        ram.write((pc + 1) % 0x4000, 0xff);
+        ram.accesses.length = 0;
+        const before = atPc(pc, highBits / 64, { h: highBits + Math.floor(address / 256), l: address % 256 });
+        const cpu = new Cpu8008(ram, before);
+        const record = cpu.step();
+        const saved = structuredClone(record);
+        assert.deepEqual(record, {
+          before: snapshot(before), after: advanced(before, (pc + 2) % 0x4000), outcome: "executed",
+          instruction: { address: pc, bytes: [0x3e, 0xff] },
+          accesses: [{ kind: "read", address: pc, value: 0x3e },
+            { kind: "read", address: (pc + 1) % 0x4000, value: 0xff }, { kind: "write", address, value: 0xff }],
+        });
+        assert.deepEqual(ram.accesses, record.accesses);
+        assert.equal(ram.read(address), 0xff);
+        ram.write(address, 0);
+        cpu.reset();
+        assert.deepEqual(record, saved);
+      }
+    }
+  }
+});
+
+test("8008 memory loads use current RAM and the L changed by a preceding LLM", () => {
+  const ram = new ObservedRam(0x4000);
+  [0xc7, 0xf7, 0xc7].forEach((byte, offset) => ram.write(0x2000 + offset, byte));
+  ram.write(0x80, 0x5a);
+  const before = initialState({ h: 0xc0, l: 0x80 });
+  const cpu = new Cpu8008(ram, before);
+  const first = cpu.step();
+  const saved = structuredClone(first);
+  assert.deepEqual(first.after, advanced(before, 0x2001, { a: 0x5a }));
+  ram.write(0x80, 0x81);
+  ram.accesses.length = 0;
+  const pointer = cpu.step();
+  assert.deepEqual(pointer.after, advanced(before, 0x2002, { a: 0x5a, l: 0x81 }));
+  assert.deepEqual(ram.accesses, [{ kind: "read", address: 0x2001, value: 0xf7 }, { kind: "read", address: 0x80, value: 0x81 }]);
+  ram.write(0x81, 0xa5);
+  ram.accesses.length = 0;
+  const last = cpu.step();
+  assert.deepEqual(last.after, advanced(before, 0x2003, { a: 0xa5, l: 0x81 }));
+  assert.deepEqual(ram.accesses, [{ kind: "read", address: 0x2002, value: 0xc7 }, { kind: "read", address: 0x81, value: 0xa5 }]);
+  cpu.reset();
+  Reflect.set(last.after.addressStack, 3, 0);
+  Reflect.set(last.after.flags, "s", false);
+  assert.deepEqual(first, saved);
+});
 
 test("8008 ADI checks every operand pair, ignores incoming carry, and sets sign, zero, even parity, and carry", () => {
   const ram = new ObservedRam(0x4000);
@@ -199,6 +352,27 @@ test("8008 LMA masks all H:L combinations to 14 bits and records unchanged-value
       assert.deepEqual(cpu.step(), expected);
       assert.deepEqual(ram.accesses, expected.accesses);
       assert.equal(ram.read(address), a);
+    }
+  }
+});
+
+test("8008 LAM reads through all H:L combinations while retaining the raw pair and inactive PC slots", () => {
+  const ram = new ObservedRam(0x4000);
+  for (let h = 0; h < 256; h++) {
+    for (let l = 0; l < 256; l++) {
+      const address = (h % 64) * 256 + l;
+      const value = address === 0x2000 ? 0xc7 : (h + l) % 256;
+      ram.write(address, value);
+      ram.write(0x2000, 0xc7);
+      ram.accesses.length = 0;
+      const before = atPc(0x2000, l % 8, { h, l, flags: flags(h % 16) });
+      const accesses: Cpu8008MemoryAccess[] = [{ kind: "read", address: 0x2000, value: 0xc7 },
+        { kind: "read", address, value }];
+      assert.deepEqual(new Cpu8008(ram, before).step(), {
+        before: snapshot(before), after: advanced(before, 0x2001, { a: value }), outcome: "executed",
+        instruction: { address: 0x2000, bytes: [0xc7] }, accesses,
+      });
+      assert.deepEqual(ram.accesses, accesses);
     }
   }
 });
@@ -366,10 +540,11 @@ for (const opcode of [0x00, 0x01, 0xff]) {
 
 test("8008 rejects every other opcode atomically, including conditional control flow, RST, and I/O", () => {
   const supported = new Set([
-    0x00, 0x01, 0x04, 0x06, 0x07, 0x0f, 0x17, 0x1f, 0x27, 0x2e, 0x2f, 0x36, 0x37, 0x3f,
+    0x00, 0x01, 0x04, 0x06, 0x07, 0x0e, 0x0f, 0x16, 0x17, 0x1e, 0x1f, 0x26, 0x27, 0x2e, 0x2f, 0x36, 0x37, 0x3e, 0x3f,
     0x44, 0x46, 0x4c, 0x4e, 0x54, 0x56, 0x5c, 0x5e, 0x64, 0x66, 0x6c, 0x6e, 0x74, 0x76, 0x7c, 0x7e,
-    0xf8, 0xff,
+    ...transferRows.flatMap(row => [...row.opcodes]),
   ]);
+  assert.equal(supported.size, 99);
   const ram = new ObservedRam(0x4000);
   for (let opcode = 0; opcode < 256; opcode++) {
     if (supported.has(opcode)) continue;

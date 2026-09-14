@@ -1,7 +1,7 @@
 import type { Ram } from "../memory/ram.js";
 import { defineState, copyState, readState, unsigned, flag, boolean, array, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
-import { opcodePattern, opcodeTable } from "./opcodes.ts";
+import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import { add8, evenParity8 } from "./alu.ts";
 
 export interface Cpu8008Flags {
@@ -72,10 +72,12 @@ export interface Cpu8008ResetRecord {
 interface InstructionContext {
   readonly fetchByte: () => number;
   readonly fetchAddress: () => number;
+  readonly readByte: (address: number) => number;
   readonly writeByte: (address: number, value: number) => void;
 }
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
+type ByteOperand = "a" | "b" | "c" | "d" | "e" | "h" | "l" | "m";
 type StoredState = Omit<Cpu8008State, "addressStack"> & { addressStack: Cpu8008AddressStack };
 
 /** Instruction-level Intel 8008 subset with its native encodings and 14-bit addresses. */
@@ -131,6 +133,7 @@ export class Cpu8008 {
           const high = fetchByte();
           return ((high & 0x3f) << 8) | low;
         },
+        readByte: address => this.#read(address, accesses),
         writeByte: (address, value) => this.#write(address, value, accesses),
       });
     }
@@ -155,9 +158,13 @@ export class Cpu8008 {
     return (this.#state.h << 8) | this.#state.l;
   }
 
-  // Opcode construction. Bits 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
-  // Register selectors: 000 A, 001 B, 010 C, 011 D, 100 E, 101 H, 110 L, 111 M.
-  // M means RAM at H:L masked to 14 bits. These are native 8008 encodings.
+  // Opcode selectors and construction.
+
+  // rrr/ddd/sss select A/B/C/D/E/H/L/M in order; M addresses RAM through H:L's low 14 bits.
+  readonly #byteOperands = ["a", "b", "c", "d", "e", "h", "l", "m"] as const;
+
+  // Native 8008 opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
+  // xx selects a block; the other fields select its operation and operands.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // 00 000 00x: both x values encode HLT, occupying the absent IN A/DC A slots.
     ...opcodePattern("00 000 00x", () => this.#halt()), // HLT (00/01)
@@ -165,10 +172,8 @@ export class Cpu8008 {
     // 00 ooo 100: immediate ALU; ooo=000 selects ADI. Other operations are omitted.
     ...opcodePattern("00 000 100", ({ fetchByte }: InstructionContext) => this.#addToAccumulator(fetchByte())), // ADI n
 
-    // 00 rrr 110: immediate register load; only rrr=000/101/110 (A/H/L) are implemented.
-    ...opcodePattern("00 000 110", ({ fetchByte }: InstructionContext) => this.#loadRegister("a", fetchByte())), // LAI n
-    ...opcodePattern("00 101 110", ({ fetchByte }: InstructionContext) => this.#loadRegister("h", fetchByte())), // LHI n
-    ...opcodePattern("00 110 110", ({ fetchByte }: InstructionContext) => this.#loadRegister("l", fetchByte())), // LLI n
+    // 00 rrr 110: rrr (bits 5..3) selects the destination, including memory at rrr=111.
+    ...opcodeFamily("00 rrr 110", { r: this.#byteOperands }, ({ r: operand }) => (instruction: InstructionContext) => this.#writeOperand(operand, instruction.fetchByte(), instruction)), // LrI n / LMI n
 
     // 00 xxx 111: RET. Bits 5–3 are don't-care bits: all eight encodings return.
     ...opcodePattern("00 xxx 111", () => this.#return()), // RET
@@ -180,15 +185,25 @@ export class Cpu8008 {
 
     // Conditional jumps/calls/returns, RST, I/O, and xx=10 ALU forms remain unsupported.
 
-    // 11 ddd sss: loads; ddd=111 selects M and sss=000 selects A. The M,M slot is HLT.
-    ...opcodePattern("11 111 000", ({ writeByte }: InstructionContext) => writeByte(this.#hl & 0x3fff, this.#state.a)), // LMA
-    ...opcodePattern("11 111 111", () => this.#halt()), // HLT (FF), not a memory-to-memory load.
+    // 11 ddd sss: ddd (bits 5..3) selects destination; sss (bits 2..0) selects source.
+    // 11 111 111 is HLT, not LMM; the binding handles this exception without a data access.
+    ...opcodeFamily("11 ddd sss", { d: this.#byteOperands, s: this.#byteOperands }, ({ d: destination, s: source }) => this.#transferHandler(destination, source)), // Lr1r2 / LrM / LMr / HLT
   ]);
 
-  // Loads.
+  #transferHandler(destination: ByteOperand, source: ByteOperand): OpcodeHandler {
+    if (destination === "m" && source === "m") return () => this.#halt();
+    return instruction => this.#writeOperand(destination, this.#readOperand(source, instruction), instruction);
+  }
 
-  #loadRegister(register: "a" | "h" | "l", value: number): void {
-    this.#state[register] = value;
+  // Addressing and loads.
+
+  #readOperand(operand: ByteOperand, { readByte }: InstructionContext): number {
+    return operand === "m" ? readByte(this.#hl & 0x3fff) : this.#state[operand];
+  }
+
+  #writeOperand(operand: ByteOperand, value: number, { writeByte }: InstructionContext): void {
+    if (operand === "m") writeByte(this.#hl & 0x3fff, value);
+    else this.#state[operand] = value;
   }
 
   // Control flow.

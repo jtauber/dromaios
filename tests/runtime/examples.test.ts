@@ -1,6 +1,7 @@
 import type { Cpu8008 } from "../../src/components/cpus/8008.js";
 import { create8008Example } from "../../src/machines/generated/8008/example.js";
 import { create8008StackExample } from "../../src/machines/generated/8008/stack-example.js";
+import { create8008TransfersExample } from "../../src/machines/generated/8008/transfers-example.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Cpu8080 } from "../../src/components/cpus/8080.js";
@@ -49,6 +50,8 @@ interface ExampleCase {
 
 // Expectations come from the example specifications, independently of the factories.
 const examples: readonly ExampleCase[] = [
+  { name: "8008 transfers", create: create8008TransfersExample, steps: 14, pc: 0x0213, stopReason: "halted",
+    writes: [[0x80, 0x5a], [0x81, 0x5a], [0x81, 0xa5]] },
   { name: "Z80 transfers", create: createZ80TransfersExample, steps: 23, pc: 0x021d, stopReason: "halted",
     writes: [[0x80, 0x7f], [0x81, 0x80], [0x82, 0x81], [0x83, 0]] },
   { name: "8088 transfers", create: create8088TransfersExample, steps: 12, pc: 0x12560, stopReason: "completed",

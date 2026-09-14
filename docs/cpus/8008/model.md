@@ -9,7 +9,8 @@ its memory addresses wrap at 14 bits.
 [Public type checks](../../../tests/types/8008.ts) ·
 [Coverage](../coverage.md#8008) ·
 [Arithmetic example](examples/arithmetic.md) ·
-[Nested-call example](examples/stack.md)
+[Nested-call example](examples/stack.md) ·
+[Transfer example](examples/transfers.md)
 
 The hardware reference is Intel's
 [8008 User's Manual, April 1972](https://www.bitsavers.org/components/intel/MCS8/Intel_8008_8-Bit_Parallel_Central_Processing_Unit_Rev1_Apr72.pdf)
@@ -72,9 +73,10 @@ Only unsupported records have `reason: "opcode"`. An already halted step has
 `instruction: null`, no accesses, and unchanged state.
 
 Supported fetches advance the selected address register, wrapping from `3FFF`
-to `0000`. Immediate instructions fetch their operand after the opcode. LMA
-fetches its opcode and writes A to RAM at the masked H:L address, without
-reading the destination. Writes are recorded even if the value does not change.
+to `0000`. Immediate instructions fetch their operand after the opcode. Memory
+loads and stores access RAM at the masked H:L address. Data reads are recorded
+separately from instruction bytes and do not advance PC. Stores never read
+the destination, and writes are recorded even if the value does not change.
 Instruction bytes remain intact in records when a store overwrites code;
 subsequent instructions read current RAM.
 
@@ -88,8 +90,29 @@ ongoing internal refresh, pin activity, dummy accesses, or cycle timing.
 
 ## Loads and addition
 
-LAI, LHI, and LLI load their immediate byte and preserve all flags. LMA also
-preserves flags. ADI adds its operand to A without incoming carry, wraps the
+The two load families use A/B/C/D/E/H/L/M in selector order, with M referring
+to RAM through H:L's low 14 bits:
+
+- `00 rrr 110`: an immediate byte is loaded into the selected register or
+  memory. These are the seven LrI forms (LAI through LLI) and LMI.
+- `11 ddd sss`: transfer from the selected source to the selected destination.
+  There are 49 register transfers, seven memory reads, and seven memory writes.
+  The `11 111 111` slot selects HLT during table construction and performs no
+  data access; it is not a memory-to-memory transfer.
+
+All loads preserve S/Z/P/C and the inactive address slots. Register self-transfers
+read only the opcode. H and L remain full bytes when loaded or used as data;
+only the address sent to RAM discards H's top two bits. Loading H or L from
+memory reads through the original H:L before replacing the destination byte.
+LMI fetches its immediate before writing, including when H:L aliases the opcode
+or operand address. Subsequent steps use the current registers and RAM.
+
+Intel's [November 1973 manual](https://deramp.com/downloads/mfe_archive/050-Component%20Specifications/Intel/Microprocessors%20and%20Support/8008%20Family/i8008UM%20Nov%2073.pdf),
+printed pages 8–11, describes these selectors, load forms, and flag rules.
+The [transfer example](examples/transfers.md) follows a byte through registers
+and RAM, then changes the next memory address by loading H from memory.
+
+ADI adds its operand to A without incoming carry, wraps the
 result to a byte, and replaces all four flags: S is the result's high bit, Z
 indicates zero, P indicates even parity, and C indicates a sum exceeding `FF`.
 The other data registers and inactive address slots remain unchanged.
@@ -144,6 +167,14 @@ all load bytes and flag patterns, all H:L combinations, every PC, and each
 address-stack selector. They compare complete records and actual RAM accesses,
 including unchanged-value writes, self-modified code, unsupported attempts,
 all three HLT encodings, reset, and detached records.
+
+Transfer checks cover every matrix encoding, byte value, and incoming flag
+pattern, with all eight PC slots and wrapped opcode fetches. Memory cases also
+check the four aliases formed by H's top bits, address-space boundaries,
+instruction overlap, and loads into H and L. LAM and LMA each cover every H:L
+combination. LMI covers every byte and flag pattern, wrapped operand fetches,
+and aliased writes over its own opcode or operand. Further checks verify that
+memory loads see RAM edits and the pointer left by a preceding load.
 
 Control-flow checks cover all documented aliases, every encoded destination
 including ignored high bits, every selector and flag pattern, wrapped fetches,

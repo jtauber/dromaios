@@ -1,0 +1,28 @@
+ram 4000
+
+cpu 8008 {
+    A = 11  B = 22  C = 33  D = 44  E = 55  H = 66  L = 77
+    flags { S = 1  Z = 0  P = 1  C = 1 }
+    addressStack = [1111 1222 1333 1444 1555 1666 1777 0200]
+    stackIndex = 7  halted = false
+}
+
+memory 007F { CC 00 00 CC } // Two bytes at 0080–0081, with guards on either side.
+memory 2580 { CC 3C CC }    // Data reached after loading H from memory.
+
+memory 0200 {
+    0E C0       // LBI C0H: high address byte; only its low six bits address RAM
+    16 80       // LCI 80H: source address's low byte
+    1E 81       // LDI 81H: destination address's low byte
+    26 5A       // LEI 5AH: data to store
+    E9          // LHB: H = B
+    F2          // LLC: L = C; raw H:L is C080, addressing RAM at 0080
+    FC          // LME: store E at 0080
+    C7          // LAM: read it back into A
+    F3          // LLD: L = D; raw H:L is C081, addressing RAM at 0081
+    F8          // LMA: copy A to 0081
+    3E A5       // LMI A5H: replace the destination byte with an immediate
+    EF          // LHM: read H from the original address 0081; raw H:L becomes A581
+    E7          // LEM: read E from the new physical address 2581
+    FF          // HLT: occupies the M,M transfer slot; performs no data access
+}
