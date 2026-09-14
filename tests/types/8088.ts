@@ -2,6 +2,7 @@ import { Cpu8088 } from "../../src/components/cpus/8088.js";
 import type { Cpu8088State, Cpu8088Snapshot, Cpu8088StepRecord, Cpu8088ResetRecord } from "../../src/components/cpus/8088.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { create8088Example } from "../../src/machines/generated/8088/example.js";
+import { create8088TransfersExample } from "../../src/machines/generated/8088/transfers-example.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import type { CpuRunResult } from "../../src/runtime/run-cpu.js";
 
@@ -26,6 +27,8 @@ export function check8088(ram: Ram, state: Cpu8088State, snapshot: Cpu8088Snapsh
   // @ts-expect-error Snapshot flags are readonly.
   snapshot.flags.if = false;
   const machine: { cpu: Cpu8088; ram: Ram; endAddress: number } = create8088Example();
+  const transfers: { cpu: Cpu8088; ram: Ram; endAddress: number } = create8088TransfersExample();
+  const transferResult: CpuRunResult<Cpu8088StepRecord> = runCpu(transfers.cpu, { maxSteps: 12, endAddress: transfers.endAddress });
   const result: CpuRunResult<Cpu8088StepRecord> = runCpu(cpu, { maxSteps: 3, endAddress: machine.endAddress });
   if (result.records[0]) {
     const ip: number = result.records[0].before.ip;

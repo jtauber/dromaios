@@ -1,0 +1,32 @@
+// Byte and word register ownership, arithmetic flags, and direct DS transfers.
+ram 100000
+
+cpu 8088 {
+  AX = 1122  BX = 3344  CX = 5566  DX = 7788
+  SP = 8000  BP = 9000  SI = 0010  DI = 0020
+  CS = 1234  DS = 2000  SS = 3000  ES = 4000  IP = 0200
+  flags { CF = 1  PF = 0  AF = 1  ZF = 1  SF = 1  TF = 0  IF = 1  DF = 1  OF = 1 }
+}
+
+memory 12540 {
+  BB 34 12    // MOV BX,1234h
+  B8 FF 7F    // MOV AX,7FFFh
+  04 01       // ADD AL,01h: AL becomes zero, AH remains 7F
+  B4 80       // MOV AH,80h: AX becomes 8000
+  05 FF FF    // ADD AX,FFFFh: AX becomes 7FFF with carry and signed overflow
+  A3 81 00    // MOV [0081h],AX
+  B0 12       // MOV AL,12h
+  A2 83 00    // MOV [0083h],AL
+  B8 00 00    // MOV AX,0000h
+  A0 83 00    // MOV AL,[0083h]: AH remains zero
+  A1 81 00    // MOV AX,[0081h]
+  B7 AB       // MOV BH,ABh: BL remains 34
+}
+
+memory 20080 {
+  DE          // Sentinel before the result slots
+  11 22 33    // Word and byte slots: become FF 7F 12
+  AD          // Sentinel after the slots
+}
+
+end 12560

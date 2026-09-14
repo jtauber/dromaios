@@ -21,7 +21,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [259](../../src/components/cpus/6502.ts) | 25 / 151 | 16.6% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [303](../../src/components/cpus/z80.ts) | 30 / 698 | 4.3% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [340](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [221](../../src/components/cpus/8088.ts) | 3 / 291 | 1.0% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [262](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [255](../../src/components/cpus/68000.ts) | 96 / 36,029 | 0.3% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
@@ -845,29 +845,37 @@ reset and restart, and a zero initial count producing 256 iterations.
 [Model contract](8088/model.md) ·
 [Arithmetic example](8088/examples/arithmetic.md) ·
 [Example definition](../../src/machines/8088/example.machine) ·
+[Transfer example](8088/examples/transfers.md) ·
 [PC reference review](8088/reference-notes.md)
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
-| `05` | `ADD AX,nn` | Immediate word | 3 | Add without incoming carry; set CF/PF/AF/ZF/SF/OF, preserve TF/IF/DF |
-| `A3` | `MOV [offset],AX` | Direct offset in DS | 3 | Store low byte then high at consecutive physical addresses; preserve all flags |
-| `B8` | `MOV AX,nn` | Immediate word | 3 | Load AX, deriving AL/AH; preserve all flags |
+| `04`, `05` | `ADD AL,n`, `ADD AX,nn` | Immediate byte/word | 2/3 | Add without incoming carry; set CF/PF/AF/ZF/SF/OF at operand width, preserve TF/IF/DF and AH for byte operations |
+| `A0`, `A1` | `MOV AL,[offset]`, `MOV AX,[offset]` | Direct offset in DS | 3 | Read one/two bytes after fetching the word offset; preserve all flags and AH for byte loads |
+| `A2`, `A3` | `MOV [offset],AL`, `MOV [offset],AX` | Direct offset in DS | 3 | Write one/two bytes without destination reads; words use consecutive physical addresses; preserve all flags |
+| `B0`–`B7` | `MOV r8,n` | Immediate byte | 2 | All eight byte registers; preserve the other half of the word and all flags |
+| `B8`–`BF` | `MOV r16,nn` | Immediate word | 3 | All eight general word registers; replace the whole word and preserve all flags |
+
+These families contribute **2 + 2 + 2 + 8 + 8 = 22** complete forms. Byte
+and word register selectors follow their distinct encoded orders. Immediate
+values and direct offsets are operands and do not add coverage forms.
 
 | Area | Implemented scope |
 | --- | --- |
 | Stored registers | AX/BX/CX/DX, SP/BP/SI/DI, CS/DS/SS/ES, IP; all 16-bit |
 | Stored flags | CF/PF/AF/ZF/SF/TF/IF/DF/OF; no packed FLAGS or reserved-bit policy yet |
-| Register views | AL/AH, BL/BH, CL/CH, DL/DH derived from word registers; physical PC derived from CS:IP |
-| Memory | Exactly 1 MiB RAM; segment × 16 + offset wraps at 20 bits; unaligned word stores supported |
+| Register views | AL/AH, BL/BH, CL/CH, DL/DH derived from word registers; byte writes preserve the other half; physical PC derived from CS:IP |
+| Memory | Exactly 1 MiB RAM; segment × 16 + offset wraps at 20 bits; byte transfers and unaligned word loads/stores supported |
 | Instruction fetching | CS:IP, with IP wrapping at 16 bits between bytes; low-byte-first immediate words and offsets |
-| Data words | Translate DS:offset once, then store at consecutive physical addresses with 20-bit wrapping |
-| Arithmetic | Full word result determines ZF/SF/OF; PF uses only the low byte; AF records carry out of bit 3 |
+| Data words | Translate DS:offset once, then read/write consecutive physical bytes with 20-bit wrapping |
+| Arithmetic | Operand width determines CF/ZF/SF/OF; PF uses only the low byte; AF records carry out of bit 3 |
 | Reset | CS=FFFF, IP=0000, DS/SS/ES=0000, all flags clear; preserve general registers and RAM under the documented model policy; no vector reads |
 | Prefixes | All rejected after the first byte with unchanged state and RAM; no segment overrides, LOCK, or repetition yet |
-| Remaining scope | Other transfers, byte arithmetic, ModR/M addressing, logic, branches, calls/returns, stack operations, HALT, interrupts, I/O, and timing/prefetch behavior |
+| Remaining scope | Other transfers and arithmetic, ModR/M addressing, logic, branches, calls/returns, stack operations, HALT, interrupts, I/O, and timing/prefetch behavior |
 
 Verification: [CPU tests](../../tests/components/cpus/8088.test.ts),
-[arithmetic example tests](../../tests/machines/8088/example.test.ts), and
+[arithmetic example tests](../../tests/machines/8088/example.test.ts),
+[transfer example tests](../../tests/machines/8088/transfers-example.test.ts), and
 [public type checks](../../tests/types/8088.ts). Checks cover every load/store
 word, direct offset, and IP; all flag patterns; independent arithmetic
 expectations; register aliases; logical and physical boundary cases; every
@@ -875,8 +883,13 @@ unsupported first byte; reset; current RAM; and detached records. The example
 checks complete traces, actual RAM calls, full memory images, physical completion
 addresses, bounded resumption, reset, and restart. Parser and generator checks
 cover word state, derived-view rejection, and one-megabyte memory bounds.
+Register-family checks cover every selector and byte immediate, every byte-add
+operand pair, preserved byte halves, byte versus word flag boundaries, direct
+load/store widths, data reads after complete offset fetches, and sentinels.
+The transfer example checks all five families together, physical completion
+aliases, snapshot restoration, and detached earlier records.
 An additional [hardware-test comparison](8088/reference-notes.md#independent-hardware-comparison)
-passed all 15,089 unprefixed cases supplied for these three encodings.
+passed all 109,996 unprefixed cases supplied for the 22 supported encodings.
 
 ## 68000
 

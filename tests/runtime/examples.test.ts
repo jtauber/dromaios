@@ -6,6 +6,7 @@ import { test } from "node:test";
 import type { Cpu8080 } from "../../src/components/cpus/8080.js";
 import type { Cpu8088 } from "../../src/components/cpus/8088.js";
 import { create8088Example } from "../../src/machines/generated/8088/example.js";
+import { create8088TransfersExample } from "../../src/machines/generated/8088/transfers-example.js";
 import type { Cpu6502 } from "../../src/components/cpus/6502.js";
 import type { Cpu6800 } from "../../src/components/cpus/6800.js";
 import { create6800Example } from "../../src/machines/generated/6800/example.js";
@@ -47,6 +48,8 @@ interface ExampleCase {
 
 // Expectations come from the example specifications, independently of the factories.
 const examples: readonly ExampleCase[] = [
+  { name: "8088 transfers", create: create8088TransfersExample, steps: 12, pc: 0x12560, stopReason: "completed",
+    writes: [[0x20081, 0xff], [0x20082, 0x7f], [0x20083, 0x12]] },
   { name: "68000 transfers", create: create68000TransfersExample, steps: 8, pc: 0xab002024, stopReason: "completed",
     writes: [[0x20082, 0x80], [0x20083, 0], [0x20084, 0], [0x20085, 0], [0x20086, 0], [0x20087, 0], [0x20088, 0], [0x20089, 0]] },
   { name: "68000 arithmetic", create: create68000Example, steps: 3, pc: 0xab001012, stopReason: "completed",

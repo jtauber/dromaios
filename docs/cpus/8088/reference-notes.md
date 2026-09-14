@@ -11,19 +11,21 @@ the [new model contract](model.md).
 The [CPU core](https://github.com/jtauber/dromaios-pc/blob/a6fb9d10f4274dbd8ba40400e0b6761aec1d4b54/js/cpu_8088.js)
 stores AX/BX/CX/DX once and derives their byte halves. Its register selectors
 also show the different encoded orders for word and byte registers. The new
-core keeps this ownership rule, exposing detached byte views in snapshots.
+core keeps this ownership rule, exposing detached byte views in snapshots and
+mapping each writable byte to its stored word and shift.
 
 Instruction fetching increments a 16-bit IP and translates each byte through
 CS. Word data access translates its starting address once, then accesses the
 next physical byte. Keeping these paths separate makes their boundary behavior
 visible. The new tests distinguish segment-end instruction fetching from
-segment-end data stores, as well as wrapping on the twenty-bit address bus.
+segment-end data transfers, as well as wrapping on the twenty-bit address bus.
 
 The [instruction table](https://github.com/jtauber/dromaios-pc/blob/a6fb9d10f4274dbd8ba40400e0b6761aec1d4b54/js/instructions_86.js)
 groups ALU operations by encoded fields and gives immediate-register moves a
 regular family. Word arithmetic uses only the low byte for parity. These are
-useful guides for future families; the initial three entries keep their full
-bit patterns explicit without importing the larger decoder.
+useful guides for the expanded register and accumulator families. Typed selector
+arrays now expose the byte/word widths and both register orders beside the
+full opcode patterns, while ModR/M decoding remains deferred.
 
 ## Differences to preserve
 
@@ -58,12 +60,13 @@ interrupts, and display logic remain outside this initial CPU-and-RAM slice.
 
 ## Independent hardware comparison
 
-The initial implementation was also compared with Daniel Balsom's
-[hardware-generated 8088 V2 tests](https://github.com/SingleStepTests/8088).
-All 15,089 unprefixed cases for the supported forms passed: 5,121 for `05`,
-4,958 for `B8`, and 5,010 for `A3`. The comparison checked fetched bytes,
-stored registers, all nine modeled flags, and expected RAM after execution.
-Prefixed cases were excluded because prefixes remain unsupported.
+The register and accumulator families were compared with Daniel Balsom's
+[hardware-generated 8088 V2 tests](https://github.com/SingleStepTests/8088/tree/aea84484abc79d09639d855b7b0ab32bc9e4dbeb/v2),
+at revision `aea8448`. All **109,996 unprefixed cases across 22 encodings**
+passed: `04`–`05`, `A0`–`A3`, and `B0`–`BF`. The comparison checked fetched
+bytes, stored registers, all nine modeled flags, expected RAM after execution,
+and that recorded accesses addressed bytes included in the fixture. Prefixed
+cases were excluded because prefixes remain unsupported.
 
 This was a development cross-check using downloaded fixtures, not a new
 network-dependent test-suite requirement. The committed CPU and example tests

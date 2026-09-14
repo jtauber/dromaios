@@ -9,6 +9,7 @@ address is CS:IP; the physical PC is a derived view.
 [Public type checks](../../../tests/types/8088.ts) ·
 [Coverage](../coverage.md#8088) ·
 [Arithmetic example](examples/arithmetic.md) ·
+[Transfer example](examples/transfers.md) ·
 [dromaios-pc comparison](reference-notes.md)
 
 Hardware behavior follows Intel's
@@ -39,6 +40,8 @@ Snapshots add AL/AH, BL/BH, CL/CH, and DL/DH as low/high byte views of the
 corresponding word registers. They also add `pc`, the physical address of
 CS:IP. These values are recomputed from stored state; they are not additional
 storage and cannot be assigned in a `.machine` definition.
+Instructions can write these byte registers: a byte write replaces only the
+selected half of its word, while a word write replaces both halves together.
 
 ## Construction and inspection
 
@@ -67,8 +70,8 @@ translated separately. For example, a fetch at `1234:FFFF` reads `2233F`, then
 the next fetch reads `12340`. At `FFFF:000F`, consecutive fetches read `FFFFF`
 and `00000` because the physical address itself wraps.
 
-The supported memory instruction stores AX at DS:offset. Its two operand bytes
-encode the offset, low byte first. A data word occupies consecutive physical
+Direct memory MOV forms load or store AL or AX at DS:offset. Their two operand
+bytes encode the offset, low byte first. A data word occupies consecutive physical
 bytes, with the low byte first; the second byte's physical address wraps at
 `FFFFF`. This differs from fetching two instruction bytes through advancing
 IP. A word at `1234:FFFF` uses physical `2233F` and `22340`; a word at
@@ -90,17 +93,24 @@ The supported unprefixed forms are:
 
 | Opcode | Form | Effects |
 | --- | --- | --- |
-| `B8` | `MOV AX,n` | Fetch a little-endian immediate word and replace AX; preserve all flags |
-| `05` | `ADD AX,n` | Add a little-endian immediate word to AX without incoming carry; replace CF/PF/AF/ZF/SF/OF |
-| `A3` | `MOV [offset],AX` | Fetch a little-endian offset and write AX through DS, low byte then high; preserve all registers and flags except advancing IP |
+| `B0`–`B7` | `MOV r8,n` | Fetch an immediate byte and replace AL/CL/DL/BL/AH/CH/DH/BH; preserve the other half and all flags |
+| `B8`–`BF` | `MOV r16,n` | Fetch a little-endian immediate word and replace AX/CX/DX/BX/SP/BP/SI/DI; preserve all flags |
+| `04`, `05` | `ADD AL,n`, `ADD AX,n` | Add an immediate byte/word without incoming carry; replace CF/PF/AF/ZF/SF/OF |
+| `A0`, `A1` | `MOV AL,[offset]`, `MOV AX,[offset]` | Fetch a word offset and read one/two bytes through DS; preserve all flags and, for AL, AH |
+| `A2`, `A3` | `MOV [offset],AL`, `MOV [offset],AX` | Fetch a word offset and write one/two bytes through DS; preserve all registers and flags except advancing IP |
 
-All three fetch exactly three instruction bytes. MOV to memory then performs
-two writes without reading the destination. Writes are recorded even when
-their values are unchanged. Stores may overwrite code; later steps fetch
-current RAM, while retained records keep the earlier fetched values.
+Immediate byte instructions fetch two instruction bytes; immediate word
+instructions and all direct memory transfers fetch three. Data accesses follow
+the complete instruction encoding and do not appear in `instruction.bytes`.
+Loads read their source once, low byte then high for words. Stores perform
+one or two writes without reading the destination or touching neighboring
+bytes. Writes are recorded even when their values are unchanged. Stores may
+overwrite code; later steps fetch current RAM, while retained records keep
+the earlier fetched values.
 
-ADD wraps AX to sixteen bits. CF reports unsigned carry; AF carry from bit 3;
-ZF a zero word; SF bit 15; OF signed overflow. PF indicates an even number of
+ADD wraps its result to the operand width; byte ADD preserves AH. CF reports
+unsigned carry; AF carry from bit 3; ZF a zero result; SF bit 7 or 15; OF signed
+overflow at the selected width. PF indicates an even number of
 one bits in the **low byte only**, including for word arithmetic. TF, IF, and DF
 are preserved. ADD has no decimal mode; decimal adjustment is a separate,
 currently unsupported instruction.
@@ -128,20 +138,24 @@ example's memory image. Creating a fresh example performs that restart.
 
 ## Checks and limits
 
-Independent tests cover every immediate MOV value, both byte views across
-every word value, every code-segment value, and instruction fetches at every
-IP. ADD checks every word against carry and signed boundaries, all low-byte
-operand pairs, every incoming flag pattern at arithmetic boundaries, and
-parity examples that distinguish a byte from a word. Store checks cover every
-offset and word value, odd addresses, segment-end and physical wrapping, and
-unchanged-value writes. Complete records and observed RAM calls check access
-order, state preservation, unsupported attempts, reset, self-modifying code,
-and detached snapshots.
+Independent tests cover every immediate byte and register selector, word-register
+boundaries, every immediate AX value, byte views across every word value,
+every code-segment value, and instruction fetches at every IP. ADD checks all
+byte operand pairs, every word against carry and signed boundaries, every
+incoming flag pattern at arithmetic boundaries, and parity examples that
+distinguish a byte from a word. Memory checks cover every byte, word, and
+direct word offset, odd addresses, segment-end and physical wrapping, exact
+access widths, and unchanged-value writes. Complete records and observed RAM
+calls check access order, state preservation, unsupported attempts, reset,
+self-modifying code, and detached snapshots.
 
-The generated example checks full initial/final RAM images, three complete
+The arithmetic example checks full initial/final RAM images, three complete
 records, distinct code/data segments, a physical completion address,
 pause/resume, reset, and fresh restart. Parser, generator, and type checks keep
 logical initial state separate from derived views and physical image addresses.
+The [transfer example](examples/transfers.md) additionally checks byte writes
+sharing word storage, byte versus word flags, direct readback, memory sentinels,
+snapshot restoration, and physical completion through a different CS:IP alias.
 
 Other instruction forms, ModR/M addressing, segment overrides and other
 prefixes, control flow, stack operations, interrupts, I/O, mapped devices,

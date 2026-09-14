@@ -12,7 +12,7 @@ mappings for families. These examples exercise several encoding relationships:
 | [6502](../../src/components/cpus/6502.ts) | `ff v 100 00` | `ff` selects N/V/C/Z; `v` selects the value required to branch |
 | [6800](../../src/components/cpus/6800.ts) | `0010 ttt p` | Seven conditional pairs expand `p`; BRA is explicit because `21` is unused |
 | [6809](../../src/components/cpus/6809.ts) | `0010 ttt p` | `ttt` selects a condition; `p` selects whether to invert it |
-| [8088](../../src/components/cpus/8088.ts) | `1011 w rrr` | `w` selects byte/word width and `rrr` the register; the initial slice explicitly fixes `w=1`, `rrr=000` for AX |
+| [8088](../../src/components/cpus/8088.ts) | `1011 w rrr` | `w` selects byte/word width; separate `rrr` mappings expose byte halves versus full word registers |
 | [68000](../../src/components/cpus/68000.ts) | `0111 rrr 0 iiiiiiii` | MOVEQ selects D0–D7 with `rrr` and embeds its signed immediate in `iiiiiiii` |
 
 The 68000 uses `00 ss ddd mmm MMM rrr` for MOVE: destination register then
