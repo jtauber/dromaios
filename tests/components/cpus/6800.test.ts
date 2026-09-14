@@ -28,6 +28,28 @@ function addition(a: number, operand: number, i: boolean) {
     n: result >= 128, z: result === 0, v: signedTotal < -128 || signedTotal > 127, c: total >= 256 } };
 }
 
+// Apply a literal Boolean truth table one bit at a time, independently of JS bitwise operators.
+function logicalResult(left: number, right: number, truth: readonly [number, number, number, number]): number {
+  let result = 0;
+  for (let weight = 1; weight <= 128; weight *= 2) {
+    const leftBit = Math.floor(left / weight) % 2;
+    const rightBit = Math.floor(right / weight) % 2;
+    result += truth[leftBit * 2 + rightBit]! * weight;
+  }
+  return result;
+}
+
+const immediateLogic = [
+  { mnemonic: "ANDA", opcode: 0x84, register: "a", truth: [0, 0, 0, 1], stores: true },
+  { mnemonic: "ANDB", opcode: 0xc4, register: "b", truth: [0, 0, 0, 1], stores: true },
+  { mnemonic: "BITA", opcode: 0x85, register: "a", truth: [0, 0, 0, 1], stores: false },
+  { mnemonic: "BITB", opcode: 0xc5, register: "b", truth: [0, 0, 0, 1], stores: false },
+  { mnemonic: "EORA", opcode: 0x88, register: "a", truth: [0, 1, 1, 0], stores: true },
+  { mnemonic: "EORB", opcode: 0xc8, register: "b", truth: [0, 1, 1, 0], stores: true },
+  { mnemonic: "ORAA", opcode: 0x8a, register: "a", truth: [0, 1, 1, 1], stores: true },
+  { mnemonic: "ORAB", opcode: 0xca, register: "b", truth: [0, 1, 1, 1], stores: true },
+] as const;
+
 test("6800 construction and inspection copy only declared state and detach flags without RAM accesses", () => {
   const ram = new ObservedRam();
   const state = initialState();
@@ -189,6 +211,89 @@ test("6800 ADDA replaces H/N/Z/V/C for every incoming flag pattern at arithmetic
         instruction: { address: 0xffff, bytes: [0x8b, operand] }, outcome: "executed",
         accesses: [{ kind: "read", address: 0xffff, value: 0x8b }, { kind: "read", address: 0, value: operand }] });
     }
+  }
+});
+
+for (const { mnemonic, opcode, register, truth, stores } of immediateLogic) {
+  test(`6800 ${mnemonic} immediate matches an independent truth table for every operand pair`, () => {
+    const ram = new ObservedRam();
+    ram.write(0x2000, opcode);
+    for (const oldFlags of [flags(0), flags(63)]) {
+      for (let left = 0; left < 256; left++) {
+        for (let operand = 0; operand < 256; operand++) {
+          ram.write(0x2001, operand);
+          ram.accesses.length = 0;
+          const result = logicalResult(left, operand, truth);
+          const before = initialState({ [register]: left, flags: oldFlags });
+          const after = { ...before, [register]: stores ? result : left, pc: 0x2002,
+            flags: { ...oldFlags, n: result >= 128, z: result === 0, v: false } };
+          const accesses = [{ kind: "read", address: 0x2000, value: opcode }, { kind: "read", address: 0x2001, value: operand }];
+          const cpu = new Cpu6800(ram, before);
+          assert.deepEqual(cpu.step(), { before, after, instruction: { address: 0x2000, bytes: [opcode, operand] },
+            outcome: "executed", accesses });
+          assert.deepEqual(cpu.snapshot(), after);
+          assert.deepEqual(ram.accesses, accesses);
+        }
+      }
+    }
+  });
+
+  test(`6800 ${mnemonic} preserves H/I/C for all flag patterns and wraps either instruction fetch`, () => {
+    const ram = new ObservedRam();
+    for (const pc of [0x2000, 0xfffe, 0xffff]) {
+      const operandAddress = (pc + 1) % 65536;
+      ram.write(pc, opcode);
+      for (let bits = 0; bits < 64; bits++) {
+        for (const left of [0, 1, 0x55, 0x7f, 0x80, 0xaa, 0xff]) {
+          for (const operand of [0, 1, 0x55, 0x7f, 0x80, 0xaa, 0xff]) {
+            ram.write(operandAddress, operand);
+            ram.accesses.length = 0;
+            const result = logicalResult(left, operand, truth);
+            const before = initialState({ [register]: left, pc, flags: flags(bits) });
+            const after = { ...before, [register]: stores ? result : left, pc: (pc + 2) % 65536,
+              flags: { ...before.flags, n: result >= 128, z: result === 0, v: false } };
+            const accesses = [{ kind: "read", address: pc, value: opcode }, { kind: "read", address: operandAddress, value: operand }];
+            assert.deepEqual(new Cpu6800(ram, before).step(), { before, after,
+              instruction: { address: pc, bytes: [opcode, operand] }, outcome: "executed", accesses });
+            assert.deepEqual(ram.accesses, accesses);
+          }
+        }
+      }
+    }
+  });
+}
+
+test("6800 logic resumes after replacing an unsupported form and reads current operands while retaining old records", () => {
+  for (const { opcode, register, truth, stores } of immediateLogic) {
+    const ram = new ObservedRam();
+    ram.write(0xfffe, 0x94); // Direct ANDA remains unsupported.
+    ram.write(0xffff, 0xff);
+    const cpu = new Cpu6800(ram, initialState({ [register]: 0x81, pc: 0xfffe }));
+    const initial = cpu.snapshot();
+    ram.accesses.length = 0;
+    const rejectedAccesses = [{ kind: "read", address: 0xfffe, value: 0x94 }];
+    assert.deepEqual(cpu.step(), { before: initial, after: initial,
+      instruction: { address: 0xfffe, bytes: [0x94] }, outcome: "unsupported", reason: "opcode", accesses: rejectedAccesses });
+    assert.deepEqual(ram.accesses, rejectedAccesses);
+    ram.write(0xfffe, opcode);
+    const first = cpu.step();
+    const saved = structuredClone(first);
+    const firstResult = logicalResult(0x81, 0xff, truth);
+    const before = { ...initial, [register]: stores ? firstResult : 0x81, pc: 0,
+      flags: { ...initial.flags, n: firstResult >= 128, z: firstResult === 0, v: false } };
+    assert.deepEqual(first.after, before);
+    ram.write(0, opcode);
+    ram.write(1, 0x80);
+    ram.accesses.length = 0;
+    const result = logicalResult(before[register], 0x80, truth);
+    const after = { ...before, [register]: stores ? result : before[register], pc: 2,
+      flags: { ...before.flags, n: result >= 128, z: result === 0, v: false } };
+    const accesses = [{ kind: "read", address: 0, value: opcode }, { kind: "read", address: 1, value: 0x80 }];
+    assert.deepEqual(cpu.step(), { before, after, instruction: { address: 0, bytes: [opcode, 0x80] }, outcome: "executed", accesses });
+    assert.deepEqual(ram.accesses, accesses);
+    ram.write(0xffff, 0);
+    cpu.reset();
+    assert.deepEqual(first, saved);
   }
 });
 
@@ -488,9 +593,10 @@ test("6800 pulls read edited stack RAM and later calls use current SP while old 
 test("6800 rejects every other opcode atomically, including 21, other addressing modes and interrupt instructions", () => {
   const supported = new Set([
     0x16, 0x17, 0x20, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
-    0x32, 0x33, 0x36, 0x37, 0x39, 0x4a, 0x4c, 0x5a, 0x5c, 0x86, 0x8b, 0x8d, 0x8e, 0xb7, 0xbd, 0xc6,
+    0x32, 0x33, 0x36, 0x37, 0x39, 0x4a, 0x4c, 0x5a, 0x5c,
+    0x84, 0x85, 0x86, 0x88, 0x8a, 0x8b, 0x8d, 0x8e, 0xb7, 0xbd, 0xc4, 0xc5, 0xc6, 0xc8, 0xca,
   ]);
-  assert.equal(supported.size, 33);
+  assert.equal(supported.size, 41);
   const ram = new ObservedRam();
   for (let opcode = 0; opcode < 256; opcode++) {
     if (supported.has(opcode)) continue;

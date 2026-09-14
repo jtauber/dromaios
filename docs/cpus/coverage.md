@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [289](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [670](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [262](../../src/components/cpus/6800.ts) | 33 / 197 | 16.8% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [268](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [242](../../src/components/cpus/6502.ts) | 25 / 151 | 16.6% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [313](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [323](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
@@ -563,6 +563,9 @@ final RAM, resumption before adjustment, reset, and restart.
 [Stack specification](6800/examples/stack.md) ·
 [Stack definition](../../src/machines/6800/stack-example.machine)
 
+[Logic specification](6800/examples/logic.md) ·
+[Logic definition](../../src/machines/6800/logic-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `16` | TAB | Inherent | 1 | Copy A to B; set N/Z, clear V, preserve H/I/C |
@@ -591,22 +594,36 @@ final RAM, resumption before adjustment, reset, and restart.
 | `4C` | INCA | Inherent | 1 | Increment A; set N/Z/V, preserve H/I/C |
 | `5A` | DECB | Inherent | 1 | Decrement B; set N/Z/V, preserve H/I/C |
 | `5C` | INCB | Inherent | 1 | Increment B; set N/Z/V, preserve H/I/C |
+| `84` | ANDA #n | Immediate | 2 | A AND operand → A; set N/Z, clear V, preserve H/I/C |
+| `85` | BITA #n | Immediate | 2 | Set N/Z from A AND operand, clear V; preserve A and H/I/C |
 | `86` | LDAA #n | Immediate | 2 | Load A; set N/Z, clear V, preserve H/I/C |
+| `88` | EORA #n | Immediate | 2 | A XOR operand → A; set N/Z, clear V, preserve H/I/C |
+| `8A` | ORAA #n | Immediate | 2 | A OR operand → A; set N/Z, clear V, preserve H/I/C |
 | `8B` | ADDA #n | Immediate | 2 | Add to A without incoming carry; set H/N/Z/V/C, preserve I |
 | `8D` | BSR rel | Relative | 2 | Push return PC low byte first, then branch relative to it; preserve flags |
 | `8E` | LDS #nn | Immediate | 3 | Load SP; set N/Z from the full word, clear V, preserve H/I/C |
 | `B7` | STAA addr | Extended | 3 | Store A; set N/Z, clear V, preserve H/I/C |
 | `BD` | JSR addr | Extended | 3 | Push return PC low byte first, then jump to the high-byte-first target; preserve flags |
+| `C4` | ANDB #n | Immediate | 2 | B AND operand → B; set N/Z, clear V, preserve H/I/C |
+| `C5` | BITB #n | Immediate | 2 | Set N/Z from B AND operand, clear V; preserve B and H/I/C |
 | `C6` | LDAB #n | Immediate | 2 | Load B; set N/Z, clear V, preserve H/I/C |
+| `C8` | EORB #n | Immediate | 2 | B XOR operand → B; set N/Z, clear V, preserve H/I/C |
+| `CA` | ORAB #n | Immediate | 2 | B OR operand → B; set N/Z, clear V, preserve H/I/C |
 
 Opcode `21` is unused on the original 6800 and remains unsupported. It is not
 the 6809's BRN instruction.
+
+The 6800 now meets the [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint).
+Its logic example combines loads, stores, arithmetic, logic, conditional
+branches, a call and return, and a saved accumulator on the RAM stack in an
+independently checked bounded run. The stack example also checks nested calls.
 
 | Area | Implemented scope |
 | --- | --- |
 | Stored state | Byte A/B, word X/SP/PC, and H/I/N/Z/V/C flags |
 | Inspection | Detached registers and flags; no derived register pairs |
 | Accumulator operations | Immediate A/B loads, A↔B transfers, and wrapping A/B increment/decrement; preserve H/I/C |
+| Arithmetic and logic | Immediate addition to A; immediate AND, OR, XOR, and bit-test for A/B, with BIT updating flags without writing the accumulator |
 | Control flow | BRA and all fourteen short conditional branches, relative BSR, extended JSR, and RTS; 16-bit targets and unchanged flags |
 | Stack | Immediate LDS; A/B pushes and pulls; calls and returns share ordinary RAM, with SP pointing to the next free byte and wrapping at 16 bits |
 | Memory | Exactly 64 KiB RAM; 16-bit PC wrapping; extended addresses fetched high byte first |
@@ -617,7 +634,8 @@ the 6809's BRN instruction.
 Verification: [CPU tests](../../tests/components/cpus/6800.test.ts),
 [arithmetic example tests](../../tests/machines/6800/example.test.ts),
 [counted-loop tests](../../tests/machines/6800/counted-loop-example.test.ts),
-[stack tests](../../tests/machines/6800/stack-example.test.ts), and
+[stack tests](../../tests/machines/6800/stack-example.test.ts),
+[logic tests](../../tests/machines/6800/logic-example.test.ts), and
 [public type checks](../../tests/types/6800.ts). Checks cover every addition
 operand pair, every load/store/transfer/increment/decrement byte and incoming
 flag pattern, arithmetic boundaries, every store destination, PC, and
@@ -626,6 +644,9 @@ displacement checks cover every byte, both paths, and address boundaries.
 Stack checks cover every LDS word, push/pull byte and flag pattern, full-width
 SP, BSR displacement, and JSR/RTS target. Boundary cases verify LDS word flags,
 code/stack overlap, PC/SP wrapping, byte order, and reads of edited stack RAM.
+Independent per-bit truth tables check every logic operand pair in both
+accumulators; mixed flag patterns and boundary operands check N/Z/V replacement,
+H/I/C preservation, wrapped fetches, and BIT leaving registers unchanged.
 Complete records and observed RAM calls verify wrapping, byte order,
 self-modifying code, unchanged-value stores, unsupported attempts, reset, and
 detached snapshots. The examples check whole RAM images, complete records,
@@ -633,6 +654,8 @@ bounded running, caller completion, reset, and fresh restart. The counted loop
 also checks resumption and an edited displacement that branches to itself.
 The stack example checks nested calls, saved accumulators, residual stack bytes,
 resumption from snapshots and RAM at different call depths, and reset during a call.
+The logic example checks all eight immediate forms, branches after BIT,
+stack preservation, snapshot resumption, and edited masks that select alternate paths.
 Parser and generator checks preserve the 6800's own state schema and generated
 factory types.
 

@@ -1,0 +1,40 @@
+ram 10000
+
+cpu 6800 {
+    A = 81  B = 22  X = 3456  SP = 0101  PC = 0200
+    flags { H = 1  I = 0  N = 1  Z = 1  V = 1  C = 1 }
+}
+
+memory 0200 {
+    8E 01 01    // LDS #$0101: next free stack byte
+    86 05       // LDAA #$05
+    C6 A5       // LDAB #$A5
+    BD 02 20    // JSR $0220: return to 020A
+    B7 00 80    // STAA $0080: store the answer
+}
+
+memory 0220 {
+    37          // PSHB: save the caller's B
+    84 0F       // ANDA #$0F: keep the low four bits (05)
+    8A 80       // ORAA #$80: set bit 7 (85)
+    88 04       // EORA #$04: toggle bit 2 (81)
+    85 80       // BITA #$80: test bit 7, leaving A = 81
+    27 10       // BEQ $023B: early return if the test is zero
+    C4 0F       // ANDB #$0F: A5 -> 05
+    CA 80       // ORAB #$80: 05 -> 85
+    C8 05       // EORB #$05: 85 -> 80
+    C5 7F       // BITB #$7F: zero test result, but B remains 80
+    27 02       // BEQ $0237: skip the fallback when the low seven bits are clear
+    86 00       // LDAA #$00: fallback base (normally skipped)
+    88 80       // EORA #$80: 81 -> 01 on the normal path
+    8B 0F       // ADDA #$0F: 01 + 0F = 10
+    33          // PULB: restore A5 without changing flags
+    39          // RTS: return to 020A
+}
+
+memory 007F { AA CC 55 } // Result at 0080, between guards
+memory 00FE { 5A }       // Guard below stack bytes 00FF–0101
+memory 0102 { A5 }       // Guard above the stack
+memory FFFE { 02 00 }    // Reset vector: 0200, high byte first
+
+end 020D

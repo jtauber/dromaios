@@ -158,9 +158,14 @@ export class Cpu6800 {
     ...opcodeFamily("010 r 1100", { r: ["a", "b"] }, ({ r: register }) => () => this.#adjustAccumulator(register, 1)), // INCA / INCB
 
     // 1 r mm oooo: r (bit 6) selects A=0/B=1; mm (bits 5–4) selects addressing;
-    // oooo (bits 3–0) selects load=0110, store=0111, or add=1011 in this subset.
+    // oooo (bits 3–0) selects the operation, as labeled on each row.
     // mm=00 supplies an immediate byte. Both loads and only the A add are implemented.
+    // Logic sets N/Z, clears V, and preserves H/I/C; BIT keeps both accumulators unchanged.
+    ...opcodeFamily("1 r 00 0100", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#loadAccumulator(register, this.#state[register] & fetchByte())), // ANDA / ANDB #n
+    ...opcodeFamily("1 r 00 0101", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#setResultFlags(this.#state[register] & fetchByte())), // BITA / BITB #n
     ...opcodeFamily("1 r 00 0110", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#loadAccumulator(register, fetchByte())), // LDAA / LDAB #n
+    ...opcodeFamily("1 r 00 1000", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#loadAccumulator(register, this.#state[register] ^ fetchByte())), // EORA / EORB #n
+    ...opcodeFamily("1 r 00 1010", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#loadAccumulator(register, this.#state[register] | fetchByte())), // ORAA / ORAB #n
     ...opcodePattern("1 0 00 1011", ({ fetchByte }: InstructionContext) => this.#addToAccumulator(fetchByte())), // ADDA #n
 
     // 10 mm 1101: mm=00 is relative BSR; mm=11 is extended JSR below.
@@ -186,18 +191,18 @@ export class Cpu6800 {
 
   #loadAccumulator(register: Accumulator, value: number): void {
     this.#state[register] = value;
-    this.#setLoadStoreFlags(value);
+    this.#setResultFlags(value);
   }
 
   #loadStackPointer(value: number): void {
     this.#state.sp = value;
-    this.#setLoadStoreFlags(value, 0x8000);
+    this.#setResultFlags(value, 0x8000);
   }
 
   #storeAccumulator(address: number, writeByte: InstructionContext["writeByte"]): void {
     const value = this.#state.a;
     writeByte(address, value);
-    this.#setLoadStoreFlags(value);
+    this.#setResultFlags(value);
   }
 
   #adjustAccumulator(register: Accumulator, delta: -1 | 1): void {
@@ -244,7 +249,7 @@ export class Cpu6800 {
     return readByte(this.#state.sp);
   }
 
-  // Arithmetic and flags.
+  // Arithmetic, logic, and flags.
 
   #addToAccumulator(value: number): void {
     const { result, carry, halfCarry, overflow } = add8(this.#state.a, value);
@@ -254,7 +259,8 @@ export class Cpu6800 {
     this.#state.flags.v = overflow;
   }
 
-  #setLoadStoreFlags(value: number, signBit = 0x80): void {
+  #setResultFlags(value: number, signBit = 0x80): void {
+    // Loads, stores, and logic share these N/Z/V rules; arithmetic may replace V afterward.
     this.#state.flags.n = (value & signBit) !== 0;
     this.#state.flags.z = value === 0;
     this.#state.flags.v = false;

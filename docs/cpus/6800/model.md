@@ -10,12 +10,13 @@ addresses and the reset vector use the high byte first.
 [Coverage](../coverage.md#6800) ·
 [Arithmetic example](examples/arithmetic.md) ·
 [Counted-loop example](examples/counted-loop.md) ·
-[Stack example](examples/stack.md)
+[Stack example](examples/stack.md) ·
+[Logic example](examples/logic.md)
 
 Hardware references are Motorola's
 [M6800 Programming Reference Manual, November 1976](https://manualzz.com/doc/1063126/motorola-m6800-microprocessor-programming-reference-manual),
 sections 1, 3.3.1, and 3.4–3.5 and Appendix A's ADD, LDA, STA, TAB, TBA,
-INC, DEC, branch, LDS, PSH, PUL, JSR, and RTS definitions; and the
+INC, DEC, branch, LDS, PSH, PUL, JSR, RTS, AND, BIT, EOR, and ORA definitions; and the
 [MC6800 data sheet in M6800 Systems Reference and Data Sheets](https://vtda.org/docs/computing/Motorola/M6800SystemsReferenceDataSheets_May75.pdf),
 reset description on pages 13–14 and instruction tables on pages 18–21.
 The supported encodings are for the original 6800; later-family additions
@@ -62,7 +63,9 @@ or `unsupported`; only the latter carries `reason: "opcode"`.
 
 Supported instructions fetch the opcode and then their operands, advancing PC
 after each byte with wrap from `FFFF` to `0000`. LDAA, LDAB, and ADDA fetch one
-immediate byte. Transfers and accumulator increments/decrements fetch only
+immediate byte. ANDA/ANDB, BITA/BITB, EORA/EORB, and ORAA/ORAB likewise
+fetch one immediate byte and perform no data-memory access.
+Transfers and accumulator increments/decrements fetch only
 their opcode. Branches always fetch a displacement byte, whether taken or
 untaken. LDS and extended JSR fetch a high-byte-first word. Stack pushes,
 pulls, and RTS fetch only their opcode; BSR fetches a displacement byte.
@@ -93,6 +96,16 @@ ADDA adds the immediate byte to A without incoming carry and wraps the result
 to a byte. It replaces H/N/Z/V/C: H indicates carry from bit 3, N the result's
 sign bit, Z a zero result, V signed overflow, and C carry out of bit 7. I is
 preserved. Instructions leave the other accumulator, X, and SP unchanged.
+
+## Immediate logic
+
+ANDA/ANDB replace the named accumulator with its bitwise AND with the operand;
+ORAA/ORAB use inclusive OR, and EORA/EORB use exclusive OR. BITA/BITB form
+the same result as AND for flag updates but leave both accumulators unchanged.
+All eight forms set N from bit 7 of the logical result, set Z when that result
+is zero, clear V, and preserve H/I/C. The other accumulator, X, and SP are
+unchanged. In particular, BIT does not copy N or V from the operand: both N
+and Z describe the AND result, and V is always cleared.
 
 ## Accumulator operations and short branches
 
@@ -180,13 +193,23 @@ cases cover word-wide LDS flags, PC/SP wrapping, overlapping code and stack
 bytes, low-first call writes, high-first return reads, unchanged flags, and
 edited stack RAM without hidden return state.
 
-The generated arithmetic, counted-loop, and stack examples check full initial/final
+Logic tests use independent per-bit truth tables for every operand pair in
+both accumulators, with incoming flags all clear and all set. Further checks
+cover all flag patterns at byte boundaries and with alternating-bit operands,
+ordinary and wrapped PC, exact fetch records, BIT preserving its accumulator,
+current operands, and resumption after replacing an unsupported addressing form.
+
+The generated arithmetic, counted-loop, stack, and logic examples check full initial/final
 memory images, explicit state, complete execution records, bounded running,
 caller completion, reset, and fresh restart. The loop also checks pause/resume
 and an edited displacement that repeats BNE until the step budget expires.
 The stack example nests BSR inside JSR, saves/restores both accumulators,
 resumes from snapshots and RAM at different call depths, and checks residual
 stack bytes and reset during a call.
+The logic example exercises all eight immediate forms inside a subroutine,
+branches on BIT results, preserves the caller's B on the stack, adds to A,
+and stores the answer. It checks snapshot resumption after either bit test,
+as well as edited masks that select the early-return and fallback paths.
 Parser, generator, and type checks preserve CPU-specific state and record
 contracts.
 
