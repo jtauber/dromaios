@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [270](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [651](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [250](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [337](../../src/components/cpus/6502.ts) | 85 / 151 | 56.3% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [389](../../src/components/cpus/6502.ts) | 113 / 151 | 74.8% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [294](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [305](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [227](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
@@ -681,15 +681,19 @@ factory types.
 [Buffer-processing specification](6502/examples/buffer.md) ·
 [Buffer definition](../../src/machines/6502/buffer-example.machine)
 
-**85 of 151 documented forms are complete (56.3%).** The accumulator families
-below contribute 47 forms; X/Y loads and stores contribute 16; the remaining
-22 complete forms appear in the final instruction table. Binary-only `ADC #n`
-is additional supported behavior and contributes no completion credit.
+[Shift specification](6502/examples/shifts.md) ·
+[Shift definition](../../src/machines/6502/shifts-example.machine)
+
+**113 of 151 documented forms are complete (74.8%).** The accumulator families
+below contribute 47 forms; X/Y loads and stores contribute 16; shifts, rotates,
+and memory INC/DEC contribute 28; the remaining 22 complete forms appear in
+the final instruction table. Binary-only `ADC #n` is additional supported
+behavior and contributes no completion credit.
 
 All documented addressing forms of ORA, AND, EOR, CMP, LDA, STA, LDX, LDY,
-STX, and STY are implemented. A dash in these matrices means the original
-6502 has no such form, rather than an implementation gap. Length includes
-the opcode; absolute operands are low byte first.
+STX, STY, ASL, LSR, ROL, ROR, INC, and DEC are implemented. A dash in these
+matrices means the original 6502 has no such form, rather than an implementation
+gap. Length includes the opcode; absolute operands are low byte first.
 
 | Instruction | `(zp,X)` | `zp` | `#n` | `addr` | `(zp),Y` | `zp,X` | `addr,Y` | `addr,X` |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -708,6 +712,16 @@ the opcode; absolute operands are low byte first.
 | LDX | `A2` | `A6` | `AE` | — | `B6` | — | `BE` |
 | STY | — | `84` | `8C` | `94` | — | — | — |
 | STX | — | `86` | `8E` | — | `96` | — | — |
+
+| Instruction | `A` | `zp` | `addr` | `zp,X` | `addr,X` |
+| --- | --- | --- | --- | --- | --- |
+| Length | 1 | 2 | 3 | 2 | 3 |
+| ASL | `0A` | `06` | `0E` | `16` | `1E` |
+| ROL | `2A` | `26` | `2E` | `36` | `3E` |
+| LSR | `4A` | `46` | `4E` | `56` | `5E` |
+| ROR | `6A` | `66` | `6E` | `76` | `7E` |
+| DEC | — | `C6` | `CE` | `D6` | `DE` |
+| INC | — | `E6` | `EE` | `F6` | `FE` |
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -742,13 +756,14 @@ the opcode; absolute operands are low byte first.
 | Register operations | All A/X/Y loads and stores, A↔X and A↔Y transfers, wrapping X/Y increment/decrement; loads/transfers/index changes replace N/Z, stores preserve all flags |
 | Memory addressing | Zero page, absolute, zero page indexed, absolute indexed, indexed indirect `(zp,X)`, and indirect indexed `(zp),Y`; zero-page indexing/pointer reads wrap at 8 bits, absolute indexing at 16 bits |
 | Logic and comparison | All ORA/AND/EOR and CMP forms; logic replaces A and N/Z, CMP replaces N/Z/C without changing A; both preserve V/D/I |
+| Memory modification | ASL/ROL/LSR/ROR replace N/Z/C; INC/DEC replace N/Z and preserve carry; all preserve V/D/I. Memory forms read once, write the original byte, then write the result. Accumulator shifts/rotates access only the opcode |
 | Branches | All eight conditions; signed displacement relative to PC after the operand, with 16-bit wrapping; fetch the operand on both paths and preserve flags |
 | Subroutines | Absolute JMP/JSR and RTS; JSR's final operand fetch follows its stack writes; RTS adds one to the saved pointer; preserve flags |
 | Stack | PHA/PLA and subroutine return pointers in page 01 with wrapping 8-bit SP; pulls retain stored bytes; status stack forms are unsupported |
 | Decimal mode | D can be initialized and inspected; ADC with D set reports `reason: "decimal-mode"` before operand fetch or state changes |
 | Reset | Read `FFFC` then `FFFD` for PC, set I, subtract 3 from the 8-bit SP with wrapping; preserve other registers, flags (including D), and RAM |
 | Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
-| Remaining instruction scope | SP transfers, memory increment/decrement, shifts/rotates, BIT, CPX/CPY, further ADC/SBC and decimal arithmetic, status stack operations, indirect JMP, NOP, and further flag operations |
+| Remaining instruction scope | SP transfers, BIT, CPX/CPY, further ADC/SBC and decimal arithmetic, status stack operations, indirect JMP, NOP, and further flag operations |
 | Remaining addressing scope | Indirect absolute JMP; operand modes for the instruction families still missing |
 
 All supported forms except ADC work with either D value. Decimal rejection is
@@ -763,7 +778,8 @@ Verification: [CPU tests](../../tests/components/cpus/6502.test.ts),
 [addressing example tests](../../tests/machines/6502/addressing-example.test.ts),
 [counted-loop example tests](../../tests/machines/6502/counted-loop-example.test.ts),
 [subroutine example tests](../../tests/machines/6502/subroutines-example.test.ts),
-[buffer example tests](../../tests/machines/6502/buffer-example.test.ts), and
+[buffer example tests](../../tests/machines/6502/buffer-example.test.ts),
+[shift example tests](../../tests/machines/6502/shifts-example.test.ts), and
 [public type checks](../../tests/types/6502.ts). Binary ADC checks cover every byte
 operand pair and carry input with old result flags clear and set. Other checks
 cover decimal rejection, exact accesses, wrapping, self-overwriting stores,
@@ -808,6 +824,15 @@ the complete RAM image, bounded resumption, reset during a call, fresh restart,
 and an edited self-loop. Together with the existing examples, this satisfies
 the 6502's [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint);
 interrupts and devices remain deferred across the eight targets.
+
+Shift/rotate and memory INC/DEC checks cover all 28 forms, every operand byte,
+and all 64 incoming flag patterns. They verify complete state and accesses,
+including both writes when the result is unchanged, accumulator-only accesses,
+PC/address wrapping, operand/data overlap, live carry and index values,
+self-modifying code, complete RAM preservation outside the destination, and
+retained records. The shift example checks 20 complete records, carry passed
+between two bytes, INC/DEC loop counters, both branch paths, snapshot resumption,
+reset, restart, and a bounded self-loop, all with D set.
 
 ## 6809
 

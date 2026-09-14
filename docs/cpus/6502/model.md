@@ -73,7 +73,7 @@ is no `halted` or `complete` CPU outcome in this subset, and no null instruction
 Instruction bytes come from the actual opcode and operand reads. Data reads
 and writes appear only in `accesses`. Record the actual accesses during execution,
 without rereading an instruction or the old contents of a write destination.
-These records omit dummy bus accesses and carry no cycle-count claim.
+These records omit dummy reads and carry no cycle-count claim.
 
 ## Register operations and relative branches
 
@@ -124,6 +124,39 @@ or load/store behavior. See the [manufacturer manual][1], sections 2.2.4,
 
 The [buffer-processing example](examples/buffer.md) combines these memory
 forms and operations with arithmetic, branches, and subroutine calls.
+
+## Shifts and memory modification
+
+ASL/LSR insert zero while shifting one bit left/right. ROL/ROR insert the
+incoming C at the vacated end. All four put the outgoing bit in C, replace
+N/Z from the result, and preserve V/D/I. Accumulator forms replace only A
+and those flags, reading just the opcode. Memory forms leave A/X/Y/SP alone.
+ROR follows the documented behavior available after June 1976; the early
+NMOS ROR defect is outside this model. See [manual][1], sections 10.1–10.5.
+
+INC/DEC change the addressed byte by one with eight-bit wrapping, replace
+N/Z, and preserve V/D/I/C. They have no accumulator forms on this CPU.
+All six operations use zero page, absolute, zero page X, and absolute X;
+index/address wrapping follows the existing address helpers.
+
+A memory-modifying instruction captures its effective address, reads the
+original byte, writes that original byte back, then writes the result to the
+same address. Both writes are performed and recorded, even when their values
+agree. Instruction bytes already fetched remain intact in the record if the
+destination overlaps an opcode or operand. Later instructions use current RAM.
+The operation does not reread memory between writes or recalculate the address.
+N/Z describe the modified result, rather than the preserved accumulator.
+
+The two writes follow the NMOS sequence in [manual][1], section 10.6;
+sections 10.7–10.8 describe INC/DEC. The original-byte write was also checked
+against all 10,000 independent [ASL zero-page reference cases][3], comparing
+modeled state, final RAM, and ordered accesses. This is a supplementary check;
+the repository's tests remain self-contained and require no downloaded data.
+Dummy reads and next-instruction prefetches remain omitted, including indexed
+forms with or without a page crossing. No cycle-accuracy claim is implied.
+
+The [shift example](examples/shifts.md) passes carry between a two-byte word's
+halves and uses INC/DEC counters to control a loop, with D set throughout.
 
 ## Jumps and subroutines
 
@@ -208,6 +241,11 @@ zero-page and 16-bit wrapping, low/high pointer order, overlap, current RAM,
 unchanged-value stores, and retained records. Opcode/operand reads are checked
 separately from pointer/data accesses, including when PC crosses FFFF.
 
+All shift/rotate and memory INC/DEC forms are checked with every byte and
+incoming flag combination, including unchanged-value writes, register/flag
+preservation, address and PC wrapping, full RAM preservation outside the
+destination, live data/index/carry inputs, and captured self-modifying operands.
+
 Jump and subroutine checks cover every target or stacked return pointer, all
 SP values and flag patterns, PC/SP wrapping, unchanged-value pushes, and
 code/stack overlap. They verify ordered RAM calls, JSR's late high-byte fetch,
@@ -235,11 +273,13 @@ previews, opcode metadata, lesson annotations, addressing, and timing.
 ## References
 
 - [Synertek/MOS MCS6500 Programming Manual][1], sections 2.1–2.2, 3, 4, 6.1–6.5, 7,
-  8.1–8.3, and 9.1–9.4, and Appendix B: registers, flags, control flow,
-  stack access order, memory addressing, reset, and encodings.
+  8.1–8.3, 9.1–9.4, 10.1–10.8, and Appendix B: registers, flags, control flow,
+  stack access order, memory addressing/modification, shifts, reset, and encodings.
   Its startup discussion is supplemented by the transistor-level analysis below.
 - [Michael Steil's Visual6502 analysis of BRK/IRQ/NMI/RESET][2]: reset vector
   order, discarded stack reads, and the three stack-pointer decrements.
+- [SingleStepTests 6502 ASL zero-page cases][3]: independently generated state
+  and bus expectations used to cross-check the intermediate write.
 - [Arithmetic example](examples/arithmetic.md#references): instruction
   semantics and encodings.
 
@@ -248,3 +288,5 @@ omitted bus accesses are deliberate choices for this model.
 
 [1]: https://syncopate.us/books/Synertek6502ProgrammingManual.html
 [2]: https://www.pagetable.com/?p=410
+
+[3]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/06.json

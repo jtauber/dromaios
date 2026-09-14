@@ -1436,11 +1436,12 @@ test("every unimplemented 6502 opcode reads once and preserves state on repeated
       0x10, 0x18, 0x20, 0x30, 0x48, 0x4c, 0x50, 0x60, 0x68, 0x69, 0x70, 0x85, 0x88, 0x8a, 0x8d,
       0x90, 0x98, 0xa0, 0xa2, 0xa5, 0xa8, 0xa9, 0xaa, 0xb0, 0xc8, 0xca, 0xd0, 0xe8, 0xf0,
       ...accumulatorForms.flatMap(form => [...form.opcodes]),
+      ...modifyForms.flatMap(form => form.opcodes.filter(opcode => opcode !== null)),
       ...registerMemoryForms.flatMap(form => [
         ...("load" in form ? [form.load] : []), ...("store" in form ? [form.store] : []),
       ]),
   ]);
-  assert.equal(implemented.size, 86); // 85 complete documented forms plus binary-only ADC #n.
+  assert.equal(implemented.size, 114); // 113 complete documented forms plus binary-only ADC #n.
   for (let opcode = 0; opcode < 256; opcode++) {
     if (implemented.has(opcode)) continue;
     ram.write(0xffff, opcode);
@@ -2045,5 +2046,185 @@ test("6502 indirect stores can rewrite operands and pointers; later steps see cu
   assert.equal(cpu.step().after.a, 0x80); // The rewritten pointer is now 6061.
   ram.write(0x61, 0x12);
   cpu.reset();
+  assert.deepEqual(first, saved);
+});
+
+// Literal manufacturer encodings, independent of the opcode-family construction.
+// Columns: accumulator, zero page, absolute, zero page X, absolute X.
+const modifyForms = [
+  { name: "ASL", opcodes: [0x0a, 0x06, 0x0e, 0x16, 0x1e] },
+  { name: "ROL", opcodes: [0x2a, 0x26, 0x2e, 0x36, 0x3e] },
+  { name: "LSR", opcodes: [0x4a, 0x46, 0x4e, 0x56, 0x5e] },
+  { name: "ROR", opcodes: [0x6a, 0x66, 0x6e, 0x76, 0x7e] },
+  { name: "DEC", opcodes: [null, 0xc6, 0xce, 0xd6, 0xde] },
+  { name: "INC", opcodes: [null, 0xe6, 0xee, 0xf6, 0xfe] },
+] as const;
+type ModifyOperation = typeof modifyForms[number]["name"];
+
+function expectedModification(operation: ModifyOperation, value: number, incoming: Cpu6502Flags) {
+  // Arithmetic expectations for the bit movements; INC/DEC keep the incoming carry.
+  let result: number, c = incoming.c;
+  switch (operation) {
+    case "ASL": result = value * 2 % 256; c = value >= 128; break;
+    case "ROL": result = (value * 2 + Number(incoming.c)) % 256; c = value >= 128; break;
+    case "LSR": result = Math.floor(value / 2); c = value % 2 === 1; break;
+    case "ROR": result = Math.floor(value / 2) + Number(incoming.c) * 128; c = value % 2 === 1; break;
+    case "INC": result = value === 255 ? 0 : value + 1; break;
+    case "DEC": result = value === 0 ? 255 : value - 1; break;
+  }
+  return { result, flags: { ...incoming, n: result >= 128, z: result === 0, c } };
+}
+
+const modifyOperands = [
+  { bytes: [], address: null },
+  { bytes: [0x80], address: 0x80 },
+  { bytes: [0xfe, 0x20], address: 0x20fe },
+  { bytes: [0xfe], address: 0 },
+  { bytes: [0xff, 0x20], address: 0x2101 },
+] as const;
+
+for (const { name, opcodes } of modifyForms) {
+  test(`6502 ${name} checks every form, operand byte, and incoming flag combination`, () => {
+    const ram = new ObservedRam();
+    for (const [mode, opcode] of opcodes.entries()) {
+      if (opcode === null) continue;
+      const { bytes: operands, address } = modifyOperands[mode]!;
+      const bytes = [opcode, ...operands];
+      bytes.forEach((value, offset) => ram.write(0x1234 + offset, value));
+      for (let value = 0; value < 256; value++) {
+        for (const flags of flagCombinations()) {
+          if (address !== null) ram.write(address, value);
+          const before = initialState({ a: address === null ? value : 0x11, x: 2, y: 5, flags });
+          const cpu = new Cpu6502(ram, before);
+          ram.accesses.length = 0;
+          const { result, flags: expectedFlags } = expectedModification(name, value, flags);
+          const record = cpu.step();
+          assert.deepEqual(record, {
+            before,
+            after: { ...before, a: address === null ? result : before.a, pc: 0x1234 + bytes.length, flags: expectedFlags },
+            instruction: { address: 0x1234, bytes }, outcome: "executed",
+            accesses: [
+              ...bytes.map((value, offset) => ({ kind: "read", address: 0x1234 + offset, value })),
+              ...(address === null ? [] : [
+                { kind: "read", address, value },
+                { kind: "write", address, value },
+                { kind: "write", address, value: result },
+              ]),
+            ],
+          }, `${name}: opcode=${opcode}, value=${value}`);
+          assert.deepEqual(ram.accesses, record.accesses);
+          assert.deepEqual(cpu.snapshot(), record.after);
+          if (address !== null) assert.equal(ram.read(address), result);
+        }
+      }
+    }
+  });
+}
+
+test("6502 modifying instructions wrap PC and indexed addresses, capture overlapping operands, and preserve all other RAM", () => {
+  // X=1 distinguishes it from Y=7; absolute,X wraps FFFF+1 to 0000.
+  const modes = [
+    { bytes: [], address: null },
+    { bytes: [0x80], address: 0x80 },
+    { bytes: [0xff, 0xff], address: 0xffff },
+    { bytes: [0xff], address: 0 },
+    { bytes: [0xff, 0xff], address: 0 },
+  ] as const;
+  for (const { name, opcodes } of modifyForms) {
+    for (const [mode, opcode] of opcodes.entries()) {
+      if (opcode === null) continue;
+      const { bytes: operands, address } = modes[mode]!;
+      const bytes = [opcode, ...operands];
+      for (const pc of [0x0400, 0xfffe, 0xffff]) {
+        const ram = new ObservedRam();
+        const expectedMemory = new Uint8Array(0x10000);
+        expectedMemory.fill(0x5a);
+        if (address !== null) expectedMemory[address] = 0x81;
+        // When instruction and data overlap, the instruction bytes are also the data being modified.
+        bytes.forEach((value, offset) => { expectedMemory[(pc + offset) % 0x10000] = value; });
+        expectedMemory.forEach((value, location) => ram.write(location, value));
+        const before = initialState({ pc, x: 1, y: 7, a: 0x81 });
+        const value = address === null ? 0x81 : expectedMemory[address]!;
+        const { result, flags } = expectedModification(name, value, before.flags);
+        const cpu = new Cpu6502(ram, before);
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          before, after: { ...before, pc: (pc + bytes.length) % 0x10000, a: address === null ? result : before.a, flags },
+          instruction: { address: pc, bytes }, outcome: "executed",
+          accesses: [
+            ...bytes.map((value, offset) => ({ kind: "read", address: (pc + offset) % 0x10000, value })),
+            ...(address === null ? [] : [
+              { kind: "read", address, value }, { kind: "write", address, value }, { kind: "write", address, value: result },
+            ]),
+          ],
+        });
+        assert.deepEqual(ram.accesses, record.accesses);
+        if (address !== null) expectedMemory[address] = result;
+        expectedMemory.forEach((value, location) => assert.equal(ram.read(location), value, `RAM ${location}`));
+      }
+    }
+  }
+});
+
+test("6502 memory modification reads current data and index values across instructions", () => {
+  const ram = new ObservedRam();
+  // ASL $FF,X; INX; ROL $FF,X; DEC $01; ROR A. Carry passes through INX and DEC.
+  [0x16, 0xff, 0xe8, 0x36, 0xff, 0xc6, 1, 0x6a].forEach((value, offset) => ram.write(0x0200 + offset, value));
+  ram.write(0, 0x80); ram.write(1, 0x7f);
+  const cpu = new Cpu6502(ram, initialState({ pc: 0x0200, a: 1, x: 1, y: 7 }));
+  const first = cpu.step();
+  assert.equal(first.after.flags.c, true);
+  assert.equal(ram.read(0), 0);
+  cpu.step();
+  ram.write(1, 0x80); // Host change is observed by the next indexed instruction.
+  ram.accesses.length = 0;
+  const rotate = cpu.step();
+  assert.deepEqual(rotate.accesses, [
+    { kind: "read", address: 0x0203, value: 0x36 }, { kind: "read", address: 0x0204, value: 0xff },
+    { kind: "read", address: 1, value: 0x80 }, { kind: "write", address: 1, value: 0x80 },
+    { kind: "write", address: 1, value: 1 },
+  ]);
+  assert.deepEqual(ram.accesses, rotate.accesses);
+  assert.equal(rotate.after.flags.c, true);
+  assert.equal(cpu.step().after.flags.c, true);
+  assert.equal(ram.read(1), 0);
+  const last = cpu.step();
+  assert.equal(last.after.a, 0x80);
+  assert.equal(last.after.flags.c, true);
+  const saved = structuredClone([first, rotate, last]);
+  cpu.reset();
+  ram.write(1, 0xff);
+  assert.deepEqual([first, rotate, last], saved);
+});
+
+test("6502 read/modify/write captures its address before overwriting an operand and rereads that operand next time", () => {
+  const ram = new ObservedRam();
+  [0x0e, 2, 2].forEach((value, offset) => ram.write(0x0200 + offset, value)); // ASL $0202
+  ram.write(0x0402, 0x80);
+  const cpu = new Cpu6502(ram, initialState({ pc: 0x0200 }));
+  ram.accesses.length = 0;
+  const first = cpu.step();
+  assert.deepEqual(first.instruction, { address: 0x0200, bytes: [0x0e, 2, 2] });
+  assert.deepEqual(first.accesses, [
+    { kind: "read", address: 0x0200, value: 0x0e }, { kind: "read", address: 0x0201, value: 2 },
+    { kind: "read", address: 0x0202, value: 2 }, { kind: "read", address: 0x0202, value: 2 },
+    { kind: "write", address: 0x0202, value: 2 }, { kind: "write", address: 0x0202, value: 4 },
+  ]);
+  assert.deepEqual(ram.accesses, first.accesses);
+  const saved = structuredClone(first);
+  const again = new Cpu6502(ram, { ...cpu.snapshot(), pc: 0x0200 });
+  ram.accesses.length = 0;
+  const second = again.step();
+  assert.deepEqual(second.instruction, { address: 0x0200, bytes: [0x0e, 2, 4] });
+  assert.deepEqual(second.accesses.slice(3), [
+    { kind: "read", address: 0x0402, value: 0x80 }, { kind: "write", address: 0x0402, value: 0x80 },
+    { kind: "write", address: 0x0402, value: 0 },
+  ]);
+  assert.deepEqual(ram.accesses, second.accesses);
+  assert.equal(second.after.flags.c, true);
+  assert.equal(ram.read(0x0202), 4);
+  assert.equal(ram.read(0x0402), 0);
+  again.reset();
   assert.deepEqual(first, saved);
 });

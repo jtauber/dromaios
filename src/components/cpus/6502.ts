@@ -53,6 +53,7 @@ export type Cpu6502ResetRecord = StateTransition<Cpu6502Snapshot>;
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type OperandReader = (instruction: InstructionContext) => number;
+type ByteOperation = (value: number) => number;
 type ByteRegister = "a" | "x" | "y";
 
 /** Instruction-level NMOS 6502 subset for the 6502 examples. */
@@ -139,6 +140,14 @@ export class Cpu6502 {
     instruction => instruction.readByte(this.#absoluteIndexed("x", instruction)), // 111 addr,X
   ];
 
+  // ss (bits 6..5) in 0ss bbb 10. Rotates insert the live incoming carry; shifts insert zero.
+  readonly #shifts: readonly ByteOperation[] = [
+    value => this.#shiftLeft(value, 0),                          // 00 ASL
+    value => this.#shiftLeft(value, this.#state.flags.c ? 1 : 0), // 01 ROL
+    value => this.#shiftRight(value, 0),                         // 10 LSR
+    value => this.#shiftRight(value, this.#state.flags.c ? 1 : 0), // 11 ROR
+  ];
+
   // Opcode bits: 7 6 5 | 4 3 2 | 1 0 = aaa bbb cc.
   // cc selects a group. In cc=01, aaa selects the operation and bbb its addressing mode.
   // The cc=00 and cc=10 instructions below have their own patterns.
@@ -208,28 +217,52 @@ export class Cpu6502 {
     // cc=10, bbb=000: aaa=101 selects LDX immediate.
     ...opcodePattern("101 000 10", ({ fetchByte }: InstructionContext) => this.#loadRegister("x", fetchByte())), // LDX #n
 
-    // cc=10, bbb=001: aaa=100/101 select STX/LDX zero page.
+    // cc=10 memory subgroups: 0ss selects ASL/ROL/LSR/ROR; 11i selects DEC (i=0)/INC (i=1).
+    // bbb=001/011/101/111 select zp/absolute/zp,X/absolute,X for these modifying operations.
+    // STX/LDX occupy aaa=100/101 between those families and have their own indexing rules.
+    // bbb=001: zero page.
+    ...this.#memoryShiftHandlers("0ss 001 10", ({ fetchByte }) => fetchByte()), // ASL/ROL/LSR/ROR zp
     ...opcodePattern("100 001 10", ({ fetchByte, writeByte }: InstructionContext) => writeByte(fetchByte(), this.#state.x)), // STX zp
     ...opcodePattern("101 001 10", ({ fetchByte, readByte }: InstructionContext) => this.#loadRegister("x", readByte(fetchByte()))), // LDX zp
+    ...this.#memoryAdjustHandlers("11i 001 10", ({ fetchByte }) => fetchByte()), // DEC/INC zp
 
-    // cc=10, bbb=010: aaa=100..110 selects TXA, TAX, DEX.
+    // bbb=010: 0ss shifts/rotates A; aaa=100..110 select TXA, TAX, DEX, not accumulator INC/DEC.
+    ...opcodeFamily("0ss 010 10", { s: this.#shifts }, ({ s: modify }) => () => this.#loadRegister("a", modify(this.#state.a))), // ASL/ROL/LSR/ROR A
     ...opcodePattern("100 010 10", () => this.#loadRegister("a", this.#state.x)), // TXA
     ...opcodePattern("101 010 10", () => this.#loadRegister("x", this.#state.a)), // TAX
     ...opcodePattern("110 010 10", () => this.#adjustIndex("x", -1)), // DEX
 
-    // cc=10, bbb=011: aaa=100/101 select STX/LDX absolute.
+    // bbb=011: absolute.
+    ...this.#memoryShiftHandlers("0ss 011 10", ({ fetchWord }) => fetchWord()), // ASL/ROL/LSR/ROR addr
     ...opcodePattern("100 011 10", ({ fetchWord, writeByte }: InstructionContext) => writeByte(fetchWord(), this.#state.x)), // STX addr
     ...opcodePattern("101 011 10", ({ fetchWord, readByte }: InstructionContext) => this.#loadRegister("x", readByte(fetchWord()))), // LDX addr
+    ...this.#memoryAdjustHandlers("11i 011 10", ({ fetchWord }) => fetchWord()), // DEC/INC addr
 
-    // cc=10, bbb=101/111: X loads/stores use Y as the index; no STX absolute,Y form.
+    // bbb=101: zero page indexed by X, except STX/LDX use Y.
+    ...this.#memoryShiftHandlers("0ss 101 10", instruction => this.#zeroPageIndexed("x", instruction)), // ASL/ROL/LSR/ROR zp,X
     ...opcodePattern("100 101 10", (instruction: InstructionContext) => instruction.writeByte(this.#zeroPageIndexed("y", instruction), this.#state.x)), // STX zp,Y
     ...opcodePattern("101 101 10", (instruction: InstructionContext) => this.#loadRegister("x", instruction.readByte(this.#zeroPageIndexed("y", instruction)))), // LDX zp,Y
+    ...this.#memoryAdjustHandlers("11i 101 10", instruction => this.#zeroPageIndexed("x", instruction)), // DEC/INC zp,X
+
+    // bbb=111: absolute indexed by X, except LDX uses Y; no STX counterpart.
+    ...this.#memoryShiftHandlers("0ss 111 10", instruction => this.#absoluteIndexed("x", instruction)), // ASL/ROL/LSR/ROR addr,X
     ...opcodePattern("101 111 10", (instruction: InstructionContext) => this.#loadRegister("x", instruction.readByte(this.#absoluteIndexed("y", instruction)))), // LDX addr,Y
+    ...this.#memoryAdjustHandlers("11i 111 10", instruction => this.#absoluteIndexed("x", instruction)), // DEC/INC addr,X
   ]);
 
   #accumulatorHandlers(pattern: string, operation: (value: number) => void): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { b: this.#accumulatorOperands }, ({ b: readOperand }) =>
       instruction => operation(readOperand(instruction)));
+  }
+
+  #memoryShiftHandlers(pattern: string, address: OperandReader): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { s: this.#shifts }, ({ s: modify }) =>
+      instruction => this.#modifyMemory(address(instruction), modify, instruction));
+  }
+
+  #memoryAdjustHandlers(pattern: string, address: OperandReader): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { i: [-1, 1] }, ({ i: delta }) =>
+      instruction => this.#modifyMemory(address(instruction), value => (value + delta) & 0xff, instruction));
   }
 
   // Addressing. These helpers consume instruction operands and return data addresses.
@@ -258,7 +291,7 @@ export class Cpu6502 {
     return low | (high << 8);
   }
 
-  // Loads and register operations.
+  // Loads and byte updates.
 
   #loadRegister(register: ByteRegister, value: number): void {
     this.#state[register] = value;
@@ -267,6 +300,15 @@ export class Cpu6502 {
 
   #adjustIndex(register: "x" | "y", delta: -1 | 1): void {
     this.#loadRegister(register, (this.#state[register] + delta) & 0xff);
+  }
+
+  #modifyMemory(address: number, modify: ByteOperation, { readByte, writeByte }: InstructionContext): void {
+    const value = readByte(address);
+    // NMOS read/modify/write instructions write the original byte before the result.
+    writeByte(address, value);
+    const result = modify(value);
+    writeByte(address, result);
+    this.#setNegativeZero(result);
   }
 
   // Control flow.
@@ -311,7 +353,17 @@ export class Cpu6502 {
     return readByte(0x0100 | this.#state.sp);
   }
 
-  // Arithmetic and flags.
+  // Shifts, arithmetic, and flags.
+
+  #shiftLeft(value: number, incomingBit: 0 | 1): number {
+    this.#state.flags.c = (value & 0x80) !== 0;
+    return ((value << 1) | incomingBit) & 0xff;
+  }
+
+  #shiftRight(value: number, incomingBit: 0 | 1): number {
+    this.#state.flags.c = (value & 1) !== 0;
+    return (value >>> 1) | (incomingBit << 7);
+  }
 
   #setNegativeZero(value: number): void {
     this.#state.flags.n = (value & 0x80) !== 0;

@@ -1,0 +1,32 @@
+ram 10000
+
+cpu 6502 {
+    A = 11  X = 22  Y = 33
+    PC = 0200  SP = AB
+    flags { N = 1  V = 1  D = 1  I = 1  Z = 1  C = 1 }
+}
+
+memory 007F { AA FF 80 02 00 55 } // Little-endian word 80FF, remaining=2, completed=0
+memory 008F { AA CC 55 }          // Accumulator result at 0090, with sentinel neighbors
+
+memory 0200 {
+    A2 01       // LDX #$01
+    16 7F       // Loop at 0202: ASL $7F,X (low byte at 0080)
+    3E 80 00    // ROL $0080,X (high byte at 0081, through the low byte's carry)
+    E6 83       // INC $83 (completed)
+    C6 82       // DEC $82 (remaining)
+    D0 F5       // BNE $0202
+    46 81       // LSR $81 (high byte)
+    66 80       // ROR $80 (low byte, through the high byte's carry)
+    A5 80       // LDA $80
+    0A          // ASL A
+    6A          // ROR A
+    2A          // ROL A
+    4A          // LSR A
+    8D 90 00    // STA $0090
+    4C 20 02    // JMP $0220
+}
+
+memory FFFC { 00 02 } // Reset vector
+
+end 0220
