@@ -32,8 +32,8 @@ examples demonstrate a benefit. Some behavior may remain ordinary TypeScript.
 
 The current [stored-state descriptions](cpus/implementation.md#stored-state-descriptions)
 are one such example: CPU-owned fields and constraints drive constructor
-validation, snapshot copying, and machine parsing. Public state interfaces
-remain readable TypeScript, with the descriptions checked against them.
+validation, snapshot copying, machine parsing, and public state types. The
+types are derived from those descriptions; snapshot views remain explicit TypeScript.
 
 The rule of three applies to these generalizations too. We will use the 8080,
 6502, and 6809 examples to discover useful common descriptions while preserving

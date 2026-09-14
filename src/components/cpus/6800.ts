@@ -1,38 +1,24 @@
 import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { signed8, readWordBE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
-import type { StateDescription } from "./state.js";
+import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { add8 } from "./alu.ts";
-
-export interface Cpu6800Flags {
-  h: boolean;
-  i: boolean;
-  n: boolean;
-  z: boolean;
-  v: boolean;
-  c: boolean;
-}
-
-export interface Cpu6800State {
-  a: number;
-  b: number;
-  x: number;
-  sp: number;
-  pc: number;
-  flags: Cpu6800Flags;
-}
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu6800StateDescription = defineState({
   a: unsigned(8), b: unsigned(8), x: unsigned(16), sp: unsigned(16), pc: unsigned(16),
   flags: group({ h: flag, i: flag, n: flag, z: flag, v: flag, c: flag }),
-} satisfies StateDescription<Cpu6800State>);
+});
+
+export type Cpu6800State = StateValues<typeof cpu6800StateDescription>;
+export type Cpu6800Flags = Cpu6800State["flags"];
 
 export type Cpu6800Snapshot = Readonly<Omit<Cpu6800State, "flags">> & {
   readonly flags: Readonly<Cpu6800Flags>;
@@ -84,29 +70,9 @@ export class Cpu6800 {
   /** Attempt one instruction; unsupported opcodes preserve all state and RAM. */
   step(): Cpu6800StepRecord {
     const before = this.snapshot();
-    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
-    const address = this.#state.pc;
-    const opcode = readByte(address);
-    const bytes = [opcode];
-    const handler = this.#opcodeHandlers[opcode];
-    if (handler) {
-      this.#state.pc = (address + 1) & 0xffff;
-      const fetchByte = (): number => {
-        const pc = this.#state.pc;
-        const byte = readByte(pc);
-        this.#state.pc = (pc + 1) & 0xffff;
-        bytes.push(byte);
-        return byte;
-      };
-      handler({
-        fetchByte,
-        fetchWord: () => readWordBE(fetchByte),
-        readByte,
-        writeByte,
-      });
-    }
-    const record = { instruction: { address, bytes }, before, after: this.snapshot(), accesses };
-    return handler
+    const { instruction, accesses, executed } = executeByteInstruction(this.#state, this.#ram, this.#opcodeHandlers, readWordBE);
+    const record = { before, after: this.snapshot(), instruction, accesses };
+    return executed
       ? { ...record, outcome: "executed" }
       : { ...record, outcome: "unsupported", reason: "opcode" };
   }

@@ -1,35 +1,13 @@
 import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { readWordLE } from "./binary.ts";
-import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, group } from "./state.ts";
-import type { StateDescription } from "./state.js";
+import type { StateValues } from "./state.js";
+import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import { add8, evenParity8 } from "./alu.ts";
-
-export interface Cpu8080Flags {
-  s: boolean;
-  z: boolean;
-  ac: boolean;
-  p: boolean;
-  cy: boolean;
-}
-
-export interface Cpu8080State {
-  a: number;
-  b: number;
-  c: number;
-  d: number;
-  e: number;
-  h: number;
-  l: number;
-  pc: number;
-  sp: number;
-  flags: Cpu8080Flags;
-  interruptEnabled: boolean;
-  halted: boolean;
-}
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu8080StateDescription = defineState({
@@ -37,7 +15,10 @@ export const cpu8080StateDescription = defineState({
   pc: unsigned(16), sp: unsigned(16),
   flags: group({ s: flag, z: flag, ac: flag, p: flag, cy: flag }),
   interruptEnabled: boolean, halted: boolean,
-} satisfies StateDescription<Cpu8080State>);
+});
+
+export type Cpu8080State = StateValues<typeof cpu8080StateDescription>;
+export type Cpu8080Flags = Cpu8080State["flags"];
 
 export type Cpu8080Snapshot = Readonly<Omit<Cpu8080State, "flags">> & {
   readonly flags: Readonly<Cpu8080Flags>;
@@ -63,6 +44,7 @@ export type Cpu8080StepRecord = StateTransition<Cpu8080Snapshot> & (
 export type Cpu8080ResetRecord = StateTransition<Cpu8080Snapshot>;
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
+const instructionPattern = opcodePattern<OpcodeHandler>;
 
 type ByteRegister = "b" | "c" | "d" | "e" | "h" | "l" | "a";
 
@@ -107,45 +89,11 @@ export class Cpu8080 {
   step(): Cpu8080StepRecord {
     const before = this.snapshot();
     if (this.#state.halted) {
-      return {
-        instruction: null,
-        before,
-        after: this.snapshot(),
-        accesses: [],
-        outcome: "halted",
-      };
+      return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
     }
-
-    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
-    const address = this.#state.pc;
-    const opcode = readByte(address);
-    const bytes = [opcode];
-    const handler = this.#opcodeHandlers[opcode];
-    if (handler) {
-      // Advance only for supported instructions; operand fetches advance themselves.
-      this.#state.pc = (address + 1) & 0xffff;
-      const fetchByte = (): number => {
-        const pc = this.#state.pc;
-        const byte = readByte(pc);
-        this.#state.pc = (pc + 1) & 0xffff;
-        bytes.push(byte);
-        return byte;
-      };
-      handler({
-        fetchByte,
-        fetchWord: () => readWordLE(fetchByte),
-        readByte,
-        writeByte,
-      });
-    }
-
-    const record = {
-      instruction: { address, bytes },
-      before,
-      after: this.snapshot(),
-      accesses,
-    };
-    return handler
+    const { instruction, accesses, executed } = executeByteInstruction(this.#state, this.#ram, this.#opcodeHandlers, readWordLE);
+    const record = { before, after: this.snapshot(), instruction, accesses };
+    return executed
       ? { ...record, outcome: this.#state.halted ? "halted" : "executed" }
       : { ...record, outcome: "unsupported", reason: "opcode" };
   }
@@ -264,237 +212,96 @@ export class Cpu8080 {
   // xx selects a block below; the roles of yyy and zzz depend on that block.
   // yyy can select a byte register, ALU operation, condition, or restart vector.
   // For pair families, split yyy into pp q: pp selects a pair, q an operation.
-  // Binary separators follow these fields; repeated letters below mark selectors.
+  // Pattern separators follow these fields; repeated letters below mark selectors.
   // Only documented, implemented encodings enter the table.
-  readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>> = {
+  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // xx = 00: zzz selects the family; yyy selects its register or operation.
-    0b00_000_000: () => {}, // NOP; other 00 yyy 000 encodings are undocumented.
+    ...instructionPattern("00 000 000", () => {}), // NOP; other 00 yyy 000 encodings are undocumented.
 
     // 00 pp q 001: q=0 LXI, q=1 DAD.
-    ...this.#loadAddWordHandlers(),
+    ...opcodeFamily("00 pp 0 001", { p: this.#wordOperands }, ({ p: operand }) => ({ fetchWord }: InstructionContext) => operand.write(fetchWord())), // LXI
+    ...opcodeFamily("00 pp 1 001", { p: this.#wordOperands }, ({ p: operand }) => () => this.#addToHl(operand.read())), // DAD
 
     // 00 pp q 010: q=0 store, q=1 load.
     // pp=00/01: A through BC/DE; pp=10/11: HL/A at a direct address operand.
-    0b00_00_0_010: ({ writeByte }) => writeByte(this.#bc, this.#state.a), // STAX B
-    0b00_00_1_010: ({ readByte }) => this.#loadAccumulator(readByte(this.#bc)), // LDAX B
-    0b00_01_0_010: ({ writeByte }) => writeByte(this.#de, this.#state.a), // STAX D
-    0b00_01_1_010: ({ readByte }) => this.#loadAccumulator(readByte(this.#de)), // LDAX D
-    0b00_10_0_010: ({ fetchWord, writeByte }) => this.#storeHl(fetchWord(), writeByte), // SHLD addr
-    0b00_10_1_010: ({ fetchWord, readByte }) => this.#loadHl(fetchWord(), readByte), // LHLD addr
-    0b00_11_0_010: ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a), // STA addr
-    0b00_11_1_010: ({ fetchWord, readByte }) => this.#loadAccumulator(readByte(fetchWord())), // LDA addr
+    ...instructionPattern("00 00 0 010", ({ writeByte }) => writeByte(this.#bc, this.#state.a)), // STAX B
+    ...instructionPattern("00 00 1 010", ({ readByte }) => this.#loadAccumulator(readByte(this.#bc))), // LDAX B
+    ...instructionPattern("00 01 0 010", ({ writeByte }) => writeByte(this.#de, this.#state.a)), // STAX D
+    ...instructionPattern("00 01 1 010", ({ readByte }) => this.#loadAccumulator(readByte(this.#de))), // LDAX D
+    ...instructionPattern("00 10 0 010", ({ fetchWord, writeByte }) => this.#storeHl(fetchWord(), writeByte)), // SHLD addr
+    ...instructionPattern("00 10 1 010", ({ fetchWord, readByte }) => this.#loadHl(fetchWord(), readByte)), // LHLD addr
+    ...instructionPattern("00 11 0 010", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a)), // STA addr
+    ...instructionPattern("00 11 1 010", ({ fetchWord, readByte }) => this.#loadAccumulator(readByte(fetchWord()))), // LDA addr
 
     // 00 pp q 011: q=0 INX, q=1 DCX.
-    ...this.#incrementDecrementWordHandlers(),
+    ...opcodeFamily("00 pp 0 011", { p: this.#wordOperands }, ({ p: operand }) => () => operand.write((operand.read() + 1) & 0xffff)), // INX
+    ...opcodeFamily("00 pp 1 011", { p: this.#wordOperands }, ({ p: operand }) => () => operand.write((operand.read() - 1) & 0xffff)), // DCX
 
     // 00 ddd 100: INR; ddd selects the destination byte operand.
-    ...this.#incrementByteHandlers(),
+    ...opcodeFamily("00 ddd 100", { d: this.#byteOperands }, ({ d: operand }) => (instruction: InstructionContext) => operand.write(instruction, this.#increment(operand.read(instruction)))), // INR
 
     // 00 ddd 101: DCR.
-    ...this.#decrementByteHandlers(),
+    ...opcodeFamily("00 ddd 101", { d: this.#byteOperands }, ({ d: operand }) => (instruction: InstructionContext) => operand.write(instruction, this.#decrement(operand.read(instruction)))), // DCR
 
     // 00 ddd 110: MVI.
-    ...this.#immediateLoadHandlers(),
+    ...opcodeFamily("00 ddd 110", { d: this.#byteOperands }, ({ d: operand }) => (instruction: InstructionContext) => operand.write(instruction, instruction.fetchByte())), // MVI
 
     // 00 ooo 111: ooo selects an accumulator/carry operation (a separate selector from ALU ooo).
-    0b00_000_111: () => this.#rotateLeft(this.#state.a >>> 7), // RLC
-    0b00_001_111: () => this.#rotateRight(this.#state.a & 1), // RRC
-    0b00_010_111: () => this.#rotateLeft(Number(this.#state.flags.cy)), // RAL
-    0b00_011_111: () => this.#rotateRight(Number(this.#state.flags.cy)), // RAR
-    0b00_100_111: () => this.#decimalAdjust(), // DAA
-    0b00_101_111: () => { this.#state.a ^= 0xff; }, // CMA
-    0b00_110_111: () => { this.#state.flags.cy = true; }, // STC
-    0b00_111_111: () => { this.#state.flags.cy = !this.#state.flags.cy; }, // CMC
+    ...instructionPattern("00 000 111", () => this.#rotateLeft(this.#state.a >>> 7)), // RLC
+    ...instructionPattern("00 001 111", () => this.#rotateRight(this.#state.a & 1)), // RRC
+    ...instructionPattern("00 010 111", () => this.#rotateLeft(Number(this.#state.flags.cy))), // RAL
+    ...instructionPattern("00 011 111", () => this.#rotateRight(Number(this.#state.flags.cy))), // RAR
+    ...instructionPattern("00 100 111", () => this.#decimalAdjust()), // DAA
+    ...instructionPattern("00 101 111", () => { this.#state.a ^= 0xff; }), // CMA
+    ...instructionPattern("00 110 111", () => { this.#state.flags.cy = true; }), // STC
+    ...instructionPattern("00 111 111", () => { this.#state.flags.cy = !this.#state.flags.cy; }), // CMC
 
     // xx = 01: 01 ddd sss moves source sss to destination ddd.
-    ...this.#moveHandlers(),
-    0b01_110_110: () => this.#halt(), // HLT replaces MOV M,M (ddd=sss=110).
+    // HLT replaces MOV M,M at ddd=sss=110.
+    ...opcodeFamily("01 ddd sss", { d: this.#byteOperands, s: this.#byteOperands }, ({ d: destination, s: source }) => this.#transferHandler(destination, source)), // MOV / HLT
 
     // xx = 10: 10 ooo sss applies ALU operation ooo to source sss and A.
-    ...this.#registerAluHandlers(),
+    ...opcodeFamily("10 ooo sss", { o: this.#aluOperations, s: this.#byteOperands }, ({ o: operation, s: source }) => (instruction: InstructionContext) => { this.#state.a = operation(source.read(instruction)); }), // ALU r/M
 
     // xx = 11: zzz selects control flow, stack operations, or immediate ALU.
     // 11 ccc 000: conditional RET; ccc selects the condition.
-    ...this.#conditionalReturnHandlers(),
+    ...opcodeFamily("11 ccc 000", { c: this.#conditions }, ({ c: condition }) => ({ readByte }: InstructionContext) => this.#return(readByte, condition())), // RET cc
 
     // 11 pp q 001: q=0 POP; pp selects BC, DE, HL, PSW.
-    ...this.#popHandlers(),
+    ...opcodeFamily("11 pp 0 001", { p: this.#stackOperands }, ({ p: operand }) => ({ readByte }: InstructionContext) => operand.write(this.#popWord(readByte))), // POP
     // q=1 selects these operations instead; pp=01 is undocumented.
-    0b11_00_1_001: ({ readByte }) => this.#return(readByte), // RET
-    0b11_10_1_001: () => this.#jump(this.#hl), // PCHL
-    0b11_11_1_001: () => { this.#state.sp = this.#hl; }, // SPHL
+    ...instructionPattern("11 00 1 001", ({ readByte }) => this.#return(readByte)), // RET
+    ...instructionPattern("11 10 1 001", () => this.#jump(this.#hl)), // PCHL
+    ...instructionPattern("11 11 1 001", () => { this.#state.sp = this.#hl; }), // SPHL
 
     // 11 ccc 010: conditional JMP.
-    ...this.#conditionalJumpHandlers(),
+    ...opcodeFamily("11 ccc 010", { c: this.#conditions }, ({ c: condition }) => ({ fetchWord }: InstructionContext) => this.#jump(fetchWord(), condition())), // JMP cc
 
     // 11 yyy 011: miscellaneous operations selected by yyy.
     // 001 is undocumented; 010/011 (OUT/IN) and 110/111 (DI/EI) are deferred.
-    0b11_000_011: ({ fetchWord }) => this.#jump(fetchWord()), // JMP addr
-    0b11_100_011: (instruction) => this.#exchangeStack(instruction), // XTHL
-    0b11_101_011: () => this.#exchangeDeHl(), // XCHG
+    ...instructionPattern("11 000 011", ({ fetchWord }) => this.#jump(fetchWord())), // JMP addr
+    ...instructionPattern("11 100 011", (instruction) => this.#exchangeStack(instruction)), // XTHL
+    ...instructionPattern("11 101 011", () => this.#exchangeDeHl()), // XCHG
 
     // 11 ccc 100: conditional CALL.
-    ...this.#conditionalCallHandlers(),
+    ...opcodeFamily("11 ccc 100", { c: this.#conditions }, ({ c: condition }) => ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte, condition())), // CALL cc
 
     // 11 pp q 101: q=0 PUSH; pp selects BC, DE, HL, PSW.
-    ...this.#pushHandlers(),
+    ...opcodeFamily("11 pp 0 101", { p: this.#stackOperands }, ({ p: operand }) => ({ writeByte }: InstructionContext) => this.#pushWord(operand.read(), writeByte)), // PUSH
     // q=1 selects CALL instead; only pp=00 is documented.
-    0b11_00_1_101: ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte), // CALL addr
+    ...instructionPattern("11 00 1 101", ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte)), // CALL addr
 
     // 11 ooo 110: same ALU selector as 10 ooo sss, with an immediate byte.
-    ...this.#immediateAluHandlers(),
+    ...opcodeFamily("11 ooo 110", { o: this.#aluOperations }, ({ o: operation }) => ({ fetchByte }: InstructionContext) => { this.#state.a = operation(fetchByte()); }), // ALU n
 
     // 11 nnn 111: call the vector at nnn * 8.
-    ...this.#restartHandlers(),
-  };
+    ...opcodeFamily("11 nnn 111", { n: [0, 8, 16, 24, 32, 40, 48, 56] }, ({ n: vector }) => ({ writeByte }: InstructionContext) => this.#call(vector, writeByte)), // RST
+  ]);
 
-  // Family builders follow the opcode table's xx/zzz order.
-
-  #loadAddWordHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 00 pp q 001: pp selects BC, DE, HL, SP; q=0 LXI, q=1 DAD.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [pairCode, operand] of this.#wordOperands.entries()) {
-      handlers[0b00_00_0_001 | (pairCode << 4)] = ({ fetchWord }) => operand.write(fetchWord());
-      handlers[0b00_00_1_001 | (pairCode << 4)] = () => this.#addToHl(operand.read());
-    }
-    return handlers;
-  }
-
-  #incrementDecrementWordHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 00 pp q 011: pp selects BC, DE, HL, SP; q=0 INX, q=1 DCX.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [pairCode, operand] of this.#wordOperands.entries()) {
-      handlers[0b00_00_0_011 | (pairCode << 4)] = () => operand.write((operand.read() + 1) & 0xffff);
-      handlers[0b00_00_1_011 | (pairCode << 4)] = () => operand.write((operand.read() - 1) & 0xffff);
-    }
-    return handlers;
-  }
-
-  #incrementByteHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 00 ddd 100: INR; ddd selects #byteOperands.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [operandCode, operand] of this.#byteOperands.entries()) {
-      handlers[0b00_000_100 | (operandCode << 3)] = instruction =>
-        operand.write(instruction, this.#increment(operand.read(instruction)));
-    }
-    return handlers;
-  }
-
-  #decrementByteHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 00 ddd 101: DCR; ddd selects #byteOperands.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [operandCode, operand] of this.#byteOperands.entries()) {
-      handlers[0b00_000_101 | (operandCode << 3)] = instruction =>
-        operand.write(instruction, this.#decrement(operand.read(instruction)));
-    }
-    return handlers;
-  }
-
-  #immediateLoadHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 00 ddd 110: MVI; ddd selects #byteOperands.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [operandCode, operand] of this.#byteOperands.entries()) {
-      handlers[0b00_000_110 | (operandCode << 3)] = instruction =>
-        operand.write(instruction, instruction.fetchByte());
-    }
-    return handlers;
-  }
-
-  #moveHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 01 ddd sss: both fields use the three-bit #byteOperands selector.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [destinationCode, destination] of this.#byteOperands.entries()) {
-      for (const [sourceCode, source] of this.#byteOperands.entries()) {
-        const opcode = 0b01_000_000 | (destinationCode << 3) | sourceCode;
-        if (opcode === 0b01_110_110) continue; // HLT occupies the MOV M,M slot.
-        handlers[opcode] = instruction => destination.write(instruction, source.read(instruction));
-      }
-    }
-    return handlers;
-  }
-
-  #registerAluHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 10 ooo sss: ooo selects #aluOperations; sss selects #byteOperands.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [operationCode, operation] of this.#aluOperations.entries()) {
-      for (const [sourceCode, source] of this.#byteOperands.entries()) {
-        handlers[0b10_000_000 | (operationCode << 3) | sourceCode] = instruction => {
-          this.#state.a = operation(source.read(instruction));
-        };
-      }
-    }
-    return handlers;
-  }
-
-  #conditionalReturnHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 11 ccc 000: conditional RET; ccc selects #conditions.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [conditionCode, condition] of this.#conditions.entries()) {
-      handlers[0b11_000_000 | (conditionCode << 3)] = ({ readByte }) =>
-        this.#return(readByte, condition());
-    }
-    return handlers;
-  }
-
-  #popHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 11 pp 0 001: POP; pp selects BC, DE, HL, PSW.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [pairCode, operand] of this.#stackOperands.entries()) {
-      handlers[0b11_00_0_001 | (pairCode << 4)] = ({ readByte }) =>
-        operand.write(this.#popWord(readByte));
-    }
-    return handlers;
-  }
-
-  #conditionalJumpHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 11 ccc 010: conditional JMP; ccc selects #conditions.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [conditionCode, condition] of this.#conditions.entries()) {
-      handlers[0b11_000_010 | (conditionCode << 3)] = ({ fetchWord }) =>
-        this.#jump(fetchWord(), condition());
-    }
-    return handlers;
-  }
-
-  #conditionalCallHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 11 ccc 100: conditional CALL; ccc selects #conditions.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [conditionCode, condition] of this.#conditions.entries()) {
-      handlers[0b11_000_100 | (conditionCode << 3)] = ({ fetchWord, writeByte }) =>
-        this.#call(fetchWord(), writeByte, condition());
-    }
-    return handlers;
-  }
-
-  #pushHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 11 pp 0 101: PUSH; pp selects BC, DE, HL, PSW.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [pairCode, operand] of this.#stackOperands.entries()) {
-      handlers[0b11_00_0_101 | (pairCode << 4)] = ({ writeByte }) =>
-        this.#pushWord(operand.read(), writeByte);
-    }
-    return handlers;
-  }
-
-  #immediateAluHandlers(): Partial<Record<number, OpcodeHandler>> {
-    // 11 ooo 110: the same #aluOperations selector, with a fetched operand.
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    for (const [operationCode, operation] of this.#aluOperations.entries()) {
-      handlers[0b11_000_110 | (operationCode << 3)] = ({ fetchByte }) => {
-        this.#state.a = operation(fetchByte());
-      };
-    }
-    return handlers;
-  }
-
-  #restartHandlers(): Partial<Record<number, OpcodeHandler>> {
-    const handlers: Partial<Record<number, OpcodeHandler>> = {};
-    // RST: 11 nnn 111; nnn selects the vector at nnn * 8.
-    for (let vectorCode = 0; vectorCode < 8; vectorCode++) {
-      handlers[0b11_000_111 | (vectorCode << 3)] = ({ writeByte }) =>
-        this.#call(vectorCode << 3, writeByte);
-    }
-    return handlers;
+  #transferHandler(destination: ByteOperand, source: ByteOperand): OpcodeHandler {
+    // HLT replaces MOV M,M (ddd=sss=110); it performs no data-memory access.
+    if (destination === this.#byteOperands[6] && source === this.#byteOperands[6]) return () => this.#halt();
+    return instruction => destination.write(instruction, source.read(instruction));
   }
 
   // Loads, stores, and exchanges.

@@ -4,41 +4,8 @@ import { signed8 } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess, RecordedMemory } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
-import type { StateDescription } from "./state.js";
+import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodeTable } from "./opcodes.ts";
-
-export interface Cpu68000Flags {
-  x: boolean;
-  n: boolean;
-  z: boolean;
-  v: boolean;
-  c: boolean;
-  t: boolean;
-  s: boolean;
-}
-
-export interface Cpu68000State {
-  d0: number;
-  d1: number;
-  d2: number;
-  d3: number;
-  d4: number;
-  d5: number;
-  d6: number;
-  d7: number;
-  a0: number;
-  a1: number;
-  a2: number;
-  a3: number;
-  a4: number;
-  a5: number;
-  a6: number;
-  usp: number;
-  ssp: number;
-  pc: number;
-  interruptMask: number;
-  flags: Cpu68000Flags;
-}
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu68000StateDescription = defineState({
@@ -48,7 +15,10 @@ export const cpu68000StateDescription = defineState({
   a4: unsigned(32), a5: unsigned(32), a6: unsigned(32),
   usp: unsigned(32), ssp: unsigned(32), pc: unsigned(32), interruptMask: unsigned(3),
   flags: group({ x: flag, n: flag, z: flag, v: flag, c: flag, t: flag, s: flag }),
-} satisfies StateDescription<Cpu68000State>);
+});
+
+export type Cpu68000State = StateValues<typeof cpu68000StateDescription>;
+export type Cpu68000Flags = Cpu68000State["flags"];
 
 export type Cpu68000Snapshot = Readonly<Omit<Cpu68000State, "flags">> & {
   readonly flags: Readonly<Cpu68000Flags>;

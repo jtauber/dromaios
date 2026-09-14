@@ -5,57 +5,28 @@ import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, choices, group } from "./state.ts";
-import type { StateDescription } from "./state.js";
+import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.js";
 import { add8, evenParity8 } from "./alu.ts";
 
-/** The six documented flags; undocumented F bits 3 and 5 are outside this model. */
-export interface CpuZ80Flags {
-  s: boolean;
-  z: boolean;
-  h: boolean;
-  pv: boolean;
-  n: boolean;
-  c: boolean;
-}
-
-export interface CpuZ80RegisterBank {
-  a: number;
-  b: number;
-  c: number;
-  d: number;
-  e: number;
-  h: number;
-  l: number;
-  flags: CpuZ80Flags;
-}
-
-export interface CpuZ80State extends CpuZ80RegisterBank {
-  alternate: CpuZ80RegisterBank;
-  ix: number;
-  iy: number;
-  pc: number;
-  sp: number;
-  i: number;
-  r: number;
-  iff1: boolean;
-  iff2: boolean;
-  im: 0 | 1 | 2;
-  halted: boolean;
-}
-
 const bankFields = defineState({
   a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
   flags: group({ s: flag, z: flag, h: flag, pv: flag, n: flag, c: flag }),
-} satisfies StateDescription<CpuZ80RegisterBank>);
+});
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpuZ80StateDescription = defineState({
   ...bankFields, alternate: group(bankFields),
   ix: unsigned(16), iy: unsigned(16), pc: unsigned(16), sp: unsigned(16), i: unsigned(8), r: unsigned(8),
   iff1: boolean, iff2: boolean, im: choices(0, 1, 2), halted: boolean,
-} satisfies StateDescription<CpuZ80State>);
+});
+
+export type CpuZ80State = StateValues<typeof cpuZ80StateDescription>;
+/** The six documented flags; undocumented F bits 3 and 5 are outside this model. */
+export type CpuZ80Flags = CpuZ80State["flags"];
+
+export type CpuZ80RegisterBank = StateValues<typeof bankFields>;
 
 export type CpuZ80BankSnapshot = Readonly<Omit<CpuZ80RegisterBank, "flags">> & {
   readonly flags: Readonly<CpuZ80Flags>;

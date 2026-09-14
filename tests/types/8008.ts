@@ -14,6 +14,8 @@ export function check8008(ram: Ram, state: Cpu8008State, snapshot: Cpu8008Snapsh
   new Cpu8008(ram, snapshot);
   const pc: number = snapshot.pc;
   const address: number = snapshot.addressStack[7];
+  // @ts-expect-error Caller-supplied address registers remain readonly too.
+  state.addressStack[0] = 0;
   // @ts-expect-error The address stack has exactly eight registers.
   new Cpu8008(ram, { ...state, addressStack: [0, 0, 0, 0, 0, 0, 0] });
   // @ts-expect-error PC is derived, not independently initialized.

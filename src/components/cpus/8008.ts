@@ -5,40 +5,25 @@ import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, array, group } from "./state.ts";
-import type { StateDescription } from "./state.js";
+import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import { add8, evenParity8 } from "./alu.ts";
-
-export interface Cpu8008Flags {
-  s: boolean;
-  z: boolean;
-  p: boolean;
-  c: boolean;
-}
-
-/** Eight physical address registers; stackIndex selects the current program counter. */
-export type Cpu8008AddressStack = [number, number, number, number, number, number, number, number];
-
-export interface Cpu8008State {
-  a: number;
-  b: number;
-  c: number;
-  d: number;
-  e: number;
-  h: number;
-  l: number;
-  flags: Cpu8008Flags;
-  addressStack: Readonly<Cpu8008AddressStack>;
-  stackIndex: number;
-  halted: boolean;
-}
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu8008StateDescription = defineState({
   a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
   flags: group({ s: flag, z: flag, p: flag, c: flag }),
   addressStack: array(8, unsigned(14)), stackIndex: unsigned(3), halted: boolean,
-} satisfies StateDescription<Cpu8008State>);
+});
+
+type StoredState = StateValues<typeof cpu8008StateDescription>;
+/** Eight physical address registers; stackIndex selects the current program counter. */
+export type Cpu8008AddressStack = StoredState["addressStack"];
+
+export type Cpu8008State = Omit<StoredState, "addressStack"> & {
+  addressStack: Readonly<Cpu8008AddressStack>;
+};
+export type Cpu8008Flags = Cpu8008State["flags"];
 
 export type Cpu8008Snapshot = Readonly<Omit<Cpu8008State, "flags">> & {
   readonly flags: Readonly<Cpu8008Flags>;
@@ -61,7 +46,6 @@ export type Cpu8008ResetRecord = StateTransition<Cpu8008Snapshot>;
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperand = "a" | "b" | "c" | "d" | "e" | "h" | "l" | "m";
-type StoredState = Omit<Cpu8008State, "addressStack"> & { addressStack: Cpu8008AddressStack };
 
 /** Instruction-level Intel 8008 subset with its native encodings and 14-bit addresses. */
 export class Cpu8008 {

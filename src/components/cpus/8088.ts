@@ -5,38 +5,9 @@ import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
-import type { StateDescription } from "./state.js";
+import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import { evenParity8 } from "./alu.ts";
-
-export interface Cpu8088Flags {
-  cf: boolean;
-  pf: boolean;
-  af: boolean;
-  zf: boolean;
-  sf: boolean;
-  tf: boolean;
-  if: boolean;
-  df: boolean;
-  of: boolean;
-}
-
-export interface Cpu8088State {
-  ax: number;
-  bx: number;
-  cx: number;
-  dx: number;
-  sp: number;
-  bp: number;
-  si: number;
-  di: number;
-  cs: number;
-  ds: number;
-  ss: number;
-  es: number;
-  ip: number;
-  flags: Cpu8088Flags;
-}
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu8088StateDescription = defineState({
@@ -44,7 +15,10 @@ export const cpu8088StateDescription = defineState({
   sp: unsigned(16), bp: unsigned(16), si: unsigned(16), di: unsigned(16),
   cs: unsigned(16), ds: unsigned(16), ss: unsigned(16), es: unsigned(16), ip: unsigned(16),
   flags: group({ cf: flag, pf: flag, af: flag, zf: flag, sf: flag, tf: flag, if: flag, df: flag, of: flag }),
-} satisfies StateDescription<Cpu8088State>);
+});
+
+export type Cpu8088State = StateValues<typeof cpu8088StateDescription>;
+export type Cpu8088Flags = Cpu8088State["flags"];
 
 export type Cpu8088Snapshot = Readonly<Omit<Cpu8088State, "flags">> & {
   readonly flags: Readonly<Cpu8088Flags>;

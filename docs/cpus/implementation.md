@@ -7,8 +7,8 @@ clarity, elegance, then performance.
 
 ## Reading order
 
-1. **Types and state descriptions.** Public flags, stored state, its runtime
-   description, snapshots, instruction/access records, and outcomes come first.
+1. **State descriptions and types.** Stored-field descriptions, the state and
+   flag types derived from them, snapshots, instruction/access records, and outcomes come first.
    Keep CPU-specific instruction-context extensions and small snapshot-view
    helpers nearby; import the shared contexts where they fit.
 2. **Stored fields and public API.** Start the class with its owned state and
@@ -35,7 +35,7 @@ core. Keep a CPU in one file while this organization remains easy to follow.
 ## Stored-state descriptions
 
 Each CPU module exports a `cpu…StateDescription` beside its public state
-interface. The description owns stored field names and constraints. The
+type. The description owns stored field names, types, and constraints. The
 [shared state helpers](../../src/components/cpus/state.ts) provide:
 
 | Description | Meaning |
@@ -48,11 +48,14 @@ interface. The description owns stored field names and constraints. The
 | `group(fields)` | A nested group, such as flags or an alternate register bank |
 
 `defineState(fields)` owns a readonly field map; the field helpers create
-immutable descriptions. `satisfies StateDescription<Cpu…State>` checks fields
-against the readable public interface, including nested types, tuple lengths,
-and permitted-value types. Widths and hardware semantics still require
-independent tests. The Z80 describes its register bank once and reuses that
-description for both banks.
+immutable descriptions. `StateValues<typeof cpu…StateDescription>` derives the
+mutable stored-state type, including nested groups, fixed tuple lengths, and
+permitted-value unions. Public flag types select the state's `flags` field.
+This avoids declaring each register and flag twice. Snapshots add readonly
+guarantees and derived views explicitly; the 8008 also exposes its address
+stack as readonly in caller-supplied state. Widths and hardware semantics still
+require independent tests. The Z80 describes its register bank once and reuses
+that description for both banks.
 
 The descriptions have three consumers:
 
@@ -88,8 +91,8 @@ remains open.
 Use binary opcode values or explicit bit patterns, grouping meaningful fields
 with underscores or spaces. Explain the bit positions, fixed bits, and selector
 values beside the code. The [opcode definition experiment](opcode-definitions.md)
-uses patterns throughout the 8008, 6502, 6800, 6809, 8088, and 68000 tables, with typed selector
-mappings for families. Ordinary addresses, memory images, and arithmetic
+uses patterns throughout the 8008, 8080, 6502, 6800, 6809, 8088, and 68000 tables,
+with typed selector mappings for families. Ordinary addresses, memory images, and arithmetic
 constants can remain hexadecimal.
 
 Choose the grouping from the CPU's encoding:
@@ -190,15 +193,50 @@ declares its own two callbacks, `fetchLong` and `writeLong`.
 Contexts require the operations they advertise; unavailable operations are
 absent rather than optional.
 
-These are shared types only. Each CPU constructs its callbacks in `step()`:
-instruction fetches track fetched bytes and advance PC according to that
-CPU's execution policy, while data accesses leave the instruction stream alone.
-Each CPU selects byte order and owns address masking, alignment, and rejection rules.
-Handler return types also remain local, including the 68000's alignment fault.
+Instruction fetches track fetched bytes and advance PC according to the CPU's
+execution policy, while data accesses leave the instruction stream alone.
+The shared executor below constructs these callbacks for four CPUs; the others
+construct them in `step()`. Each CPU selects byte order and keeps any special
+address mapping, alignment, and rejection rules. Handler return types also
+remain local, including the 68000's alignment fault.
 
 [Type checks](../../tests/types/instruction-context.ts) cover required callbacks
 and readonly inheritance. Existing CPU tests retain their independent execution
 expectations.
+
+## Shared byte-instruction execution
+
+The [byte-instruction executor](../../src/components/cpus/execute-byte-instruction.ts)
+shares the fetch/dispatch loop used by the 8080, 6502, 6800, and 6809:
+
+```ts
+executeByteInstruction(state, ram, handlers, readWordLE)
+```
+
+It attempts one byte opcode with a wrapping 16-bit PC and flat byte memory.
+The CPU supplies its stored state, opcode table, and word reader (`readWordLE`
+or `readWordBE`). An absent handler records the opcode read and preserves PC.
+A supported opcode advances PC before invoking its handler. Operand fetches
+read the current PC and RAM, advance only after a successful read, and append
+only fetched instruction bytes. Handlers can interleave fetches with data
+accesses or change PC, including the 6502's JSR operand/stack ordering.
+
+The result contains the fetched instruction, ordered accesses, and whether a
+handler executed. Each CPU's `step()` owns its before/after snapshots and
+outcome; the 8080 checks HALT before calling the helper. RAM and handler errors
+propagate without rolling back completed effects. Each call owns its records.
+
+This contract fits those four CPUs. The 8008 retains its selected 14-bit address
+register; the Z80 retains prefix decoding and refresh updates; the 8088 retains
+segmented addresses and group rejection; the 68000 retains word opcodes and
+alignment faults. Extending the helper should require another matching execution
+contract, rather than CPU-specific switches or hooks.
+
+[Helper tests](../../tests/components/cpus/execute-byte-instruction.test.ts)
+check unsupported attempts, byte order, wraparound, live fetches, interleaved
+accesses, record independence, and error propagation.
+[Type checks](../../tests/types/execute-byte-instruction.ts) preserve readonly
+records. Existing CPU and example tests retain independent hardware expectations.
 
 ## Shared binary helpers
 
@@ -251,9 +289,9 @@ do not alter earlier records.
 
 All eight CPUs use this helper. Their existing `Cpu…MemoryAccess` type names
 alias the common readonly `MemoryAccess` shape. The helper owns recording only:
-CPU state, instruction bytes, PC advancement, address wrapping, byte order,
-alignment checks, and step outcomes remain in each CPU. The 68000 wraps the
-recorder's callbacks to map each byte address onto its 24-bit bus before it
+instruction fetching and PC advancement belong to the executor or CPU;
+CPU-specific address mapping, alignment checks, and step outcomes remain local.
+The 68000 wraps the recorder's callbacks to map each byte address onto its 24-bit bus before it
 reaches RAM or the log; the 8088 retains its segmented-address calculations.
 
 A helper function fits this responsibility because it needs only RAM and a

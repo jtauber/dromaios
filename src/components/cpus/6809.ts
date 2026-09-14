@@ -1,44 +1,25 @@
 import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { signed8, readWordBE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
-import type { StateDescription } from "./state.js";
+import type { StateValues } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import { add8 } from "./alu.ts";
-
-export interface Cpu6809Flags {
-  e: boolean;
-  f: boolean;
-  h: boolean;
-  i: boolean;
-  n: boolean;
-  z: boolean;
-  v: boolean;
-  c: boolean;
-}
-
-export interface Cpu6809State {
-  a: number;
-  b: number;
-  dp: number;
-  x: number;
-  y: number;
-  s: number;
-  u: number;
-  pc: number;
-  flags: Cpu6809Flags;
-}
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu6809StateDescription = defineState({
   a: unsigned(8), b: unsigned(8), dp: unsigned(8),
   x: unsigned(16), y: unsigned(16), s: unsigned(16), u: unsigned(16), pc: unsigned(16),
   flags: group({ e: flag, f: flag, h: flag, i: flag, n: flag, z: flag, v: flag, c: flag }),
-} satisfies StateDescription<Cpu6809State>);
+});
+
+export type Cpu6809State = StateValues<typeof cpu6809StateDescription>;
+export type Cpu6809Flags = Cpu6809State["flags"];
 
 export type Cpu6809Snapshot = Readonly<Omit<Cpu6809State, "flags">> & {
   readonly flags: Readonly<Cpu6809Flags>;
@@ -102,36 +83,9 @@ export class Cpu6809 {
   /** Attempt one instruction; unsupported bytes (including prefixes) leave state unchanged. */
   step(): Cpu6809StepRecord {
     const before = this.snapshot();
-    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
-    const address = this.#state.pc;
-    const opcode = readByte(address);
-    const bytes = [opcode];
-    const handler = this.#opcodeHandlers[opcode];
-    if (handler) {
-      // Advance only for supported instructions; operand fetches advance themselves.
-      this.#state.pc = (address + 1) & 0xffff;
-      const fetchByte = (): number => {
-        const pc = this.#state.pc;
-        const byte = readByte(pc);
-        this.#state.pc = (pc + 1) & 0xffff;
-        bytes.push(byte);
-        return byte;
-      };
-      handler({
-        fetchByte,
-        fetchWord: () => readWordBE(fetchByte),
-        readByte,
-        writeByte,
-      });
-    }
-
-    const record = {
-      instruction: { address, bytes },
-      before,
-      after: this.snapshot(),
-      accesses,
-    };
-    return handler
+    const { instruction, accesses, executed } = executeByteInstruction(this.#state, this.#ram, this.#opcodeHandlers, readWordBE);
+    const record = { before, after: this.snapshot(), instruction, accesses };
+    return executed
       ? { ...record, outcome: "executed" }
       : { ...record, outcome: "unsupported", reason: "opcode" };
   }
