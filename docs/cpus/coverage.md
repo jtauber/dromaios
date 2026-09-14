@@ -19,7 +19,7 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [651](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [250](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [463](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [294](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [341](../../src/components/cpus/z80.ts) | 169 / 698 | 24.2% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [305](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [227](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [243](../../src/components/cpus/68000.ts) | 96 / 36,029 | 0.3% |
@@ -999,7 +999,12 @@ reset preservation, and fresh restart.
 [Counted-loop definition](../../src/machines/z80/counted-loop-example.machine)
 
 [Transfer specification](z80/examples/transfers.md) ·
-[Transfer definition](../../src/machines/z80/transfers-example.machine)
+[Transfer definition](../../src/machines/z80/transfers-example.machine) ·
+[Checksum specification](z80/examples/checksum.md) ·
+[Checksum definition](../../src/machines/z80/checksum-example.machine)
+
+**169 of 698 documented forms are complete (24.2%).** These include all
+72 unprefixed byte ALU forms, with registers, `(HL)`, or immediate operands.
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -1035,7 +1040,22 @@ reset preservation, and fresh restart.
 | `3E` | `LD A,n` | Immediate | 2 | Load A; preserve flags |
 | `40`–`7F`, except `76` | `LD r,r'` / `LD r,(HL)` / `LD (HL),r` | Register or indirect memory | 1 | All 49 register transfers, seven indirect reads, and seven indirect writes; preserve flags |
 | `76` | `HALT` | Implied | 1 | Advance PC, increment R, and halt; preserve flags and interrupt latches |
-| `C6` | `ADD A,n` | Immediate | 2 | Add without incoming carry; set S/Z/H/PV/C from the result and clear N; PV means signed overflow |
+
+All eight byte ALU operations use the register/memory pattern `10 ooo rrr`
+and immediate pattern `11 ooo 110`. The `ooo` selector follows the rows below;
+`rrr` selects B/C/D/E/H/L/(HL)/A. Register and `(HL)` forms are one byte;
+immediate forms are two bytes. Indexed/prefixed forms remain unsupported.
+
+| Operation | B | C | D | E | H | L | `(HL)` | A | Immediate |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ADD | `80` | `81` | `82` | `83` | `84` | `85` | `86` | `87` | `C6` |
+| ADC | `88` | `89` | `8A` | `8B` | `8C` | `8D` | `8E` | `8F` | `CE` |
+| SUB | `90` | `91` | `92` | `93` | `94` | `95` | `96` | `97` | `D6` |
+| SBC | `98` | `99` | `9A` | `9B` | `9C` | `9D` | `9E` | `9F` | `DE` |
+| AND | `A0` | `A1` | `A2` | `A3` | `A4` | `A5` | `A6` | `A7` | `E6` |
+| XOR | `A8` | `A9` | `AA` | `AB` | `AC` | `AD` | `AE` | `AF` | `EE` |
+| OR | `B0` | `B1` | `B2` | `B3` | `B4` | `B5` | `B6` | `B7` | `F6` |
+| CP | `B8` | `B9` | `BA` | `BB` | `BC` | `BD` | `BE` | `BF` | `FE` |
 
 | Area | Current coverage |
 | --- | --- |
@@ -1043,6 +1063,7 @@ reset preservation, and fresh restart.
 | Stored flags | S/Z/H/PV/N/C in both banks; undocumented F bits 3/5 and raw F/AF views are omitted |
 | Register relationships | Snapshots derive BC, DE, and HL in both banks; pair loads update the main bank's stored bytes or SP; no bank exchanges yet |
 | Register operations | Immediate and register/memory byte loads and immediate pair loads preserve flags; INC/DEC wrap byte registers and replace S/Z/H/PV/N, preserving C; the alternate bank is unchanged |
+| Arithmetic and logic | All unprefixed byte ADD/ADC/SUB/SBC/AND/XOR/OR/CP forms; replace S/Z/H/PV/N/C; arithmetic P/V means overflow, logic P/V means parity; CP preserves A; subtraction H/C indicate borrows, AND sets H |
 | Indirect transfers | HL addresses RAM for reads and writes; H/L destinations use the original HL address; HALT occupies the absent memory-to-memory transfer slot |
 | Relative jumps | Unconditional JR and NZ/Z/NC/C conditions; signed displacement from PC after the operand, wrapping at 16 bits; fetch operand on every path |
 | Counted loops | DJNZ decrements B and tests its result while preserving all flags; zero wraps to FF; BC follows the updated B |
@@ -1051,7 +1072,7 @@ reset preservation, and fresh restart.
 | Reset | Clear PC/I/R, IFF1/IFF2, and IM; release HALT; preserve banks, flags, IX/IY/SP, and RAM under the documented model policy |
 | Prefixes | CB/DD/ED/FD rejected after the first byte; all CPU state, including R, remains unchanged |
 | Stopping | HALT reports its instruction once; already halted steps perform no accesses or refresh updates |
-| Remaining instruction scope | Further transfers, arithmetic and logic, register exchanges, stack operations, absolute jumps, calls/returns, and I/O |
+| Remaining instruction scope | Further transfers, 16-bit arithmetic, decimal adjustment, rotates/shifts and bit operations, register exchanges, stack operations, absolute jumps, calls/returns, and I/O |
 | Remaining addressing scope | Indirect forms beyond these HL byte transfers, indexed, prefixed, and other forms beyond the exact encodings above |
 
 The model covers documented instruction semantics for the listed forms, not
@@ -1063,10 +1084,12 @@ reset-preservation policies.
 Verification: [CPU tests](../../tests/components/cpus/z80.test.ts),
 [arithmetic example tests](../../tests/machines/z80/example.test.ts),
 [counted-loop example tests](../../tests/machines/z80/counted-loop-example.test.ts),
-[transfer example tests](../../tests/machines/z80/transfers-example.test.ts), and
-[public type checks](../../tests/types/z80.ts). ADD checks every byte operand
-pair against independent column addition and signed-range overflow, with old
-flags clear and set. Boundary programs exercise all flag patterns alongside
+[transfer example tests](../../tests/machines/z80/transfers-example.test.ts),
+[checksum example tests](../../tests/machines/z80/checksum-example.test.ts), and
+[public type checks](../../tests/types/z80.ts). ALU checks exhaust every byte operand
+pair and both carry inputs for all eight operations against signed/unsigned
+arithmetic, low-digit carries/borrows, and binary-string parity. Boundary
+programs exercise all flag patterns alongside
 the 8080, independently checking parity versus overflow. Other checks cover
 all immediate-load bytes and flag patterns, nested state isolation, register
 views, exact accesses, PC and R wrapping, current RAM, overlapping stores,
@@ -1083,10 +1106,23 @@ signed overflow, half carry/borrow, carry preservation, pair views, and alternat
 bank isolation. JR conditions cover every flag pattern; DJNZ covers every B
 value and flag pattern. Every displacement is checked on each available path,
 including wrapping and instruction overlap. All supported opcodes are checked
-with every R value. Further checks cover live flags after ADD/INC, current
+with every R value. Further checks cover live arithmetic flags, current
 operands, and detached records. The counted loop checks ten complete records,
 actual RAM calls, full memory images, refresh wrapping, HALT, bounded resumption,
 reset and restart, and a zero initial count producing 256 iterations.
+
+All nine forms of each ALU operation also check every incoming flag pattern,
+A/H/L source aliases, operand fetching across FFFF, overlapping opcode/data
+reads, live carry and RAM, unchanged alternate state, and retained records.
+Paired 8080/Z80 checks distinguish their subtraction half-carry and logical
+AND rules as well as arithmetic overflow versus parity. All 72 forms match
+1,000 independent reference cases each; the
+[arithmetic contract](z80/model.md#arithmetic-and-logic) documents those checks.
+
+The checksum example checks 38 complete records for two-byte addition,
+carry passed through loads, CP preserving A, both comparison failure paths,
+refresh wrapping, HALT, bounded failure loops, snapshot resumption, reset,
+full memory images, and fresh factories.
 
 ## 8088
 

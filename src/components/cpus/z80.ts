@@ -8,7 +8,7 @@ import { defineState, copyState, readState, unsigned, flag, boolean, choices, gr
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.js";
-import { add8 } from "./alu.ts";
+import { add8, evenParity8 } from "./alu.ts";
 
 /** The six documented flags; undocumented F bits 3 and 5 are outside this model. */
 export interface CpuZ80Flags {
@@ -168,6 +168,19 @@ export class CpuZ80 {
   // pp selects BC/DE/HL/SP. Pairs name their high and low stored bytes.
   readonly #registerPairs = [["b", "c"], ["d", "e"], ["h", "l"], "sp"] as const;
 
+  // ooo selects the ALU operation in both 10 ooo rrr and 11 ooo 110.
+  // Operations read live state and return the next A; CP returns A unchanged.
+  readonly #aluOperations: readonly ((value: number) => number)[] = [
+    value => this.#add(value), // 000 ADD
+    value => this.#add(value, this.#state.flags.c ? 1 : 0), // 001 ADC
+    value => this.#subtract(value), // 010 SUB
+    value => this.#subtract(value, this.#state.flags.c ? 1 : 0), // 011 SBC
+    value => this.#logicResult(this.#state.a & value, true), // 100 AND: H is set.
+    value => this.#logicResult(this.#state.a ^ value, false), // 101 XOR
+    value => this.#logicResult(this.#state.a | value, false), // 110 OR
+    value => this.#compare(value), // 111 CP
+  ];
+
   // Conditional JR uses just two condition bits: 00 NZ, 01 Z, 10 NC, 11 C.
   readonly #relativeConditions = [
     () => !this.#state.flags.z,
@@ -202,10 +215,13 @@ export class CpuZ80 {
     // 01 110 110 is HALT, not LD (HL),(HL); the binding handles this exception.
     ...opcodeFamily("01 ddd sss", { d: this.#byteOperands, s: this.#byteOperands }, ({ d: destination, s: source }) => this.#transferHandler(destination, source)), // LD r,r' / LD r,(HL) / LD (HL),r / HALT
 
-    // xx=10 register/memory ALU forms are not implemented yet.
+    // 10 ooo rrr: ooo selects ADD/ADC/SUB/SBC/AND/XOR/OR/CP; rrr selects B/C/D/E/H/L/(HL)/A.
+    ...opcodeFamily("10 ooo rrr", { o: this.#aluOperations, r: this.#byteOperands }, ({ o: operate, r: operand }) =>
+      (instruction: InstructionContext) => { this.#state.a = operate(this.#readOperand(operand, instruction)); }), // ALU r / ALU (HL)
 
-    // xx=11, zzz=110: 11 ooo 110 selects immediate ALU; ooo=000 is ADD.
-    ...opcodePattern("11 000 110", ({ fetchByte }: InstructionContext) => this.#addToAccumulator(fetchByte())), // ADD A,n
+    // 11 ooo 110: the same ooo operations with an immediate byte instead of a register/memory selector.
+    ...opcodeFamily("11 ooo 110", { o: this.#aluOperations }, ({ o: operate }) =>
+      ({ fetchByte }: InstructionContext) => { this.#state.a = operate(fetchByte()); }), // ALU n
   ]);
 
   #byteRegisterHandlers(
@@ -265,7 +281,7 @@ export class CpuZ80 {
     this.#state.halted = true;
   }
 
-  // Arithmetic and flags.
+  // Arithmetic, logic, and flags.
 
   #adjustRegister(register: ByteRegister, delta: -1 | 1): void {
     const value = this.#state[register];
@@ -279,9 +295,8 @@ export class CpuZ80 {
     this.#state.flags.n = delta === -1;
   }
 
-  #addToAccumulator(value: number): void {
-    const { result, carry, halfCarry, overflow } = add8(this.#state.a, value);
-    this.#state.a = result;
+  #add(value: number, carryIn: 0 | 1 = 0): number {
+    const { result, carry, halfCarry, overflow } = add8(this.#state.a, value, carryIn);
     this.#state.flags = {
       s: (result & 0x80) !== 0,
       z: result === 0,
@@ -290,5 +305,37 @@ export class CpuZ80 {
       n: false,
       c: carry,
     };
+    return result;
+  }
+
+  #subtract(value: number, borrow: 0 | 1 = 0): number {
+    const { result, carry, halfCarry, overflow } = add8(this.#state.a, value ^ 0xff, borrow ? 0 : 1);
+    // Complemented addition produces no-borrow carries; Z80 H and C both report borrows.
+    this.#state.flags = {
+      s: (result & 0x80) !== 0,
+      z: result === 0,
+      h: !halfCarry,
+      pv: overflow,
+      n: true,
+      c: !carry,
+    };
+    return result;
+  }
+
+  #logicResult(result: number, halfCarry: boolean): number {
+    this.#state.flags = {
+      s: (result & 0x80) !== 0,
+      z: result === 0,
+      h: halfCarry,
+      pv: evenParity8(result), // Logic uses parity; arithmetic uses signed overflow.
+      n: false,
+      c: false,
+    };
+    return result;
+  }
+
+  #compare(value: number): number {
+    this.#subtract(value);
+    return this.#state.a;
   }
 }

@@ -1,0 +1,43 @@
+ram 10000
+
+cpu z80 {
+    A = 11  B = 22  C = 33  D = 44  E = 55  H = 66  L = 77
+    flags { S = 1  Z = 1  H = 1  PV = 1  N = 1  C = 1 }
+    alternate {
+        A = 88  B = 99  C = AA  D = BB  E = CC  H = DD  L = EE
+        flags { S = 0  Z = 1  H = 0  PV = 1  N = 0  C = 1 }
+    }
+    IX = 1234  IY = 5678  PC = 0200  SP = ABCD
+    I = 42  R = FE  IM = 2
+    iff1 = true  iff2 = false  halted = false
+}
+
+memory 007F { AA FF 02 FF BB CC CC 55 }
+// Input at 0080–0082, checksum at 0084–0085 (low byte first), guards on either side.
+
+memory 0200 {
+    21 80 00    // LD HL,0080H
+    06 03       // LD B,03H: count three bytes
+    16 00       // LD D,00H: high sum byte
+    AF          // XOR A: clear the low sum byte and carry
+    86          // ADD A,(HL): loop at 0208, accumulate the low byte
+    5F          // LD E,A: save it without changing carry
+    7A          // LD A,D
+    CE 00       // ADC A,00H: add the low-byte carry to the high byte
+    57          // LD D,A
+    7B          // LD A,E: restore the low byte
+    2C          // INC L: next input within this page
+    10 F6       // DJNZ 0208H: -10 from 0212
+    21 84 00    // LD HL,0084H: output
+    77          // LD (HL),A: low checksum byte
+    2C          // INC L
+    72          // LD (HL),D: high checksum byte
+    FE 00       // CP 00H: compare the low byte without changing A
+    20 08       // JR NZ,0224H: fail if it differs
+    7A          // LD A,D
+    FE 02       // CP 02H: FF + 02 + FF = 0200
+    20 03       // JR NZ,0224H
+    76          // HALT: success
+}
+
+memory 0224 { 18 FE } // Failure loop, bounded by the runner's instruction budget.

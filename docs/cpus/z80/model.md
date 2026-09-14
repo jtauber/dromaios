@@ -11,7 +11,8 @@ this model without adapters.
 [Coverage](../coverage.md#z80) ·
 [Arithmetic example](examples/arithmetic.md) ·
 [Counted-loop example](examples/counted-loop.md) ·
-[Transfer example](examples/transfers.md)
+[Transfer example](examples/transfers.md) ·
+[Checksum example](examples/checksum.md)
 
 Expected hardware behavior comes from the
 [Zilog Z80 CPU User Manual, UM008011-0816](https://www.zilog.com/docs/z80/um0080.pdf):
@@ -128,6 +129,53 @@ overflow: INC sets it for `7F` → `80`, DEC for `80` → `7F`. H records a carr
 from bit 3 for INC or a borrow from bit 4 for DEC. INC clears N; DEC sets it.
 Pair views reflect the resulting bytes. The alternate bank remains unchanged.
 
+## Arithmetic and logic
+
+ADD, ADC, SUB, SBC, AND, XOR, OR, and CP support every unprefixed byte form:
+B/C/D/E/H/L/A, memory through HL, and an immediate byte. The operation field
+`ooo` has the same meaning in `10 ooo rrr` and `11 ooo 110`; `rrr` selects
+B/C/D/E/H/L/(HL)/A. Indexed and prefixed forms remain unsupported.
+
+All eight operations replace S/Z/H/PV/N/C. CP preserves A; the others replace
+it with the low byte of the result. S reflects result bit 7 and Z tests the
+result for zero, including the discarded subtraction result for CP.
+
+| Operation | Result used for flags | H | P/V | N | C |
+| --- | --- | --- | --- | --- | --- |
+| ADD | A + operand | Carry from bit 3 | Signed overflow | 0 | Carry out |
+| ADC | A + operand + incoming C | Carry from bit 3 | Signed overflow | 0 | Carry out |
+| SUB / CP | A - operand | Borrow from bit 4 | Signed overflow | 1 | Borrow out |
+| SBC | A - operand - incoming C | Borrow from bit 4 | Signed overflow | 1 | Borrow out |
+| AND | A AND operand | 1 | Even parity | 0 | 0 |
+| XOR / OR | A XOR/OR operand | 0 | Even parity | 0 | 0 |
+
+ADC/SBC consume the current C; the other operations ignore it. SBC uses
+C = 1 as an incoming borrow. CP changes flags without changing A, including
+`CP A`, which sets Z and N and clears S/H/PV/C. `SBC A,A` instead produces
+`00` or `FF` depending on incoming C.
+
+Each operation reads its source before replacing A. Register forms fetch only
+their opcode, `(HL)` forms additionally read the current data address, and
+immediate forms fetch one operand byte. Repeated reads remain separate if HL
+points at the opcode itself. RAM, byte registers other than A, the alternate
+bank, index registers, SP, I, and interrupt state are preserved. PC wraps at 16 bits
+and R increments once, following the ordinary instruction-step contract.
+
+The [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages
+66–69 and 145–164, defines these operations. Its flag overview specifies
+arithmetic overflow and logical parity; the P/V lines on the individual
+SBC and AND pages (156 and 158) contain contradictory typographical errors.
+Independent checks below confirm the overview's behavior for the modeled flags.
+
+The implementation reuses operand readers and the shared binary adder/parity
+helpers. For subtraction, complementing the operand gives adder carry outputs
+that mean *no borrow*; both are inverted for Z80 H/C. These flag rules stay
+inside the Z80. In particular, the 8080 retains a different subtraction AC
+rule and does not always set AC for AND.
+
+The [checksum example](examples/checksum.md) passes ADD's carry into ADC
+through intervening loads, stores the two-byte result, and branches on CP.
+
 ## Relative jumps
 
 JR supports an unconditional form and the NZ/Z/NC/C conditions. A taken jump
@@ -165,8 +213,11 @@ original program and explicit initial state.
 
 ## Checks and limits
 
-Tests cover all byte pairs for addition against an independent column-addition
-and signed-range reference, every incoming flag pattern at selected boundaries,
+Tests exhaust all byte pairs and both carry inputs for all eight ALU operations
+against independent signed/unsigned arithmetic, low-digit carries/borrows,
+and binary-string parity. Every operand form also checks all incoming flag
+patterns, including A as its own source, unchanged CP results, and H/L operands.
+Other checks cover
 all immediate-load bytes and flag patterns, exact memory accesses, PC and R
 wrapping, overlapping stores, current RAM, and retained records. All unsupported
 first bytes are checked, including prefixes. Construction, nested snapshots,
@@ -182,11 +233,20 @@ operand fetches. JR conditions cover all flag patterns; DJNZ
 covers every B value and flag pattern. Every relative displacement is checked
 on each available path, including page/address-space crossings and instruction
 overlap. All supported opcodes are checked with every R value. Further checks
-cover live flags after ADD/INC, current operands, and retained records across
+cover live arithmetic flags, current registers/pointers/operands, and retained records across
 execution, reset, and caller edits.
 
 Paired 8080/Z80 programs check common instruction bytes and data effects while
-asserting each CPU's own flags. ADD uses P/V for signed overflow; 8080 ADI uses
-P for even parity. The common bytes do not justify sharing their flag logic.
-Further decoding or arithmetic helpers can be considered as related instruction
-families develop; there is no shared CPU superclass.
+asserting each CPU's own flags: arithmetic overflow versus parity, subtraction
+half-borrow versus AC, and AND's distinct half-carry behavior. The checksum
+example checks 38 complete records, actual RAM calls, carry propagation,
+both comparison failure paths, bounded running, snapshot resumption,
+reset, full memory images, and fresh factories.
+
+All 1,000 [SingleStepTests Z80 cases](https://github.com/SingleStepTests/z80/tree/main/v1)
+for each of the 72 unprefixed ALU forms were also checked (72,000 cases total).
+These supplementary checks compare every modeled field, final RAM, fetched
+bytes, and ordered memory accesses. Undocumented F bits 3/5 and internal
+latches are omitted; bus samples are reduced to memory transactions, excluding
+refresh activity. This is an independent emulator comparison, not a claim
+of hardware or cycle-accuracy testing. Repository tests remain self-contained.
