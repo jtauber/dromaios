@@ -12,13 +12,15 @@ this model without adapters.
 [Arithmetic example](examples/arithmetic.md) ·
 [Counted-loop example](examples/counted-loop.md) ·
 [Transfer example](examples/transfers.md) ·
-[Checksum example](examples/checksum.md)
+[Checksum example](examples/checksum.md) ·
+[Bit-count and nested-call example](examples/bit-count.md)
 
 Expected hardware behavior comes from the
 [Zilog Z80 CPU User Manual, UM008011-0816](https://www.zilog.com/docs/z80/um0080.pdf):
 the register description, CPU control and interrupt sections, and the individual
-instruction descriptions. Undocumented behavior and variant-specific details
-are outside the current model.
+instruction descriptions. Undocumented instructions and F bits 3/5 are outside
+the current model. Where the manual leaves a modeled flag unspecified, the
+behavior selected below is checked against an independent reference emulator.
 
 ## Stored state and register views
 
@@ -38,7 +40,8 @@ uses uppercase register and flag names, with `PV` for the manual's P/V flag.
 
 Flags are Boolean fields in both banks. Only the six documented flag bits are
 represented; undocumented F bits 3 and 5 are omitted. There is consequently no
-raw F or AF field or view yet. The main and alternate H register and H flag
+public raw F or AF field or view. Stack operations pack and unpack the modeled
+flags as described below. The main and alternate H register and H flag
 remain separate fields in their respective register and flag objects.
 
 Snapshots derive readonly BC, DE, and HL views in each bank from its stored
@@ -46,8 +49,8 @@ bytes, high byte first. These pair views are not separate state and cannot be
 initialized independently. Immediate pair loads update the stored bytes of BC,
 DE, or HL, or replace SP. No implemented instruction exchanges the banks or
 uses the index registers or interrupt vector yet; they can be initialized and
-inspected and are preserved by this instruction subset. Stack operations remain
-unsupported even though SP can be loaded.
+inspected and are preserved by this instruction subset. PUSH/POP update SP
+and transfer BC, DE, HL, or AF; calls and returns use the same memory stack.
 
 ## Construction and inspection
 
@@ -87,16 +90,19 @@ Stores record the write even when the value is unchanged, and never read the
 destination to reconstruct an old value. Captured instruction bytes survive
 stores that overwrite code. Subsequent steps fetch current RAM.
 
-Each supported instruction increments the low seven bits of R once for its
-opcode fetch, preserving bit 7. Operand reads and data accesses do not increment
-R. For example, `7F` becomes `00`, and `FF` becomes `80`. This covers the current
-unprefixed subset; future prefix support must account for its opcode fetches.
+Each supported instruction increments the low seven bits of R for each opcode
+fetch, preserving bit 7: once for an unprefixed instruction and twice for a CB
+instruction. Operand reads and data accesses do not increment R. For example,
+unprefixed `7F` becomes `00`, while CB `FF` becomes `81`. PC and R are advanced
+only after the complete supported encoding has been identified.
 
 An unsupported opcode is read and recorded, but PC, R, all other CPU state,
 and RAM remain unchanged. This atomic rejection is a model policy, including
-the choice to leave R unchanged despite the recorded read. Prefix bytes CB,
-DD, ED, and FD are currently rejected after that byte alone; no following byte
-is fetched. Repeating an unsupported attempt repeats the same read.
+the choice to leave R unchanged despite the recorded reads. DD, ED, and FD are
+rejected after that byte alone. CB fetches a second byte, wrapping at FFFF;
+undocumented SLL encodings (`CB 30`–`CB 37`) are rejected with both bytes and
+reads retained, without a data access. Repeating an unsupported attempt reads
+the encoding again from current RAM and preserves all CPU state and RAM.
 
 HALT advances PC past its opcode, increments R once, sets `halted`, and reports
 `outcome: "halted"` with the HALT instruction. Subsequent halted steps report
@@ -134,7 +140,7 @@ Pair views reflect the resulting bytes. The alternate bank remains unchanged.
 ADD, ADC, SUB, SBC, AND, XOR, OR, and CP support every unprefixed byte form:
 B/C/D/E/H/L/A, memory through HL, and an immediate byte. The operation field
 `ooo` has the same meaning in `10 ooo rrr` and `11 ooo 110`; `rrr` selects
-B/C/D/E/H/L/(HL)/A. Indexed and prefixed forms remain unsupported.
+B/C/D/E/H/L/(HL)/A. Indexed byte ALU forms remain unsupported.
 
 All eight operations replace S/Z/H/PV/N/C. CP preserves A; the others replace
 it with the low byte of the result. S reflects result bit 7 and Z tests the
@@ -175,6 +181,71 @@ rule and does not always set AC for AND.
 
 The [checksum example](examples/checksum.md) passes ADD's carry into ADC
 through intervening loads, stores the two-byte result, and branches on CP.
+
+## CB rotates, shifts, and bit operations
+
+The CB page implements every documented second-byte encoding, using the same
+B/C/D/E/H/L/(HL)/A operand selector as the load and ALU families. Both encoding
+bytes are captured before any data access; `(HL)` reads follow them. A modifying
+operation writes once, even if the result equals the old byte. BIT reads without
+writing. Register operands cause no data accesses, and H/L modifications update
+the derived HL view. Overlaps with either instruction byte retain the original
+fetched bytes and every separate read and write.
+
+RLC/RRC feed the outgoing bit back into the other end of the byte; RL/RR feed
+incoming C instead. SLA shifts in zero, SRA repeats the sign bit, and SRL shifts
+in zero from the left. Each moves the outgoing bit into C, sets S/Z from the
+result and P/V from even parity, and clears H/N. These flag rules apply to the
+CB accumulator forms too; the separate unprefixed accumulator rotates remain
+unsupported. The source table makes the inserted bit explicit beside each
+encoding and shares left/right shift behavior across the operand forms.
+
+BIT sets Z when the selected bit is zero, sets H, clears N, and preserves C.
+The Zilog manual leaves S/PV unspecified for BIT. This model sets PV equal to Z
+and sets S only when testing bit 7 and finding it set, matching the independent
+reference cases. RES clears the selected bit and SET sets it; both preserve all
+flags. SLL's undocumented selector slot remains unsupported and earns no
+coverage credit. DD/FD indexed forms are a separate future page.
+
+See the [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages
+213–237 and 243–264, and the reference comparison under [checks](#checks-and-limits).
+
+## Stack, calls, and returns
+
+The memory stack grows downward with 16-bit wrapping. PUSH first decrements SP
+and writes the high byte, then decrements SP and writes the low byte. POP reads
+low at SP, increments SP, reads high, and increments SP again. POP leaves RAM
+intact. BC, DE, HL, and AF use pair selector `qq` in that order, with AF occupying
+the slot used by SP in immediate pair loads. PUSH preserves all flags; POP
+preserves them except when restoring AF.
+
+AF packs A as the high byte and `S Z 0 H 0 PV N C` as the low byte. PUSH AF writes
+zero for the unmodeled F bits 5/3, and POP AF ignores those incoming bits. This
+is a deterministic projection of the existing six-flag state, not a claim that
+hardware fixes those bits to zero. It also means a POP/PUSH round trip can change
+those two memory bits. The six modeled flags and A round trip exactly, and
+snapshots retain everything needed to resume these instructions. No new stored
+state or public raw AF view is introduced.
+
+CALL fetches the entire low-first target word before writing the return address
+(the following instruction's PC) to the stack, then selects the target. RET pops
+the next PC low byte first, without the increment used by some other CPUs.
+Conditional calls and returns use NZ/Z/NC/C/PO/PE/P/M. PO/PE test PV regardless of
+whether the preceding instruction gave it a parity, overflow, or BIT result;
+P/M test S. A false CALL still fetches both target bytes but makes no stack
+access; a false RET fetches only its opcode. None changes flags, and either
+path increments R once. Targets are not read until the next step.
+
+Instruction and data addresses may overlap. A call captures its target before
+stack writes can overwrite it; a return reads the current RAM, including when
+SP points into code. Stack writes remain in the access record even when their
+values match RAM. Interrupt returns, interrupt delivery, and I/O remain deferred.
+
+See the [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages
+115–120 and 281–287. The [bit-count example](examples/bit-count.md) combines three
+levels of calls with saved registers, CB shifts, and conditional counting. It
+satisfies the stack/call/return part of the
+[CPU-only checkpoint](../../../ROADMAP.md#cpu-only-checkpoint).
 
 ## Relative jumps
 
@@ -220,7 +291,8 @@ patterns, including A as its own source, unchanged CP results, and H/L operands.
 Other checks cover
 all immediate-load bytes and flag patterns, exact memory accesses, PC and R
 wrapping, overlapping stores, current RAM, and retained records. All unsupported
-first bytes are checked, including prefixes. Construction, nested snapshots,
+first bytes are checked, including DD/ED/FD; CB rejects its eight SLL encodings
+after the second byte. Construction, nested snapshots,
 reset, and readonly public types have separate checks.
 
 Register loads and INC/DEC cover every byte and all 64 incoming flag patterns,
@@ -250,3 +322,23 @@ bytes, and ordered memory accesses. Undocumented F bits 3/5 and internal
 latches are omitted; bus samples are reduced to memory transactions, excluding
 refresh activity. This is an independent emulator comparison, not a claim
 of hardware or cycle-accuracy testing. Repository tests remain self-contained.
+
+CB tests cover all 248 encodings with every byte and both incoming carry values,
+checking complete state and actual RAM calls. A further run exhausts all byte
+and raw F combinations for each CB operation/bit through POP AF; expected bit
+results use character movement independently of the core's shifts and masks.
+Checks include all R values, memory read/write overlap with either opcode byte,
+wrapped fetches, same-value writes, live HL and RAM, and atomic unsupported CB
+attempts. PUSH/POP cover every flag pattern, boundary words and SP wrapping;
+CALL/RET cover every condition and flag pattern with wrapped PC/SP and code
+aliasing. Every new unprefixed encoding checks all R values. The bit-count
+example checks all 151 records, full RAM, three nested call levels, fresh
+factories, reset preservation, and resumption from every instruction boundary.
+
+All 1,000 SingleStepTests cases for each new form also passed: 248 CB forms and
+26 unprefixed stack/call/return forms, **274,000 cases** in total. Comparison
+covers every modeled state field, final RAM, fetched bytes, and ordered memory
+transactions. For PUSH AF only, the expected written F byte is projected to the
+same six modeled bits; its omitted bits 5/3 are checked as zero in repository
+tests. The earlier ALU comparison and these checks use the same exclusions for
+internal latches and bus refresh activity. They do not establish cycle accuracy.

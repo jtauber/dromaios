@@ -1,0 +1,63 @@
+ram 10000
+
+cpu z80 {
+    A = 11  B = 22  C = 33  D = 44  E = 55  H = 66  L = 77
+    flags { S = 1  Z = 1  H = 1  PV = 1  N = 1  C = 1 }
+    alternate {
+        A = 88  B = 99  C = AA  D = BB  E = CC  H = DD  L = EE
+        flags { S = 0  Z = 1  H = 0  PV = 1  N = 0  C = 1 }
+    }
+    IX = 1234  IY = 5678  PC = 0200  SP = ABCD
+    I = 42  R = FE  IM = 2
+    iff1 = true  iff2 = false  halted = false
+}
+
+memory 007F { AA 81 7F A5 BB CC 55 } // Three input bytes, guard, output, guard.
+memory 8FEF { AA } // Guard below the deepest stack frame.
+memory 9000 { BB } // Guard above the stack.
+
+memory 0200 {
+    31 00 90    // LD SP,9000H
+    CD 20 02    // CALL 0220H: count the set bits, preserving every main register and flag
+    76          // HALT
+}
+
+memory 0220 {
+    F5          // PUSH AF
+    C5          // PUSH BC
+    D5          // PUSH DE
+    E5          // PUSH HL
+    21 80 00    // LD HL,0080H
+    06 03       // LD B,03H: byte count
+    16 00       // LD D,00H: total
+    7E          // LD A,(HL): byte loop at 022B
+    CD 40 02    // CALL 0240H: return this byte's bit count in E
+    7A          // LD A,D
+    83          // ADD A,E
+    57          // LD D,A
+    2C          // INC L
+    10 F6       // DJNZ 022BH
+    7A          // LD A,D
+    32 84 00    // LD (0084H),A: 2 + 7 + 4 = 0DH
+    E1          // POP HL
+    D1          // POP DE
+    C1          // POP BC
+    F1          // POP AF
+    C9          // RET
+}
+
+memory 0240 {
+    C5          // PUSH BC: preserve the outer byte counter
+    06 08       // LD B,08H: bit count
+    1E 00       // LD E,00H: number of set bits
+    CB 3F       // SRL A: bit loop at 0245, shift the low bit into carry
+    DC 50 02    // CALL C,0250H: count that bit only when it was set
+    10 F9       // DJNZ 0245H: preserve carry and test B directly
+    C1          // POP BC
+    C9          // RET
+}
+
+memory 0250 {
+    1C          // INC E
+    C9          // RET
+}

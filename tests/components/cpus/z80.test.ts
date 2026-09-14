@@ -828,12 +828,13 @@ test("Z80 relative jumps and loads fetch current operands and retain independent
   assert.deepEqual(second, savedSecond);
 });
 
-test("Z80 rejects every unsupported first byte atomically, including prefixes", () => {
+test("Z80 rejects every unsupported first byte atomically, including DD/ED/FD", () => {
   const ram = new ObservedRam();
   const before = initialState({ pc: 0xffff, r: 0xff });
   for (let opcode = 0; opcode < 256; opcode++) {
     if (opcode >= 0x40 && opcode <= 0xbf) continue;
     if ([
+      0xcb, ...stackForms.flatMap(form => [form.push, form.pop]), ...callReturnForms.flatMap(form => [form.call, form.ret]),
       0x01, 0x11, 0x21, 0x31, 0x36,
       0x04, 0x05, 0x06, 0x0c, 0x0d, 0x0e, 0x10, 0x14, 0x15, 0x16, 0x18, 0x1c, 0x1d, 0x1e,
       0x20, 0x24, 0x25, 0x26, 0x28, 0x2c, 0x2d, 0x2e, 0x30, 0x32, 0x38, 0x3c, 0x3d, 0x3e, 0x76, ...aluForms.map(form => form.immediate),
@@ -933,4 +934,308 @@ test("8080 and Z80 share these instruction bytes but arithmetic P and P/V mean d
       assert.equal(intel.snapshot().halted, true);
     }
   }
+});
+
+// CB rows from the manual. The undocumented 30–37 SLL row is deliberately absent.
+const cbRows = [
+  { name: "RLC", bit: 0, base: 0x00 }, { name: "RRC", bit: 0, base: 0x08 },
+  { name: "RL", bit: 0, base: 0x10 }, { name: "RR", bit: 0, base: 0x18 },
+  { name: "SLA", bit: 0, base: 0x20 }, { name: "SRA", bit: 0, base: 0x28 },
+  { name: "SRL", bit: 0, base: 0x38 },
+  ...[0x40, 0x48, 0x50, 0x58, 0x60, 0x68, 0x70, 0x78].map((base, bit) => ({ name: "BIT", bit, base })),
+  ...[0x80, 0x88, 0x90, 0x98, 0xa0, 0xa8, 0xb0, 0xb8].map((base, bit) => ({ name: "RES", bit, base })),
+  ...[0xc0, 0xc8, 0xd0, 0xd8, 0xe0, 0xe8, 0xf0, 0xf8].map((base, bit) => ({ name: "SET", bit, base })),
+];
+
+function expectedCb(name: string, bit: number, value: number, flags: CpuZ80Flags) {
+  // Use character movement to specify bit behavior independently of the core's shifts and masks.
+  const digits = value.toString(2).padStart(8, "0").split("");
+  if (name === "BIT") {
+    const clear = digits[7 - bit] === "0";
+    return { value, flags: { s: bit === 7 && !clear, z: clear, h: true, pv: clear, n: false, c: flags.c } };
+  }
+  if (name === "RES" || name === "SET") {
+    digits[7 - bit] = name === "SET" ? "1" : "0";
+    return { value: Number.parseInt(digits.join(""), 2), flags };
+  }
+  const left = ["RLC", "RL", "SLA"].includes(name);
+  const outgoing = left ? digits.shift()! : digits.pop()!;
+  const incoming = name === "RLC" || name === "RRC" ? outgoing
+    : name === "RL" || name === "RR" ? (flags.c ? "1" : "0")
+    : name === "SRA" ? digits[0]! : "0";
+  if (left) digits.push(incoming);
+  else digits.unshift(incoming);
+  const result = Number.parseInt(digits.join(""), 2);
+  return { value: result, flags: { s: digits[0] === "1", z: result === 0, h: false,
+    pv: digits.filter(digit => digit === "1").length % 2 === 0, n: false, c: outgoing === "1" } };
+}
+
+for (const { name, bit, base } of cbRows) {
+  test(`Z80 CB ${name} ${bit} covers every operand, byte, and carry input`, () => {
+    const ram = new ObservedRam();
+    for (const [column, operand] of transferColumns.entries()) {
+      const opcode = base + column;
+      for (let value = 0; value < 256; value++) {
+        for (const carry of [false, true]) {
+          const flags = { ...flagPattern(value % 32), c: carry };
+          const before = initialState({ flags, r: value });
+          if (operand !== "(hl)") before[operand] = value;
+          ram.write(0x6677, value);
+          ram.write(0x2000, 0xcb);
+          ram.write(0x2001, opcode);
+          ram.accesses.length = 0;
+          const expected = expectedCb(name, bit, value, flags);
+          const after = { ...before, flags: expected.flags, pc: 0x2002, r: Math.floor(value / 128) * 128 + (value + 2) % 128 };
+          if (operand !== "(hl)") after[operand] = expected.value;
+          const accesses: CpuZ80MemoryAccess[] = [{ kind: "read", address: 0x2000, value: 0xcb },
+            { kind: "read", address: 0x2001, value: opcode }];
+          if (operand === "(hl)") {
+            accesses.push({ kind: "read", address: 0x6677, value });
+            if (name !== "BIT") accesses.push({ kind: "write", address: 0x6677, value: expected.value });
+          }
+          const record = new CpuZ80(ram, before).step();
+          assert.deepEqual(record, { before: snapshot(before), after: snapshot(after), accesses,
+            instruction: { address: 0x2000, bytes: [0xcb, opcode] }, outcome: "executed" });
+          assert.deepEqual(ram.accesses, accesses);
+          if (operand === "(hl)") assert.equal(ram.read(0x6677), expected.value);
+        }
+      }
+    }
+  });
+}
+
+test("Z80 CB operations exhaust byte/flag combinations through POP AF, including ignored F bits", () => {
+  const ram = new Ram(0x10000);
+  for (const { name, bit, base } of cbRows) {
+    for (let f = 0; f < 256; f++) {
+      // POP AF supplies each independent input, including bits omitted from stored state.
+      const flags = unpackFlags(f);
+      for (let value = 0; value < 256; value++) {
+        [0xf1, 0xcb, base + 7].forEach((byte, offset) => ram.write(0x2000 + value * 3 + offset, byte));
+        ram.write(0x8000 + value * 2, f);
+        ram.write(0x8001 + value * 2, value);
+      }
+      const cpu = new CpuZ80(ram, initialState({ sp: 0x8000 }));
+      for (let value = 0; value < 256; value++) {
+        const loaded = cpu.step();
+        assert.equal(loaded.after.a, value);
+        assert.deepEqual(loaded.after.flags, flags);
+        const expected = expectedCb(name, bit, value, flags);
+        const record = cpu.step();
+        assert.equal(record.outcome, "executed");
+        assert.deepEqual(record.after, { ...loaded.after, a: expected.value, flags: expected.flags,
+          pc: loaded.after.pc + 2, r: 0x80 + (loaded.after.r + 2) % 128 });
+      }
+    }
+  }
+});
+
+test("Z80 CB memory operations wrap instruction fetches and retain overlapping reads and writes", () => {
+  for (const { name, bit, base } of cbRows) {
+    const opcode = base + 6;
+    for (const pc of [0, 0xfffe, 0xffff]) {
+      for (const address of [0, 0xffff, pc, (pc + 1) % 65536, 0x1234]) {
+        const ram = new ObservedRam();
+        ram.write(address, 0xa5);
+        ram.write(pc, 0xcb);
+        ram.write((pc + 1) % 65536, opcode);
+        const value = ram.read(address);
+        const before = initialState({ pc, r: 0xff, h: Math.floor(address / 256), l: address % 256 });
+        const expected = expectedCb(name, bit, value, before.flags);
+        const accesses: CpuZ80MemoryAccess[] = [
+          { kind: "read", address: pc, value: 0xcb }, { kind: "read", address: (pc + 1) % 65536, value: opcode },
+          { kind: "read", address, value },
+        ];
+        if (name !== "BIT") accesses.push({ kind: "write", address, value: expected.value });
+        ram.accesses.length = 0;
+        const cpu = new CpuZ80(ram, before);
+        const record = cpu.step();
+        assert.deepEqual(record, { before: snapshot(before), after: snapshot({ ...before, flags: expected.flags,
+          pc: (pc + 2) % 65536, r: 0x81 }), accesses,
+          instruction: { address: pc, bytes: [0xcb, opcode] }, outcome: "executed" });
+        assert.deepEqual(ram.accesses, accesses);
+        assert.equal(ram.read(address), expected.value);
+        const saved = structuredClone(record);
+        ram.write(address, 0);
+        cpu.reset();
+        assert.deepEqual(record, saved);
+      }
+    }
+  }
+});
+
+test("Z80 CB SLL encodings reject both fetched bytes atomically and read current RAM on retry", () => {
+  for (let opcode = 0x30; opcode <= 0x37; opcode++) {
+    for (const pc of [0x2000, 0xffff]) {
+      const ram = new ObservedRam();
+      const before = initialState({ pc, r: 0x7f });
+      ram.write(pc, 0xcb);
+      ram.write((pc + 1) % 65536, opcode);
+      const cpu = new CpuZ80(ram, before);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, { before: snapshot(before), after: snapshot(before), outcome: "unsupported", reason: "opcode",
+          instruction: { address: pc, bytes: [0xcb, opcode] }, accesses: [
+            { kind: "read", address: pc, value: 0xcb }, { kind: "read", address: (pc + 1) % 65536, value: opcode },
+          ] });
+        assert.deepEqual(ram.accesses, record.accesses);
+      }
+      ram.write((pc + 1) % 65536, 0xff); // SET 7,A
+      const executed = cpu.step();
+      assert.equal(executed.outcome, "executed");
+      assert.deepEqual(executed.after, snapshot({ ...before, a: 0x91, pc: (pc + 2) % 65536, r: 1 }));
+    }
+  }
+});
+
+function unpackFlags(value: number): CpuZ80Flags {
+  // Positions in F are independent of flagPattern's compact test-case numbering.
+  return { s: Math.floor(value / 128) % 2 === 1, z: Math.floor(value / 64) % 2 === 1,
+    h: Math.floor(value / 16) % 2 === 1, pv: Math.floor(value / 4) % 2 === 1,
+    n: Math.floor(value / 2) % 2 === 1, c: value % 2 === 1 };
+}
+
+const stackForms = [
+  { high: "b", low: "c", push: 0xc5, pop: 0xc1 }, { high: "d", low: "e", push: 0xd5, pop: 0xd1 },
+  { high: "h", low: "l", push: 0xe5, pop: 0xe1 }, { high: "a", low: "flags", push: 0xf5, pop: 0xf1 },
+] as const;
+const callReturnForms = [
+  { call: 0xcd, ret: 0xc9, take: (_flags: CpuZ80Flags) => true },
+  { call: 0xc4, ret: 0xc0, take: (flags: CpuZ80Flags) => !flags.z },
+  { call: 0xcc, ret: 0xc8, take: (flags: CpuZ80Flags) => flags.z },
+  { call: 0xd4, ret: 0xd0, take: (flags: CpuZ80Flags) => !flags.c },
+  { call: 0xdc, ret: 0xd8, take: (flags: CpuZ80Flags) => flags.c },
+  { call: 0xe4, ret: 0xe0, take: (flags: CpuZ80Flags) => !flags.pv },
+  { call: 0xec, ret: 0xe8, take: (flags: CpuZ80Flags) => flags.pv },
+  { call: 0xf4, ret: 0xf0, take: (flags: CpuZ80Flags) => !flags.s },
+  { call: 0xfc, ret: 0xf8, take: (flags: CpuZ80Flags) => flags.s },
+];
+
+for (const { high, low, push, pop } of stackForms) {
+  test(`Z80 PUSH/POP ${high.toUpperCase()}${low === "flags" ? "F" : low.toUpperCase()} covers word boundaries, flags, and SP wrap`, () => {
+    for (const sp of [0, 1, 0xff, 0x100, 0xfffe, 0xffff]) {
+      for (const word of [0, 1, 0x7f80, 0x80ff, 0xff00, 0xffff]) {
+        for (let bits = 0; bits < 64; bits++) {
+          const ram = new ObservedRam();
+          const before = initialState({ sp, flags: flagPattern(bits) });
+          before[high] = Math.floor(word / 256);
+          const flags = before.flags;
+          const lowByte = low === "flags" ? Number(flags.s) * 128 + Number(flags.z) * 64 + Number(flags.h) * 16
+            + Number(flags.pv) * 4 + Number(flags.n) * 2 + Number(flags.c) : word % 256;
+          if (low !== "flags") before[low] = lowByte;
+          ram.write(0x2000, push);
+          ram.write(0x2001, pop);
+          // A same-value push must still issue both writes.
+          ram.write((sp + 65535) % 65536, before[high]);
+          ram.write((sp + 65534) % 65536, lowByte);
+          ram.accesses.length = 0;
+          const cpu = new CpuZ80(ram, before);
+          const pushed = cpu.step();
+          assert.deepEqual(pushed, { before: snapshot(before), after: snapshot({ ...before, pc: 0x2001,
+            sp: (sp + 65534) % 65536, r: 0xff }), outcome: "executed", instruction: { address: 0x2000, bytes: [push] },
+            accesses: [{ kind: "read", address: 0x2000, value: push },
+              { kind: "write", address: (sp + 65535) % 65536, value: before[high] },
+              { kind: "write", address: (sp + 65534) % 65536, value: lowByte }] });
+          assert.deepEqual(ram.accesses, pushed.accesses);
+          ram.accesses.length = 0;
+          const popped = cpu.step();
+          assert.deepEqual(popped, { before: pushed.after, after: snapshot({ ...before, pc: 0x2002, r: 0x80 }),
+            outcome: "executed", instruction: { address: 0x2001, bytes: [pop] },
+            accesses: [{ kind: "read", address: 0x2001, value: pop },
+              { kind: "read", address: (sp + 65534) % 65536, value: lowByte },
+              { kind: "read", address: (sp + 65535) % 65536, value: before[high] }] });
+          assert.deepEqual(ram.accesses, popped.accesses);
+        }
+      }
+    }
+  });
+}
+
+for (const { call, ret, take } of callReturnForms) {
+  test(`Z80 CALL ${call.toString(16)} and RET ${ret.toString(16)} cover every flag pattern and wrapped/overlapping stack accesses`, () => {
+    for (let bits = 0; bits < 64; bits++) {
+      for (const pc of [0x2000, 0xfffd, 0xfffe, 0xffff]) {
+        for (const sp of [0, 1, 0xffff, pc, (pc + 1) % 65536, (pc + 3) % 65536]) {
+          const ram = new ObservedRam();
+          const before = initialState({ pc, sp, r: bits * 4, flags: flagPattern(bits) });
+          const taken = take(before.flags);
+          const next = (pc + 3) % 65536;
+          const bytes = [call, 0x34, 0x12];
+          bytes.forEach((byte, offset) => ram.write((pc + offset) % 65536, byte));
+          ram.accesses.length = 0;
+          const cpu = new CpuZ80(ram, before);
+          const record = cpu.step();
+          const accesses: CpuZ80MemoryAccess[] = bytes.map((value, offset) => ({ kind: "read", address: (pc + offset) % 65536, value }));
+          if (taken) accesses.push({ kind: "write", address: (sp + 65535) % 65536, value: Math.floor(next / 256) },
+            { kind: "write", address: (sp + 65534) % 65536, value: next % 256 });
+          assert.deepEqual(record, { before: snapshot(before), after: snapshot({ ...before,
+            pc: taken ? 0x1234 : next, sp: taken ? (sp + 65534) % 65536 : sp,
+            r: Math.floor(before.r / 128) * 128 + (before.r + 1) % 128 }), outcome: "executed",
+            instruction: { address: pc, bytes }, accesses });
+          assert.deepEqual(ram.accesses, accesses);
+          // Test RET independently, so untaken calls do not hide a broken return condition.
+          ram.write(sp, 0x78);
+          ram.write((sp + 1) % 65536, 0x56);
+          ram.write(pc, ret);
+          const low = ram.read(sp), high = ram.read((sp + 1) % 65536);
+          ram.accesses.length = 0;
+          const returned = new CpuZ80(ram, before).step();
+          const returnAccesses: CpuZ80MemoryAccess[] = [{ kind: "read", address: pc, value: ret }];
+          if (taken) returnAccesses.push({ kind: "read", address: sp, value: low },
+            { kind: "read", address: (sp + 1) % 65536, value: high });
+          assert.deepEqual(returned, { before: snapshot(before), after: snapshot({ ...before,
+            pc: taken ? high * 256 + low : (pc + 1) % 65536, sp: taken ? (sp + 2) % 65536 : sp,
+            r: Math.floor(before.r / 128) * 128 + (before.r + 1) % 128 }), outcome: "executed",
+            instruction: { address: pc, bytes: [ret] }, accesses: returnAccesses });
+          assert.deepEqual(ram.accesses, returnAccesses);
+        }
+      }
+    }
+  });
+}
+
+test("Z80 stack and call/return forms increment R once for every initial R value", () => {
+  const ram = new Ram(65536);
+  const opcodes = [...stackForms.flatMap(form => [form.push, form.pop]), ...callReturnForms.flatMap(form => [form.call, form.ret])];
+  for (const opcode of opcodes) {
+    for (let r = 0; r < 256; r++) {
+      ram.write(0x2000, opcode);
+      const record = new CpuZ80(ram, initialState({ r })).step();
+      assert.equal(record.outcome, "executed");
+      assert.equal(record.after.r, Math.floor(r / 128) * 128 + (r + 1) % 128);
+    }
+  }
+});
+
+test("Z80 CB memory forms follow live HL and RAM; POP reads caller edits to the current stack", () => {
+  const ram = new ObservedRam();
+  [0x21, 0, 0x10, 0xcb, 0x86, 0xcb, 0x3e, 0x21, 0xff, 0xff, 0xcb, 0xfe, 0xe5, 0xe1]
+    .forEach((byte, offset) => ram.write(0x2000 + offset, byte));
+  ram.write(0x1000, 0xff);
+  ram.write(0xffff, 0);
+  const cpu = new CpuZ80(ram, initialState());
+  cpu.step(); // LD HL,1000
+  const resetBit = cpu.step(); // RES 0,(HL)
+  assert.equal(ram.read(0x1000), 0xfe);
+  const saved = structuredClone(resetBit);
+  ram.write(0x1000, 0x81);
+  const shifted = cpu.step(); // SRL (HL)
+  assert.deepEqual(shifted.accesses.slice(2), [{ kind: "read", address: 0x1000, value: 0x81 },
+    { kind: "write", address: 0x1000, value: 0x40 }]);
+  assert.equal(shifted.after.flags.c, true);
+  cpu.step(); // LD HL,FFFF
+  const setBit = cpu.step(); // SET 7,(HL)
+  assert.deepEqual(setBit.accesses.slice(2), [{ kind: "read", address: 0xffff, value: 0 },
+    { kind: "write", address: 0xffff, value: 0x80 }]);
+  assert.deepEqual(setBit.after.flags, shifted.after.flags);
+  const pushed = cpu.step(); // PUSH HL
+  ram.write(pushed.after.sp, 0x34);
+  ram.write(pushed.after.sp + 1, 0x12);
+  const popped = cpu.step(); // POP HL
+  assert.equal(popped.after.hl, 0x1234);
+  assert.equal(popped.after.sp, 0xabcd);
+  assert.deepEqual(popped.accesses.slice(1), [{ kind: "read", address: 0xabcb, value: 0x34 },
+    { kind: "read", address: 0xabcc, value: 0x12 }]);
+  assert.deepEqual(resetBit, saved);
 });

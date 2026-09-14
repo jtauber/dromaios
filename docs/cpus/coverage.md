@@ -19,7 +19,7 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [651](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [250](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [463](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [341](../../src/components/cpus/z80.ts) | 169 / 698 | 24.2% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [469](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [305](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [227](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [243](../../src/components/cpus/68000.ts) | 96 / 36,029 | 0.3% |
@@ -1001,10 +1001,14 @@ reset preservation, and fresh restart.
 [Transfer specification](z80/examples/transfers.md) ·
 [Transfer definition](../../src/machines/z80/transfers-example.machine) ·
 [Checksum specification](z80/examples/checksum.md) ·
-[Checksum definition](../../src/machines/z80/checksum-example.machine)
+[Checksum definition](../../src/machines/z80/checksum-example.machine) ·
+[Bit-count specification](z80/examples/bit-count.md) ·
+[Bit-count definition](../../src/machines/z80/bit-count-example.machine)
 
-**169 of 698 documented forms are complete (24.2%).** These include all
-72 unprefixed byte ALU forms, with registers, `(HL)`, or immediate operands.
+**443 of 698 documented forms are complete (63.5%): 195 unprefixed and
+248 CB forms.** The CB page is complete for documented encodings. Stack
+operations, calls/returns, and the bit-count example complete the Z80
+[CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint).
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
@@ -1044,7 +1048,7 @@ reset preservation, and fresh restart.
 All eight byte ALU operations use the register/memory pattern `10 ooo rrr`
 and immediate pattern `11 ooo 110`. The `ooo` selector follows the rows below;
 `rrr` selects B/C/D/E/H/L/(HL)/A. Register and `(HL)` forms are one byte;
-immediate forms are two bytes. Indexed/prefixed forms remain unsupported.
+immediate forms are two bytes. Indexed ALU forms remain unsupported.
 
 | Operation | B | C | D | E | H | L | `(HL)` | A | Immediate |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -1057,23 +1061,59 @@ immediate forms are two bytes. Indexed/prefixed forms remain unsupported.
 | OR | `B0` | `B1` | `B2` | `B3` | `B4` | `B5` | `B6` | `B7` | `F6` |
 | CP | `B8` | `B9` | `BA` | `BB` | `BC` | `BD` | `BE` | `BF` | `FE` |
 
+The unprefixed stack and subroutine families add 26 forms:
+
+| Opcode | Instruction | Length | Scope |
+| --- | --- | --- | --- |
+| `C5/D5/E5/F5` | `PUSH BC/DE/HL/AF` | 1 | Predecrement SP; write high then low, wrapping at 16 bits |
+| `C1/D1/E1/F1` | `POP BC/DE/HL/AF` | 1 | Read low then high; increment SP after each read |
+| `CD` | `CALL nn` | 3 | Fetch target; push following PC; jump |
+| `C4/CC/D4/DC/E4/EC/F4/FC` | `CALL cc,nn` | 3 | NZ/Z/NC/C/PO/PE/P/M; false paths fetch target without stack accesses |
+| `C9` | `RET` | 1 | Pop PC without an extra increment |
+| `C0/C8/D0/D8/E0/E8/F0/F8` | `RET cc` | 1 | Same conditions; false paths perform no stack accesses |
+
+CB's second byte uses `xx yyy rrr`. The `rrr` selector is B/C/D/E/H/L/(HL)/A;
+`yyy` selects the rotate/shift when `xx=00`, or bit number 0–7 otherwise.
+Every form below is two bytes including the CB prefix.
+
+| Second-byte range | Instruction family | Forms | Scope |
+| --- | --- | ---: | --- |
+| `00`–`07` | RLC | 8 | Rotate left, outgoing bit also enters bit 0 |
+| `08`–`0F` | RRC | 8 | Rotate right, outgoing bit also enters bit 7 |
+| `10`–`17` | RL | 8 | Rotate left through C |
+| `18`–`1F` | RR | 8 | Rotate right through C |
+| `20`–`27` | SLA | 8 | Shift left, inserting zero |
+| `28`–`2F` | SRA | 8 | Shift right, preserving sign |
+| `38`–`3F` | SRL | 8 | Shift right, inserting zero |
+| `40`–`7F` | BIT b | 64 | Test bit; no write; preserve C |
+| `80`–`BF` | RES b | 64 | Clear bit; preserve all flags |
+| `C0`–`FF` | SET b | 64 | Set bit; preserve all flags |
+
+`CB 30`–`CB 37` are undocumented SLL forms and are excluded from both counts.
+AF uses the existing six-flag model: PUSH writes F bits 5/3 as zero and POP
+ignores them. BIT's unspecified S/PV behavior follows the independent reference
+cases. The [model contract](z80/model.md#cb-rotates-shifts-and-bit-operations)
+defines these policies and the ordered memory accesses.
+
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A/B/C/D/E/H/L in main and alternate banks; IX, IY, PC, SP, I, R |
-| Stored flags | S/Z/H/PV/N/C in both banks; undocumented F bits 3/5 and raw F/AF views are omitted |
+| Stored flags | S/Z/H/PV/N/C in both banks; undocumented F bits 3/5 and public raw F/AF views are omitted; stack AF packs/unpacks the six flags |
 | Register relationships | Snapshots derive BC, DE, and HL in both banks; pair loads update the main bank's stored bytes or SP; no bank exchanges yet |
 | Register operations | Immediate and register/memory byte loads and immediate pair loads preserve flags; INC/DEC wrap byte registers and replace S/Z/H/PV/N, preserving C; the alternate bank is unchanged |
 | Arithmetic and logic | All unprefixed byte ADD/ADC/SUB/SBC/AND/XOR/OR/CP forms; replace S/Z/H/PV/N/C; arithmetic P/V means overflow, logic P/V means parity; CP preserves A; subtraction H/C indicate borrows, AND sets H |
 | Indirect transfers | HL addresses RAM for reads and writes; H/L destinations use the original HL address; HALT occupies the absent memory-to-memory transfer slot |
+| Stack and subroutines | PUSH/POP BC/DE/HL/AF; CALL/RET and all eight conditions; downward word stack with explicit byte order and wrapping |
+| CB operations | All documented rotates/shifts, BIT/RES/SET on registers and (HL); BIT preserves C, RES/SET preserve all flags |
 | Relative jumps | Unconditional JR and NZ/Z/NC/C conditions; signed displacement from PC after the operand, wrapping at 16 bits; fetch operand on every path |
 | Counted loops | DJNZ decrements B and tests its result while preserving all flags; zero wraps to FF; BC follows the updated B |
 | Interrupt state | IFF1, IFF2, and IM 0/1/2 can be initialized and inspected; no interrupt delivery or interrupt-control instructions |
-| Refresh register | Each supported unprefixed opcode increments R bits 0–6 once, preserving bit 7; no increments for operand/data accesses |
+| Refresh register | Each supported unprefixed opcode increments R bits 0–6 once, CB twice, preserving bit 7; no increments for operand/data accesses |
 | Reset | Clear PC/I/R, IFF1/IFF2, and IM; release HALT; preserve banks, flags, IX/IY/SP, and RAM under the documented model policy |
-| Prefixes | CB/DD/ED/FD rejected after the first byte; all CPU state, including R, remains unchanged |
+| Prefixes | CB dispatches on the second byte; its eight undocumented SLL forms reject atomically after both bytes; DD/ED/FD reject after one byte |
 | Stopping | HALT reports its instruction once; already halted steps perform no accesses or refresh updates |
-| Remaining instruction scope | Further transfers, 16-bit arithmetic, decimal adjustment, rotates/shifts and bit operations, register exchanges, stack operations, absolute jumps, calls/returns, and I/O |
-| Remaining addressing scope | Indirect forms beyond these HL byte transfers, indexed, prefixed, and other forms beyond the exact encodings above |
+| Remaining instruction scope | Further transfers, 16-bit arithmetic, decimal adjustment, accumulator/nibble rotates, register exchanges, absolute jumps, RST, indexed and ED forms, and deferred interrupt controls/returns and I/O |
+| Remaining addressing scope | Indirect forms beyond HL byte operations and stack words; indexed and other forms beyond the exact encodings above |
 
 The model covers documented instruction semantics for the listed forms, not
 undocumented flag bits or cycle activity. In particular, a physical Z80 keeps
@@ -1085,7 +1125,8 @@ Verification: [CPU tests](../../tests/components/cpus/z80.test.ts),
 [arithmetic example tests](../../tests/machines/z80/example.test.ts),
 [counted-loop example tests](../../tests/machines/z80/counted-loop-example.test.ts),
 [transfer example tests](../../tests/machines/z80/transfers-example.test.ts),
-[checksum example tests](../../tests/machines/z80/checksum-example.test.ts), and
+[checksum example tests](../../tests/machines/z80/checksum-example.test.ts),
+[bit-count example tests](../../tests/machines/z80/bit-count-example.test.ts), and
 [public type checks](../../tests/types/z80.ts). ALU checks exhaust every byte operand
 pair and both carry inputs for all eight operations against signed/unsigned
 arithmetic, low-digit carries/borrows, and binary-string parity. Boundary
@@ -1123,6 +1164,21 @@ The checksum example checks 38 complete records for two-byte addition,
 carry passed through loads, CP preserving A, both comparison failure paths,
 refresh wrapping, HALT, bounded failure loops, snapshot resumption, reset,
 full memory images, and fresh factories.
+
+All 248 CB forms check every byte and both carry inputs with full state/access
+records, plus all byte/raw F combinations for each operation/bit through POP AF.
+Further checks cover prefix/R/PC boundaries, instruction/data overlap, repeated
+reads, same-value writes, current RAM, and all unsupported CB forms. Stack and
+subroutine checks cover every condition and flag pattern, word boundaries,
+wrapped PC/SP, and overlapping code. All **274 new forms** also passed 1,000
+independent reference cases each, projecting PUSH AF to the declared flag model;
+see [checks and limits](z80/model.md#checks-and-limits).
+
+The bit-count example totals the set bits in three bytes using CB shifts and
+three call levels, then restores every main register and flag. It checks 151
+complete records, full RAM, guards around the stack and buffer, resumption at
+every instruction boundary, reset preservation, fresh factories, and zero/full
+input buffers exercising both conditional-call paths.
 
 ## 8088
 
