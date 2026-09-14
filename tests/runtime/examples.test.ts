@@ -3,6 +3,7 @@ import { create8008Example } from "../../src/machines/generated/8008/example.js"
 import { create8008StackExample } from "../../src/machines/generated/8008/stack-example.js";
 import { create8008TransfersExample } from "../../src/machines/generated/8008/transfers-example.js";
 import { create8008AluExample } from "../../src/machines/generated/8008/alu-example.js";
+import { create8008ControlFlowExample } from "../../src/machines/generated/8008/control-flow-example.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Cpu8080 } from "../../src/components/cpus/8080.js";
@@ -51,6 +52,7 @@ interface ExampleCase {
 
 // Expectations come from the example specifications, independently of the factories.
 const examples: readonly ExampleCase[] = [
+  { name: "8008 control flow", create: create8008ControlFlowExample, steps: 46, pc: 0x021d, stopReason: "halted", writes: [[0x80, 6]] },
   { name: "8008 ALU", create: create8008AluExample, steps: 28, pc: 0x0228, stopReason: "halted",
     writes: [[0x81, 0x10], [0x82, 2], [0x83, 0xf0], [0x84, 1], [0x85, 0x75]] },
   { name: "8008 transfers", create: create8008TransfersExample, steps: 14, pc: 0x0213, stopReason: "halted",

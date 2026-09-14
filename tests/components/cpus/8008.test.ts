@@ -62,6 +62,18 @@ const aluRows = [
 ] as const;
 type AluOperation = typeof aluRows[number]["operation"];
 
+// Literal encodings and truth conditions from Intel's instruction table.
+const conditions = [
+  { flag: "c", value: false, jump: 0x40, call: 0x42, ret: 0x03 },
+  { flag: "z", value: false, jump: 0x48, call: 0x4a, ret: 0x0b },
+  { flag: "s", value: false, jump: 0x50, call: 0x52, ret: 0x13 },
+  { flag: "p", value: false, jump: 0x58, call: 0x5a, ret: 0x1b },
+  { flag: "c", value: true, jump: 0x60, call: 0x62, ret: 0x23 },
+  { flag: "z", value: true, jump: 0x68, call: 0x6a, ret: 0x2b },
+  { flag: "s", value: true, jump: 0x70, call: 0x72, ret: 0x33 },
+  { flag: "p", value: true, jump: 0x78, call: 0x7a, ret: 0x3b },
+] as const;
+
 // Independent oracle: decimal ranges, logical truth tables, and binary-digit counts.
 function alu(operation: AluOperation, a: number, operand: number, carry: boolean) {
   let total: number;
@@ -519,6 +531,112 @@ for (const [mnemonic, opcodes] of [
   });
 }
 
+for (const family of ["jump", "call"] as const) {
+  test(`8008 conditional ${family} covers every condition, flag pattern, slot, and address alias on both paths`, () => {
+    const ram = new ObservedRam(0x4000);
+    // PC, operand locations, low/high bytes, destination, and fall-through PC.
+    const cases = [
+      [0x2000, 0x2001, 0x2002, 0x12, 0x23, 0x2312, 0x2003],
+      [0x00fe, 0x00ff, 0x0100, 0xff, 0x00, 0x00ff, 0x0101],
+      [0x3ffd, 0x3ffe, 0x3fff, 0xfe, 0x3f, 0x3ffe, 0x0000],
+      [0x3ffe, 0x3fff, 0x0000, 0xff, 0x3f, 0x3fff, 0x0001],
+      [0x3fff, 0x0000, 0x0001, 0x00, 0x00, 0x0000, 0x0002],
+      [0x2000, 0x2001, 0x2002, 0x00, 0x20, 0x2000, 0x2003],
+    ] as const;
+    for (const condition of conditions) {
+      const opcode = condition[family];
+      for (let bits = 0; bits < 16; bits++) {
+        for (let stackIndex = 0; stackIndex < 8; stackIndex++) {
+          for (const [pc, lowAt, highAt, low, high, destination, fallThrough] of cases) {
+            for (const ignoredBits of [0, 0x40, 0x80, 0xc0]) {
+              ram.write(pc, opcode);
+              ram.write(lowAt, low);
+              ram.write(highAt, high + ignoredBits);
+              ram.accesses.length = 0;
+              const before = atPc(pc, stackIndex, { flags: flags(bits) });
+              const taken = before.flags[condition.flag] === condition.value;
+              const nextIndex = taken && family === "call" ? [1, 2, 3, 4, 5, 6, 7, 0][stackIndex]! : stackIndex;
+              const addressStack: Cpu8008AddressStack = [...before.addressStack];
+              addressStack[stackIndex] = fallThrough;
+              if (taken) addressStack[nextIndex] = destination;
+              const after = snapshot({ ...before, addressStack, stackIndex: nextIndex });
+              const expected = { before: snapshot(before), after, outcome: "executed",
+                instruction: { address: pc, bytes: [opcode, low, high + ignoredBits] },
+                accesses: [{ kind: "read", address: pc, value: opcode }, { kind: "read", address: lowAt, value: low },
+                  { kind: "read", address: highAt, value: high + ignoredBits }] };
+              const cpu = new Cpu8008(ram, before);
+              assert.deepEqual(cpu.step(), expected);
+              assert.deepEqual(cpu.snapshot(), after);
+              assert.deepEqual(ram.accesses, expected.accesses);
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+test("8008 conditional returns cover all conditions, flags, and slots, retaining the advanced outgoing PC only in its own slot", () => {
+  const ram = new ObservedRam(0x4000);
+  for (const { flag, value, ret: opcode } of conditions) {
+    for (let bits = 0; bits < 16; bits++) {
+      for (let stackIndex = 0; stackIndex < 8; stackIndex++) {
+        for (const [pc, fallThrough] of [[0, 1], [0x2000, 0x2001], [0x3fff, 0]] as const) {
+          for (const destination of [0, 0x2000, 0x3fff, pc, fallThrough]) {
+            const before = atPc(pc, stackIndex, { flags: flags(bits) });
+            const previousIndex = [7, 0, 1, 2, 3, 4, 5, 6][stackIndex]!;
+            const originalSlots: Cpu8008AddressStack = [...before.addressStack];
+            originalSlots[previousIndex] = destination;
+            before.addressStack = originalSlots;
+            const nextIndex = before.flags[flag] === value ? previousIndex : stackIndex;
+            const addressStack: Cpu8008AddressStack = [...originalSlots];
+            addressStack[stackIndex] = fallThrough;
+            const after = snapshot({ ...before, addressStack, stackIndex: nextIndex });
+            ram.write(pc, opcode);
+            ram.accesses.length = 0;
+            const expected = { before: snapshot(before), after, outcome: "executed",
+              instruction: { address: pc, bytes: [opcode] }, accesses: [{ kind: "read", address: pc, value: opcode }] };
+            const cpu = new Cpu8008(ram, before);
+            assert.deepEqual(cpu.step(), expected);
+            assert.deepEqual(cpu.snapshot(), after);
+            assert.deepEqual(ram.accesses, expected.accesses);
+          }
+        }
+      }
+    }
+  }
+});
+
+test("8008 conditional jumps reread edited addresses and current flags while retaining earlier records", () => {
+  const ram = new ObservedRam(0x4000);
+  // JFZ loops to itself, then is redirected to XRA; XRA changes Z before the next JFZ.
+  for (const [address, value] of [[0x2000, 0x48], [0x2001, 0], [0x2002, 0xe0], [0x2100, 0xa8],
+    [0x2101, 0x48], [0x2102, 0], [0x2103, 0xc0]] as const) ram.write(address, value);
+  const before = initialState();
+  const cpu = new Cpu8008(ram, before);
+  const first = cpu.step();
+  const saved = structuredClone(first);
+  assert.deepEqual(first, { before: snapshot(before), after: snapshot(before), outcome: "executed",
+    instruction: { address: 0x2000, bytes: [0x48, 0, 0xe0] },
+    accesses: [{ kind: "read", address: 0x2000, value: 0x48 }, { kind: "read", address: 0x2001, value: 0 },
+      { kind: "read", address: 0x2002, value: 0xe0 }] });
+  ram.write(0x2002, 0xe1);
+  assert.equal(cpu.step().after.pc, 0x2100);
+  assert.equal(cpu.step().after.flags.z, true);
+  const changed = cpu.snapshot();
+  ram.accesses.length = 0;
+  const expected = { before: changed, after: advanced(changed, 0x2104), outcome: "executed",
+    instruction: { address: 0x2101, bytes: [0x48, 0, 0xc0] },
+    accesses: [{ kind: "read", address: 0x2101, value: 0x48 }, { kind: "read", address: 0x2102, value: 0 },
+      { kind: "read", address: 0x2103, value: 0xc0 }] };
+  assert.deepEqual(cpu.step(), expected);
+  assert.deepEqual(ram.accesses, expected.accesses);
+  const reset = cpu.reset();
+  Reflect.set(reset.before.flags, "z", false);
+  Reflect.set(reset.before.addressStack, 3, 0);
+  assert.deepEqual(first, saved);
+});
+
 test("8008 RET aliases select the previous physical slot and retain the advanced outgoing PC for every flag pattern", () => {
   const ram = new ObservedRam(0x4000);
   for (const opcode of [0x07, 0x0f, 0x17, 0x1f, 0x27, 0x2f, 0x37, 0x3f]) {
@@ -612,14 +730,15 @@ for (const opcode of [0x00, 0x01, 0xff]) {
   });
 }
 
-test("8008 rejects every other opcode atomically, including conditional control flow, RST, and I/O", () => {
+test("8008 rejects every other opcode atomically, including register adjustments, rotations, RST, and I/O", () => {
   const supported = new Set([
     0x00, 0x01, 0x04, 0x06, 0x07, 0x0e, 0x0f, 0x16, 0x17, 0x1e, 0x1f, 0x26, 0x27, 0x2e, 0x2f, 0x36, 0x37, 0x3e, 0x3f,
     0x44, 0x46, 0x4c, 0x4e, 0x54, 0x56, 0x5c, 0x5e, 0x64, 0x66, 0x6c, 0x6e, 0x74, 0x76, 0x7c, 0x7e,
     ...transferRows.flatMap(row => [...row.opcodes]),
     ...aluRows.flatMap(row => [row.immediate, ...row.opcodes]),
+    ...conditions.flatMap(condition => [condition.jump, condition.call, condition.ret]),
   ]);
-  assert.equal(supported.size, 170);
+  assert.equal(supported.size, 194);
   const ram = new ObservedRam(0x4000);
   for (let opcode = 0; opcode < 256; opcode++) {
     if (supported.has(opcode)) continue;

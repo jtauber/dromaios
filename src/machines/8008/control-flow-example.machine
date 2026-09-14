@@ -1,0 +1,41 @@
+ram 4000
+
+cpu 8008 {
+    A = 11  B = 22  C = 33  D = 44  E = 55  H = C0  L = 80
+    flags { S = 1  Z = 0  P = 1  C = 1 }
+    addressStack = [1111 1222 1333 1444 1555 1666 1777 0200]
+    stackIndex = 7  halted = false
+}
+
+memory 007F { CC 00 CC } // Result at 0080, guarded on both sides.
+
+memory 0200 {
+    16 03       // LCI 03H: count down from three
+    0E 00       // LBI 00H: accumulated sum
+    C2          // LAC: loop starts at 0204
+    3C 00       // CPI 00H: test the remaining count
+    4A 00 83    // CFZ 0300H: call while nonzero; high address bits are ignored
+    48 04 C2    // JFZ 0204H: repeat while the decremented count is nonzero
+    4A 00 83    // CFZ 0300H: final count is zero, so fetch both bytes without calling
+    C1          // LAB: retrieve 3 + 2 + 1
+    24 0F       // NDI 0FH: keep the low four bits
+    3C 06       // CPI 06H: compare without replacing the result
+    68 1B C2    // JTZ 021BH: skip the failure path on equality
+    06 FF       // LAI FFH: failure path, not executed
+    00          // HLT: failure stop
+    F8          // LMA: success path at 021B; store 06H at 0080
+    FF          // HLT: preserve comparison flags
+}
+
+memory 0300 {
+    2B          // RTZ: not taken on entry because CFZ required Z = 0
+    C1          // LAB: current sum
+    82          // ADC: add register C to A (the 8008 mnemonic for A + C)
+    C8          // LBA: save the sum
+    C2          // LAC: current count
+    14 01       // SUI 01H: decrement and set the loop flags
+    D0          // LCA: save the count without changing flags
+    0B          // RFZ: return on the first two iterations; fall through on the third
+    2B          // RTZ: return after the count reaches zero
+    22          // Unsupported guard; neither return path executes this byte
+}

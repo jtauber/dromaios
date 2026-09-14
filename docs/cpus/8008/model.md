@@ -11,7 +11,8 @@ its memory addresses wrap at 14 bits.
 [Arithmetic example](examples/arithmetic.md) ·
 [ALU example](examples/alu.md) ·
 [Nested-call example](examples/stack.md) ·
-[Transfer example](examples/transfers.md)
+[Transfer example](examples/transfers.md) ·
+[Control-flow example](examples/control-flow.md)
 
 The hardware reference is Intel's
 [8008 User's Manual, April 1972](https://www.bitsavers.org/components/intel/MCS8/Intel_8008_8-Bit_Parallel_Central_Processing_Unit_Rev1_Apr72.pdf)
@@ -166,10 +167,38 @@ RET decrements it modulo eight. Seven calls can preserve all return addresses.
 An eighth nested call overwrites the oldest; extra returns continue around the
 same ring without a depth check or fault. No slot is cleared on return.
 
-Each instruction has eight documented encodings: `01 xxx 100` for JMP,
+Each unconditional instruction has eight documented encodings: `01 xxx 100` for JMP,
 `01 xxx 110` for CAL, and `00 xxx 111` for RET. The `xxx` bits are ignored.
 All forms preserve data registers and flags. Their only RAM accesses are the
 instruction bytes: there is no RAM stack access or destination prefetch.
+
+Conditional control flow uses the same flag selector in all three families:
+
+| Encoding | Instruction | Action when the condition matches |
+| --- | --- | --- |
+| `00 ccc 011` | RFc / RTc | Return through the preceding address slot |
+| `01 ccc 000` | JFc / JTc | Replace the current PC with the fetched destination |
+| `01 ccc 010` | CFc / CTc | Save the fall-through PC and call through the next slot |
+
+Here `ccc = vff`: bit 5 (`v`) requires false (`0`) or true (`1`), and bits
+4–3 (`ff`) select carry (`00`), zero (`01`), sign (`10`), or parity (`11`).
+Thus the eight condition suffixes are FC/FZ/FS/FP/TC/TZ/TS/TP. These are
+distinct conditions, unlike the unconditional instructions' ignored bits.
+
+Both paths of a conditional jump or call fetch all three instruction bytes,
+wrap the current PC at 14 bits, and retain the full encoded address bytes in
+the record. An untaken path leaves the current slot at that fall-through PC;
+an untaken call never selects or overwrites another slot. A conditional return
+always fetches one byte and advances its outgoing slot, but only a taken return
+changes the selector. Untaken returns preserve all seven inactive slots.
+
+Taken forms use the same circular-stack rules as their unconditional
+counterparts. All conditional forms preserve data registers, flags, and RAM,
+report `executed`, and access only instruction bytes. Conditions read the
+current flags on each step. Intel's November 1973 manual, printed pages 13–14,
+describes these encodings and both paths. The
+[control-flow example](examples/control-flow.md) connects comparisons and
+arithmetic flags to a loop and conditional subroutine calls and returns.
 
 ## CPU reset
 
@@ -216,12 +245,20 @@ memory loads see RAM edits and the pointer left by a preceding load.
 Control-flow checks cover all documented aliases, every encoded destination
 including ignored high bits, every selector and flag pattern, wrapped fetches,
 eight nested calls, overwritten return addresses, and unbalanced returns.
+Conditional checks cover all 24 encodings and all 16 flag patterns in every
+slot. Jump/call cases include four address aliases, byte-boundary wrapping,
+self-targets, and destinations overlapping instruction bytes on both paths.
+Return cases check retained outgoing slots, boundary destinations, and equal
+PC values in different slots. A repeated conditional jump also checks current
+flags, edited address bytes, and detached records.
 
 The generated examples check both factories, whole memory images, complete
 traces, bounded running, caller completion, reset, and fresh restart. The
 nested-call trace also checks inactive slot contents across returns.
 The ALU example checks resumption with a pending borrow and preservation of
 comparison flags through the output stores and halt.
+The control-flow trace checks both paths of each conditional family, a skipped
+failure path, and resumption between an untaken RFZ and a taken RTZ.
 Parser and generator tests cover address lists, ranges, RAM size, diagnostics,
 and declaration order. Type checks preserve concrete CPU and runner records.
 

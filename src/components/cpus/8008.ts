@@ -176,11 +176,27 @@ export class Cpu8008 {
     value => this.#compare(value), // 111 CPr / CPI
   ];
 
+  // ccc = vff: v (bit 5) requires false/true; ff (bits 4..3) selects C/Z/S/P.
+  // Conditions read the current flags when executing, not when binding an opcode.
+  readonly #conditions = [
+    () => !this.#state.flags.c, // 000 FC
+    () => !this.#state.flags.z, // 001 FZ
+    () => !this.#state.flags.s, // 010 FS
+    () => !this.#state.flags.p, // 011 FP
+    () => this.#state.flags.c, // 100 TC
+    () => this.#state.flags.z, // 101 TZ
+    () => this.#state.flags.s, // 110 TS
+    () => this.#state.flags.p, // 111 TP
+  ] as const;
+
   // Native 8008 opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
   // xx selects a block; the other fields select its operation and operands.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // 00 000 00x: both x values encode HLT, occupying the absent IN A/DC A slots.
     ...opcodePattern("00 000 00x", () => this.#halt()), // HLT (00/01)
+
+    // 00 ccc 011: conditional return; ccc = vff selects the flag and required value.
+    ...opcodeFamily("00 ccc 011", { c: this.#conditions }, ({ c: condition }) => () => this.#return(condition())), // RFc / RTc
 
     // 00 ooo 100: ooo (bits 5..3) selects the ALU operation; the next byte is its operand.
     ...opcodeFamily("00 ooo 100", { o: this.#aluOperations }, ({ o: operation }) => ({ fetchByte }: InstructionContext) => { this.#state.a = operation(fetchByte()); }), // ADI / ACI / SUI / SBI / NDI / XRI / ORI / CPI
@@ -191,12 +207,16 @@ export class Cpu8008 {
     // 00 xxx 111: RET. Bits 5–3 are don't-care bits: all eight encodings return.
     ...opcodePattern("00 xxx 111", () => this.#return()), // RET
 
-    // 01 xxx 100/110: JMP/CAL. Again xxx is ignored, not a register or condition.
-    // The following bytes supply the address as llllllll, xxhhhhhh (low byte first).
+    // 01 ccc 000/010: conditional jump/call; ccc = vff uses the same conditions as returns.
+    // Both paths fetch llllllll, xxhhhhhh (low byte first), ignoring the high two address bits.
+    ...opcodeFamily("01 ccc 000", { c: this.#conditions }, ({ c: condition }) => ({ fetchAddress }: InstructionContext) => this.#jump(fetchAddress(), condition())), // JFc / JTc addr
+    ...opcodeFamily("01 ccc 010", { c: this.#conditions }, ({ c: condition }) => ({ fetchAddress }: InstructionContext) => this.#call(fetchAddress(), condition())), // CFc / CTc addr
+
+    // 01 xxx 100/110: unconditional JMP/CAL; xxx is ignored, not a condition.
     ...opcodePattern("01 xxx 100", ({ fetchAddress }: InstructionContext) => this.#jump(fetchAddress())), // JMP addr
     ...opcodePattern("01 xxx 110", ({ fetchAddress }: InstructionContext) => this.#call(fetchAddress())), // CAL addr
 
-    // Conditional jumps/calls/returns, RST, and I/O remain unsupported.
+    // RST and I/O remain unsupported.
 
     // 10 ooo sss: ooo (bits 5..3) selects the operation; sss (bits 2..0) selects A/B/C/D/E/H/L/M.
     ...opcodeFamily("10 ooo sss", { o: this.#aluOperations, s: this.#byteOperands }, ({ o: operation, s: source }) => (instruction: InstructionContext) => { this.#state.a = operation(this.#readOperand(source, instruction)); }), // ADr / ACr / SUr / SBr / NDr / XRr / ORr / CPr (including M)
@@ -224,18 +244,20 @@ export class Cpu8008 {
 
   // Control flow.
 
-  #jump(address: number): void {
-    this.#pc = address;
+  #jump(address: number, taken = true): void {
+    if (taken) this.#pc = address;
   }
 
-  #call(address: number): void {
+  #call(address: number, taken = true): void {
+    if (!taken) return;
     // All three bytes have advanced the caller's slot to the return address.
     // The next physical slot becomes PC; an eighth nested call overwrites the oldest return.
     this.#state.stackIndex = (this.#state.stackIndex + 1) & 7;
     this.#pc = address;
   }
 
-  #return(): void {
+  #return(taken = true): void {
+    if (!taken) return;
     // Opcode fetch already advanced the outgoing slot. Retain it when selecting the caller.
     this.#state.stackIndex = (this.#state.stackIndex + 7) & 7;
   }
