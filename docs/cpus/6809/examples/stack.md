@@ -137,8 +137,8 @@ The complete ordered accesses follow; `R` means read and `W` means write.
 
 Only four RAM bytes change: `7FFF` and `0080` become `12`; `3FFF` and `0081`
 become `34`. The caller stops at `0214` before another fetch. A direct tenth
-CPU step reads `00` there and reports an unsupported opcode without changing
-state or RAM.
+CPU step would execute `NEG <$00`. Tests install unsupported byte `01` at the
+endpoint to check rejection independently of caller completion.
 
 ## Reset and restart
 

@@ -1,0 +1,42 @@
+ram 10000
+
+cpu 6809 {
+    A = 11  B = 34  DP = 12
+    X = 2345  Y = 4567  S = 8000  U = 4000
+    PC = 0200
+    flags { E = 1  F = 0  H = 1  I = 0  N = 1  Z = 1  V = 1  C = 1 }
+}
+
+memory 0200 {
+    D6 11       // LDB <$11: low byte of 00FF
+    96 10       // LDA <$10: high byte
+    BD 02 20    // JSR $0220: add the second word through nested calls
+    97 14       // STA <$14: store high result byte
+    D7 15       // STB <$15: store low result byte
+    7F 12 16    // CLR >$1216: clear the failure marker (including its required read)
+    7D 12 14    // TST >$1214: high result must be nonzero
+    26 03       // BNE $0216: skip the failure path
+    0C 16       // INC <$16: failure marker
+    12          // NOP
+}
+
+memory 0220 {
+    DB 13       // ADDB <$13: low-byte addition produces carry
+    8D 0C       // BSR $0230: carry survives the nested call
+    39          // RTS
+}
+
+memory 0230 {
+    B9 12 12    // ADCA >$1212: add high byte and incoming carry
+    39          // RTS
+}
+
+memory 1210 {
+    00 FF       // First word: 00FF, high byte first
+    00 01       // Second word: 0001
+    00 00       // Result
+    A5          // Failure marker, cleared by the program
+}
+
+memory FFFE { 02 00 }
+end 0216

@@ -159,11 +159,12 @@ test("the 6809 stack lesson retrieves independent S and U values with exact stat
     accesses.filter(access => access.kind === "write").map(access => [access.address, access.value]));
   t.mock.restoreAll();
   checkExampleMemory(ram, [[0x7fff, 0x12], [0x3fff, 0x34], [0x0080, 0x12], [0x0081, 0x34]]);
-  // Completion belongs to the caller; the CPU still attempts the next byte.
+  // Completion belongs to the caller; the CPU still attempts the next instruction.
+  ram.write(endAddress, 0x01); // Explicit unsupported-byte fixture after caller completion.
   assert.deepEqual(cpu.step(), {
-    instruction: { address: 0x0214, bytes: [0x00] },
+    instruction: { address: 0x0214, bytes: [0x01] },
     before: storeU, after: storeU,
-    accesses: [{ kind: "read", address: 0x0214, value: 0x00 }],
+    accesses: [{ kind: "read", address: 0x0214, value: 0x01 }],
     outcome: "unsupported", reason: "opcode",
   });
 });

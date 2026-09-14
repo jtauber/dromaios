@@ -148,10 +148,10 @@ lesson finishes after three records without reading `0207`. The fixture tests
 use the [shared CPU runner](../../../runtime/runner.md) and check the complete
 records and memory image independently.
 
-A direct fourth CPU step at `0207` reads `00` and reports `unsupported`, reason
-`opcode`, with equal before/after snapshots. On hardware, `00` is direct NEG,
-not a stop instruction ([opcode map][opcodes]). This subset does not fetch its
-operand or access the direct page. Completion belongs solely to the caller.
+A direct fourth CPU step would execute `00 00` (`NEG <$00`), not complete the
+lesson. Completion belongs solely to the caller. To check rejection separately,
+tests install unsupported byte `01` at `0207` and require one read with unchanged
+state. The original example image keeps its zero-filled completion address.
 
 ## Reset and restart
 
@@ -186,7 +186,7 @@ The tests cover:
 5. All operand/PC wrapping positions at `FFFF` for the two instruction lengths.
 6. All three exact lesson records, the complete final RAM image, observed RAM
    calls proving no endpoint prefetch, and a direct fourth CPU step remaining
-   an unsupported attempt rather than a lesson-completion result.
+   an ordinary CPU attempt; use an explicit unsupported byte to check rejection.
 7. Reset produces the exact state and accesses above, preserving the result
    byte; restart restores the full original state and image. General reset and
    record-ownership checks are specified in the

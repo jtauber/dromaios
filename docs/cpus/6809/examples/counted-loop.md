@@ -78,7 +78,8 @@ The final DECB sets Z and the following BNE falls through. The store then
 updates N/Z/V from A, leaving Z clear. Only `0080` changes in RAM; `1280`
 remains zero. Run with `runCpu(cpu, { maxSteps: 12, endAddress })` to finish
 with `stopReason: "completed"` before fetching at `020C`. A further direct
-CPU step attempts the unsupported zero byte there and preserves state.
+CPU step would execute `NEG <$00`. Tests install unsupported byte `01` at the
+endpoint to check rejection independently of caller completion.
 
 ## Pause, reset, and restart
 

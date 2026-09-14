@@ -84,7 +84,8 @@ The complete ordered accesses follow; `R` means read and `W` means write.
 
 Only `1281` changes, from `00` to `A5`. Page zero and both source bytes stay
 unchanged. The caller stops at `0204` before fetching again. A direct CPU
-step there reads `00` and reports unsupported with unchanged state and RAM.
+step would execute `NEG <$00`. Tests install unsupported byte `01` there to
+check rejection independently of caller completion.
 
 ## Reset and restart
 

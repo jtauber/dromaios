@@ -11,7 +11,8 @@ and targeted observations, not a certification of the complete emulator.
 - **Compose operations with operand access.** The [instruction definitions][coco-instructions]
   pass addressing-specific reads into operation families, and keep the extended
   store's address resolution separate from a data read. Retain that separation.
-  Broad opcode-family generators can wait until more forms justify them.
+  The expanded byte families now share operand readers while retaining explicit
+  encoding groups and unsupported indexed forms.
 - **Specify reset and stopping independently.** The old CPU reset clears A/B,
   X/Y, S/U, and CC before setting F/I and reading the vector. A targeted run of
   the proposed lesson confirmed that reset clears the registers while leaving
@@ -42,6 +43,25 @@ PC advancement by one for an unsupported base byte or two for an unsupported
 prefixed opcode. These checks inform the comparison; acceptance tests for the
 new implementation must use the [example specification](examples/arithmetic.md) and hardware references
 for expected values.
+
+## Expanded byte-instruction comparison
+
+The expanded base-page subset was compared against the same pinned CoCo
+implementation in 35,072 single-step cases: all 137 supported opcodes with all
+256 initial CC values, varied register/data bytes, and PC/S boundary values.
+Stored registers, derived D, final flags, and ordered instruction-level RAM
+accesses agreed, with one intentional correction:
+
+- **Memory CLR must read before clearing.** The old direct and extended CLR
+  handlers only write zero. [Motorola's CLR entry][instructions] explicitly
+  requires an effective-address read first. Dromaios includes and independently
+  tests that read, including code/data overlap and unchanged-value writes.
+  The comparison accounts for this missing read in 512 CLR cases; all remaining
+  accesses and resulting state match.
+
+This comparison supplements the independently authored arithmetic, flag,
+addressing, and stack expectations in the [CPU tests](../../../tests/components/cpus/6809.test.ts).
+The old emulator remains design evidence, not the definition of correctness.
 
 The pinned sources provide implementation ideas. Dromaios's
 [model contract](model.md) defines its reset, prefix rejection, and record API;

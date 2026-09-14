@@ -109,11 +109,42 @@ operation or idle cycle. Records have no cycle-count or elapsed-time field.
 
 ## Accumulator operations and short branches
 
-LDB replaces B and N/Z, clears V, and preserves E/F/H/I/C. Accumulator
-increment/decrement wraps within eight bits and replaces N/Z/V while preserving
-E/F/H/I/C. V is set only when incrementing `7F` or decrementing `80`.
-Snapshots derive D from the resulting A:B after either accumulator changes.
-See Motorola's [LD, INC, and DEC entries][instructions].
+A/B loads, stores, AND, OR, EOR, BIT, and TST replace N/Z and clear V,
+preserving E/F/H/I/C. BIT tests the AND result without writing the accumulator;
+TST changes only flags. Snapshots always derive D from the resulting A:B.
+
+ADD and ADC replace H/N/Z/V/C; only ADC includes incoming C. SUB, SBC, and CMP
+replace N/Z/V/C, with C indicating a borrow; only SBC subtracts incoming C.
+CMP leaves the accumulator unchanged. Arithmetic is binary, wraps to eight
+bits, and uses signed overflow for V. Decimal adjustment is a separate,
+unimplemented instruction.
+
+Immediate operands are fetched from the instruction stream. Direct addresses
+combine the current DP with a fetched byte; extended addresses fetch high then
+low and bypass DP. Loads and binary operations perform one data read; stores
+perform one write without reading the destination. Operand bytes are captured
+before data accesses, including when code and data overlap. Indexed addressing
+remains unsupported.
+
+Unary NEG, COM, LSR, ROR, ASR, ASL/LSL, ROL, DEC, INC, TST, and CLR operate on
+A, B, direct memory, or extended memory:
+
+- NEG replaces N/Z/V/C, setting V only for `80` and C for any nonzero input.
+  COM replaces N/Z, clears V, and sets C.
+- LSR/ROR/ASR replace N/Z/C and **preserve V**. ROR shifts incoming C into bit 7;
+  ASR retains the sign. C receives the original bit 0.
+- ASL/LSL and ROL replace N/Z/V/C. ROL shifts incoming C into bit 0;
+  C receives the original bit 7 and V is the original bit 6 XOR bit 7.
+- INC/DEC replace N/Z/V and preserve C; V is set only when incrementing `7F`
+  or decrementing `80`.
+- CLR sets N=0, Z=1, V=0, C=0. **Memory CLR reads the byte before writing zero**,
+  as specified in [Motorola's CLR entry][instructions]. Other memory transforms
+  likewise read once then write once, even if the value is unchanged. TST only
+  reads. These are data accesses, not an attempt to reproduce dummy bus cycles.
+
+All these unary operations preserve E/F/I. The model preserves H except for
+ADD/ADC: Motorola marks H undefined for SUB/SBC/CMP, NEG, ASL, and ASR;
+preservation for those instructions is a deterministic model policy.
 
 The short branches `20`–`2F` comprise BRA, BRN, and fourteen conditional forms.
 Every form fetches an eight-bit displacement. Taken branches add its signed
@@ -124,12 +155,30 @@ conditions combine N/V, and sometimes Z, as specified in the
 [branch entries][instructions].
 
 In this model, inherent accumulator operations read only their opcode;
-immediate loads and short branches read the opcode followed by the operand.
+immediate byte operations and short branches read the opcode followed by the operand.
 There are no target reads or dummy accesses, even for a taken branch or page
 crossing. BRN consumes its operand and advances PC by two. Branches inspect
 current flags, including after a stack pull replaces CC; the next step fetches
 current RAM at the resulting PC. The [counted-loop example](examples/counted-loop.md)
 combines B as a counter with A as a running sum and specifies the full trace.
+
+## Jumps and subroutines
+
+LBRA and LBSR fetch a signed 16-bit displacement, high byte first; BSR uses a
+signed byte. Each displacement is relative to PC after the complete operand,
+with 16-bit wrapping. Direct JMP/JSR use DP:offset and extended JMP/JSR fetch a
+high/low target address. None reads or prefetches the target instruction.
+
+BSR, LBSR, and JSR push that following PC on **S**, low byte first, decrementing
+S before each write. RTS reads the high byte at S, increments S, reads the low
+byte, increments again, and uses the word directly as PC. U is preserved.
+All instruction bytes are fetched before call-stack writes, even if S overlaps
+the opcode or operand. Each pointer update wraps across the full 16-bit address
+space. These word transfers share the PSH/PUL byte-order rules.
+
+Calls, returns, jumps, and NOP preserve all flags. The
+[word-addition example](examples/word-addition.md) relies on a nested BSR
+preserving carry between ADDB and ADCA, with both returns restoring S.
 
 ## Unsupported instructions and prefixes
 
@@ -187,12 +236,18 @@ and both sides of records, using nonzero A/B and boundary values. Old snapshots
 remain fixed after either accumulator changes; caller edits cannot change the CPU or another
 snapshot.
 
-Immediate LDB and accumulator increments/decrements are checked across every
+All supported unary forms and stores, plus immediate LDB, are checked across every
 byte and all 256 CC values, including overflow, wrapping, preserved unrelated
 state, derived D, and exact accesses. Branches are checked against independent
 truth tables for every CC value and across all displacements, both paths,
 page/address-space crossings, and instruction-byte overlap. Further checks
 cover current operands, signed overflow after DECB, and flags replaced by PULS.
+
+ADD/ADC/SUB/SBC/CMP are checked for every byte pair and incoming carry on both
+accumulators against signed and unsigned range calculations. Literal operand
+forms check all CC values, real accesses, preserved state, and wrapping.
+Call/return and jump checks cover both byte orders, S and PC wrapping, fetched
+operand overlap, all CC values, and snapshot resumption inside nested calls.
 
 Unsupported first bytes are checked on repeated attempts, particularly
 `10`/`11` followed by an otherwise supported byte, including a prefix at

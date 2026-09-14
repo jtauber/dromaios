@@ -105,9 +105,10 @@ test("the 6809 counted loop adds five three times and stores fifteen with exact 
   };
   assert.deepEqual(cpu.snapshot(), final);
   assert.deepEqual(runCpu(cpu, { maxSteps: 0, endAddress }), { records: [], stopReason: "completed" });
+  ram.write(endAddress, 0x01); // Explicit unsupported-byte fixture after caller completion.
   assert.deepEqual(cpu.step(), {
-    instruction: { address: 0x020c, bytes: [0] }, before: final, after: final,
-    accesses: [{ kind: "read", address: 0x020c, value: 0 }], outcome: "unsupported", reason: "opcode",
+    instruction: { address: 0x020c, bytes: [0x01] }, before: final, after: final,
+    accesses: [{ kind: "read", address: 0x020c, value: 0x01 }], outcome: "unsupported", reason: "opcode",
   });
 });
 

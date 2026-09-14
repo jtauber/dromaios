@@ -103,7 +103,7 @@ test("unsupported opcodes stop immediately, preserve their record, and beat the 
   // Unsupported encodings differ by CPU: 08 is PHP on the 6502; its undocumented 02 remains excluded.
   for (const [create, opcode] of [
     [create8080Example, 0x08], [create6502Example, 0x02],
-    [create6809Example, 0x08], [createZ80Example, 0x08],
+    [create6809Example, 0x01], [createZ80Example, 0x08],
   ] as const) {
     const { cpu, ram } = create();
     const before = cpu.snapshot();

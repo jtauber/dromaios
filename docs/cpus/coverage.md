@@ -20,7 +20,7 @@ emulators do not count toward implementation here.
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [250](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [463](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [484](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [305](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [443](../../src/components/cpus/6809.ts) | 137 / 268 | 51.1% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [227](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [243](../../src/components/cpus/68000.ts) | 96 / 36,029 | 0.3% |
 
@@ -908,8 +908,61 @@ between bytes, full memory images, and fresh factories.
 [Counted-loop specification](6809/examples/counted-loop.md) ·
 [Counted-loop definition](../../src/machines/6809/counted-loop-example.machine)
 
+[Word-addition specification](6809/examples/word-addition.md) ·
+[Word-addition definition](../../src/machines/6809/word-addition-example.machine)
+
+**137 / 268 forms (51.1%).** The base-page subtotal is 64 accumulator forms,
+44 unary forms, 16 short branches, four register-mask stack transfers, five
+call/return forms, two JMP forms, LBRA, and NOP. No indexed or prefixed forms
+are counted.
+
+Accumulator opcodes use **`1 r mm oooo`**: `r=0` selects A, `r=1` selects B;
+`mm=00/01/11` selects immediate/direct/extended addressing. Indexed `mm=10`
+is deferred. Each cell below lists A/B opcodes; immediate/direct instructions
+are two bytes, extended instructions three. Stores have no immediate form.
+
+| Operation | Immediate A/B | Direct A/B | Extended A/B | Flag effects |
+| --- | --- | --- | --- | --- |
+| SUB | `80` / `C0` | `90` / `D0` | `B0` / `F0` | N/Z/V/C; C records borrow |
+| CMP | `81` / `C1` | `91` / `D1` | `B1` / `F1` | Subtraction flags without changing the accumulator |
+| SBC | `82` / `C2` | `92` / `D2` | `B2` / `F2` | N/Z/V/C; subtract incoming borrow |
+| AND | `84` / `C4` | `94` / `D4` | `B4` / `F4` | N/Z from result; V cleared |
+| BIT | `85` / `C5` | `95` / `D5` | `B5` / `F5` | AND flags without changing the accumulator |
+| LD | `86` / `C6` | `96` / `D6` | `B6` / `F6` | N/Z from loaded byte; V cleared |
+| ST | — | `97` / `D7` | `B7` / `F7` | N/Z from stored byte; V cleared |
+| EOR | `88` / `C8` | `98` / `D8` | `B8` / `F8` | N/Z from result; V cleared |
+| ADC | `89` / `C9` | `99` / `D9` | `B9` / `F9` | H/N/Z/V/C; include incoming carry |
+| OR | `8A` / `CA` | `9A` / `DA` | `BA` / `FA` | N/Z from result; V cleared |
+| ADD | `8B` / `CB` | `9B` / `DB` | `BB` / `FB` | H/N/Z/V/C; ignore incoming carry |
+
+Unary encodings use **`0000 oooo`** (direct), **`010r oooo`** (A/B), or
+**`0111 oooo`** (extended). Register forms are one byte, direct two, extended
+three. The `0110` indexed group is deferred. ASL/LSL is one encoding per form.
+
+| Operation | Direct | A | B | Extended | Flag effects |
+| --- | --- | --- | --- | --- | --- |
+| NEG | `00` | `40` | `50` | `70` | N/Z/V/C; negate modulo 256 |
+| COM | `03` | `43` | `53` | `73` | N/Z; V=0, C=1 |
+| LSR | `04` | `44` | `54` | `74` | N/Z/C; preserve V |
+| ROR | `06` | `46` | `56` | `76` | N/Z/C; rotate through C, preserve V |
+| ASR | `07` | `47` | `57` | `77` | N/Z/C; retain sign and preserve V |
+| ASL / LSL | `08` | `48` | `58` | `78` | N/Z/V/C |
+| ROL | `09` | `49` | `59` | `79` | N/Z/V/C; rotate through C |
+| DEC | `0A` | `4A` | `5A` | `7A` | N/Z/V; preserve C |
+| INC | `0C` | `4C` | `5C` | `7C` | N/Z/V; preserve C |
+| TST | `0D` | `4D` | `5D` | `7D` | N/Z; V=0, preserve C; no write |
+| CLR | `0F` | `4F` | `5F` | `7F` | N=0, Z=1, V=0, C=0; memory forms read then write |
+
+E/F/I are preserved by these byte operations. H changes only for ADD/ADC;
+where Motorola leaves H undefined, this model preserves it. Exact behavior
+and memory-access rules are in the [model contract](6809/model.md#accumulator-operations-and-short-branches).
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
+| `0E` / `7E` | `JMP` | Direct / extended | 2 / 3 | Replace PC without reading the target |
+| `12` | `NOP` | Inherent | 1 | Advance PC only |
+| `16` | `LBRA rel16` | Long relative | 3 | Add signed word to PC after the operand |
+| `17` | `LBSR rel16` | Long relative | 3 | Stack return PC on S and branch |
 | `20` | `BRA rel` | Short relative | 2 | Branch always |
 | `21` | `BRN rel` | Short relative | 2 | Branch never; fetch displacement and advance PC |
 | `22` | `BHI rel` | Short relative | 2 | Branch if C = 0 and Z = 0 |
@@ -930,63 +983,47 @@ between bytes, full memory images, and fresh factories.
 | `35` | `PULS mask` | Immediate register mask | 2 | Pull any selection of CC/A/B/DP/X/Y/U/PC from S; flags change only if CC is selected |
 | `36` | `PSHU mask` | Immediate register mask | 2 | Push any selection of CC/A/B/DP/X/Y/S/PC onto U; preserve flags |
 | `37` | `PULU mask` | Immediate register mask | 2 | Pull any selection of CC/A/B/DP/X/Y/S/PC from U; flags change only if CC is selected |
-| `4A` | `DECA` | Inherent | 1 | Decrement A; update N/Z/V; preserve E/F/H/I/C |
-| `4C` | `INCA` | Inherent | 1 | Increment A; update N/Z/V; preserve E/F/H/I/C |
-| `5A` | `DECB` | Inherent | 1 | Decrement B; update N/Z/V; preserve E/F/H/I/C |
-| `5C` | `INCB` | Inherent | 1 | Increment B; update N/Z/V; preserve E/F/H/I/C |
-| `86` | `LDA #n` | Immediate | 2 | Load A and update N/Z/V |
-| `8B` | `ADDA #n` | Immediate | 2 | Add without incoming carry; update H/N/Z/V/C |
-| `96` | `LDA direct` | Direct page | 2 | Load A from DP:operand; update N/Z and clear V |
-| `97` | `STA direct` | Direct page | 2 | Store A at DP:operand; update N/Z and clear V |
-| `B7` | `STA addr` | Extended | 3 | Store A and update N/Z/V; address bytes high then low; bypass DP |
-| `C6` | `LDB #n` | Immediate | 2 | Load B; update N/Z and clear V; preserve E/F/H/I/C |
+| `39` | `RTS` | Inherent | 1 | Pull PC from S, high byte then low; no adjustment |
+| `8D` | `BSR rel8` | Short relative | 2 | Stack return PC on S and branch |
+| `9D` / `BD` | `JSR` | Direct / extended | 2 / 3 | Stack return PC on S and jump |
 
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A, B, DP, X, Y, S, U, PC |
-| Stored flags | E, F, H, I, N, Z, V, C; CC is packed/unpacked for stack transfers without a separate public CC state field |
-| Register relationships | Snapshots derive D from A:B after loads, accumulator arithmetic, and stack pulls; 16-bit D operations and register transfers are not implemented |
-| Accumulator operations | Immediate A/B loads and wrapping A/B increment/decrement; INC/DEC replace N/Z/V and preserve E/F/H/I/C |
-| Memory addressing | Direct LDA/STA combine current DP with a one-byte operand; extended STA uses an explicit 16-bit address and bypasses DP |
-| Branches | All sixteen encodings `20`–`2F`; signed displacement relative to PC after the operand, with 16-bit wrapping; fetch the operand on every path and preserve flags |
-| Stack | S and U use descending RAM stacks with wrapping 16-bit pointers; all register masks work, including empty/full masks and the other pointer |
-| PC stack transfers | Push saves PC after the postbyte; pull replaces PC and execution resumes there |
-| Reset | Read `FFFE` then `FFFF` for PC, clear DP, set F/I; preserve other modeled state and RAM, including both stack pointers |
-| Prefixes | `10` and `11` are rejected after the prefix byte alone; no second-byte fetch or opcode-page dispatch |
-| Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
-| Remaining instruction scope | Further B/D and register operations, arithmetic and logic beyond ADDA and accumulator INC/DEC, decimal adjustment, long branches, calls/returns, and other CC operations |
-| Remaining addressing scope | Indexed, 16-bit relative, and other forms beyond the exact encodings above |
+| Stored flags | E/F/H/I/N/Z/V/C; CC packed/unpacked for stack transfers |
+| Register relationships | Snapshots derive D from A:B; 16-bit data operations and register transfers remain deferred |
+| Addressing | Immediate bytes, direct DP:offset, extended high/low addresses, and signed byte/word relative offsets; 16-bit wrapping |
+| Branches | All short conditions, BRA/BRN, and LBRA; fetch operands on every path and preserve flags |
+| Stack | Descending S/U, all register masks, wrapping pointers; calls/RTS share S word transfers |
+| Reset | Read `FFFE` then `FFFF` for PC, clear DP, set F/I; preserve other state and RAM |
+| Prefixes | `10` and `11` rejected after one read with unchanged state; no second-byte fetch |
+| Stopping | Caller-owned completion address and budget; no synthetic halt or completion outcome |
+| Remaining scope | Indexed addressing, 16-bit data arithmetic and transfers, multiply, decimal adjustment, CC operations, prefixed conditional long branches, interrupts and interrupt controls |
 
-The [reset preservation policy](6809/model.md#cpu-reset) is specified in the
-model contract; it does not claim hardware power-on values for unspecified
-state. Interrupt handling, including NMI arming after reset, remains
-unimplemented. MC6809/MC6809E clock and pin differences are outside this
-instruction-level model.
+The [reset preservation policy](6809/model.md#cpu-reset) does not claim
+hardware power-on values for unspecified state. NMI arming, interrupt handling,
+timing, and MC6809/MC6809E clock and pin differences remain outside this model.
 
-Verification: [CPU tests](../../tests/components/cpus/6809.test.ts),
-[arithmetic example tests](../../tests/machines/6809/example.test.ts),
-[stack example tests](../../tests/machines/6809/stack-example.test.ts),
-[addressing example tests](../../tests/machines/6809/addressing-example.test.ts),
-[counted-loop example tests](../../tests/machines/6809/counted-loop-example.test.ts), and
-[public type checks](../../tests/types/6809.ts). ADDA checks cover every byte
-operand pair with both incoming carry values and old result flags clear and
-set. Other checks cover derived D, exact accesses, wrapping, self-overwriting
-stores, extended addressing with nonzero DP, reset, prefix rejection, caller
-completion, unsupported opcodes, input validation, and detached records.
-PSH/PUL checks cover every register mask and CC value, byte and register order,
-pointer and postbyte wrapping, PC transfers, nested saves, other-pointer
-transfers, stack/code overlap, current RAM reads, and occupied-stack reset.
-Direct LDA/STA checks cover page selection, N/Z/V effects and preserved flags,
-PC and operand wrapping, code overlap, unchanged-value writes without destination
-reads, DP changed by a stack pull or reset, current RAM, and detached records.
-LDB and accumulator INC/DEC checks cover every byte with all 256 CC values,
-N/Z/V replacement, signed overflow, preserved E/F/H/I/C, wrapping, and derived D.
-Branch truth tables cover all CC values, with every displacement checked on
-each available path, page/address-space crossings, and instruction-byte overlap.
-Further checks cover live flags after DECB and PULS, current operands, and
-detached records. The counted loop checks twelve complete records, actual RAM
-calls, both BNE paths, full memory images, bounded resumption and self-looping,
-reset preservation, and fresh restart.
+Verification: [CPU tests](../../tests/components/cpus/6809.test.ts) exhaust
+ADD/ADC/SUB/SBC/CMP for every byte pair and carry on both accumulators; unary
+operations and stores cover every byte and all 256 CC values in every supported
+form. Literal opcode rows and independent arithmetic/bit-string expectations
+check addressing, flag replacement and preservation, wrapping, real memory
+accesses, code overlap, CLR's read, and TST's absence of writes. Calls, returns,
+and jumps cover all CC values, stack/PC wrapping and operand overlap. Existing
+checks retain all branch conditions, stack masks, state validation, snapshots,
+reset and unsupported-attempt contracts.
+
+The [word-addition tests](../../tests/machines/6809/word-addition-example.test.ts)
+check carry propagation through nested calls, thirteen complete records, actual
+RAM calls, full memory images, snapshot resumption inside the calls, reset,
+restart, a failure path, and bounded looping. Existing
+[arithmetic](../../tests/machines/6809/example.test.ts),
+[stack](../../tests/machines/6809/stack-example.test.ts),
+[addressing](../../tests/machines/6809/addressing-example.test.ts), and
+[counted-loop](../../tests/machines/6809/counted-loop-example.test.ts) examples
+and [public type checks](../../tests/types/6809.ts) remain covered. See also the
+[independent CoCo comparison](6809/reference-notes.md#expanded-byte-instruction-comparison).
 
 ## Z80
 

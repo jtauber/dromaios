@@ -84,14 +84,16 @@ test("the complete 6809 lesson stores 5 and stops before fetching at its complet
   ]);
   assert.deepEqual(write.mock.calls.map((call) => call.arguments), [[0x0080, 5]]);
 
-  // Completion belongs to the caller; a direct CPU step still attempts opcode 00.
+  // Completion belongs to the caller; a direct CPU step still attempts the next instruction.
   read.mock.resetCalls();
   write.mock.resetCalls();
+  ram.write(endAddress, 0x01); // Explicit unsupported-byte fixture after caller completion.
+  write.mock.resetCalls();
   assert.deepEqual(cpu.step(), {
-    instruction: { address: 0x0207, bytes: [0x00] },
+    instruction: { address: 0x0207, bytes: [0x01] },
     before: afterStore,
     after: afterStore,
-    accesses: [{ kind: "read", address: 0x0207, value: 0x00 }],
+    accesses: [{ kind: "read", address: 0x0207, value: 0x01 }],
     outcome: "unsupported",
     reason: "opcode",
   });
@@ -99,6 +101,7 @@ test("the complete 6809 lesson stores 5 and stops before fetching at its complet
   assert.deepEqual(read.mock.calls.map((call) => call.arguments), [[0x0207]]);
   assert.deepEqual(write.mock.calls, []);
   t.mock.restoreAll();
+  ram.write(endAddress, 0);
   checkExampleMemory(ram, 5);
 });
 
@@ -183,6 +186,7 @@ test("6809 reset preserves lesson data while restart restores the original state
   const loaded = first.cpu.step();
   const added = first.cpu.step();
   const stored = first.cpu.step();
+  first.ram.write(first.endAddress, 0x01);
   const rejected = first.cpu.step();
   const savedLoaded = structuredClone(loaded);
   const savedAdded = structuredClone(added);
@@ -222,6 +226,7 @@ test("6809 reset preserves lesson data while restart restores the original state
   assert.deepEqual(restarted.cpu.step(), savedLoaded);
   assert.deepEqual(restarted.cpu.step(), savedAdded);
   assert.deepEqual(restarted.cpu.step(), savedStored);
+  restarted.ram.write(restarted.endAddress, 0x01);
   assert.deepEqual(restarted.cpu.step(), savedRejected);
   restarted.ram.write(0x0080, 9);
   assert.deepEqual(first.cpu.snapshot(), afterReset);

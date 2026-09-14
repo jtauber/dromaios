@@ -86,11 +86,12 @@ test("the 6809 addressing lesson copies A5 from 1280 to 1281 and stops before fe
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [[0x1281, 0xa5]]);
   t.mock.restoreAll();
   checkExampleMemory(ram, [[0x1281, 0xa5]]);
-  // Completion belongs to the caller; a direct step still attempts opcode 00.
+  // Completion belongs to the caller; a direct step still attempts the next instruction.
+  ram.write(endAddress, 0x01); // Explicit unsupported-byte fixture after caller completion.
   assert.deepEqual(cpu.step(), {
-    instruction: { address: 0x0204, bytes: [0x00] },
+    instruction: { address: 0x0204, bytes: [0x01] },
     before: afterStore, after: afterStore,
-    accesses: [{ kind: "read", address: 0x0204, value: 0x00 }],
+    accesses: [{ kind: "read", address: 0x0204, value: 0x01 }],
     outcome: "unsupported", reason: "opcode",
   });
 });

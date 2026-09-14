@@ -77,6 +77,7 @@ test("6809 ignores supplied D and extra metadata, including getters, when copyin
   Reflect.set(snapshot.flags, "h", false);
   assert.deepEqual(restored.snapshot(), expected);
   assert.deepEqual(ram.accesses, []);
+  ram.write(0x1234, 0x01); // An unsupported byte keeps this ownership check inert.
   const record = cpu.step();
   assert.deepEqual(record.before, expected);
   assert.deepEqual(record.after, expected);
@@ -702,7 +703,7 @@ test("6809 STA direct can overwrite its opcode, operand, or next instruction wit
     const ram = new ObservedRam();
     ram.write(0x2040, 0x97);
     ram.write(0x2041, offset);
-    ram.write(0x2042, 0x00);
+    ram.write(0x2042, 0x01);
     ram.write(0x2043, 0x5a);
     ram.accesses.length = 0;
     const before = { ...initialState({ a: 0x86, pc: 0x2040, dp: 0x20 }), d: 0x8634 };
@@ -726,7 +727,7 @@ test("6809 STA direct can overwrite its opcode, operand, or next instruction wit
     const saved = structuredClone(record);
     const next = cpu.step();
     assert.equal(next.outcome, offset === 0x42 ? "executed" : "unsupported");
-    assert.deepEqual(next.instruction, { address: 0x2042, bytes: offset === 0x42 ? [0x86, 0x5a] : [0x00] });
+    assert.deepEqual(next.instruction, { address: 0x2042, bytes: offset === 0x42 ? [0x86, 0x5a] : [0x01] });
     ram.write(address, 0xff);
     cpu.reset();
     assert.deepEqual(record, saved);
@@ -1365,7 +1366,17 @@ test("every unsupported 6809 byte, including prefixes, repeatedly reads only its
   for (let opcode = 0; opcode <= 0xff; opcode++) {
     if ([
       0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
-      0x34, 0x35, 0x36, 0x37, 0x4a, 0x4c, 0x5a, 0x5c, 0x86, 0x8b, 0x96, 0x97, 0xb7, 0xc6,
+      0x00, 0x03, 0x04, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0c, 0x0d, 0x0e, 0x0f,
+      0x12, 0x16, 0x17, 0x34, 0x35, 0x36, 0x37, 0x39,
+      0x40, 0x43, 0x44, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4c, 0x4d, 0x4f,
+      0x50, 0x53, 0x54, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5c, 0x5d, 0x5f,
+      0x70, 0x73, 0x74, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7c, 0x7d, 0x7e, 0x7f,
+      0x80, 0x81, 0x82, 0x84, 0x85, 0x86, 0x88, 0x89, 0x8a, 0x8b, 0x8d,
+      0x90, 0x91, 0x92, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9d,
+      0xb0, 0xb1, 0xb2, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb, 0xbd,
+      0xc0, 0xc1, 0xc2, 0xc4, 0xc5, 0xc6, 0xc8, 0xc9, 0xca, 0xcb,
+      0xd0, 0xd1, 0xd2, 0xd4, 0xd5, 0xd6, 0xd7, 0xd8, 0xd9, 0xda, 0xdb,
+      0xf0, 0xf1, 0xf2, 0xf4, 0xf5, 0xf6, 0xf7, 0xf8, 0xf9, 0xfa, 0xfb,
     ].includes(opcode)) continue;
     for (const pc of [0x1234, 0xffff]) {
       const ram = new ObservedRam();
@@ -1393,7 +1404,7 @@ test("every unsupported 6809 byte, including prefixes, repeatedly reads only its
 });
 
 test("6809 resumes after replacing an unsupported byte without retaining prefix or halt state", () => {
-  for (const opcode of [0x00, 0x10, 0x11]) {
+  for (const opcode of [0x01, 0x10, 0x11]) {
     const ram = new ObservedRam();
     ram.write(0xffff, opcode);
     ram.write(0x0000, 0x86);
@@ -1653,4 +1664,336 @@ test("6809 requires a boolean for every condition-code flag", () => {
     }
   }
   assert.deepEqual(ram.accesses, []);
+});
+
+// Feed CC/A/B through real PULU instructions, then loop through the instruction
+// under test. A fresh CPU every 512 cases keeps the input frames away from code
+// and data while avoiding millions of identical dispatch-table constructions.
+function byteProgram(bytes: readonly number[]) {
+  const ram = new Ram(0x10000);
+  [0x37, 0x07, ...bytes, 0x7e, 0x01, 0x00].forEach((byte, offset) => ram.write(0x100 + offset, byte));
+  let cpu: Cpu6809;
+  let frame = 512;
+  return {
+    ram,
+    run(a: number, b: number, cc: number) {
+      if (frame === 512) {
+        cpu = new Cpu6809(ram, initialState({ pc: 0x100, u: 0x8000 }));
+        frame = 0;
+      }
+      const address = 0x8000 + frame++ * 3;
+      ram.write(address, cc);
+      ram.write(address + 1, a);
+      ram.write(address + 2, b);
+      assert.equal(cpu.step().outcome, "executed"); // PULU CC,A,B
+      const record = cpu.step();
+      assert.equal(record.outcome, "executed");
+      assert.deepEqual(record.before, {
+        ...initialState({ pc: 0x102, u: address + 3, a, b, flags: flagsFor(cc) }), d: a * 256 + b,
+      });
+      assert.equal(cpu.step().after.pc, 0x100); // JMP back to the input instruction.
+      return record;
+    },
+  };
+}
+
+function byteArithmetic(operation: string, left: number, right: number, flags: Cpu6809Flags) {
+  const subtract = operation === "SUB" || operation === "SBC" || operation === "CMP";
+  const carry = (operation === "ADC" || operation === "SBC") && flags.c ? 1 : 0;
+  const signed = (value: number) => value < 128 ? value : value - 256;
+  const total = subtract ? left - right - carry : left + right + carry;
+  const signedTotal = subtract ? signed(left) - signed(right) - carry : signed(left) + signed(right) + carry;
+  const result = (total + 256) % 256;
+  return {
+    result,
+    flags: { ...flags, n: result >= 128, z: result === 0,
+      v: signedTotal < -128 || signedTotal > 127, c: subtract ? total < 0 : total > 255,
+      h: subtract ? flags.h : left % 16 + right % 16 + carry > 15 },
+  };
+}
+
+for (const [operation, opcodeA, opcodeB] of [
+  ["SUB", 0x80, 0xc0], ["CMP", 0x81, 0xc1], ["SBC", 0x82, 0xc2],
+  ["ADC", 0x89, 0xc9], ["ADD", 0x8b, 0xcb],
+] as const) {
+  test(`6809 ${operation} A/B agrees with signed and unsigned arithmetic for every byte pair and carry`, () => {
+    for (const [register, opcode] of [["a", opcodeA], ["b", opcodeB]] as const) {
+      const program = byteProgram([opcode, 0]);
+      for (let right = 0; right < 256; right++) {
+        program.ram.write(0x103, right);
+        for (let left = 0; left < 256; left++) {
+          for (const cc of [0x00, 0xff]) {
+            const { result, flags } = byteArithmetic(operation, left, right, flagsFor(cc));
+            const record = program.run(register === "a" ? left : 0x69, register === "b" ? left : 0x96, cc);
+            const value = operation === "CMP" ? left : result;
+            const a = register === "a" ? value : 0x69;
+            const b = register === "b" ? value : 0x96;
+            assert.deepEqual(record.after, { ...record.before, [register]: value, d: a * 256 + b, pc: 0x104, flags },
+              `${operation} ${register}, left=${left}, right=${right}, CC=${cc}`);
+          }
+        }
+      }
+    }
+  });
+}
+
+// Literal opcode rows from Motorola Appendix D, independent of the source builders.
+const accumulatorForms = [
+  ["SUB", "a", 0x80, 0x90, 0xb0], ["SUB", "b", 0xc0, 0xd0, 0xf0],
+  ["CMP", "a", 0x81, 0x91, 0xb1], ["CMP", "b", 0xc1, 0xd1, 0xf1],
+  ["SBC", "a", 0x82, 0x92, 0xb2], ["SBC", "b", 0xc2, 0xd2, 0xf2],
+  ["AND", "a", 0x84, 0x94, 0xb4], ["AND", "b", 0xc4, 0xd4, 0xf4],
+  ["BIT", "a", 0x85, 0x95, 0xb5], ["BIT", "b", 0xc5, 0xd5, 0xf5],
+  ["LD", "a", 0x86, 0x96, 0xb6], ["LD", "b", 0xc6, 0xd6, 0xf6],
+  ["EOR", "a", 0x88, 0x98, 0xb8], ["EOR", "b", 0xc8, 0xd8, 0xf8],
+  ["ADC", "a", 0x89, 0x99, 0xb9], ["ADC", "b", 0xc9, 0xd9, 0xf9],
+  ["OR", "a", 0x8a, 0x9a, 0xba], ["OR", "b", 0xca, 0xda, 0xfa],
+  ["ADD", "a", 0x8b, 0x9b, 0xbb], ["ADD", "b", 0xcb, 0xdb, 0xfb],
+] as const;
+
+function byteLogic(operation: string, left: number, right: number): number {
+  if (operation === "LD") return right;
+  const a = left.toString(2).padStart(8, "0");
+  const b = right.toString(2).padStart(8, "0");
+  return parseInt([...a].map((bit, index) => {
+    if (operation === "AND" || operation === "BIT") return bit === "1" && b[index] === "1" ? "1" : "0";
+    if (operation === "OR") return bit === "1" || b[index] === "1" ? "1" : "0";
+    return bit !== b[index] ? "1" : "0";
+  }).join(""), 2);
+}
+
+for (const [operation, register, immediate, direct, extended] of accumulatorForms) {
+  test(`6809 ${operation}${register.toUpperCase()} covers all three operand forms, flags, and wrapped fetches`, () => {
+    for (const [opcode, operands, address] of [
+      [immediate, [0], undefined], [direct, [0xff], 0x56ff], [extended, [0x12, 0xff], 0x12ff],
+    ] as const) {
+      const ram = new ObservedRam();
+      for (const [left, right] of [[0, 0], [0x7f, 1], [0x80, 1], [0xff, 0xff], [0x55, 0xaa], [0x81, 0x0f]]) {
+        for (let cc = 0; cc < 256; cc++) {
+          const flags = flagsFor(cc);
+          const bytes = [opcode, ...(address === undefined ? [right!] : operands)];
+          bytes.forEach((byte, offset) => ram.write((0xffff + offset) % 0x10000, byte));
+          if (address !== undefined) ram.write(address, right!);
+          const before = initialState({ pc: 0xffff, [register]: left, flags });
+          const cpu = new Cpu6809(ram, before);
+          ram.accesses.length = 0;
+          const record = cpu.step();
+          const arithmetic = ["SUB", "CMP", "SBC", "ADC", "ADD"].includes(operation);
+          const expected = arithmetic ? byteArithmetic(operation, left!, right!, flags) : (() => {
+            const result = byteLogic(operation, left!, right!);
+            return { result, flags: { ...flags, n: result >= 128, z: result === 0, v: false } };
+          })();
+          const value = operation === "CMP" || operation === "BIT" ? left! : expected.result;
+          const a = register === "a" ? value : before.a;
+          const b = register === "b" ? value : before.b;
+          assert.deepEqual(record, {
+            instruction: { address: 0xffff, bytes }, before: { ...before, d: before.a * 256 + before.b },
+            after: { ...before, [register]: value, d: a * 256 + b, pc: bytes.length - 1, flags: expected.flags },
+            accesses: [
+              ...bytes.map((value, offset) => ({ kind: "read", address: (0xffff + offset) % 0x10000, value })),
+              ...(address === undefined ? [] : [{ kind: "read", address, value: right }]),
+            ], outcome: "executed",
+          });
+          assert.deepEqual(ram.accesses, record.accesses);
+        }
+      }
+    }
+  });
+}
+
+for (const [operation, direct, opcodeA, opcodeB, extended] of [
+  ["NEG", 0x00, 0x40, 0x50, 0x70], ["COM", 0x03, 0x43, 0x53, 0x73],
+  ["LSR", 0x04, 0x44, 0x54, 0x74], ["ROR", 0x06, 0x46, 0x56, 0x76],
+  ["ASR", 0x07, 0x47, 0x57, 0x77], ["ASL", 0x08, 0x48, 0x58, 0x78],
+  ["ROL", 0x09, 0x49, 0x59, 0x79], ["DEC", 0x0a, 0x4a, 0x5a, 0x7a],
+  ["INC", 0x0c, 0x4c, 0x5c, 0x7c], ["TST", 0x0d, 0x4d, 0x5d, 0x7d],
+  ["CLR", 0x0f, 0x4f, 0x5f, 0x7f],
+] as const) {
+  test(`6809 ${operation} covers A, B, direct, and extended for every byte and CC value`, () => {
+    for (const [register, opcode, operands, address] of [
+      ["a", opcodeA, [], undefined], ["b", opcodeB, [], undefined],
+      [undefined, direct, [0xff], 0x56ff], [undefined, extended, [0x12, 0xff], 0x12ff],
+    ] as const) {
+      const program = byteProgram([opcode, ...operands]);
+      for (let value = 0; value < 256; value++) {
+        for (let cc = 0; cc < 256; cc++) {
+          const flags = flagsFor(cc);
+          let result = value;
+          let v = false;
+          let c = flags.c;
+          switch (operation) {
+            case "NEG": result = (256 - value) % 256; v = value === 128; c = value !== 0; break;
+            case "COM": result = 255 - value; c = true; break;
+            case "LSR": result = Math.floor(value / 2); c = value % 2 === 1; v = flags.v; break;
+            case "ROR": result = Math.floor(value / 2) + (flags.c ? 128 : 0); c = value % 2 === 1; v = flags.v; break;
+            case "ASR": result = Math.floor(value / 2) + (value >= 128 ? 128 : 0); c = value % 2 === 1; v = flags.v; break;
+            case "ASL": case "ROL": {
+              const total = value * 2 + (operation === "ROL" && flags.c ? 1 : 0);
+              result = total % 256; c = total >= 256; v = (value >= 64 && value < 192); break;
+            }
+            case "DEC": result = (value + 255) % 256; v = value === 128; break;
+            case "INC": result = (value + 1) % 256; v = value === 127; break;
+            case "CLR": result = 0; c = false; break;
+          }
+          if (address !== undefined) program.ram.write(address, value);
+          const record = program.run(register === "a" ? value : 0x69, register === "b" ? value : 0x96, cc);
+          const a = register === "a" ? result : 0x69;
+          const b = register === "b" ? result : 0x96;
+          assert.deepEqual(record.after, { ...record.before, a, b, d: a * 256 + b,
+            pc: 0x103 + operands.length, flags: { ...flags, n: result >= 128, z: result === 0, v, c } },
+          `${operation} ${opcode.toString(16)}, value=${value}, CC=${cc}`);
+          assert.deepEqual(record.accesses, [
+            ...[opcode, ...operands].map((value, offset) => ({ kind: "read", address: 0x102 + offset, value })),
+            ...(address === undefined ? [] : [{ kind: "read", address, value }]),
+            ...(address === undefined || operation === "TST" ? [] : [{ kind: "write", address, value: result }]),
+          ]);
+          if (address !== undefined) assert.equal(program.ram.read(address), result);
+        }
+      }
+    }
+  });
+}
+
+for (const [register, opcode, operands, address] of [
+  ["a", 0x97, [0xff], 0x56ff], ["b", 0xd7, [0xff], 0x56ff],
+  ["a", 0xb7, [0x12, 0xff], 0x12ff], ["b", 0xf7, [0x12, 0xff], 0x12ff],
+] as const) {
+  test(`6809 store ${opcode.toString(16)} writes every byte once and updates only N/Z/V for every CC`, () => {
+    const program = byteProgram([opcode, ...operands]);
+    for (let value = 0; value < 256; value++) {
+      for (let cc = 0; cc < 256; cc++) {
+        program.ram.write(address, value); // An unchanged-value store still writes.
+        const record = program.run(register === "a" ? value : 0x69, register === "b" ? value : 0x96, cc);
+        assert.deepEqual(record.after, { ...record.before, pc: 0x103 + operands.length,
+          flags: { ...flagsFor(cc), n: value >= 128, z: value === 0, v: false } });
+        assert.deepEqual(record.accesses, [
+          ...[opcode, ...operands].map((value, offset) => ({ kind: "read", address: 0x102 + offset, value })),
+          { kind: "write", address, value },
+        ]);
+        assert.equal(program.ram.read(address), value);
+      }
+    }
+  });
+}
+
+test("6809 memory unary instructions capture operands before modifying overlapping code, with real CLR reads and no TST writes", () => {
+  for (const [opcode, extended, write] of [
+    [0x00, false, true], [0x03, false, true], [0x04, false, true], [0x06, false, true],
+    [0x07, false, true], [0x08, false, true], [0x09, false, true], [0x0a, false, true],
+    [0x0c, false, true], [0x0d, false, false], [0x0f, false, true],
+    [0x70, true, true], [0x73, true, true], [0x74, true, true], [0x76, true, true],
+    [0x77, true, true], [0x78, true, true], [0x79, true, true], [0x7a, true, true],
+    [0x7c, true, true], [0x7d, true, false], [0x7f, true, true],
+  ] as const) {
+    for (const address of [0xfffe, 0xffff, 0x0000]) {
+      const ram = new ObservedRam();
+      const bytes = extended ? [opcode, address >>> 8, address % 256] : [opcode, address % 256];
+      bytes.forEach((value, offset) => ram.write((0xfffe + offset) % 0x10000, value));
+      const old = ram.read(address);
+      const cpu = new Cpu6809(ram, initialState({ pc: 0xfffe, dp: address >>> 8 }));
+      ram.accesses.length = 0;
+      const record = cpu.step();
+      assert.equal(record.outcome, "executed");
+      assert.deepEqual(record.instruction, { address: 0xfffe, bytes });
+      assert.equal(record.after.pc, extended ? 1 : 0);
+      assert.deepEqual(record.accesses, ram.accesses);
+      assert.deepEqual(record.accesses.slice(0, bytes.length + 1), [
+        ...bytes.map((value, offset) => ({ kind: "read", address: (0xfffe + offset) % 0x10000, value })),
+        { kind: "read", address, value: old },
+      ]);
+      assert.equal(record.accesses.length, bytes.length + (write ? 2 : 1));
+      if (write) assert.deepEqual(record.accesses.at(-1), { kind: "write", address, value: ram.read(address) });
+      else assert.equal(ram.read(address), old);
+    }
+  }
+});
+
+test("6809 BSR, LBSR, and JSR fetch the complete operand before stacking the return PC on S", () => {
+  const cases = [
+    { bytes: [0x8d, 0x00], pc: 0x1200, target: 0x1202 },
+    { bytes: [0x8d, 0x7f], pc: 0xfffd, target: 0x007e },
+    { bytes: [0x8d, 0x80], pc: 0x0000, target: 0xff82 },
+    { bytes: [0x8d, 0xfe], pc: 0xffff, target: 0xffff },
+    { bytes: [0x17, 0x00, 0x00], pc: 0x1200, target: 0x1203 },
+    { bytes: [0x17, 0x7f, 0xff], pc: 0xfffe, target: 0x8000 },
+    { bytes: [0x17, 0x80, 0x00], pc: 0xffff, target: 0x8002 },
+    { bytes: [0x17, 0xff, 0xfd], pc: 0xfffe, target: 0xfffe },
+    { bytes: [0x9d, 0xff], pc: 0xffff, target: 0x56ff },
+    { bytes: [0xbd, 0x12, 0x34], pc: 0xfffe, target: 0x1234 },
+    { bytes: [0xbd, 0xff, 0xff], pc: 0xffff, target: 0xffff },
+  ];
+  for (const { bytes, pc, target } of cases) {
+    for (const s of [0x8000, 0, 1, (pc + 2) % 0x10000]) {
+      for (let cc = 0; cc < 256; cc++) {
+        const ram = new ObservedRam();
+        bytes.forEach((value, offset) => ram.write((pc + offset) % 0x10000, value));
+        const before = { ...initialState({ pc, s, flags: flagsFor(cc) }), d: 0x1134 };
+        const cpu = new Cpu6809(ram, before);
+        ram.accesses.length = 0;
+        const lowAddress = (s + 0xffff) % 0x10000;
+        const highAddress = (s + 0xfffe) % 0x10000;
+        const returnAddress = (pc + bytes.length) % 0x10000;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: pc, bytes }, before, after: { ...before, pc: target, s: highAddress },
+          accesses: [
+            ...bytes.map((value, offset) => ({ kind: "read", address: (pc + offset) % 0x10000, value })),
+            { kind: "write", address: lowAddress, value: returnAddress % 256 },
+            { kind: "write", address: highAddress, value: Math.floor(returnAddress / 256) },
+          ], outcome: "executed",
+        });
+        assert.deepEqual(ram.accesses, record.accesses);
+      }
+    }
+  }
+});
+
+test("6809 RTS pulls a high/low word from S, wraps the stack, preserves CC, and never increments the return address", () => {
+  for (const [s, target] of [[0x8000, 0], [0xffff, 0xffff], [0, 0x1234], [0x1234, 0x39ab]]) {
+    for (let cc = 0; cc < 256; cc++) {
+      const ram = new ObservedRam();
+      ram.write(0x1234, 0x39);
+      ram.write(s!, Math.floor(target! / 256));
+      ram.write((s! + 1) % 0x10000, target! % 256);
+      const before = { ...initialState({ s, flags: flagsFor(cc) }), d: 0x1134 };
+      const cpu = new Cpu6809(ram, before);
+      ram.accesses.length = 0;
+      const record = cpu.step();
+      assert.deepEqual(record, {
+        instruction: { address: 0x1234, bytes: [0x39] }, before,
+        after: { ...before, s: (s! + 2) % 0x10000, pc: target },
+        accesses: [
+          { kind: "read", address: 0x1234, value: 0x39 },
+          { kind: "read", address: s, value: Math.floor(target! / 256) },
+          { kind: "read", address: (s! + 1) % 0x10000, value: target! % 256 },
+        ], outcome: "executed",
+      });
+      assert.deepEqual(ram.accesses, record.accesses);
+    }
+  }
+});
+
+test("6809 NOP, LBRA, and direct/extended JMP preserve all flags and read only their instruction bytes", () => {
+  for (const [bytes, pc, target] of [
+    [[0x12], 0xffff, 0],
+    [[0x16, 0, 0], 0xfffe, 1], [[0x16, 0x7f, 0xff], 0xffff, 0x8001],
+    [[0x16, 0x80, 0], 0xfffe, 0x8001], [[0x16, 0xff, 0xfd], 0xffff, 0xffff],
+    [[0x0e, 0xff], 0xffff, 0x56ff], [[0x7e, 0x12, 0x34], 0xfffe, 0x1234],
+    [[0x7e, 0xff, 0xff], 0xffff, 0xffff],
+  ] as const) {
+    for (let cc = 0; cc < 256; cc++) {
+      const ram = new ObservedRam();
+      bytes.forEach((value, offset) => ram.write((pc + offset) % 0x10000, value));
+      const before = { ...initialState({ pc, flags: flagsFor(cc) }), d: 0x1134 };
+      const cpu = new Cpu6809(ram, before);
+      ram.accesses.length = 0;
+      const record = cpu.step();
+      assert.deepEqual(record, {
+        instruction: { address: pc, bytes }, before, after: { ...before, pc: target },
+        accesses: bytes.map((value, offset) => ({ kind: "read", address: (pc + offset) % 0x10000, value })),
+        outcome: "executed",
+      });
+      assert.deepEqual(ram.accesses, record.accesses);
+    }
+  }
 });
