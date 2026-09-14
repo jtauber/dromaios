@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [455](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [396](../../src/components/cpus/6809.ts) | 137 / 268 | 51.1% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [428](../../src/components/cpus/8088.ts) | 155 / 291 | 53.3% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [212](../../src/components/cpus/68000.ts) | 96 / 36,029 | 0.3% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [304](../../src/components/cpus/68000.ts) | 9,742 / 36,029 | 27.0% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -146,9 +146,9 @@ immediates, ADDQ/SUBQ and shift counts, branch displacements, and TRAP vectors
 are collapsed. Index extension words and MOVEM register masks do not multiply
 forms, but each form must support all its documented choices to be complete.
 The [count audit](68000/opcode-count.md) gives the permitted address sets and
-family arithmetic. The current data-register subset has 88 long-operation
-forms and eight MOVEQ forms. Those eight MOVEQ forms accept 2,048 operation
-words because the low byte is an immediate operand, not an additional form.
+family arithmetic. MOVE and MOVEA supply 9,726 forms; ADDI.L to Dn and MOVEQ
+supply eight each. Those eight MOVEQ forms accept 2,048 operation words because
+the low byte is an immediate operand, not an additional form.
 
 ## Support shared by the current models
 
@@ -1354,50 +1354,64 @@ the comparison; independent local tests establish instruction-level access order
 [Transfer example](68000/examples/transfers.md) ·
 [Transfer definition](../../src/machines/68000/transfers-example.machine)
 
-The operation-word patterns below are binary. Register fields `ddd` and `rrr`
-select D0–D7 in numeric order; `iiiiiiii` is MOVEQ's signed immediate byte.
-All combinations shown are supported, including register self-transfers.
+[Addressing example](68000/examples/addressing.md) ·
+[Addressing definition](../../src/machines/68000/addressing-example.machine)
+
+**9,742 of 36,029 documented forms are complete (27.0%).** MOVE and MOVEA
+support every original-68000 source/destination combination and documented
+index extension. The operation-word patterns below are binary. In MOVE,
+`ddd mmm` selects the destination register then mode, while `sss rrr` selects
+the source mode then register. Mode `001` in the destination selects MOVEA.
 
 | Operation-word pattern | Instruction | Forms | Length | Scope |
 | --- | --- | --- | --- | --- |
-| `0000 0110 10 000 rrr` | `ADDI.L #n,Dn` | 8 | 6 | Unsigned long result; set X/N/Z/V/C, preserve T/S and interrupt mask |
-| `00 10 ddd 000 000 rrr` | `MOVE.L Dm,Dn` | 64 | 2 | Replace the full destination and preserve the source; set N/Z, clear V/C, preserve X and control state |
-| `00 10 ddd 000 111 100` | `MOVE.L #n,Dn` | 8 | 6 | Load the full long; set N/Z, clear V/C, preserve X and control state |
-| `00 10 001 111 000 rrr` | `MOVE.L Dn,(addr).L` | 8 | 6 | Store high byte first at an even address; set N/Z, clear V/C, preserve X and control state |
-| `0111 rrr 0 iiiiiiii` | `MOVEQ #n,Dn` | 8 | 2 | Sign-extend the embedded byte to a long; set N/Z, clear V/C, preserve X and control state |
+| `0000 0110 10 000 rrr` | `ADDI.L #n,Dn` | 8 | 6 | All Dn; set X/N/Z/V/C, preserve control state |
+| `00 01 ddd mmm sss rrr` | `MOVE.B <ea>,<ea>` | 2,650 | 2–10 | 53 sources × 50 data-alterable destinations; neither operand may be An |
+| `00 10 ddd mmm sss rrr` (`mmm ≠ 001`) | `MOVE.L <ea>,<ea>` | 3,050 | 2–10 | 61 sources × 50 data-alterable destinations |
+| `00 10 ddd 001 sss rrr` | `MOVEA.L <ea>,An` | 488 | 2–6 | 61 sources × 8 address registers; no flag changes |
+| `00 11 ddd mmm sss rrr` (`mmm ≠ 001`) | `MOVE.W <ea>,<ea>` | 3,050 | 2–10 | 61 sources × 50 data-alterable destinations |
+| `00 11 ddd 001 sss rrr` | `MOVEA.W <ea>,An` | 488 | 2–6 | Sign-extend the word into An; no flag changes |
+| `0111 rrr 0 iiiiiiii` | `MOVEQ #n,Dn` | 8 | 2 | Sign-extend the embedded byte to a long; MOVE flags |
+
+MOVE/MOVEQ set N/Z from the transferred size, clear V/C, and preserve X and
+control state. Byte/word writes to Dn preserve the upper register bits.
+See the [effective-address contract](68000/model.md#effective-addresses) for
+mode encodings, extension words, and auto-update sequencing.
 
 | Area | Implemented scope |
 | --- | --- |
 | Stored state | D0–D7, A0–A6, USP/SSP, and PC as unsigned 32-bit values; X/N/Z/V/C/T/S and three-bit interrupt mask |
 | Views | A7 derived from S and USP/SSP; physical PC derived from the low 24 bits of PC |
-| Data-register families | All D0–D7 choices for long immediate load/add/store, register transfers, and MOVEQ; no register or quick transfer extension fetches |
-| Memory | Exactly 16 MiB; mask addresses at RAM access, preserving full register values; big-endian words and longs |
-| Instruction fetching | Even PC; 16-bit operation word; 32-bit immediate/address extensions; sequential PC wraps at 32 bits |
-| Alignment | Word alignment for instructions and long operands; odd addresses rejected without state changes; address-error exceptions deferred |
+| Transfers | Complete MOVE.B/W/L and MOVEA.W/L families; MOVEQ; partial Dn writes and sign-extended address-register word writes |
+| Effective addresses | Dn, An, indirect, postincrement, predecrement, signed displacement/index, absolute word/long, PC displacement/index, immediate; restrictions above |
+| Memory | Exactly 16 MiB; mask each address at RAM access, preserving full register values; big-endian bytes, words, and longs |
+| Instruction fetching | Even PC; 16-bit operation word; word/long extensions; sequential PC wraps at 32 bits |
+| Alignment | Even instruction, word, and long addresses; odd byte operands allowed; read/write faults preserve state and RAM, including pending address updates |
+| Stack | MOVE through A7 uses USP or SSP according to S; byte auto-updates still step by two |
 | Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts; preserve other registers, condition codes, and RAM under the documented policy |
-| Remaining scope | Address-register operations, byte/word sizes, other effective-address families, logic, branches, calls/returns, stack operations, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
+| Remaining scope | Other transfers and address operations, arithmetic beyond ADDI.L to Dn, logic, branches, calls/returns, stack frames, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
-[example tests](../../tests/machines/68000/example.test.ts), and
-[public type checks](../../tests/types/68000.ts). Checks cover every unsupported
-operation word, all incoming flag patterns, independent BigInt arithmetic
-expectations and low-word sweeps, full register ranges, active stack selection,
-big-endian accesses, high-byte aliases, PC and physical-bus wrapping, odd-address
-rejection, reset vectors, current RAM, overlapping stores, and detached records.
-The example checks literal complete traces, actual RAM calls, full memory images,
-logical completion, bounded resumption, reset, and restart. Parser and generator
-checks cover unsigned long state, derived-view rejection, 16 MiB bounds, and
-32-bit completion addresses without relaxing the smaller CPUs' limits.
+[arithmetic](../../tests/machines/68000/example.test.ts),
+[register-transfer](../../tests/machines/68000/transfers-example.test.ts), and
+[addressing example tests](../../tests/machines/68000/addressing-example.test.ts),
+plus [public type checks](../../tests/types/68000.ts).
 
-Register-family checks cover every data register, all 64 transfer pairs,
-self-transfers, every embedded MOVEQ byte, and all incoming flag patterns.
-Literal operation words provide expectations independently of the pattern helper.
-Further checks cover reserved MOVEQ encodings, two-byte PC wrapping, current
-register values and modified immediates, and rejected stores followed by corrected
-operands. The [transfer example tests](../../tests/machines/68000/transfers-example.test.ts)
-verify all five families together, carry versus overflow, complete traces,
-actual RAM calls, full memory images with sentinels, snapshot restoration,
-bounded resumption, reset and rerunning, and detached records.
+The independent transfer fixtures execute all **9,726 MOVE/MOVEA encodings**
+in both user and supervisor modes, checking complete state, instruction bytes,
+actual RAM accesses, and touched memory with guards. Further checks cover all
+65,536 index extension words with An and PC bases and both active stacks;
+every displacement/absolute-short word; size-specific flags and upper-register
+preservation; source/destination aliases; unsigned register and physical-bus
+wrapping; overlapping code and data; every word/long memory form's alignment
+rejection; and all unsupported operation words. Existing tests retain independent
+BigInt addition expectations, reset, live operands, and detached records.
+
+The 18-step addressing program copies mixed-size data through RAM, saves and
+restores a word through A7, and distinguishes partial Dn writes from MOVEA's
+sign extension. Tests specify literal complete traces, full memory images,
+logical completion, bounded resumption, snapshot restoration, and execution
+through SSP after reset without altering the inactive user stack.
 
 ## CPUs and variants not started
 

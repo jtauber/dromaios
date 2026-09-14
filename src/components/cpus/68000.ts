@@ -2,10 +2,11 @@ import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
 import { signed8 } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
-import type { MemoryAccess, RecordedMemory } from "./memory-access.ts";
+import type { ByteMemory, MemoryAccess, RecordedMemory } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodeTable } from "./opcodes.ts";
+import type { OpcodeEntry } from "./opcodes.ts";
 import { add } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
@@ -36,7 +37,7 @@ export type Cpu68000MemoryAccess = MemoryAccess;
 export type Cpu68000Instruction = FetchedInstruction;
 
 export interface Cpu68000AlignmentFault {
-  readonly operation: "fetch" | "write";
+  readonly operation: "fetch" | "read" | "write";
   /** Full address of the unaligned instruction or operand. */
   readonly address: number;
 }
@@ -50,13 +51,24 @@ export type Cpu68000StepRecord = StateTransition<Cpu68000Snapshot> & (
 
 export type Cpu68000ResetRecord = StateTransition<Cpu68000Snapshot>;
 
-interface InstructionContext {
+interface InstructionContext extends ByteMemory {
+  readonly nextAddress: () => number;
+  readonly fetchWord: () => number;
   readonly fetchLong: () => number;
-  readonly writeLong: (address: number, value: number) => void;
 }
 
-type OpcodeHandler = (instruction: InstructionContext) => Cpu68000AlignmentFault | void;
+type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => Cpu68000AlignmentFault | void;
 type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
+type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
+type OperandSize = 8 | 16 | 32;
+type Operand =
+  | { readonly kind: "data"; readonly register: DataRegister }
+  | { readonly kind: "address"; readonly register: AddressRegister }
+  | { readonly kind: "memory"; readonly address: number }
+  | { readonly kind: "immediate"; readonly value: number };
+
+// Pending auto-updates are visible to the destination but commit only after alignment checks.
+type AddressUpdates = Map<AddressRegister, number>;
 
 /** Instruction-level Motorola 68000 subset with 32-bit registers and flat 16 MiB RAM. */
 export class Cpu68000 {
@@ -79,8 +91,8 @@ export class Cpu68000 {
   reset(): Cpu68000ResetRecord {
     const before = this.snapshot();
     const { accesses, readByte } = this.#recordMemory();
-    this.#state.ssp = this.#readLong(0, readByte);
-    this.#state.pc = this.#readLong(4, readByte);
+    this.#state.ssp = this.#readMemory(32, 0, readByte);
+    this.#state.pc = this.#readMemory(32, 4, readByte);
     this.#state.flags.s = true;
     this.#state.flags.t = false;
     this.#state.interruptMask = 7;
@@ -109,16 +121,16 @@ export class Cpu68000 {
     };
     const opcode = fetchWord();
     const instruction = { address, bytes };
-    const handler = this.#opcodeHandlers[opcode];
+    const handler = Cpu68000.#opcodeHandlers[opcode];
     if (!handler) {
       return { before, after: this.snapshot(), accesses, instruction, outcome: "unsupported", reason: "opcode" };
     }
-    const fault = handler({
+    const fault = handler(this, {
+      nextAddress: () => cursor, fetchWord, readByte, writeByte,
       fetchLong: () => {
         const high = fetchWord();
         return ((high << 16) | fetchWord()) >>> 0;
       },
-      writeLong: (address, value) => this.#writeLong(address, value, writeByte),
     });
     if (fault) {
       return { before, after: this.snapshot(), accesses, instruction, fault,
@@ -128,45 +140,125 @@ export class Cpu68000 {
     return { before, after: this.snapshot(), accesses, instruction, outcome: "executed" };
   }
 
-  // Opcode selectors and construction. Register fields encode D0–D7 in numeric order.
+  // Register views. Encoded A7 selects the currently active stored stack pointer.
 
-  readonly #dataRegisters = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
-  readonly #immediateBytes = Array.from({ length: 0x100 }, (_, value) => value);
+  #addressRegister(code: number): AddressRegister {
+    return code === 7 ? (this.#state.flags.s ? "ssp" : "usp") : Cpu68000.#addressRegisters[code]!;
+  }
 
-  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
+  // Opcode selectors and construction. Register and mode fields use numeric encoding order.
+
+  static readonly #dataRegisters = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
+  static readonly #addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
+  static readonly #selectors = [0, 1, 2, 3, 4, 5, 6, 7] as const;
+  static readonly #immediateBytes = Array.from({ length: 0x100 }, (_, value) => value);
+
+  // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
+  static readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // 0000 0110 ss mmm rrr: ss=10 selects long (00 byte, 01 word); EA mmm=000 selects Dn.
-    ...opcodeFamily("0000 0110 10 000 rrr", { r: this.#dataRegisters }, ({ r: register }) => ({ fetchLong }: InstructionContext) => this.#addToRegister(register, fetchLong())), // ADDI.L #n,Dn
+    ...opcodeFamily("0000 0110 10 000 rrr", { r: this.#dataRegisters }, ({ r: register }) => (cpu: Cpu68000, { fetchLong }: InstructionContext) => cpu.#addToRegister(register, fetchLong())), // ADDI.L #n,Dn
 
-    // MOVE: 00 ss ddd mmm MMM rrr. ss=10 selects long (01 byte, 11 word).
-    // Destination is register ddd then mode mmm; source is mode MMM then register rrr.
-    // EA mode 000 selects Dn; mode 111 uses register 001 for absolute long, 100 for immediate.
-    ...opcodeFamily("00 10 ddd 000 000 rrr", { d: this.#dataRegisters, r: this.#dataRegisters }, ({ d: destination, r: source }) => () => this.#loadRegister(destination, this.#state[source])), // MOVE.L Dm,Dn
-    ...opcodeFamily("00 10 ddd 000 111 100", { d: this.#dataRegisters }, ({ d: destination }) => ({ fetchLong }: InstructionContext) => this.#loadRegister(destination, fetchLong())), // MOVE.L #n,Dn
-    ...opcodeFamily("00 10 001 111 000 rrr", { r: this.#dataRegisters }, ({ r: source }) => ({ fetchLong, writeLong }: InstructionContext) => this.#storeRegister(source, fetchLong(), writeLong)), // MOVE.L Dn,(addr).L
+    // MOVE: 00 zz ddd mmm sss rrr. zz=01 byte, 10 long, 11 word.
+    // Destination is register ddd then mode mmm; source is mode sss then register rrr.
+    // Destination mode 001 is MOVEA (word/long only), with sign extension and no flag changes.
+    ...this.#moveHandlers("00 01 ddd mmm sss rrr", 8), // MOVE.B <ea>,<ea>
+    ...this.#moveHandlers("00 10 ddd mmm sss rrr", 32), // MOVE.L / MOVEA.L <ea>,<ea>
+    ...this.#moveHandlers("00 11 ddd mmm sss rrr", 16), // MOVE.W / MOVEA.W <ea>,<ea>
 
     // 0111 rrr 0 iiiiiiii: rrr selects Dn; i is the signed immediate byte, extended to a long.
     // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
-    ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => () => this.#loadQuickRegister(register, value)), // MOVEQ #n,Dn
+    ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => (cpu: Cpu68000) => cpu.#loadQuickRegister(register, value)), // MOVEQ #n,Dn
 
-    // Address-register operations, other sizes and addressing modes, control flow, and exceptions are deferred.
+    // Other transfer families, arithmetic sizes/modes, control flow, and exceptions are deferred.
   ], 16);
 
-  // Loads and stores.
+  static #moveHandlers(pattern: string, size: OperandSize): readonly OpcodeEntry<OpcodeHandler>[] {
+    const codes = this.#selectors;
+    return opcodeFamily(pattern, { d: codes, m: codes, s: codes, r: codes }, ({ d, m, s, r }) => {
+      // Mode 111: sources allow absolute word/long, PC displacement/index, and immediate;
+      // destinations allow only absolute word/long. Byte transfers cannot read or write An.
+      if ((s === 7 && r > 4) || (m === 7 && d > 1) || (size === 8 && (s === 1 || m === 1))) return undefined;
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#move(size, s, r, m, d, instruction);
+    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
 
-  #loadRegister(register: DataRegister, value: number): void {
-    this.#state[register] = value;
-    this.#moveFlags(value);
+  // Effective addresses. Resolve each operand once, source before destination.
+
+  #resolveOperand(size: OperandSize, mode: number, code: number, instruction: InstructionContext, updates: AddressUpdates): Operand {
+    const { fetchWord, fetchLong, nextAddress } = instruction;
+    const register = this.#addressRegister(code);
+    const base = updates.get(register) ?? this.#state[register];
+    let address: number;
+    switch (mode) {
+      case 0b000: return { kind: "data", register: Cpu68000.#dataRegisters[code]! }; // Dn
+      case 0b001: return { kind: "address", register }; // An
+      case 0b010: address = base; break; // (An)
+      case 0b011: // (An)+; A7 steps by two even for bytes.
+        address = base;
+        updates.set(register, (base + (size === 8 && code === 7 ? 2 : size / 8)) >>> 0);
+        break;
+      case 0b100: // -(An)
+        address = (base - (size === 8 && code === 7 ? 2 : size / 8)) >>> 0;
+        updates.set(register, address);
+        break;
+      case 0b101: address = base + (fetchWord() << 16 >> 16); break; // (d16,An)
+      case 0b110: address = base + this.#indexOffset(fetchWord(), updates); break; // (d8,An,Xn)
+      case 0b111:
+        switch (code) {
+          case 0b000: address = fetchWord() << 16 >> 16; break; // (xxx).W, sign-extended
+          case 0b001: address = fetchLong(); break; // (xxx).L
+          // PC-relative bases are the extension word's address, before fetching it.
+          case 0b010: address = nextAddress() + (fetchWord() << 16 >> 16); break; // (d16,PC)
+          case 0b011: address = nextAddress() + this.#indexOffset(fetchWord(), updates); break; // (d8,PC,Xn)
+          case 0b100: return { kind: "immediate", value: size === 32 ? fetchLong() : fetchWord() }; // #n
+          default: throw new Error("Unsupported effective address reached execution.");
+        }
+        break;
+      default: throw new Error("Invalid effective-address mode.");
+    }
+    return { kind: "memory", address: address >>> 0 };
+  }
+
+  #indexOffset(extension: number, updates: AddressUpdates): number {
+    // t rrr w 000 dddddddd: t=0 Dn / 1 An; w=0 signed word / 1 long; d is signed byte.
+    // The original 68000 ignores bits 10–8: no scaling or full extension words.
+    const code = (extension >>> 12) & 7;
+    const addressRegister = this.#addressRegister(code);
+    const index = extension & 0x8000 ? (updates.get(addressRegister) ?? this.#state[addressRegister])
+      : this.#state[Cpu68000.#dataRegisters[code]!];
+    return (extension & 0x0800 ? index : (index << 16 >> 16)) + signed8(extension & 0xff);
+  }
+
+  #readOperand(size: OperandSize, operand: Operand, readByte: ByteMemory["readByte"]): number {
+    const value = operand.kind === "memory" ? this.#readMemory(size, operand.address, readByte)
+      : operand.kind === "immediate" ? operand.value : this.#state[operand.register];
+    return value % 2 ** size;
+  }
+
+  // Loads and stores. Source reads finish before resolving or writing the destination.
+
+  #move(size: OperandSize, sourceMode: number, sourceCode: number, destinationMode: number, destinationCode: number,
+    instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    const updates: AddressUpdates = new Map();
+    const source = this.#resolveOperand(size, sourceMode, sourceCode, instruction, updates);
+    if (source.kind === "memory" && size !== 8 && source.address % 2 !== 0) return { operation: "read", address: source.address };
+    const value = this.#readOperand(size, source, instruction.readByte);
+    const destination = this.#resolveOperand(size, destinationMode, destinationCode, instruction, updates);
+    if (destination.kind === "memory" && size !== 8 && destination.address % 2 !== 0) return { operation: "write", address: destination.address };
+    if (destination.kind === "immediate") throw new Error("Immediate destination reached execution.");
+    for (const [register, address] of updates) this.#state[register] = address;
+    if (destination.kind === "address") {
+      this.#state[destination.register] = (size === 16 ? (value << 16 >> 16) : value) >>> 0;
+    } else {
+      if (destination.kind === "memory") this.#writeMemory(size, destination.address, value, instruction.writeByte);
+      else this.#state[destination.register] = ((this.#state[destination.register] & ~(2 ** size - 1)) | value) >>> 0;
+      this.#moveFlags(value, size);
+    }
   }
 
   #loadQuickRegister(register: DataRegister, byte: number): void {
-    this.#loadRegister(register, signed8(byte) >>> 0);
-  }
-
-  #storeRegister(register: DataRegister, address: number, writeLong: InstructionContext["writeLong"]): Cpu68000AlignmentFault | void {
-    // Long operands require word alignment, not four-byte alignment.
-    if (address % 2 !== 0) return { operation: "write", address };
-    const value = this.#state[register];
-    writeLong(address, value);
+    const value = signed8(byte) >>> 0;
+    this.#state[register] = value;
     this.#moveFlags(value);
   }
 
@@ -181,8 +273,8 @@ export class Cpu68000 {
     this.#state.flags.v = overflow;
   }
 
-  #moveFlags(value: number): void {
-    this.#state.flags.n = (value & 0x80000000) !== 0;
+  #moveFlags(value: number, size: OperandSize = 32): void {
+    this.#state.flags.n = value >= 2 ** (size - 1);
     this.#state.flags.z = value === 0;
     this.#state.flags.v = this.#state.flags.c = false;
   }
@@ -198,15 +290,15 @@ export class Cpu68000 {
     };
   }
 
-  #readLong(address: number, readByte: RecordedMemory["readByte"]): number {
-    const high = (readByte(address) << 8) | readByte(address + 1);
-    const low = (readByte(address + 2) << 8) | readByte(address + 3);
-    return ((high << 16) | low) >>> 0;
+  #readMemory(size: OperandSize, address: number, readByte: ByteMemory["readByte"]): number {
+    let value = 0;
+    for (let offset = 0; offset < size / 8; offset++) value = value * 0x100 + readByte(address + offset);
+    return value;
   }
 
-  #writeLong(address: number, value: number, writeByte: RecordedMemory["writeByte"]): void {
-    for (const [offset, byte] of [value >>> 24, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff].entries()) {
-      writeByte(address + offset, byte);
+  #writeMemory(size: OperandSize, address: number, value: number, writeByte: ByteMemory["writeByte"]): void {
+    for (let offset = 0; offset < size / 8; offset++) {
+      writeByte(address + offset, (value >>> (size - 8 - offset * 8)) & 0xff);
     }
   }
 }

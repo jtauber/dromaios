@@ -55,17 +55,43 @@ explicit unsupported attempts rather than simulated successful accesses.
 
 ## Ideas to revisit
 
-- Let additional MOVE and arithmetic families establish the effective-address
-  abstraction. It should expose register versus memory behavior, operand size,
-  extension fetching, and postincrement/predecrement timing.
+- Extend the resolved operands now established by MOVE when arithmetic needs
+  read/modify/write behavior. Preserve the explicit operand size, extension
+  fetching, and auto-update lifetime.
 - Preserve a resolved address for read/modify/write operands so addressing
   side effects happen once. The reference caches effective addresses; an
   explicit operand value may make the lifetime clearer here.
-- Exercise byte/word register writes, address-register sign extension, and
-  A7's special byte increment/decrement before generalizing those rules.
 - Review supervisor transitions and exception stacks when adding status and
   exception behavior. Keep original-68000 rules separate from 68010/68020 ones.
 - Keep Macintosh mapping and ROM behavior in future machine/device components.
 
 The [model contract](model.md) records current policies; the
 [opcode-count audit](opcode-count.md) explains the coverage denominator.
+
+## MOVE and effective-address expansion
+
+The complete MOVE/MOVEA implementation uses a resolved operand distinguishing
+Dn, An, memory, and immediates. Source reading precedes destination resolution;
+pending An updates feed destination base/index calculations and commit only
+after alignment checks. This retains atomic unsupported attempts while giving
+successful instructions the required source/destination interactions.
+
+The existing Mac emulator's `getEA`/`setEA` split and cached read/modify/write
+address remain useful comparisons. Its comments still include an obsolete
+claim that MOVEA flags are undefined; Motorola specifies no change, and its
+current handler also preserves them. Dromaios checks byte/word preservation,
+MOVEA sign extension, A7 stepping, original brief-index behavior, and PC-relative
+bases against the manual, with independent fixtures rather than copied helpers.
+
+The expanded table is shared by instances and receives the executing CPU
+explicitly. A local Node 24 measurement of 1,000 constructions using the same
+RAM/state took about 0.39 s with the old table and 3.25 s with the expanded
+per-instance table. Sharing the table reduced that loop to about 0.0034 s;
+this measures construction after module initialization, not instruction speed.
+No changes to other CPU decoders were needed.
+
+The [CPU tests](../../../tests/components/cpus/68000.test.ts) establish all
+9,726 transfer forms and reject every unimplemented operation word. The
+[addressing example](examples/addressing.md) specifies complete state and RAM
+traces. These are local/manual-based checks; no external hardware corpus or
+cycle-level comparison is claimed.

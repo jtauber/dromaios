@@ -3,6 +3,7 @@ import type { Cpu68000State, Cpu68000Snapshot, Cpu68000StepRecord, Cpu68000Reset
 import type { Ram } from "../../src/components/memory/ram.js";
 import { create68000Example } from "../../src/machines/generated/68000/example.js";
 import { create68000TransfersExample } from "../../src/machines/generated/68000/transfers-example.js";
+import { create68000AddressingExample } from "../../src/machines/generated/68000/addressing-example.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import type { CpuRunResult } from "../../src/runtime/run-cpu.js";
 
@@ -25,6 +26,8 @@ export function check68000(ram: Ram, state: Cpu68000State, snapshot: Cpu68000Sna
   const machine: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000Example();
   const transfers: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000TransfersExample();
   const transferResult: CpuRunResult<Cpu68000StepRecord> = runCpu(transfers.cpu, { maxSteps: 8, endAddress: transfers.endAddress });
+  const addressing: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000AddressingExample();
+  const addressingResult: CpuRunResult<Cpu68000StepRecord> = runCpu(addressing.cpu, { maxSteps: 18, endAddress: addressing.endAddress });
   const result: CpuRunResult<Cpu68000StepRecord> = runCpu(cpu, { maxSteps: 3, endAddress: machine.endAddress });
   if (result.records[0]) {
     const d0: number = result.records[0].after.d0;
@@ -44,7 +47,7 @@ export function check68000Records(record: Cpu68000StepRecord, reset: Cpu68000Res
     // @ts-expect-error An unsupported opcode has no alignment fault.
     record.fault;
   } else {
-    const operation: "fetch" | "write" = record.fault.operation;
+    const operation: "fetch" | "read" | "write" = record.fault.operation;
     // @ts-expect-error Odd-PC attempts have no instruction.
     record.instruction.bytes;
     // @ts-expect-error Fault details are readonly.

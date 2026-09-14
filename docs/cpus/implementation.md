@@ -138,12 +138,17 @@ execution logic, especially arithmetic and flag rules, in named CPU-specific
 methods beside the related operations. Small assignments may remain inline
 when their effect is immediately clear.
 
-Construct the dispatch table once per CPU instance. Preserve the initialization
-order of fields it depends on: JavaScript initializes instance fields before
+Construct dispatch tables independently of execution. Most cores bind handlers
+once per instance; the 68000 shares a static table whose handlers receive the
+executing CPU explicitly. This avoids rebuilding its thousands of transfer
+encodings without capturing instance state. Preserve the initialization
+order of fields a table depends on: JavaScript initializes instance fields before
 the constructor body, regardless of their textual position relative to it.
 Family builders capture callbacks; they must not read live CPU state or access
 RAM while building the table. Callbacks read registers and flags when the
-instruction executes, so later instructions see current values.
+instruction executes, so later instructions see current values. In static
+initializers use `this` for earlier static fields; instance methods refer to
+the class explicitly.
 
 Use family builders when they reveal an encoding relationship and remove useful
 duplication. Keep them aligned with encoded subgroup boundaries and retain
@@ -189,7 +194,9 @@ callbacks without exposing that log, and all callback properties are readonly.
 The 8008, 8080, 6502, 6800, 6809, Z80, and 8088 import `WordInstructionContext`
 as their local `InstructionContext`. The 8008 fetches a full two-byte operand
 and masks it to a 14-bit address when jumping or calling. The 68000 currently
-declares its own two callbacks, `fetchLong` and `writeLong`.
+extends `ByteMemory` with `fetchWord`, `fetchLong`, and `nextAddress`. Its
+word-based instruction stream and explicit extension-word PC bases differ from
+the byte-fetch contexts.
 Contexts require the operations they advertise; unavailable operations are
 absent rather than optional.
 

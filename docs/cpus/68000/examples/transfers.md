@@ -4,7 +4,7 @@
 [Machine definition](../../../../src/machines/68000/transfers-example.machine) ·
 [Example tests](../../../../tests/machines/68000/transfers-example.test.ts)
 
-This program exercises all five supported data-register families. It moves a
+This program exercises five data-register instruction families. It moves a
 negative immediate through D7 and D2, computes unsigned carry and signed
 overflow in different registers, and stores both results. The register and
 quick transfers need only their operation word; long immediates and absolute
@@ -65,8 +65,8 @@ control fields retain their previous values.
 | Store D2 | `AB002024` | None | 0 | 0 | 1 | 0 | 0 |
 
 MOVEQ sign-extends its embedded `FF` byte to `FFFFFFFF`, replacing the whole
-destination register. All MOVE forms preserve X, set N/Z from the transferred
-long, and clear V/C. Register transfers preserve the source; self-transfers
+destination register. The long data-register MOVE forms here preserve X, set N/Z from the
+transferred long, and clear V/C. Register transfers preserve the source; self-transfers
 still update flags. ADDI ignores incoming X/C and replaces both from carry.
 The first addition produces unsigned carry without signed overflow; the second
 produces signed overflow without unsigned carry. The subsequent transfer clears V.

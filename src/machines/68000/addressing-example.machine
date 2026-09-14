@@ -1,0 +1,48 @@
+// Copy mixed-size data, preserve partial registers, and use signed addresses and the stack.
+ram 1000000
+
+cpu 68000 {
+  D0 = 11223344  D1 = 55667788  D2 = 99AABBCC  D3 = DDEEFF00
+  D4 = 01234567  D5 = FFFFFFFF  D6 = FEDCBA98  D7 = 76543210
+  A0 = 10000000  A1 = 20000000  A2 = 30000000  A3 = 40000000
+  A4 = 50000000  A5 = 60000000  A6 = 70000000
+  USP = 34008000  SSP = 56009000  PC = AB002000
+  interruptMask = 2
+  flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 0 }
+}
+
+memory 000000 {
+  56 00 90 00  // External-reset SSP
+  AB 00 20 00  // External-reset PC
+}
+
+memory 002000 {
+  20 7C AB 00 30 00  // MOVEA.L #AB003000,A0
+  22 7C CD 00 40 00  // MOVEA.L #CD004000,A1
+  34 7C FF 80        // MOVEA.W #FF80,A2
+  10 18              // MOVE.B (A0)+,D0
+  12 D8              // MOVE.B (A0)+,(A1)+
+  12 C0              // MOVE.B D0,(A1)+
+  32 D8              // MOVE.W (A0)+,(A1)+
+  22 D8              // MOVE.L (A0)+,(A1)+
+  22 20              // MOVE.L -(A0),D1
+  3F 01              // MOVE.W D1,-(A7)
+  34 1F              // MOVE.W (A7)+,D2
+  36 52              // MOVEA.W (A2),A3
+  16 2A 00 02        // MOVE.B (2,A2),D3
+  38 3A 00 78        // MOVE.W (0078,PC),D4: base 2028, operand 20A0
+  3C 31 50 FD        // MOVE.W (-3,A1,D5.W),D6: 4008 - 3 - 1 = 4004
+  26 81              // MOVE.L D1,(A3)
+  1E 38 FF 82        // MOVE.B (FF82).W,D7
+  23 C6 CD 00 40 08  // MOVE.L D6,(CD004008).L
+}
+
+memory 0020A0 { F0 0D }
+memory 002FFE { DE AD  80 7F 12 34 89 AB CD EF  BE EF }
+memory 003FFE { DE AD  CC CC CC CC CC CC CC CC CC CC CC CC  BE EF }
+memory 007FFC { AA BB CC DD EE FF }
+memory 008FFC { AA BB CC DD EE FF }
+memory FF8000 { DE AD  CC CC CC CC  BE EF }
+memory FFFF80 { 80 02 55 AA }
+
+end AB00203A

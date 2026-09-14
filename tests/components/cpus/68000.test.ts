@@ -270,7 +270,20 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
   const cpu = new Cpu68000(ram, before);
   const supported = new Set(registerForms.flatMap(({ load, add, store, quick, moves }) =>
     [load, add, store, ...moves, ...Array.from({ length: 256 }, (_, byte) => quick + byte)]));
-  assert.equal(supported.size, 2136); // 88 long forms plus 8 × 256 embedded MOVEQ operands.
+  // Independent manual address sets: byte excludes An; destination excludes PC/immediate.
+  const allSources = Array.from({ length: 61 }, (_, code) => code);
+  const byteSources = allSources.filter(code => code < 8 || code >= 16);
+  const dataDestinations = [...Array.from({ length: 8 }, (_, code) => code),
+    ...Array.from({ length: 42 }, (_, code) => code + 16)];
+  for (const [base, sources, destinations] of [
+    [0x1000, byteSources, dataDestinations], [0x2000, allSources, [...dataDestinations, 8, 9, 10, 11, 12, 13, 14, 15]],
+    [0x3000, allSources, [...dataDestinations, 8, 9, 10, 11, 12, 13, 14, 15]],
+  ] as const) {
+    for (const source of sources) for (const destination of destinations) {
+      supported.add(base + (destination % 8) * 512 + Math.floor(destination / 8) * 64 + source);
+    }
+  }
+  assert.equal(supported.size, 11782); // 9,726 MOVE/MOVEA + 8 ADDI + 8 × 256 MOVEQ words.
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
@@ -404,4 +417,315 @@ test("68000 execution reads current code and operands, fetches before overlappin
   cpu.reset();
   assert.deepEqual(final.flags, { x: false, n: true, z: false, v: false, c: false, t: true, s: true });
   assert.deepEqual(load, saved);
+});
+
+// Address fixtures use literal EA codes from the manual. Expected addresses and updates
+// are ordinary integer arithmetic, independent of the production decoder and bitwise helpers.
+type AddressName = "a0" | "a1" | "a2" | "a3" | "a4" | "a5" | "a6" | "usp" | "ssp";
+type TransferFixture = {
+  readonly code: number;
+  readonly extension: readonly number[];
+  readonly register?: DataRegister | AddressName;
+  readonly address?: number;
+  readonly immediate?: number;
+  readonly update?: readonly [AddressName, number];
+};
+const unsignedLong = (value: number): number => (value % 4294967296 + 4294967296) % 4294967296;
+const signedWord = (value: number): number => value % 65536 < 32768 ? value % 65536 : value % 65536 - 65536;
+const bytesFor = (size: number, value: number): number[] => longBytes(value).slice(4 - size);
+const physical = (address: number): number => unsignedLong(address) % 16777216;
+const addressNames = (state: Cpu68000State): readonly AddressName[] =>
+  ["a0", "a1", "a2", "a3", "a4", "a5", "a6", state.flags.s ? "ssp" : "usp"];
+
+function transferState(bits = 0): Cpu68000State {
+  return initialState({ a0: 0xab020000, a1: 0xcd020100, a2: 0xef020200, a3: 0x12020300,
+    a4: 0x34020400, a5: 0x56020500, a6: 0x78020600, usp: 0x9a020700, ssp: 0xbc020800,
+    flags: flags(bits), interruptMask: bits % 8 });
+}
+
+function transferFixtures(state: Cpu68000State, size: number, extensionPc: number): TransferFixture[] {
+  const result: TransferFixture[] = [];
+  for (const [n, register] of addressNames(state).entries()) {
+    const base = state[register];
+    const increment = size === 1 && n === 7 ? 2 : size;
+    const previous = unsignedLong(base - increment);
+    result.push(
+      { code: n, extension: [], register: registerForms[n]!.register },
+      { code: 8 + n, extension: [], register },
+      { code: 16 + n, extension: [], address: base },
+      { code: 24 + n, extension: [], address: base, update: [register, unsignedLong(base + increment)] },
+      { code: 32 + n, extension: [], address: previous, update: [register, previous] },
+      { code: 40 + n, extension: [0xff, 0xfc], address: unsignedLong(base - 4) },
+      { code: 48 + n, extension: [0x70, 0xfe], address: unsignedLong(base + signedWord(state.d7) - 2) },
+    );
+  }
+  result.push(
+    { code: 56, extension: [0xff, 0x82], address: 0xffffff82 },
+    { code: 57, extension: [0xcd, 0x02, 0x00, 0x82], address: 0xcd020082 },
+    { code: 58, extension: [0xfe, 0xee], address: unsignedLong(extensionPc - 274) },
+    { code: 59, extension: [0x70, 0xfe], address: unsignedLong(extensionPc + signedWord(state.d7) - 2) },
+    { code: 60, extension: size === 4 ? [0x80, 0, 0, 0] : size === 2 ? [0x80, 0] : [0xa5, 0x80], immediate: 2 ** (size * 8 - 1) },
+  );
+  return result;
+}
+
+function checkTransfer(ram: ObservedRam, before: Cpu68000State, opcode: number, size: number,
+  source: TransferFixture, destination: TransferFixture): void {
+  const bytes = [...wordBytes(opcode), ...source.extension, ...destination.extension];
+  const after = { ...before, flags: { ...before.flags }, pc: unsignedLong(before.pc + bytes.length) };
+  const memory = new Map<number, number>();
+  for (const operand of [source, destination]) {
+    if (operand.address === undefined) continue;
+    for (let offset = -1; offset <= size; offset++) {
+      const address = physical(operand.address + offset);
+      memory.set(address, (address * 37 + 165) % 256);
+    }
+  }
+  bytes.forEach((byte, offset) => memory.set(physical(before.pc + offset), byte));
+  for (const [address, value] of memory) ram.write(address, value);
+  const accesses: Cpu68000MemoryAccess[] = [];
+  const read = (address: number): number => {
+    const value = memory.get(physical(address))!;
+    accesses.push({ kind: "read", address: physical(address), value });
+    return value;
+  };
+  for (let offset = 0; offset < 2 + source.extension.length; offset++) read(before.pc + offset);
+  let value = source.immediate ?? (source.register === undefined ? 0 : before[source.register] % 2 ** (size * 8));
+  if (source.address !== undefined) {
+    for (let offset = 0; offset < size; offset++) value = value * 256 + read(source.address + offset);
+  }
+  if (source.update) after[source.update[0]] = source.update[1];
+  for (let offset = 2 + source.extension.length; offset < bytes.length; offset++) read(before.pc + offset);
+  if (destination.update) after[destination.update[0]] = destination.update[1];
+  if (destination.address !== undefined) {
+    bytesFor(size, value).forEach((byte, offset) => {
+      const address = physical(destination.address! + offset);
+      accesses.push({ kind: "write", address, value: byte });
+      memory.set(address, byte);
+    });
+  } else if (destination.register) {
+    const register = destination.register;
+    after[register] = register.startsWith("d")
+      ? Math.floor(after[register] / 2 ** (size * 8)) * 2 ** (size * 8) + value
+      : size === 2 ? unsignedLong(signedWord(value)) : value;
+  }
+  if (destination.code < 8 || destination.code >= 16) {
+    after.flags = { ...after.flags, n: value >= 2 ** (size * 8 - 1), z: value === 0, v: false, c: false };
+  }
+  const cpu = new Cpu68000(ram, before);
+  ram.accesses.length = 0;
+  const record = cpu.step();
+  assert.deepEqual(record, { before: snapshot(before), after: snapshot(after), instruction: { address: before.pc, bytes },
+    outcome: "executed", accesses }, `operation word ${opcode.toString(16)}`);
+  assert.deepEqual(ram.accesses, accesses);
+  for (const [address, value] of memory) assert.equal(ram.read(address), value);
+}
+
+for (const [base, size, count] of [[0x1000, 1, 2650], [0x2000, 4, 3538], [0x3000, 2, 3538]] as const) {
+  test(`68000 ${size}-byte MOVE/MOVEA executes all ${count} legal source/destination forms with both active stacks`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (const bits of [0, 127]) {
+      const before = transferState(bits);
+      const sources = transferFixtures(before, size, before.pc + 2).filter(f => size !== 1 || f.code < 8 || f.code >= 16);
+      let forms = 0;
+      for (const source of sources) {
+        const advanced = { ...before };
+        if (source.update) advanced[source.update[0]] = source.update[1];
+        const destinations = transferFixtures(advanced, size, before.pc + 2 + source.extension.length)
+          .filter(f => f.code < 58 && (size !== 1 || f.code < 8 || f.code >= 16));
+        for (const destination of destinations) {
+          const opcode = base + (destination.code % 8) * 512 + Math.floor(destination.code / 8) * 64 + source.code;
+          checkTransfer(ram, before, opcode, size, source, destination);
+          forms++;
+        }
+      }
+      assert.equal(forms, count);
+    }
+  });
+}
+
+for (const [size, immediate, fromAddress, toAddress] of [[1, 0x103c, undefined, undefined],
+  [2, 0x303c, 0x3008, 0x3040], [4, 0x203c, 0x2008, 0x2040]] as const) {
+  test(`68000 ${size}-byte transfers preserve upper Dn bits, apply size-specific flags, and keep MOVEA flags`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (let bits = 0; bits < 128; bits++) {
+      for (const value of [0, 1, 2 ** (size * 8 - 1) - 1, 2 ** (size * 8 - 1), 2 ** (size * 8) - 1]) {
+        const before = transferState(bits);
+        const source = { code: 60, extension: size === 1 ? [0xa5, value] : bytesFor(size, value), immediate: value };
+        checkTransfer(ram, before, immediate, size, source, { code: 0, extension: [], register: "d0" });
+        if (toAddress !== undefined && fromAddress !== undefined) {
+          checkTransfer(ram, { ...before, d0: value }, toAddress, size,
+            { code: 0, extension: [], register: "d0" }, { code: 8, extension: [], register: "a0" });
+          checkTransfer(ram, { ...before, a0: value }, fromAddress, size,
+            { code: 8, extension: [], register: "a0" }, { code: 0, extension: [], register: "d0" });
+        }
+      }
+    }
+  });
+}
+
+test("68000 all 65,536 brief index words select signed word/long Dn/An indexes and ignore bits 10–8", () => {
+  const ram = new ObservedRam(0x1000000);
+  // Byte accesses also check odd results; use both An and extension-word PC bases.
+  for (const bits of [0, 127]) {
+    const state = transferState(bits);
+    for (const [opcode, code, base] of [[0x1030, 48, state.a0], [0x103b, 59, state.pc + 2]] as const) {
+      for (let extension = 0; extension < 65536; extension++) {
+        const register = Math.floor(extension / 4096) % 8;
+        const value = extension >= 32768 ? state[addressNames(state)[register]!] : state[registerForms[register]!.register];
+        const index = Math.floor(extension / 2048) % 2 ? value : signedWord(value);
+        const low = extension % 256;
+        const displacement = low < 128 ? low : low - 256;
+        checkTransfer(ram, state, opcode, 1,
+          { code, extension: wordBytes(extension), address: unsignedLong(base + index + displacement) },
+          { code: 0, extension: [], register: "d0" });
+      }
+    }
+  }
+});
+
+test("68000 displacement and absolute-word addresses sign-extend every word and preserve full logical addresses", () => {
+  const ram = new ObservedRam(0x1000000);
+  const state = transferState();
+  for (const [opcode, code, base] of [[0x1028, 40, state.a0], [0x1038, 56, 0], [0x103a, 58, state.pc + 2]] as const) {
+    for (let displacement = 0; displacement < 65536; displacement++) {
+      checkTransfer(ram, state, opcode, 1,
+        { code, extension: wordBytes(displacement), address: unsignedLong(base + signedWord(displacement)) },
+        { code: 0, extension: [], register: "d0" });
+    }
+  }
+});
+
+test("68000 byte immediates consume a word and ignore every high extension byte", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let high = 0; high < 256; high++) for (const value of [0, 0x7f, 0x80, 0xff]) {
+    checkTransfer(ram, transferState(), 0x103c, 1, { code: 60, extension: [high, value], immediate: value },
+      { code: 0, extension: [], register: "d0" });
+  }
+});
+
+test("68000 auto-updates wrap at 32 bits and byte A7 uses two bytes in either privilege mode", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const bits of [0, 127]) for (const [base, size] of [[0x1000, 1], [0x3000, 2], [0x2000, 4]] as const) {
+    for (const [n, register] of addressNames(transferState(bits)).entries()) {
+      for (const address of [0, 2, 0x12fffffe, 0xfffffffe]) {
+        const state = { ...transferState(bits), [register]: address };
+        for (const code of [24 + n, 32 + n]) {
+          const operand = transferFixtures(state, size, state.pc + 2).find(f => f.code === code)!;
+          checkTransfer(ram, state, base + code, size, operand, { code: 0, extension: [], register: "d0" });
+          checkTransfer(ram, state, base + n * 512 + Math.floor(code / 8) * 64, size,
+            { code: 0, extension: [], register: "d0" }, operand);
+        }
+      }
+    }
+  }
+});
+
+test("68000 source increments feed destination indexes and MOVEA overwrites the pending source update", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const bits of [0, 127]) {
+    const before = transferState(bits);
+    // MOVE.L (A0)+,(0,A1,A0.L): destination uses the updated A0 as its index.
+    checkTransfer(ram, before, 0x2398, 4,
+      { code: 24, extension: [], address: before.a0, update: ["a0", before.a0 + 4] },
+      { code: 49, extension: [0x88, 0], address: unsignedLong(before.a1 + before.a0 + 4) });
+    // MOVEA.W (A0)+,A0: the loaded word wins over the increment.
+    checkTransfer(ram, before, 0x3058, 2,
+      { code: 24, extension: [], address: before.a0, update: ["a0", before.a0 + 2] },
+      { code: 8, extension: [], register: "a0" });
+  }
+});
+
+test("68000 reads overlapping source bytes before destination extensions and writes, with no synthetic destination reads", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const pc of [0x1000, 0x12fffffe, 0xfffffffe]) {
+    const before = transferState();
+    before.pc = pc;
+    for (const sourceOffset of [0, 2, 4, 6, 8]) for (const destinationOffset of [0, 2, 4, 6, 8]) {
+      const source = unsignedLong(pc + sourceOffset);
+      const destination = unsignedLong(pc + destinationOffset);
+      checkTransfer(ram, before, 0x23f9, 4,
+        { code: 57, extension: longBytes(source), address: source },
+        { code: 57, extension: longBytes(destination), address: destination });
+    }
+  }
+});
+
+test("68000 read and write alignment rejection preserves both pending address updates and all RAM", () => {
+  const ram = new ObservedRam(0x1000000);
+  const cases = [
+    { opcode: 0x22d8, a0: 0xab020001, a1: 0xcd030000, address: 0xab020001, operation: "read", reads: 0 }, // (A0)+,(A1)+
+    { opcode: 0x22d8, a0: 0xab020000, a1: 0xcd030001, address: 0xcd030001, operation: "write", reads: 4 },
+    { opcode: 0x2320, a0: 0xab020005, a1: 0xcd030004, address: 0xab020001, operation: "read", reads: 0 }, // -(A0),-(A1)
+    { opcode: 0x2320, a0: 0xab020004, a1: 0xcd030005, address: 0xcd030001, operation: "write", reads: 4 },
+  ] as const;
+  for (const item of cases) for (const bits of [0, 127]) {
+    const state = transferState(bits);
+    state.a0 = item.a0;
+    state.a1 = item.a1;
+    const bytes = wordBytes(item.opcode);
+    bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
+    [0x81, 0x23, 0x45, 0x67].forEach((value, offset) => ram.write(0x20000 + offset, value));
+    ram.write(0x30000, 0xaa);
+    const cpu = new Cpu68000(ram, state);
+    const before = snapshot(state);
+    const accesses = [
+      ...bytes.map((value, offset) => ({ kind: "read" as const, address: 0x1000 + offset, value })),
+      ...[0x81, 0x23, 0x45, 0x67].slice(0, item.reads).map((value, offset) => ({ kind: "read" as const, address: 0x20000 + offset, value })),
+    ];
+    for (let repeat = 0; repeat < 2; repeat++) {
+      ram.accesses.length = 0;
+      assert.deepEqual(cpu.step(), { before, after: before, instruction: { address: state.pc, bytes }, accesses,
+        outcome: "unsupported", reason: "unaligned-address", fault: { operation: item.operation, address: item.address } });
+      assert.deepEqual(ram.accesses, accesses);
+      assert.equal(ram.read(0x30000), 0xaa);
+    }
+  }
+});
+
+test("68000 every word/long memory mode reports full odd read/write addresses with exact attempted fetches", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const [base, size] of [[0x3000, 2], [0x2000, 4]] as const) for (const bits of [0, 127]) {
+    const state = transferState(bits);
+    for (const register of addressNames(state)) state[register]++;
+    for (const fixture of transferFixtures(state, size, state.pc + 2)) {
+      if (fixture.address === undefined) continue;
+      const extension = [...fixture.extension];
+      let address = fixture.address;
+      if (address % 2 === 0) {
+        address = unsignedLong(address + 1);
+        extension[extension.length - 1]!++;
+      }
+      for (const operation of ["read", "write"] as const) {
+        if (operation === "write" && fixture.code > 57) continue;
+        const opcode = operation === "read" ? base + fixture.code
+          : base + (fixture.code % 8) * 512 + Math.floor(fixture.code / 8) * 64;
+        const bytes = [...wordBytes(opcode), ...extension];
+        bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
+        ram.accesses.length = 0;
+        const cpu = new Cpu68000(ram, state);
+        const before = snapshot(state);
+        const accesses = bytes.map((value, offset) => ({ kind: "read", address: 0x1000 + offset, value }));
+        assert.deepEqual(cpu.step(), { before, after: before, instruction: { address: state.pc, bytes }, accesses,
+          outcome: "unsupported", reason: "unaligned-address", fault: { operation, address } });
+        assert.deepEqual(ram.accesses, accesses);
+      }
+    }
+  }
+});
+
+test("68000 PC-relative reads use the extension address even across logical and physical wrap", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const pc of [0, 0x12fffffc, 0x12fffffe, 0xfffffffc, 0xfffffffe]) {
+    const state = { ...transferState(), pc };
+    for (const [base, size] of [[0x1000, 1], [0x3000, 2], [0x2000, 4]] as const) {
+      for (const [code, extension, address] of [
+        [58, [0xff, 0xfc], unsignedLong(pc + 2 - 4)],
+        [59, [0x70, 0xfe], unsignedLong(pc + 2 + signedWord(state.d7) - 2)],
+      ] as const) {
+        checkTransfer(ram, state, base + code, size, { code, extension, address },
+          { code: 0, extension: [], register: "d0" });
+      }
+    }
+  }
 });
