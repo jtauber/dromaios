@@ -4,6 +4,7 @@ import type { Ram } from "../../src/components/memory/ram.js";
 import { create6800Example } from "../../src/machines/generated/6800/example.js";
 import { create6800StackExample } from "../../src/machines/generated/6800/stack-example.js";
 import { create6800LogicExample } from "../../src/machines/generated/6800/logic-example.js";
+import { create6800AddressingExample } from "../../src/machines/generated/6800/addressing-example.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import type { CpuRunResult } from "../../src/runtime/run-cpu.js";
 
@@ -30,6 +31,8 @@ export function check6800(ram: Ram, state: Cpu6800State, snapshot: Cpu6800Snapsh
   const stackResult: CpuRunResult<Cpu6800StepRecord> = runCpu(stack.cpu, { maxSteps: 14, endAddress: stack.endAddress });
   const logic: { cpu: Cpu6800; ram: Ram; endAddress: number } = create6800LogicExample();
   const logicResult: CpuRunResult<Cpu6800StepRecord> = runCpu(logic.cpu, { maxSteps: 20, endAddress: logic.endAddress });
+  const addressing: { cpu: Cpu6800; ram: Ram; endAddress: number } = create6800AddressingExample();
+  const addressingResult: CpuRunResult<Cpu6800StepRecord> = runCpu(addressing.cpu, { maxSteps: 19, endAddress: addressing.endAddress });
   const result: CpuRunResult<Cpu6800StepRecord> = runCpu(cpu, { maxSteps: 3, endAddress: machine.endAddress });
   if (result.records[0]) {
     const i: boolean = result.records[0].after.flags.i;

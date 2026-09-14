@@ -1,0 +1,35 @@
+ram 10000
+
+cpu 6800 {
+    A = 81  B = 22  X = FF80  SP = 0101  PC = 0200
+    flags { H = 1  I = 0  N = 1  Z = 1  V = 1  C = 0 }
+}
+
+memory 0200 {
+    96 80       // LDAA $80: low byte FF
+    8B 01       // ADDA #$01: FF + 01 = 00, carry set
+    F6 03 00    // LDAB $0300: high byte 12; preserve carry
+    C9 00       // ADCB #$00: high byte becomes 13
+    97 82       // STAA $82: low result 00
+    D7 83       // STAB $83: high result 13
+    C1 13       // CMPB #$13: equality, preserving B
+    80 01       // SUBA #$01: 00 - 01 = FF, borrow set
+    C2 00       // SBCB #$00: high byte returns to 12
+    A7 FF       // STAA $FF,X: FF80 + FF wraps to 007F
+    F7 03 01    // STAB $0301: high result 12
+    84 0F       // ANDA #$0F: FF -> 0F
+    DA 80       // ORAB $80: 12 -> FF
+    A8 FF       // EORA $FF,X: 0F XOR FF = F0
+    E5 FF       // BITB $FF,X: test FF without changing B
+    B1 03 02    // CMPA $0302: compare F0, leaving A unchanged
+    27 02       // BEQ: skip the fallback load on equality
+    86 00       // LDAA #$00: fallback, normally skipped
+    B7 03 03    // STAA $0303: masked result F0
+    E7 FE       // STAB $FE,X: FF80 + FE wraps to 007E
+}
+
+memory 007D { AA CC 00 FF 55 CC CC AA } // Guards, inputs, and direct/indexed results
+memory 0300 { 12 CC F0 CC 55 }          // High input, result, comparison value, result, guard
+memory FFFE { 02 00 }
+
+end 022C

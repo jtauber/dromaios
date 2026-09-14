@@ -20,11 +20,11 @@ function loadStoreFlags(value: number, old: Cpu6800Flags): Cpu6800Flags {
 }
 
 // Independent oracle: signed ranges and decimal division/remainders, not bitwise overflow formulae.
-function addition(a: number, operand: number, i: boolean) {
-  const total = a + operand;
+function addition(a: number, operand: number, i: boolean, carry = 0) {
+  const total = a + operand + carry;
   const result = total % 256;
-  const signedTotal = (a < 128 ? a : a - 256) + (operand < 128 ? operand : operand - 256);
-  return { a: result, flags: { h: a % 16 + operand % 16 >= 16, i,
+  const signedTotal = (a < 128 ? a : a - 256) + (operand < 128 ? operand : operand - 256) + carry;
+  return { a: result, flags: { h: a % 16 + operand % 16 + carry >= 16, i,
     n: result >= 128, z: result === 0, v: signedTotal < -128 || signedTotal > 127, c: total >= 256 } };
 }
 
@@ -49,6 +49,275 @@ const immediateLogic = [
   { mnemonic: "ORAA", opcode: 0x8a, register: "a", truth: [0, 1, 1, 1], stores: true },
   { mnemonic: "ORAB", opcode: 0xca, register: "b", truth: [0, 1, 1, 1], stores: true },
 ] as const;
+
+// Literal manufacturer encodings, in immediate/direct/indexed/extended order.
+const accumulatorForms = [
+  { name: "SUBA", register: "a", operation: "sub", opcodes: [0x80, 0x90, 0xa0, 0xb0] },
+  { name: "SUBB", register: "b", operation: "sub", opcodes: [0xc0, 0xd0, 0xe0, 0xf0] },
+  { name: "CMPA", register: "a", operation: "cmp", opcodes: [0x81, 0x91, 0xa1, 0xb1] },
+  { name: "CMPB", register: "b", operation: "cmp", opcodes: [0xc1, 0xd1, 0xe1, 0xf1] },
+  { name: "SBCA", register: "a", operation: "sbc", opcodes: [0x82, 0x92, 0xa2, 0xb2] },
+  { name: "SBCB", register: "b", operation: "sbc", opcodes: [0xc2, 0xd2, 0xe2, 0xf2] },
+  { name: "ANDA", register: "a", operation: "and", opcodes: [0x84, 0x94, 0xa4, 0xb4] },
+  { name: "ANDB", register: "b", operation: "and", opcodes: [0xc4, 0xd4, 0xe4, 0xf4] },
+  { name: "BITA", register: "a", operation: "bit", opcodes: [0x85, 0x95, 0xa5, 0xb5] },
+  { name: "BITB", register: "b", operation: "bit", opcodes: [0xc5, 0xd5, 0xe5, 0xf5] },
+  { name: "LDAA", register: "a", operation: "load", opcodes: [0x86, 0x96, 0xa6, 0xb6] },
+  { name: "LDAB", register: "b", operation: "load", opcodes: [0xc6, 0xd6, 0xe6, 0xf6] },
+  { name: "EORA", register: "a", operation: "xor", opcodes: [0x88, 0x98, 0xa8, 0xb8] },
+  { name: "EORB", register: "b", operation: "xor", opcodes: [0xc8, 0xd8, 0xe8, 0xf8] },
+  { name: "ADCA", register: "a", operation: "adc", opcodes: [0x89, 0x99, 0xa9, 0xb9] },
+  { name: "ADCB", register: "b", operation: "adc", opcodes: [0xc9, 0xd9, 0xe9, 0xf9] },
+  { name: "ORAA", register: "a", operation: "or", opcodes: [0x8a, 0x9a, 0xaa, 0xba] },
+  { name: "ORAB", register: "b", operation: "or", opcodes: [0xca, 0xda, 0xea, 0xfa] },
+  { name: "ADDA", register: "a", operation: "add", opcodes: [0x8b, 0x9b, 0xab, 0xbb] },
+  { name: "ADDB", register: "b", operation: "add", opcodes: [0xcb, 0xdb, 0xeb, 0xfb] },
+] as const;
+
+const storeForms = [
+  { name: "STAA", register: "a", opcode: 0x97, mode: "direct" },
+  { name: "STAB", register: "b", opcode: 0xd7, mode: "direct" },
+  { name: "STAA", register: "a", opcode: 0xa7, mode: "indexed" },
+  { name: "STAB", register: "b", opcode: 0xe7, mode: "indexed" },
+  { name: "STAA", register: "a", opcode: 0xb7, mode: "extended" },
+  { name: "STAB", register: "b", opcode: 0xf7, mode: "extended" },
+] as const;
+
+type AccumulatorOperation = typeof accumulatorForms[number]["operation"];
+
+function accumulatorResult(operation: AccumulatorOperation, left: number, right: number, old: Cpu6800Flags) {
+  if (operation === "add" || operation === "adc") {
+    const { a, flags } = addition(left, right, old.i, operation === "adc" && old.c ? 1 : 0);
+    return { value: a, flags };
+  }
+  if (operation === "sub" || operation === "sbc" || operation === "cmp") {
+    const incoming = operation === "sbc" && old.c ? 1 : 0;
+    const difference = left - right - incoming;
+    const value = (difference + 256) % 256;
+    const signedDifference = (left < 128 ? left : left - 256) - (right < 128 ? right : right - 256) - incoming;
+    return { value: operation === "cmp" ? left : value,
+      flags: { h: old.h, i: old.i, n: value >= 128, z: value === 0,
+        v: signedDifference < -128 || signedDifference > 127, c: difference < 0 } };
+  }
+  const value = operation === "load" ? right
+    : logicalResult(left, right, operation === "or" ? [0, 1, 1, 1]
+      : operation === "xor" ? [0, 1, 1, 0] : [0, 0, 0, 1]);
+  return { value: operation === "bit" ? left : value, flags: loadStoreFlags(value, old) };
+}
+
+for (const { name, register, operation, opcodes } of accumulatorForms) {
+  test(`6800 ${name} covers all four modes and flag patterns with complete records at arithmetic boundaries`, () => {
+    const ram = new ObservedRam();
+    for (const [mode, opcode] of opcodes.entries()) {
+      for (const [left, operand] of [[0, 0], [0, 0xff], [0x7f, 1], [0x80, 1], [0xff, 1], [0x0f, 0xf0]] as const) {
+        for (let bits = 0; bits < 64; bits++) {
+          const pc = bits % 2 === 0 ? 0x2000 : 0xffff;
+          const before = initialState({ [register]: left, x: 0xfff0, pc, flags: flags(bits) });
+          const operands = mode === 0 ? [operand] : mode === 1 ? [0x80] : mode === 2 ? [0xff] : [0x81, 0x23];
+          const address = mode === 0 ? undefined : mode === 1 ? 0x80 : mode === 2 ? 0xef : 0x8123;
+          const bytes = [opcode, ...operands];
+          for (const [offset, byte] of bytes.entries()) ram.write((pc + offset) % 65536, byte);
+          if (address !== undefined) ram.write(address, operand);
+          ram.accesses.length = 0;
+          const expected = accumulatorResult(operation, left, operand, before.flags);
+          const after = { ...before, [register]: expected.value, flags: expected.flags, pc: (pc + bytes.length) % 65536 };
+          const accesses = bytes.map((value, offset) => ({ kind: "read", address: (pc + offset) % 65536, value }));
+          if (address !== undefined) accesses.push({ kind: "read", address, value: operand });
+          const cpu = new Cpu6800(ram, before);
+          assert.deepEqual(cpu.step(), { before, after, instruction: { address: pc, bytes }, accesses, outcome: "executed" },
+            `${name} mode ${mode}, ${left}, ${operand}, flags ${bits}`);
+          assert.deepEqual(cpu.snapshot(), after);
+          assert.deepEqual(ram.accesses, accesses);
+        }
+      }
+    }
+  });
+
+  if (!["sub", "sbc", "cmp", "adc", "add"].includes(operation) || name === "ADDA") continue;
+  test(`6800 ${name} matches independent arithmetic for every byte pair and applicable incoming carry`, () => {
+    const ram = new Ram(65536);
+    // Reuse the CPU through a real five-instruction loop. CMP establishes C before LDA preserves it.
+    const load = register === "a" ? 0x86 : 0xc6;
+    const compare = register === "a" ? 0x81 : 0xc1;
+    const program = [load, 0, compare, 0, load, 0, opcodes[0], 0, 0x20, 0xf6];
+    for (const [offset, byte] of program.entries()) ram.write(0x2000 + offset, byte);
+    const cpu = new Cpu6800(ram, initialState({ flags: { ...flags(0), h: true, i: true } }));
+    const inputs = operation === "adc" || operation === "sbc" ? [0, 1] : [1];
+    for (const incoming of inputs) {
+      ram.write(0x2003, incoming);
+      for (let left = 0; left < 256; left++) {
+        ram.write(0x2005, left);
+        for (let operand = 0; operand < 256; operand++) {
+          ram.write(0x2007, operand);
+          for (let step = 0; step < 3; step++) assert.equal(cpu.step().outcome, "executed");
+          const before = cpu.snapshot();
+          assert.equal(before[register], left);
+          assert.equal(before.flags.c, incoming === 1);
+          assert.equal(before.flags.i, true);
+          if (operation !== "adc" && operation !== "add") assert.equal(before.flags.h, true);
+          const expected = accumulatorResult(operation, left, operand, before.flags);
+          const record = cpu.step();
+          assert.equal(record.outcome, "executed");
+          assert.deepEqual(record.after, { ...before, [register]: expected.value, flags: expected.flags, pc: 0x2008 },
+            `${name} ${left}, ${operand}, incoming ${incoming}`);
+          assert.equal(cpu.step().after.pc, 0x2000);
+        }
+      }
+    }
+  });
+}
+
+for (const { name, register, opcode, mode } of storeForms) {
+  test(`6800 ${name} ${mode} stores every byte with all flag patterns, without reading the destination`, () => {
+    const ram = new ObservedRam();
+    const pc = 0xfffe;
+    const operands = mode === "direct" ? [0x80] : mode === "indexed" ? [0xff] : [0x81, 0x23];
+    const address = mode === "direct" ? 0x80 : mode === "indexed" ? 0xef : 0x8123;
+    const bytes = [opcode, ...operands];
+    for (const [offset, byte] of bytes.entries()) ram.write((pc + offset) % 65536, byte);
+    for (let bits = 0; bits < 64; bits++) {
+      for (let value = 0; value < 256; value++) {
+        ram.write(address, value); // An unchanged value still requires the write.
+        ram.accesses.length = 0;
+        const before = initialState({ [register]: value, x: 0xfff0, pc, flags: flags(bits) });
+        const after = { ...before, flags: loadStoreFlags(value, before.flags), pc: (pc + bytes.length) % 65536 };
+        const accesses = [
+          ...bytes.map((value, offset) => ({ kind: "read", address: (pc + offset) % 65536, value })),
+          { kind: "write", address, value },
+        ];
+        assert.deepEqual(new Cpu6800(ram, before).step(), {
+          before, after, instruction: { address: pc, bytes }, accesses, outcome: "executed",
+        });
+        assert.deepEqual(ram.accesses, accesses);
+      }
+    }
+  });
+}
+
+test("6800 indexed loads and stores add every unsigned displacement to X with sixteen-bit wrapping", () => {
+  const ram = new ObservedRam();
+  for (const [opcode, register, store] of [[0xa6, "a", false], [0xe6, "b", false], [0xa7, "a", true], [0xe7, "b", true]] as const) {
+    ram.write(0x2000, opcode);
+    for (const x of [0, 1, 0x7fff, 0xff00, 0xff80, 0xffff]) {
+      for (let offset = 0; offset < 256; offset++) {
+        const address = (x + offset) % 65536;
+        ram.write(0x2001, offset);
+        ram.write(address, 0xa5);
+        ram.accesses.length = 0;
+        const before = initialState({ x, [register]: 0x5a });
+        const value = store ? 0x5a : 0xa5;
+        const after = { ...before, [register]: value, pc: 0x2002, flags: loadStoreFlags(value, before.flags) };
+        const accesses = [
+          { kind: "read", address: 0x2000, value: opcode },
+          { kind: "read", address: 0x2001, value: offset },
+          { kind: store ? "write" : "read", address, value },
+        ];
+        assert.deepEqual(new Cpu6800(ram, before).step(), {
+          before, after, instruction: { address: 0x2000, bytes: [opcode, offset] }, accesses, outcome: "executed",
+        });
+        assert.deepEqual(ram.accesses, accesses);
+      }
+    }
+  }
+});
+
+test("6800 direct loads and stores reach exactly page zero for every address byte, independently of X", () => {
+  const ram = new ObservedRam();
+  for (const [opcode, register, store] of [[0x96, "a", false], [0xd6, "b", false], [0x97, "a", true], [0xd7, "b", true]] as const) {
+    ram.write(0x2000, opcode);
+    for (let address = 0; address < 256; address++) {
+      ram.write(0x2001, address);
+      ram.write(address, 0xa5);
+      ram.accesses.length = 0;
+      const before = initialState({ x: 0x8000, [register]: 0x5a });
+      const record = new Cpu6800(ram, before).step();
+      const value = store ? 0x5a : 0xa5;
+      assert.equal(record.outcome, "executed");
+      assert.deepEqual(record.after, { ...before, [register]: value, pc: 0x2002, flags: loadStoreFlags(value, before.flags) });
+      assert.deepEqual(ram.accesses, [
+        { kind: "read", address: 0x2000, value: opcode },
+        { kind: "read", address: 0x2001, value: address },
+        { kind: store ? "write" : "read", address, value },
+      ]);
+      assert.deepEqual(record.accesses, ram.accesses);
+    }
+  }
+});
+
+test("6800 memory operands may overlap the fetched opcode or address bytes, retaining separate reads", () => {
+  const ram = new ObservedRam();
+  for (const { register, operation, opcodes } of accumulatorForms) {
+    for (const [mode, opcode] of opcodes.entries()) {
+      if (mode === 0) continue;
+      for (const pc of [0, 0xfffe, 0xffff]) {
+        const length = mode === 3 ? 3 : 2;
+        for (let slot = 0; slot < length; slot++) {
+          const address = (pc + slot) % 65536;
+          if (mode === 1 && address > 255) continue;
+          const operands = mode === 1 ? [address] : mode === 2 ? [slot] : [Math.floor(address / 256), address % 256];
+          const bytes = [opcode, ...operands];
+          for (const [offset, value] of bytes.entries()) ram.write((pc + offset) % 65536, value);
+          const before = initialState({ pc, x: pc });
+          const expected = accumulatorResult(operation, before[register], bytes[slot]!, before.flags);
+          ram.accesses.length = 0;
+          const record = new Cpu6800(ram, before).step();
+          assert.deepEqual(record.after, { ...before, [register]: expected.value, flags: expected.flags, pc: (pc + length) % 65536 });
+          assert.deepEqual(record.instruction.bytes, bytes);
+          assert.deepEqual(record.accesses, [
+            ...bytes.map((value, offset) => ({ kind: "read", address: (pc + offset) % 65536, value })),
+            { kind: "read", address, value: bytes[slot] },
+          ]);
+          assert.deepEqual(ram.accesses, record.accesses);
+        }
+      }
+    }
+  }
+});
+
+test("6800 all accumulator stores fetch their complete address before overwriting instruction bytes", () => {
+  const ram = new ObservedRam();
+  for (const { register, opcode, mode } of storeForms) {
+    for (const pc of [0, 0xfffe, 0xffff]) {
+      const length = mode === "extended" ? 3 : 2;
+      for (let slot = 0; slot < length; slot++) {
+        const address = (pc + slot) % 65536;
+        if (mode === "direct" && address > 255) continue;
+        const operands = mode === "direct" ? [address] : mode === "indexed" ? [slot] : [Math.floor(address / 256), address % 256];
+        const bytes = [opcode, ...operands];
+        for (const [offset, value] of bytes.entries()) ram.write((pc + offset) % 65536, value);
+        ram.accesses.length = 0;
+        const before = initialState({ pc, x: pc, [register]: 0x55 });
+        const record = new Cpu6800(ram, before).step();
+        assert.deepEqual(record.after, { ...before, pc: (pc + length) % 65536, flags: loadStoreFlags(0x55, before.flags) });
+        assert.deepEqual(record.instruction.bytes, bytes);
+        assert.deepEqual(record.accesses, [
+          ...bytes.map((value, offset) => ({ kind: "read", address: (pc + offset) % 65536, value })),
+          { kind: "write", address, value: 0x55 },
+        ]);
+        assert.deepEqual(ram.accesses, record.accesses);
+        assert.equal(ram.read(address), 0x55);
+      }
+    }
+  }
+});
+
+test("6800 indexed reads use edited RAM on later instructions and keep earlier records detached", () => {
+  const ram = new ObservedRam();
+  for (const [offset, value] of [0xa6, 0xff, 0xa6, 0xff].entries()) ram.write(0x2000 + offset, value);
+  ram.write(0x7f, 0x33);
+  const cpu = new Cpu6800(ram, initialState({ x: 0xff80 }));
+  const first = cpu.step();
+  const saved = structuredClone(first);
+  assert.equal(first.after.a, 0x33);
+  ram.write(0x7f, 0x80);
+  const second = cpu.step();
+  assert.equal(second.after.a, 0x80);
+  assert.equal(second.after.flags.n, true);
+  assert.deepEqual(second.accesses.at(-1), { kind: "read", address: 0x7f, value: 0x80 });
+  cpu.reset();
+  ram.write(0x7f, 0);
+  assert.deepEqual(first, saved);
+});
 
 test("6800 construction and inspection copy only declared state and detach flags without RAM accesses", () => {
   const ram = new ObservedRam();
@@ -266,14 +535,14 @@ for (const { mnemonic, opcode, register, truth, stores } of immediateLogic) {
 test("6800 logic resumes after replacing an unsupported form and reads current operands while retaining old records", () => {
   for (const { opcode, register, truth, stores } of immediateLogic) {
     const ram = new ObservedRam();
-    ram.write(0xfffe, 0x94); // Direct ANDA remains unsupported.
+    ram.write(0xfffe, 0x83); // Unassigned on the original 6800.
     ram.write(0xffff, 0xff);
     const cpu = new Cpu6800(ram, initialState({ [register]: 0x81, pc: 0xfffe }));
     const initial = cpu.snapshot();
     ram.accesses.length = 0;
-    const rejectedAccesses = [{ kind: "read", address: 0xfffe, value: 0x94 }];
+    const rejectedAccesses = [{ kind: "read", address: 0xfffe, value: 0x83 }];
     assert.deepEqual(cpu.step(), { before: initial, after: initial,
-      instruction: { address: 0xfffe, bytes: [0x94] }, outcome: "unsupported", reason: "opcode", accesses: rejectedAccesses });
+      instruction: { address: 0xfffe, bytes: [0x83] }, outcome: "unsupported", reason: "opcode", accesses: rejectedAccesses });
     assert.deepEqual(ram.accesses, rejectedAccesses);
     ram.write(0xfffe, opcode);
     const first = cpu.step();
@@ -590,13 +859,14 @@ test("6800 pulls read edited stack RAM and later calls use current SP while old 
   assert.deepEqual(first, saved);
 });
 
-test("6800 rejects every other opcode atomically, including 21, other addressing modes and interrupt instructions", () => {
+test("6800 rejects every other opcode atomically, including 21, immediate stores, later-family additions and interrupts", () => {
   const supported = new Set([
     0x16, 0x17, 0x20, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
     0x32, 0x33, 0x36, 0x37, 0x39, 0x4a, 0x4c, 0x5a, 0x5c,
-    0x84, 0x85, 0x86, 0x88, 0x8a, 0x8b, 0x8d, 0x8e, 0xb7, 0xbd, 0xc4, 0xc5, 0xc6, 0xc8, 0xca,
+    0x8d, 0x8e, 0xbd,
+    ...accumulatorForms.flatMap(form => form.opcodes), ...storeForms.map(form => form.opcode),
   ]);
-  assert.equal(supported.size, 41);
+  assert.equal(supported.size, 115);
   const ram = new ObservedRam();
   for (let opcode = 0; opcode < 256; opcode++) {
     if (supported.has(opcode)) continue;

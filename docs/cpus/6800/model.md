@@ -11,11 +11,12 @@ addresses and the reset vector use the high byte first.
 [Arithmetic example](examples/arithmetic.md) ·
 [Counted-loop example](examples/counted-loop.md) ·
 [Stack example](examples/stack.md) ·
-[Logic example](examples/logic.md)
+[Logic example](examples/logic.md) ·
+[Addressing/carry example](examples/addressing.md)
 
 Hardware references are Motorola's
 [M6800 Programming Reference Manual, November 1976](https://manualzz.com/doc/1063126/motorola-m6800-microprocessor-programming-reference-manual),
-sections 1, 3.3.1, and 3.4–3.5 and Appendix A's ADD, LDA, STA, TAB, TBA,
+sections 1, 3.3.1, 3.4–3.5, 4.6–4.7 and Appendix A's ADD, ADC, SUB, SBC, CMP, LDA, STA, TAB, TBA,
 INC, DEC, branch, LDS, PSH, PUL, JSR, RTS, AND, BIT, EOR, and ORA definitions; and the
 [MC6800 data sheet in M6800 Systems Reference and Data Sheets](https://vtda.org/docs/computing/Motorola/M6800SystemsReferenceDataSheets_May75.pdf),
 reset description on pages 13–14 and instruction tables on pages 18–21.
@@ -62,17 +63,17 @@ fetched bytes, ordered `accesses`, and an `outcome`. The outcome is `executed`
 or `unsupported`; only the latter carries `reason: "opcode"`.
 
 Supported instructions fetch the opcode and then their operands, advancing PC
-after each byte with wrap from `FFFF` to `0000`. LDAA, LDAB, and ADDA fetch one
-immediate byte. ANDA/ANDB, BITA/BITB, EORA/EORB, and ORAA/ORAB likewise
-fetch one immediate byte and perform no data-memory access.
+after each byte with wrap from `FFFF` to `0000`. Accumulator instructions use
+the addressing forms below. Immediate forms fetch a value without a separate
+data read; memory forms fetch their address bytes before reading or writing data.
 Transfers and accumulator increments/decrements fetch only
 their opcode. Branches always fetch a displacement byte, whether taken or
 untaken. LDS and extended JSR fetch a high-byte-first word. Stack pushes,
 pulls, and RTS fetch only their opcode; BSR fetches a displacement byte.
 Stack data reads appear in `accesses`, but not in the fetched instruction
 bytes, and do not advance PC. All instruction bytes are fetched before
-stack reads or writes. STAA fetches the high and low address bytes, then writes A
-without reading the destination. Writes are recorded even when the value is
+stack reads or writes. STAA and STAB write the selected accumulator without
+reading the destination. Writes are recorded even when the value is
 unchanged. Stores can overwrite instruction or vector bytes; retained records
 keep the values fetched at the time, while subsequent operations read current RAM.
 
@@ -83,21 +84,53 @@ recorded fetch is an explicit rejection policy of this model.
 These records describe instruction-level accesses. Cycle counts, internal
 cycles, dummy bus accesses, pin transitions, and electrical behavior are omitted.
 
+## Addressing
+
+Accumulator encodings use `1 r mm oooo`: `r=0` selects A, `r=1` selects B,
+`mm` selects the addressing mode, and `oooo` selects the operation.
+
+| mm | Mode | Operand bytes after opcode | Data address |
+| --- | --- | --- | --- |
+| `00` | Immediate | Value byte | No separate data address |
+| `01` | Direct | Address byte | `0000`–`00FF`; independent of X |
+| `10` | Indexed | Unsigned displacement byte | `(X + displacement) & FFFF` |
+| `11` | Extended | Address high byte, then low byte | Full 16-bit address |
+
+All four modes are implemented for A/B loads, ADD, ADC, SUB, SBC, CMP, AND,
+BIT, EOR, and ORA. Stores support direct, indexed, and extended modes; the
+original 6800 has no immediate accumulator store. Each memory source is read
+once, including CMP and BIT. All accumulator instructions preserve X and SP.
+Indexed displacement bytes `80`–`FF` add 128–255; X itself does not change.
+Address addition wraps at 16 bits, independently of PC wrapping during fetch.
+
 ## Loads, stores, and addition
 
-LDAA and LDAB load their immediate operand into A or B respectively. STAA
-stores A without changing it. All set N from bit 7 of the value and Z from
+LDAA and LDAB load their operand into A or B respectively. STAA and STAB
+store the named accumulator without changing it. All set N from bit 7 of the value and Z from
 whether it is zero, clear V, and preserve H, I, and C.
 
 LDS loads its immediate word into SP. It sets N from bit 15 and Z from whether
 the entire word is zero, clears V, and preserves H/I/C. A/B/X are unchanged.
 
-ADDA adds the immediate byte to A without incoming carry and wraps the result
-to a byte. It replaces H/N/Z/V/C: H indicates carry from bit 3, N the result's
+ADDA/ADDB add their byte operand to A/B without incoming carry; ADCA/ADCB
+include the current C bit. Results wrap to a byte. Both families replace
+H/N/Z/V/C: H indicates carry from bit 3, N the result's
 sign bit, Z a zero result, V signed overflow, and C carry out of bit 7. I is
 preserved. Instructions leave the other accumulator, X, and SP unchanged.
 
-## Immediate logic
+## Subtraction and comparison
+
+SUBA/SUBB subtract the operand from A/B; SBCA/SBCB also subtract the current
+C bit as an incoming borrow. They replace N/Z/V/C from the binary subtraction,
+with C set for unsigned underflow. An operand of `FF` plus an incoming borrow
+still subtracts 256; it is not reduced to zero before testing the borrow.
+H and I are unaffected, as specified for the original 6800.
+
+CMPA/CMPB produce SUB's flags without changing either accumulator or memory.
+They ignore incoming C. Addition and subtraction use the shared binary
+arithmetic helpers; the CPU applies its own flag rules.
+
+## Accumulator logic
 
 ANDA/ANDB replace the named accumulator with its bitwise AND with the operand;
 ORAA/ORAB use inclusive OR, and EORA/EORB use exclusive OR. BITA/BITB form
@@ -197,9 +230,18 @@ Logic tests use independent per-bit truth tables for every operand pair in
 both accumulators, with incoming flags all clear and all set. Further checks
 cover all flag patterns at byte boundaries and with alternating-bit operands,
 ordinary and wrapped PC, exact fetch records, BIT preserving its accumulator,
-current operands, and resumption after replacing an unsupported addressing form.
+current operands, and resumption after replacing an unassigned opcode.
 
-The generated arithmetic, counted-loop, stack, and logic examples check full initial/final
+All eighty accumulator-read encodings have literal-opcode tests across all
+incoming flag patterns and arithmetic boundaries. Independent signed-range
+calculations check every immediate arithmetic operand pair in both accumulators,
+including both incoming bits for ADC/SBC. The six stores check all byte values
+and flag patterns. Address tests cover every direct address byte, every unsigned
+indexed displacement at boundary X values, PC wrapping, and operands or stores
+overlapping fetched instructions. Actual RAM calls verify complete fetch/data
+ordering, preserved registers, and unchanged-value writes.
+
+The generated arithmetic, counted-loop, stack, logic, and addressing examples check full initial/final
 memory images, explicit state, complete execution records, bounded running,
 caller completion, reset, and fresh restart. The loop also checks pause/resume
 and an edited displacement that repeats BNE until the step budget expires.
@@ -210,6 +252,10 @@ The logic example exercises all eight immediate forms inside a subroutine,
 branches on BIT results, preserves the caller's B on the stack, adds to A,
 and stores the answer. It checks snapshot resumption after either bit test,
 as well as edited masks that select the early-return and fallback paths.
+The addressing example propagates carry and borrow across A/B, wraps indexed
+addresses into page zero, and branches on a memory comparison. It checks
+snapshot resumption across the arithmetic chain and an edited addend that
+changes the borrow and selects the fallback path.
 Parser, generator, and type checks preserve CPU-specific state and record
 contracts.
 

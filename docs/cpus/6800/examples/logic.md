@@ -4,7 +4,7 @@ This program uses all eight immediate logic forms inside a subroutine, branches
 on bit-test flags, adds to the result, and stores an answer. The subroutine
 saves the caller's B on the same RAM stack as the return address.
 
-[Model contract](../model.md#immediate-logic) ·
+[Model contract](../model.md#accumulator-logic) ·
 [Example definition](../../../../src/machines/6800/logic-example.machine) ·
 [Example tests](../../../../tests/machines/6800/logic-example.test.ts) ·
 [CPU coverage](../../coverage.md#6800)

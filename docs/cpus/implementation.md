@@ -322,12 +322,12 @@ the selected width and remain unsigned, including 32-bit values with bit 31
 set. Half carry and half borrow always describe the low nibble's boundary
 between bits 3 and 4, even for wider operands.
 
-All eight CPUs use shared addition; the 8008, 8080, 6502, 6809, Z80, and 8088
+All eight CPUs use shared addition; the 8008, 8080, 6502, 6800, 6809, Z80, and 8088
 also use subtraction. The 8088 supplies its selected byte/word width directly,
 and the 68000 selects 32 bits. CPU flag assignments remain beside the instruction:
 the 6502 sets C when there is no borrow; the 8080 uses borrow for CY and inverted
-half borrow for AC; the Z80 and 8088 use both borrow facts directly; the 6809
-preserves H during subtraction. The 68000 copies addition's carry to both X
+half borrow for AC; the Z80 and 8088 use both borrow facts directly; the 6800
+and 6809 preserve H during subtraction. The 68000 copies addition's carry to both X
 and C. Parity, flag preservation, decimal corrections, and the NMOS 6502's
 intermediate flag rules remain CPU behavior.
 

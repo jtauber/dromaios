@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [254](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [457](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [216](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [249](../../src/components/cpus/6800.ts) | 115 / 197 | 58.4% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [423](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [455](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [396](../../src/components/cpus/6809.ts) | 137 / 268 | 51.1% |
@@ -566,6 +566,46 @@ final RAM, resumption before adjustment, reset, and restart.
 [Logic specification](6800/examples/logic.md) ·
 [Logic definition](../../src/machines/6800/logic-example.machine)
 
+[Addressing/carry specification](6800/examples/addressing.md) ·
+[Addressing/carry definition](../../src/machines/6800/addressing-example.machine)
+
+**115 of 197 documented forms are complete (58.4%).** The accumulator families
+below contribute 86 forms: ten byte-read operations for both A/B across four
+addressing modes, plus three stores for each accumulator. The remaining 29
+forms appear in the following table.
+
+All documented forms of LDAA/LDAB, STAA/STAB, ADDA/ADDB, ADCA/ADCB,
+SUBA/SUBB, SBCA/SBCB, CMPA/CMPB, ANDA/ANDB, BITA/BITB, EORA/EORB, and
+ORAA/ORAB are implemented. Direct operands address page zero; indexed operands
+add an unsigned byte to X and wrap at 16 bits. Extended addresses are high byte
+first. A dash means there is no documented form on the original 6800.
+
+| Instruction | Immediate | Direct | Indexed | Extended |
+| --- | --- | --- | --- | --- |
+| Length | 2 | 2 | 2 | 3 |
+| SUBA | `80` | `90` | `A0` | `B0` |
+| SUBB | `C0` | `D0` | `E0` | `F0` |
+| CMPA | `81` | `91` | `A1` | `B1` |
+| CMPB | `C1` | `D1` | `E1` | `F1` |
+| SBCA | `82` | `92` | `A2` | `B2` |
+| SBCB | `C2` | `D2` | `E2` | `F2` |
+| ANDA | `84` | `94` | `A4` | `B4` |
+| ANDB | `C4` | `D4` | `E4` | `F4` |
+| BITA | `85` | `95` | `A5` | `B5` |
+| BITB | `C5` | `D5` | `E5` | `F5` |
+| LDAA | `86` | `96` | `A6` | `B6` |
+| LDAB | `C6` | `D6` | `E6` | `F6` |
+| STAA | — | `97` | `A7` | `B7` |
+| STAB | — | `D7` | `E7` | `F7` |
+| EORA | `88` | `98` | `A8` | `B8` |
+| EORB | `C8` | `D8` | `E8` | `F8` |
+| ADCA | `89` | `99` | `A9` | `B9` |
+| ADCB | `C9` | `D9` | `E9` | `F9` |
+| ORAA | `8A` | `9A` | `AA` | `BA` |
+| ORAB | `CA` | `DA` | `EA` | `FA` |
+| ADDA | `8B` | `9B` | `AB` | `BB` |
+| ADDB | `CB` | `DB` | `EB` | `FB` |
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `16` | TAB | Inherent | 1 | Copy A to B; set N/Z, clear V, preserve H/I/C |
@@ -594,21 +634,9 @@ final RAM, resumption before adjustment, reset, and restart.
 | `4C` | INCA | Inherent | 1 | Increment A; set N/Z/V, preserve H/I/C |
 | `5A` | DECB | Inherent | 1 | Decrement B; set N/Z/V, preserve H/I/C |
 | `5C` | INCB | Inherent | 1 | Increment B; set N/Z/V, preserve H/I/C |
-| `84` | ANDA #n | Immediate | 2 | A AND operand → A; set N/Z, clear V, preserve H/I/C |
-| `85` | BITA #n | Immediate | 2 | Set N/Z from A AND operand, clear V; preserve A and H/I/C |
-| `86` | LDAA #n | Immediate | 2 | Load A; set N/Z, clear V, preserve H/I/C |
-| `88` | EORA #n | Immediate | 2 | A XOR operand → A; set N/Z, clear V, preserve H/I/C |
-| `8A` | ORAA #n | Immediate | 2 | A OR operand → A; set N/Z, clear V, preserve H/I/C |
-| `8B` | ADDA #n | Immediate | 2 | Add to A without incoming carry; set H/N/Z/V/C, preserve I |
 | `8D` | BSR rel | Relative | 2 | Push return PC low byte first, then branch relative to it; preserve flags |
 | `8E` | LDS #nn | Immediate | 3 | Load SP; set N/Z from the full word, clear V, preserve H/I/C |
-| `B7` | STAA addr | Extended | 3 | Store A; set N/Z, clear V, preserve H/I/C |
 | `BD` | JSR addr | Extended | 3 | Push return PC low byte first, then jump to the high-byte-first target; preserve flags |
-| `C4` | ANDB #n | Immediate | 2 | B AND operand → B; set N/Z, clear V, preserve H/I/C |
-| `C5` | BITB #n | Immediate | 2 | Set N/Z from B AND operand, clear V; preserve B and H/I/C |
-| `C6` | LDAB #n | Immediate | 2 | Load B; set N/Z, clear V, preserve H/I/C |
-| `C8` | EORB #n | Immediate | 2 | B XOR operand → B; set N/Z, clear V, preserve H/I/C |
-| `CA` | ORAB #n | Immediate | 2 | B OR operand → B; set N/Z, clear V, preserve H/I/C |
 
 Opcode `21` is unused on the original 6800 and remains unsupported. It is not
 the 6809's BRN instruction.
@@ -622,20 +650,21 @@ independently checked bounded run. The stack example also checks nested calls.
 | --- | --- |
 | Stored state | Byte A/B, word X/SP/PC, and H/I/N/Z/V/C flags |
 | Inspection | Detached registers and flags; no derived register pairs |
-| Accumulator operations | Immediate A/B loads, A↔B transfers, and wrapping A/B increment/decrement; preserve H/I/C |
-| Arithmetic and logic | Immediate addition to A; immediate AND, OR, XOR, and bit-test for A/B, with BIT updating flags without writing the accumulator |
+| Accumulator operations | A/B loads in all four modes, A↔B transfers, and wrapping A/B increment/decrement; preserve H/I/C |
+| Arithmetic and logic | A/B ADD/ADC/SUB/SBC/CMP and AND/OR/XOR/BIT in all four modes; CMP/BIT preserve operands, subtraction preserves H/I |
 | Control flow | BRA and all fourteen short conditional branches, relative BSR, extended JSR, and RTS; 16-bit targets and unchanged flags |
 | Stack | Immediate LDS; A/B pushes and pulls; calls and returns share ordinary RAM, with SP pointing to the next free byte and wrapping at 16 bits |
-| Memory | Exactly 64 KiB RAM; 16-bit PC wrapping; extended addresses fetched high byte first |
+| Memory | Exactly 64 KiB RAM; page-zero direct, unsigned X+offset indexed, and high-byte-first extended addressing; A/B stores in all three memory modes |
 | Reset | Read FFFE then FFFF into PC, set I; preserve other registers, flags, and RAM under the model policy |
 | Stopping | Caller completion address or step budget; unsupported instructions preserve state; no halt/wait latch |
-| Remaining scope | Other loads/stores, arithmetic/logic, addressing forms including indexed JSR, jumps, remaining stack operations, interrupts, mapped devices, and timing |
+| Remaining scope | Word loads/stores beyond immediate LDS, unary operations beyond accumulator INC/DEC, decimal adjust, indexed JSR, jumps, remaining stack operations, interrupts, mapped devices, and timing |
 
 Verification: [CPU tests](../../tests/components/cpus/6800.test.ts),
 [arithmetic example tests](../../tests/machines/6800/example.test.ts),
 [counted-loop tests](../../tests/machines/6800/counted-loop-example.test.ts),
 [stack tests](../../tests/machines/6800/stack-example.test.ts),
-[logic tests](../../tests/machines/6800/logic-example.test.ts), and
+[logic tests](../../tests/machines/6800/logic-example.test.ts),
+[addressing/carry tests](../../tests/machines/6800/addressing-example.test.ts), and
 [public type checks](../../tests/types/6800.ts). Checks cover every addition
 operand pair, every load/store/transfer/increment/decrement byte and incoming
 flag pattern, arithmetic boundaries, every store destination, PC, and
@@ -656,6 +685,15 @@ The stack example checks nested calls, saved accumulators, residual stack bytes,
 resumption from snapshots and RAM at different call depths, and reset during a call.
 The logic example checks all eight immediate forms, branches after BIT,
 stack preservation, snapshot resumption, and edited masks that select alternate paths.
+New accumulator checks cover all eighty read encodings, every incoming flag
+pattern at arithmetic boundaries, every immediate arithmetic operand pair in
+both accumulators, and both incoming bits for ADC/SBC. All six store forms
+check every byte and flag pattern. Direct and indexed address sweeps verify
+page-zero addressing, unsigned offsets, and wrapping; overlap tests record
+separate data reads and complete address fetches before stores. The addressing
+example checks carry/borrow propagation, indexed wraparound, memory comparisons,
+full records and RAM images, resumption, and an edited operand that selects a
+fallback path.
 Parser and generator checks preserve the 6800's own state schema and generated
 factory types.
 

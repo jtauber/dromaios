@@ -9,7 +9,7 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { add } from "./alu.ts";
+import { add, subtract } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu6800StateDescription = defineState({
@@ -79,6 +79,14 @@ export class Cpu6800 {
 
   // Opcode selectors and construction. Each group labels its own encoding fields.
 
+  // mm in 1 r mm oooo: immediate, direct (page zero), indexed (X + unsigned byte), extended.
+  readonly #operandReaders: readonly ((instruction: InstructionContext) => number)[] = [
+    ({ fetchByte }) => fetchByte(),
+    ({ fetchByte, readByte }) => readByte(fetchByte()),
+    ({ fetchByte, readByte }) => readByte(this.#indexedAddress(fetchByte())),
+    ({ fetchWord, readByte }) => readByte(fetchWord()),
+  ];
+
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // 0001011 d: d=0 transfers A to B; d=1 transfers B to A. Both update N/Z/V.
     ...opcodePattern("0001011 0", () => this.#loadAccumulator("b", this.#state.a)), // TAB
@@ -107,25 +115,29 @@ export class Cpu6800 {
 
     // 1 r mm oooo: r (bit 6) selects A=0/B=1; mm (bits 5–4) selects addressing;
     // oooo (bits 3–0) selects the operation, as labeled on each row.
-    // mm=00 supplies an immediate byte. Both loads and only the A add are implemented.
-    // Logic sets N/Z, clears V, and preserves H/I/C; BIT keeps both accumulators unchanged.
-    ...opcodeFamily("1 r 00 0100", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#loadAccumulator(register, this.#state[register] & fetchByte())), // ANDA / ANDB #n
-    ...opcodeFamily("1 r 00 0101", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#setResultFlags(this.#state[register] & fetchByte())), // BITA / BITB #n
-    ...opcodeFamily("1 r 00 0110", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#loadAccumulator(register, fetchByte())), // LDAA / LDAB #n
-    ...opcodeFamily("1 r 00 1000", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#loadAccumulator(register, this.#state[register] ^ fetchByte())), // EORA / EORB #n
-    ...opcodeFamily("1 r 00 1010", { r: ["a", "b"] }, ({ r: register }) => ({ fetchByte }: InstructionContext) => this.#loadAccumulator(register, this.#state[register] | fetchByte())), // ORAA / ORAB #n
-    ...opcodePattern("1 0 00 1011", ({ fetchByte }: InstructionContext) => this.#addToAccumulator(fetchByte())), // ADDA #n
+    // Every reader supplies one byte. CMP and BIT update flags without writing the accumulator.
+    ...this.#accumulatorHandlers("1 r mm 0000", (r, value) => { this.#state[r] = this.#subtract(this.#state[r], value); }), // SUBA / SUBB
+    ...this.#accumulatorHandlers("1 r mm 0001", (r, value) => { this.#subtract(this.#state[r], value); }), // CMPA / CMPB
+    ...this.#accumulatorHandlers("1 r mm 0010", (r, value) => { this.#state[r] = this.#subtract(this.#state[r], value, this.#state.flags.c ? 1 : 0); }), // SBCA / SBCB
+    // oooo=0011 has no accumulator-byte operation on the original 6800.
+    ...this.#accumulatorHandlers("1 r mm 0100", (r, value) => this.#loadAccumulator(r, this.#state[r] & value)), // ANDA / ANDB
+    ...this.#accumulatorHandlers("1 r mm 0101", (r, value) => this.#setResultFlags(this.#state[r] & value)), // BITA / BITB
+    ...this.#accumulatorHandlers("1 r mm 0110", (r, value) => this.#loadAccumulator(r, value)), // LDAA / LDAB
+    // Stores have no immediate form: expand only the three address-bearing modes.
+    ...opcodeFamily("1 r 01 0111", { r: ["a", "b"] }, ({ r }) => ({ fetchByte, writeByte }: InstructionContext) => this.#storeAccumulator(r, fetchByte(), writeByte)), // STAA / STAB direct
+    ...opcodeFamily("1 r 10 0111", { r: ["a", "b"] }, ({ r }) => ({ fetchByte, writeByte }: InstructionContext) => this.#storeAccumulator(r, this.#indexedAddress(fetchByte()), writeByte)), // STAA / STAB indexed
+    ...opcodeFamily("1 r 11 0111", { r: ["a", "b"] }, ({ r }) => ({ fetchWord, writeByte }: InstructionContext) => this.#storeAccumulator(r, fetchWord(), writeByte)), // STAA / STAB extended
+    ...this.#accumulatorHandlers("1 r mm 1000", (r, value) => this.#loadAccumulator(r, this.#state[r] ^ value)), // EORA / EORB
+    ...this.#accumulatorHandlers("1 r mm 1001", (r, value) => { this.#state[r] = this.#add(this.#state[r], value, this.#state.flags.c ? 1 : 0); }), // ADCA / ADCB
+    ...this.#accumulatorHandlers("1 r mm 1010", (r, value) => this.#loadAccumulator(r, this.#state[r] | value)), // ORAA / ORAB
+    ...this.#accumulatorHandlers("1 r mm 1011", (r, value) => { this.#state[r] = this.#add(this.#state[r], value); }), // ADDA / ADDB
 
-    // 10 mm 1101: mm=00 is relative BSR; mm=11 is extended JSR below.
+    // 10 mm 1101: mm=00 is relative BSR; mm=11 is extended JSR. Indexed JSR is deferred.
     ...opcodePattern("10 00 1101", ({ fetchByte, writeByte }: InstructionContext) => this.#call(this.#relativeAddress(fetchByte()), writeByte)), // BSR rel
+    ...opcodePattern("10 11 1101", ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte)), // JSR addr
 
     // 1 r mm 1110: r selects SP=0/X=1 rather than an accumulator; only immediate LDS is supported.
     ...opcodePattern("1 0 00 1110", ({ fetchWord }: InstructionContext) => this.#loadStackPointer(fetchWord())), // LDS #nn
-
-    // mm=01 (direct) and mm=10 (indexed) remain unsupported.
-    // 1 0 11 0111: STAA with an extended address, fetched high byte first.
-    ...opcodePattern("1 0 11 0111", ({ fetchWord, writeByte }: InstructionContext) => this.#storeAccumulator(fetchWord(), writeByte)), // STAA addr
-    ...opcodePattern("10 11 1101", ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte)), // JSR addr
 
     // Other instruction groups, including interrupt controls, are unsupported.
   ]);
@@ -133,6 +145,17 @@ export class Cpu6800 {
   #branchPair(pattern: string, test: () => boolean): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { p: [false, true] }, ({ p: invert }) =>
       ({ fetchByte }: InstructionContext) => this.#branch(fetchByte(), test() !== invert));
+  }
+
+  #accumulatorHandlers(pattern: string, apply: (register: Accumulator, value: number) => void): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { r: ["a", "b"], m: this.#operandReaders }, ({ r, m: read }) =>
+      (instruction: InstructionContext) => apply(r, read(instruction)));
+  }
+
+  // Addressing. The original 6800 adds an unsigned displacement and leaves X unchanged.
+
+  #indexedAddress(offset: number): number {
+    return (this.#state.x + offset) & 0xffff;
   }
 
   // Loads, stores, and accumulator operations.
@@ -147,8 +170,8 @@ export class Cpu6800 {
     this.#setResultFlags(value, 0x8000);
   }
 
-  #storeAccumulator(address: number, writeByte: InstructionContext["writeByte"]): void {
-    const value = this.#state.a;
+  #storeAccumulator(register: Accumulator, address: number, writeByte: InstructionContext["writeByte"]): void {
+    const value = this.#state[register];
     writeByte(address, value);
     this.#setResultFlags(value);
   }
@@ -199,12 +222,22 @@ export class Cpu6800 {
 
   // Arithmetic, logic, and flags.
 
-  #addToAccumulator(value: number): void {
-    const { result, carry, halfCarry, overflow } = add(8, this.#state.a, value);
-    this.#loadAccumulator("a", result);
+  #add(left: number, right: number, carryIn: 0 | 1 = 0): number {
+    const { result, carry, halfCarry, overflow } = add(8, left, right, carryIn);
+    this.#setResultFlags(result);
     this.#state.flags.h = halfCarry;
     this.#state.flags.c = carry;
     this.#state.flags.v = overflow;
+    return result;
+  }
+
+  #subtract(left: number, right: number, borrowIn: 0 | 1 = 0): number {
+    const { result, borrow, overflow } = subtract(8, left, right, borrowIn);
+    this.#setResultFlags(result);
+    this.#state.flags.c = borrow;
+    this.#state.flags.v = overflow;
+    // H and I are unaffected by SUB, SBC, and CMP on the original 6800.
+    return result;
   }
 
   #setResultFlags(value: number, signBit = 0x80): void {
