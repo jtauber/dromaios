@@ -5,6 +5,7 @@ import { runCpu } from "../../src/runtime/run-cpu.js";
 import type { CpuRunResult } from "../../src/runtime/run-cpu.js";
 import { create8008Example } from "../../src/machines/generated/8008/example.js";
 import { create8008TransfersExample } from "../../src/machines/generated/8008/transfers-example.js";
+import { create8008AluExample } from "../../src/machines/generated/8008/alu-example.js";
 
 // Compiled, never called: preserve concrete CPU types and recursively readonly records.
 export function check8008(ram: Ram, state: Cpu8008State, snapshot: Cpu8008Snapshot): void {
@@ -32,6 +33,10 @@ export function check8008(ram: Ram, state: Cpu8008State, snapshot: Cpu8008Snapsh
   const machine: { cpu: Cpu8008; ram: Ram } = create8008Example();
   const transfers: { cpu: Cpu8008; ram: Ram } = create8008TransfersExample();
   const transferResult: CpuRunResult<Cpu8008StepRecord> = runCpu(transfers.cpu, { maxSteps: 14 });
+  const alu: { cpu: Cpu8008; ram: Ram } = create8008AluExample();
+  const aluResult: CpuRunResult<Cpu8008StepRecord> = runCpu(alu.cpu, { maxSteps: 28 });
+  // @ts-expect-error The ALU example stops with HLT rather than a caller endpoint.
+  create8008AluExample().endAddress;
   // @ts-expect-error The transfer example stops with HLT rather than a caller endpoint.
   create8008TransfersExample().endAddress;
   // @ts-expect-error This example has no caller endpoint.

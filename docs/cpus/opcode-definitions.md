@@ -10,7 +10,7 @@ slots. These examples exercise several encoding relationships:
 
 | CPU | Pattern | Meaning |
 | --- | --- | --- |
-| [8008](../../src/components/cpus/8008.ts) | `00 xxx 111`, `11 ddd sss` | RET ignores bits 5–3; loads select A/B/C/D/E/H/L/M in each field, with HLT in the M,M slot |
+| [8008](../../src/components/cpus/8008.ts) | `00 ooo 100`, `10 ooo sss` | Both ALU families share the eight-operation selector; `sss` selects A/B/C/D/E/H/L/M |
 | [6502](../../src/components/cpus/6502.ts) | `ff v 100 00` | `ff` selects N/V/C/Z; `v` selects the value required to branch |
 | [6800](../../src/components/cpus/6800.ts) | `0010 ttt p` | Seven conditional pairs expand `p`; BRA is explicit because `21` is unused |
 | [6809](../../src/components/cpus/6809.ts) | `0010 ttt p` | `ttt` selects a condition; `p` selects whether to invert it |
@@ -44,10 +44,11 @@ another. By default values must be integers from `00` through `FF`.
 as used by the 68000. Absent entries remain unsupported.
 
 `opcodePattern(pattern, handler)` binds the same handler to every encoding of
-a pattern. Fixed bits describe one opcode; ignored bits describe aliases. For
-example, the 8008 uses `00 000 100` for ADI, `00 000 00x` for the adjacent
-`00`/`01` HLT encodings, and `00 xxx 111` for the RET aliases `07`, `0F`, `17`,
-`1F`, `27`, `2F`, `37`, and `3F`. The same notation serves all three cases.
+a pattern. Fixed bits describe one opcode; ignored bits describe aliases.
+A fixed pattern such as `00 000 100` describes the single 8008 ADI opcode.
+The 8008 uses `00 000 00x` for the adjacent `00`/`01` HLT encodings and
+`00 xxx 111` for the RET aliases `07`, `0F`, `17`, `1F`, `27`, `2F`, `37`,
+and `3F`. The same notation serves all three cases.
 
 `opcodeFamily(pattern, selectors, bind)` maps encoded fields to typed values
 and binds a handler for each combination. The 6502 branch definition is:

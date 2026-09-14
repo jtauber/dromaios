@@ -15,7 +15,7 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [251](../../src/components/cpus/8008.ts) | 99 / 250 | 39.6% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [282](../../src/components/cpus/8008.ts) | 170 / 250 | 68.0% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [685](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [230](../../src/components/cpus/6800.ts) | 25 / 197 | 12.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [257](../../src/components/cpus/6502.ts) | 25 / 151 | 16.6% |
@@ -185,11 +185,14 @@ instruction lengths are in bytes.
 [Transfer specification](8008/examples/transfers.md) ·
 [Transfer definition](../../src/machines/8008/transfers-example.machine)
 
+[ALU specification](8008/examples/alu.md) ·
+[ALU definition](../../src/machines/8008/alu-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `00` | HLT | Implied | 1 | Advance PC and stop; preserve flags |
 | `01` | HLT | Implied | 1 | Second documented low-page HLT encoding |
-| `04` | ADI n | Immediate | 2 | Add to A without incoming carry; set S/Z/P/C |
+| `04/0C/14/1C/24/2C/34/3C` | ADI / ACI / SUI / SBI / NDI / XRI / ORI / CPI | Immediate | 2 | All eight ALU operations with a fetched operand; [flag rules](8008/model.md#arithmetic-and-logic) match register/memory forms |
 | `06/0E/16/1E/26/2E/36` | LrI n | Immediate | 2 | Load A/B/C/D/E/H/L; preserve flags |
 | `07` | RET | Implied | 1 | Select the preceding address slot; preserve flags |
 | `0F` | RET | Implied | 1 | Documented RET alias |
@@ -216,11 +219,19 @@ instruction lengths are in bytes.
 | `76` | CAL addr | Absolute | 3 | Documented CAL alias |
 | `7C` | JMP addr | Absolute | 3 | Documented JMP alias |
 | `7E` | CAL addr | Absolute | 3 | Documented CAL alias |
+| `80`–`87` | ADr / ADM | Register or indirect memory | 1 | Add the source to A, ignoring incoming C; set S/Z/P and carry out |
+| `88`–`8F` | ACr / ACM | Register or indirect memory | 1 | Add the source and incoming C to A; set S/Z/P and carry out |
+| `90`–`97` | SUr / SUM | Register or indirect memory | 1 | Subtract the source from A, ignoring incoming C; set S/Z/P and borrow |
+| `98`–`9F` | SBr / SBM | Register or indirect memory | 1 | Subtract the source and incoming borrow from A; set S/Z/P and borrow |
+| `A0`–`A7` | NDr / NDM | Register or indirect memory | 1 | AND with A; set S/Z/P and clear C |
+| `A8`–`AF` | XRr / XRM | Register or indirect memory | 1 | XOR with A; set S/Z/P and clear C |
+| `B0`–`B7` | ORr / ORM | Register or indirect memory | 1 | OR with A; set S/Z/P and clear C |
+| `B8`–`BF` | CPr / CPM | Register or indirect memory | 1 | Set S/Z/P/C from A − source, ignoring incoming C; retain A |
 | `C0`–`FE` | Lr1r2 / LrM / LMr | Register or indirect memory | 1 | All 49 register transfers, seven memory reads, and seven memory writes; preserve flags |
 | `FF` | HLT | Implied | 1 | HLT occupies the M,M transfer slot |
 
 These families contribute **8 immediate loads + 63 transfers + 3 HLT encodings +
-24 JMP/CAL/RET encodings + 1 ADI = 99** complete forms.
+24 JMP/CAL/RET encodings + 72 ALU forms = 170** complete forms.
 
 | Area | Implemented scope |
 | --- | --- |
@@ -228,18 +239,20 @@ These families contribute **8 immediate loads + 63 transfers + 3 HLT encodings +
 | Register views | PC selects an address-stack slot; HL exposes the raw H:L pair |
 | Memory | Exactly 16 KiB RAM; instruction fetches wrap at 14 bits; H bits 7–6 are ignored for memory addressing while H remains a full byte in register transfers |
 | Loads and transfers | All immediate and register/memory byte loads preserve flags; H/L memory destinations read through the original pair; stores do not read their destination |
+| Arithmetic and logic | All eight accumulator operations across seven register sources, indirect memory, and immediate bytes; shared operation selector, explicit carry/borrow, logical C clearing, and compare preserving A |
 | Address stack | Eight circular address registers: CAL selects the next slot, RET selects the preceding slot; overwrite on overflow, retain outgoing PC after RET, no RAM stack |
 | Reset | Model settled power-on clearing: zero data/address registers, select slot zero, stay stopped, preserve flags and RAM under the documented policy |
 | Stopping | All three documented HLT encodings report once; already halted steps have no instruction or accesses |
-| Remaining scope | Arithmetic/logic beyond ADI, register increment/decrement, rotations, conditional jumps/calls/returns, RST, interrupts, I/O, and timing |
+| Remaining scope | Register increment/decrement, rotations, conditional jumps/calls/returns, RST, interrupts, I/O, and timing |
 
 Verification: [CPU tests](../../tests/components/cpus/8008.test.ts),
 [arithmetic example tests](../../tests/machines/8008/example.test.ts),
 [stack example tests](../../tests/machines/8008/stack-example.test.ts),
-[transfer example tests](../../tests/machines/8008/transfers-example.test.ts), and
-[public type checks](../../tests/types/8008.ts). Checks cover every addition
-operand pair, all load bytes and flag patterns, arithmetic boundaries, every
-H:L combination and PC, all selectors, and every unsupported opcode. Complete
+[transfer example tests](../../tests/machines/8008/transfers-example.test.ts),
+[ALU example tests](../../tests/machines/8008/alu-example.test.ts), and
+[public type checks](../../tests/types/8008.ts). Checks cover every immediate ALU
+operand pair and both carry inputs, all load bytes and flag patterns, arithmetic
+boundaries, every H:L combination and PC, all selectors, and every unsupported opcode. Complete
 records and actual RAM calls verify wrapping, overlapping/unchanged-value
 stores, HALT, reset, and retained snapshots. Control-flow checks cover every
 alias, encoded destination, selector, and flag pattern; wrapped fetches,
@@ -252,6 +265,12 @@ each check every H:L pair. Additional cases check all four address aliases,
 H/L destination changes, LMI's wrapped and overlapping fetch/write sequence,
 and current RAM. The transfer example verifies its fourteen-step trace,
 whole memory image, and resumption from a snapshot.
+All 72 ALU encodings also check every source byte and incoming flag pattern at
+accumulator boundaries, including A as its own source. Independent decimal
+arithmetic, logical truth tables, and digit counts supply expected results
+and flags. Memory ALU cases check H's four address aliases, code overlaps,
+and read-only accesses. The ALU example checks carry/borrow propagation, bit
+operations, comparison, five output bytes, and resumption with a pending borrow.
 
 ## 8080
 

@@ -163,14 +163,27 @@ export class Cpu8008 {
   // rrr/ddd/sss select A/B/C/D/E/H/L/M in order; M addresses RAM through H:L's low 14 bits.
   readonly #byteOperands = ["a", "b", "c", "d", "e", "h", "l", "m"] as const;
 
+  // ooo selects the same operation in register/memory and immediate forms.
+  // Callbacks read live A and carry; compare sets subtraction flags but retains A.
+  readonly #aluOperations: readonly ((value: number) => number)[] = [
+    value => this.#add(value), // 000 ADr / ADI
+    value => this.#add(value, this.#state.flags.c ? 1 : 0), // 001 ACr / ACI
+    value => this.#subtract(value), // 010 SUr / SUI
+    value => this.#subtract(value, this.#state.flags.c ? 1 : 0), // 011 SBr / SBI
+    value => this.#aluResult(this.#state.a & value, false), // 100 NDr / NDI
+    value => this.#aluResult(this.#state.a ^ value, false), // 101 XRr / XRI
+    value => this.#aluResult(this.#state.a | value, false), // 110 ORr / ORI
+    value => this.#compare(value), // 111 CPr / CPI
+  ];
+
   // Native 8008 opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
   // xx selects a block; the other fields select its operation and operands.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // 00 000 00x: both x values encode HLT, occupying the absent IN A/DC A slots.
     ...opcodePattern("00 000 00x", () => this.#halt()), // HLT (00/01)
 
-    // 00 ooo 100: immediate ALU; ooo=000 selects ADI. Other operations are omitted.
-    ...opcodePattern("00 000 100", ({ fetchByte }: InstructionContext) => this.#addToAccumulator(fetchByte())), // ADI n
+    // 00 ooo 100: ooo (bits 5..3) selects the ALU operation; the next byte is its operand.
+    ...opcodeFamily("00 ooo 100", { o: this.#aluOperations }, ({ o: operation }) => ({ fetchByte }: InstructionContext) => { this.#state.a = operation(fetchByte()); }), // ADI / ACI / SUI / SBI / NDI / XRI / ORI / CPI
 
     // 00 rrr 110: rrr (bits 5..3) selects the destination, including memory at rrr=111.
     ...opcodeFamily("00 rrr 110", { r: this.#byteOperands }, ({ r: operand }) => (instruction: InstructionContext) => this.#writeOperand(operand, instruction.fetchByte(), instruction)), // LrI n / LMI n
@@ -183,7 +196,10 @@ export class Cpu8008 {
     ...opcodePattern("01 xxx 100", ({ fetchAddress }: InstructionContext) => this.#jump(fetchAddress())), // JMP addr
     ...opcodePattern("01 xxx 110", ({ fetchAddress }: InstructionContext) => this.#call(fetchAddress())), // CAL addr
 
-    // Conditional jumps/calls/returns, RST, I/O, and xx=10 ALU forms remain unsupported.
+    // Conditional jumps/calls/returns, RST, and I/O remain unsupported.
+
+    // 10 ooo sss: ooo (bits 5..3) selects the operation; sss (bits 2..0) selects A/B/C/D/E/H/L/M.
+    ...opcodeFamily("10 ooo sss", { o: this.#aluOperations, s: this.#byteOperands }, ({ o: operation, s: source }) => (instruction: InstructionContext) => { this.#state.a = operation(this.#readOperand(source, instruction)); }), // ADr / ACr / SUr / SBr / NDr / XRr / ORr / CPr (including M)
 
     // 11 ddd sss: ddd (bits 5..3) selects destination; sss (bits 2..0) selects source.
     // 11 111 111 is HLT, not LMM; the binding handles this exception without a data access.
@@ -228,12 +244,27 @@ export class Cpu8008 {
     this.#state.halted = true;
   }
 
-  // Arithmetic and flags.
+  // Arithmetic, logic, and flags.
 
-  #addToAccumulator(value: number): void {
-    const { result, carry } = add8(this.#state.a, value);
-    this.#state.a = result;
+  #add(value: number, carryIn: 0 | 1 = 0): number {
+    const { result, carry } = add8(this.#state.a, value, carryIn);
+    return this.#aluResult(result, carry);
+  }
+
+  #subtract(value: number, borrow: 0 | 1 = 0): number {
+    const difference = this.#state.a - value - borrow;
+    // C represents a borrow, including when value + incoming borrow is 100H.
+    return this.#aluResult(difference & 0xff, difference < 0);
+  }
+
+  #compare(value: number): number {
+    this.#subtract(value);
+    return this.#state.a;
+  }
+
+  #aluResult(result: number, carry: boolean): number {
     this.#state.flags = { s: (result & 0x80) !== 0, z: result === 0, p: evenParity8(result), c: carry };
+    return result;
   }
 
   // Recorded memory access.

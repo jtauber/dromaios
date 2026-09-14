@@ -1,0 +1,41 @@
+ram 4000
+
+cpu 8008 {
+    A = 11  B = 22  C = 33  D = 44  E = 55  H = C0  L = 80
+    flags { S = 1  Z = 0  P = 1  C = 1 }
+    addressStack = [1111 1222 1333 1444 1555 1666 1777 0200]
+    stackIndex = 7  halted = false
+}
+
+memory 007F { CC 20 00 00 00 00 00 CC } // Input at 0080, five output bytes at 0081–0085.
+
+memory 0200 {
+    06 F0       // LAI F0H: low byte of 01F0H
+    87          // ADM: add 20H through raw H:L = C080; A = 10H, C = 1
+    C8          // LBA: save the low result without changing carry
+    06 01       // LAI 01H: high byte
+    0C 00       // ACI 00H: propagate carry; high result = 02H
+    D0          // LCA: save the high result; B:C now holds low:high of 0210H
+    C1          // LAB: restore low result
+    97          // SUM: subtract 20H; A = F0H, borrow = 1
+    D8          // LDA: save the low difference
+    C2          // LAC: restore high result, preserving borrow
+    1C 00       // SBI 00H: propagate borrow; high difference = 01H
+    E0          // LEA: save the high difference
+    C3          // LAD: restore F0H
+    24 3F       // NDI 3FH: keep six low bits; A = 30H, C = 0
+    2C 55       // XRI 55H: toggle selected bits; A = 65H
+    B1          // ORB: include B's 10H bit; A = 75H
+    3C 75       // CPI 75H: equality sets Z/P, clears S/C, and retains A
+    36 81       // LLI 81H
+    F9          // LMB: store sum's low byte at 0081
+    36 82       // LLI 82H
+    FA          // LMC: store sum's high byte at 0082
+    36 83       // LLI 83H
+    FB          // LMD: store difference's low byte at 0083
+    36 84       // LLI 84H
+    FC          // LME: store difference's high byte at 0084
+    36 85       // LLI 85H
+    F8          // LMA: store masked/toggled/combined result at 0085
+    FF          // HLT: all stores and HLT preserve the comparison flags
+}

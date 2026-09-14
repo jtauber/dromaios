@@ -49,12 +49,40 @@ const transferRows = [
   { destination: "m", opcodes: [0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff] },
 ] as const;
 
-// Independent arithmetic oracle: decimal range and a count of binary digits.
-function addition(a: number, operand: number) {
-  const total = a + operand;
-  const result = total % 256;
+// Literal rows from Intel's ALU table; register columns are A/B/C/D/E/H/L/M.
+const aluRows = [
+  { operation: "add", immediate: 0x04, opcodes: [0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87] },
+  { operation: "adc", immediate: 0x0c, opcodes: [0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f] },
+  { operation: "sub", immediate: 0x14, opcodes: [0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97] },
+  { operation: "sbb", immediate: 0x1c, opcodes: [0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f] },
+  { operation: "and", immediate: 0x24, opcodes: [0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7] },
+  { operation: "xor", immediate: 0x2c, opcodes: [0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf] },
+  { operation: "or", immediate: 0x34, opcodes: [0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7] },
+  { operation: "compare", immediate: 0x3c, opcodes: [0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf] },
+] as const;
+type AluOperation = typeof aluRows[number]["operation"];
+
+// Independent oracle: decimal ranges, logical truth tables, and binary-digit counts.
+function alu(operation: AluOperation, a: number, operand: number, carry: boolean) {
+  let total: number;
+  switch (operation) {
+    case "add": total = a + operand; break;
+    case "adc": total = a + operand + Number(carry); break;
+    case "sub": case "compare": total = a - operand; break;
+    case "sbb": total = a - operand - Number(carry); break;
+    default: {
+      const left = a.toString(2).padStart(8, "0");
+      const right = operand.toString(2).padStart(8, "0");
+      total = Number.parseInt([...left].map((digit, index) => {
+        const l = digit === "1", r = right[index] === "1";
+        return Number(operation === "and" ? l && r : operation === "xor" ? l !== r : l || r);
+      }).join(""), 2);
+    }
+  }
+  const result = ((total % 256) + 256) % 256;
   const ones = [...result.toString(2)].filter(bit => bit === "1").length;
-  return { a: result, flags: { s: result >= 128, z: result === 0, p: ones % 2 === 0, c: total >= 256 } };
+  return { a: operation === "compare" ? a : result,
+    flags: { s: result >= 128, z: result === 0, p: ones % 2 === 0, c: total < 0 || total >= 256 } };
 }
 
 test("8008 copies physical address slots and flags; snapshots derive PC and raw HL without RAM access", () => {
@@ -302,34 +330,80 @@ test("8008 memory loads use current RAM and the L changed by a preceding LLM", (
   assert.deepEqual(first, saved);
 });
 
-test("8008 ADI checks every operand pair, ignores incoming carry, and sets sign, zero, even parity, and carry", () => {
-  const ram = new ObservedRam(0x4000);
-  ram.write(0x2000, 0x04);
-  for (const oldFlags of [flags(0), flags(15)]) {
-    for (let a = 0; a < 256; a++) {
-      for (let operand = 0; operand < 256; operand++) {
-        const before = initialState({ a, flags: oldFlags });
-        ram.write(0x2001, operand);
-        ram.accesses.length = 0;
-        const cpu = new Cpu8008(ram, before);
-        const expected = { before: snapshot(before), after: advanced(before, 0x2002, addition(a, operand)),
-          outcome: "executed", instruction: { address: 0x2000, bytes: [0x04, operand] },
-          accesses: [{ kind: "read", address: 0x2000, value: 0x04 }, { kind: "read", address: 0x2001, value: operand }] };
-        assert.deepEqual(cpu.step(), expected);
-        assert.deepEqual(ram.accesses, expected.accesses);
+for (const { operation, immediate, opcodes } of aluRows) {
+  test(`8008 immediate ${operation} checks every byte pair and both carry inputs against independent arithmetic`, () => {
+    const ram = new ObservedRam(0x4000);
+    ram.write(0x3fff, immediate);
+    for (const oldFlags of [flags(0), flags(15)]) {
+      for (let a = 0; a < 256; a++) {
+        for (let operand = 0; operand < 256; operand++) {
+          const before = atPc(0x3fff, operand % 8, { a, flags: oldFlags });
+          ram.write(0, operand);
+          ram.accesses.length = 0;
+          const expected = { before: snapshot(before), after: advanced(before, 1, alu(operation, a, operand, oldFlags.c)),
+            outcome: "executed", instruction: { address: 0x3fff, bytes: [immediate, operand] },
+            accesses: [{ kind: "read", address: 0x3fff, value: immediate }, { kind: "read", address: 0, value: operand }] };
+          assert.deepEqual(new Cpu8008(ram, before).step(), expected);
+          assert.deepEqual(ram.accesses, expected.accesses);
+        }
       }
     }
-  }
-});
+  });
 
-test("8008 ADI replaces every flag pattern at carry, parity, sign, and zero boundaries", () => {
-  const ram = new Ram(0x4000);
-  ram.write(0x3fff, 0x04);
-  for (let bits = 0; bits < 16; bits++) {
-    for (const [a, operand] of [[0, 0], [0, 1], [2, 3], [0x7f, 1], [0x80, 0x80], [0xff, 1], [0xff, 0xff]] as const) {
-      ram.write(0, operand);
-      const before = atPc(0x3fff, bits % 8, { a, flags: flags(bits) });
-      assert.deepEqual(new Cpu8008(ram, before).step().after, advanced(before, 1, addition(a, operand)));
+  test(`8008 ${operation} covers every source byte, all flags, and the accumulator self-source at arithmetic boundaries`, () => {
+    const ram = new ObservedRam(0x4000);
+    // Add the immediate to the eight literal source encodings to check all 72 forms.
+    for (const [column, source] of [...transferColumns, "immediate" as const].entries()) {
+      const opcode = source === "immediate" ? immediate : opcodes[column]!;
+      for (let bits = 0; bits < 16; bits++) {
+        for (let operand = 0; operand < 256; operand++) {
+          for (const a of [0, 1, 0x7f, 0x80, 0xff]) {
+            const before = atPc(0x3fff, bits % 8, { a, flags: flags(bits) });
+            if (source !== "immediate" && source !== "m") before[source] = operand;
+            const address = (before.h % 64) * 256 + before.l;
+            ram.write(address, operand);
+            ram.write(0, operand);
+            ram.write(0x3fff, opcode);
+            ram.accesses.length = 0;
+            const value = source === "a" ? before.a : operand;
+            const accesses: Cpu8008MemoryAccess[] = [{ kind: "read", address: 0x3fff, value: opcode }];
+            if (source === "m") accesses.push({ kind: "read", address, value });
+            if (source === "immediate") accesses.push({ kind: "read", address: 0, value });
+            const expected = { before: snapshot(before),
+              after: advanced(before, source === "immediate" ? 1 : 0, alu(operation, before.a, value, before.flags.c)),
+              outcome: "executed", instruction: { address: 0x3fff, bytes: source === "immediate" ? [opcode, value] : [opcode] }, accesses };
+            assert.deepEqual(new Cpu8008(ram, before).step(), expected);
+            assert.deepEqual(ram.accesses, accesses);
+          }
+        }
+      }
+    }
+  });
+}
+
+test("8008 memory ALU forms mask H:L, keep code reads distinct, and never write through the operand", () => {
+  const ram = new ObservedRam(0x4000);
+  for (const { operation, opcodes } of aluRows) {
+    const opcode = opcodes[7];
+    for (const pc of [0, 0x2000, 0x3fff]) {
+      for (const address of [0, 0xff, 0x100, 0x3fff, pc, (pc + 1) % 0x4000]) {
+        for (const highBits of [0, 0x40, 0x80, 0xc0]) {
+          for (const carry of [false, true]) {
+            const before = atPc(pc, highBits / 64, { a: 0x7f, h: highBits + Math.floor(address / 256), l: address % 256,
+              flags: { s: true, z: true, p: false, c: carry } });
+            ram.write(address, 0xff);
+            ram.write(pc, opcode);
+            ram.accesses.length = 0;
+            const value = address === pc ? opcode : 0xff;
+            const expected = { before: snapshot(before), after: advanced(before, (pc + 1) % 0x4000, alu(operation, 0x7f, value, carry)),
+              outcome: "executed", instruction: { address: pc, bytes: [opcode] },
+              accesses: [{ kind: "read", address: pc, value: opcode }, { kind: "read", address, value }] };
+            assert.deepEqual(new Cpu8008(ram, before).step(), expected);
+            assert.deepEqual(ram.accesses, expected.accesses);
+            assert.equal(ram.read(address), value);
+          }
+        }
+      }
     }
   }
 });
@@ -543,8 +617,9 @@ test("8008 rejects every other opcode atomically, including conditional control 
     0x00, 0x01, 0x04, 0x06, 0x07, 0x0e, 0x0f, 0x16, 0x17, 0x1e, 0x1f, 0x26, 0x27, 0x2e, 0x2f, 0x36, 0x37, 0x3e, 0x3f,
     0x44, 0x46, 0x4c, 0x4e, 0x54, 0x56, 0x5c, 0x5e, 0x64, 0x66, 0x6c, 0x6e, 0x74, 0x76, 0x7c, 0x7e,
     ...transferRows.flatMap(row => [...row.opcodes]),
+    ...aluRows.flatMap(row => [row.immediate, ...row.opcodes]),
   ]);
-  assert.equal(supported.size, 99);
+  assert.equal(supported.size, 170);
   const ram = new ObservedRam(0x4000);
   for (let opcode = 0; opcode < 256; opcode++) {
     if (supported.has(opcode)) continue;

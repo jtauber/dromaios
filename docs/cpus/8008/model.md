@@ -9,6 +9,7 @@ its memory addresses wrap at 14 bits.
 [Public type checks](../../../tests/types/8008.ts) ·
 [Coverage](../coverage.md#8008) ·
 [Arithmetic example](examples/arithmetic.md) ·
+[ALU example](examples/alu.md) ·
 [Nested-call example](examples/stack.md) ·
 [Transfer example](examples/transfers.md)
 
@@ -88,7 +89,7 @@ All three documented HLT encodings (`00`, `01`, `FF`) advance PC once and set
 `halted`. Later stopped steps make no accesses. The model does not reproduce
 ongoing internal refresh, pin activity, dummy accesses, or cycle timing.
 
-## Loads and addition
+## Loads
 
 The two load families use A/B/C/D/E/H/L/M in selector order, with M referring
 to RAM through H:L's low 14 bits:
@@ -112,10 +113,41 @@ printed pages 8–11, describes these selectors, load forms, and flag rules.
 The [transfer example](examples/transfers.md) follows a byte through registers
 and RAM, then changes the next memory address by loading H from memory.
 
-ADI adds its operand to A without incoming carry, wraps the
-result to a byte, and replaces all four flags: S is the result's high bit, Z
-indicates zero, P indicates even parity, and C indicates a sum exceeding `FF`.
-The other data registers and inactive address slots remain unchanged.
+## Arithmetic and logic
+
+The complete accumulator ALU uses two encodings: `10 ooo sss` selects an
+operation and register/memory source, while `00 ooo 100` selects the same
+operation with an immediate byte. Source selectors follow A/B/C/D/E/H/L/M;
+operation selectors are:
+
+| `ooo` | Register/memory / immediate | Operation | Carry flag |
+| --- | --- | --- | --- |
+| `000` | ADr / ADI | A + operand | Set when the sum exceeds `FF`; ignore incoming C |
+| `001` | ACr / ACI | A + operand + C | Set when the sum exceeds `FF` |
+| `010` | SUr / SUI | A − operand | Set on borrow; ignore incoming C |
+| `011` | SBr / SBI | A − operand − C | Set on borrow, including operand `FF` with incoming C |
+| `100` | NDr / NDI | A AND operand | Clear |
+| `101` | XRr / XRI | A XOR operand | Clear |
+| `110` | ORr / ORI | A OR operand | Clear |
+| `111` | CPr / CPI | Set subtraction flags and retain A | Set when A < operand; ignore incoming C |
+
+Each operation wraps its result to eight bits. S is that result's high bit,
+Z indicates zero, and P indicates even parity. Comparison uses the subtraction
+result for these flags even though A remains unchanged. All four flags are
+replaced; there is no half-carry or signed-overflow flag on this CPU.
+Intel's November 1973 manual, printed pages 11–12, defines these operations.
+
+Register operations read the original source, including when the source is A.
+H and L contribute their full byte values as operands. Memory operations read
+the byte at H:L's low 14 bits, after fetching the opcode, with no write or
+additional PC increment. Even when that address equals the instruction address,
+the data read is recorded separately from the instruction fetch. Immediate
+bytes wrap with PC and remain in the instruction record. Other registers,
+inactive address slots, and RAM remain unchanged. Operand and carry values
+are read during execution.
+
+The [ALU example](examples/alu.md) propagates carry and borrow between two
+bytes, combines bits, and stores results while preserving comparison flags.
 
 ## Jumps, calls, and returns
 
@@ -161,10 +193,15 @@ implies physical power-on behavior.
 
 ## Checks and limits
 
-CPU tests check all addition operand pairs against an independent arithmetic
-and bit-count reference, every incoming flag pattern at arithmetic boundaries,
-all load bytes and flag patterns, all H:L combinations, every PC, and each
-address-stack selector. They compare complete records and actual RAM accesses,
+CPU tests check every byte pair and both incoming carry values for all eight
+immediate ALU operations against independent decimal arithmetic, logical truth
+tables, and binary-digit counts. Every register/memory and immediate encoding
+also checks all operand bytes and incoming flag patterns at accumulator
+boundaries, including A as its own source. Memory ALU checks cover H's four
+address aliases, boundaries, and code overlaps, with no writes.
+
+Other tests check all load bytes and flag patterns, all H:L combinations,
+every PC, and each address-stack selector. They compare complete records and actual RAM accesses,
 including unchanged-value writes, self-modified code, unsupported attempts,
 all three HLT encodings, reset, and detached records.
 
@@ -183,6 +220,8 @@ eight nested calls, overwritten return addresses, and unbalanced returns.
 The generated examples check both factories, whole memory images, complete
 traces, bounded running, caller completion, reset, and fresh restart. The
 nested-call trace also checks inactive slot contents across returns.
+The ALU example checks resumption with a pending borrow and preservation of
+comparison flags through the output stores and halt.
 Parser and generator tests cover address lists, ranges, RAM size, diagnostics,
 and declaration order. Type checks preserve concrete CPU and runner records.
 
