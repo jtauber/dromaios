@@ -3,6 +3,7 @@ import { defineState, copyState, readState, unsigned, flag, boolean, choices, gr
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.js";
+import { add8 } from "./alu.ts";
 
 /** The six documented flags; undocumented F bits 3 and 5 are outside this model. */
 export interface CpuZ80Flags {
@@ -300,17 +301,15 @@ export class CpuZ80 {
   }
 
   #addToAccumulator(value: number): void {
-    const a = this.#state.a;
-    const sum = a + value;
-    const result = sum & 0xff;
+    const { result, carry, halfCarry, overflow } = add8(this.#state.a, value);
     this.#state.a = result;
     this.#state.flags = {
       s: (result & 0x80) !== 0,
       z: result === 0,
-      h: (a & 0x0f) + (value & 0x0f) > 0x0f,
-      pv: (~(a ^ value) & (a ^ result) & 0x80) !== 0,
+      h: halfCarry,
+      pv: overflow,
       n: false,
-      c: sum > 0xff,
+      c: carry,
     };
   }
 

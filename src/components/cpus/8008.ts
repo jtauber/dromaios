@@ -2,6 +2,7 @@ import type { Ram } from "../memory/ram.js";
 import { defineState, copyState, readState, unsigned, flag, boolean, array, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
 import { opcodePattern, opcodeTable } from "./opcodes.ts";
+import { add8, evenParity8 } from "./alu.ts";
 
 export interface Cpu8008Flags {
   s: boolean;
@@ -215,14 +216,9 @@ export class Cpu8008 {
   // Arithmetic and flags.
 
   #addToAccumulator(value: number): void {
-    const sum = this.#state.a + value;
-    const result = sum & 0xff;
+    const { result, carry } = add8(this.#state.a, value);
     this.#state.a = result;
-    let parity = result;
-    parity ^= parity >> 4;
-    parity ^= parity >> 2;
-    parity ^= parity >> 1;
-    this.#state.flags = { s: (result & 0x80) !== 0, z: result === 0, p: (parity & 1) === 0, c: sum > 0xff };
+    this.#state.flags = { s: (result & 0x80) !== 0, z: result === 0, p: evenParity8(result), c: carry };
   }
 
   // Recorded memory access.

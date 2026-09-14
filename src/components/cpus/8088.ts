@@ -2,6 +2,7 @@ import type { Ram } from "../memory/ram.js";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodeTable } from "./opcodes.ts";
+import { evenParity8 } from "./alu.ts";
 
 export interface Cpu8088Flags {
   cf: boolean;
@@ -239,12 +240,8 @@ export class Cpu8088 {
     this.#state.flags.zf = result === 0;
     this.#state.flags.sf = (result & signBit) !== 0;
     this.#state.flags.of = (~(accumulator ^ value) & (accumulator ^ result) & signBit) !== 0;
-    // Parity is defined by the low byte even for word operations; fold its bits to one.
-    let parity = result & 0xff;
-    parity ^= parity >>> 4;
-    parity ^= parity >>> 2;
-    parity ^= parity >>> 1;
-    this.#state.flags.pf = (parity & 1) === 0;
+    // Parity is defined by the low byte even for word operations.
+    this.#state.flags.pf = evenParity8(result & 0xff);
   }
 
   // Recorded memory access.

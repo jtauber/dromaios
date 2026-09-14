@@ -15,13 +15,13 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [240](../../src/components/cpus/8008.ts) | 32 / 250 | 12.8% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [693](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [232](../../src/components/cpus/6800.ts) | 25 / 197 | 12.7% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [259](../../src/components/cpus/6502.ts) | 25 / 151 | 16.6% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [329](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [340](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [262](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [236](../../src/components/cpus/8008.ts) | 32 / 250 | 12.8% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [685](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [230](../../src/components/cpus/6800.ts) | 25 / 197 | 12.7% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [257](../../src/components/cpus/6502.ts) | 25 / 151 | 16.6% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [328](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [338](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [259](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [255](../../src/components/cpus/68000.ts) | 96 / 36,029 | 0.3% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"

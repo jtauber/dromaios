@@ -2,6 +2,7 @@ import type { Ram } from "../memory/ram.js";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
+import { add8 } from "./alu.ts";
 
 export interface Cpu6502Flags {
   n: boolean;
@@ -235,13 +236,10 @@ export class Cpu6502 {
   }
 
   #addWithCarry(value: number): void {
-    const accumulator = this.#state.a;
-    const sum = accumulator + value + (this.#state.flags.c ? 1 : 0);
-    const result = sum & 0xff;
+    const { result, carry, overflow } = add8(this.#state.a, value, this.#state.flags.c ? 1 : 0);
     this.#loadRegister("a", result);
-    this.#state.flags.c = sum > 0xff;
-    // Like-signed operands producing an opposite-signed result indicate overflow.
-    this.#state.flags.v = (~(accumulator ^ value) & (accumulator ^ result) & 0x80) !== 0;
+    this.#state.flags.c = carry;
+    this.#state.flags.v = overflow;
   }
 
   // Recorded memory access.

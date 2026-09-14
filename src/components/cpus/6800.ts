@@ -3,6 +3,7 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
+import { add8 } from "./alu.ts";
 
 export interface Cpu6800Flags {
   h: boolean;
@@ -201,14 +202,11 @@ export class Cpu6800 {
   // Arithmetic and flags.
 
   #addToAccumulator(value: number): void {
-    const accumulator = this.#state.a;
-    const sum = accumulator + value;
-    const result = sum & 0xff;
+    const { result, carry, halfCarry, overflow } = add8(this.#state.a, value);
     this.#loadAccumulator("a", result);
-    this.#state.flags.h = (accumulator & 0x0f) + (value & 0x0f) > 0x0f;
-    this.#state.flags.c = sum > 0xff;
-    // Like-signed operands producing an opposite-signed result indicate overflow.
-    this.#state.flags.v = (~(accumulator ^ value) & (accumulator ^ result) & 0x80) !== 0;
+    this.#state.flags.h = halfCarry;
+    this.#state.flags.c = carry;
+    this.#state.flags.v = overflow;
   }
 
   #setLoadStoreFlags(value: number): void {

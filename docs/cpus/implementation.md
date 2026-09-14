@@ -145,6 +145,33 @@ duplication. Keep them aligned with encoded subgroup boundaries and retain
 explicit exceptional entries. This convention does not require a common decoder,
 CPU base class, or definition language.
 
+## Shared arithmetic
+
+The [ALU helpers](../../src/components/cpus/alu.ts) express arithmetic facts
+without reading CPU state or updating flags:
+
+- `add8(left, right, carryIn = 0)` returns an eight-bit result, carry out,
+  half carry from bit 3, and signed overflow. Operands must already be unsigned
+  bytes; the carry input is typed as `0 | 1`. It performs binary addition.
+- `evenParity8(byte)` reports whether an unsigned byte contains an even number
+  of set bits, including zero. The 8088 explicitly selects the low byte of a
+  word result before calling it.
+
+These internal helpers rely on their callers for input ranges. Their return
+values do not prescribe a CPU's flags: the 8080 selects parity, the Z80 selects
+overflow for addition's P/V, and each CPU keeps its flag-preservation rules
+beside the instruction. Decimal adjustments and the 6502's existing decimal-mode
+rejection also remain CPU behavior. Addition is shared by the 8008, 8080, 6502,
+6800, 6809, and Z80; parity by the 8008, 8080, and 8088. The 8088's combined
+byte/word addition and the 68000's long addition retain their width-specific
+calculations.
+
+[Helper tests](../../tests/components/cpus/alu.test.ts) exhaust every byte pair
+and carry input against unsigned and signed range calculations, and every
+parity byte against a binary-string count. [Type checks](../../tests/types/alu.ts)
+check the carry-input and readonly-result contracts. Existing CPU and example
+tests retain their independently authored expectations.
+
 ## Verify a reorganization
 
 Preserve public contracts, supported encodings, flag effects, wrapping, reset,

@@ -1,6 +1,7 @@
 import type { Ram } from "../memory/ram.js";
 import { defineState, copyState, readState, unsigned, flag, boolean, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
+import { add8, evenParity8 } from "./alu.ts";
 
 export interface Cpu8080Flags {
   s: boolean;
@@ -90,14 +91,6 @@ interface ByteOperand {
 interface WordOperand {
   readonly read: () => number;
   readonly write: (value: number) => void;
-}
-
-function hasEvenParity(byte: number): boolean {
-  let setBits = 0;
-  for (let bit = 0; bit < 8; bit++) {
-    setBits += (byte >>> bit) & 1;
-  }
-  return setBits % 2 === 0;
 }
 
 /** Instruction-level Intel 8080 subset for the 8080 examples. */
@@ -266,7 +259,7 @@ export class Cpu8080 {
   // These closures read state at execution; CMP updates flags but retains A.
   readonly #aluOperations: readonly ((value: number) => number)[] = [
     value => this.#add(value), // 000 ADD / ADI
-    value => this.#add(value, Number(this.#state.flags.cy)), // 001 ADC / ACI
+    value => this.#add(value, this.#state.flags.cy ? 1 : 0), // 001 ADC / ACI
     value => this.#subtract(value), // 010 SUB / SUI
     value => this.#subtract(value, Number(this.#state.flags.cy)), // 011 SBB / SBI
     value => this.#and(value), // 100 ANA / ANI
@@ -596,10 +589,9 @@ export class Cpu8080 {
 
   // Arithmetic, logic, and flags.
 
-  #add(value: number, carry = 0): number {
-    const accumulator = this.#state.a;
-    const sum = accumulator + value + carry;
-    return this.#aluResult(sum, (accumulator & 0x0f) + (value & 0x0f) + carry > 0x0f, sum > 0xff);
+  #add(value: number, carryIn: 0 | 1 = 0): number {
+    const { result, halfCarry, carry } = add8(this.#state.a, value, carryIn);
+    return this.#aluResult(result, halfCarry, carry);
   }
 
   #subtract(value: number, borrow = 0): number {
@@ -672,7 +664,7 @@ export class Cpu8080 {
       s: (result & 0x80) !== 0,
       z: result === 0,
       ac,
-      p: hasEvenParity(result),
+      p: evenParity8(result),
       cy,
     };
     return result;
