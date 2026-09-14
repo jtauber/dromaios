@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import { recordMemory } from "./memory-access.ts";
+import type { MemoryAccess } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, array, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
@@ -42,11 +44,7 @@ export type Cpu8008Snapshot = Readonly<Omit<Cpu8008State, "flags">> & {
   readonly hl: number;
 };
 
-export interface Cpu8008MemoryAccess {
-  readonly kind: "read" | "write";
-  readonly address: number;
-  readonly value: number;
-}
+export type Cpu8008MemoryAccess = MemoryAccess;
 
 export interface Cpu8008Instruction {
   readonly address: number;
@@ -113,15 +111,15 @@ export class Cpu8008 {
     if (this.#state.halted) {
       return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
     }
-    const accesses: Cpu8008MemoryAccess[] = [];
+    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
     const address = this.#pc;
-    const opcode = this.#read(address, accesses);
+    const opcode = readByte(address);
     const bytes = [opcode];
     const handler = this.#opcodeHandlers[opcode];
     if (handler) {
       this.#pc = (address + 1) & 0x3fff;
       const fetchByte = () => {
-        const byte = this.#read(this.#pc, accesses);
+        const byte = readByte(this.#pc);
         this.#pc = (this.#pc + 1) & 0x3fff;
         bytes.push(byte);
         return byte;
@@ -133,8 +131,8 @@ export class Cpu8008 {
           const high = fetchByte();
           return ((high & 0x3f) << 8) | low;
         },
-        readByte: address => this.#read(address, accesses),
-        writeByte: (address, value) => this.#write(address, value, accesses),
+        readByte,
+        writeByte,
       });
     }
     const record = { instruction: { address, bytes }, before, after: this.snapshot(), accesses };
@@ -287,18 +285,5 @@ export class Cpu8008 {
   #aluResult(result: number, carry: boolean): number {
     this.#state.flags = { s: (result & 0x80) !== 0, z: result === 0, p: evenParity8(result), c: carry };
     return result;
-  }
-
-  // Recorded memory access.
-
-  #read(address: number, accesses: Cpu8008MemoryAccess[]): number {
-    const value = this.#ram.read(address);
-    accesses.push({ kind: "read", address, value });
-    return value;
-  }
-
-  #write(address: number, value: number, accesses: Cpu8008MemoryAccess[]): void {
-    this.#ram.write(address, value);
-    accesses.push({ kind: "write", address, value });
   }
 }

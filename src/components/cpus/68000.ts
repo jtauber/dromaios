@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import { recordMemory } from "./memory-access.ts";
+import type { MemoryAccess, RecordedMemory } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodeTable } from "./opcodes.ts";
@@ -54,12 +56,8 @@ export type Cpu68000Snapshot = Readonly<Omit<Cpu68000State, "flags">> & {
   readonly physicalPc: number;
 };
 
-export interface Cpu68000MemoryAccess {
-  readonly kind: "read" | "write";
-  /** Physical byte address on the 24-bit memory bus. */
-  readonly address: number;
-  readonly value: number;
-}
+/** Physical byte access on the 24-bit memory bus. */
+export type Cpu68000MemoryAccess = MemoryAccess;
 
 export interface Cpu68000Instruction {
   /** Full 32-bit start address; accesses contain the physical addresses. */
@@ -118,9 +116,9 @@ export class Cpu68000 {
   /** Read the external-reset vectors, enter supervisor mode, clear trace, and mask interrupts. */
   reset(): Cpu68000ResetRecord {
     const before = this.snapshot();
-    const accesses: Cpu68000MemoryAccess[] = [];
-    this.#state.ssp = this.#readLong(0, accesses);
-    this.#state.pc = this.#readLong(4, accesses);
+    const { accesses, readByte } = this.#recordMemory();
+    this.#state.ssp = this.#readLong(0, readByte);
+    this.#state.pc = this.#readLong(4, readByte);
     this.#state.flags.s = true;
     this.#state.flags.t = false;
     this.#state.interruptMask = 7;
@@ -131,7 +129,7 @@ export class Cpu68000 {
   /** Attempt one instruction; unsupported opcodes and alignment faults preserve all state and RAM. */
   step(): Cpu68000StepRecord {
     const before = this.snapshot();
-    const accesses: Cpu68000MemoryAccess[] = [];
+    const { accesses, readByte, writeByte } = this.#recordMemory();
     const address = before.pc;
     if (address % 2 !== 0) {
       return { before, after: this.snapshot(), accesses, instruction: null,
@@ -141,8 +139,8 @@ export class Cpu68000 {
     // Keep a local cursor so a rejected operand leaves the architectural PC unchanged.
     let cursor = address;
     const fetchWord = (): number => {
-      const high = this.#read(cursor, accesses);
-      const low = this.#read(cursor + 1, accesses);
+      const high = readByte(cursor);
+      const low = readByte(cursor + 1);
       cursor = (cursor + 2) >>> 0;
       bytes.push(high, low);
       return (high << 8) | low;
@@ -158,7 +156,7 @@ export class Cpu68000 {
         const high = fetchWord();
         return ((high << 16) | fetchWord()) >>> 0;
       },
-      writeLong: (address, value) => this.#writeLong(address, value, accesses),
+      writeLong: (address, value) => this.#writeLong(address, value, writeByte),
     });
     if (fault) {
       return { before, after: this.snapshot(), accesses, instruction, fault,
@@ -230,26 +228,26 @@ export class Cpu68000 {
     this.#state.flags.v = this.#state.flags.c = false;
   }
 
-  // Recorded memory access. Only bus addresses discard the high eight bits.
+  // Memory access. Only bus addresses discard the high eight bits.
 
-  #read(address: number, accesses: Cpu68000MemoryAccess[]): number {
-    const physical = address & 0xffffff;
-    const value = this.#ram.read(physical);
-    accesses.push({ kind: "read", address: physical, value });
-    return value;
+  #recordMemory(): RecordedMemory {
+    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
+    return {
+      accesses,
+      readByte: address => readByte(address & 0xffffff),
+      writeByte: (address, value) => writeByte(address & 0xffffff, value),
+    };
   }
 
-  #readLong(address: number, accesses: Cpu68000MemoryAccess[]): number {
-    const high = (this.#read(address, accesses) << 8) | this.#read(address + 1, accesses);
-    const low = (this.#read(address + 2, accesses) << 8) | this.#read(address + 3, accesses);
+  #readLong(address: number, readByte: RecordedMemory["readByte"]): number {
+    const high = (readByte(address) << 8) | readByte(address + 1);
+    const low = (readByte(address + 2) << 8) | readByte(address + 3);
     return ((high << 16) | low) >>> 0;
   }
 
-  #writeLong(address: number, value: number, accesses: Cpu68000MemoryAccess[]): void {
+  #writeLong(address: number, value: number, writeByte: RecordedMemory["writeByte"]): void {
     for (const [offset, byte] of [value >>> 24, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff].entries()) {
-      const physical = (address + offset) & 0xffffff;
-      this.#ram.write(physical, byte);
-      accesses.push({ kind: "write", address: physical, value: byte });
+      writeByte(address + offset, byte);
     }
   }
 }

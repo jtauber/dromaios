@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import { recordMemory } from "./memory-access.ts";
+import type { MemoryAccess } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodeTable } from "./opcodes.ts";
@@ -55,12 +57,8 @@ export type Cpu8088Snapshot = Readonly<Omit<Cpu8088State, "flags">> & {
   readonly pc: number;
 };
 
-export interface Cpu8088MemoryAccess {
-  readonly kind: "read" | "write";
-  /** Physical address on the 20-bit memory bus. */
-  readonly address: number;
-  readonly value: number;
-}
+/** Physical byte access on the 20-bit memory bus. */
+export type Cpu8088MemoryAccess = MemoryAccess;
 
 export interface Cpu8088Instruction {
   /** Physical start address; before.cs and before.ip retain its logical address. */
@@ -142,15 +140,15 @@ export class Cpu8088 {
   /** Attempt one instruction; unsupported opcodes and prefixes preserve all state and RAM. */
   step(): Cpu8088StepRecord {
     const before = this.snapshot();
-    const accesses: Cpu8088MemoryAccess[] = [];
+    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
     const address = before.pc;
-    const opcode = this.#read(address, accesses);
+    const opcode = readByte(address);
     const bytes = [opcode];
     const handler = this.#opcodeHandlers[opcode];
     if (handler) {
       this.#state.ip = (this.#state.ip + 1) & 0xffff;
       const fetchByte = (): number => {
-        const value = this.#read(physicalAddress(this.#state.cs, this.#state.ip), accesses);
+        const value = readByte(physicalAddress(this.#state.cs, this.#state.ip));
         this.#state.ip = (this.#state.ip + 1) & 0xffff;
         bytes.push(value);
         return value;
@@ -161,8 +159,8 @@ export class Cpu8088 {
           const low = fetchByte();
           return low | (fetchByte() << 8);
         },
-        readByte: address => this.#read(address, accesses),
-        writeByte: (address, value) => this.#write(address, value, accesses),
+        readByte,
+        writeByte,
       });
     }
     const record = { instruction: { address, bytes }, before, after: this.snapshot(), accesses };
@@ -242,18 +240,5 @@ export class Cpu8088 {
     this.#state.flags.of = (~(accumulator ^ value) & (accumulator ^ result) & signBit) !== 0;
     // Parity is defined by the low byte even for word operations.
     this.#state.flags.pf = evenParity8(result & 0xff);
-  }
-
-  // Recorded memory access.
-
-  #read(address: number, accesses: Cpu8088MemoryAccess[]): number {
-    const value = this.#ram.read(address);
-    accesses.push({ kind: "read", address, value });
-    return value;
-  }
-
-  #write(address: number, value: number, accesses: Cpu8088MemoryAccess[]): void {
-    this.#ram.write(address, value);
-    accesses.push({ kind: "write", address, value });
   }
 }

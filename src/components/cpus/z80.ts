@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import { recordMemory } from "./memory-access.ts";
+import type { MemoryAccess } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, choices, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
@@ -64,11 +66,7 @@ export type CpuZ80Snapshot = CpuZ80BankSnapshot &
     readonly alternate: CpuZ80BankSnapshot;
   };
 
-export interface CpuZ80MemoryAccess {
-  readonly kind: "read" | "write";
-  readonly address: number;
-  readonly value: number;
-}
+export type CpuZ80MemoryAccess = MemoryAccess;
 
 export interface CpuZ80Instruction {
   readonly address: number;
@@ -143,9 +141,9 @@ export class CpuZ80 {
     if (this.#state.halted) {
       return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
     }
-    const accesses: CpuZ80MemoryAccess[] = [];
+    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
     const address = this.#state.pc;
-    const opcode = this.#read(address, accesses);
+    const opcode = readByte(address);
     const bytes = [opcode];
     const handler = this.#opcodeHandlers[opcode];
     if (handler) {
@@ -153,7 +151,7 @@ export class CpuZ80 {
       // Only the opcode fetch increments R; operand fetches are ordinary reads.
       this.#state.r = (this.#state.r & 0x80) | ((this.#state.r + 1) & 0x7f);
       const fetchByte = (): number => {
-        const byte = this.#read(this.#state.pc, accesses);
+        const byte = readByte(this.#state.pc);
         this.#state.pc = (this.#state.pc + 1) & 0xffff;
         bytes.push(byte);
         return byte;
@@ -165,8 +163,8 @@ export class CpuZ80 {
           const high = fetchByte();
           return low | (high << 8);
         },
-        readByte: address => this.#read(address, accesses),
-        writeByte: (address, value) => this.#write(address, value, accesses),
+        readByte,
+        writeByte,
       });
     }
     const record = { instruction: { address, bytes }, before, after: this.snapshot(), accesses };
@@ -311,18 +309,5 @@ export class CpuZ80 {
       n: false,
       c: carry,
     };
-  }
-
-  // Recorded memory access.
-
-  #read(address: number, accesses: CpuZ80MemoryAccess[]): number {
-    const value = this.#ram.read(address);
-    accesses.push({ kind: "read", address, value });
-    return value;
-  }
-
-  #write(address: number, value: number, accesses: CpuZ80MemoryAccess[]): void {
-    this.#ram.write(address, value);
-    accesses.push({ kind: "write", address, value });
   }
 }

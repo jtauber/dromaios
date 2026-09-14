@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import { recordMemory } from "./memory-access.ts";
+import type { MemoryAccess } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
 import { add8, evenParity8 } from "./alu.ts";
@@ -41,11 +43,7 @@ export type Cpu8080Snapshot = Readonly<Omit<Cpu8080State, "flags">> & {
   readonly hl: number;
 };
 
-export interface Cpu8080MemoryAccess {
-  readonly kind: "read" | "write";
-  readonly address: number;
-  readonly value: number;
-}
+export type Cpu8080MemoryAccess = MemoryAccess;
 
 export interface Cpu8080Instruction {
   readonly address: number;
@@ -133,9 +131,9 @@ export class Cpu8080 {
       };
     }
 
-    const accesses: Cpu8080MemoryAccess[] = [];
+    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
     const address = this.#state.pc;
-    const opcode = this.#read(address, accesses);
+    const opcode = readByte(address);
     const bytes = [opcode];
     const handler = this.#opcodeHandlers[opcode];
     if (handler) {
@@ -143,7 +141,7 @@ export class Cpu8080 {
       this.#state.pc = (address + 1) & 0xffff;
       const fetchByte = (): number => {
         const pc = this.#state.pc;
-        const byte = this.#read(pc, accesses);
+        const byte = readByte(pc);
         this.#state.pc = (pc + 1) & 0xffff;
         bytes.push(byte);
         return byte;
@@ -155,8 +153,8 @@ export class Cpu8080 {
           const high = fetchByte();
           return low | (high << 8);
         },
-        readByte: (address) => this.#read(address, accesses),
-        writeByte: (address, value) => this.#write(address, value, accesses),
+        readByte,
+        writeByte,
       });
     }
 
@@ -668,18 +666,5 @@ export class Cpu8080 {
       cy,
     };
     return result;
-  }
-
-  // Recorded memory access.
-
-  #read(address: number, accesses: Cpu8080MemoryAccess[]): number {
-    const value = this.#ram.read(address);
-    accesses.push({ kind: "read", address, value });
-    return value;
-  }
-
-  #write(address: number, value: number, accesses: Cpu8080MemoryAccess[]): void {
-    this.#ram.write(address, value);
-    accesses.push({ kind: "write", address, value });
   }
 }

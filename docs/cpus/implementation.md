@@ -22,8 +22,9 @@ clarity, elegance, then performance.
 5. **Instruction behavior.** Group addressing, loads/stores/exchanges,
    control flow and stack operations, and arithmetic/logic/flags. Keep related
    helpers together even when their opcodes occupy different encoding groups.
-6. **Recorded memory access.** Keep the RAM read/write wrappers together at the
-   end of the class. Record the actual accesses made during execution.
+6. **Memory access.** Use the shared recorder for RAM reads and writes. Keep
+   CPU-specific bus mapping and multi-byte access helpers together at the end
+   of the class when needed.
 
 Use short section comments where they help navigation. Omit sections that have
 no implementation yet. Small cores can use explicit opcode entries throughout;
@@ -144,6 +145,40 @@ Use family builders when they reveal an encoding relationship and remove useful
 duplication. Keep them aligned with encoded subgroup boundaries and retain
 explicit exceptional entries. This convention does not require a common decoder,
 CPU base class, or definition language.
+
+## Shared memory-access recording
+
+The [memory recorder](../../src/components/cpus/memory-access.ts) supplies
+`recordMemory(ram)`, returning `{ accesses, readByte, writeByte }`. Each step
+or reset that accesses RAM creates a fresh recorder. Its callbacks can be
+passed directly into an instruction context:
+
+```ts
+const { accesses, readByte, writeByte } = recordMemory(this.#ram);
+const opcode = readByte(address);
+```
+
+Creation performs no RAM access. Each callback calls RAM once, then appends
+the completed byte access to its log. Repeated reads and unchanged-value
+writes are recorded separately; failed RAM operations propagate their errors
+without adding an entry. The log captures values at access time and is exposed
+as readonly. Separate recorders own separate logs, so later steps and resets
+do not alter earlier records.
+
+All eight CPUs use this helper. Their existing `Cpu…MemoryAccess` type names
+alias the common readonly `MemoryAccess` shape. The helper owns recording only:
+CPU state, instruction bytes, PC advancement, address wrapping, byte order,
+alignment checks, and step outcomes remain in each CPU. The 68000 wraps the
+recorder's callbacks to map each byte address onto its 24-bit bus before it
+reaches RAM or the log; the 8088 retains its segmented-address calculations.
+
+A helper function fits this responsibility because it needs only RAM and a
+local log. It requires neither a shared CPU base class nor a mixin with access
+to CPU internals. [Recorder tests](../../tests/components/cpus/memory-access.test.ts)
+check actual RAM calls, current values, log independence, and error propagation;
+[type checks](../../tests/types/memory-access.ts) preserve the readonly contract.
+Existing CPU and example tests independently verify each model's complete
+records and memory behavior.
 
 ## Shared arithmetic
 

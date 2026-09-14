@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import { recordMemory } from "./memory-access.ts";
+import type { MemoryAccess } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateDescription } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
@@ -33,11 +35,7 @@ export type Cpu6800Snapshot = Readonly<Omit<Cpu6800State, "flags">> & {
   readonly flags: Readonly<Cpu6800Flags>;
 };
 
-export interface Cpu6800MemoryAccess {
-  readonly kind: "read" | "write";
-  readonly address: number;
-  readonly value: number;
-}
+export type Cpu6800MemoryAccess = MemoryAccess;
 
 export interface Cpu6800Instruction {
   readonly address: number;
@@ -89,9 +87,9 @@ export class Cpu6800 {
   /** Read the reset vector and set I; preserve other state and RAM under the model policy. */
   reset(): Cpu6800ResetRecord {
     const before = this.snapshot();
-    const accesses: Cpu6800MemoryAccess[] = [];
-    const high = this.#read(0xfffe, accesses);
-    const low = this.#read(0xffff, accesses);
+    const { accesses, readByte } = recordMemory(this.#ram);
+    const high = readByte(0xfffe);
+    const low = readByte(0xffff);
     this.#state.pc = (high << 8) | low;
     this.#state.flags.i = true;
     return { before, after: this.snapshot(), accesses };
@@ -100,16 +98,16 @@ export class Cpu6800 {
   /** Attempt one instruction; unsupported opcodes preserve all state and RAM. */
   step(): Cpu6800StepRecord {
     const before = this.snapshot();
-    const accesses: Cpu6800MemoryAccess[] = [];
+    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
     const address = this.#state.pc;
-    const opcode = this.#read(address, accesses);
+    const opcode = readByte(address);
     const bytes = [opcode];
     const handler = this.#opcodeHandlers[opcode];
     if (handler) {
       this.#state.pc = (address + 1) & 0xffff;
       const fetchByte = (): number => {
         const pc = this.#state.pc;
-        const byte = this.#read(pc, accesses);
+        const byte = readByte(pc);
         this.#state.pc = (pc + 1) & 0xffff;
         bytes.push(byte);
         return byte;
@@ -121,8 +119,8 @@ export class Cpu6800 {
           const low = fetchByte();
           return (high << 8) | low;
         },
-        readByte: address => this.#read(address, accesses),
-        writeByte: (address, value) => this.#write(address, value, accesses),
+        readByte,
+        writeByte,
       });
     }
     const record = { instruction: { address, bytes }, before, after: this.snapshot(), accesses };
@@ -260,18 +258,5 @@ export class Cpu6800 {
     this.#state.flags.n = (value & signBit) !== 0;
     this.#state.flags.z = value === 0;
     this.#state.flags.v = false;
-  }
-
-  // Recorded memory access.
-
-  #read(address: number, accesses: Cpu6800MemoryAccess[]): number {
-    const value = this.#ram.read(address);
-    accesses.push({ kind: "read", address, value });
-    return value;
-  }
-
-  #write(address: number, value: number, accesses: Cpu6800MemoryAccess[]): void {
-    this.#ram.write(address, value);
-    accesses.push({ kind: "write", address, value });
   }
 }
