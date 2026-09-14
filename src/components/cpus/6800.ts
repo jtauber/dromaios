@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { signed8, readWordBE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -38,26 +40,16 @@ export type Cpu6800Snapshot = Readonly<Omit<Cpu6800State, "flags">> & {
 
 export type Cpu6800MemoryAccess = MemoryAccess;
 
-export interface Cpu6800Instruction {
-  readonly address: number;
-  readonly bytes: readonly number[];
-}
+export type Cpu6800Instruction = FetchedInstruction;
 
-export type Cpu6800StepRecord = {
+export type Cpu6800StepRecord = StateTransition<Cpu6800Snapshot> & {
   readonly instruction: Cpu6800Instruction;
-  readonly before: Cpu6800Snapshot;
-  readonly after: Cpu6800Snapshot;
-  readonly accesses: readonly Cpu6800MemoryAccess[];
 } & (
   | { readonly outcome: "executed" }
   | { readonly outcome: "unsupported"; readonly reason: "opcode" }
 );
 
-export interface Cpu6800ResetRecord {
-  readonly before: Cpu6800Snapshot;
-  readonly after: Cpu6800Snapshot;
-  readonly accesses: readonly Cpu6800MemoryAccess[];
-}
+export type Cpu6800ResetRecord = StateTransition<Cpu6800Snapshot>;
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type Accumulator = "a" | "b";
@@ -108,11 +100,7 @@ export class Cpu6800 {
       };
       handler({
         fetchByte,
-        fetchWord: () => {
-          const high = fetchByte();
-          const low = fetchByte();
-          return (high << 8) | low;
-        },
+        fetchWord: () => readWordBE(fetchByte),
         readByte,
         writeByte,
       });
@@ -214,7 +202,7 @@ export class Cpu6800 {
 
   #relativeAddress(displacement: number): number {
     // Branches and BSR fetch the displacement before computing this relative address.
-    const offset = displacement < 0x80 ? displacement : displacement - 0x100;
+    const offset = signed8(displacement);
     return (this.#state.pc + offset) & 0xffff;
   }
 

@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { readWordLE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -47,26 +49,15 @@ export type Cpu8008Snapshot = Readonly<Omit<Cpu8008State, "flags">> & {
 
 export type Cpu8008MemoryAccess = MemoryAccess;
 
-export interface Cpu8008Instruction {
-  readonly address: number;
-  readonly bytes: readonly number[];
-}
+export type Cpu8008Instruction = FetchedInstruction;
 
-export type Cpu8008StepRecord = {
-  readonly before: Cpu8008Snapshot;
-  readonly after: Cpu8008Snapshot;
-  readonly accesses: readonly Cpu8008MemoryAccess[];
-} & (
+export type Cpu8008StepRecord = StateTransition<Cpu8008Snapshot> & (
   | { readonly outcome: "executed"; readonly instruction: Cpu8008Instruction }
   | { readonly outcome: "unsupported"; readonly instruction: Cpu8008Instruction; readonly reason: "opcode" }
   | { readonly outcome: "halted"; readonly instruction: Cpu8008Instruction | null }
 );
 
-export interface Cpu8008ResetRecord {
-  readonly before: Cpu8008Snapshot;
-  readonly after: Cpu8008Snapshot;
-  readonly accesses: readonly Cpu8008MemoryAccess[];
-}
+export type Cpu8008ResetRecord = StateTransition<Cpu8008Snapshot>;
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperand = "a" | "b" | "c" | "d" | "e" | "h" | "l" | "m";
@@ -120,11 +111,7 @@ export class Cpu8008 {
       };
       handler({
         fetchByte,
-        fetchWord: () => {
-          const low = fetchByte();
-          const high = fetchByte();
-          return (high << 8) | low;
-        },
+        fetchWord: () => readWordLE(fetchByte),
         readByte,
         writeByte,
       });

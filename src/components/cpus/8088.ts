@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { readWordLE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -61,27 +63,17 @@ export type Cpu8088Snapshot = Readonly<Omit<Cpu8088State, "flags">> & {
 /** Physical byte access on the 20-bit memory bus. */
 export type Cpu8088MemoryAccess = MemoryAccess;
 
-export interface Cpu8088Instruction {
-  /** Physical start address; before.cs and before.ip retain its logical address. */
-  readonly address: number;
-  readonly bytes: readonly number[];
-}
+/** Instruction address is physical; before.cs and before.ip retain its logical address. */
+export type Cpu8088Instruction = FetchedInstruction;
 
-export type Cpu8088StepRecord = {
+export type Cpu8088StepRecord = StateTransition<Cpu8088Snapshot> & {
   readonly instruction: Cpu8088Instruction;
-  readonly before: Cpu8088Snapshot;
-  readonly after: Cpu8088Snapshot;
-  readonly accesses: readonly Cpu8088MemoryAccess[];
 } & (
   | { readonly outcome: "executed" }
   | { readonly outcome: "unsupported"; readonly reason: "opcode" }
 );
 
-export interface Cpu8088ResetRecord {
-  readonly before: Cpu8088Snapshot;
-  readonly after: Cpu8088Snapshot;
-  readonly accesses: readonly Cpu8088MemoryAccess[];
-}
+export type Cpu8088ResetRecord = StateTransition<Cpu8088Snapshot>;
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type OperandWidth = 8 | 16;
@@ -149,10 +141,7 @@ export class Cpu8088 {
       };
       handler({
         fetchByte,
-        fetchWord: () => {
-          const low = fetchByte();
-          return low | (fetchByte() << 8);
-        },
+        fetchWord: () => readWordLE(fetchByte),
         readByte,
         writeByte,
       });

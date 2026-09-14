@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { signed8, readWordLE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -69,26 +71,15 @@ export type CpuZ80Snapshot = CpuZ80BankSnapshot &
 
 export type CpuZ80MemoryAccess = MemoryAccess;
 
-export interface CpuZ80Instruction {
-  readonly address: number;
-  readonly bytes: readonly number[];
-}
+export type CpuZ80Instruction = FetchedInstruction;
 
-export type CpuZ80StepRecord = {
-  readonly before: CpuZ80Snapshot;
-  readonly after: CpuZ80Snapshot;
-  readonly accesses: readonly CpuZ80MemoryAccess[];
-} & (
+export type CpuZ80StepRecord = StateTransition<CpuZ80Snapshot> & (
   | { readonly outcome: "executed"; readonly instruction: CpuZ80Instruction }
   | { readonly outcome: "unsupported"; readonly instruction: CpuZ80Instruction; readonly reason: "opcode" }
   | { readonly outcome: "halted"; readonly instruction: CpuZ80Instruction | null }
 );
 
-export interface CpuZ80ResetRecord {
-  readonly before: CpuZ80Snapshot;
-  readonly after: CpuZ80Snapshot;
-  readonly accesses: readonly CpuZ80MemoryAccess[];
-}
+export type CpuZ80ResetRecord = StateTransition<CpuZ80Snapshot>;
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteRegister = "a" | "b" | "c" | "d" | "e" | "h" | "l";
@@ -152,11 +143,7 @@ export class CpuZ80 {
       };
       handler({
         fetchByte,
-        fetchWord: () => {
-          const low = fetchByte();
-          const high = fetchByte();
-          return low | (high << 8);
-        },
+        fetchWord: () => readWordLE(fetchByte),
         readByte,
         writeByte,
       });
@@ -263,7 +250,7 @@ export class CpuZ80 {
   #jumpRelative(displacement: number, take: boolean): void {
     // Both paths fetch the operand; PC now points past both instruction bytes.
     if (take) {
-      const offset = displacement < 0x80 ? displacement : displacement - 0x100;
+      const offset = signed8(displacement);
       this.#state.pc = (this.#state.pc + offset) & 0xffff;
     }
   }

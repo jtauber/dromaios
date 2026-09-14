@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { signed8 } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess, RecordedMemory } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
@@ -59,11 +61,8 @@ export type Cpu68000Snapshot = Readonly<Omit<Cpu68000State, "flags">> & {
 /** Physical byte access on the 24-bit memory bus. */
 export type Cpu68000MemoryAccess = MemoryAccess;
 
-export interface Cpu68000Instruction {
-  /** Full 32-bit start address; accesses contain the physical addresses. */
-  readonly address: number;
-  readonly bytes: readonly number[];
-}
+/** Instruction address is the full 32-bit PC; accesses contain physical addresses. */
+export type Cpu68000Instruction = FetchedInstruction;
 
 export interface Cpu68000AlignmentFault {
   readonly operation: "fetch" | "write";
@@ -71,22 +70,14 @@ export interface Cpu68000AlignmentFault {
   readonly address: number;
 }
 
-export type Cpu68000StepRecord = {
-  readonly before: Cpu68000Snapshot;
-  readonly after: Cpu68000Snapshot;
-  readonly accesses: readonly Cpu68000MemoryAccess[];
-} & (
+export type Cpu68000StepRecord = StateTransition<Cpu68000Snapshot> & (
   | { readonly outcome: "executed"; readonly instruction: Cpu68000Instruction }
   | { readonly outcome: "unsupported"; readonly reason: "opcode"; readonly instruction: Cpu68000Instruction }
   | { readonly outcome: "unsupported"; readonly reason: "unaligned-address";
       readonly instruction: Cpu68000Instruction | null; readonly fault: Cpu68000AlignmentFault }
 );
 
-export interface Cpu68000ResetRecord {
-  readonly before: Cpu68000Snapshot;
-  readonly after: Cpu68000Snapshot;
-  readonly accesses: readonly Cpu68000MemoryAccess[];
-}
+export type Cpu68000ResetRecord = StateTransition<Cpu68000Snapshot>;
 
 interface InstructionContext {
   readonly fetchLong: () => number;
@@ -197,8 +188,7 @@ export class Cpu68000 {
   }
 
   #loadQuickRegister(register: DataRegister, byte: number): void {
-    const signed = byte < 0x80 ? byte : byte - 0x100;
-    this.#loadRegister(register, signed >>> 0);
+    this.#loadRegister(register, signed8(byte) >>> 0);
   }
 
   #storeRegister(register: DataRegister, address: number, writeLong: InstructionContext["writeLong"]): Cpu68000AlignmentFault | void {

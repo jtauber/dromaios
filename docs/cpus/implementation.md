@@ -147,6 +147,27 @@ duplication. Keep them aligned with encoded subgroup boundaries and retain
 explicit exceptional entries. This convention does not require a common decoder,
 CPU base class, or definition language.
 
+## Shared execution records
+
+The [execution-record types](../../src/components/cpus/execution-records.ts)
+provide the common fields used by all eight CPUs:
+
+- `FetchedInstruction` contains the start `address` and actual fetched `bytes`.
+- `StateTransition<Snapshot>` contains `before`, `after`, and ordered memory
+  `accesses`. The supplied snapshot type retains its CPU's fields, derived
+  views, and nested readonly guarantees.
+
+CPU modules keep their public names as aliases, such as `Cpu6502Instruction`
+and `Cpu6502ResetRecord`. Step records combine `StateTransition` with their
+own instruction fields and outcome unions. Null instructions, rejection reasons,
+and alignment faults remain specific to the CPU. Address conventions are still
+documented beside the aliases, including the 8088's physical instruction
+address and the 68000's full logical instruction address.
+
+These types describe records; each CPU still constructs detached snapshots and
+access lists. Existing [public type checks](../../tests/types) verify readonly
+fields, concrete snapshot types, and outcome narrowing through the CPU exports.
+
 ## Shared instruction contexts
 
 The [instruction-context types](../../src/components/cpus/instruction-context.ts)
@@ -172,12 +193,42 @@ absent rather than optional.
 These are shared types only. Each CPU constructs its callbacks in `step()`:
 instruction fetches track fetched bytes and advance PC according to that
 CPU's execution policy, while data accesses leave the instruction stream alone.
-Byte order, address masking, alignment, and rejection rules stay in the CPU.
+Each CPU selects byte order and owns address masking, alignment, and rejection rules.
 Handler return types also remain local, including the 68000's alignment fault.
 
 [Type checks](../../tests/types/instruction-context.ts) cover required callbacks
 and readonly inheritance. Existing CPU tests retain their independent execution
 expectations.
+
+## Shared binary helpers
+
+The [binary helpers](../../src/components/cpus/binary.ts) interpret byte values
+without owning CPU state:
+
+- `signed8(byte)` interprets an unsigned byte as a signed integer in `-128–127`.
+  The 6502, 6800, 6809, and Z80 use it for relative offsets; the 68000 uses it
+  before extending a MOVEQ immediate to its 32-bit register representation.
+- `readWordLE(nextByte)` reads two bytes, low first; `readWordBE(nextByte)` reads
+  high first. Both return an unsigned 16-bit value. Each calls `nextByte`
+  exactly twice on success and propagates a callback failure without further reads.
+
+Inputs must already be unsigned bytes. The callback owns its cursor, address
+mapping, recording, and other side effects. The seven CPUs with byte operand
+fetches select a word reader when constructing their instruction context:
+
+```ts
+fetchWord: () => readWordLE(fetchByte),
+```
+
+Use a word reader when two consecutive byte fetches describe the operation.
+The 6502's JSR retains separate low/high fetches around its stack writes, and
+the 68000 retains its word-based cursor and fault handling. Stack-pointer
+updates and reset-vector addresses remain visible in their CPU implementations.
+
+[Helper tests](../../tests/components/cpus/binary.test.ts) compare every byte
+and byte pair with native signed/unsigned interpretations, and check read
+counts, current callback values, cursor ownership, and error propagation.
+CPU tests retain their independently authored execution and access expectations.
 
 ## Shared memory-access recording
 

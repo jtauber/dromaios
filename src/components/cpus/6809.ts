@@ -1,4 +1,6 @@
 import type { Ram } from "../memory/ram.js";
+import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { signed8, readWordBE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -44,26 +46,16 @@ export type Cpu6809Snapshot = Readonly<Omit<Cpu6809State, "flags">> & {
 
 export type Cpu6809MemoryAccess = MemoryAccess;
 
-export interface Cpu6809Instruction {
-  readonly address: number;
-  readonly bytes: readonly number[];
-}
+export type Cpu6809Instruction = FetchedInstruction;
 
-export type Cpu6809StepRecord = {
+export type Cpu6809StepRecord = StateTransition<Cpu6809Snapshot> & {
   readonly instruction: Cpu6809Instruction;
-  readonly before: Cpu6809Snapshot;
-  readonly after: Cpu6809Snapshot;
-  readonly accesses: readonly Cpu6809MemoryAccess[];
 } & (
   | { readonly outcome: "executed" }
   | { readonly outcome: "unsupported"; readonly reason: "opcode" }
 );
 
-export interface Cpu6809ResetRecord {
-  readonly before: Cpu6809Snapshot;
-  readonly after: Cpu6809Snapshot;
-  readonly accesses: readonly Cpu6809MemoryAccess[];
-}
+export type Cpu6809ResetRecord = StateTransition<Cpu6809Snapshot>;
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type Accumulator = "a" | "b";
@@ -121,11 +113,7 @@ export class Cpu6809 {
       };
       handler({
         fetchByte,
-        fetchWord: () => {
-          const high = fetchByte();
-          const low = fetchByte();
-          return (high << 8) | low;
-        },
+        fetchWord: () => readWordBE(fetchByte),
         readByte,
         writeByte,
       });
@@ -242,7 +230,7 @@ export class Cpu6809 {
   #branch(displacement: number, take: boolean): void {
     // Every branch fetches its operand; PC now points past both instruction bytes.
     if (take) {
-      const offset = displacement < 0x80 ? displacement : displacement - 0x100;
+      const offset = signed8(displacement);
       this.#state.pc = (this.#state.pc + offset) & 0xffff;
     }
   }
