@@ -11,6 +11,7 @@ address is CS:IP; the physical PC is a derived view.
 [Arithmetic example](examples/arithmetic.md) ·
 [Transfer example](examples/transfers.md) ·
 [Control-flow example](examples/control-flow.md) ·
+[Masked word-sum example](examples/word-sum.md) ·
 [dromaios-pc comparison](reference-notes.md)
 
 Hardware behavior follows Intel's
@@ -71,12 +72,12 @@ translated separately. For example, a fetch at `1234:FFFF` reads `2233F`, then
 the next fetch reads `12340`. At `FFFF:000F`, consecutive fetches read `FFFFF`
 and `00000` because the physical address itself wraps.
 
-Direct memory MOV forms load or store AL or AX at DS:offset; stack operations
-use SS:SP. Words are low byte first. Each byte's **offset wraps within its
-segment before translation** to a 20-bit physical address. A word at
-`1234:FFFF` uses physical `2233F` and `12340`; a word at `FFFF:000F` uses
-`FFFFF` and `00000`. Odd word addresses are valid. Data transfers leave IP
-alone, while instruction fetching advances it after every byte.
+Direct memory MOV forms use DS:offset; stack operations use SS:SP. ModR/M
+operands select DS or SS as described below. Words are low byte first. Each
+byte's **offset wraps within its segment before translation** to a 20-bit
+physical address. A word at `1234:FFFF` uses physical `2233F` and `12340`;
+a word at `FFFF:000F` uses `FFFFF` and `00000`. Odd word addresses are valid.
+Data transfers leave IP alone; instruction fetching advances it after each byte.
 
 This corrects the earlier model's assumption that a word always continued at
 the next physical byte. The hardware POP fixture at SS:FFFF and the hardware-test
@@ -98,11 +99,14 @@ The supported unprefixed forms are:
 
 | Opcode | Form | Effects |
 | --- | --- | --- |
-| `04`, `05` | `ADD AL,n`, `ADD AX,n` | Add an immediate byte/word without incoming carry; replace CF/PF/AF/ZF/SF/OF |
-| `3C`, `3D` | `CMP AL,n`, `CMP AX,n` | Compare an immediate byte/word; replace CF/PF/AF/ZF/SF/OF and preserve AX |
+| `00`–`05`, `08`–`0D`, `10`–`15`, `18`–`1D`, `20`–`25`, `28`–`2D`, `30`–`35`, `38`–`3D` | ADD/OR/ADC/SBB/AND/SUB/XOR/CMP | Register/memory in both directions and widths, plus AL/AX immediate; CMP preserves its operands |
+| `40`–`4F` | INC/DEC r16 | Adjust any word register by one; update arithmetic flags except CF |
 | `50`–`57` | `PUSH r16` | Push AX/CX/DX/BX/SP/BP/SI/DI through SS; preserve flags |
 | `58`–`5F` | `POP r16` | Pop AX/CX/DX/BX/SP/BP/SI/DI through SS; preserve flags |
 | `70`–`7F` | `Jcc rel8` | All sixteen conditions; fetch the signed byte on both paths |
+| `80`–`83` | Immediate ALU r/m | 80/81 support all operations; 82/83 support ADD/ADC/SBB/SUB/CMP; 83 sign-extends its byte immediate to a word |
+| `84`, `85`, `A8`, `A9` | TEST r/m,r or AL/AX,n | Set AND flags without changing either operand |
+| `88`–`8B` | MOV r/m,r or r,r/m | Both widths/directions; preserve every flag and the unselected byte half |
 | `A0`, `A1` | `MOV AL,[offset]`, `MOV AX,[offset]` | Fetch a word offset and read one/two bytes through DS; preserve all flags and, for AL, AH |
 | `A2`, `A3` | `MOV [offset],AL`, `MOV [offset],AX` | Fetch a word offset and write one/two bytes through DS; preserve all registers and flags except advancing IP |
 | `B0`–`B7` | `MOV r8,n` | Fetch an immediate byte and replace AL/CL/DL/BL/AH/CH/DH/BH; preserve the other half and all flags |
@@ -111,26 +115,70 @@ The supported unprefixed forms are:
 | `E8` | `CALL rel16` | Push the following IP and take a near relative branch |
 | `E9`, `EB` | `JMP rel16`, `JMP rel8` | Near or short relative branch without a stack access |
 
-Immediate byte instructions fetch two instruction bytes; immediate word
-ALU/MOV instructions and all direct memory transfers fetch three. Data accesses
-follow the complete instruction encoding and do not appear in `instruction.bytes`.
-Loads read their source once, low byte then high for words. Stores perform
-one or two writes without reading the destination or touching neighboring
-bytes. Writes are recorded even when their values are unchanged. Stores may
-overwrite code; later steps fetch current RAM, while retained records keep
-the earlier fetched values.
+Lengths follow the encoding: opcode, optional ModR/M and displacement, then
+any immediate. **All instruction bytes are fetched before data accesses**;
+data bytes do not appear in `instruction.bytes`. Word reads and writes are low
+byte first. MOV reads only its source and writes only its destination. ALU
+operations read the original operands before writing a result; CMP and TEST
+perform no destination write. Writes are recorded even when values are unchanged.
+If a write overlaps code, it cannot alter the already fetched instruction;
+later steps read current RAM while retained records keep their earlier bytes.
 
-ADD wraps its result to the operand width; byte ADD preserves AH. CF reports
-unsigned carry; AF carry from bit 3; ZF a zero result; SF bit 7 or 15; OF signed
-overflow at the selected width. PF indicates an even number of
-one bits in the **low byte only**, including for word arithmetic. TF, IF, and DF
-are preserved. ADD has no decimal mode; decimal adjustment is a separate,
-currently unsupported instruction.
+## ModR/M operands
 
-CMP subtracts the immediate from AL or AX to set flags without storing the
-result; incoming CF is ignored and all of AX is preserved. CF indicates borrow,
-AF borrow from bit 4 into the low nibble, ZF zero, SF the result's sign bit,
-and OF signed overflow. PF uses the low result byte. TF/IF/DF are preserved.
+ModR/M has the pattern **`mm ggg rrr`**. In register/memory ALU, MOV, and TEST,
+`ggg` selects a register. In `80`–`83`, it selects the ALU operation instead.
+Register codes are AL/CL/DL/BL/AH/CH/DH/BH for bytes and
+AX/CX/DX/BX/SP/BP/SI/DI for words. Register self-operations and byte halves
+sharing a word use the operands' original values.
+
+| `mm` | `rrr` interpretation | Displacement |
+| --- | --- | --- |
+| `00` | Memory base below, except `rrr=110` is direct DS:offset | None, or a word for the direct exception |
+| `01` | Memory base below | Signed byte |
+| `10` | Memory base below | Word, added modulo 65536 |
+| `11` | Register selected by `rrr` | None |
+
+| `rrr` | Memory base | Default segment |
+| --- | --- | --- |
+| `000` | BX+SI | DS |
+| `001` | BX+DI | DS |
+| `010` | BP+SI | SS |
+| `011` | BP+DI | SS |
+| `100` | SI | DS |
+| `101` | DI | DS |
+| `110` | BP (direct offset when `mm=00`) | SS (DS for the direct exception) |
+| `111` | BX | DS |
+
+Base and displacement are added modulo 65536 before segment translation.
+The operand retains that segment and offset for its reads and writes; changing
+a base register cannot change the already resolved address. For example,
+`MOV BX,[BX+SI]` uses the original BX to find its source.
+
+The immediate group uses `1000 00 s w`. `80` is byte and `81` is word;
+`82` is the documented alternate byte arithmetic encoding; `83` sign-extends
+a byte to a word. `ggg=000/010/011/101/111` selects ADD/ADC/SBB/SUB/CMP
+for every group byte. OR/AND/XOR (`001/100/110`) are documented only for
+80/81; the 1979 manual marks those selectors unused for 82/83.
+All documented register and memory choices are supported. Segment overrides
+remain unsupported rather than silently ignored.
+
+## Arithmetic and logic
+
+ADD/ADC wrap a sum to the operand width; SUB/SBB/CMP wrap a difference.
+ADC adds incoming CF and SBB subtracts it as a borrow. ADD, SUB, and CMP
+ignore incoming CF. CMP sets subtraction flags without changing either operand.
+Arithmetic sets CF for unsigned carry/borrow, AF for low-nibble carry/borrow,
+OF for signed overflow, SF for the result's sign, and ZF for zero. PF uses
+only the low result byte, even for word operations. INC/DEC set the same flags
+as adding/subtracting one, but preserve CF. Every operation preserves TF/IF/DF.
+
+OR/AND/XOR store their logical result. TEST sets flags from AND without writing
+the result. Logic clears CF/OF and sets SF/ZF/PF from the result. Intel leaves
+AF undefined; the model **clears AF deterministically**, matching the pinned
+hardware fixtures rather than promising portable software behavior for that bit.
+Byte operations preserve the other half of their stored word register.
+Decimal adjustment remains a separate, unsupported instruction family.
 
 ## Control flow and stack
 
@@ -169,10 +217,11 @@ compares it before branching. IP, SP, and the physical PC stay distinct.
 
 ## Unsupported instructions
 
-All other opcode bytes, including prefixes, produce `outcome: "unsupported"`
-and `reason: "opcode"` after one opcode read, preserving IP and every other
-state field and RAM. Repeating the attempt repeats that read. This atomic
-rejection is a model policy, not an illegal-instruction exception implemented
+Unsupported first bytes, including prefixes, produce `outcome: "unsupported"`
+and `reason: "opcode"` after one opcode read. Unused 82/83 selectors read the
+opcode and ModR/M, then reject without fetching a displacement or immediate
+or accessing an operand. Both paths preserve IP, all other state, and RAM.
+Repeating the attempt repeats the same reads. This atomic rejection is a model policy, not an illegal-instruction exception implemented
 by the original chip. Supported steps report `outcome: "executed"`.
 
 ## CPU reset
@@ -221,8 +270,16 @@ The 39-step control-flow example checks complete records, saved loop counters,
 full RAM images, nested-call resumption from snapshots, physical completion,
 reset preservation, fresh restart, and bounded loops.
 
-Other instruction forms, ModR/M addressing, segment overrides and other
-prefixes, far transfers, loop instructions, segment/FLAGS stack operations, interrupts, I/O, mapped devices,
-timing, bus arbitration, and prefetching remain deferred. The instruction-level
+ModR/M checks cover every register pair, all supported operation groups, every
+memory base and displacement mode, both widths/directions, BP segment defaults,
+the direct-address exception, byte aliases, all signed-byte immediates, wrapped
+instruction and data accesses, unchanged-value writes, and code/data overlap.
+The [masked word-sum example](examples/word-sum.md) verifies all 76 records,
+a 32-bit carry, BP stack-frame reads, conditional logic, edited source RAM,
+bounded loops, full memory images, nested state restoration, reset, and restart.
+
+Other instruction forms, segment overrides and other prefixes, far transfers,
+loop instructions, segment/FLAGS stack operations, interrupts, I/O, mapped
+devices, timing, bus arbitration, and prefetching remain deferred. The instruction-level
 records are not a cycle trace; self-modifying code observes current RAM without
 the original chip's prefetch-queue effects.

@@ -48,7 +48,7 @@ The arithmetic examples provide a starting point for following execution.
 | Motorola 6800 | [Load, add, and store](cpus/6800/examples/arithmetic.md); [logic and bit tests](cpus/6800/examples/logic.md) | — | [Nested calls and saved accumulators](cpus/6800/examples/stack.md) | — | — | [Counted loop](cpus/6800/examples/counted-loop.md) |
 | Motorola 6809 | [Load, add, and store](cpus/6809/examples/arithmetic.md) | — | [Two stack pointers](cpus/6809/examples/stack.md) | [Configurable direct page](cpus/6809/examples/addressing.md) | [Word addition through nested calls](cpus/6809/examples/word-addition.md) | [Counted loop](cpus/6809/examples/counted-loop.md) |
 | Zilog Z80 | [Arithmetic and 8080 comparison](cpus/z80/examples/arithmetic.md); [two-byte checksum](cpus/z80/examples/checksum.md) | — | [Bit counting and nested calls](cpus/z80/examples/bit-count.md) | — | [Buffer fill and readback](cpus/z80/examples/transfers.md) | [Counted loop](cpus/z80/examples/counted-loop.md) |
-| Intel 8088 | [Word arithmetic and segmented addressing](cpus/8088/examples/arithmetic.md) | — | — | — | [Byte and word registers](cpus/8088/examples/transfers.md) | [Loop with nested calls](cpus/8088/examples/control-flow.md) |
+| Intel 8088 | [Word arithmetic and segmented addressing](cpus/8088/examples/arithmetic.md) | — | — | — | [Byte and word registers](cpus/8088/examples/transfers.md) | [Loop with nested calls](cpus/8088/examples/control-flow.md) · [Masked word sum](cpus/8088/examples/word-sum.md) |
 | Motorola 68000 | [Long arithmetic and physical addressing](cpus/68000/examples/arithmetic.md) | — | — | — | [Data registers and quick immediates](cpus/68000/examples/transfers.md) | — |
 
 A dash means there is no separate example for that topic. Supported instructions

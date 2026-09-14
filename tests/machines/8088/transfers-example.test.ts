@@ -97,7 +97,8 @@ test("8088 transfers combine byte ownership, carry and overflow, and memory widt
   assert.equal(read.mock.callCount(), 35);
   t.mock.restoreAll();
   checkMemory(ram, true);
-  assert.equal(runCpu(cpu, { maxSteps: 1 }).stopReason, "unsupported");
+  // Without an endpoint, zero-filled RAM executes ADD and the step budget stops the run.
+  assert.equal(runCpu(cpu, { maxSteps: 1 }).stopReason, "step-limit");
 });
 
 test("8088 transfers pause after byte carry, restore snapshots, and retain detached records", () => {
@@ -132,6 +133,7 @@ test("8088 transfer reset preserves results without reading RAM; restart restore
   assert.equal(write.mock.callCount(), 0);
   t.mock.restoreAll();
   checkMemory(ram, true);
+  ram.write(0xffff0, 0x0f); // Deliberately test rejection instead of relying on zero-filled RAM.
   assert.equal(cpu.step().outcome, "unsupported");
   assert.deepEqual(reset.after, after);
   assert.deepEqual(records, saved);

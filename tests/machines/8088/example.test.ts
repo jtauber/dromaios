@@ -75,8 +75,9 @@ test("8088 arithmetic records CS instruction fetches and DS word stores and comp
   checkMemory(ram, true);
   const final = records[2]!.after;
   assert.deepEqual(cpu.snapshot(), final);
-  assert.deepEqual(cpu.step(), { before: final, after: final, instruction: { address: 0x12449, bytes: [0] },
-    outcome: "unsupported", reason: "opcode", accesses: [{ kind: "read", address: 0x12449, value: 0 }] });
+  // An endpoint does not halt the CPU: 00 00 now executes ADD [BX+SI],AL.
+  assert.equal(cpu.step().outcome, "executed");
+  assert.equal(cpu.snapshot().ip, final.ip + 2);
 });
 
 test("8088 example pauses after MOV and resumes through the shared runner with unchanged earlier records", () => {
@@ -106,6 +107,7 @@ test("8088 reset preserves the example's result, starts at FFFF:0000 without vec
   assert.equal(write.mock.callCount(), 0);
   t.mock.restoreAll();
   checkMemory(ram, true);
+  ram.write(0xffff0, 0x0f); // An explicitly unsupported original-8088 encoding.
   assert.equal(cpu.step().outcome, "unsupported");
   [0xb8, 0xef, 0xbe].forEach((byte, offset) => ram.write(0xffff0 + offset, byte));
   assert.equal(cpu.step().after.ax, 0xbeef);

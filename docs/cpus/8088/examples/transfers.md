@@ -84,8 +84,9 @@ aliases, rather than the logical offset alone.
 
 Reset preserves the general registers and RAM, sets CS:IP=`FFFF:0000`, clears
 DS/SS/ES and all flags, and makes no memory accesses. The next byte at physical
-`FFFF0` is unsupported. Creating a fresh example restores the initial registers,
-program, result slots, and sentinels.
+`FFFF0` contains zero, which now decodes as ADD; the rejection test explicitly
+places an unsupported `0F` there. Creating a fresh example restores the initial
+registers, program, result slots, and sentinels.
 
 ## Acceptance checks
 

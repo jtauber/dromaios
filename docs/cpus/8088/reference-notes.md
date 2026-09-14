@@ -26,7 +26,9 @@ groups ALU operations by encoded fields and gives immediate-register moves a
 regular family. Word arithmetic uses only the low byte for parity. These are
 useful guides for the expanded register and accumulator families. Typed selector
 arrays now expose the byte/word widths and both register orders beside the
-full opcode patterns, while ModR/M decoding remains deferred.
+full opcode patterns. The expanded core resolves ModR/M into instruction-local
+operand readers/writers, capturing an effective address once without mutable
+decoder fields on the CPU.
 
 ## Differences to preserve
 
@@ -50,10 +52,6 @@ interrupts, and display logic remain outside this initial CPU-and-RAM slice.
 
 ## Ideas to revisit
 
-- Keep opcode-extension bits distinct from operand-selection bits when adding
-  ModR/M. Explain direct-address and BP-based segment-selection exceptions.
-- Represent a decoded operand explicitly if it helps reuse the same address
-  for reading and writing; the older core caches the address in mutable fields.
 - Treat prefixes as instruction-local context. Segment overrides, repeat
   behavior, and invalid combinations need their own contracts and tests.
 - Preserve original-8088 behavior when extending stack and flag families;
@@ -113,3 +111,46 @@ boundary and it does not use PUSH SP; dedicated tests cover those differences.
 
 [marty-biu]: https://github.com/dbalsom/martypc/blob/05c0d088e84ad6bbfac9b3f0d051e7eadefd9f44/crates/lib/marty_core/src/cpu_808x/biu.rs
 [marty-stack]: https://github.com/dbalsom/martypc/blob/05c0d088e84ad6bbfac9b3f0d051e7eadefd9f44/crates/lib/marty_core/src/cpu_808x/stack.rs
+
+## Arithmetic, logic, and ModR/M comparison
+
+The next batch adds **550,172 unprefixed hardware cases across 94 forms**:
+44 further ALU forms in `00`–`3D`, 16 register INC/DEC forms, 26 documented
+immediate-group operations in `80`–`83`, four TEST forms, and four ModR/M MOV
+forms. All pass against the same pinned V2 revision. The previous 475,170
+cases also pass after the shared ALU refactoring, giving **1,025,342 cases
+across all 155 supported forms**.
+
+Checks compare fetched bytes, stored registers, all modeled flags, final RAM,
+and that recorded accesses address fixture memory. The suite's prefixed cases
+are excluded; prefetch queues, cycle traces, and bus access order are not part
+of this comparison. Local tests independently check instruction-level access
+order and preservation of control flags, including TF/IF which the hardware
+suite does not exercise.
+
+The 1979 decoding guide documents only ADD/ADC/SBB/SUB/CMP for `82` and `83`.
+Its unused `/1`, `/4`, and `/6` choices remain unsupported even though the old
+PC emulator and hardware suite also implement those encodings. Tests reject
+all such ModR/M choices before displacement/immediate fetches or data accesses,
+preserving the complete state and RAM.
+
+The [masked word-sum example](examples/word-sum.md) was compared with the pinned
+PC core over all 76 steps and the complete final RAM image. Registers and defined
+flags agree; all access addresses and values agree. Two model distinctions are
+explicit:
+
+- The old core preserves AF during logic. Intel leaves AF undefined; Dromaios
+  clears it, matching the hardware fixtures. The comparison normalizes that
+  undefined flag after logical instructions before comparing later states.
+- For the final immediate-memory OR, the old core reads destination RAM before
+  fetching the immediate. Dromaios follows its instruction-level contract:
+  fetch the complete encoding, read operands, then write the result. The other
+  75 steps have matching access order. This is not a claim about a prefetch
+  queue or a hardware bus-cycle trace.
+
+The typed operand closures keep register access and memory access explicit.
+Effective addresses are fixed before an instruction changes registers, including
+`MOV BX,[BX+SI]`; BP-relative reads use SS while direct offsets use DS. ALU
+operation selectors return a result for writing, or no result for CMP/TEST.
+This shares addressing and flag behavior across instruction families without
+adding a CPU base class or mutable cached ModR/M state.

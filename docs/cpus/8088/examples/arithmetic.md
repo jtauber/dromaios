@@ -68,8 +68,9 @@ corresponding addresses in the code, stack, and extra segments.
 `runCpu(cpu, { maxSteps: 3, endAddress })` returns the three records and
 `stopReason: "completed"`, before fetching at `12449`. The completion address
 is physical `12449`, not the logical offset `0109`. Repeating the completed
-run performs no fetch. A direct CPU step at the endpoint attempts the zero
-byte there, reports `unsupported`, and preserves state.
+run performs no fetch. A direct CPU step at the endpoint now decodes its zero
+bytes as `ADD [BX+SI],AL`. Completion belongs to the runner; it does not halt
+the CPU or turn the endpoint into an unsupported instruction.
 
 ## Pause, reset, and restart
 
@@ -80,9 +81,9 @@ endpoint, the three-step run stops at its budget.
 CPU reset preserves AX = `1301`, the other general registers, and all RAM.
 It sets CS:IP to `FFFF:0000`, clears DS/SS/ES, and clears every flag. There are
 no vector reads; the next instruction address is physical `FFFF0`. This
-example leaves that memory zero, so a direct step after reset reports
-`unsupported`. Writing a supported instruction there makes a later step execute
-it from the same address.
+example leaves that memory zero, which decodes as ADD. Tests place an explicitly
+unsupported `0F` byte there, verify rejection without advancing IP, then replace
+it with a supported instruction that executes from the same address.
 
 A fresh factory restores the original logical state and memory image in
 independent components. This is lesson restart, distinct from CPU reset.

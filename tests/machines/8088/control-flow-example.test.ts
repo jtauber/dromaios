@@ -103,7 +103,8 @@ test("8088 nested subroutines preserve a counter and add fifteen in RAM with exa
   assert.deepEqual(runCpu(alias, { maxSteps: 0, endAddress }), { records: [], stopReason: "completed" });
   t.mock.restoreAll();
   checkMemory(ram, true);
-  assert.equal(cpu.step().outcome, "unsupported");
+  // Completion is owned by the runner; zero-filled RAM now decodes as ADD.
+  assert.equal(cpu.step().outcome, "executed");
 });
 
 test("8088 control flow resumes from a snapshot inside nested calls and preserves stack/result RAM across reset", () => {

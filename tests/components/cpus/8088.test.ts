@@ -50,7 +50,7 @@ function addition(before: Cpu8088State, operand: number, width: 8 | 16 = 16): Cp
 }
 
 function checkStep(ram: ObservedRam, before: Cpu8088State, bytes: readonly number[], after: Cpu8088State,
-  addresses: readonly number[] = [0x12440, 0x12441, 0x12442], dataAccesses: readonly Cpu8088MemoryAccess[] = []): void {
+  addresses: readonly number[] = bytes.map((_, i) => (before.cs * 16 + (before.ip + i) % 65536) % 1048576), dataAccesses: readonly Cpu8088MemoryAccess[] = []): void {
   bytes.forEach((byte, index) => ram.write(addresses[index]!, byte));
   ram.accesses.length = 0;
   const cpu = new Cpu8088(ram, before);
@@ -378,7 +378,9 @@ test("8088 rejects every other opcode and prefix with one fetch and no state cha
   const ram = new ObservedRam(0x100000);
   for (const [cs, ip, address] of [[0x1234, 0x100, 0x12440], [0xffff, 0xf, 0xfffff], [0xffff, 0x10, 0]] as const) {
     for (let opcode = 0; opcode < 256; opcode++) {
-      if ([4, 5, 0x3c, 0x3d, 0xc2, 0xc3, 0xe8, 0xe9, 0xeb,
+      if ([...Array.from({ length: 8 }, (_, i) => Array.from({ length: 6 }, (_, j) => i * 8 + j)).flat(),
+        ...Array.from({ length: 16 }, (_, i) => 0x40 + i), 0x80, 0x81, 0x82, 0x83, 0x84, 0x85,
+        0x88, 0x89, 0x8a, 0x8b, 0xa8, 0xa9, 0xc2, 0xc3, 0xe8, 0xe9, 0xeb,
         ...wordStacks.flatMap(([push, pop]) => [push, pop]), ...conditionalJumps.map(([opcode]) => opcode),
         0xa0, 0xa1, 0xa2, 0xa3, ...wordMoves.map(([code]) => code), ...byteMoves.map(([code]) => code)].includes(opcode)) continue;
       ram.write(address, opcode);
@@ -675,5 +677,326 @@ test("8088 short and near JMP wrap IP, preserve CS and flags, and never access t
       const before = initialState({ cs, ip, flags: flags(bits) });
       checkStep(ram, before, bytes, { ...before, ip: target }, addresses);
     }
+  }
+});
+
+// Rows are literal documented encodings, including each ModR/M operation selector.
+const aluForms = [
+  ["ADD", 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0],
+  ["OR",  0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 1],
+  ["ADC", 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 2],
+  ["SBB", 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 3],
+  ["AND", 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 4],
+  ["SUB", 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 5],
+  ["XOR", 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 6],
+  ["CMP", 0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 7],
+] as const;
+type AluName = typeof aluForms[number][0] | "TEST";
+
+function aluResult(name: AluName, width: 8 | 16, left: number, right: number, old: Cpu8088Flags) {
+  const modulus = 2 ** width;
+  const sign = modulus / 2;
+  const signed = (value: number) => value < sign ? value : value - modulus;
+  const subtract = name === "SUB" || name === "SBB" || name === "CMP";
+  const arithmetic = subtract || name === "ADD" || name === "ADC";
+  const carry = (name === "ADC" || name === "SBB") && old.cf ? 1 : 0;
+  const total = subtract ? left - right - carry : left + right + carry;
+  // Logic expectations are constructed one bit at a time, independently of bitwise operators.
+  let logical = 0;
+  for (let bit = 0; bit < width; bit++) {
+    const l = Math.floor(left / 2 ** bit) % 2;
+    const r = Math.floor(right / 2 ** bit) % 2;
+    if (name === "OR" ? l + r > 0 : name === "XOR" ? l !== r : l * r === 1) logical += 2 ** bit;
+  }
+  const result = arithmetic ? (total % modulus + modulus) % modulus : logical;
+  const signedTotal = subtract ? signed(left) - signed(right) - carry : signed(left) + signed(right) + carry;
+  return { result, flags: { ...old,
+    cf: arithmetic && (total < 0 || total >= modulus),
+    af: arithmetic && (subtract ? left % 16 < right % 16 + carry : left % 16 + right % 16 + carry >= 16),
+    of: arithmetic && (signedTotal < -sign || signedTotal >= sign),
+    pf: (result % 256).toString(2).replaceAll("0", "").length % 2 === 0,
+    zf: result === 0, sf: result >= sign } };
+}
+
+function registerValue(state: Cpu8088State, width: 8 | 16, selector: number): number {
+  if (width === 16) return state[wordMoves[selector]![1]];
+  const [, word, half] = byteMoves[selector]!;
+  return half === "low" ? state[word] % 256 : Math.floor(state[word] / 256);
+}
+
+function replaceRegister(state: Cpu8088State, width: 8 | 16, selector: number, value: number): Cpu8088State {
+  if (width === 16) return { ...state, [wordMoves[selector]![1]]: value };
+  const [, word, half] = byteMoves[selector]!;
+  return { ...state, [word]: half === "low" ? Math.floor(state[word] / 256) * 256 + value : value * 256 + state[word] % 256 };
+}
+
+for (const [name, , , , , byteOpcode, wordOpcode] of aluForms.filter(([name]) => name !== "ADD" && name !== "CMP")) {
+  test(`8088 ${name} accumulator forms exhaust byte pairs and preserve unrelated state`, () => {
+    const ram = new ObservedRam(0x100000);
+    for (const carry of name === "ADC" || name === "SBB" ? [false, true] : [false]) {
+      for (let left = 0; left < 256; left++) for (let right = 0; right < 256; right++) {
+        const before = initialState({ ax: 0xa500 + left, flags: { ...flags((left + right) % 512), cf: carry } });
+        const expected = aluResult(name, 8, left, right, before.flags);
+        checkStep(ram, before, [byteOpcode, right], { ...before, ax: 0xa500 + expected.result, ip: 0x102, flags: expected.flags });
+      }
+    }
+    for (let bits = 0; bits < 512; bits++) {
+      for (const left of [0, 0xf, 0x10, 0xff, 0x7fff, 0x8000, 0xffff]) {
+        for (const right of [0, 1, 0xf, 0x7fff, 0x8000, 0xffff]) {
+          const before = initialState({ ax: left, flags: flags(bits), cs: 0xffff, ip: 0xffff });
+          const expected = aluResult(name, 16, left, right, before.flags);
+          checkStep(ram, before, [wordOpcode, right % 256, Math.floor(right / 256)],
+            { ...before, ax: expected.result, ip: 2, flags: expected.flags });
+        }
+      }
+    }
+  });
+}
+
+test("8088 ADC/SBB word arithmetic covers every word with carry or borrow across the complete operand", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [name, opcode] of [["ADC", 0x15], ["SBB", 0x1d]] as const) {
+    for (const right of [0, 0xffff]) for (let left = 0; left < 65536; left++) {
+      const before = initialState({ ax: left });
+      const expected = aluResult(name, 16, left, right, before.flags);
+      checkStep(ram, before, [opcode, right % 256, Math.floor(right / 256)],
+        { ...before, ax: expected.result, ip: 0x103, flags: expected.flags });
+    }
+  }
+});
+
+test("8088 TEST accumulator exhausts byte pairs and preserves AX while setting logic flags", () => {
+  const ram = new ObservedRam(0x100000);
+  for (let left = 0; left < 256; left++) for (let right = 0; right < 256; right++) {
+    const before = initialState({ ax: 0xa500 + left, flags: flags((left + right) % 512) });
+    checkStep(ram, before, [0xa8, right], { ...before, ip: 0x102, flags: aluResult("TEST", 8, left, right, before.flags).flags });
+  }
+  for (let bits = 0; bits < 512; bits++) {
+    for (const [left, right] of [[0, 0xffff], [0x100, 0xffff], [0x8000, 0x8000], [0xa55a, 0x5aa5], [0xffff, 0xffff]]) {
+      const before = initialState({ ax: left!, flags: flags(bits) });
+      checkStep(ram, before, [0xa9, right! % 256, Math.floor(right! / 256)],
+        { ...before, ip: 0x103, flags: aluResult("TEST", 16, left!, right!, before.flags).flags });
+    }
+  }
+});
+
+test("8088 INC/DEC selects all word registers, preserves CF and control flags, and wraps without stack accesses", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [inc, dec, register] of [[0x40, 0x48, "ax"], [0x41, 0x49, "cx"], [0x42, 0x4a, "dx"], [0x43, 0x4b, "bx"],
+    [0x44, 0x4c, "sp"], [0x45, 0x4d, "bp"], [0x46, 0x4e, "si"], [0x47, 0x4f, "di"]] as const) {
+    for (const [opcode, operation] of [[inc, "ADD"], [dec, "SUB"]] as const) {
+      for (let bits = 0; bits < 512; bits++) for (const value of [0, 0xf, 0x10, 0x7fff, 0x8000, 0xffff]) {
+        const before = initialState({ [register]: value, flags: flags(bits), ip: 0xffff });
+        const expected = aluResult(operation, 16, value, 1, before.flags);
+        checkStep(ram, before, [opcode], { ...before, [register]: expected.result, ip: 0,
+          flags: { ...expected.flags, cf: before.flags.cf } });
+      }
+    }
+  }
+  for (let value = 0; value < 65536; value++) {
+    for (const [opcode, operation] of [[0x44, "ADD"], [0x4c, "SUB"]] as const) {
+      const before = initialState({ sp: value, flags: flags(value % 512) });
+      const expected = aluResult(operation, 16, value, 1, before.flags);
+      checkStep(ram, before, [opcode], { ...before, sp: expected.result, ip: 0x101,
+        flags: { ...expected.flags, cf: before.flags.cf } });
+    }
+  }
+});
+
+test("8088 ModR/M register ALU and MOV cover both directions, every pair, self operands, and byte aliases", () => {
+  const ram = new ObservedRam(0x100000);
+  const rows = [...aluForms.map(([name, ...codes]) => [name, ...codes.slice(0, 4)] as const),
+    ["TEST", 0x84, 0x85] as const, ["MOV", 0x88, 0x89, 0x8a, 0x8b] as const];
+  for (const [name, ...codes] of rows) for (const [index, opcode] of codes.entries()) {
+    const width = index % 2 === 0 ? 8 : 16;
+    for (let reg = 0; reg < 8; reg++) for (let rm = 0; rm < 8; rm++) {
+      for (const bits of [0, 511]) {
+        const before = initialState({ flags: flags(bits) });
+        const destination = index < 2 ? rm : reg;
+        const source = index < 2 ? reg : rm;
+        const left = registerValue(before, width, destination);
+        const right = registerValue(before, width, source);
+        const expected = name === "MOV" ? { result: right, flags: before.flags }
+          : aluResult(name, width, left, right, before.flags);
+        const after = name === "TEST" || name === "CMP" ? before : replaceRegister(before, width, destination, expected.result);
+        checkStep(ram, before, [opcode!, 0xc0 + reg * 8 + rm], { ...after, ip: 0x102, flags: expected.flags });
+      }
+    }
+  }
+});
+
+// Literal base offsets for BX=FFF0, BP=FFF8, SI=0020, DI=0030. No core decoder is used.
+const memoryForms = [
+  [0, 0x10, "ds"], [1, 0x20, "ds"], [2, 0x18, "ss"], [3, 0x28, "ss"],
+  [4, 0x20, "ds"], [5, 0x30, "ds"], [6, 0xfff8, "ss"], [7, 0xfff0, "ds"],
+] as const;
+function addressedState(): Cpu8088State {
+  return initialState({ bx: 0xfff0, bp: 0xfff8, si: 0x20, di: 0x30, ds: 0xffff, ss: 0x3456 });
+}
+function addressingCases() {
+  return memoryForms.flatMap(([rm, base, segment]) => [
+    { rm, mod: 0, displacement: rm === 6 ? [0xff, 0xff] : [], offset: rm === 6 ? 0xffff : base, segment: rm === 6 ? "ds" as const : segment },
+    ...[0, 1, 0x7f, 0x80, 0xff].map(byte => ({ rm, mod: 1, displacement: [byte],
+      offset: (base + (byte < 128 ? byte : byte - 256) + 65536) % 65536, segment })),
+    ...[0, 1, 0x7fff, 0x8000, 0xffff].map(word => ({ rm, mod: 2, displacement: [word % 256, Math.floor(word / 256)],
+      offset: (base + word) % 65536, segment })),
+  ]);
+}
+function memoryBytes(before: Cpu8088State, segment: "ds" | "ss", offset: number, width: 8 | 16, value: number): [number, number][] {
+  return Array.from({ length: width / 8 }, (_, i) => [(before[segment] * 16 + (offset + i) % 65536) % 1048576,
+    Math.floor(value / 256 ** i) % 256]);
+}
+
+for (const [name, rmByte, rmWord, regByte, regWord] of aluForms) {
+  test(`8088 ModR/M ${name} resolves every memory mode, segment, register, width, and direction once`, () => {
+    const ram = new ObservedRam(0x100000);
+    for (const form of addressingCases()) for (let reg = 0; reg < 8; reg++) {
+      for (const [opcode, width, toRegister] of [[rmByte, 8, false], [rmWord, 16, false], [regByte, 8, true], [regWord, 16, true]] as const) {
+        const before = addressedState();
+        const memory = width === 8 ? 0xa5 : 0x800f;
+        const locations = memoryBytes(before, form.segment, form.offset, width, memory);
+        for (const [address, value] of locations) ram.write(address, value);
+        const register = registerValue(before, width, reg);
+        const expected = aluResult(name, width, toRegister ? register : memory, toRegister ? memory : register, before.flags);
+        const after = toRegister && name !== "CMP" ? replaceRegister(before, width, reg, expected.result) : before;
+        const bytes = [opcode, form.mod * 64 + reg * 8 + form.rm, ...form.displacement];
+        const accesses: Cpu8088MemoryAccess[] = locations.map(([address, value]) => ({ kind: "read", address, value }));
+        if (!toRegister && name !== "CMP") accesses.push(...memoryBytes(before, form.segment, form.offset, width, expected.result)
+          .map(([address, value]) => ({ kind: "write" as const, address, value })));
+        checkStep(ram, before, bytes, { ...after, ip: before.ip + bytes.length, flags: expected.flags }, undefined, accesses);
+        for (const [address, value] of memoryBytes(before, form.segment, form.offset, width, !toRegister && name !== "CMP" ? expected.result : memory)) {
+          assert.equal(ram.read(address), value);
+        }
+      }
+    }
+  });
+}
+
+test("8088 ModR/M MOV does not read destinations and TEST never writes, across every memory mode and register", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const form of addressingCases()) for (let reg = 0; reg < 8; reg++) {
+    for (const [opcode, width, kind] of [[0x88, 8, "store"], [0x89, 16, "store"], [0x8a, 8, "load"], [0x8b, 16, "load"],
+      [0x84, 8, "test"], [0x85, 16, "test"]] as const) {
+      const before = addressedState();
+      const value = width === 8 ? 0xa5 : 0x800f;
+      const locations = memoryBytes(before, form.segment, form.offset, width, value);
+      for (const [address, byte] of locations) ram.write(address, byte);
+      const register = registerValue(before, width, reg);
+      const after = kind === "load" ? replaceRegister(before, width, reg, value) : before;
+      const bytes = [opcode, form.mod * 64 + reg * 8 + form.rm, ...form.displacement];
+      const accesses = kind === "store" ? memoryBytes(before, form.segment, form.offset, width, register)
+        .map(([address, value]) => ({ kind: "write" as const, address, value }))
+        : locations.map(([address, value]) => ({ kind: "read" as const, address, value }));
+      checkStep(ram, before, bytes, { ...after, ip: before.ip + bytes.length,
+        flags: kind === "test" ? aluResult("TEST", width, value, register, before.flags).flags : before.flags }, undefined, accesses);
+    }
+  }
+});
+
+test("8088 immediate ModR/M groups cover every documented operation and register, including every signed byte", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [name, , , , , , , group] of aluForms) for (const opcode of [0x80, 0x81, 0x82, 0x83]) {
+    if (opcode >= 0x82 && ["OR", "AND", "XOR"].includes(name)) continue;
+    const width = opcode % 2 === 0 ? 8 : 16;
+    for (let rm = 0; rm < 8; rm++) for (let byte = 0; byte < 256; byte++) {
+      const before = initialState({ flags: flags(byte + (rm % 2) * 256) });
+      const right = opcode === 0x81 ? 0x7f00 + byte : opcode === 0x83 && byte >= 128 ? 0xff00 + byte : byte;
+      const expected = aluResult(name, width, registerValue(before, width, rm), right, before.flags);
+      const bytes = [opcode, 0xc0 + group * 8 + rm, byte, ...(opcode === 0x81 ? [0x7f] : [])];
+      const after = name === "CMP" ? before : replaceRegister(before, width, rm, expected.result);
+      checkStep(ram, before, bytes, { ...after, ip: before.ip + bytes.length, flags: expected.flags });
+    }
+  }
+});
+
+test("8088 immediate ModR/M memory groups fetch complete encodings before read/modify/write and comparisons do not write", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [name, , , , , , , group] of aluForms) for (const opcode of [0x80, 0x81, 0x82, 0x83]) {
+    if (opcode >= 0x82 && ["OR", "AND", "XOR"].includes(name)) continue;
+    const width = opcode % 2 === 0 ? 8 : 16;
+    for (const form of addressingCases()) for (const immediate of [0, 1, 0x7f, 0x80, 0xff]) {
+      const before = addressedState();
+      const left = width === 8 ? 0xf0 : 0x8000;
+      const right = opcode === 0x81 ? 0xff00 + immediate : opcode === 0x83 && immediate >= 128 ? 0xff00 + immediate : immediate;
+      const locations = memoryBytes(before, form.segment, form.offset, width, left);
+      for (const [address, byte] of locations) ram.write(address, byte);
+      const expected = aluResult(name, width, left, right, before.flags);
+      const bytes = [opcode, form.mod * 64 + group * 8 + form.rm, ...form.displacement, immediate, ...(opcode === 0x81 ? [0xff] : [])];
+      const accesses: Cpu8088MemoryAccess[] = locations.map(([address, value]) => ({ kind: "read", address, value }));
+      if (name !== "CMP") accesses.push(...memoryBytes(before, form.segment, form.offset, width, expected.result)
+        .map(([address, value]) => ({ kind: "write" as const, address, value })));
+      checkStep(ram, before, bytes, { ...before, ip: before.ip + bytes.length, flags: expected.flags }, undefined, accesses);
+    }
+  }
+});
+
+test("8088 rejects unused 82/83 operation selectors after ModR/M only, with complete atomic state preservation", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const opcode of [0x82, 0x83]) for (const group of [1, 4, 6]) {
+    for (let mode = 0; mode < 4; mode++) for (let rm = 0; rm < 8; rm++) {
+      const before = initialState({ cs: 0xffff, ip: 0xffff });
+      const modRM = mode * 64 + group * 8 + rm;
+      ram.write(0xffef, opcode); ram.write(0xffff0, modRM); ram.write(0xffff1, 0xa5);
+      const cpu = new Cpu8088(ram, before);
+      const expected = snapshot(before);
+      for (let repeat = 0; repeat < 2; repeat++) {
+        ram.accesses.length = 0;
+        const accesses = [{ kind: "read", address: 0xffef, value: opcode }, { kind: "read", address: 0xffff0, value: modRM }];
+        assert.deepEqual(cpu.step(), { before: expected, after: expected, instruction: { address: 0xffef, bytes: [opcode, modRM] },
+          accesses, outcome: "unsupported", reason: "opcode" });
+        assert.deepEqual(ram.accesses, accesses);
+      }
+      // The rejected decode leaves no stale operand or instruction state.
+      ram.write(0xffff0, 0xc0); ram.write(0xffff1, 1);
+      assert.equal(cpu.step().outcome, "executed");
+      assert.equal(cpu.snapshot().ip, 2);
+    }
+  }
+});
+
+test("8088 ModR/M read/modify/write wraps segment offsets and bus addresses independently of wrapped instruction fetches", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [segment, value, offset, low, high] of [
+    ["ds", 0xffff, 0x000f, 0xfffff, 0],
+    ["ss", 0x1234, 0xffff, 0x2233f, 0x12340],
+    ["ss", 0xffff, 0xffff, 0x0ffef, 0xffff0],
+  ] as const) {
+    const before = initialState({ [segment]: value, bp: offset, cs: 0xabcd, ip: 0xfffe });
+    ram.write(low, 0xff); ram.write(high, 0x7f);
+    const bytes = segment === "ds" ? [0x83, 0x06, offset % 256, Math.floor(offset / 256), 1] : [0x83, 0x46, 0, 1];
+    const expected = aluResult("ADD", 16, 0x7fff, 1, before.flags);
+    checkStep(ram, before, bytes, { ...before, ip: bytes.length - 2, flags: expected.flags }, undefined,
+      [{ kind: "read", address: low, value: 0xff }, { kind: "read", address: high, value: 0x7f },
+        { kind: "write", address: low, value: 0 }, { kind: "write", address: high, value: 0x80 }]);
+  }
+});
+
+test("8088 immediate memory ALU fetches overlapping operands before reading or writing RAM and retains earlier records", () => {
+  const ram = new ObservedRam(0x100000);
+  const before = initialState({ ds: 0x1234 });
+  const bytes = [0x81, 0x06, 0x04, 0x01, 1, 0]; // ADD word [0104],1; destination is the immediate itself.
+  const expected = aluResult("ADD", 16, 1, 1, before.flags);
+  checkStep(ram, before, bytes, { ...before, ip: 0x106, flags: expected.flags }, undefined,
+    [{ kind: "read", address: 0x12444, value: 1 }, { kind: "read", address: 0x12445, value: 0 },
+      { kind: "write", address: 0x12444, value: 2 }, { kind: "write", address: 0x12445, value: 0 }]);
+  const cpu = new Cpu8088(ram, before);
+  const record = cpu.step();
+  assert.deepEqual(record.instruction.bytes, [0x81, 6, 4, 1, 2, 0]);
+  assert.equal(ram.read(0x12444), 4);
+  const saved = structuredClone(record);
+  ram.write(0x12444, 9);
+  new Cpu8088(ram, before).step();
+  assert.deepEqual(record, saved);
+});
+
+test("8088 register-only and memory MOV preserve all flags, including unchanged-value writes", () => {
+  const ram = new ObservedRam(0x100000);
+  for (let bits = 0; bits < 512; bits++) {
+    const before = initialState({ flags: flags(bits) });
+    checkStep(ram, before, [0x88, 0xe0], { ...before, ax: 0x1111, ip: 0x102 }); // MOV AL,AH
+    checkStep(ram, before, [0x89, 0xdb], { ...before, ip: 0x102 }); // MOV BX,BX
+    ram.write(0x20080, 0x22); ram.write(0x20081, 0x11);
+    checkStep(ram, before, [0x89, 0x06, 0x80, 0], { ...before, ip: 0x104 }, undefined,
+      [{ kind: "write", address: 0x20080, value: 0x22 }, { kind: "write", address: 0x20081, value: 0x11 }]);
   }
 });

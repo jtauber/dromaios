@@ -1,0 +1,46 @@
+// Mask four words and accumulate a 32-bit sum, preserving BX and BP in a subroutine.
+ram 100000
+
+cpu 8088 {
+  AX = 1122  BX = 3344  CX = 5566  DX = 7788
+  SP = 8000  BP = 9000  SI = 0010  DI = 0020
+  CS = 1234  DS = 2000  SS = 3000  ES = 4000  IP = 0200
+  flags { CF = 1  PF = 0  AF = 1  ZF = 1  SF = 1  TF = 0  IF = 1  DF = 1  OF = 1 }
+}
+
+memory 12540 {
+  B8 00 00       // MOV AX,0000h: low sum
+  BA 00 00       // MOV DX,0000h: high sum
+  B9 04 00       // MOV CX,0004h: word count
+  BE 00 00       // MOV SI,0000h: byte index
+  BB 00 01       // MOV BX,0100h: array base
+  E8 2E 00       // CALL 0240h: mask and add one word
+  83 C6 02       // ADD SI,+2
+  49             // DEC CX: preserve carry while setting the loop condition
+  75 F7          // JNE 020Fh
+  89 06 00 02    // MOV [0200h],AX: low result word
+  89 16 02 02    // MOV [0202h],DX: high result word
+  A9 01 00       // TEST AX,0001h: inspect the sum's low bit without changing it
+  74 05          // JE 022Ah: skip the marker for even sums
+  80 0E 04 02 80 // OR byte [0204h],80h: mark an odd result in RAM
+}
+
+memory 12580 {
+  55             // PUSH BP
+  89 E5          // MOV BP,SP: establish a stack frame
+  53             // PUSH BX: preserve the caller's array base at SS:[BP-2]
+  8B 18          // MOV BX,[BX+SI]: resolve the old BX before replacing it
+  81 E3 FF F0    // AND BX,F0FFh: clear bits 8-11
+  85 DB          // TEST BX,BX
+  74 05          // JE 0253h: skip a zero input
+  01 D8          // ADD AX,BX: accumulate low word
+  83 D2 00       // ADC DX,+0: propagate carry into the high word
+  8B 5E FE       // MOV BX,[BP-2]: restore through the stack segment
+  89 EC          // MOV SP,BP: discard the saved BX slot
+  5D             // POP BP
+  C3             // RET
+}
+
+memory 200FF { DE FF FF 01 80 FF 00 00 00 AD } // Four words: FFFF,8001,00FF,0000.
+memory 201FF { DE 00 00 00 00 01 AD } // Result: 000171FF; odd marker becomes 81.
+end 1256A
