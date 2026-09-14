@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [270](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [651](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [250](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [406](../../src/components/cpus/6502.ts) | 128 / 151 | 84.8% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [427](../../src/components/cpus/6502.ts) | 131 / 151 | 86.8% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [294](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [305](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [227](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
@@ -687,9 +687,12 @@ factory types.
 [Comparison/flag specification](6502/examples/flags.md) ·
 [Comparison/flag definition](../../src/machines/6502/flags-example.machine)
 
-**128 of 151 documented forms are complete (84.8%).** The accumulator families
+[Status/dispatch specification](6502/examples/status.md) ·
+[Status/dispatch definition](../../src/machines/6502/status-example.machine)
+
+**131 of 151 documented forms are complete (86.8%).** The accumulator families
 below contribute 47 forms; X/Y loads and stores contribute 16; shifts, rotates,
-and memory INC/DEC contribute 28; CPX/CPY/BIT contribute 8. The remaining 29
+and memory INC/DEC contribute 28; CPX/CPY/BIT contribute 8. The remaining 32
 complete forms appear in the final instruction table. Binary-only `ADC #n` is additional supported
 behavior and contributes no completion credit.
 
@@ -735,9 +738,11 @@ gap. Length includes the opcode; absolute operands are low byte first.
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
+| `08` | `PHP` | Implied / stack | 1 | Push NV11DIZC at 0100 + SP, then decrement SP; preserve flags |
 | `10` | `BPL rel` | Relative | 2 | Branch if N = 0 |
 | `18` | `CLC` | Implied | 1 | Clear carry |
 | `20` | `JSR addr` | Absolute / stack | 3 | Fetch target low; push the last operand's address high then low; fetch target high and jump |
+| `28` | `PLP` | Implied / stack | 1 | Increment SP, then restore N/V/D/I/Z/C from the stacked byte; ignore bits 5/4 |
 | `30` | `BMI rel` | Relative | 2 | Branch if N = 1 |
 | `38` | `SEC` | Implied | 1 | Set carry; preserve other flags |
 | `48` | `PHA` | Implied | 1 | Write A at 0100 + SP, then decrement 8-bit SP; preserve flags |
@@ -746,6 +751,7 @@ gap. Length includes the opcode; absolute operands are low byte first.
 | `60` | `RTS` | Implied / stack | 1 | Pull PC low then high and add one with 16-bit wrapping; preserve flags |
 | `68` | `PLA` | Implied | 1 | Increment 8-bit SP, then read A at 0100 + SP; update N/Z |
 | `69` | `ADC #n` | Immediate | 2 | Partial: binary arithmetic only; D must be false |
+| `6C` | `JMP (addr)` | Absolute indirect | 3 | Read target low/high from a pointer whose high-byte read stays on the same page; preserve flags |
 | `70` | `BVS rel` | Relative | 2 | Branch if V = 1 |
 | `88` | `DEY` | Implied | 1 | Decrement Y; update N/Z |
 | `8A` | `TXA` | Implied | 1 | Copy X to A; update N/Z |
@@ -769,20 +775,20 @@ gap. Length includes the opcode; absolute operands are low byte first.
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A, X, Y, SP, PC |
-| Stored flags | N, V, D, I, Z, C; packed status and B/unused-bit conventions are not implemented |
+| Stored flags | N, V, D, I, Z, C; PHP encodes NV11DIZC and PLP restores the six flags, ignoring bits 5/4; B and the unused bit are not stored state |
 | Register operations | All A/X/Y loads and stores, A↔X and A↔Y transfers, wrapping X/Y increment/decrement; loads/transfers/index changes replace N/Z, stores preserve all flags |
-| Memory addressing | Zero page, absolute, zero page indexed, absolute indexed, indexed indirect `(zp,X)`, and indirect indexed `(zp),Y`; zero-page indexing/pointer reads wrap at 8 bits, absolute indexing at 16 bits |
+| Memory addressing | Zero page, absolute, zero page indexed, absolute indexed, indexed indirect `(zp,X)`, indirect indexed `(zp),Y`, and absolute indirect JMP; zero-page indexing/pointer reads wrap at 8 bits, absolute indexing at 16 bits; JMP pointer reads wrap within their page |
 | Logic and comparison | All ORA/AND/EOR, CMP/CPX/CPY, and BIT forms; logic replaces A and N/Z, comparisons replace N/Z/C without changing registers; BIT copies N/V from memory and sets Z from A AND memory, preserving C/D/I |
 | Memory modification | ASL/ROL/LSR/ROR replace N/Z/C; INC/DEC replace N/Z and preserve carry; all preserve V/D/I. Memory forms read once, write the original byte, then write the result. Accumulator shifts/rotates access only the opcode |
 | Branches | All eight conditions; signed displacement relative to PC after the operand, with 16-bit wrapping; fetch the operand on both paths and preserve flags |
-| Subroutines | Absolute JMP/JSR and RTS; JSR's final operand fetch follows its stack writes; RTS adds one to the saved pointer; preserve flags |
-| Stack | PHA/PLA and subroutine return pointers in page 01 with wrapping 8-bit SP; pulls retain stored bytes; TSX copies SP to X and updates N/Z; TXS copies X to SP without changing flags; status stack forms are unsupported |
+| Jumps and subroutines | Absolute/indirect JMP, absolute JSR, and RTS; JSR's final operand fetch follows its stack writes; RTS adds one to the saved pointer; preserve flags |
+| Stack | PHA/PLA, PHP/PLP, and subroutine return pointers in page 01 with wrapping 8-bit SP; pulls retain stored bytes; TSX copies SP to X and updates N/Z; TXS copies X to SP without changing flags |
 | Flag controls | CLC/SEC, CLV, and CLD/SED affect only their named flag; NOP changes only PC |
-| Decimal mode | D can be initialized, inspected, and changed with CLD/SED; ADC with D set reports `reason: "decimal-mode"` before operand fetch or state changes |
+| Decimal mode | D can be initialized, inspected, changed with CLD/SED, and restored by PLP; ADC with D set reports `reason: "decimal-mode"` before operand fetch or state changes |
 | Reset | Read `FFFC` then `FFFD` for PC, set I, subtract 3 from the 8-bit SP with wrapping; preserve other registers, flags (including D), and RAM |
 | Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
-| Remaining instruction scope | ADC/SBC including decimal arithmetic (16 forms), PHP/PLP (2), indirect JMP (1), and deferred BRK/RTI/CLI/SEI (4): 23 forms |
-| Remaining addressing scope | Indirect absolute JMP; operand modes for the instruction families still missing |
+| Remaining instruction scope | ADC/SBC including decimal arithmetic (16 forms), and deferred BRK/RTI/CLI/SEI (4): 20 forms |
+| Remaining addressing scope | ADC/SBC forms using the already implemented addressing modes |
 
 All supported forms except ADC work with either D value. Decimal rejection is
 an explicit implementation limit. Reset preserves D and therefore does not
@@ -798,7 +804,8 @@ Verification: [CPU tests](../../tests/components/cpus/6502.test.ts),
 [subroutine example tests](../../tests/machines/6502/subroutines-example.test.ts),
 [buffer example tests](../../tests/machines/6502/buffer-example.test.ts),
 [shift example tests](../../tests/machines/6502/shifts-example.test.ts),
-[comparison/flag example tests](../../tests/machines/6502/flags-example.test.ts), and
+[comparison/flag example tests](../../tests/machines/6502/flags-example.test.ts),
+[status/dispatch example tests](../../tests/machines/6502/status-example.test.ts), and
 [public type checks](../../tests/types/6502.ts). Binary ADC checks cover every byte
 operand pair and carry input with old result flags clear and set. Other checks
 cover decimal rejection, exact accesses, wrapping, self-overwriting stores,
@@ -862,6 +869,17 @@ binary ADC again. The comparison/flag example checks 26 complete records,
 selected stack addressing, both CPY loop paths, BIT/CLV branches, SEC feeding
 ADC, NOP and stores after SED, snapshot resumption, reset, fresh factories,
 complete memory images, and a failure branch after a host edit to the BIT operand.
+
+PHP checks every flag pattern and SP, including unchanged writes; PLP checks
+every stacked byte and incoming flag pattern, ignores bits 5/4, and restores
+live D/C for ADC. Indirect JMP checks every pointer address and target, all
+flag patterns, operand fetching across FFFF, and instruction/pointer overlap.
+All three also match 10,000 independent reference cases each; the
+[model contract](6502/model.md#status-stack) documents those supplementary checks.
+The status/dispatch example checks twelve complete records, nested status and
+return frames across stack wrapping, indirect dispatch across a pointer-page
+boundary, flags restored independently of A, current pointers, snapshot
+resumption, reset, full RAM images, and fresh factories.
 
 ## 6809
 

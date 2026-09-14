@@ -1,0 +1,38 @@
+ram 10000
+
+cpu 6502 {
+    A = 11  X = 22  Y = 33
+    PC = 0200  SP = 00
+    flags { N = 1  V = 0  D = 1  I = 0  Z = 1  C = 1 }
+}
+
+memory 007F { AA CC 55 } // Result at 0080
+
+memory 0200 {
+    08          // PHP: save flags at 0100 and wrap SP to FF
+    20 40 02    // JSR $0240: return address sits below the saved status
+    28          // PLP: restore the caller's flags, including D and Z
+    F0 02       // BEQ $0209: restored Z is set even though A is now 80
+    00 00       // Failure path: unsupported BRK; padding
+    8D 80 00    // STA $0080
+    6C 00 31    // JMP ($3100): caller's completion address
+}
+
+memory 0240 {
+    6C FF 30    // JMP ($30FF): high target byte comes from 3000 on NMOS 6502
+}
+
+memory 0260 {
+    D8          // CLD
+    18          // CLC
+    A9 7F       // LDA #$7F
+    69 01       // ADC #$01: A=80, V=1, Z=0
+    60          // RTS: return through the dispatch stub's JSR frame
+}
+
+memory 3000 { 02 }    // Wrapped high byte of the dispatch target
+memory 30FF { 60 }    // Low byte: dispatch to 0260
+memory 3100 { 04 03 } // Completion pointer: 0304; wrong-page dispatch would reach 0460
+memory FFFC { 00 02 } // Reset vector
+
+end 0304

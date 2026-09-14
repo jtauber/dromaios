@@ -125,6 +125,24 @@ export class Cpu6502 {
       : { ...record, outcome: "unsupported", reason: decimalModeUnsupported ? "decimal-mode" : "opcode" };
   }
 
+  // Register and flag views.
+
+  // PHP writes NV11DIZC. Bits 5/4 (unused/B) have no stored state; PLP ignores them.
+  get #stackStatus(): number {
+    const flags = this.#state.flags;
+    return (flags.n ? 0x80 : 0) | (flags.v ? 0x40 : 0) | 0x30 |
+      (flags.d ? 0x08 : 0) | (flags.i ? 0x04 : 0) |
+      (flags.z ? 0x02 : 0) | (flags.c ? 0x01 : 0);
+  }
+
+  set #stackStatus(value: number) {
+    this.#state.flags = {
+      n: (value & 0x80) !== 0, v: (value & 0x40) !== 0,
+      d: (value & 0x08) !== 0, i: (value & 0x04) !== 0,
+      z: (value & 0x02) !== 0, c: (value & 0x01) !== 0,
+    };
+  }
+
   // Opcode selectors and construction.
 
   // bbb (bits 4..2) in the accumulator group aaa bbb 01.
@@ -166,7 +184,9 @@ export class Cpu6502 {
     ...opcodePattern("101 001 00", ({ fetchByte, readByte }: InstructionContext) => this.#loadRegister("y", readByte(fetchByte()))), // LDY zp
     ...opcodeFamily("11r 001 00", { r: ["y", "x"] }, ({ r }) => ({ fetchByte, readByte }: InstructionContext) => this.#compare(r, readByte(fetchByte()))), // CPY/CPX zp
 
-    // cc=00, bbb=010: 01p 010 00 selects push A (p=0) or pull A (p=1).
+    // cc=00, bbb=010: 0rp 010 00. r (bit 6) selects status (0)/A (1); p (bit 5) selects push (0)/pull (1).
+    ...opcodePattern("00 0 010 00", ({ writeByte }: InstructionContext) => this.#pushByte(this.#stackStatus, writeByte)), // PHP
+    ...opcodePattern("00 1 010 00", ({ readByte }: InstructionContext) => { this.#stackStatus = this.#pullByte(readByte); }), // PLP
     ...opcodePattern("01 0 010 00", ({ writeByte }: InstructionContext) => this.#pushByte(this.#state.a, writeByte)), // PHA
     ...opcodePattern("01 1 010 00", ({ readByte }: InstructionContext) => this.#loadRegister("a", this.#pullByte(readByte))), // PLA
     // aaa=100..111 selects DEY, TAY, INY, INX in this subgroup.
@@ -175,10 +195,10 @@ export class Cpu6502 {
     ...opcodePattern("110 010 00", () => this.#adjustIndex("y", 1)), // INY
     ...opcodePattern("111 010 00", () => this.#adjustIndex("x", 1)), // INX
 
-    // cc=00, bbb=011: absolute. aaa=001 selects BIT, 010 JMP, 100/101 STY/LDY, 11r CPY/CPX.
-    // aaa=011 (JMP indirect) remains unsupported.
+    // cc=00, bbb=011: absolute operands. aaa=001 selects BIT, 010/011 JMP absolute/indirect, 100/101 STY/LDY, 11r CPY/CPX.
     ...opcodePattern("001 011 00", ({ fetchWord, readByte }: InstructionContext) => this.#testBits(readByte(fetchWord()))), // BIT addr
     ...opcodePattern("010 011 00", ({ fetchWord }: InstructionContext) => this.#jump(fetchWord())), // JMP addr
+    ...opcodePattern("011 011 00", ({ fetchWord, readByte }: InstructionContext) => this.#jump(this.#readPagePointer(fetchWord(), readByte))), // JMP (addr)
     ...opcodePattern("100 011 00", ({ fetchWord, writeByte }: InstructionContext) => writeByte(fetchWord(), this.#state.y)), // STY addr
     ...opcodePattern("101 011 00", ({ fetchWord, readByte }: InstructionContext) => this.#loadRegister("y", readByte(fetchWord()))), // LDY addr
     ...opcodeFamily("11r 011 00", { r: ["y", "x"] }, ({ r }) => ({ fetchWord, readByte }: InstructionContext) => this.#compare(r, readByte(fetchWord()))), // CPY/CPX addr
@@ -291,17 +311,18 @@ export class Cpu6502 {
 
   #indexedIndirect(instruction: InstructionContext): number {
     const pointer = this.#zeroPageIndexed("x", instruction);
-    return this.#readZeroPagePointer(pointer, instruction.readByte);
+    return this.#readPagePointer(pointer, instruction.readByte);
   }
 
   #indirectIndexed({ fetchByte, readByte }: InstructionContext): number {
-    const address = this.#readZeroPagePointer(fetchByte(), readByte);
+    const address = this.#readPagePointer(fetchByte(), readByte);
     return (address + this.#state.y) & 0xffff;
   }
 
-  #readZeroPagePointer(pointer: number, readByte: InstructionContext["readByte"]): number {
+  #readPagePointer(pointer: number, readByte: InstructionContext["readByte"]): number {
+    // Increment only the low byte: zero-page indirection and NMOS JMP both keep the pointer's page.
     const low = readByte(pointer);
-    const high = readByte((pointer + 1) & 0xff);
+    const high = readByte((pointer & 0xff00) | ((pointer + 1) & 0xff));
     return low | (high << 8);
   }
 

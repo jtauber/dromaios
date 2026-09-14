@@ -25,9 +25,9 @@ undocumented opcodes, devices, and browser controls remain outside this model.
 `Cpu6502State` contains `a`, `x`, `y`, `sp`, `pc`, and `flags`.
 `Cpu6502Flags` contains booleans `n`, `v`, `d`, `i`, `z`, and `c`.
 I is the interrupt-disable flag, with the opposite sense to the 8080's
-interrupt-enable latch. This subset exposes the six flags it models;
-packed status bytes and their B/unused-bit conventions
-will be specified with status stack and interrupt instructions.
+interrupt-enable latch. The six flags are stored individually; the
+[status stack](#status-stack) encodes and restores them as a byte. B and the
+unused status bit are not stored fields or new snapshot properties.
 
 `new Cpu6502(ram, initialState: Cpu6502Snapshot)` requires exactly 64 KiB of RAM
 and copies only declared state fields, including flags, into CPU-owned storage.
@@ -186,10 +186,23 @@ halves and uses INC/DEC counters to control a loop, with D set throughout.
 
 ## Jumps and subroutines
 
-Absolute JMP fetches a low/high target and replaces PC. JSR saves the address
-of its last operand byte on the page-one stack, high byte first. RTS pulls
-low then high and adds one, wrapping at 16 bits. All three preserve flags;
-JSR decrements SP twice and RTS increments it twice, wrapping within page one.
+Absolute JMP fetches a low/high target and replaces PC. Indirect JMP fetches
+a low/high pointer, then reads the target's low and high bytes from RAM.
+The pointer increment wraps within its page on this NMOS CPU: `JMP ($30FF)`
+reads target low at `30FF` and target high at `3000`, not `3100`. A pointer
+at `FFFF` reads its high byte at `FF00`. Instruction fetching still wraps
+at 16 bits. See [manual][1], section 9.8.1 and example 9.6.
+
+JMP captures both instruction operands before reading the pointer. Every
+pointer read uses current RAM and remains separate in the access log even
+when it overlaps an opcode or operand. There is no target prefetch; the
+next step reads current RAM at the resulting PC. The page-wrapped pointer
+reader is shared with zero-page indirection, whose input is always in page zero.
+
+JSR saves the address of its last operand byte on the page-one stack, high
+byte first. RTS pulls low then high and adds one, wrapping at 16 bits. Both
+JMP forms, JSR, and RTS preserve flags. JSR decrements SP twice and RTS
+increments it twice, wrapping within page one.
 
 JSR interleaves instruction fetches and stack writes: opcode, target low,
 saved-PC high, saved-PC low, target high. Its final operand fetch observes
@@ -202,6 +215,40 @@ Records retain this meaningful access order but omit discarded bus reads and
 next-instruction prefetches. The [subroutine example](examples/subroutines.md)
 checks nested calls, saved accumulator data, and stack wrapping together.
 
+## Status stack
+
+PHP pushes the current status byte at `0100 + SP`, then decrements SP with
+eight-bit wrapping. Its byte layout from bit 7 to bit 0 is **N V 1 1 D I Z C**.
+Bits 5 and 4 are always set in a PHP write; bit 4 is the stacked B marker,
+not a stored flag. PHP preserves all six flags and A/X/Y.
+
+PLP increments SP with eight-bit wrapping, reads the byte at `0100 + SP`,
+and restores N/V/D/I/Z/C from their corresponding positions. Bits 5 and 4
+are ignored. N/Z come from the saved flags, independently of A or the value
+of the stacked byte as a whole. A/X/Y stay unchanged. PLP uses current RAM
+even without a preceding PHP, and leaves the raw byte in memory. A subsequent
+PHP regenerates bits 5/4 as ones regardless of what PLP read.
+
+Both instructions reuse the page-one stack used by PHA/PLA and JSR/RTS.
+Each records only the opcode fetch and its stack write/read; dummy reads
+are omitted. Code/stack overlap follows that access order, with fetched
+opcode bytes retained in records. See [manual][1], sections 8.10–8.12.
+
+PLP restores D and I in the after-state. D immediately controls the existing
+ADC restriction; I remains stored state without interrupt delivery or polling
+timing. BRK/RTI/CLI/SEI remain deferred with interrupts.
+
+All 10,000 independent cases for each of [PHP][4], [PLP][5], and
+[indirect JMP][6] were checked against modeled state, final RAM, and ordered
+accesses. The PHP/PLP comparisons omit their discarded bus reads; indirect
+JMP records all five reads. These supplementary checks establish the pushed
+bits and NMOS pointer wrap as well as ordinary cases. Repository tests remain
+self-contained; no reference data is required to build or test.
+
+The [status/dispatch example](examples/status.md) saves flags around an
+indirectly dispatched subroutine, then uses restored Z to branch while
+retaining the subroutine's accumulator result.
+
 ## Unsupported instructions and modes
 
 Opcodes outside the [coverage inventory](../coverage.md#6502) return
@@ -211,7 +258,7 @@ past the limitation. The caller must stop on unsupported results and use a
 bounded instruction budget when running programs.
 
 **Decimal arithmetic is deferred, and must never silently use binary ADC.**
-The constructor accepts either D value, and CLD/SED can change it during execution.
+The constructor accepts either D value; CLD/SED can change it and PLP can restore it during execution.
 If opcode `69` is encountered with D true, `step()` returns `unsupported` with
 reason `decimal-mode`: one opcode
 read, no operand read, and unchanged CPU state and RAM. Check this limitation
@@ -286,6 +333,15 @@ SP values and flag patterns, PC/SP wrapping, unchanged-value pushes, and
 code/stack overlap. They verify ordered RAM calls, JSR's late high-byte fetch,
 RTS's increment, edited stack contents, and subsequent execution at the target.
 
+Indirect JMP checks every pointer address and target, including wrapping
+within every page, all incoming flag patterns, instruction fetching across
+FFFF, and overlapping instruction/pointer reads. PHP checks every flag
+combination and SP, including unchanged writes; PLP checks every stacked
+byte against every incoming flag pattern with SP values spanning the page.
+Further checks cover ignored bits, PHP after PLP, code/stack overlap, and
+restored D/C affecting ADC. The status/dispatch example checks complete
+records, RAM images, current pointers, snapshot resumption, and reset.
+
 Unsupported opcodes and decimal ADC are checked on repeated attempts, with no
 operand read or state changes. Reset checks cover ordered reads of the current
 vector, SP wrapping and repeated decrements, preservation of RAM and unrelated
@@ -308,13 +364,15 @@ previews, opcode metadata, lesson annotations, addressing, and timing.
 ## References
 
 - [Synertek/MOS MCS6500 Programming Manual][1], sections 2.1–2.2, 3, 4, 6.1–6.5, 7,
-  8.1–8.3, 8.8–8.9, 9.1–9.4, 10.1–10.8, and Appendix B: registers, flags, control flow,
+  8.1–8.3, 8.8–8.12, 9.1–9.4, 9.8.1, 10.1–10.8, and Appendix B: registers, flags, control flow,
   stack access order, memory addressing/modification, shifts, reset, and encodings.
   Its startup discussion is supplemented by the transistor-level analysis below.
 - [Michael Steil's Visual6502 analysis of BRK/IRQ/NMI/RESET][2]: reset vector
   order, discarded stack reads, and the three stack-pointer decrements.
 - [SingleStepTests 6502 ASL zero-page cases][3]: independently generated state
   and bus expectations used to cross-check the intermediate write.
+- SingleStepTests [PHP][4], [PLP][5], and [indirect JMP][6] cases: stacked status
+  bits, page wrapping, and state/access expectations.
 - [Arithmetic example](examples/arithmetic.md#references): instruction
   semantics and encodings.
 
@@ -325,3 +383,6 @@ omitted bus accesses are deliberate choices for this model.
 [2]: https://www.pagetable.com/?p=410
 
 [3]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/06.json
+[4]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/08.json
+[5]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/28.json
+[6]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/6c.json
