@@ -53,6 +53,10 @@ needed. Configuration may include small amounts of machine-specific code.
 Making a machine a configuration does not require expressing all behavior as
 data or inventing a configuration language upfront.
 
+For example, the Apple II and BBC Micro are intended to share the 6502
+component, with their memory maps and devices defined by their machine
+compositions.
+
 The current flat-RAM examples use [defineRamExample](../src/machines/ram-example.ts)
 to share setup code. Each definition supplies a concrete CPU constructor,
 initial state, RAM size, addressed byte blocks (including any reset vector),

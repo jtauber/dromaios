@@ -53,13 +53,14 @@ The [project roadmap](../../ROADMAP.md) describes the implementation stages;
 ## Intended eventual scope
 
 This is the working target list, not a commitment to implement every processor
-immediately. Fidelity, supported variants, software targets, and implementation
-order will be defined as each case is introduced.
+immediately. Fidelity, supported variants, and implementation order will be
+defined as each case is introduced. Software targets are recorded below as
+they are selected.
 
 | CPU group | Specific targets | Machine targets |
 | --- | --- | --- |
 | Intel 8080 | 8080 | Altair 8800 |
-| MOS 6502 family | 6502, 6507, 6510, Ricoh 2A03 | Apple II, Atari 2600, C64, NES |
+| MOS 6502 family | 6502, 6507, 6510, Ricoh 2A03 | Apple II, BBC Micro, Atari 2600, C64, NES |
 | Motorola 6809 | 6809 / 6809E | TRS-80 Color Computer |
 | Zilog Z80 | Z80 | ZX Spectrum |
 | Motorola 6800 | 6800 | To be selected |
@@ -68,6 +69,8 @@ order will be defined as each case is introduced.
 | Motorola 68000 | 68000 | Macintosh 128K, Amiga |
 | Intel x86 | 8088 / 8086, 80286, 80386 | PC/XT, PC AT, later DOS machines |
 | ARM | ARM2, ARM7TDMI | Archimedes, Game Boy Advance |
+
+The BBC Micro's chosen software target is **Elite**.
 
 The 80386 target comes from the existing PC project's longer-term goal of
 running Ultima VII and its DOS extender requirements. See the

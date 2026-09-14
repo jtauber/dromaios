@@ -159,7 +159,9 @@ users can inspect the relevant internal activity.
 - Add further CPU models and variants from the [intended scope](docs/cpus/scope.md#intended-eventual-scope),
   beyond the initial eight. Test shared execution and inspection conventions
   against each new case; their implementation order remains open.
-- Add machines in an order we choose as the component library develops.
+- Add machines in an order we choose as the component library develops,
+  using the selected software targets in [CPU scope](docs/cpus/scope.md#intended-eventual-scope)
+  to guide each machine's milestones.
 - Grow reusable device models, teaching views, and specialist instruments.
 - Bring tutorial examples onto the same components used by complete machines.
 

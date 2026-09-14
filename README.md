@@ -9,6 +9,10 @@ Apple II, Macintosh, IBM PC, and microcomputer tutorial projects. Each machine
 will be built primarily by configuring and connecting reusable components.
 The eventual aim is for this platform to replace the separate emulators.
 
+The intended machine scope also includes the BBC Micro. See
+[CPU and machine scope](docs/cpus/scope.md#intended-eventual-scope) for the
+full target list and selected software targets.
+
 The purpose is primarily pedagogical. Users should be able to follow an
 instruction, inspect registers and memory, understand a device, and explore how
 the parts of a machine interact. Running software gives those explorations a
