@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [270](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [651](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [250](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [389](../../src/components/cpus/6502.ts) | 113 / 151 | 74.8% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [406](../../src/components/cpus/6502.ts) | 128 / 151 | 84.8% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [294](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [305](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [227](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
@@ -684,15 +684,18 @@ factory types.
 [Shift specification](6502/examples/shifts.md) ·
 [Shift definition](../../src/machines/6502/shifts-example.machine)
 
-**113 of 151 documented forms are complete (74.8%).** The accumulator families
+[Comparison/flag specification](6502/examples/flags.md) ·
+[Comparison/flag definition](../../src/machines/6502/flags-example.machine)
+
+**128 of 151 documented forms are complete (84.8%).** The accumulator families
 below contribute 47 forms; X/Y loads and stores contribute 16; shifts, rotates,
-and memory INC/DEC contribute 28; the remaining 22 complete forms appear in
-the final instruction table. Binary-only `ADC #n` is additional supported
+and memory INC/DEC contribute 28; CPX/CPY/BIT contribute 8. The remaining 29
+complete forms appear in the final instruction table. Binary-only `ADC #n` is additional supported
 behavior and contributes no completion credit.
 
 All documented addressing forms of ORA, AND, EOR, CMP, LDA, STA, LDX, LDY,
-STX, STY, ASL, LSR, ROL, ROR, INC, and DEC are implemented. A dash in these
-matrices means the original 6502 has no such form, rather than an implementation
+STX, STY, ASL, LSR, ROL, ROR, INC, DEC, CPX, CPY, and BIT are implemented.
+A dash in these matrices means the original 6502 has no such form, rather than an implementation
 gap. Length includes the opcode; absolute operands are low byte first.
 
 | Instruction | `(zp,X)` | `zp` | `#n` | `addr` | `(zp),Y` | `zp,X` | `addr,Y` | `addr,X` |
@@ -723,12 +726,20 @@ gap. Length includes the opcode; absolute operands are low byte first.
 | DEC | — | `C6` | `CE` | `D6` | `DE` |
 | INC | — | `E6` | `EE` | `F6` | `FE` |
 
+| Instruction | `#n` | `zp` | `addr` |
+| --- | --- | --- | --- |
+| Length | 2 | 2 | 3 |
+| CPY | `C0` | `C4` | `CC` |
+| CPX | `E0` | `E4` | `EC` |
+| BIT | — | `24` | `2C` |
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `10` | `BPL rel` | Relative | 2 | Branch if N = 0 |
 | `18` | `CLC` | Implied | 1 | Clear carry |
 | `20` | `JSR addr` | Absolute / stack | 3 | Fetch target low; push the last operand's address high then low; fetch target high and jump |
 | `30` | `BMI rel` | Relative | 2 | Branch if N = 1 |
+| `38` | `SEC` | Implied | 1 | Set carry; preserve other flags |
 | `48` | `PHA` | Implied | 1 | Write A at 0100 + SP, then decrement 8-bit SP; preserve flags |
 | `4C` | `JMP addr` | Absolute | 3 | Set PC from a low/high target; preserve flags |
 | `50` | `BVC rel` | Relative | 2 | Branch if V = 0 |
@@ -740,14 +751,20 @@ gap. Length includes the opcode; absolute operands are low byte first.
 | `8A` | `TXA` | Implied | 1 | Copy X to A; update N/Z |
 | `90` | `BCC rel` | Relative | 2 | Branch if C = 0 |
 | `98` | `TYA` | Implied | 1 | Copy Y to A; update N/Z |
+| `9A` | `TXS` | Implied | 1 | Copy X to SP; preserve every flag |
 | `A8` | `TAY` | Implied | 1 | Copy A to Y; update N/Z |
 | `AA` | `TAX` | Implied | 1 | Copy A to X; update N/Z |
 | `B0` | `BCS rel` | Relative | 2 | Branch if C = 1 |
+| `B8` | `CLV` | Implied | 1 | Clear overflow; preserve other flags |
+| `BA` | `TSX` | Implied | 1 | Copy SP to X; update N/Z |
 | `C8` | `INY` | Implied | 1 | Increment Y; update N/Z |
 | `CA` | `DEX` | Implied | 1 | Decrement X; update N/Z |
 | `D0` | `BNE rel` | Relative | 2 | Branch if Z = 0 |
+| `D8` | `CLD` | Implied | 1 | Clear decimal mode; preserve other flags |
 | `E8` | `INX` | Implied | 1 | Increment X; update N/Z |
+| `EA` | `NOP` | Implied | 1 | Advance PC only |
 | `F0` | `BEQ rel` | Relative | 2 | Branch if Z = 1 |
+| `F8` | `SED` | Implied | 1 | Set decimal mode; preserve other flags |
 
 | Area | Current coverage |
 | --- | --- |
@@ -755,15 +772,16 @@ gap. Length includes the opcode; absolute operands are low byte first.
 | Stored flags | N, V, D, I, Z, C; packed status and B/unused-bit conventions are not implemented |
 | Register operations | All A/X/Y loads and stores, A↔X and A↔Y transfers, wrapping X/Y increment/decrement; loads/transfers/index changes replace N/Z, stores preserve all flags |
 | Memory addressing | Zero page, absolute, zero page indexed, absolute indexed, indexed indirect `(zp,X)`, and indirect indexed `(zp),Y`; zero-page indexing/pointer reads wrap at 8 bits, absolute indexing at 16 bits |
-| Logic and comparison | All ORA/AND/EOR and CMP forms; logic replaces A and N/Z, CMP replaces N/Z/C without changing A; both preserve V/D/I |
+| Logic and comparison | All ORA/AND/EOR, CMP/CPX/CPY, and BIT forms; logic replaces A and N/Z, comparisons replace N/Z/C without changing registers; BIT copies N/V from memory and sets Z from A AND memory, preserving C/D/I |
 | Memory modification | ASL/ROL/LSR/ROR replace N/Z/C; INC/DEC replace N/Z and preserve carry; all preserve V/D/I. Memory forms read once, write the original byte, then write the result. Accumulator shifts/rotates access only the opcode |
 | Branches | All eight conditions; signed displacement relative to PC after the operand, with 16-bit wrapping; fetch the operand on both paths and preserve flags |
 | Subroutines | Absolute JMP/JSR and RTS; JSR's final operand fetch follows its stack writes; RTS adds one to the saved pointer; preserve flags |
-| Stack | PHA/PLA and subroutine return pointers in page 01 with wrapping 8-bit SP; pulls retain stored bytes; status stack forms are unsupported |
-| Decimal mode | D can be initialized and inspected; ADC with D set reports `reason: "decimal-mode"` before operand fetch or state changes |
+| Stack | PHA/PLA and subroutine return pointers in page 01 with wrapping 8-bit SP; pulls retain stored bytes; TSX copies SP to X and updates N/Z; TXS copies X to SP without changing flags; status stack forms are unsupported |
+| Flag controls | CLC/SEC, CLV, and CLD/SED affect only their named flag; NOP changes only PC |
+| Decimal mode | D can be initialized, inspected, and changed with CLD/SED; ADC with D set reports `reason: "decimal-mode"` before operand fetch or state changes |
 | Reset | Read `FFFC` then `FFFD` for PC, set I, subtract 3 from the 8-bit SP with wrapping; preserve other registers, flags (including D), and RAM |
 | Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
-| Remaining instruction scope | SP transfers, BIT, CPX/CPY, further ADC/SBC and decimal arithmetic, status stack operations, indirect JMP, NOP, and further flag operations |
+| Remaining instruction scope | ADC/SBC including decimal arithmetic (16 forms), PHP/PLP (2), indirect JMP (1), and deferred BRK/RTI/CLI/SEI (4): 23 forms |
 | Remaining addressing scope | Indirect absolute JMP; operand modes for the instruction families still missing |
 
 All supported forms except ADC work with either D value. Decimal rejection is
@@ -779,7 +797,8 @@ Verification: [CPU tests](../../tests/components/cpus/6502.test.ts),
 [counted-loop example tests](../../tests/machines/6502/counted-loop-example.test.ts),
 [subroutine example tests](../../tests/machines/6502/subroutines-example.test.ts),
 [buffer example tests](../../tests/machines/6502/buffer-example.test.ts),
-[shift example tests](../../tests/machines/6502/shifts-example.test.ts), and
+[shift example tests](../../tests/machines/6502/shifts-example.test.ts),
+[comparison/flag example tests](../../tests/machines/6502/flags-example.test.ts), and
 [public type checks](../../tests/types/6502.ts). Binary ADC checks cover every byte
 operand pair and carry input with old result flags clear and set. Other checks
 cover decimal rejection, exact accesses, wrapping, self-overwriting stores,
@@ -833,6 +852,16 @@ self-modifying code, complete RAM preservation outside the destination, and
 retained records. The shift example checks 20 complete records, carry passed
 between two bytes, INC/DEC loop counters, both branch paths, snapshot resumption,
 reset, restart, and a bounded self-loop, all with D set.
+
+CPX/CPY and BIT exhaust every register/operand pair with D clear and set.
+All eight forms also check incoming flag patterns, PC wrapping, live operands,
+and overlapping instruction/data reads. TSX/TXS check every byte and flag pattern;
+flag controls and NOP check preservation, idempotence, and PC wrapping. SED makes
+ADC reject before its operand fetch; reset preserves D, and executing CLD permits
+binary ADC again. The comparison/flag example checks 26 complete records,
+selected stack addressing, both CPY loop paths, BIT/CLV branches, SEC feeding
+ADC, NOP and stores after SED, snapshot resumption, reset, fresh factories,
+complete memory images, and a failure branch after a host edit to the BIT operand.
 
 ## 6809
 

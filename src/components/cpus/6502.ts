@@ -154,13 +154,17 @@ export class Cpu6502 {
   // Only implemented encodings enter the table; this is not a decoder for every combination.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // cc=00, bbb=000: aaa=001/011 select JSR absolute/RTS implied; 101 selects LDY immediate.
+    // In 11r bbb 00, r (bit 5) selects CPY (0)/CPX (1); bbb=000/001/011 select #n/zp/absolute.
     ...opcodePattern("001 000 00", (instruction: InstructionContext) => this.#call(instruction)), // JSR addr
     ...opcodePattern("011 000 00", ({ readByte }: InstructionContext) => this.#return(readByte)), // RTS
     ...opcodePattern("101 000 00", ({ fetchByte }: InstructionContext) => this.#loadRegister("y", fetchByte())), // LDY #n
+    ...opcodeFamily("11r 000 00", { r: ["y", "x"] }, ({ r }) => ({ fetchByte }: InstructionContext) => this.#compare(r, fetchByte())), // CPY/CPX #n
 
-    // cc=00, bbb=001: aaa=100/101 select STY/LDY zero page.
+    // cc=00, bbb=001: zero page. aaa=001 selects BIT, 100/101 select STY/LDY, 11r selects CPY/CPX.
+    ...opcodePattern("001 001 00", ({ fetchByte, readByte }: InstructionContext) => this.#testBits(readByte(fetchByte()))), // BIT zp
     ...opcodePattern("100 001 00", ({ fetchByte, writeByte }: InstructionContext) => writeByte(fetchByte(), this.#state.y)), // STY zp
     ...opcodePattern("101 001 00", ({ fetchByte, readByte }: InstructionContext) => this.#loadRegister("y", readByte(fetchByte()))), // LDY zp
+    ...opcodeFamily("11r 001 00", { r: ["y", "x"] }, ({ r }) => ({ fetchByte, readByte }: InstructionContext) => this.#compare(r, readByte(fetchByte()))), // CPY/CPX zp
 
     // cc=00, bbb=010: 01p 010 00 selects push A (p=0) or pull A (p=1).
     ...opcodePattern("01 0 010 00", ({ writeByte }: InstructionContext) => this.#pushByte(this.#state.a, writeByte)), // PHA
@@ -171,11 +175,13 @@ export class Cpu6502 {
     ...opcodePattern("110 010 00", () => this.#adjustIndex("y", 1)), // INY
     ...opcodePattern("111 010 00", () => this.#adjustIndex("x", 1)), // INX
 
-    // cc=00, bbb=011: aaa=010 selects JMP absolute; 100/101 select STY/LDY absolute.
+    // cc=00, bbb=011: absolute. aaa=001 selects BIT, 010 JMP, 100/101 STY/LDY, 11r CPY/CPX.
     // aaa=011 (JMP indirect) remains unsupported.
+    ...opcodePattern("001 011 00", ({ fetchWord, readByte }: InstructionContext) => this.#testBits(readByte(fetchWord()))), // BIT addr
     ...opcodePattern("010 011 00", ({ fetchWord }: InstructionContext) => this.#jump(fetchWord())), // JMP addr
     ...opcodePattern("100 011 00", ({ fetchWord, writeByte }: InstructionContext) => writeByte(fetchWord(), this.#state.y)), // STY addr
     ...opcodePattern("101 011 00", ({ fetchWord, readByte }: InstructionContext) => this.#loadRegister("y", readByte(fetchWord()))), // LDY addr
+    ...opcodeFamily("11r 011 00", { r: ["y", "x"] }, ({ r }) => ({ fetchWord, readByte }: InstructionContext) => this.#compare(r, readByte(fetchWord()))), // CPY/CPX addr
 
     // cc=00, bbb=100: ffv 100 00 selects a flag and the value required to branch.
     // ff (bits 7..6): 00 N, 01 V, 10 C, 11 Z.
@@ -190,9 +196,12 @@ export class Cpu6502 {
     ...opcodePattern("100 101 00", (instruction: InstructionContext) => instruction.writeByte(this.#zeroPageIndexed("x", instruction), this.#state.y)), // STY zp,X
     ...opcodePattern("101 101 00", (instruction: InstructionContext) => this.#loadRegister("y", instruction.readByte(this.#zeroPageIndexed("x", instruction)))), // LDY zp,X
 
-    // cc=00, bbb=110: aaa=000 selects CLC; aaa=100 selects TYA.
-    ...opcodePattern("000 110 00", () => this.#clearCarry()), // CLC
+    // cc=00, bbb=110: 00v selects CLC/SEC and 11v selects CLD/SED; v (bit 5) is the new flag value.
+    // aaa=100/101 select TYA/CLV. aaa=010/011 (CLI/SEI) remain deferred with interrupts.
+    ...opcodeFamily("00v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.c = v; }), // CLC/SEC
     ...opcodePattern("100 110 00", () => this.#loadRegister("a", this.#state.y)), // TYA
+    ...opcodePattern("101 110 00", () => { this.#state.flags.v = false; }), // CLV
+    ...opcodeFamily("11v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.d = v; }), // CLD/SED
 
     // cc=00, bbb=111: aaa=101 selects LDY absolute indexed by X; no STY counterpart.
     ...opcodePattern("101 111 00", (instruction: InstructionContext) => this.#loadRegister("y", instruction.readByte(this.#absoluteIndexed("x", instruction)))), // LDY addr,X
@@ -212,7 +221,7 @@ export class Cpu6502 {
     ...opcodePattern("100 110 01", (instruction: InstructionContext) => instruction.writeByte(this.#absoluteIndexed("y", instruction), this.#state.a)), // STA addr,Y
     ...opcodePattern("100 111 01", (instruction: InstructionContext) => instruction.writeByte(this.#absoluteIndexed("x", instruction), this.#state.a)), // STA addr,X
     ...this.#accumulatorHandlers("101 bbb 01", value => this.#loadRegister("a", value)), // LDA
-    ...this.#accumulatorHandlers("110 bbb 01", value => this.#compare(value)), // CMP
+    ...this.#accumulatorHandlers("110 bbb 01", value => this.#compare("a", value)), // CMP
 
     // cc=10, bbb=000: aaa=101 selects LDX immediate.
     ...opcodePattern("101 000 10", ({ fetchByte }: InstructionContext) => this.#loadRegister("x", fetchByte())), // LDX #n
@@ -226,11 +235,12 @@ export class Cpu6502 {
     ...opcodePattern("101 001 10", ({ fetchByte, readByte }: InstructionContext) => this.#loadRegister("x", readByte(fetchByte()))), // LDX zp
     ...this.#memoryAdjustHandlers("11i 001 10", ({ fetchByte }) => fetchByte()), // DEC/INC zp
 
-    // bbb=010: 0ss shifts/rotates A; aaa=100..110 select TXA, TAX, DEX, not accumulator INC/DEC.
+    // bbb=010: 0ss shifts/rotates A; aaa=100..111 select TXA, TAX, DEX, NOP, not accumulator INC/DEC.
     ...opcodeFamily("0ss 010 10", { s: this.#shifts }, ({ s: modify }) => () => this.#loadRegister("a", modify(this.#state.a))), // ASL/ROL/LSR/ROR A
     ...opcodePattern("100 010 10", () => this.#loadRegister("a", this.#state.x)), // TXA
     ...opcodePattern("101 010 10", () => this.#loadRegister("x", this.#state.a)), // TAX
     ...opcodePattern("110 010 10", () => this.#adjustIndex("x", -1)), // DEX
+    ...opcodePattern("111 010 10", () => {}), // NOP: step() advances PC; no further effects.
 
     // bbb=011: absolute.
     ...this.#memoryShiftHandlers("0ss 011 10", ({ fetchWord }) => fetchWord()), // ASL/ROL/LSR/ROR addr
@@ -243,6 +253,10 @@ export class Cpu6502 {
     ...opcodePattern("100 101 10", (instruction: InstructionContext) => instruction.writeByte(this.#zeroPageIndexed("y", instruction), this.#state.x)), // STX zp,Y
     ...opcodePattern("101 101 10", (instruction: InstructionContext) => this.#loadRegister("x", instruction.readByte(this.#zeroPageIndexed("y", instruction)))), // LDX zp,Y
     ...this.#memoryAdjustHandlers("11i 101 10", instruction => this.#zeroPageIndexed("x", instruction)), // DEC/INC zp,X
+
+    // bbb=110: aaa=100/101 select TXS/TSX. Only TSX updates N/Z; TXS preserves every flag.
+    ...opcodePattern("100 110 10", () => { this.#state.sp = this.#state.x; }), // TXS
+    ...opcodePattern("101 110 10", () => this.#loadRegister("x", this.#state.sp)), // TSX
 
     // bbb=111: absolute indexed by X, except LDX uses Y; no STX counterpart.
     ...this.#memoryShiftHandlers("0ss 111 10", instruction => this.#absoluteIndexed("x", instruction)), // ASL/ROL/LSR/ROR addr,X
@@ -370,14 +384,17 @@ export class Cpu6502 {
     this.#state.flags.z = value === 0;
   }
 
-  #compare(value: number): void {
-    // CMP discards A - operand. C means no borrow; V and D are unaffected.
-    this.#setNegativeZero((this.#state.a - value) & 0xff);
-    this.#state.flags.c = this.#state.a >= value;
+  #compare(register: ByteRegister, value: number): void {
+    // CMP/CPX/CPY discard register - operand. C means no borrow; V and D are unaffected.
+    this.#setNegativeZero((this.#state[register] - value) & 0xff);
+    this.#state.flags.c = this.#state[register] >= value;
   }
 
-  #clearCarry(): void {
-    this.#state.flags.c = false;
+  #testBits(value: number): void {
+    // BIT copies N/V from memory, independently of the masked value used for Z.
+    this.#state.flags.n = (value & 0x80) !== 0;
+    this.#state.flags.v = (value & 0x40) !== 0;
+    this.#state.flags.z = (this.#state.a & value) === 0;
   }
 
   #addWithCarry(value: number): void {

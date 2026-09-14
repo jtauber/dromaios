@@ -81,6 +81,12 @@ Register loads, transfers between A and X/Y, and index increments/decrements
 replace N/Z from their result and preserve V/D/I/C. Index arithmetic wraps
 within eight bits. Transfers preserve their source register.
 
+TSX copies the eight-bit SP offset to X and updates N/Z like other register
+loads. TXS copies X to SP and preserves every flag. Neither instruction
+accesses stack memory; later pushes, pulls, and calls use the new SP. This
+follows sections 8.8–8.9 of the [manufacturer manual][1]; its Appendix B
+incorrectly marks N/Z as affected by TXS.
+
 The eight conditional branches test the stored N, V, C, or Z flag for its
 specified set/clear value. Every branch fetches its signed eight-bit displacement,
 including when untaken. A taken target is relative to PC after both bytes,
@@ -116,14 +122,34 @@ subsequent instructions see the replacement. There are no dummy reads or page
 crossing cycle penalties at this instruction-level boundary.
 
 ORA, AND, and EOR combine the operand with A, replacing A and N/Z while
-preserving V/D/I/C. CMP preserves A, replaces N/Z from the eight-bit result
-of A minus the operand, and sets C when A is at least the operand (no borrow).
-CMP preserves V/D/I and ignores incoming C. D does not alter logic, compare,
-or load/store behavior. See the [manufacturer manual][1], sections 2.2.4,
-4.2.1, 6.1–6.5, 7, and Appendix B.
+preserving V/D/I/C. CMP, CPX, and CPY preserve all registers, replace N/Z from
+the eight-bit result of A, X, or Y minus the operand, and set C when that
+register is at least the operand (no borrow). Comparisons preserve V/D/I and
+ignore incoming C. CPX/CPY have immediate, zero-page, and absolute forms.
+
+BIT leaves A unchanged, copies memory bits 7/6 into N/V, and sets Z when
+A AND memory is zero. N/V describe the memory byte, independently of the
+masked result; C/D/I are preserved. Only zero-page and absolute BIT exist on
+this CPU. D does not alter logic, comparison, bit-test, or load/store behavior.
+See the [manufacturer manual][1], sections 2.2.4, 4.2.1–4.2.2, 6.1–6.5, 7,
+and Appendix B.
 
 The [buffer-processing example](examples/buffer.md) combines these memory
 forms and operations with arithmetic, branches, and subroutine calls.
+
+## Flag controls and NOP
+
+CLC/SEC clear/set C, CLV clears V, and CLD/SED clear/set D. Each preserves
+every other flag and register except PC. NOP (`EA`) changes only PC. These
+one-byte instructions read only their opcode at this instruction boundary;
+undocumented NOP encodings remain unsupported. See [manual][1], chapter 3
+and Appendix B. Interrupt-specific CLI/SEI remain deferred.
+
+CLD enables the existing binary ADC; SED makes ADC return the
+[unsupported decimal-mode result](#unsupported-instructions-and-modes).
+Other supported instructions remain available with D set. The
+[comparison/flag example](examples/flags.md) combines these controls with
+BIT, index comparisons, branches, and a stack slot selected by TXS.
 
 ## Shifts and memory modification
 
@@ -185,8 +211,9 @@ past the limitation. The caller must stop on unsupported results and use a
 bounded instruction budget when running programs.
 
 **Decimal arithmetic is deferred, and must never silently use binary ADC.**
-The constructor accepts either D value. If opcode `69` is encountered with D
-true, `step()` returns `unsupported` with reason `decimal-mode`: one opcode
+The constructor accepts either D value, and CLD/SED can change it during execution.
+If opcode `69` is encountered with D true, `step()` returns `unsupported` with
+reason `decimal-mode`: one opcode
 read, no operand read, and unchanged CPU state and RAM. Check this limitation
 before advancing PC or reading the operand. This restriction does not block other supported
 instructions. It is an implementation limitation, not an illegal hardware
@@ -236,6 +263,14 @@ updates, current operands, and retained records.
 
 Logic and comparison checks cover every accumulator/operand pair with both
 D values, plus every incoming flag combination through all eight modes.
+CPX/CPY and BIT likewise exhaust register/operand pairs and check their
+forms with every incoming flag pattern, live operands, PC wrapping, and
+instruction/data overlap. BIT checks distinguish memory N/V from the AND result.
+TSX/TXS check every source byte and flag combination without memory access
+beyond the opcode. Flag controls and NOP check exact preservation, repeated
+execution, and PC wrapping. SED, reset, and CLD are checked around ADC's
+decimal restriction; the example checks live flags and SP across instruction
+sequences and snapshot resumption.
 Memory checks cover every X/Y load and A/X/Y store value, index selection,
 zero-page and 16-bit wrapping, low/high pointer order, overlap, current RAM,
 unchanged-value stores, and retained records. Opcode/operand reads are checked
@@ -273,7 +308,7 @@ previews, opcode metadata, lesson annotations, addressing, and timing.
 ## References
 
 - [Synertek/MOS MCS6500 Programming Manual][1], sections 2.1–2.2, 3, 4, 6.1–6.5, 7,
-  8.1–8.3, 9.1–9.4, 10.1–10.8, and Appendix B: registers, flags, control flow,
+  8.1–8.3, 8.8–8.9, 9.1–9.4, 10.1–10.8, and Appendix B: registers, flags, control flow,
   stack access order, memory addressing/modification, shifts, reset, and encodings.
   Its startup discussion is supplemented by the transistor-level analysis below.
 - [Michael Steil's Visual6502 analysis of BRK/IRQ/NMI/RESET][2]: reset vector
