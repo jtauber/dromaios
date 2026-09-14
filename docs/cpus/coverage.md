@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [270](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [651](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [250](../../src/components/cpus/6800.ts) | 41 / 197 | 20.8% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [249](../../src/components/cpus/6502.ts) | 28 / 151 | 18.5% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [337](../../src/components/cpus/6502.ts) | 85 / 151 | 56.3% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [294](../../src/components/cpus/z80.ts) | 98 / 698 | 14.0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [305](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [227](../../src/components/cpus/8088.ts) | 22 / 291 | 7.6% |
@@ -678,6 +678,37 @@ factory types.
 [Subroutine specification](6502/examples/subroutines.md) ·
 [Subroutine definition](../../src/machines/6502/subroutines-example.machine)
 
+[Buffer-processing specification](6502/examples/buffer.md) ·
+[Buffer definition](../../src/machines/6502/buffer-example.machine)
+
+**85 of 151 documented forms are complete (56.3%).** The accumulator families
+below contribute 47 forms; X/Y loads and stores contribute 16; the remaining
+22 complete forms appear in the final instruction table. Binary-only `ADC #n`
+is additional supported behavior and contributes no completion credit.
+
+All documented addressing forms of ORA, AND, EOR, CMP, LDA, STA, LDX, LDY,
+STX, and STY are implemented. A dash in these matrices means the original
+6502 has no such form, rather than an implementation gap. Length includes
+the opcode; absolute operands are low byte first.
+
+| Instruction | `(zp,X)` | `zp` | `#n` | `addr` | `(zp),Y` | `zp,X` | `addr,Y` | `addr,X` |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Length | 2 | 2 | 2 | 3 | 2 | 2 | 3 | 3 |
+| ORA | `01` | `05` | `09` | `0D` | `11` | `15` | `19` | `1D` |
+| AND | `21` | `25` | `29` | `2D` | `31` | `35` | `39` | `3D` |
+| EOR | `41` | `45` | `49` | `4D` | `51` | `55` | `59` | `5D` |
+| STA | `81` | `85` | — | `8D` | `91` | `95` | `99` | `9D` |
+| LDA | `A1` | `A5` | `A9` | `AD` | `B1` | `B5` | `B9` | `BD` |
+| CMP | `C1` | `C5` | `C9` | `CD` | `D1` | `D5` | `D9` | `DD` |
+
+| Instruction | `#n` | `zp` | `addr` | `zp,X` | `zp,Y` | `addr,X` | `addr,Y` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Length | 2 | 2 | 3 | 2 | 2 | 3 | 3 |
+| LDY | `A0` | `A4` | `AC` | `B4` | — | `BC` | — |
+| LDX | `A2` | `A6` | `AE` | — | `B6` | — | `BE` |
+| STY | — | `84` | `8C` | `94` | — | — | — |
+| STX | — | `86` | `8E` | — | `96` | — | — |
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `10` | `BPL rel` | Relative | 2 | Branch if N = 0 |
@@ -691,17 +722,11 @@ factory types.
 | `68` | `PLA` | Implied | 1 | Increment 8-bit SP, then read A at 0100 + SP; update N/Z |
 | `69` | `ADC #n` | Immediate | 2 | Partial: binary arithmetic only; D must be false |
 | `70` | `BVS rel` | Relative | 2 | Branch if V = 1 |
-| `85` | `STA zp` | Zero page | 2 | Store A at 00:operand; preserve flags |
 | `88` | `DEY` | Implied | 1 | Decrement Y; update N/Z |
 | `8A` | `TXA` | Implied | 1 | Copy X to A; update N/Z |
-| `8D` | `STA addr` | Absolute | 3 | Store A; address bytes low then high |
 | `90` | `BCC rel` | Relative | 2 | Branch if C = 0 |
 | `98` | `TYA` | Implied | 1 | Copy Y to A; update N/Z |
-| `A0` | `LDY #n` | Immediate | 2 | Load Y; update N/Z |
-| `A2` | `LDX #n` | Immediate | 2 | Load X; update N/Z |
-| `A5` | `LDA zp` | Zero page | 2 | Load A from 00:operand; update N/Z |
 | `A8` | `TAY` | Implied | 1 | Copy A to Y; update N/Z |
-| `A9` | `LDA #n` | Immediate | 2 | Load A and update N/Z |
 | `AA` | `TAX` | Implied | 1 | Copy A to X; update N/Z |
 | `B0` | `BCS rel` | Relative | 2 | Branch if C = 1 |
 | `C8` | `INY` | Implied | 1 | Increment Y; update N/Z |
@@ -714,16 +739,17 @@ factory types.
 | --- | --- |
 | Stored registers | A, X, Y, SP, PC |
 | Stored flags | N, V, D, I, Z, C; packed status and B/unused-bit conventions are not implemented |
-| Register operations | Immediate A/X/Y loads, A↔X and A↔Y transfers, wrapping X/Y increment/decrement; replace N/Z and preserve V/D/I/C |
-| Memory addressing | LDA and STA with one-byte addresses in fixed page zero; STA with an explicit 16-bit absolute address |
+| Register operations | All A/X/Y loads and stores, A↔X and A↔Y transfers, wrapping X/Y increment/decrement; loads/transfers/index changes replace N/Z, stores preserve all flags |
+| Memory addressing | Zero page, absolute, zero page indexed, absolute indexed, indexed indirect `(zp,X)`, and indirect indexed `(zp),Y`; zero-page indexing/pointer reads wrap at 8 bits, absolute indexing at 16 bits |
+| Logic and comparison | All ORA/AND/EOR and CMP forms; logic replaces A and N/Z, CMP replaces N/Z/C without changing A; both preserve V/D/I |
 | Branches | All eight conditions; signed displacement relative to PC after the operand, with 16-bit wrapping; fetch the operand on both paths and preserve flags |
 | Subroutines | Absolute JMP/JSR and RTS; JSR's final operand fetch follows its stack writes; RTS adds one to the saved pointer; preserve flags |
 | Stack | PHA/PLA and subroutine return pointers in page 01 with wrapping 8-bit SP; pulls retain stored bytes; status stack forms are unsupported |
 | Decimal mode | D can be initialized and inspected; ADC with D set reports `reason: "decimal-mode"` before operand fetch or state changes |
 | Reset | Read `FFFC` then `FFFD` for PC, set I, subtract 3 from the 8-bit SP with wrapping; preserve other registers, flags (including D), and RAM |
 | Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
-| Remaining instruction scope | Further loads/stores, SP transfers, arithmetic and logic, decimal arithmetic, status stack operations, indirect JMP, and further flag operations |
-| Remaining addressing scope | Indexed, indirect, and other forms beyond the exact encodings above |
+| Remaining instruction scope | SP transfers, memory increment/decrement, shifts/rotates, BIT, CPX/CPY, further ADC/SBC and decimal arithmetic, status stack operations, indirect JMP, NOP, and further flag operations |
+| Remaining addressing scope | Indirect absolute JMP; operand modes for the instruction families still missing |
 
 All supported forms except ADC work with either D value. Decimal rejection is
 an explicit implementation limit. Reset preserves D and therefore does not
@@ -736,7 +762,8 @@ Verification: [CPU tests](../../tests/components/cpus/6502.test.ts),
 [stack example tests](../../tests/machines/6502/stack-example.test.ts),
 [addressing example tests](../../tests/machines/6502/addressing-example.test.ts),
 [counted-loop example tests](../../tests/machines/6502/counted-loop-example.test.ts),
-[subroutine example tests](../../tests/machines/6502/subroutines-example.test.ts), and
+[subroutine example tests](../../tests/machines/6502/subroutines-example.test.ts),
+[buffer example tests](../../tests/machines/6502/buffer-example.test.ts), and
 [public type checks](../../tests/types/6502.ts). Binary ADC checks cover every byte
 operand pair and carry input with old result flags clear and set. Other checks
 cover decimal rejection, exact accesses, wrapping, self-overwriting stores,
@@ -765,6 +792,22 @@ specifically check JSR's high operand after the pushes and RTS reading its own
 opcode as stack data. The subroutine example checks thirteen complete records,
 nested calls across page-one wrapping, a saved accumulator, the result store,
 JMP completion, bounded resumption at different call depths, reset, and restart.
+
+Logic and CMP checks exhaust every accumulator/operand pair with D clear and
+set. Independent opcode matrices exercise every new form with every incoming
+flag pattern; X/Y loads and all stores also cover every byte. Exact records and
+observed RAM calls check indexed page/address-space wrapping, zero-page pointer
+wrapping, operand fetching across FFFF, live registers and pointers, repeated
+reads of overlapping pointer/data locations, self-modifying stores, and
+unchanged-value writes without destination reads.
+
+The buffer example checks 72 complete records, input/output page crossings,
+a zero-page pointer crossing FF to 00, arithmetic/logic in a subroutine,
+comparisons feeding both branch paths, and A/X/Y memory transfers. It verifies
+the complete RAM image, bounded resumption, reset during a call, fresh restart,
+and an edited self-loop. Together with the existing examples, this satisfies
+the 6502's [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint);
+interrupts and devices remain deferred across the eight targets.
 
 ## 6809
 

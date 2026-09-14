@@ -1432,11 +1432,17 @@ test("6502 RTS uses edited stack RAM and the next step fetches current target co
 test("every unimplemented 6502 opcode reads once and preserves state on repeated attempts", () => {
   const ram = new ObservedRam();
   ram.write(0, 0xa9);
-  for (let opcode = 0; opcode < 256; opcode++) {
-    if ([
+  const implemented = new Set([
       0x10, 0x18, 0x20, 0x30, 0x48, 0x4c, 0x50, 0x60, 0x68, 0x69, 0x70, 0x85, 0x88, 0x8a, 0x8d,
       0x90, 0x98, 0xa0, 0xa2, 0xa5, 0xa8, 0xa9, 0xaa, 0xb0, 0xc8, 0xca, 0xd0, 0xe8, 0xf0,
-    ].includes(opcode)) continue;
+      ...accumulatorForms.flatMap(form => [...form.opcodes]),
+      ...registerMemoryForms.flatMap(form => [
+        ...("load" in form ? [form.load] : []), ...("store" in form ? [form.store] : []),
+      ]),
+  ]);
+  assert.equal(implemented.size, 86); // 85 complete documented forms plus binary-only ADC #n.
+  for (let opcode = 0; opcode < 256; opcode++) {
+    if (implemented.has(opcode)) continue;
     ram.write(0xffff, opcode);
     for (const d of [false, true]) {
       const before = initialState({ pc: 0xffff, flags: { ...initialState().flags, d } });
@@ -1732,4 +1738,312 @@ test("6502 rejects non-boolean flags without RAM accesses", () => {
     }
   }
   assert.deepEqual(ram.accesses, []);
+});
+
+// Literal opcodes from the manufacturer's instruction tables, independent of the decoder.
+// Columns: (zp,X), zp, immediate, absolute, (zp),Y, zp,X, absolute,Y, absolute,X.
+const accumulatorForms = [
+  { name: "ORA", opcodes: [0x01, 0x05, 0x09, 0x0d, 0x11, 0x15, 0x19, 0x1d] },
+  { name: "AND", opcodes: [0x21, 0x25, 0x29, 0x2d, 0x31, 0x35, 0x39, 0x3d] },
+  { name: "EOR", opcodes: [0x41, 0x45, 0x49, 0x4d, 0x51, 0x55, 0x59, 0x5d] },
+  { name: "LDA", opcodes: [0xa1, 0xa5, 0xa9, 0xad, 0xb1, 0xb5, 0xb9, 0xbd] },
+  { name: "CMP", opcodes: [0xc1, 0xc5, 0xc9, 0xcd, 0xd1, 0xd5, 0xd9, 0xdd] },
+] as const;
+type AccumulatorOperation = typeof accumulatorForms[number]["name"];
+
+function expectedAccumulator(operation: AccumulatorOperation, a: number, operand: number, flags: Cpu6502Flags) {
+  // Build logical results from individual bit truth tables, independently of JS bitwise arithmetic.
+  const left = a.toString(2).padStart(8, "0"), right = operand.toString(2).padStart(8, "0");
+  const bits = [...left].map((bit, index) => {
+    if (operation === "ORA") return bit === "1" || right[index] === "1";
+    if (operation === "AND") return bit === "1" && right[index] === "1";
+    return bit !== right[index];
+  });
+  const result = operation === "LDA" ? operand : operation === "CMP"
+    ? (a >= operand ? a - operand : 256 + a - operand)
+    : Number.parseInt(bits.map(bit => bit ? "1" : "0").join(""), 2);
+  return {
+    a: operation === "CMP" ? a : result,
+    flags: { ...flags, n: result >= 128, z: result === 0, c: operation === "CMP" ? a >= operand : flags.c },
+  };
+}
+
+interface OperandFixture {
+  readonly name: string;
+  readonly bytes: readonly number[];
+  readonly address: number | null;
+  readonly pointers: readonly (readonly [number, number])[];
+}
+
+// X=02, Y=03 deliberately differ. Indirection crosses FF -> 00; indexed data crosses a page.
+const operandFixtures: readonly OperandFixture[] = [
+  { name: "(zp,X)", bytes: [0xfd], address: 0x20ff, pointers: [[0xff, 0xff], [0, 0x20]] },
+  { name: "zp", bytes: [0xfe], address: 0xfe, pointers: [] },
+  { name: "immediate", bytes: [], address: null, pointers: [] },
+  { name: "absolute", bytes: [0xfe, 0x20], address: 0x20fe, pointers: [] },
+  { name: "(zp),Y", bytes: [0xff], address: 0x2101, pointers: [[0xff, 0xfe], [0, 0x20]] },
+  { name: "zp,X", bytes: [0xff], address: 1, pointers: [] },
+  { name: "absolute,Y", bytes: [0xfe, 0x20], address: 0x2101, pointers: [] },
+  { name: "absolute,X", bytes: [0xff, 0x20], address: 0x2101, pointers: [] },
+];
+
+for (const { name, opcodes } of accumulatorForms) {
+  test(`6502 ${name} implements all eight forms with exact accesses and every incoming flag combination`, () => {
+    const ram = new ObservedRam();
+    for (const [index, opcode] of opcodes.entries()) {
+      const fixture = operandFixtures[index]!;
+      for (const operand of [0, 1, 0x7f, 0x80, 0xff]) {
+        const bytes = [opcode, ...(fixture.address === null ? [operand] : fixture.bytes)];
+        bytes.forEach((byte, offset) => ram.write(0x1234 + offset, byte));
+        for (const [address, value] of fixture.pointers) ram.write(address, value);
+        if (fixture.address !== null) ram.write(fixture.address, operand);
+        for (const flags of flagCombinations()) {
+          for (const a of [0, 0x55, 0x80, 0xff]) {
+            const before = initialState({ a, x: 2, y: 3, flags });
+            const cpu = new Cpu6502(ram, before);
+            ram.accesses.length = 0;
+            const record = cpu.step();
+            const reads = [
+              ...bytes.map((value, offset) => [0x1234 + offset, value] as const),
+              ...fixture.pointers,
+              ...(fixture.address === null ? [] : [[fixture.address, operand] as const]),
+            ];
+            assert.deepEqual(record, {
+              instruction: { address: 0x1234, bytes }, before,
+              after: { ...before, ...expectedAccumulator(name, a, operand, flags), pc: 0x1234 + bytes.length },
+              accesses: reads.map(([address, value]) => ({ kind: "read", address, value })), outcome: "executed",
+            }, `${name} ${fixture.name}: A=${a}, operand=${operand}`);
+            assert.deepEqual(ram.accesses, record.accesses);
+            assert.deepEqual(cpu.snapshot(), record.after);
+          }
+        }
+      }
+    }
+  });
+}
+
+for (const { name, opcodes } of accumulatorForms.filter(family => family.name !== "LDA")) {
+  test(`6502 ${name} exhausts all accumulator/operand pairs with D clear and set`, () => {
+    const ram = new Ram(0x10000);
+    // Each pair reloads A before operating; one CPU executes a whole row of the truth table.
+    for (const d of [false, true]) {
+      for (let a = 0; a < 256; a++) {
+        for (let operand = 0; operand < 256; operand++) {
+          [0xa9, a, opcodes[2], operand].forEach((byte, offset) => ram.write(0x2000 + operand * 4 + offset, byte));
+        }
+        const flags = { n: true, v: true, d, i: true, z: true, c: true };
+        const before = initialState({ pc: 0x2000, flags });
+        const cpu = new Cpu6502(ram, before);
+        for (let operand = 0; operand < 256; operand++) {
+          cpu.step();
+          const record = cpu.step();
+          assert.equal(record.outcome, "executed");
+          assert.deepEqual(record.after, {
+            ...before, ...expectedAccumulator(name, a, operand, flags), pc: 0x2004 + operand * 4,
+          }, `${name}: A=${a}, operand=${operand}, D=${d}`);
+        }
+      }
+    }
+  });
+}
+
+const registerMemoryForms = [
+  { register: "a", store: 0x81, fixture: operandFixtures[0]! },
+  { register: "a", store: 0x85, fixture: operandFixtures[1]! },
+  { register: "a", store: 0x8d, fixture: operandFixtures[3]! },
+  { register: "a", store: 0x91, fixture: operandFixtures[4]! },
+  { register: "a", store: 0x95, fixture: operandFixtures[5]! },
+  { register: "a", store: 0x99, fixture: operandFixtures[6]! },
+  { register: "a", store: 0x9d, fixture: operandFixtures[7]! },
+  { register: "y", store: 0x84, load: 0xa4, fixture: operandFixtures[1]! },
+  { register: "y", store: 0x8c, load: 0xac, fixture: operandFixtures[3]! },
+  { register: "y", store: 0x94, load: 0xb4, fixture: operandFixtures[5]! },
+  { register: "y", load: 0xbc, fixture: operandFixtures[7]! },
+  { register: "x", store: 0x86, load: 0xa6, fixture: operandFixtures[1]! },
+  { register: "x", store: 0x8e, load: 0xae, fixture: operandFixtures[3]! },
+  { register: "x", store: 0x96, load: 0xb6, fixture: { name: "zp,Y", bytes: [0xff], address: 2, pointers: [] } },
+  { register: "x", load: 0xbe, fixture: operandFixtures[6]! },
+] as const;
+
+test("6502 memory loads of X/Y use their specified index and replace only N/Z for every byte and flag pattern", () => {
+  const ram = new ObservedRam();
+  for (const form of registerMemoryForms) {
+    if (!("load" in form)) continue;
+    const { register, load, fixture } = form;
+    const bytes = [load, ...fixture.bytes];
+    bytes.forEach((byte, offset) => ram.write(0x1234 + offset, byte));
+    for (let value = 0; value < 256; value++) {
+      ram.write(fixture.address!, value);
+      for (const flags of flagCombinations()) {
+        const before = initialState({ x: 2, y: 3, flags });
+        const cpu = new Cpu6502(ram, before);
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: 0x1234, bytes }, before,
+          after: { ...before, [register]: value, pc: 0x1234 + bytes.length,
+            flags: { ...flags, n: value >= 128, z: value === 0 } },
+          accesses: [...bytes.map((value, offset) => ({ kind: "read", address: 0x1234 + offset, value })),
+            { kind: "read", address: fixture.address, value }], outcome: "executed",
+        });
+        assert.deepEqual(ram.accesses, record.accesses);
+      }
+    }
+  }
+});
+
+test("6502 stores A/X/Y through every supported mode without changing flags or reading the destination", () => {
+  const ram = new ObservedRam();
+  for (const form of registerMemoryForms) {
+    if (!("store" in form)) continue;
+    const { register, store, fixture } = form;
+    const bytes = [store, ...fixture.bytes];
+    bytes.forEach((byte, offset) => ram.write(0x1234 + offset, byte));
+    for (const [address, value] of fixture.pointers) ram.write(address, value);
+    for (const flags of flagCombinations()) {
+      for (let value = 0; value < 256; value++) {
+        const before = initialState({ x: 2, y: 3, [register]: value, flags });
+        const cpu = new Cpu6502(ram, before);
+        // The second store proves an unchanged-value write is still performed and recorded.
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const active = attempt === 0 ? cpu : new Cpu6502(ram, before);
+          ram.accesses.length = 0;
+          const record = active.step();
+          assert.deepEqual(record, {
+            instruction: { address: 0x1234, bytes }, before,
+            after: { ...before, pc: 0x1234 + bytes.length },
+            accesses: [
+              ...bytes.map((value, offset) => ({ kind: "read", address: 0x1234 + offset, value })),
+              ...fixture.pointers.map(([address, value]) => ({ kind: "read", address, value })),
+              { kind: "write", address: fixture.address, value },
+            ], outcome: "executed",
+          });
+          assert.deepEqual(ram.accesses, record.accesses);
+          assert.equal(ram.read(fixture.address!), value);
+        }
+      }
+    }
+  }
+});
+
+test("6502 indexed addresses wrap at the correct width, including zero-page pointer high bytes", () => {
+  const cases: readonly {
+    opcodes: readonly [number, number | null]; register: "a" | "x" | "y";
+    bytes: readonly number[]; x: number; y: number; address: number;
+    pointers: readonly (readonly [number, number])[]; value: number;
+  }[] = [
+    { opcodes: [0xb5, 0x95], register: "a", bytes: [0xff], x: 1, y: 7, address: 0, pointers: [], value: 0x80 },
+    { opcodes: [0xb6, 0x96], register: "x", bytes: [0xff], x: 7, y: 1, address: 0, pointers: [], value: 0x80 },
+    { opcodes: [0xb4, 0x94], register: "y", bytes: [0xff], x: 1, y: 7, address: 0, pointers: [], value: 0x80 },
+    { opcodes: [0xbd, 0x9d], register: "a", bytes: [0xff, 0xff], x: 1, y: 7, address: 0, pointers: [], value: 0x80 },
+    { opcodes: [0xb9, 0x99], register: "a", bytes: [0xff, 0xff], x: 7, y: 1, address: 0, pointers: [], value: 0x80 },
+    { opcodes: [0xbe, null], register: "x", bytes: [0xfe, 0xff], x: 7, y: 3, address: 1, pointers: [], value: 0x80 },
+    { opcodes: [0xbc, null], register: "y", bytes: [0xfe, 0xff], x: 3, y: 7, address: 1, pointers: [], value: 0x80 },
+    { opcodes: [0xa1, 0x81], register: "a", bytes: [0xff], x: 1, y: 7, address: 0xfffe,
+      pointers: [[0, 0xfe], [1, 0xff]], value: 0x80 },
+    { opcodes: [0xa1, 0x81], register: "a", bytes: [0xfe], x: 1, y: 7, address: 0xffff,
+      pointers: [[0xff, 0xff], [0, 0xff]], value: 0x80 },
+    // The effective address is also the pointer's high byte: read twice, or read then write.
+    { opcodes: [0xb1, 0x91], register: "a", bytes: [0xff], x: 7, y: 1, address: 0,
+      pointers: [[0xff, 0xff], [0, 0xff]], value: 0xff },
+  ];
+  for (const fixture of cases) {
+    for (const [direction, opcode] of fixture.opcodes.entries()) {
+      if (opcode === null) continue;
+      const ram = new ObservedRam();
+      const bytes = [opcode, ...fixture.bytes];
+      bytes.forEach((byte, offset) => ram.write(0x1234 + offset, byte));
+      for (const [address, value] of fixture.pointers) ram.write(address, value);
+      ram.write(fixture.address, fixture.value);
+      const before = initialState({ x: fixture.x, y: fixture.y });
+      const cpu = new Cpu6502(ram, before);
+      ram.accesses.length = 0;
+      const record = cpu.step();
+      const loading = direction === 0;
+      const value = loading ? fixture.value : before[fixture.register];
+      assert.deepEqual(record, {
+        instruction: { address: 0x1234, bytes }, before,
+        after: { ...before, pc: 0x1234 + bytes.length, ...(loading ? {
+          [fixture.register]: value, flags: { ...before.flags, n: value >= 128, z: value === 0 },
+        } : {}) },
+        accesses: [
+          ...bytes.map((value, offset) => ({ kind: "read", address: 0x1234 + offset, value })),
+          ...fixture.pointers.map(([address, value]) => ({ kind: "read", address, value })),
+          { kind: loading ? "read" : "write", address: fixture.address, value },
+        ], outcome: "executed",
+      });
+      assert.deepEqual(ram.accesses, record.accesses);
+    }
+  }
+});
+
+test("6502 accumulator operands are fetched across FFFF independently of pointer and data reads", () => {
+  const fixtures: readonly OperandFixture[] = [
+    { name: "(zp,X)", bytes: [0x40], address: 0x20fe, pointers: [[0x42, 0xfe], [0x43, 0x20]] },
+    { name: "zp", bytes: [0x40], address: 0x40, pointers: [] },
+    { name: "immediate", bytes: [0x80], address: null, pointers: [] },
+    { name: "absolute", bytes: [0x40, 0x20], address: 0x2040, pointers: [] },
+    { name: "(zp),Y", bytes: [0x40], address: 0x2101, pointers: [[0x40, 0xfe], [0x41, 0x20]] },
+    { name: "zp,X", bytes: [0x40], address: 0x42, pointers: [] },
+    { name: "absolute,Y", bytes: [0x40, 0x20], address: 0x2043, pointers: [] },
+    { name: "absolute,X", bytes: [0x40, 0x20], address: 0x2042, pointers: [] },
+  ];
+  for (const { name, opcodes } of accumulatorForms) {
+    for (const [index, opcode] of opcodes.entries()) {
+      const ram = new ObservedRam();
+      const fixture = fixtures[index]!;
+      const bytes = [opcode, ...fixture.bytes];
+      bytes.forEach((byte, offset) => ram.write((0xffff + offset) % 0x10000, byte));
+      for (const [address, value] of fixture.pointers) ram.write(address, value);
+      if (fixture.address !== null) ram.write(fixture.address, 0x80);
+      const before = initialState({ a: 0x55, x: 2, y: 3, pc: 0xffff });
+      const cpu = new Cpu6502(ram, before);
+      ram.accesses.length = 0;
+      const record = cpu.step();
+      assert.deepEqual(record, {
+        instruction: { address: 0xffff, bytes }, before,
+        after: { ...before, ...expectedAccumulator(name, 0x55, 0x80, before.flags), pc: bytes.length - 1 },
+        accesses: [
+          ...bytes.map((value, offset) => ({ kind: "read", address: (0xffff + offset) % 0x10000, value })),
+          ...fixture.pointers.map(([address, value]) => ({ kind: "read", address, value })),
+          ...(fixture.address === null ? [] : [{ kind: "read", address: fixture.address, value: 0x80 }]),
+        ], outcome: "executed",
+      });
+      assert.deepEqual(ram.accesses, record.accesses);
+    }
+  }
+});
+
+test("6502 indirect stores can rewrite operands and pointers; later steps see current RAM and registers", () => {
+  const ram = new ObservedRam();
+  // LDA (40,X); INX; LDA (40,X); STA (50),Y; STA (60),Y; LDA (60),Y.
+  [0xa1, 0x40, 0xe8, 0xa1, 0x40, 0x91, 0x50, 0x91, 0x60, 0xb1, 0x60].forEach((byte, offset) => ram.write(0x200 + offset, byte));
+  ram.write(0x40, 0x34); ram.write(0x41, 0x12); ram.write(0x42, 0x30);
+  ram.write(0x1234, 0x11); ram.write(0x3012, 0x60);
+  ram.write(0x50, 6); ram.write(0x51, 2); // Points at the first STA's own operand.
+  ram.write(0x60, 0x61); ram.write(0x61, 0); // Points at its own pointer high byte.
+  ram.write(0x6061, 0x80);
+  const cpu = new Cpu6502(ram, initialState({ pc: 0x200, x: 0, y: 0 }));
+  assert.equal(cpu.step().after.a, 0x11);
+  cpu.step();
+  assert.equal(cpu.step().after.a, 0x60); // Live X=1 changes which pointer pair is used.
+  ram.accesses.length = 0;
+  const first = cpu.step();
+  assert.deepEqual(first.instruction, { address: 0x205, bytes: [0x91, 0x50] });
+  assert.deepEqual(first.accesses, [
+    { kind: "read", address: 0x205, value: 0x91 }, { kind: "read", address: 0x206, value: 0x50 },
+    { kind: "read", address: 0x50, value: 6 }, { kind: "read", address: 0x51, value: 2 },
+    { kind: "write", address: 0x206, value: 0x60 },
+  ]);
+  assert.deepEqual(ram.accesses, first.accesses);
+  const saved = structuredClone(first);
+  const second = cpu.step();
+  assert.deepEqual(second.accesses.slice(2), [
+    { kind: "read", address: 0x60, value: 0x61 }, { kind: "read", address: 0x61, value: 0 },
+    { kind: "write", address: 0x61, value: 0x60 },
+  ]);
+  assert.equal(cpu.step().after.a, 0x80); // The rewritten pointer is now 6061.
+  ram.write(0x61, 0x12);
+  cpu.reset();
+  assert.deepEqual(first, saved);
 });

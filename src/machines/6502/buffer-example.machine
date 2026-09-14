@@ -1,0 +1,48 @@
+ram 10000
+
+cpu 6502 {
+    A = 11  X = 22  Y = 33
+    PC = 0200  SP = 01
+    flags { N = 0  V = 1  D = 0  I = 0  Z = 1  C = 1 }
+}
+
+memory 0000 { 30 }       // High byte of the pointer beginning at 00FF
+memory 007F { AA EE CC 55 } // Last qualifying index (0080) and count (0081)
+memory 00FF { FE }       // Source pointer: 30FE, wrapping within page zero
+memory 01FF { 5A }       // Below the two-byte return pointer
+
+memory 0200 {
+    A2 00       // LDX #$00
+    A0 00       // LDY #$00
+    B1 FF       // Loop at 0204: LDA ($FF),Y
+    20 40 02    // JSR $0240
+    9D FE 40    // STA $40FE,X
+    C9 A4       // CMP #$A4
+    90 03       // BCC $0213: skip recording this index if A < A4
+    8E 80 00    // STX $0080
+    E8          // INX
+    C8          // INY
+    98          // TYA
+    C9 04       // CMP #$04
+    D0 EA       // BNE $0204
+    8C 81 00    // STY $0081
+    AE 80 00    // LDX $0080
+    AC 81 00    // LDY $0081
+    BD FE 40    // LDA $40FE,X: read back the last qualifying result
+    4C 50 02    // JMP $0250
+}
+
+memory 0240 {
+    29 0F       // AND #$0F
+    49 03       // EOR #$03
+    09 A0       // ORA #$A0
+    18          // CLC
+    69 01       // ADC #$01 (binary)
+    60          // RTS
+}
+
+memory 30FD { AA 01 82 03 84 55 } // Input crosses 30FF -> 3100
+memory 40FD { AA CC CC CC CC 55 } // Output crosses 40FF -> 4100
+memory FFFC { 00 02 }            // Reset vector
+
+end 0250

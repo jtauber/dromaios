@@ -95,6 +95,36 @@ steps fetch current RAM at the resulting PC. The
 [counted-loop example](examples/counted-loop.md) specifies a complete trace
 combining register updates, arithmetic, branching, and a final store.
 
+## Memory operands, logic, and comparison
+
+Operand readers separate address resolution from instruction behavior. Immediate
+operands come from the instruction stream. Memory forms fetch their address
+bytes, read any pointer, then read the effective address once. Stores resolve
+that same address and write once, without reading the destination first.
+
+Zero-page indexing discards carry beyond bit 7. Absolute indexing wraps at 16
+bits. Indexed indirect `(zp,X)` adds X to the operand within page zero, then
+reads a low/high pointer there. Indirect indexed `(zp),Y` reads the operand's
+low/high pointer first, then adds Y to that 16-bit address. Both pointer reads
+stay within page zero: the high byte following `00FF` comes from `0000`.
+LDX/STX use Y for their indexed forms; LDY/STY use X.
+
+All data and pointer reads use current RAM and appear only in `accesses`.
+When an effective address overlaps a pointer byte, both reads are retained.
+A store can replace its own operand or pointer after those bytes were captured;
+subsequent instructions see the replacement. There are no dummy reads or page
+crossing cycle penalties at this instruction-level boundary.
+
+ORA, AND, and EOR combine the operand with A, replacing A and N/Z while
+preserving V/D/I/C. CMP preserves A, replaces N/Z from the eight-bit result
+of A minus the operand, and sets C when A is at least the operand (no borrow).
+CMP preserves V/D/I and ignores incoming C. D does not alter logic, compare,
+or load/store behavior. See the [manufacturer manual][1], sections 2.2.4,
+4.2.1, 6.1–6.5, 7, and Appendix B.
+
+The [buffer-processing example](examples/buffer.md) combines these memory
+forms and operations with arithmetic, branches, and subroutine calls.
+
 ## Jumps and subroutines
 
 Absolute JMP fetches a low/high target and replaces PC. JSR saves the address
@@ -171,6 +201,13 @@ with all flag combinations, every displacement, both paths, page and address-spa
 crossings, instruction-byte overlap, live flags after arithmetic and register
 updates, current operands, and retained records.
 
+Logic and comparison checks cover every accumulator/operand pair with both
+D values, plus every incoming flag combination through all eight modes.
+Memory checks cover every X/Y load and A/X/Y store value, index selection,
+zero-page and 16-bit wrapping, low/high pointer order, overlap, current RAM,
+unchanged-value stores, and retained records. Opcode/operand reads are checked
+separately from pointer/data accesses, including when PC crosses FFFF.
+
 Jump and subroutine checks cover every target or stacked return pointer, all
 SP values and flag patterns, PC/SP wrapping, unchanged-value pushes, and
 code/stack overlap. They verify ordered RAM calls, JSR's late high-byte fetch,
@@ -197,9 +234,9 @@ previews, opcode metadata, lesson annotations, addressing, and timing.
 
 ## References
 
-- [Synertek/MOS MCS6500 Programming Manual][1], sections 2.1–2.2, 3, 4, 7,
+- [Synertek/MOS MCS6500 Programming Manual][1], sections 2.1–2.2, 3, 4, 6.1–6.5, 7,
   8.1–8.3, and 9.1–9.4, and Appendix B: registers, flags, control flow,
-  stack access order, reset, and encodings.
+  stack access order, memory addressing, reset, and encodings.
   Its startup discussion is supplemented by the transistor-level analysis below.
 - [Michael Steil's Visual6502 analysis of BRK/IRQ/NMI/RESET][2]: reset vector
   order, discarded stack reads, and the three stack-pointer decrements.
