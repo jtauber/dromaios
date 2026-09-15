@@ -1,0 +1,42 @@
+// Record requested bits in a long and toggle their modulo-eight positions in a byte.
+ram 1000000
+
+cpu 68000 {
+  D0 = 11223344  D1 = 55667788  D2 = 99AABBCC  D3 = DDEEFF00
+  D4 = 01234567  D5 = 89ABCDEF  D6 = FEDCBA98  D7 = 76543210
+  A0 = 10000000  A1 = 20000000  A2 = 30000000  A3 = 40000000
+  A4 = 50000000  A5 = 60000000  A6 = 70000000
+  USP = 34008000  SSP = 56009000  PC = AB002000
+  interruptMask = 2
+  flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 0 }
+}
+
+memory 000000 { 56 00 90 00  AB 00 20 00 }
+
+memory 002000 {
+  41 F9 AB 00 30 00  // LEA (AB003000).L,A0: requested bit numbers
+  43 F9 CD 00 40 00  // LEA (CD004000).L,A1: modulo-eight toggle byte
+  45 F9 EF 00 50 00  // LEA (EF005000).L,A2: previous-bit classification bytes
+  42 80              // CLR.L D0: record distinct requests in a 32-bit bitmap
+  72 00              // MOVEQ #0,D1
+  7E 03              // MOVEQ #3,D7: four DBF iterations
+  12 18              // loop (2018): MOVE.B (A0)+,D1
+  03 C0              // BSET D1,D0: set the requested bit modulo 32
+  03 51              // BCHG D1,(A1): toggle the requested bit modulo 8
+  57 DA              // SEQ (A2)+: FF if the byte's bit was zero before toggling
+  51 CF FF F6        // DBF D7,2018
+  08 00 00 1F        // BTST #31,D0: observe the bitmap's high bit
+  08 80 00 1F        // BCLR #31,D0: clear it, keeping Z from its old value
+  08 D1 00 07        // BSET #7,(A1): set the byte's high bit
+  03 11              // BTST D1,(A1): D1=31 tests memory bit 7
+  03 91              // BCLR D1,(A1): clear it
+  08 40 00 00        // BCHG #0,D0: toggle the bitmap's low bit
+  08 3A 00 07 00 44  // BTST #7,(0044,PC): read constant 80 at 2080; EA base is 203C
+}
+
+memory 002080 { 80 }
+memory 002FFE { DE AD  00 07 08 1F  BE EF }
+memory 003FFE { DE AD  00  BE EF }
+memory 004FFE { DE AD  CC CC CC CC  BE EF }
+
+end AB00203E

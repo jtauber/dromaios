@@ -62,6 +62,7 @@ type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
 type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
 type OperandSize = 8 | 16 | 32;
 type ShiftKind = "arithmetic" | "logical" | "extend" | "rotate";
+type BitChange = (value: number, mask: number) => number;
 // A result requests writeback; comparisons and tests update flags and return nothing.
 type AluOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
 // The EA field's role and permitted set; only plain sources allow An (word/long).
@@ -159,6 +160,12 @@ export class Cpu68000 {
   static readonly #selectors = [0, 1, 2, 3, 4, 5, 6, 7] as const;
   static readonly #sizes = [8, 16, 32, undefined] as const;
   static readonly #shiftKinds: readonly ShiftKind[] = ["arithmetic", "logical", "extend", "rotate"];
+  static readonly #bitChanges: readonly (BitChange | undefined)[] = [
+    undefined, // 00: BTST reads without writeback.
+    (value, mask) => value ^ mask, // 01: BCHG
+    (value, mask) => value & ~mask, // 10: BCLR
+    (value, mask) => value | mask, // 11: BSET
+  ];
   static readonly #immediateBytes = Array.from({ length: 0x100 }, (_, value) => value);
 
   // cccc condition encodings. BRA uses T; BSR replaces F in the branch family.
@@ -175,6 +182,14 @@ export class Cpu68000 {
     ...this.#immediateHandlers("0000 011 0 ss mmm rrr", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADDI #n,<ea>
     ...this.#immediateHandlers("0000 101 0 ss mmm rrr", (cpu, size, left, right) => cpu.#logic(size, left ^ right)), // EORI #n,<ea>
     ...this.#immediateHandlers("0000 110 0 ss mmm rrr", (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMPI #n,<ea>
+
+    // Bit operations: oo=00 BTST, 01 BCHG, 10 BCLR, 11 BSET; mmm rrr selects the tested operand.
+    // Dn uses all 32 bits (bit number modulo 32); every other EA uses a byte (modulo 8).
+    // Static form fetches a bit-number word before EA extensions; dynamic form reads Dbbb.
+    // BTST also allows PC-relative EAs, and an immediate tested byte only in the dynamic form.
+    // Other operations require data-alterable EAs. Dynamic mode 001 belongs to MOVEP.
+    ...this.#bitHandlers("0000 1000 oo mmm rrr", false), // BTST/BCHG/BCLR/BSET #n,<ea>
+    ...this.#bitHandlers("0000 bbb 1 oo mmm rrr", true), // BTST/BCHG/BCLR/BSET Dn,<ea>
 
     // MOVE: 00 zz ddd mmm sss rrr. zz=01 byte, 10 long, 11 word.
     // Destination is register ddd then mode mmm; source is mode sss then register rrr.
@@ -274,6 +289,25 @@ export class Cpu68000 {
       if (size === undefined || m === 1 || (m === 7 && r > 1)) return undefined;
       return bind(size, m, r);
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
+
+  static #bitHandlers(pattern: string, fromRegister: boolean): readonly OpcodeEntry<OpcodeHandler>[] {
+    const operands = { o: this.#bitChanges, m: this.#selectors, r: this.#selectors };
+    const entries = fromRegister
+      ? opcodeFamily(pattern, { b: this.#dataRegisters, ...operands }, ({ b, o, m, r }) => this.#bitHandler(o, m, r, b))
+      : opcodeFamily(pattern, operands, ({ o, m, r }) => this.#bitHandler(o, m, r));
+    return entries.flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
+
+  static #bitHandler(change: BitChange | undefined, mode: number, code: number, register?: DataRegister): OpcodeHandler | undefined {
+    const lastSpecial = change ? 1 : register === undefined ? 3 : 4; // Absolute, PC-relative, or immediate.
+    if (mode === 1 || (mode === 7 && code > lastSpecial)) return undefined;
+    const size = mode === 0 ? 32 : 8;
+    const apply: AluOperation = (cpu, width, value, bit) => cpu.#bit(width, value, bit, change);
+    return (cpu, instruction) => {
+      const bit = register === undefined ? instruction.fetchWord() : cpu.#state[register];
+      return cpu.#effectiveAddressAlu(size, mode, code, bit, apply, instruction);
+    };
   }
 
   static #moveHandlers(pattern: string, size: OperandSize): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -604,7 +638,7 @@ export class Cpu68000 {
     instruction: InstructionContext): Cpu68000AlignmentFault | void {
     const updates: AddressUpdates = new Map();
     const destination = this.#resolveOperand(size, mode, code, instruction, updates);
-    if (destination.kind === "immediate" || destination.kind === "address") throw new Error("Invalid data-ALU destination reached execution.");
+    if (destination.kind === "address") throw new Error("Invalid data-ALU destination reached execution.");
     if (destination.kind === "memory" && size !== 8 && destination.address % 2 !== 0) return { operation: "read", address: destination.address };
     this.#applyAlu(size, destination, value, apply, updates, instruction);
   }
@@ -622,13 +656,22 @@ export class Cpu68000 {
     this.#applyAlu(size, destination, value, apply, updates, instruction);
   }
 
-  #applyAlu(size: OperandSize, destination: Exclude<Operand, { kind: "immediate" }>, value: number,
+  #applyAlu(size: OperandSize, destination: Operand, value: number,
     apply: AluOperation, updates: AddressUpdates, instruction: InstructionContext): void {
     // All alignment checks have passed. An destinations see source pre/post-updates.
     for (const [register, address] of updates) this.#state[register] = address;
     const result = apply(this, size, this.#readOperand(size, destination, instruction.readByte), value);
     // Comparisons and tests retain address auto-updates without writing a result.
-    if (result !== undefined) this.#writeOperand(size, destination, result, instruction.writeByte);
+    if (result !== undefined) {
+      if (destination.kind === "immediate") throw new Error("An immediate operand cannot receive ALU writeback.");
+      this.#writeOperand(size, destination, result, instruction.writeByte);
+    }
+  }
+
+  #bit(size: OperandSize, value: number, bit: number, change: BitChange | undefined): number | void {
+    const mask = 2 ** (bit % size);
+    this.#state.flags.z = (value & mask) === 0; // Test the original bit, before any change; preserve every other flag.
+    if (change) return change(value, mask) >>> 0;
   }
 
   #logic(size: OperandSize, value: number): number {

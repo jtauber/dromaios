@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [504](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [773](../../src/components/cpus/8088.ts) | 268 / 291 | 92.1% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [725](../../src/components/cpus/68000.ts) | 30,109 / 36,029 | 83.6% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [768](../../src/components/cpus/68000.ts) | 31,935 / 36,029 | 88.6% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -1715,7 +1715,10 @@ addresses are compared; local tests check exact instruction-level ordering.
 [Shifts and rotates example](68000/examples/shifts.md) ·
 [Shifts definition](../../src/machines/68000/shifts-example.machine)
 
-**30,109 of 36,029 documented forms are complete (83.6%).** MOVE and MOVEA
+[Bit operations example](68000/examples/bits.md) ·
+[Bits definition](../../src/machines/68000/bits-example.machine)
+
+**31,935 of 36,029 documented forms are complete (88.6%).** MOVE and MOVEA
 support every original-68000 source/destination combination and documented
 index extension. The operation-word patterns below are binary. In MOVE,
 `ddd mmm` selects the destination register then mode, while `sss rrr` selects
@@ -1729,6 +1732,14 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `0000 011 0 ss mmm rrr` | `ADDI.B/W/L #n,<ea>` | 150 | 4–10 | Set X/N/Z/V/C; X and C report unsigned carry |
 | `0000 101 0 ss mmm rrr` | `EORI.B/W/L #n,<ea>` | 150 | 4–10 | Same sizes, destinations, and flags as ORI |
 | `0000 110 0 ss mmm rrr` | `CMPI.B/W/L #n,<ea>` | 150 | 4–10 | Destination minus immediate; set NZVC, preserve X, no writeback |
+| `0000 1000 00 mmm rrr` | `BTST #n,<ea>` | 52 | 4–8 | Dn, memory, and PC-relative operands; test original bit, setting only Z |
+| `0000 bbb 1 00 mmm rrr` | `BTST Dn,<ea>` | 424 | 2–6 | Eight bit-number registers × 53 operands; includes an immediate byte |
+| `0000 1000 01 mmm rrr` | `BCHG #n,<ea>` | 50 | 4–8 | Complement bit in a data-alterable operand; Z describes original bit |
+| `0000 bbb 1 01 mmm rrr` | `BCHG Dn,<ea>` | 400 | 2–6 | Eight bit-number registers × 50 data-alterable operands |
+| `0000 1000 10 mmm rrr` | `BCLR #n,<ea>` | 50 | 4–8 | Clear bit in a data-alterable operand; Z describes original bit |
+| `0000 bbb 1 10 mmm rrr` | `BCLR Dn,<ea>` | 400 | 2–6 | Eight bit-number registers × 50 data-alterable operands |
+| `0000 1000 11 mmm rrr` | `BSET #n,<ea>` | 50 | 4–8 | Set bit in a data-alterable operand; Z describes original bit |
+| `0000 bbb 1 11 mmm rrr` | `BSET Dn,<ea>` | 400 | 2–6 | Eight bit-number registers × 50 data-alterable operands |
 | `00 01 ddd mmm sss rrr` | `MOVE.B <ea>,<ea>` | 2,650 | 2–10 | 53 sources × 50 data-alterable destinations; neither operand may be An |
 | `00 10 ddd mmm sss rrr` (`mmm ≠ 001`) | `MOVE.L <ea>,<ea>` | 3,050 | 2–10 | 61 sources × 50 data-alterable destinations |
 | `00 10 ddd 001 sss rrr` | `MOVEA.L <ea>,An` | 488 | 2–6 | 61 sources × 8 address registers; no flag changes |
@@ -1789,6 +1800,13 @@ unsupported and are not included in these counts. The immediate is fetched
 before address extensions; each memory operand is resolved once. CMPI still
 performs address auto-updates, despite doing no writeback.
 
+Bit operations use long Dn operands (bit number modulo 32) and byte operands
+elsewhere (modulo 8). Bit-number values do not multiply the count: BTST has
+`52 + 8 × 53 = 476` forms, while each modifying operation has
+`50 + 8 × 50 = 450`. Only Z changes, describing the bit before modification.
+The [bit-operation contract](68000/model.md#bit-operations) defines legal EAs,
+extension fetching, register aliases, and address updates.
+
 MOVE/MOVEQ set N/Z from the transferred size, clear V/C, and preserve X and
 control state. Byte/word writes to Dn preserve the upper register bits.
 See the [effective-address contract](68000/model.md#effective-addresses) for
@@ -1832,6 +1850,7 @@ intermediate overflow, register aliases, and memory updates.
 | Views | A7 derived from S and USP/SSP; physical PC derived from the low 24 bits of PC |
 | Transfers | Complete MOVE.B/W/L, MOVEA.W/L, and MOVEM.W/L families; MOVEQ; partial Dn writes and sign-extended address-register word writes |
 | Immediate ALU | ADDI, SUBI, CMPI, ANDI, ORI, EORI in all three sizes and data-alterable modes; preserve upper Dn bits on byte/word writes |
+| Bit operations | BTST, BCHG, BCLR, BSET with immediate/register bit numbers; long Dn or byte operands; only Z changes, describing the original bit |
 | Register/address ALU | ADD, SUB, CMP, ADDA, SUBA, CMPA; all documented sizes and EAs, with shared destination execution and arithmetic helpers |
 | Quick/unary ALU | ADDQ/SUBQ, CLR, NEG, NEGX, NOT, TST; all sizes and legal EAs, with cumulative Z for NEGX and full-width flag-preserving An quick arithmetic |
 | Condition bytes | All Scc conditions and data-alterable EAs; FF/00 results without flag changes |
@@ -1844,7 +1863,7 @@ intermediate overflow, register aliases, and memory updates.
 | Alignment | Even instruction, word, and long addresses; odd byte operands allowed; read/write faults preserve state and RAM, including pending address updates |
 | Stack and addresses | A7 selects USP/SSP from S; BSR/JSR push and RTS pops a four-byte return address; LINK/UNLK frames, LEA/PEA address calculation, MOVEM saves/restores; byte auto-updates step by two |
 | Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts; preserve other registers, condition codes, and RAM under the documented policy |
-| Remaining scope | Bit operations, extended/decimal arithmetic, multiply/divide, other transfers, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
+| Remaining scope | Extended/decimal arithmetic, multiply/divide, other transfers, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
@@ -1855,8 +1874,9 @@ Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [word-sum](../../tests/machines/68000/word-sum-example.test.ts),
 [masked-merge](../../tests/machines/68000/logic-example.test.ts),
 [stack-frame](../../tests/machines/68000/stack-frame-example.test.ts),
-[unary](../../tests/machines/68000/unary-example.test.ts), and
-[shifts example tests](../../tests/machines/68000/shifts-example.test.ts),
+[unary](../../tests/machines/68000/unary-example.test.ts),
+[shifts](../../tests/machines/68000/shifts-example.test.ts), and
+[bit operations example tests](../../tests/machines/68000/bits-example.test.ts),
 plus [public type checks](../../tests/types/68000.ts).
 
 The independent transfer fixtures execute all **9,726 MOVE/MOVEA encodings**
@@ -1942,6 +1962,16 @@ wrapping, unchanged results, code overlap, and atomic alignment rejection.
 The 32-step shifts example combines all eight operations in packed-sample
 processing and two-word shifts, with complete traces and RAM images, live
 inputs, reset preservation, and restoration between carry-dependent words.
+
+Bit checks cover all **1,826 added forms**, every byte value and bit-number
+byte, every immediate bit-number extension word, and all long bit positions
+and incoming flag patterns. Independent bit-string expectations check results
+and Z from the original bit. Address checks cover register/index aliases,
+static and dynamic PC-relative bases, the dynamic BTST immediate byte, both
+stacks, wrapping, unchanged writes, overlapping code/data, and excluded modes.
+The 33-step bits example builds a register bitmap, toggles byte bits, and
+classifies their previous state. Tests check complete records and RAM, live
+input, reset preservation, and snapshot resumption before a saved-Z condition.
 
 ## CPUs and variants not started
 

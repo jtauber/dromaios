@@ -271,3 +271,33 @@ of that loop, plus literal flag cases and every legal encoding. The
 [combined program](examples/shifts.md) exercises all eight operations and
 restores execution between shifts of a multi-word operand. This is manual-
 and test-based verification; no external hardware or timing comparison is claimed.
+
+## Bit operations
+
+Motorola's programmer's reference documents BCHG on pages 4-27–4-29,
+BCLR on 4-30–4-32, BSET on 4-56–4-58, and BTST on 4-61–4-63. The
+tables distinguish writable data operands from BTST's broader data-source
+set. Dynamic BTST accepts an immediate tested byte; static BTST does not.
+Both permit PC-relative memory. These address restrictions determine the
+1,826 forms in the [opcode audit](opcode-count.md).
+
+The Mac reference separates static and dynamic bit-operation loops. Its static
+BTST decoder admits an immediate tested operand, and the dynamic modifying
+operations admit PC-relative and immediate modes. Those combinations are
+excluded here according to Motorola's tables. The reference's bit masking
+and pre-modification Z calculation are useful comparisons, while the tests
+derive their expectations independently from bit strings.
+
+Dromaios binds the two number sources to one operation family and the existing
+EA/ALU path. That path now permits an immediate operand for an operation that
+returns no writeback result; writable operations retain an explicit guard.
+The static form fetches the complete number word before resolving its EA,
+so PC-relative bases follow that word. The model ignores the number word's
+upper byte, consistent with using only its low three or five bits. Tests cover
+every extension word as well as the documented low-byte operand range.
+
+The [combined example](examples/bits.md) records requested bits in D0 while
+toggling their modulo-eight positions in memory, and classifies their old
+values through Z. It also exercises all four operations in both number-source
+forms and an explicit PC-relative test. These are manual-derived local checks,
+not an external hardware or timing comparison.

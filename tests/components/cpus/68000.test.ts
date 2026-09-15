@@ -328,7 +328,15 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
     }
     for (const ea of dataDestinations.filter(code => code >= 16)) supported.add(memory + ea);
   }
-  assert.equal(supported.size, 39881); // Includes embedded MOVEQ, branch, quick, and shift counts, unlike coverage forms.
+  for (const { name, immediate, dynamic } of bitFamilies) {
+    for (const ea of byteSources) {
+      if (ea <= (name === "BTST" ? 59 : 57)) supported.add(immediate + ea);
+      if (ea <= (name === "BTST" ? 60 : 57)) {
+        for (let register = 0; register < 8; register++) supported.add(dynamic + register * 512 + ea);
+      }
+    }
+  }
+  assert.equal(supported.size, 41707); // Includes embedded MOVEQ, branch, quick, and shift counts, unlike coverage forms.
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
@@ -2245,4 +2253,180 @@ test("68000 register shifts use counts written by earlier instructions and wrap 
   const zeroCount = { ...shifted, d1: 0, pc: 4, flags: { ...shifted.flags, c: false } };
   checkStep(ram, shifted, [0x72, 0], zeroCount, [], cpu); // MOVEQ #0,D1
   checkStep(ram, zeroCount, [0xe3, 0xb0], { ...zeroCount, pc: 6, flags: { ...zeroCount.flags, c: true } }, [], cpu); // ROXL.L D1,D0
+});
+
+// Literal operation words from Motorola's static/dynamic format tables, independent of pattern expansion.
+const bitFamilies = [
+  { name: "BTST", immediate: 0x0800, dynamic: 0x0100, forms: 476 },
+  { name: "BCHG", immediate: 0x0840, dynamic: 0x0140, forms: 450 },
+  { name: "BCLR", immediate: 0x0880, dynamic: 0x0180, forms: 450 },
+  { name: "BSET", immediate: 0x08c0, dynamic: 0x01c0, forms: 450 },
+] as const;
+type BitName = typeof bitFamilies[number]["name"];
+
+// A bit-string oracle avoids the implementation's numeric masks and bitwise operations.
+function bitResult(name: BitName, width: number, value: number, bitNumber: number, before: Cpu68000Flags) {
+  const bits = [...value.toString(2).padStart(width, "0")];
+  const index = width - 1 - bitNumber % width;
+  const z = bits[index] === "0";
+  if (name === "BCHG") bits[index] = z ? "1" : "0";
+  if (name === "BCLR") bits[index] = "0";
+  if (name === "BSET") bits[index] = "1";
+  return { result: parseInt(bits.join(""), 2), flags: { ...before, z } };
+}
+
+function checkBit(ram: ObservedRam, before: Cpu68000State, name: BitName, opcode: number,
+  source: number | DataRegister, ea: TransferFixture, value = 0xa5): void {
+  const bitNumber = typeof source === "number" ? source : before[source];
+  const bytes = [...wordBytes(opcode), ...(typeof source === "number" ? wordBytes(source) : []), ...ea.extension];
+  const memory = new Map<number, number>();
+  if (ea.address !== undefined) {
+    memory.set(physical(ea.address - 1), 0xde);
+    memory.set(physical(ea.address), value);
+    memory.set(physical(ea.address + 1), 0xad);
+  }
+  bytes.forEach((byte, offset) => memory.set(physical(before.pc + offset), byte));
+  for (const [address, byte] of memory) ram.write(address, byte);
+  const accesses = memoryAccesses("read", before.pc, bytes);
+  let operand = ea.immediate ?? (ea.register === undefined ? 0 : before[ea.register]);
+  if (ea.address !== undefined) {
+    operand = memory.get(physical(ea.address))!;
+    accesses.push({ kind: "read", address: physical(ea.address), value: operand });
+  }
+  const expected = bitResult(name, ea.code < 8 ? 32 : 8, operand, bitNumber, before.flags);
+  const after = { ...before, pc: unsignedLong(before.pc + bytes.length), flags: expected.flags };
+  if (ea.update) after[ea.update[0]] = ea.update[1];
+  if (name !== "BTST") {
+    if (ea.register !== undefined) after[ea.register] = expected.result;
+    else {
+      const address = physical(ea.address!);
+      accesses.push({ kind: "write", address, value: expected.result });
+      memory.set(address, expected.result);
+    }
+  }
+  const cpu = new Cpu68000(ram, before);
+  ram.accesses.length = 0;
+  assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), accesses,
+    instruction: { address: before.pc, bytes }, outcome: "executed" }, `${name} ${opcode.toString(16)}`);
+  assert.deepEqual(cpu.snapshot(), snapshot(after));
+  assert.deepEqual(ram.accesses, accesses);
+  for (const [address, byte] of memory) assert.equal(ram.read(address), byte);
+}
+
+for (const { name, immediate, dynamic, forms } of bitFamilies) {
+  test(`68000 ${name} covers all ${forms} documented forms and every bit-number register`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (const bits of [0, 127]) {
+      let completed = 0;
+      const before = transferState(bits);
+      for (const ea of transferFixtures(before, 1, before.pc + 4)) {
+        if (ea.code >= 8 && ea.code < 16 || ea.code > (name === "BTST" ? 59 : 57)) continue;
+        for (const number of [0, 7, 8, 31, 32, 255]) checkBit(ram, before, name, immediate + ea.code, number, ea);
+        completed++;
+      }
+      for (const [index, { register }] of registerForms.entries()) {
+        for (const ea of transferFixtures(before, 1, before.pc + 2)) {
+          if (ea.code >= 8 && ea.code < 16 || ea.code > (name === "BTST" ? 60 : 57)) continue;
+          checkBit(ram, before, name, dynamic + index * 512 + ea.code, register, ea);
+          completed++;
+        }
+      }
+      assert.equal(completed, forms);
+    }
+  });
+
+  test(`68000 ${name} checks every byte value and bit-number byte in static and dynamic memory forms`, () => {
+    const ram = new ObservedRam(0x1000000);
+    const ea = { code: 16, extension: [], address: 0xab003001 };
+    for (let value = 0; value < 256; value++) for (let number = 0; number < 256; number++) {
+      const before = initialState({ a0: ea.address, d1: 0xabcdef00 + number, flags: flags(value % 128) });
+      checkBit(ram, before, name, immediate + 16, number, ea, value);
+      checkBit(ram, before, name, dynamic + 0x210, "d1", ea, value);
+    }
+  });
+
+  test(`68000 ${name} fetches every complete bit-number word while ignoring its upper byte`, () => {
+    const ram = new ObservedRam(0x1000000);
+    const before = initialState({ d0: 0x80000001 });
+    for (let number = 0; number < 65536; number++) {
+      checkBit(ram, before, name, immediate, number, { code: 0, extension: [], register: "d0" });
+    }
+  });
+}
+
+test("68000 bit operations check every long bit and incoming flag pattern, preserving XNVC and control state", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const { name, immediate, dynamic } of bitFamilies) for (let number = 0; number < 32; number++) {
+    for (const value of [0, 2 ** number, 0xffffffff - 2 ** number, 0x80000000, 0xffffffff]) for (let bits = 0; bits < 128; bits++) {
+      const before = initialState({ d0: value, d1: 0xffffffe0 + number, flags: flags(bits), interruptMask: bits % 8 });
+      const ea = { code: 0, extension: [], register: "d0" } as const;
+      checkBit(ram, before, name, immediate, number, ea);
+      checkBit(ram, before, name, dynamic + 0x200, "d1", ea);
+    }
+  }
+});
+
+test("68000 bit-number registers can alias the changed register or index the memory operand", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const { name, dynamic } of bitFamilies) for (const [index, { register }] of registerForms.entries()) {
+    for (const value of [0, 7, 8, 31, 32, 63, 255, 0x80000000, 0xffffffff]) {
+      const before = initialState({ [register]: value, a0: 0xab003000 });
+      checkBit(ram, before, name, dynamic + index * 512 + index, register, { code: index, extension: [], register });
+      checkBit(ram, before, name, dynamic + index * 512 + 48, register,
+        { code: 48, extension: [index * 16, 0xfd], address: unsignedLong(before.a0 + signedWord(value) - 3) });
+    }
+  }
+});
+
+test("68000 bit operations wrap byte accesses and both active stacks, and fetch before code-overlapping writes", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const { name, immediate, dynamic } of bitFamilies) for (const bits of [0, 127]) {
+    for (const address of [0, 1, 0x12ffffff, 0xffffffff]) {
+      const before = { ...transferState(bits), usp: address, ssp: address };
+      for (const ea of transferFixtures(before, 1, before.pc + 4).filter(ea => [31, 39].includes(ea.code))) {
+        for (const value of [0, 255]) {
+          checkBit(ram, before, name, immediate + ea.code, 0, ea, value);
+          checkBit(ram, before, name, dynamic + ea.code, "d0", ea, value);
+        }
+      }
+    }
+    for (const pc of [0xab001000, 0x12fffffe, 0xfffffffc, 0xfffffffe]) {
+      const before = initialState({ pc, flags: flags(bits) });
+      for (let offset = 0; offset < 8; offset++) {
+        const address = unsignedLong(pc + offset);
+        const ea = { code: 57, address, extension: longBytes(address) };
+        checkBit(ram, before, name, immediate + 57, 7, ea);
+        checkBit(ram, before, name, dynamic + 57, "d0", ea);
+      }
+    }
+  }
+});
+
+test("68000 BTST bases PC-relative operands after the bit-number word and reads immediate bytes as instruction data", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const pc of [0xab001000, 0x12fffffe, 0xfffffffe]) for (const bits of [0, 127]) {
+    const before = initialState({ pc, d0: 7, flags: flags(bits) });
+    checkBit(ram, before, "BTST", 0x083a, 7, { code: 58, extension: [0xff, 0xff], address: unsignedLong(pc + 3) });
+    checkBit(ram, before, "BTST", 0x013a, "d0", { code: 58, extension: [0xff, 0xff], address: unsignedLong(pc + 1) });
+    checkBit(ram, before, "BTST", 0x083b, 7, { code: 59, extension: [0, 0xfc], address: unsignedLong(pc + 7) });
+    checkBit(ram, before, "BTST", 0x013b, "d0", { code: 59, extension: [0, 0xfc], address: unsignedLong(pc + 5) });
+    for (const value of [0, 0x7f, 0x80, 0xff]) {
+      checkBit(ram, before, "BTST", 0x013c, "d0", { code: 60, extension: [0xa5, value], immediate: value });
+    }
+  }
+});
+
+test("68000 bit operations retain Z from the original bit and read changing bit-number registers at execution", () => {
+  const ram = new ObservedRam(0x1000000);
+  const before = initialState({ d0: 31, d1: 0, flags: flags(127) });
+  const cpu = new Cpu68000(ram, before);
+  const first = { ...before, d0: 0x8000001f, pc: before.pc + 2 }; // BSET D0,D0 sets bit 31; Z stays set.
+  checkStep(ram, before, [0x01, 0xc0], first, [], cpu);
+  const second = { ...first, pc: first.pc + 4, flags: { ...first.flags, z: false } }; // BTST #31,D0 clears Z.
+  checkStep(ram, first, [0x08, 0, 0, 31], second, [], cpu);
+  // A fresh immediate load changes the bit-number source while preserving the high bit of D0's data.
+  const loaded = { ...second, d1: 0x20, pc: second.pc + 2, flags: { ...second.flags, n: false, z: false, v: false, c: false } };
+  checkStep(ram, second, [0x72, 0x20], loaded, [], cpu); // MOVEQ #32,D1
+  const cleared = { ...loaded, d0: 0x8000001e, pc: loaded.pc + 2 };
+  checkStep(ram, loaded, [0x03, 0x80], cleared, [], cpu); // BCLR D1,D0 wraps to bit 0, with Z clear from the old one.
 });

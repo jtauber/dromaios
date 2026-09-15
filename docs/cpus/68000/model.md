@@ -192,6 +192,41 @@ result is unchanged; address auto-updates occur once. Word/long alignment
 faults preserve all state and RAM. The [masked-merge example](examples/logic.md)
 combines register and memory logic with a loop, checksum, and bit summary.
 
+## Bit operations
+
+BTST, BCHG, BCLR, and BSET use `0000 1000 oo mmm rrr` with an immediate
+bit number, or `0000 bbb 1 oo mmm rrr` with the number in Dbbb. The `oo`
+field selects test (`00`), change (`01`), clear (`10`), or set (`11`).
+Register operands always use all 32 bits and reduce the bit number modulo
+32; other operands use a byte and reduce it modulo 8. Bit zero is the
+least significant bit. There is no separately encoded size field.
+
+All four operations set Z if the **original** bit was zero, otherwise clear
+Z. Every other flag and control field is preserved. BCHG toggles the selected
+bit; BCLR clears it; BSET sets it. Unselected bits remain unchanged, and long
+register results stay unsigned even when bit 31 is set. BTST does no writeback.
+
+BCHG/BCLR/BSET permit the 50 data-alterable EAs. BTST also permits both
+PC-relative modes; its dynamic form additionally accepts an immediate tested
+byte. Static BTST does not accept an immediate tested operand. An direct is
+excluded throughout; dynamic mode `001` belongs to MOVEP, still unsupported.
+
+The static form fetches a complete bit-number word before any EA extensions.
+Its low byte holds the bit number; the model ignores the upper byte. A
+PC-relative base is therefore the address of the EA extension word, after
+that bit-number word. The dynamic form captures Dbbb before resolving or
+changing the operand, including source/destination and source/index aliases.
+An immediate tested byte is fetched as instruction data, with no extra data
+read. All byte memory addresses are allowed, including odd addresses.
+
+Memory operands are resolved once and read once. Modifying operations write
+once, even if the selected bit already has the requested value; BTST performs
+no write. Auto-updates occur once for all four operations, with A7 stepping
+by two for bytes. Invalid operation words stop after the opcode fetch,
+without fetching the bit number or any EA extension. The
+[bits example](examples/bits.md) compares long-register bitmaps with byte
+bitmaps and uses the old-bit Z result to classify requests.
+
 ## Quick arithmetic, unary operations, and condition bytes
 
 ADDQ/SUBQ encode `0101 qqq d ss mmm rrr`: `qqq=000` means eight, otherwise
@@ -571,3 +606,13 @@ stacks, unchanged writes, wrapping, code overlap, and atomic rejection.
 The [shifts example tests](../../../tests/machines/68000/shifts-example.test.ts)
 check all eight operations together, complete records and RAM images, live
 inputs, reset preservation, and restoration between carry-dependent words.
+
+Bit checks enumerate all 1,826 forms, every memory byte and bit-number byte,
+every bit-number extension word, each long bit with all incoming flags, and
+source/destination/index aliases. Their bit-string oracle is independent of
+the core's numeric masks. Exact records check PC-relative bases, immediate
+tested bytes, unchanged writes, BTST without writes, both stacks, odd and
+wrapped addresses, code overlap, live registers, and retained old-bit Z.
+The [bits example tests](../../../tests/machines/68000/bits-example.test.ts)
+check complete records and RAM images in both modes, live input, reset,
+and restoration between a modifying bit operation and a conditional write.
