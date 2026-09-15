@@ -150,3 +150,6 @@ export function checkResetTypes(cpu: Cpu8080): Cpu8080ResetRecord {
   const step: Cpu8080StepRecord = record;
   return record;
 }
+
+// Sharing an internal family keeps the public CPU surface limited to its three operations.
+const publicCpuMethods: Record<keyof Cpu8080, true> = { snapshot: true, reset: true, step: true };

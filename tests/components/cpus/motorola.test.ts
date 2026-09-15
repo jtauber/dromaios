@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { motorolaByteAlu, motorolaConditions } from "../../../src/components/cpus/motorola.js";
+import { motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditions } from "../../../src/components/cpus/motorola.js";
 
 test("Motorola condition encodings agree with unsigned and signed comparisons", () => {
   for (let left = 0; left < 256; left++) for (let right = 0; right < 256; right++) {
@@ -47,4 +47,20 @@ test("Motorola byte operations preserve unspecified flags and leave CPU-specific
   assert.deepEqual(flags, { h: true, n: false, z: false, v: false, c: true, i: true });
   assert.equal(alu.clear(), 0);
   assert.deepEqual(flags, { h: true, n: false, z: true, v: false, c: false, i: true });
+});
+
+test("shared Motorola accumulator operations bind lazily and read current registers and restored carry", () => {
+  let state = { a: 0x7f, b: 0x80, flags: { h: false, n: false, z: true, v: false, c: false, i: true } };
+  let ready = false;
+  const readState = () => { assert.ok(ready, "construction must not inspect state"); return state; };
+  const operations = motorolaAccumulatorOperations(readState, motorolaByteAlu(() => readState().flags));
+  ready = true;
+  const adc = operations.find(({ bits }) => bits === "1001")!.apply;
+  adc("a", 1);
+  assert.deepEqual(state, { a: 0x80, b: 0x80, flags: { h: true, n: true, z: false, v: true, c: false, i: true } });
+  const oldState = state, preserved = structuredClone(state);
+  state = { a: 0x12, b: 0xff, flags: { h: false, n: true, z: false, v: true, c: true, i: false } };
+  adc("b", 0);
+  assert.deepEqual(state, { a: 0x12, b: 0, flags: { h: true, n: false, z: true, v: false, c: true, i: false } });
+  assert.deepEqual(oldState, preserved);
 });

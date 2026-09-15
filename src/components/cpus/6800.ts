@@ -10,7 +10,7 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
+import { motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
 import { subtract, shiftLeft, shiftRight } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
 
@@ -112,6 +112,9 @@ export class Cpu6800 {
     { bits: "1100", apply: value => this.#alu.adjust(value, 1) }, // INC
   ];
 
+  // 1 r mm oooo shares the 6809's byte operations; word operations and stores remain below.
+  readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
+
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     ...instructionPattern("0000 0001", () => {}), // NOP
 
@@ -167,22 +170,13 @@ export class Cpu6800 {
     ...this.#memoryUnaryHandlers("0111", ({ fetchWord }) => fetchWord()),
 
     // 1 r mm oooo: r (bit 6) selects A=0/B=1; mm (bits 5–4) selects addressing;
-    // oooo (bits 3–0) selects the operation, as labeled on each row.
-    // Every reader supplies one byte. CMP and BIT update flags without writing the accumulator.
-    ...this.#accumulatorHandlers("1 r mm 0000", (r, value) => { this.#state[r] = this.#alu.subtract(this.#state[r], value); }), // SUBA / SUBB
-    ...this.#accumulatorHandlers("1 r mm 0001", (r, value) => { this.#alu.subtract(this.#state[r], value); }), // CMPA / CMPB
-    ...this.#accumulatorHandlers("1 r mm 0010", (r, value) => { this.#state[r] = this.#alu.subtract(this.#state[r], value, this.#state.flags.c ? 1 : 0); }), // SBCA / SBCB
-    // oooo=0011 has no accumulator-byte operation on the original 6800.
-    ...this.#accumulatorHandlers("1 r mm 0100", (r, value) => this.#loadAccumulator(r, this.#state[r] & value)), // ANDA / ANDB
-    ...this.#accumulatorHandlers("1 r mm 0101", (r, value) => this.#alu.test(this.#state[r] & value)), // BITA / BITB
-    ...this.#accumulatorHandlers("1 r mm 0110", (r, value) => this.#loadAccumulator(r, value)), // LDAA / LDAB
+    // oooo (bits 3–0) selects a shared byte operation; 0011 remains undefined.
+    // Byte-operation selectors are shared with the 6809; CMP/BIT leave A/B unchanged.
+    ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r mm ${bits}`,
+      { r: ["a", "b"], m: this.#operandReaders }, ({ r, m: read }) => (instruction: InstructionContext) => apply(r, read(instruction)))),
     // Stores have no immediate form: expand only the three address-bearing modes.
     ...this.#memoryModes.flatMap(({ bits, address }) => opcodeFamily(`1 r ${bits} 0111`, { r: ["a", "b"] },
       ({ r }) => (instruction: InstructionContext) => this.#storeAccumulator(r, address(instruction), instruction.writeByte))), // STAA / STAB
-    ...this.#accumulatorHandlers("1 r mm 1000", (r, value) => this.#loadAccumulator(r, this.#state[r] ^ value)), // EORA / EORB
-    ...this.#accumulatorHandlers("1 r mm 1001", (r, value) => { this.#state[r] = this.#alu.add(this.#state[r], value, this.#state.flags.c ? 1 : 0); }), // ADCA / ADCB
-    ...this.#accumulatorHandlers("1 r mm 1010", (r, value) => this.#loadAccumulator(r, this.#state[r] | value)), // ORAA / ORAB
-    ...this.#accumulatorHandlers("1 r mm 1011", (r, value) => { this.#state[r] = this.#alu.add(this.#state[r], value); }), // ADDA / ADDB
 
     // 10 mm 1100: compare X with a word. The original 6800 compares its bytes separately.
     ...opcodeFamily("10 mm 1100", { m: this.#wordOperandReaders }, ({ m: read }) => (instruction: InstructionContext) => this.#compareIndex(read(instruction))), // CPX
@@ -214,11 +208,6 @@ export class Cpu6800 {
       ...instructionPattern(`${prefix} 1110`, instruction => { this.#state.pc = address(instruction); }), // JMP
       ...instructionPattern(`${prefix} 1111`, instruction => instruction.writeByte(address(instruction), this.#alu.clear())), // CLR
     ];
-  }
-
-  #accumulatorHandlers(pattern: string, apply: (register: Accumulator, value: number) => void): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { r: ["a", "b"], m: this.#operandReaders }, ({ r, m: read }) =>
-      (instruction: InstructionContext) => apply(r, read(instruction)));
   }
 
   // Addressing. The original 6800 adds an unsigned displacement and leaves X unchanged.

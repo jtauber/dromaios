@@ -101,11 +101,11 @@ Choose the grouping from the CPU's encoding:
 | Model | Organization in the current source |
 | --- | --- |
 | [8008](../../src/components/cpus/8008.ts) | Native `xx yyy zzz` groups; A is register selector `000`, M is `111`; preserve documented HLT exceptions |
-| [8080](../../src/components/cpus/8080.ts) | `xx yyy zzz`; leading `xx` blocks, then `zzz` subgroups where it selects the family; split `yyy` into `pp q` for pair operations |
+| [8080](../../src/components/cpus/8080.ts) | Shared [8080-family table](../../src/components/cpus/8080-family.ts): `xx yyy zzz`; leading `xx` blocks, then `zzz` subgroups where it selects the family; split `yyy` into `pp q` for pair operations |
 | [6502](../../src/components/cpus/6502.ts) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand readers; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
 | [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
 | [6809](../../src/components/cpus/6809.ts) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte; pages `10`/`11` share word-family builders, with long conditions on page `10` |
-| [Z80](../../src/components/cpus/z80.ts) | Unprefixed `xx yyy zzz` groups; shared CB `xx yyy rrr` operations for ordinary/indexed operands; one DD/FD builder selecting IX/IY; ED pair and block families; decode the complete supported encoding before committing state |
+| [Z80](../../src/components/cpus/z80.ts) | Shared 8080 base families plus explicit Z80 extension slots; shared CB `xx yyy rrr` operations for ordinary/indexed operands; one DD/FD builder selecting IX/IY; ED pair and block families; decode the complete supported encoding before committing state |
 | [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 0 d w` / `00 ooo 10 w` for ALU families, `mm ggg rrr` for ModR/M operands or operation extensions, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
 | [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; immediate ALU families encode operation, size, and a data-alterable effective address |
 
@@ -154,7 +154,36 @@ the class explicitly.
 Use family builders when they reveal an encoding relationship and remove useful
 duplication. Keep them aligned with encoded subgroup boundaries and retain
 explicit exceptional entries. This convention does not require a common decoder,
-CPU base class, or definition language.
+universal CPU base class, or definition language.
+
+## Shared 8080/Z80 instruction family
+
+[`Cpu8080Family`](../../src/components/cpus/8080-family.ts) is an internal abstract
+base for the sibling `Cpu8080` and `CpuZ80` classes. It owns the common register
+operands, pair views, data-word accesses, stack exchanges, and 240 supported
+8080 encodings. Its bit-pattern table gives both CPUs' mnemonics. The Z80 adds
+eight unprefixed forms and its own CB, ED, DD, and FD pages.
+
+The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
+operations, conditions, byte increment/decrement, addition to HL, and PSW/AF
+packing. These hooks keep differing flag rules explicit, including parity
+versus overflow and the opposite subtraction half-carry conventions. The shared
+code does not select behavior by checking which processor is executing.
+
+Each concrete constructor validates and copies its state before passing that
+owned state to `super`. The base constructor binds only the state and call
+stack. The concrete CPU initializes its operation and condition selectors
+before calling `baseInstructions()` to construct its table; the base constructor
+must never call that builder or a CPU hook. Z80 pair access extends the common
+views with IX/IY. CPU-specific helpers stay in `#` methods except for the required overrides;
+protected members form the internal TypeScript inheritance boundary.
+
+State descriptions, public snapshots, reset, instruction fetching, and step
+outcomes remain in the concrete CPU modules. Z80 prefix validation and R updates
+therefore keep their existing execution contract. The public CPU methods remain
+`snapshot`, `reset`, and `step`; the family adds no public controls or mutable
+state access. This shallow hierarchy expresses the 8080/Z80 relationship and
+is not a requirement for other processors.
 
 ## Shared execution records
 
@@ -186,7 +215,7 @@ fields, concrete snapshot types, and outcome narrowing through the CPU exports.
 The [register-pair helpers](../../src/components/cpus/register-pairs.ts) define
 BC, DE, and HL as high/low byte views shared by the 8080 and Z80. Reading,
 writing, and snapshot views use that one mapping. CPU tables select pair names;
-SP and PSW/AF retain their distinct CPU-specific handling. The Z80 applies the
+The family core handles SP directly and delegates PSW/AF packing to each CPU. The Z80 applies the
 same views independently to each bank.
 
 The [flag-register helper](../../src/components/cpus/flags.ts) takes a map from
@@ -219,8 +248,8 @@ describe the callbacks available to an opcode handler:
 `RecordedMemory` extends it with an access log. Instruction contexts expose the
 callbacks without exposing that log, and all callback properties are readonly.
 
-The 8008, 8080, 6502, 6800, 6809, Z80, and 8088 import `WordInstructionContext`
-as their local `InstructionContext`. The 8008 fetches a full two-byte operand
+The 8008, 6502, 6800, 6809, Z80, 8088, and shared 8080-family core import
+`WordInstructionContext` as their local `InstructionContext`. The 8008 fetches a full two-byte operand
 and masks it to a 14-bit address when jumping or calling. The 68000 currently
 extends `ByteMemory` with `fetchWord`, `fetchLong`, `nextAddress`, and `jump`.
 Fetching and jumps update a local cursor; a successful instruction commits it
@@ -296,8 +325,8 @@ Opcode tables still define instruction encodings, conditions, and targets,
 including Z80 RST's ordinary call semantics.
 
 The 6502, 6800, 6809, 8008, 8088, and 68000 retain their different stack
-policies. The helper introduces no shared CPU base class and does not own flags,
-interrupt state, memory recording, or CPU lifecycle. [Tests](../../tests/components/cpus/call-stack.test.ts)
+policies. The 8080-family core uses this helper; the helper itself does not own
+flags, interrupt state, memory recording, or CPU lifecycle. [Tests](../../tests/components/cpus/call-stack.test.ts)
 cover every SP value, actual access order, live state, and partial effects when
 an access throws. CPU tests retain independent instruction expectations.
 
@@ -421,7 +450,7 @@ and example tests retain their independently authored expectations.
 
 ## Shared Motorola behavior
 
-[Motorola helpers](../../src/components/cpus/motorola.ts) capture two existing
+[Motorola helpers](../../src/components/cpus/motorola.ts) capture specific
 family relationships. The 6800, 6809, and 68000 share the T/F, HI/LS, CC/CS,
 NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition tests. The opcode tables retain
 the 6800's absent BRN and the 68000 branch family's BSR exception.
@@ -437,6 +466,14 @@ The CPUs keep their differences visible: 6800 TST clears C, 6809 TST preserves
 it; every 6800 shift sets V=N XOR C, while 6809 right shifts preserve V.
 The 6800's write-only CLR and the 6809's read/modify/write CLR stay in their
 addressing/dispatch code.
+
+`motorolaAccumulatorOperations` also shares the ten byte-operation selectors
+in `1 r mm oooo`, including their accumulator writeback and flag effects.
+Its state getter and ALU callbacks are bound during construction and read only
+when an instruction executes. Each CPU supplies its own immediate and memory
+readers: in particular, the 6809 still rejects undefined indexed postbytes before
+running an operation. Stores, word operations, and unary operations remain local,
+where their address, flag, and memory-access differences stay visible.
 
 [Tests](../../tests/components/cpus/motorola.test.ts) compare encoded conditions
 with unsigned and signed arithmetic and verify preserved flags and replaced

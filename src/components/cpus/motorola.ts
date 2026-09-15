@@ -90,3 +90,29 @@ export function motorolaByteAlu(readFlags: () => ConditionCodes & { h: boolean }
     },
   };
 }
+
+type Accumulator = "a" | "b";
+interface AccumulatorState { a: number; b: number; flags: { c: boolean } }
+type AccumulatorOperation = { readonly bits: string; readonly apply: (register: Accumulator, value: number) => void };
+
+/** Shared 6800/6809 byte-operation selectors; addressing and stores remain CPU-specific. */
+export function motorolaAccumulatorOperations(readState: () => AccumulatorState, alu: ReturnType<typeof motorolaByteAlu>): readonly AccumulatorOperation[] {
+  const load = (register: Accumulator, value: number): void => {
+    readState()[register] = value;
+    alu.test(value);
+  };
+  // 1 r mm oooo: r selects A/B, mm selects addressing, and these rows select oooo.
+  // Construct only closures here: CPU state is not available until its constructor runs.
+  return [
+    { bits: "0000", apply: (r, value) => { readState()[r] = alu.subtract(readState()[r], value); } }, // SUBA/B
+    { bits: "0001", apply: (r, value) => { alu.subtract(readState()[r], value); } }, // CMPA/B
+    { bits: "0010", apply: (r, value) => { readState()[r] = alu.subtract(readState()[r], value, readState().flags.c ? 1 : 0); } }, // SBCA/B
+    { bits: "0100", apply: (r, value) => load(r, readState()[r] & value) }, // ANDA/B
+    { bits: "0101", apply: (r, value) => alu.test(readState()[r] & value) }, // BITA/B
+    { bits: "0110", apply: (r, value) => load(r, value) }, // LDA/B (6800 LDAA/LDAB)
+    { bits: "1000", apply: (r, value) => load(r, readState()[r] ^ value) }, // EORA/B
+    { bits: "1001", apply: (r, value) => { readState()[r] = alu.add(readState()[r], value, readState().flags.c ? 1 : 0); } }, // ADCA/B
+    { bits: "1010", apply: (r, value) => load(r, readState()[r] | value) }, // ORA/B (6800 ORAA/ORAB)
+    { bits: "1011", apply: (r, value) => { readState()[r] = alu.add(readState()[r], value); } }, // ADDA/B
+  ];
+}

@@ -77,3 +77,6 @@ export function checkZ80Records(record: CpuZ80StepRecord, reset: CpuZ80ResetReco
   // @ts-expect-error Reset snapshots remain recursively readonly.
   reset.after.alternate.flags.c = false;
 }
+
+// Sharing an internal family keeps the public CPU surface limited to its three operations.
+const publicCpuMethods: Record<keyof CpuZ80, true> = { snapshot: true, reset: true, step: true };

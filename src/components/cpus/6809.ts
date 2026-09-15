@@ -10,7 +10,7 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateValues, ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
+import { motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
 import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
@@ -40,7 +40,6 @@ type AddressedHandler = (address: number, instruction: InstructionContext) => vo
 type Accumulator = "a" | "b";
 type StackPointer = "s" | "u";
 type ByteOperation = (value: number) => number;
-type AccumulatorOperation = (register: Accumulator, value: number) => void;
 type OperandReader = (instruction: InstructionContext) => number;
 type AddressReader = (instruction: InstructionContext) => number | undefined;
 type WordRegister = "d" | "x" | "y" | "u" | "s" | "pc";
@@ -132,21 +131,9 @@ export class Cpu6809 {
     { bits: "1111", apply: () => this.#alu.clear() }, // CLR
   ];
 
-  // Accumulator encodings: 1 r mm oooo, r=0 A / r=1 B.
-  // mm=00 immediate, 01 direct, 10 indexed, 11 extended.
-  // The listed oooo values take byte operands; 0111 stores are separate below.
-  readonly #accumulatorOperations: readonly { bits: string; apply: AccumulatorOperation }[] = [
-    { bits: "0000", apply: (r, value) => { this.#state[r] = this.#alu.subtract(this.#state[r], value); } }, // SUBA/B
-    { bits: "0001", apply: (r, value) => { this.#alu.subtract(this.#state[r], value); } }, // CMPA/B
-    { bits: "0010", apply: (r, value) => { this.#state[r] = this.#alu.subtract(this.#state[r], value, this.#state.flags.c ? 1 : 0); } }, // SBCA/B
-    { bits: "0100", apply: (r, value) => this.#loadAccumulator(r, this.#state[r] & value) }, // ANDA/B
-    { bits: "0101", apply: (r, value) => this.#alu.test(this.#state[r] & value) }, // BITA/B
-    { bits: "0110", apply: (r, value) => this.#loadAccumulator(r, value) }, // LDA/B
-    { bits: "1000", apply: (r, value) => this.#loadAccumulator(r, this.#state[r] ^ value) }, // EORA/B
-    { bits: "1001", apply: (r, value) => { this.#state[r] = this.#alu.add(this.#state[r], value, this.#state.flags.c ? 1 : 0); } }, // ADCA/B
-    { bits: "1010", apply: (r, value) => this.#loadAccumulator(r, this.#state[r] | value) }, // ORA/B
-    { bits: "1011", apply: (r, value) => { this.#state[r] = this.#alu.add(this.#state[r], value); } }, // ADDA/B
-  ];
+  // 1 r mm oooo: r selects A/B; mm=00 immediate, 01 direct, 10 indexed, 11 extended.
+  // Byte operations are shared with the 6800; word operations and stores remain below.
+  readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
 
   readonly #directOperandAddress: OperandReader = ({ fetchByte }) => this.#directAddress(fetchByte());
   readonly #indexedOperandAddress: AddressReader = instruction => this.#indexedAddress(instruction);
@@ -351,11 +338,6 @@ export class Cpu6809 {
   }
 
   // Loads and stores.
-
-  #loadAccumulator(register: Accumulator, value: number): void {
-    this.#state[register] = value;
-    this.#alu.test(value);
-  }
 
   #storeAccumulator(register: Accumulator, address: number, writeByte: InstructionContext["writeByte"]): void {
     const value = this.#state[register];

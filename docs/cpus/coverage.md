@@ -16,11 +16,11 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [253](../../src/components/cpus/8008.ts) | 218 / 250 | 87.2% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [364](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [332](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [193](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [321](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [398](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [632](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [522](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [504](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [493](../../src/components/cpus/8088.ts) | 205 / 291 | 70.4% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [504](../../src/components/cpus/68000.ts) | 25,699 / 36,029 | 71.3% |
 
@@ -39,7 +39,10 @@ an archived transcription of Microprocessor Report data.
 
 Source lines count the entire linked CPU implementation file, including
 comments and blank lines, using `wc -l`. Shared helpers, tests, and machine
-definitions are excluded. These counts describe the current incomplete models.
+definitions are excluded, including the [8080/Z80 family core](../../src/components/cpus/8080-family.ts)
+and [Motorola operations](../../src/components/cpus/motorola.ts). A CPU row therefore
+measures its own module rather than all the code it executes. These counts describe
+the current incomplete models.
 
 Completed examples are linked in each CPU section below and grouped by topic
 in the [example catalog](../README.md#cpu-examples).
