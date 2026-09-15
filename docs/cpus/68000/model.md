@@ -149,6 +149,28 @@ same address. Postincrement/predecrement is committed once, including for
 CMPI. Logic identity operations still write memory; comparison never does.
 The [ALU example](examples/alu.md) demonstrates these rules in a RAM transformation.
 
+## Register and address arithmetic
+
+ADD/SUB encode `oooo rrr d ss mmm eee`: `oooo` is `1101`/`1001`, `rrr`
+selects Dn, and `ss` is byte/word/long (`00`/`01`/`10`). Direction `d=0`
+reads an EA into arithmetic on Dn; `d=1` reads/modifies/writes memory. Sources
+allow all EAs except byte An direct. Memory destinations exclude Dn, An,
+PC-relative, and immediate forms. The excluded register encodings in direction
+1 belong to ADDX/SUBX. CMP uses `1011 rrr 0 ss mmm eee` with the same source
+choices, updating NZVC from Dn minus source without writeback or changes to X.
+ADD/SUB update XNZVC; X and C report carry/borrow. Byte/word writes preserve
+Dn's upper bits, and all operations preserve control state.
+
+ADDA/SUBA/CMPA use `oooo rrr s11 mmm eee`, with An selected by `rrr` and
+word/long source selected by `s=0`/`1`. All source EAs are allowed. Word sources
+are sign-extended; the operation always uses the full 32-bit An. ADDA/SUBA
+preserve every flag. CMPA changes NZVC and preserves X, without result writeback.
+
+Source auto-updates precede reading the destination An: `ADDA.W (A0)+,A0`
+adds the sign-extended word to the incremented pointer. CMPA also compares
+against the updated pointer and retains that update. Active A7 selects USP/SSP.
+The [word-sum example](examples/word-sum.md) combines all six families.
+
 ## Control flow and subroutines
 
 BRA, BSR, and Bcc encode `0110 cccc dddddddd`. Condition `cccc=0000`
@@ -229,6 +251,12 @@ Opcode `0000` is valid `ORI.B #n,D0`; four zero bytes execute `ORI.B #0,D0`.
 Zero-filled memory does not signal completion. The runner's endpoint or step
 budget determines when to stop.
 
+Register/address arithmetic fetches the opcode and EA extensions, then reads
+the memory operand if present. A memory destination is resolved once and read
+before its result is written to the same address. CMP/CMPA perform no writes;
+predecrement/postincrement still takes effect. All alignment checks precede
+state changes, including flags and pending An updates.
+
 Control-flow records fetch only the current instruction's bytes, followed by
 BSR's four writes or RTS's four reads where applicable. They contain no fetch
 from the target. DBcc's decrement produces no RAM access.
@@ -240,7 +268,7 @@ Unsupported attempts preserve all CPU state and RAM:
 | Unimplemented operation word | `reason: "opcode"`; two instruction bytes | Two fetch reads |
 | Odd PC | `reason: "unaligned-address"`; `instruction: null`; `fault.operation: "fetch"` | None |
 | Odd word/long MOVE source | `reason: "unaligned-address"`; `fault.operation: "read"` | Opcode and source extension fetches; no source data read or destination fetch |
-| Odd word/long immediate-ALU operand | `reason: "unaligned-address"`; `fault.operation: "read"` | All instruction fetches; no operand reads or writes |
+| Odd word/long ALU operand | `reason: "unaligned-address"`; `fault.operation: "read"` | All instruction fetches; no operand reads or writes |
 | Odd word/long MOVE destination | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches and any source data reads; no writes |
 | Odd BSR stack address | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches; no writes |
 | Odd RTS stack address | `reason: "unaligned-address"`; `fault.operation: "read"` | Two opcode fetches; no stack reads |
@@ -294,6 +322,8 @@ EORI (4-102–4-103), ORI (4-153–4-154), SUBI (4-179–4-180),
 MOVE (4-116–4-118), and MOVEA (4-119–4-120) encodings and flags.
 Control-flow references are Bcc (4-25–4-26), BRA (4-55), BSR (4-59–4-60),
 DBcc (4-90–4-91), RTS (4-169), and condition table 3-19.
+Register/address arithmetic uses ADD (4-4–4-6), ADDA (4-7–4-8),
+CMP (4-75–4-76), CMPA (4-77–4-78), SUB (4-174–4-176), and SUBA (4-177–4-178).
 Addressing is defined in §§2.2.1–2.2.7 and §§2.2.11–2.2.18; §2.4 distinguishes
 the original brief extension from later chips. Later-family additions are excluded.
 
@@ -317,5 +347,10 @@ counter sweeps, both stacks, full return addresses, overlapping code/stack,
 atomic alignment rejection, and retries. The
 [control-flow example tests](../../../tests/machines/68000/control-flow-example.test.ts)
 verify nested calls, loops, complete traces and RAM images, and snapshot resumption.
+Register/address arithmetic checks all 9,144 forms in both modes, every byte
+operand pair, every sign-extended word, word/long boundaries with every incoming
+flag pattern, pointer aliases, wrapped and overlapping operands, and atomic
+alignment rejection. The [word-sum tests](../../../tests/machines/68000/word-sum-example.test.ts)
+check all six families together with literal traces and complete RAM images.
 [Public type checks](../../../tests/types/68000.ts) establish
 readonly records, outcome narrowing, and concrete runner results.

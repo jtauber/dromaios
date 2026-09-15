@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [455](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [396](../../src/components/cpus/6809.ts) | 137 / 268 | 51.1% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [428](../../src/components/cpus/8088.ts) | 155 / 291 | 53.3% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [455](../../src/components/cpus/68000.ts) | 10,795 / 36,029 | 30.0% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [514](../../src/components/cpus/68000.ts) | 19,939 / 36,029 | 55.3% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -150,6 +150,10 @@ family arithmetic. MOVE and MOVEA supply 9,726 forms; the six immediate ALU
 families supply 900 (six × three sizes × 50 destinations), and MOVEQ supplies
 eight. BRA/BSR/Bcc supply 32 (sixteen operations × byte/word displacement),
 DBcc supplies 128 (sixteen conditions × eight registers), and RTS supplies one.
+ADD/SUB supply 4,816 (two × eight registers × (53 byte sources + 61 word
+sources + 61 long sources + three sizes × 42 memory destinations)). CMP supplies
+1,400 (eight × (53 + 61 + 61)); ADDA/SUBA/CMPA supply 2,928 (three × two sizes
+× eight address registers × 61 sources).
 The eight MOVEQ forms accept 2,048 operation words; the 32 relative-branch
 forms accept 4,096 words. Embedded literal values do not add coverage forms.
 
@@ -1366,7 +1370,10 @@ the comparison; independent local tests establish instruction-level access order
 [Control-flow example](68000/examples/control-flow.md) ·
 [Control-flow definition](../../src/machines/68000/control-flow-example.machine)
 
-**10,795 of 36,029 documented forms are complete (30.0%).** MOVE and MOVEA
+[Word-sum example](68000/examples/word-sum.md) ·
+[Word-sum definition](../../src/machines/68000/word-sum-example.machine)
+
+**19,939 of 36,029 documented forms are complete (55.3%).** MOVE and MOVEA
 support every original-68000 source/destination combination and documented
 index extension. The operation-word patterns below are binary. In MOVE,
 `ddd mmm` selects the destination register then mode, while `sss rrr` selects
@@ -1391,6 +1398,18 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `0110 0001 dddddddd` | `BSR <label>` | 2 | 2/4 | Push the full address after the instruction, then branch; preserve flags |
 | `0110 cccc dddddddd` (`cccc=0010`–`1111`) | `Bcc <label>` | 28 | 2/4 | All fourteen conditions and both displacement forms; preserve flags |
 | `0111 rrr 0 iiiiiiii` | `MOVEQ #n,Dn` | 8 | 2 | Sign-extend the embedded byte to a long; MOVE flags |
+| `1001 rrr d ss mmm eee` | `SUB.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,408 | 2–6 | All legal source/memory-destination forms; set XNZVC from destination minus source |
+| `1001 rrr s11 mmm eee` | `SUBA.W/L <ea>,An` | 976 | 2–6 | Sign-extend word source; full 32-bit subtraction; preserve all flags |
+| `1011 rrr 0 ss mmm eee` | `CMP.B/W/L <ea>,Dn` | 1,400 | 2–6 | Set NZVC from Dn minus source; preserve X; no writeback |
+| `1011 rrr s11 mmm eee` | `CMPA.W/L <ea>,An` | 976 | 2–6 | Sign-extend word source; full 32-bit comparison; preserve X; no writeback |
+| `1101 rrr d ss mmm eee` | `ADD.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,408 | 2–6 | All legal source/memory-destination forms; set XNZVC from addition |
+| `1101 rrr s11 mmm eee` | `ADDA.W/L <ea>,An` | 976 | 2–6 | Sign-extend word source; full 32-bit addition; preserve all flags |
+
+Register arithmetic uses `ss=00/01/10` for byte/word/long. Direction `d=0`
+reads any EA except byte An; `d=1` permits only memory-alterable destinations.
+Address arithmetic uses `s=0/1` for word/long sources and accepts all 61 EAs.
+The [arithmetic contract](68000/model.md#register-and-address-arithmetic)
+defines widths, flag preservation, and source/destination pointer aliases.
 
 Immediate ALU size `ss` is `00` byte, `01` word, `10` long; `11` is reserved.
 The destination `mmm rrr` allows Dn, indirect, postincrement, predecrement,
@@ -1419,12 +1438,13 @@ stack behavior and atomic rejection of unaligned taken targets.
 | Views | A7 derived from S and USP/SSP; physical PC derived from the low 24 bits of PC |
 | Transfers | Complete MOVE.B/W/L and MOVEA.W/L families; MOVEQ; partial Dn writes and sign-extended address-register word writes |
 | Immediate ALU | ADDI, SUBI, CMPI, ANDI, ORI, EORI in all three sizes and data-alterable modes; preserve upper Dn bits on byte/word writes |
+| Register/address ALU | ADD, SUB, CMP, ADDA, SUBA, CMPA; all documented sizes and EAs, with shared destination execution and arithmetic helpers |
 | Effective addresses | Dn, An, indirect, postincrement, predecrement, signed displacement/index, absolute word/long, PC displacement/index, immediate; restrictions above |
 | Memory | Exactly 16 MiB; mask each address at RAM access, preserving full register values; big-endian bytes, words, and longs |
 | Instruction fetching | Even PC; 16-bit operation word; word/long extensions; sequential and branch PC wrap at 32 bits; no target prefetch |
 | Control flow | BRA/Bcc, DBcc, BSR/RTS; complete conditions, displacement forms, and counter registers |
 | Alignment | Even instruction, word, and long addresses; odd byte operands allowed; read/write faults preserve state and RAM, including pending address updates |
-| Stack | A7 selects USP/SSP from S; BSR pushes and RTS pops a four-byte return address; MOVE/immediate byte auto-updates step by two |
+| Stack | A7 selects USP/SSP from S; BSR pushes and RTS pops a four-byte return address; byte auto-updates step by two |
 | Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts; preserve other registers, condition codes, and RAM under the documented policy |
 | Remaining scope | Other transfers and address operations, other arithmetic/logic families, JMP/JSR, Scc, stack frames, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
 
@@ -1432,8 +1452,9 @@ Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
 [register-transfer](../../tests/machines/68000/transfers-example.test.ts),
 [addressing](../../tests/machines/68000/addressing-example.test.ts),
-[immediate ALU](../../tests/machines/68000/alu-example.test.ts), and
-[control-flow example tests](../../tests/machines/68000/control-flow-example.test.ts),
+[immediate ALU](../../tests/machines/68000/alu-example.test.ts),
+[control-flow](../../tests/machines/68000/control-flow-example.test.ts), and
+[word-sum example tests](../../tests/machines/68000/word-sum-example.test.ts),
 plus [public type checks](../../tests/types/68000.ts).
 
 The independent transfer fixtures execute all **9,726 MOVE/MOVEA encodings**
@@ -1470,6 +1491,15 @@ control-flow example processes a buffer through nested calls, takes both sides
 of a conditional branch, completes a counted loop, and resumes from snapshots
 with two live return addresses. Tests also check full RAM images, supervisor
 execution after reset, corrected faults, and bounded infinite loops.
+
+Register/address arithmetic tests execute all **9,144 added forms**, including
+all register selectors, both stacks, and exact reads/writes. They exhaust every
+byte operand pair and sign-extended word, check word/long boundaries with all
+128 flag patterns, and exercise same-An auto-updates, wrapping, overlapping
+code/data, odd bytes, and atomic word/long alignment rejection. The 32-step
+word-sum program cross-checks register and memory sums, applies a correction,
+and repositions pointers while preserving comparison flags. Tests check full
+traces and RAM images, bounded running, snapshot resumption, and changed input.
 
 ## CPUs and variants not started
 

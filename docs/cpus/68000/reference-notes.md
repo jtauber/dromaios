@@ -132,3 +132,27 @@ contract, without copying exception sequencing or timing from the reference.
 Independent condition truth tables, displacement/counter sweeps, and the
 [buffer example](examples/control-flow.md) check these decisions, including
 nested calls, both stacks, wrapping, and resuming after corrected faults.
+
+## Register and address arithmetic
+
+ADD/SUB/CMP and ADDA/SUBA/CMPA reuse resolved operands, shared arithmetic,
+and partial-register writes. Immediate and register-sourced memory arithmetic
+now share the same destination path. Operation callbacks describe arithmetic
+and flags; returning no result suppresses comparison writeback. Address
+arithmetic sign-extends word sources and selects a 32-bit operation explicitly.
+
+The Mac reference separates data and address arithmetic, preserving all flags
+for ADDA/SUBA. Its EA helpers apply source auto-updates before reading the
+destination An. The corresponding
+[Musashi handlers](https://github.com/kstenerud/Musashi/blob/313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd/m68k_in.c)
+also read the source before the destination in ADDA/SUBA/CMPA. Dromaios retains
+that ordering after alignment validation; tests include CMPA cases where only
+the updated pointer compares equal. This is a source cross-check, not a
+hardware comparison.
+
+Manual address sets remain authoritative: the memory-destination ADD/SUB
+encodings exclude Dn/An modes, which encode ADDX/SUBX. CMP's other direction
+belongs to EOR/CMPM. Those families remain unsupported. The tests execute all
+9,144 added forms and reject every remaining operation word; BigInt arithmetic,
+sign-extension sweeps, and the [word-sum example](examples/word-sum.md) supply
+independent result and access expectations.

@@ -64,7 +64,7 @@ type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
 type OperandSize = 8 | 16 | 32;
 type Condition = (flags: Readonly<Cpu68000Flags>) => boolean;
 // A result requests writeback; a comparison updates flags and returns nothing.
-type ImmediateOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
+type AluOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
 type Operand =
   | { readonly kind: "data"; readonly register: DataRegister }
   | { readonly kind: "address"; readonly register: AddressRegister }
@@ -213,10 +213,25 @@ export class Cpu68000 {
     // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
     ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => (cpu: Cpu68000) => cpu.#loadQuickRegister(register, value)), // MOVEQ #n,Dn
 
-    // Other transfer/ALU families, JMP/JSR, stack frames, and exceptions are deferred.
+    // Register ALU: oooo rrr d ss mmm eee. rrr selects Dn; ss=00 byte, 01 word, 10 long.
+    // d=0 reads any EA (except An for bytes); d=1 writes only memory-alterable EAs.
+    // The excluded d=1 register modes belong to SUBX/ADDX; CMP has no d=1 form.
+    ...this.#dataAluHandlers("1001 rrr 0 ss mmm eee", "register", (cpu, size, left, right) => cpu.#subtract(size, left, right)), // SUB <ea>,Dn
+    ...this.#dataAluHandlers("1001 rrr 1 ss mmm eee", "memory", (cpu, size, left, right) => cpu.#subtract(size, left, right)), // SUB Dn,<ea>
+    ...this.#dataAluHandlers("1011 rrr 0 ss mmm eee", "register", (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMP <ea>,Dn
+    ...this.#dataAluHandlers("1101 rrr 0 ss mmm eee", "register", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADD <ea>,Dn
+    ...this.#dataAluHandlers("1101 rrr 1 ss mmm eee", "memory", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADD Dn,<ea>
+
+    // Address ALU: oooo rrr s11 mmm eee. rrr selects An; s=0 signed word, 1 long source.
+    // Every source EA is legal. The operation is always 32-bit; only CMPA changes flags.
+    ...this.#addressAluHandlers("1001 rrr s11 mmm eee", (_cpu, _size, left, right) => (left - right) >>> 0), // SUBA <ea>,An
+    ...this.#addressAluHandlers("1011 rrr s11 mmm eee", (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMPA <ea>,An
+    ...this.#addressAluHandlers("1101 rrr s11 mmm eee", (_cpu, _size, left, right) => (left + right) >>> 0), // ADDA <ea>,An
+
+    // Other ALU families, JMP/JSR, stack frames, and exceptions are deferred.
   ], 16);
 
-  static #immediateHandlers(pattern: string, apply: ImmediateOperation): readonly OpcodeEntry<OpcodeHandler>[] {
+  static #immediateHandlers(pattern: string, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
     const sizes = [8, 16, 32, undefined] as const;
     return opcodeFamily(pattern, { s: sizes, m: this.#selectors, r: this.#selectors }, ({ s: size, m, r }) => {
       if (size === undefined || m === 1 || (m === 7 && r > 1)) return undefined;
@@ -241,6 +256,26 @@ export class Cpu68000 {
       if (code === 0b0001) return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#branchToSubroutine(byte, instruction);
       return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#branch(byte, test(cpu.#state.flags), instruction);
     });
+  }
+
+  static #dataAluHandlers(pattern: string, destination: "register" | "memory", apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
+    const sizes = [8, 16, 32, undefined] as const;
+    return opcodeFamily(pattern, { r: this.#dataRegisters, s: sizes, m: this.#selectors, e: this.#selectors }, ({ r: register, s: size, m, e }) => {
+      if (size === undefined) return undefined;
+      if (destination === "memory") {
+        if (m < 2 || (m === 7 && e > 1)) return undefined;
+        return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(size, m, e, cpu.#state[register] % 2 ** size, apply, instruction);
+      }
+      if ((size === 8 && m === 1) || (m === 7 && e > 4)) return undefined;
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#registerAlu(size, m, e, { kind: "data", register }, apply, instruction);
+    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
+
+  static #addressAluHandlers(pattern: string, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { r: this.#selectors, s: [16, 32] as const, m: this.#selectors, e: this.#selectors }, ({ r, s: size, m, e }) => {
+      if (m === 7 && e > 4) return undefined;
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#registerAlu(size, m, e, { kind: "address", register: cpu.#addressRegister(r) }, apply, instruction);
+    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
   // Effective addresses. Resolve each operand once, source before destination.
@@ -383,16 +418,40 @@ export class Cpu68000 {
 
   // Arithmetic and flags.
 
-  #immediate(size: OperandSize, mode: number, code: number, apply: ImmediateOperation,
+  #immediate(size: OperandSize, mode: number, code: number, apply: AluOperation,
     instruction: InstructionContext): Cpu68000AlignmentFault | void {
     const value = this.#fetchImmediate(size, instruction);
+    return this.#effectiveAddressAlu(size, mode, code, value, apply, instruction);
+  }
+
+  #effectiveAddressAlu(size: OperandSize, mode: number, code: number, value: number, apply: AluOperation,
+    instruction: InstructionContext): Cpu68000AlignmentFault | void {
     const updates: AddressUpdates = new Map();
     const destination = this.#resolveOperand(size, mode, code, instruction, updates);
-    if (destination.kind === "immediate" || destination.kind === "address") throw new Error("Invalid immediate-ALU destination reached execution.");
+    if (destination.kind === "immediate" || destination.kind === "address") throw new Error("Invalid data-ALU destination reached execution.");
     if (destination.kind === "memory" && size !== 8 && destination.address % 2 !== 0) return { operation: "read", address: destination.address };
-    const result = apply(this, size, this.#readOperand(size, destination, instruction.readByte), value);
+    this.#applyAlu(size, destination, value, apply, updates, instruction);
+  }
+
+  #registerAlu(size: OperandSize, mode: number, code: number, destination: Extract<Operand, { kind: "data" | "address" }>,
+    apply: AluOperation, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    const updates: AddressUpdates = new Map();
+    const source = this.#resolveOperand(size, mode, code, instruction, updates);
+    if (source.kind === "memory" && size !== 8 && source.address % 2 !== 0) return { operation: "read", address: source.address };
+    let value = this.#readOperand(size, source, instruction.readByte);
+    if (destination.kind === "address") {
+      if (size === 16) value = (value << 16 >> 16) >>> 0;
+      size = 32;
+    }
+    this.#applyAlu(size, destination, value, apply, updates, instruction);
+  }
+
+  #applyAlu(size: OperandSize, destination: Exclude<Operand, { kind: "immediate" }>, value: number,
+    apply: AluOperation, updates: AddressUpdates, instruction: InstructionContext): void {
+    // All alignment checks have passed. An destinations see source pre/post-updates.
     for (const [register, address] of updates) this.#state[register] = address;
-    // CMPI still commits an address auto-update, but performs no writeback.
+    const result = apply(this, size, this.#readOperand(size, destination, instruction.readByte), value);
+    // Comparisons commit address auto-updates without writing their arithmetic result.
     if (result !== undefined) this.#writeOperand(size, destination, result, instruction.writeByte);
   }
 

@@ -294,7 +294,12 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
     for (let register = 0; register < 8; register++) supported.add(base + register);
   }
   supported.add(0x4e75);
-  assert.equal(supported.size, 16899); // Includes embedded MOVEQ/branch operands, unlike coverage forms.
+  for (const { base, size, destination } of arithmeticForms) {
+    const addresses = destination === "memory" ? allSources.filter(code => code >= 16 && code <= 57)
+      : size === 1 ? byteSources : allSources;
+    for (let register = 0; register < 8; register++) for (const ea of addresses) supported.add(base + register * 512 + ea);
+  }
+  assert.equal(supported.size, 26043); // Includes embedded MOVEQ/branch operands, unlike coverage forms.
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
@@ -736,6 +741,206 @@ test("68000 PC-relative reads use the extension address even across logical and 
       ] as const) {
         checkTransfer(ram, state, base + code, size, { code, extension, address },
           { code: 0, extension: [], register: "d0" });
+      }
+    }
+  }
+});
+
+// Literal opmode bases (Dn/An selector zero) from the original 68000 instruction tables.
+const arithmeticForms = [
+  { name: "ADD", size: 1, base: 0xd000, destination: "data" },
+  { name: "ADD", size: 2, base: 0xd040, destination: "data" },
+  { name: "ADD", size: 4, base: 0xd080, destination: "data" },
+  { name: "ADD", size: 1, base: 0xd100, destination: "memory" },
+  { name: "ADD", size: 2, base: 0xd140, destination: "memory" },
+  { name: "ADD", size: 4, base: 0xd180, destination: "memory" },
+  { name: "SUB", size: 1, base: 0x9000, destination: "data" },
+  { name: "SUB", size: 2, base: 0x9040, destination: "data" },
+  { name: "SUB", size: 4, base: 0x9080, destination: "data" },
+  { name: "SUB", size: 1, base: 0x9100, destination: "memory" },
+  { name: "SUB", size: 2, base: 0x9140, destination: "memory" },
+  { name: "SUB", size: 4, base: 0x9180, destination: "memory" },
+  { name: "CMP", size: 1, base: 0xb000, destination: "data" },
+  { name: "CMP", size: 2, base: 0xb040, destination: "data" },
+  { name: "CMP", size: 4, base: 0xb080, destination: "data" },
+  { name: "ADDA", size: 2, base: 0xd0c0, destination: "address" },
+  { name: "ADDA", size: 4, base: 0xd1c0, destination: "address" },
+  { name: "SUBA", size: 2, base: 0x90c0, destination: "address" },
+  { name: "SUBA", size: 4, base: 0x91c0, destination: "address" },
+  { name: "CMPA", size: 2, base: 0xb0c0, destination: "address" },
+  { name: "CMPA", size: 4, base: 0xb1c0, destination: "address" },
+] as const;
+type ArithmeticForm = typeof arithmeticForms[number];
+
+function checkArithmetic(ram: ObservedRam, before: Cpu68000State, form: ArithmeticForm,
+  selector: number, ea: TransferFixture, memoryValue = 0x81234567): void {
+  const { name, size, base, destination } = form;
+  const modulus = 2 ** (size * 8);
+  const bytes = [...wordBytes(base + selector * 512 + ea.code), ...ea.extension];
+  const memory = new Map<number, number>();
+  if (ea.address !== undefined) {
+    memory.set(physical(ea.address - 1), 0xde);
+    memory.set(physical(ea.address + size), 0xad);
+    bytesFor(size, memoryValue).forEach((byte, offset) => memory.set(physical(ea.address! + offset), byte));
+  }
+  // Seed code last so a source or read/modify/write destination may overlap its own instruction.
+  bytes.forEach((byte, offset) => memory.set(physical(before.pc + offset), byte));
+  for (const [address, byte] of memory) ram.write(address, byte);
+  const accesses: Cpu68000MemoryAccess[] = bytes.map((value, offset) => ({ kind: "read", address: physical(before.pc + offset), value }));
+  let value = ea.immediate ?? (ea.register === undefined ? 0 : before[ea.register] % modulus);
+  if (ea.address !== undefined) {
+    value = 0;
+    for (let offset = 0; offset < size; offset++) {
+      const address = physical(ea.address + offset);
+      const byte = memory.get(address)!;
+      accesses.push({ kind: "read", address, value: byte });
+      value = value * 256 + byte;
+    }
+  }
+  const after = { ...before, flags: { ...before.flags }, pc: unsignedLong(before.pc + bytes.length) };
+  if (ea.update) after[ea.update[0]] = ea.update[1];
+  const register = destination === "address" ? addressNames(before)[selector]! : registerForms[selector]!.register;
+  const left = destination === "memory" ? value : after[register] % (destination === "address" ? 4294967296 : modulus);
+  const right = destination === "memory" ? before[register] % modulus
+    : destination === "address" && size === 2 ? unsignedLong(signedWord(value)) : value;
+  let result: number;
+  if (name === "ADDA" || name === "SUBA") {
+    result = Number(BigInt.asUintN(32, BigInt(left) + (name === "ADDA" ? 1n : -1n) * BigInt(right)));
+  } else {
+    const expected = immediateResult(name === "ADD" ? "ADDI" : name === "SUB" ? "SUBI" : "CMPI",
+      destination === "address" ? 4 : size, left, right, before.flags);
+    result = expected.result;
+    after.flags = expected.flags;
+  }
+  if (name !== "CMP" && name !== "CMPA") {
+    if (destination === "memory") bytesFor(size, result).forEach((byte, offset) => {
+      const address = physical(ea.address! + offset);
+      accesses.push({ kind: "write", address, value: byte });
+      memory.set(address, byte);
+    });
+    else after[register] = destination === "address" ? result : Math.floor(before[register] / modulus) * modulus + result;
+  }
+  const cpu = new Cpu68000(ram, before);
+  ram.accesses.length = 0;
+  assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), outcome: "executed",
+    instruction: { address: before.pc, bytes }, accesses }, `${name} ${bytes.slice(0, 2).map(b => b.toString(16)).join(" ")}`);
+  assert.deepEqual(cpu.snapshot(), snapshot(after));
+  assert.deepEqual(ram.accesses, accesses);
+  for (const [address, byte] of memory) assert.equal(ram.read(address), byte);
+}
+
+for (const [name, count] of [["ADD", 2408], ["SUB", 2408], ["CMP", 1400], ["ADDA", 976], ["SUBA", 976], ["CMPA", 976]] as const) {
+  test(`68000 ${name} executes all ${count} forms with both stacks, register aliases, and exact accesses`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (const bits of [0, 31, 64, 127]) {
+      const before = transferState(bits);
+      let forms = 0;
+      for (const form of arithmeticForms.filter(form => form.name === name)) {
+        for (let register = 0; register < 8; register++) for (const ea of transferFixtures(before, form.size, before.pc + 2)) {
+          if (form.destination === "memory" ? ea.code < 16 || ea.code > 57 : form.size === 1 && ea.code >= 8 && ea.code < 16) continue;
+          checkArithmetic(ram, before, form, register, ea);
+          forms++;
+        }
+      }
+      assert.equal(forms, count);
+    }
+  });
+}
+
+for (const [name, opcode, oracle] of [["ADD", 0xd001, "ADDI"], ["SUB", 0x9001, "SUBI"], ["CMP", 0xb001, "CMPI"]] as const) {
+  test(`68000 ${name}.B checks every register operand pair and preserves the upper destination bytes`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (let left = 0; left < 256; left++) for (let right = 0; right < 256; right++) {
+      const before = initialState({ d0: 0xabcdef00 + left, d1: 0x12345600 + right, flags: flags((left + right) % 128) });
+      const expected = immediateResult(oracle, 1, left, right, before.flags);
+      checkStep(ram, before, wordBytes(opcode), { ...before, pc: before.pc + 2, flags: expected.flags,
+        d0: name === "CMP" ? before.d0 : 0xabcdef00 + expected.result });
+    }
+  });
+}
+
+test("68000 word/long data and address arithmetic checks signed boundaries with every incoming flag pattern", () => {
+  const ram = new ObservedRam(0x1000000);
+  const values = [0, 1, 0x7fff, 0x8000, 0xffff, 0x10000, 0x7fffffff, 0x80000000, 0xfffffffe, 0xffffffff];
+  for (const form of arithmeticForms.filter(form => form.size !== 1)) for (let bits = 0; bits < 128; bits++) {
+    for (const left of values) for (const right of values) {
+      const before = { ...transferState(bits), d0: left, d1: right, a0: left };
+      const ea: TransferFixture = form.destination === "memory" ? { code: 57, extension: [0x12, 0, 0x30, 0], address: 0x12003000 }
+        : { code: 1, extension: [], register: "d1" };
+      checkArithmetic(ram, before, form, 0, ea, right);
+    }
+  }
+});
+
+test("68000 ADDA/SUBA/CMPA sign-extend every word and use all 32 destination bits", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const form of arithmeticForms.filter(form => form.destination === "address" && form.size === 2)) {
+    for (let value = 0; value < 65536; value++) {
+      const before = initialState({ d1: 0xabcd0000 + value, a0: 0x80000000, flags: flags(value % 128) });
+      checkArithmetic(ram, before, form, 0, { code: 1, extension: [], register: "d1" });
+    }
+  }
+});
+
+test("68000 arithmetic resolves memory once, accepts odd bytes, and wraps operands, A7 updates, and PC", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const form of arithmeticForms) for (const bits of [0, 127]) {
+    for (const address of [form.size === 1 ? 0xffffffff : 0xfffffffe, 0xab001000]) {
+      const before = { ...transferState(bits), pc: 0xfffffffe, usp: address, ssp: address, d7: 0xffff8000 };
+      for (const code of [31, 39, 57]) {
+        const step = form.size === 1 ? 2 : form.size;
+        const ea: TransferFixture = code === 57 ? { code, extension: longBytes(address), address }
+          : { code, extension: [], address: code === 31 ? address : unsignedLong(address - step),
+              update: [bits === 0 ? "usp" : "ssp", unsignedLong(address + (code === 31 ? step : -step))] };
+        checkArithmetic(ram, before, form, 7, ea);
+      }
+      if (form.destination !== "memory") {
+        checkArithmetic(ram, before, form, 7, { code: 58, extension: [0xff, 0xfe], address: 0xfffffffe });
+        checkArithmetic(ram, before, form, 7, { code: 59, extension: [0x70, 0xfe], address: 0xffff7ffe });
+      }
+    }
+  }
+});
+
+test("68000 CMPA compares against its own updated source pointer, preserving X and committing the update", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const form of arithmeticForms.filter(form => form.name === "CMPA")) for (let bits = 0; bits < 128; bits++) {
+    for (const base of [0x1000, 0xffff9000]) for (const [selector, register] of addressNames(initialState({ flags: flags(bits) })).entries()) {
+      const before = { ...transferState(bits), pc: 0xab004000, [register]: base };
+      for (const [code, address, updated] of [[24 + selector, base, unsignedLong(base + form.size)],
+        [32 + selector, unsignedLong(base - form.size), unsignedLong(base - form.size)]] as const) {
+        // Memory equals An after auto-update, so CMPA must set Z; reading old An would fail.
+        checkArithmetic(ram, before, form, selector, { code, extension: [], address, update: [register, updated] }, updated);
+      }
+    }
+  }
+});
+
+test("68000 all word/long arithmetic memory modes reject odd reads atomically, including pending An updates", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const form of arithmeticForms.filter(form => form.size !== 1)) for (const bits of [0, 127]) {
+    const state = transferState(bits);
+    for (const register of addressNames(state)) state[register]++;
+    for (const ea of transferFixtures(state, form.size, state.pc + 2)) {
+      if (ea.address === undefined || (form.destination === "memory" && ea.code > 57)) continue;
+      const extension = [...ea.extension];
+      let address = ea.address;
+      if (address % 2 === 0) {
+        address = unsignedLong(address + 1);
+        extension[extension.length - 1]!++;
+      }
+      const bytes = [...wordBytes(form.base + 7 * 512 + ea.code), ...extension];
+      bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
+      ram.write(physical(address), 0xa5);
+      const cpu = new Cpu68000(ram, state);
+      const before = snapshot(state);
+      const accesses = bytes.map((value, offset) => ({ kind: "read", address: 0x1000 + offset, value }));
+      for (let attempt = 0; attempt < 2; attempt++) {
+        ram.accesses.length = 0;
+        assert.deepEqual(cpu.step(), { before, after: before, instruction: { address: state.pc, bytes }, accesses,
+          outcome: "unsupported", reason: "unaligned-address", fault: { operation: "read", address } });
+        assert.deepEqual(ram.accesses, accesses);
+        assert.equal(ram.read(physical(address)), 0xa5);
       }
     }
   }

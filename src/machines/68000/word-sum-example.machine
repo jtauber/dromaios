@@ -1,0 +1,39 @@
+// Sum four words independently in D0 and RAM, subtract a correction, and compare.
+ram 1000000
+
+cpu 68000 {
+  D0 = 11223344  D1 = 55667788  D2 = 99AABBCC  D3 = DDEEFF00
+  D4 = 01234567  D5 = 89ABCDEF  D6 = FEDCBA98  D7 = 76543210
+  A0 = 10000000  A1 = 20000000  A2 = 30000000  A3 = 40000000
+  A4 = 50000000  A5 = 60000000  A6 = 70000000
+  USP = 34008000  SSP = 56009000  PC = AB002000
+  interruptMask = 2
+  flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 0 }
+}
+
+memory 000000 { 56 00 90 00  AB 00 20 00 }
+
+memory 002000 {
+  20 7C AB 00 30 00  // MOVEA.L #AB003000,A0: input pointer
+  22 48              // MOVEA.L A0,A1
+  D2 FC 00 08        // ADDA.W #8,A1: one past the four input words
+  24 7C CD 00 40 00  // MOVEA.L #CD004000,A2: memory accumulator
+  70 00              // MOVEQ #0,D0: register accumulator
+  34 80              // MOVE.W D0,(A2): clear memory accumulator
+  32 18              // loop (2016): MOVE.W (A0)+,D1
+  D0 41              // ADD.W D1,D0
+  D3 52              // ADD.W D1,(A2)
+  B1 C9              // CMPA.L A1,A0: compare full pointers
+  65 F6              // BCS.B loop: unsigned A0 < A1
+  74 01              // MOVEQ #1,D2: correction
+  90 42              // SUB.W D2,D0
+  95 52              // SUB.W D2,(A2)
+  B0 52              // CMP.W (A2),D0: both corrected sums must agree
+  90 FC 00 08        // SUBA.W #8,A0: rewind input without changing comparison flags
+  D2 FC FF FE        // ADDA.W #-2,A1: point to the last word; signed word source
+}
+
+memory 002FFE { DE AD  7F FF 00 01 FF FF 00 02  BE EF }
+memory 003FFE { DE AD  CC CC  BE EF }
+
+end AB002030
