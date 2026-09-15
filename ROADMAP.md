@@ -1,7 +1,8 @@
 # Roadmap
 
-The destination is one pedagogical platform that can replace the existing
-emulators and power the microcomputer tutorial through reusable components.
+The destination is one pedagogical software platform, **dromaios**, powering
+the public site **microcomputer.world**. It can replace the existing emulators
+and power the microcomputer tutorial through reusable components.
 
 This is a direction of travel, not a schedule. Each stage will be divided into
 small changes with time for review, questions, and revision. Finishing a change

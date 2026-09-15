@@ -2,6 +2,10 @@
 
 An in-browser emulation platform for exploring how computers work.
 
+**microcomputer.world** is the public website; **dromaios** is the software
+platform that powers its lessons, explorations, and emulators. The maintainer
+has purchased the microcomputer.world domain.
+
 The platform lives at [jtauber/dromaios](https://github.com/jtauber/dromaios).
 
 Dromaios brings together the existing Altair, TRS-80 Color Computer, Game Boy,

@@ -1,4 +1,4 @@
-# Web design and site structure
+# microcomputer.world: web design and site structure
 
 This is a working proposal for the eventual website, its shared exploration
 workspace, and the steps toward it. Page names, layouts, and visual choices
@@ -9,6 +9,17 @@ The [project roadmap](../ROADMAP.md) owns the overall development stages and
 hardware dependencies. The [pedagogical plan](pedagogy.md) owns teaching
 principles and learning milestones. This note describes how people find and
 use those experiences on the website.
+
+## Site and software names
+
+**microcomputer.world** is the public website. The maintainer has purchased
+that domain. **dromaios** is the underlying software platform that powers the
+site's lessons, exploration workspaces, and machine emulators.
+
+Use microcomputer.world in the site header, page titles, and public-facing
+site descriptions. Credit dromaios as the software, with links to its source
+and development documentation. The software's emu-derived name belongs in that
+software context.
 
 ## Organizing idea
 

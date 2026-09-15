@@ -89,8 +89,9 @@ expose detached state snapshots and instruction access records; device
 inspection will develop as devices are added.
 
 **The browser interface** presents controls, displays, inspectors, and
-explanations. Components should be usable without the DOM or a browser render
-loop. Specialist instruments, such as an Applesoft BASIC inspector, can add
+explanations on **microcomputer.world**, the public site powered by the
+**dromaios** software platform. Components should be usable without the DOM or
+a browser render loop. Specialist instruments, such as an Applesoft BASIC inspector, can add
 software knowledge through the inspection interface.
 
 **Lessons** combine small programs, machine compositions, views, and explanatory

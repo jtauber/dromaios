@@ -1,6 +1,7 @@
 # CPU scope
 
-This records the working CPU scope and implementation priorities.
+This records the working CPU scope and implementation priorities for dromaios,
+the software platform behind microcomputer.world.
 The [project roadmap](../../ROADMAP.md) describes the implementation stages;
 [architecture.md](../architecture.md) describes component responsibilities.
 The [web design plan](../web-design.md) describes how these CPUs and machines
