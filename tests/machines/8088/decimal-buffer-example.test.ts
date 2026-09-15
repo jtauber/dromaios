@@ -88,8 +88,8 @@ test("8088 decimal buffer copies wrapped words and formats through a far call in
   assert.equal(records.length, 52);
   assert.deepEqual(runCpu(cpu, { maxSteps: 52, endAddress }), { records, stopReason: "halted" });
   const accesses = records.flatMap(record => record.accesses);
-  assert.deepEqual(reads.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "read").map(a => [a.address]));
-  assert.deepEqual(writes.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "write").map(a => [a.address, a.value]));
+  assert.deepEqual(reads.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "read" ? [[a.address]] : []));
+  assert.deepEqual(writes.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "write" ? [[a.address, a.value]] : []));
   t.mock.restoreAll(); checkMemory(ram, true);
   assert.deepEqual(cpu.snapshot(), views({ ...initialState(), ax: 0, bx: 10, cx: 0, dx: 0x31, si: 4, di: 0x10f,
     ds: 0x3000, ip: 0x11a, halted: true }));

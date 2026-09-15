@@ -201,9 +201,9 @@ instruction record, both marker paths, signed boundaries, and full RAM images.
 
 ## Ordinary-instruction completion
 
-The 15 September 2026 expansion adds 63 documented forms and all seven prefix
-modifiers. It keeps interrupt-specific instructions, port I/O, ESC, and WAIT
-deferred. The opcode inventory now accounts for 268 of 291 forms; HLT and its
+The 15 September 2026 ordinary-instruction expansion added 63 documented forms
+and all seven prefix modifiers. That slice kept interrupt-specific instructions,
+port I/O, ESC, and WAIT deferred, reaching 268 of 291 forms; HLT and its
 stored latch are included. The [model contract](model.md) defines the limits.
 
 The same pinned
@@ -264,3 +264,22 @@ words, REP MOVSW, an ES override, a far call/return frame, DIV, backward STOSB,
 LOOP, saved FLAGS, and HLT. Independent expectations cover all 52 records,
 full guarded memory images, unsigned input boundaries, and snapshot restoration
 inside both REP and the subroutine.
+
+## Port input and output comparison
+
+The PC core's eight IN/OUT handlers use byte callbacks for both AL and AX.
+The new core expresses their shared `1110 r 1 d w` encoding once and reuses
+`BytePorts` and the common access recorders. Its word transfers explicitly wrap
+the second port to 16 bits, independently of segmented memory addressing.
+[MartyPC's byte-bus routines][marty-biu] also use low-first transfers with a
+wrapping 16-bit second address.
+
+All **80,000 hardware-generated cases across E4–E7 and EC–EF** passed at the
+same pinned [8088 V2 revision](https://github.com/SingleStepTests/8088/tree/aea84484abc79d09639d855b7b0ab32bc9e4dbeb/v2).
+The comparison checks every modeled register and flag, fetched instruction
+bytes, fixture RAM, and ordered port addresses/values extracted from the bus
+trace: latch the address on ALE, then sample the transfer at T3. One output
+fixture starts at port FFFF and confirms the second byte goes to 0000.
+Input fixtures supply FF; local tests separately vary input bytes and check
+all 512 modeled flag combinations, failures, and instruction-boundary resumption.
+Prefetch queues, idle cycles, and timing remain outside the comparison.

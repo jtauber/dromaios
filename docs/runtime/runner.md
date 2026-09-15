@@ -50,6 +50,10 @@ iteration. The runner can pause between iterations without hidden progress.
 Restoring CPU and RAM snapshots also requires restoring the attached device
 state separately; port callbacks belong to the caller's connection.
 
+An [8088 IN/OUT](../cpus/8088/model.md#port-input-and-output) counts as one step,
+including both byte transfers of a word. CPU/RAM/device restoration occurs
+between instructions; the runner does not pause inside a port transfer.
+
 Z80 IRQ/NMI offers also occur between runs through
 [`interrupt()`](../cpus/z80/model.md#external-interrupt-delivery). Accepted entry
 releases HALT; ignored requests preserve it. The runner neither acknowledges
@@ -109,7 +113,7 @@ state and nullable instruction on an already waiting step; a 6809 run retains D 
 stack pointers, named wait mode, and NMI arming in snapshots, with a nullable
 instruction while waiting; a Z80 run retains both register banks, P/V, R,
 interrupt inhibition, and interleaved memory/port records;
-an 8088 run retains CS:IP, word registers, derived byte views, and physical PC;
+an 8088 run retains CS:IP, word registers, derived byte views, physical PC, and memory/port records;
 a 68000 run retains long registers, both stack pointers, STOP state, and
 alignment/synchronous-exception details, including a null instruction when an odd PC prevents fetching.
 Selecting between CPU types produces the union of their record types. Run-level `stopReason` is separate from each record's

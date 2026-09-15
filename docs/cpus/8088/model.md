@@ -1,8 +1,8 @@
 # 8088 model contract
 
 The Intel 8088 model implements an instruction-level subset with flat 1 MiB
-RAM, 16-bit registers, and 20-bit physical addresses. The stored instruction
-address is CS:IP; the physical PC is a derived view.
+RAM, 16-bit registers, 20-bit physical addresses, and an optional byte-port
+connection. The stored instruction address is CS:IP; the physical PC is a derived view.
 
 [Implementation](../../../src/components/cpus/8088.ts) ·
 [CPU tests](../../../tests/components/cpus/8088.test.ts) ·
@@ -50,11 +50,16 @@ selected half of its word, while a word write replaces both halves together.
 
 ## Construction and inspection
 
-`new Cpu8088(ram, initialState)` requires exactly 1 MiB RAM. It copies and
+`new Cpu8088(ram, initialState, ports?)` requires exactly 1 MiB RAM. It copies and
 validates every declared register and flag. Each field is read once, including
 non-enumerable getters; extra metadata and derived views are ignored. Invalid
 numeric state or RAM size throws `RangeError`; non-Boolean flags or halt state throw
-`TypeError`. Construction performs neither reset nor RAM accesses.
+`TypeError`. Construction performs neither reset nor RAM/device accesses.
+
+The optional [`BytePorts`](../../../src/components/cpus/port-access.ts) connection
+provides `readPort(port)` and `writePort(port, value)`. Ports are 16-bit addresses;
+each callback transfers one byte. The device owns its state. A reconstructed CPU
+must be reconnected to the separately restored device.
 
 `snapshot()` returns detached state and views without accessing RAM. Its
 TypeScript type is recursively readonly. Bypassing that typing cannot change
@@ -96,7 +101,10 @@ address; it does not require a particular segment value.
 
 `step()` attempts one instruction or one REP element and returns a `Cpu8088StepRecord` with
 independent before/after snapshots, the instruction's physical start address
-and fetched bytes, ordered memory accesses, and an outcome.
+and fetched bytes, ordered `Cpu8088Access` entries, and an outcome. Memory
+`read`/`write` entries contain physical `address` and `value`; port
+`input`/`output` entries contain `port` and `value`. Both share one log in transfer
+order. `Cpu8088MemoryAccess` remains the memory-only alias.
 
 The supported unprefixed forms are:
 
@@ -133,6 +141,7 @@ The supported unprefixed forms are:
 | `E0`–`E3` | LOOPNE/LOOPE/LOOP/JCXZ | Counted or zero-count branch; preserve flags |
 | `E8` | `CALL rel16` | Push the following IP and take a near relative branch |
 | `E9`, `EB` | `JMP rel16`, `JMP rel8` | Near or short relative branch without a stack access |
+| `E4`–`E7`, `EC`–`EF` | IN / OUT | Byte/word accumulator transfers through an immediate port or DX; preserve all flags |
 | `F6`, `F7` /0, /2, /3 | TEST r/m,n; NOT; NEG | Immediate AND flags, one's complement, or two's-complement negation |
 | `F6`, `F7` /4–7 | MUL/IMUL/DIV/IDIV | Byte/word multiplication and division; divide errors stop before interrupt delivery |
 | `FF` /2, /4, /6 | Near indirect CALL/JMP, PUSH r/m16 | Read target/value before changing IP or writing the stack |
@@ -147,6 +156,41 @@ operations read the original operands before writing a result; CMP and TEST
 perform no destination write. Writes are recorded even when values are unchanged.
 If a write overlaps code, it cannot alter the already fetched instruction;
 later steps read current RAM while retained records keep their earlier bytes.
+
+## Port input and output
+
+The eight forms share **`1110 r 1 d w`**: `r=0` fetches an immediate byte port,
+`r=1` uses all of DX, `d=0/1` selects input/output, and `w=0/1` selects AL/AX.
+The immediate is zero-extended to a 16-bit port address. Port space is separate
+from RAM and unsegmented; no segment register contributes to a port address.
+See Intel's [manual](https://www.ardent-tool.com/CPU/docs/Intel/808x/manuals/9800722-03_alt.pdf),
+sections 2.4 and 2.7, I/O addressing on page 2-72, and table 4-13.
+
+Byte IN replaces AL while preserving AH. Word IN reads low then high bytes
+and replaces AX after both reads succeed. OUT captures AL or AX before calling
+the device. Word transfers always call the device twice, at the selected port
+and `(port + 1) modulo 10000` in hexadecimal. Thus immediate port `FF` continues
+at `0100`, and DX=`FFFF` continues at `0000`. Odd word ports are valid. This is
+the 8088's byte bus behavior, with [hardware comparison evidence](reference-notes.md#port-input-and-output-comparison).
+All flags and other registers, including DX, are preserved.
+
+Instruction fetching still advances and wraps CS:IP before any port transfer.
+Segment overrides do not affect port selection. LOCK retains the model's lack
+of bus-arbitration effects. REP/REPNE remain unsupported for IN/OUT: rejection
+occurs at the opcode, before an immediate port or device callback is read.
+Each complete IN/OUT is one step; the runner cannot pause between its two bytes.
+
+An absent device fails only when a port instruction reaches its transfer.
+Input values must be integers in 0–255; malformed values throw `RangeError`
+without coercion. Callback failures propagate without a step record or rollback:
+fetched IP and completed device effects remain. A failed word IN leaves all of
+AX unchanged; a failed second output leaves the first output delivered. These
+are host-failure policies, not hardware exceptions or resumable bus cycles.
+
+RAM and device callbacks may inspect snapshots but cannot recursively call
+`step()` or `reset()` on the same CPU. The shared execution guard clears after
+success or failure. Reset, inspection, and already halted steps never call the
+port connection. Reset preserves the connection and external device state.
 
 ## ModR/M operands
 
@@ -408,8 +452,8 @@ All preserve complete state and RAM; repeating an attempt repeats its reads.
 This atomic rejection is a model policy, not an illegal-instruction exception
 implemented by the original chip. Divide-error rejection is described above.
 
-Deferred documented instructions are IN/OUT (`E4`–`E7`, `EC`–`EF`),
-INT/INTO/IRET (`CC`–`CF`), CLI/STI (`FA`/`FB`), and external-processor ESC
+Deferred documented instructions are INT/INTO/IRET (`CC`–`CF`),
+CLI/STI (`FA`/`FB`), and external-processor ESC
 (`D8`–`DF`) and WAIT (`9B`). ESC communicates with a coprocessor; WAIT observes
 the external TEST input. Both stay with external I/O until those interfaces
 exist. Undocumented aliases and later-x86 additions remain outside scope.
@@ -484,8 +528,18 @@ BCD and signed-division boundaries, every byte multiplication pair, full-word
 sign extension/AAD/POPF sweeps, and invalid encodings. Prefix and string tests
 check both directions and widths, empty repetition, flag-based termination,
 segment and bus wrapping, exact accesses, bounded running, and snapshot-only
-resumption. A separate encoding inventory audits 268 supported forms and the
-23 deferred documented forms.
+resumption. A separate encoding inventory audits 276 supported forms and the
+15 deferred documented forms.
+
+Port checks cover all eight forms, every immediate port and modeled flag
+combination, distinct byte halves, odd and wrapped word ports, instruction-fetch
+wrapping, prefixes, exact access order, invalid inputs, failures, and reentrancy.
+An [eleven-instruction runner program](../../../tests/runtime/run-cpu.test.ts)
+combines all eight forms with a memory result and HALT, checking restoration of
+CPU, full RAM, and device state at every boundary. The supplementary
+[80,000 hardware cases](reference-notes.md#port-input-and-output-comparison)
+check modeled state and actual port bus transfers without adding network access
+to the repository tests.
 
 The [decimal buffer example](examples/decimal-buffer.md) combines a wrapped
 three-word copy, a far decimal-formatting routine, unsigned division, reverse
@@ -493,7 +547,7 @@ string stores, saved FLAGS, and HLT. Its tests specify all 52 records, guarded
 full RAM images, decimal output at unsigned boundaries, and restoration inside
 both REP and a far-call frame.
 
-Interrupt delivery, external I/O/coprocessor interfaces, mapped devices, timing,
+Interrupt delivery, coprocessor/TEST interfaces, mapped devices, timing,
 bus arbitration, and prefetching remain deferred. The instruction-level records
 are not a cycle trace; self-modifying code observes current RAM without the
 original chip's prefetch-queue effects.

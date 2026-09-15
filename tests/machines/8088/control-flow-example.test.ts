@@ -95,8 +95,8 @@ test("8088 nested subroutines preserve a counter and add fifteen in RAM with exa
   assert.equal(records.length, 39);
   assert.deepEqual(runCpu(cpu, { maxSteps: 39, endAddress }), { records, stopReason: "completed" });
   const accesses = records.flatMap(record => record.accesses);
-  assert.deepEqual(read.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "read").map(a => [a.address]));
-  assert.deepEqual(write.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "write").map(a => [a.address, a.value]));
+  assert.deepEqual(read.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "read" ? [[a.address]] : []));
+  assert.deepEqual(write.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "write" ? [[a.address, a.value]] : []));
   assert.deepEqual(cpu.snapshot(), records.at(-1)?.after);
   assert.deepEqual(runCpu(cpu, { maxSteps: 0, endAddress }), { records: [], stopReason: "completed" });
   const alias = new Cpu8088(ram, { ...cpu.snapshot(), cs: 0x1244, ip: 0x117 });

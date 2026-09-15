@@ -1,5 +1,6 @@
 import { Cpu8088 } from "../../src/components/cpus/8088.js";
-import type { Cpu8088State, Cpu8088Snapshot, Cpu8088StepRecord, Cpu8088ResetRecord } from "../../src/components/cpus/8088.js";
+import type { Cpu8088State, Cpu8088Snapshot, Cpu8088StepRecord, Cpu8088ResetRecord, Cpu8088Access, Cpu8088MemoryAccess } from "../../src/components/cpus/8088.js";
+import type { BytePorts } from "../../src/components/cpus/port-access.ts";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { create8088Example } from "../../src/machines/generated/8088/example.js";
 import { create8088TransfersExample } from "../../src/machines/generated/8088/transfers-example.js";
@@ -58,9 +59,10 @@ export function check8088Records(record: Cpu8088StepRecord, reset: Cpu8088ResetR
   }
   // @ts-expect-error Access lists are readonly.
   record.accesses.push({ kind: "read", address: 0, value: 0 });
-  if (record.accesses[0]) {
+  const access = record.accesses[0];
+  if (access && (access.kind === "read" || access.kind === "write")) {
     // @ts-expect-error Individual accesses are readonly.
-    record.accesses[0].address = 0;
+    access.address = 0;
   }
   // @ts-expect-error Reset records have no instruction.
   reset.instruction;
@@ -68,4 +70,22 @@ export function check8088Records(record: Cpu8088StepRecord, reset: Cpu8088ResetR
   reset.outcome;
   // @ts-expect-error Reset snapshots are recursively readonly.
   reset.after.flags.if = false;
+}
+
+export function check8088Ports(ram: Ram, state: Cpu8088State, ports: BytePorts, access: Cpu8088Access): void {
+  const cpu = new Cpu8088(ram, state, ports);
+  const result: CpuRunResult<Cpu8088StepRecord> = runCpu(cpu, { maxSteps: 1 });
+  const memory: Cpu8088MemoryAccess = { kind: "read", address: 0xfffff, value: 0x34 };
+  if (access.kind === "input" || access.kind === "output") {
+    const port: number = access.port;
+    const value: number = access.value;
+    // @ts-expect-error Port accesses do not carry a memory address.
+    access.address;
+    // @ts-expect-error Individual port accesses are readonly.
+    access.port = 0;
+  }
+  // @ts-expect-error Connected inputs return numbers.
+  new Cpu8088(ram, state, { readPort: () => "00", writePort: () => {} });
+  // @ts-expect-error Connections must provide both byte transfer callbacks.
+  new Cpu8088(ram, state, { readPort: () => 0 });
 }

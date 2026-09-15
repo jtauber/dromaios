@@ -84,6 +84,8 @@ with SYNC/CWAI, full/short frames, RTI, software vectors, and NMI arming.
 The Z80 now completes its [port families](z80/model.md#port-input-and-output)
 and [interrupt behavior](z80/model.md#external-interrupt-delivery), including
 all modes, native entries/returns, HALT release, and snapshot-preserved inhibition.
-The next slice is 8088 delivery and external connections.
+The 8088 now implements all eight [IN/OUT forms](8088/model.md#port-input-and-output),
+including byte/word device transfers and snapshot-based program resumption.
+The next slice is 8088 interrupt controls, entry/return, and delivery.
 Timing and device scheduling remain separate from completed opcode inventories;
 8008 external interrupt delivery is also still deferred.

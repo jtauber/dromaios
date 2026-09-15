@@ -108,8 +108,8 @@ test("8088 masked word sum has 76 exact instruction records, real memory accesse
   assert.equal(records.length, 76);
   assert.deepEqual(runCpu(cpu, { maxSteps: 76, endAddress }), { records, stopReason: "completed" });
   const accesses = records.flatMap(record => record.accesses);
-  assert.deepEqual(read.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "read").map(a => [a.address]));
-  assert.deepEqual(write.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "write").map(a => [a.address, a.value]));
+  assert.deepEqual(read.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "read" ? [[a.address]] : []));
+  assert.deepEqual(write.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "write" ? [[a.address, a.value]] : []));
   assert.deepEqual(cpu.snapshot(), records.at(-1)!.after);
   assert.deepEqual(runCpu(cpu, { maxSteps: 0, endAddress }), { records: [], stopReason: "completed" });
   t.mock.restoreAll();

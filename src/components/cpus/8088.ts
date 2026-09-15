@@ -4,6 +4,9 @@ import { signed8, readWordLE } from "./binary.ts";
 import { flagRegister } from "./flags.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
+import { recordPorts } from "./port-access.ts";
+import type { BytePorts, PortAccess } from "./port-access.ts";
+import { executionBoundary } from "./execution-boundary.ts";
 import type { WordInstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, group } from "./state.ts";
 import type { StateValues, ReadonlyState } from "./state.js";
@@ -39,12 +42,13 @@ export type Cpu8088Snapshot = ReadonlyState<Cpu8088State> & {
 
 /** Physical byte access on the 20-bit memory bus. */
 export type Cpu8088MemoryAccess = MemoryAccess;
+export type Cpu8088Access = MemoryAccess | PortAccess;
 
 /** Instruction address is physical; before.cs and before.ip retain its logical address. */
 export type Cpu8088Instruction = FetchedInstruction;
 
-export type Cpu8088StepRecord = InstructionStep<Cpu8088Snapshot> | HaltedStep<Cpu8088Snapshot> | (
-  StateTransition<Cpu8088Snapshot> & {
+export type Cpu8088StepRecord = InstructionStep<Cpu8088Snapshot, Cpu8088Access> | HaltedStep<Cpu8088Snapshot, Cpu8088Access> | (
+  StateTransition<Cpu8088Snapshot, Cpu8088Access> & {
     readonly instruction: FetchedInstruction;
     readonly outcome: "unsupported";
     readonly reason: "divide-error";
@@ -53,7 +57,7 @@ export type Cpu8088StepRecord = InstructionStep<Cpu8088Snapshot> | HaltedStep<Cp
 
 export type Cpu8088ResetRecord = StateTransition<Cpu8088Snapshot>;
 
-interface InstructionContext extends WordInstructionContext {
+interface InstructionContext extends WordInstructionContext, BytePorts {
   readonly startIp: number;
   readonly segment: number | undefined;
   // F3 repeats while equal, F2 while unequal; only CMPS/SCAS test the condition.
@@ -96,11 +100,14 @@ function physicalAddress(segment: number, offset: number): number {
 export class Cpu8088 {
   readonly #ram: Ram;
   readonly #state: Cpu8088State;
+  readonly #ports: BytePorts | undefined;
+  readonly #atBoundary = executionBoundary("8088 step and reset calls must not be reentrant.");
 
-  constructor(ram: Ram, initialState: Cpu8088State) {
+  constructor(ram: Ram, initialState: Cpu8088State, ports?: BytePorts) {
     if (ram.size !== 0x100000) throw new RangeError("The 8088 model requires exactly 1 MiB of RAM.");
     this.#ram = ram;
     this.#state = readState(cpu8088StateDescription, initialState);
+    this.#ports = ports;
   }
 
   /** Inspect detached state, byte-register views, and the physical PC without RAM access. */
@@ -118,49 +125,56 @@ export class Cpu8088 {
 
   /** Set CS:IP to FFFF:0000, clear other segments, flags, and halt; preserve general registers and RAM. */
   reset(): Cpu8088ResetRecord {
-    const before = this.snapshot();
-    this.#state.cs = 0xffff;
-    this.#state.ip = 0;
-    this.#state.halted = false;
-    this.#state.ds = this.#state.ss = this.#state.es = 0;
-    this.#state.flags = { cf: false, pf: false, af: false, zf: false, sf: false,
-      tf: false, if: false, df: false, of: false };
-    return { before, after: this.snapshot(), accesses: [] };
+    return this.#atBoundary<Cpu8088ResetRecord>(() => {
+      const before = this.snapshot();
+      this.#state.cs = 0xffff;
+      this.#state.ip = 0;
+      this.#state.halted = false;
+      this.#state.ds = this.#state.ss = this.#state.es = 0;
+      this.#state.flags = { cf: false, pf: false, af: false, zf: false, sf: false,
+        tf: false, if: false, df: false, of: false };
+      return { before, after: this.snapshot(), accesses: [] };
+    });
   }
 
   /** Attempt one instruction or REP iteration; rejected attempts preserve state and RAM. */
   step(): Cpu8088StepRecord {
-    const before = this.snapshot();
-    if (this.#state.halted) return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
-    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
-    const bytes: number[] = [];
-    const fetchByte = (): number => {
-      const value = readByte(physicalAddress(this.#state.cs, this.#state.ip));
-      this.#state.ip = (this.#state.ip + 1) & 0xffff;
-      bytes.push(value);
-      return value;
-    };
-    // Prefixes are local to this attempt. Later prefixes of the same kind replace earlier ones.
-    let segment: number | undefined;
-    let repeat: boolean | undefined;
-    let reason: Rejection | void = "opcode";
-    // A full code segment of prefixes cannot reach an opcode; bound the attempt without a later-x86 length limit.
-    while (bytes.length < 0x10000) {
-      const opcode = fetchByte();
-      const override = this.#segmentOverrides[opcode];
-      if (override) { segment = this.#state[override]; continue; }
-      if (opcode === 0xf0) continue; // LOCK has no bus-arbitration effect in this CPU-and-RAM model.
-      if (opcode === 0xf2 || opcode === 0xf3) { repeat = opcode === 0xf3; continue; }
-      const handler = this.#opcodeHandlers[opcode];
-      if (handler && (repeat === undefined || this.#stringHandlers.some(([code]) => code === opcode))) {
-        reason = handler({ startIp: before.ip, segment, repeat, fetchByte, fetchWord: () => readWordLE(fetchByte), readByte, writeByte });
+    return this.#atBoundary<Cpu8088StepRecord>(() => {
+      const before = this.snapshot();
+      if (this.#state.halted) return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
+      const accesses: Cpu8088Access[] = [];
+      const recordAccess = (access: Cpu8088Access): void => { accesses.push(access); };
+      const { readByte, writeByte } = recordMemory(this.#ram, recordAccess);
+      const { readPort, writePort } = recordPorts(this.#ports, recordAccess);
+      const bytes: number[] = [];
+      const fetchByte = (): number => {
+        const value = readByte(physicalAddress(this.#state.cs, this.#state.ip));
+        this.#state.ip = (this.#state.ip + 1) & 0xffff;
+        bytes.push(value);
+        return value;
+      };
+      // Prefixes are local to this attempt. Later prefixes of the same kind replace earlier ones.
+      let segment: number | undefined;
+      let repeat: boolean | undefined;
+      let reason: Rejection | void = "opcode";
+      // A full code segment of prefixes cannot reach an opcode; bound the attempt without a later-x86 length limit.
+      while (bytes.length < 0x10000) {
+        const opcode = fetchByte();
+        const override = this.#segmentOverrides[opcode];
+        if (override) { segment = this.#state[override]; continue; }
+        if (opcode === 0xf0) continue; // LOCK has no bus-arbitration effect in this CPU-and-RAM model.
+        if (opcode === 0xf2 || opcode === 0xf3) { repeat = opcode === 0xf3; continue; }
+        const handler = this.#opcodeHandlers[opcode];
+        if (handler && (repeat === undefined || this.#stringHandlers.some(([code]) => code === opcode))) {
+          reason = handler({ startIp: before.ip, segment, repeat, fetchByte, fetchWord: () => readWordLE(fetchByte), readByte, writeByte, readPort, writePort });
+        }
+        break;
       }
-      break;
-    }
-    if (reason) this.#state.ip = before.ip;
-    const record = { before, after: this.snapshot(), instruction: { address: before.pc, bytes }, accesses };
-    return reason ? { ...record, outcome: "unsupported", reason }
-      : { ...record, outcome: this.#state.halted ? "halted" : "executed" };
+      if (reason) this.#state.ip = before.ip;
+      const record = { before, after: this.snapshot(), instruction: { address: before.pc, bytes }, accesses };
+      return reason ? { ...record, outcome: "unsupported", reason }
+        : { ...record, outcome: this.#state.halted ? "halted" : "executed" };
+    });
   }
 
   // Register views. Byte writes replace only the selected half of the stored word.
@@ -352,6 +366,10 @@ export class Cpu8088 {
     ...opcodeFamily("1110 00 cc", { c: ["not-equal", "equal", "always", "zero"] },
       ({ c: condition }) => ({ fetchByte }: InstructionContext) => this.#loop(condition, signed8(fetchByte()))),
 
+    // 1110 r 1 d w: r=0 immediate port/1 DX; d=0 IN/1 OUT; w=0 AL/1 AX.
+    ...opcodeFamily("1110 r 1 d w", { r: [false, true], d: [false, true], w: this.#operandWidths },
+      ({ r: useDx, d: output, w: width }) => (instruction: InstructionContext) => this.#transferPort(width, output, useDx ? this.#state.dx : instruction.fetchByte(), instruction)), // IN/OUT AL/AX,n/DX
+
     // E8/E9 use word displacements; EA carries a far pointer and EB a short displacement.
     ...instructionPattern("1110 1000", ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte)), // CALL rel16
     ...instructionPattern("1110 1001", ({ fetchWord }) => this.#jump(fetchWord())), // JMP rel16
@@ -368,10 +386,24 @@ export class Cpu8088 {
     ...instructionPattern("1111 0101", () => { this.#state.flags.cf = !this.#state.flags.cf; }), // CMC
     ...opcodeFamily("1111 1 f 0 v", { f: ["cf", "df"], v: [false, true] }, ({ f: flag, v: value }) => () => { this.#state.flags[flag] = value; }), // CLC/STC, CLD/STD
 
-    // INT/INTO/IRET, CLI/STI, IN/OUT, and external ESC/WAIT remain deferred.
+    // INT/INTO/IRET, CLI/STI, and external ESC/WAIT remain deferred.
   ]);
 
   // Addressing, loads, stores, and exchanges.
+
+  #transferPort(width: OperandWidth, output: boolean, port: number, { readPort, writePort }: BytePorts): void {
+    const accumulator = this.#registerOperand(width, 0);
+    // The 8088 transfers low then high bytes, wrapping within its unsegmented 16-bit port space.
+    if (output) {
+      const value = accumulator.read();
+      writePort(port, value & 0xff);
+      if (width === 16) writePort((port + 1) & 0xffff, value >>> 8);
+    } else {
+      const low = readPort(port);
+      const value = width === 8 ? low : low | (readPort((port + 1) & 0xffff) << 8);
+      accumulator.write(value); // Commit IN only after every byte has been read successfully.
+    }
+  }
 
   #operandGroup(width: OperandWidth, operations: readonly (OperandOperation | undefined)[], instruction: InstructionContext): Rejection | void {
     const modRM = instruction.fetchByte();

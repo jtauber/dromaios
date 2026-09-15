@@ -84,8 +84,8 @@ test("8088 signed word transformation has 16 exact records, physical accesses, a
   assert.equal(records.length, 16);
   assert.deepEqual(runCpu(cpu, { maxSteps: 16, endAddress }), { records, stopReason: "completed" });
   const accesses = records.flatMap(record => record.accesses);
-  assert.deepEqual(read.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "read").map(a => [a.address]));
-  assert.deepEqual(write.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "write").map(a => [a.address, a.value]));
+  assert.deepEqual(read.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "read" ? [[a.address]] : []));
+  assert.deepEqual(write.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "write" ? [[a.address, a.value]] : []));
   t.mock.restoreAll();
   checkMemory(ram, true);
   assert.deepEqual(runCpu(cpu, { maxSteps: 0, endAddress }), { records: [], stopReason: "completed" });

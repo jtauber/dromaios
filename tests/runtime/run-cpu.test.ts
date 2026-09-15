@@ -5,6 +5,8 @@ import { Cpu6809 } from "../../src/components/cpus/6809.js";
 import { Cpu6800 } from "../../src/components/cpus/6800.js";
 import { Ram } from "../../src/components/memory/ram.js";
 import { Cpu6502 } from "../../src/components/cpus/6502.js";
+import { Cpu8088 } from "../../src/components/cpus/8088.js";
+import type { Cpu8088State, Cpu8088Access } from "../../src/components/cpus/8088.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import { create8080Example } from "../../src/machines/generated/8080/example.js";
 import { create6502Example } from "../../src/machines/generated/6502/example.js";
@@ -466,3 +468,69 @@ for (const im of [0, 1, 2] as const) {
     assert.equal(full.device.outputs.length, 2);
   });
 }
+
+test("8088 port program uses all eight forms and restores CPU, RAM, and device state at every boundary", () => {
+  const initial: Cpu8088State = { ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788, sp: 0x8000, bp: 0x9000,
+    si: 0x10, di: 0x20, cs: 0x1234, ds: 0x2000, es: 0x4000, ss: 0x3000, ip: 0x100, halted: false,
+    flags: { cf: true, pf: false, af: true, zf: false, sf: true, tf: false, if: true, df: true, of: false } };
+  const instructions = [
+    [0xba, 0xff, 0xff], // MOV DX,FFFF
+    [0xe4, 0x11], [0xe6, 0xff], // IN AL,11; OUT FF,AL
+    [0xe5, 0xff], [0xe7, 0x12], // IN AX,FF; OUT 12,AX
+    [0xec], [0xee], [0xed], [0xef], // IN AL,DX; OUT DX,AL; IN AX,DX; OUT DX,AX
+    [0xa3, 0x00, 0x80], [0xf4], // MOV [8000],AX; HLT
+  ];
+  const inputs = [{ port: 0x11, value: 0x34 }, { port: 0xff, value: 0x78 }, { port: 0x100, value: 0x56 },
+    { port: 0xffff, value: 0xbc }, { port: 0xffff, value: 0xf0 }, { port: 0, value: 0xde }];
+  const expectedOutputs = [{ port: 0xff, value: 0x34 }, { port: 0x12, value: 0x78 }, { port: 0x13, value: 0x56 },
+    { port: 0xffff, value: 0xbc }, { port: 0xffff, value: 0xf0 }, { port: 0, value: 0xde }];
+  const axAfter = [0x1122, 0x1134, 0x1134, 0x5678, 0x5678, 0x56bc, 0x56bc, 0xdef0, 0xdef0, 0xdef0, 0xdef0];
+  const portAccesses: Cpu8088Access[][] = [[], [inputs[0]!].map(x => ({ kind: "input", ...x })),
+    [expectedOutputs[0]!].map(x => ({ kind: "output", ...x })), inputs.slice(1, 3).map(x => ({ kind: "input", ...x })),
+    expectedOutputs.slice(1, 3).map(x => ({ kind: "output", ...x })), [inputs[3]!].map(x => ({ kind: "input", ...x })),
+    [expectedOutputs[3]!].map(x => ({ kind: "output", ...x })), inputs.slice(4).map(x => ({ kind: "input", ...x })),
+    expectedOutputs.slice(4).map(x => ({ kind: "output", ...x })),
+    [{ kind: "write", address: 0x28000, value: 0xf0 }, { kind: "write", address: 0x28001, value: 0xde }], []];
+  function machine(state = initial, image?: readonly number[], saved = { cursor: 0, outputs: [] as { port: number; value: number }[] }) {
+    const ram = new Ram(0x100000);
+    if (image) image.forEach((value, address) => ram.write(address, value));
+    else instructions.flat().forEach((value, i) => ram.write(0x12440 + i, value));
+    const device = structuredClone(saved);
+    const cpu = new Cpu8088(ram, state, {
+      readPort: port => { const input = inputs[device.cursor++]!; assert.equal(port, input.port); return input.value; },
+      writePort: (port, value) => { device.outputs.push({ port, value }); },
+    });
+    return { cpu, ram, device };
+  }
+  const full = machine();
+  const result = runCpu(full.cpu, { maxSteps: 11 });
+  assert.equal(result.stopReason, "halted");
+  assert.equal(result.records.length, 11);
+  let ip = initial.ip;
+  result.records.forEach((record, i) => {
+    const bytes = instructions[i]!;
+    assert.deepEqual(record.instruction, { address: initial.cs * 16 + ip, bytes });
+    assert.deepEqual(record.accesses, [...bytes.map((value, offset) => ({ kind: "read", address: initial.cs * 16 + ip + offset, value })), ...portAccesses[i]!]);
+    ip += bytes.length;
+    assert.equal(record.after.ax, axAfter[i]); assert.equal(record.after.ip, ip);
+    assert.equal(record.after.dx, 0xffff); assert.deepEqual(record.after.flags, initial.flags);
+  });
+  assert.deepEqual(full.device, { cursor: inputs.length, outputs: expectedOutputs });
+  assert.equal(full.ram.read(0x28000), 0xf0); assert.equal(full.ram.read(0x28001), 0xde);
+  const image = Array.from({ length: 0x100000 }, (_, address) => full.ram.read(address));
+  for (let boundary = 0; boundary <= 11; boundary++) {
+    const prefix = machine();
+    const first = runCpu(prefix.cpu, { maxSteps: boundary });
+    const savedRam = image.map((_, address) => prefix.ram.read(address));
+    const resumed = machine(prefix.cpu.snapshot(), savedRam, prefix.device);
+    const rest = runCpu(resumed.cpu, { maxSteps: 11 - boundary });
+    assert.deepEqual([...first.records, ...rest.records], result.records);
+    assert.deepEqual(resumed.cpu.snapshot(), full.cpu.snapshot());
+    assert.deepEqual(resumed.device, full.device);
+    assert.deepEqual(image.map((_, address) => resumed.ram.read(address)), image);
+  }
+  const retained = structuredClone(result);
+  full.cpu.step(); full.cpu.reset();
+  assert.deepEqual(result, retained);
+  assert.deepEqual(full.device, { cursor: inputs.length, outputs: expectedOutputs });
+});

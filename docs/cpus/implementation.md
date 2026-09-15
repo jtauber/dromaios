@@ -272,7 +272,7 @@ The 6502, 6800, 6809, and shared 8080-family core import
 `WordInstructionContext` as their local `InstructionContext`. The 8008, 8080,
 and Z80 extend it with `BytePorts`; the 8080/Z80 add interrupt-deferral callbacks,
 and the Z80 also queues RETI notification for retirement.
-The 8088 extends it with the instruction start IP and local segment/repeat prefixes. The 8008
+The 8088 extends it with `BytePorts`, the instruction start IP, and local segment/repeat prefixes. The 8008
 fetches a full two-byte operand and masks it to a 14-bit address when jumping
 or calling. The 68000 currently
 extends `ByteMemory` with `fetchWord`, `fetchLong`, `nextAddress`, and `jump`.
@@ -337,7 +337,7 @@ acknowledgement supplying instruction bytes while PC stays unchanged by fetches.
 It records data-memory and port transfers as they complete. Acceptance and HALT
 release stay in the CPU; the shared RAM-fetch executor does not need an interrupt mode.
 
-The 8008, 8080, 6502, 6800, 6809, and Z80 wrap their mutating public operations with a per-instance
+The 8008, 8080, 6502, 6800, 6809, Z80, and 8088 wrap their mutating public operations with a per-instance
 [`executionBoundary`](../../src/components/cpus/execution-boundary.ts) guard.
 External callbacks may inspect snapshots, but nested mutations throw before
 changing CPU state. The guard clears even when an operation throws; it neither
@@ -428,7 +428,7 @@ do not alter earlier records.
 each completed transfer to a caller's combined log. This preserves actual order
 when memory, ports, and acknowledgement bytes share one execution record. A
 failed transfer does not notify the combined log. The 8080 interrupt path and
-Z80 steps use these callbacks to capture their distinct access kinds without
+Z80 and 8088 steps use these callbacks to capture their distinct access kinds without
 duplicating the recorders' memory and port behavior.
 
 All eight CPUs use this helper. Their existing `Cpu…MemoryAccess` type names

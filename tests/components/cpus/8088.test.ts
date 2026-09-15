@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu8088 } from "../../../src/components/cpus/8088.js";
-import type { Cpu8088Flags, Cpu8088State, Cpu8088Snapshot, Cpu8088MemoryAccess } from "../../../src/components/cpus/8088.js";
+import type { Cpu8088Flags, Cpu8088State, Cpu8088Snapshot, Cpu8088MemoryAccess, Cpu8088Access } from "../../../src/components/cpus/8088.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";
@@ -414,7 +414,7 @@ test("8088 rejects every deferred or undocumented first byte with one fetch and 
   const unsupported = [
     0x0f, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
     0x9b, 0xc0, 0xc1, 0xc8, 0xc9, 0xcc, 0xcd, 0xce, 0xcf, 0xd6, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
-    0xe4, 0xe5, 0xe6, 0xe7, 0xec, 0xed, 0xee, 0xef, 0xf1, 0xfa, 0xfb,
+    0xf1, 0xfa, 0xfb,
   ];
   for (const [cs, ip, address] of [[0x1234, 0x100, 0x12440], [0xffff, 0xf, 0xfffff], [0xffff, 0x10, 0]] as const) {
     for (const opcode of unsupported) {
@@ -1818,12 +1818,12 @@ test("8088 completion memory-only and segment selectors reject all invalid ModR/
   }
 });
 
-test("8088 completion accounts for all 291 documented forms: 268 implemented and 23 deferred", () => {
+test("8088 completion accounts for all 291 documented forms: 276 implemented and 15 deferred", () => {
   const ram = new Ram(0x100000);
   const unused = [0x0f, ...Array.from({ length: 16 }, (_, i) => 0x60 + i), 0xc0, 0xc1, 0xc8, 0xc9, 0xd6, 0xf1];
   const prefixes = [0x26, 0x2e, 0x36, 0x3e, 0xf0, 0xf2, 0xf3];
   const deferred = [0x9b, 0xcc, 0xcd, 0xce, 0xcf, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
-    0xe4, 0xe5, 0xe6, 0xe7, 0xec, 0xed, 0xee, 0xef, 0xfa, 0xfb];
+    0xfa, 0xfb];
   // Table 4-13 expands these operation selectors; all other ModR/M fields are operands.
   const groups: Readonly<Record<number, readonly number[]>> = {
     0x80: [0, 1, 2, 3, 4, 5, 6, 7], 0x81: [0, 1, 2, 3, 4, 5, 6, 7],
@@ -1841,11 +1841,204 @@ test("8088 completion accounts for all 291 documented forms: 268 implemented and
       put(ram, before.ds, 0, [3, 0, 0x34, 0x12]);
       const bytes = [opcode, opcode === 0xd4 || opcode === 0xd5 ? 10 : group * 8 + 6, 0, 0, 0, 0];
       put(ram, before.cs, before.ip, bytes);
-      const record = new Cpu8088(ram, before).step();
+      const record = new Cpu8088(ram, before, { readPort: () => 0, writePort: () => {} }).step();
       const accepted = record.outcome !== "unsupported";
       assert.equal(accepted, !deferred.includes(opcode), `Opcode ${opcode.toString(16)} /${group}`);
       if (accepted) complete++;
     }
   }
-  assert.equal(documented, 291); assert.equal(complete, 268); assert.equal(deferred.length, 23);
+  assert.equal(documented, 291); assert.equal(complete, 276); assert.equal(deferred.length, 15);
+});
+
+// Intel table 4-13: immediate and DX port forms, byte and word accumulators.
+const portForms = [
+  { opcode: 0xe4, name: "IN AL,n", output: false, word: false, useDx: false },
+  { opcode: 0xe5, name: "IN AX,n", output: false, word: true, useDx: false },
+  { opcode: 0xe6, name: "OUT n,AL", output: true, word: false, useDx: false },
+  { opcode: 0xe7, name: "OUT n,AX", output: true, word: true, useDx: false },
+  { opcode: 0xec, name: "IN AL,DX", output: false, word: false, useDx: true },
+  { opcode: 0xed, name: "IN AX,DX", output: false, word: true, useDx: true },
+  { opcode: 0xee, name: "OUT DX,AL", output: true, word: false, useDx: true },
+  { opcode: 0xef, name: "OUT DX,AX", output: true, word: true, useDx: true },
+] as const;
+
+for (const form of portForms) {
+  test(`8088 port ${form.name} preserves every flag pattern and records byte order, full addresses, and accumulator halves`, () => {
+    const ram = new ObservedRam(0x100000);
+    for (let bits = 0; bits < 512; bits++) {
+      const ports = form.useDx ? [0, 1, 0xff, 0x100, 0x1234, 0x8000, 0xfffe, 0xffff] : [bits % 256];
+      for (const port of ports) {
+        const input = [bits % 256, 255 - bits % 256];
+        const before = initialState({ flags: flags(bits), ax: (bits * 131) % 65536, dx: form.useDx ? port : 0xabcd });
+        const bytes = form.useDx ? [form.opcode] : [form.opcode, port];
+        const reads = dataReads(before.cs, before.ip, bytes);
+        const transfers: Cpu8088Access[] = [];
+        put(ram, before.cs, before.ip, bytes);
+        ram.accesses.length = 0;
+        const cpu = new Cpu8088(ram, before, {
+          readPort: address => {
+            assert.equal(form.output, false);
+            assert.deepEqual(ram.accesses, reads, "instruction fetched before port input");
+            assert.equal(cpu.snapshot().ax, before.ax, "AX commits only after complete input");
+            const value = input[transfers.length]!;
+            transfers.push({ kind: "input", port: address, value });
+            return value;
+          },
+          writePort: (address, value) => {
+            assert.equal(form.output, true);
+            assert.deepEqual(ram.accesses, reads, "instruction fetched before port output");
+            transfers.push({ kind: "output", port: address, value });
+          },
+        });
+        const values = form.output ? [before.ax % 256, Math.floor(before.ax / 256)] : input;
+        const expected = values.slice(0, form.word ? 2 : 1).map((value, i) => ({ kind: form.output ? "output" : "input", port: (port + i) % 65536, value }));
+        const ax = form.output ? before.ax : input[0]! + (form.word ? input[1]! : Math.floor(before.ax / 256)) * 256;
+        assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot({ ...before, ax, ip: before.ip + bytes.length }),
+          outcome: "executed", instruction: { address: before.cs * 16 + before.ip, bytes }, accesses: [...reads, ...expected] });
+        assert.deepEqual(transfers, expected);
+        assert.deepEqual(ram.accesses, reads);
+      }
+    }
+  });
+}
+
+test("8088 port instruction fetches wrap IP and the physical bus; segment overrides and LOCK do not select ports", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const form of portForms) for (const prefix of [[], [0x26], [0x2e, 0x36, 0x3e], [0xf0]]) {
+    for (const [cs, ip] of [[0x1234, 0xffff], [0xffff, 0xf], [0xffff, 0xffff]]) {
+      const before = initialState({ cs, ip, dx: 0xffff });
+      const bytes = [...prefix, form.opcode, ...(form.useDx ? [] : [0xff])];
+      put(ram, cs!, ip!, bytes);
+      ram.accesses.length = 0;
+      const port = form.useDx ? 65535 : 255;
+      const accesses = dataReads(cs!, ip!, bytes);
+      const values = form.output ? [0x22, 0x11] : [0x34, 0x12];
+      let calls = 0;
+      const cpu = new Cpu8088(ram, before, {
+        readPort: actual => { assert.equal(actual, (port + calls) % 65536); return values[calls++]!; },
+        writePort: (actual, value) => { assert.equal(actual, (port + calls) % 65536); assert.equal(value, values[calls++]!); },
+      });
+      const record = cpu.step();
+      assert.deepEqual(record, { before: snapshot(before), after: snapshot({ ...before, ip: (ip! + bytes.length) % 65536,
+        ax: form.output ? before.ax : form.word ? 0x1234 : 0x1134 }), instruction: { address: snapshot(before).pc, bytes }, outcome: "executed",
+        accesses: [...accesses, ...values.slice(0, form.word ? 2 : 1).map((value, i) => ({ kind: form.output ? "output" : "input", port: (port + i) % 65536, value }))] });
+      assert.equal(calls, form.word ? 2 : 1);
+      assert.deepEqual(ram.accesses, accesses);
+    }
+  }
+});
+
+test("8088 port instructions reject REP before an immediate or device access and halted steps remain silent", () => {
+  const ram = new ObservedRam(0x100000);
+  const unavailable = { readPort: (): number => assert.fail("unexpected input"), writePort: () => assert.fail("unexpected output") };
+  for (const form of portForms) for (const repeat of [0xf2, 0xf3]) {
+    const before = initialState({ ip: 0xffff });
+    const bytes = [0x26, repeat, form.opcode];
+    put(ram, before.cs, before.ip, [...bytes, 0xaa]);
+    ram.accesses.length = 0;
+    const cpu = new Cpu8088(ram, before, unavailable);
+    assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(before), instruction: { address: snapshot(before).pc, bytes },
+      outcome: "unsupported", reason: "opcode", accesses: dataReads(before.cs, before.ip, bytes) });
+    const halted = new Cpu8088(ram, { ...before, halted: true }, unavailable);
+    ram.accesses.length = 0;
+    assert.deepEqual(halted.step(), { before: halted.snapshot(), after: halted.snapshot(), outcome: "halted", instruction: null, accesses: [] });
+    halted.snapshot(); halted.reset();
+    assert.deepEqual(ram.accesses, []);
+  }
+});
+
+test("8088 port failures preserve fetched IP and completed device effects without partially loading AX", () => {
+  const ram = new ObservedRam(0x100000);
+  const failure = new Error("device failure");
+  for (const form of portForms) for (let failAt = 0; failAt < (form.word ? 2 : 1); failAt++) {
+    const before = initialState({ ip: 0xffff, dx: 0xffff });
+    const bytes = form.useDx ? [form.opcode] : [form.opcode, 0xff];
+    const nextIp = (before.ip + bytes.length) % 65536;
+    put(ram, before.cs, before.ip, [...bytes, 0x90]);
+    const effects: Cpu8088Access[] = [];
+    let calls = 0;
+    const cpu = new Cpu8088(ram, before, {
+      readPort: port => { if (calls++ === failAt) throw failure; effects.push({ kind: "input", port, value: 0x34 }); return 0x34; },
+      writePort: (port, value) => { if (calls++ === failAt) throw failure; effects.push({ kind: "output", port, value }); },
+    });
+    ram.accesses.length = 0;
+    assert.throws(() => cpu.step(), error => error === failure);
+    assert.deepEqual(cpu.snapshot(), snapshot({ ...before, ip: nextIp }));
+    assert.equal(calls, failAt + 1);
+    assert.deepEqual(effects, failAt === 0 ? [] : [{ kind: form.output ? "output" : "input", port: form.useDx ? 65535 : 255, value: form.output ? 0x22 : 0x34 }]);
+    assert.deepEqual(ram.accesses, dataReads(before.cs, before.ip, bytes));
+    assert.equal(cpu.step().outcome, "executed", "the execution guard clears after failure");
+    cpu.reset();
+    const disconnected = new Cpu8088(ram, before);
+    assert.throws(() => disconnected.step(), /requires a connected device/);
+    assert.deepEqual(disconnected.snapshot(), snapshot({ ...before, ip: nextIp }));
+  }
+});
+
+test("8088 port inputs validate every byte before assembly and never coerce device values", () => {
+  const ram = new Ram(0x100000);
+  for (const form of portForms.filter(form => !form.output)) {
+    for (const value of [-1, 256, 0.5, NaN, Infinity, undefined, null, "0", true]) {
+      for (let failAt = 0; failAt < (form.word ? 2 : 1); failAt++) {
+        const before = initialState();
+        const bytes = form.useDx ? [form.opcode] : [form.opcode, 0x20];
+        put(ram, before.cs, before.ip, bytes);
+        let calls = 0;
+        // @ts-expect-error Malformed JavaScript devices must fail without coercion.
+        const cpu = new Cpu8088(ram, before, { readPort: () => calls++ === failAt ? value : 0x34, writePort: () => {} });
+        assert.throws(() => cpu.step(), RangeError);
+        assert.equal(calls, failAt + 1);
+        assert.deepEqual(cpu.snapshot(), snapshot({ ...before, ip: before.ip + bytes.length }));
+      }
+    }
+  }
+});
+
+test("8088 port and RAM callbacks can inspect snapshots but cannot reenter step or reset", t => {
+  const ram = new Ram(0x100000);
+  for (const callback of ["readPort", "writePort", "read", "write"] as const) for (const mutation of ["step", "reset"] as const) {
+    const before = initialState();
+    const bytes = callback === "readPort" ? [0xed] : callback === "writePort" ? [0xef] : callback === "read" ? [0x90] : [0xa3, 0, 0];
+    put(ram, before.cs, before.ip, bytes);
+    let calls = 0;
+    const inspect = (): void => {
+      calls++;
+      const snapshot = cpu.snapshot();
+      assert.throws(() => cpu[mutation](), /8088 step and reset calls must not be reentrant/);
+      assert.deepEqual(cpu.snapshot(), snapshot);
+    };
+    const cpu = new Cpu8088(ram, before, {
+      readPort: () => { if (callback === "readPort") inspect(); return 0x34; },
+      writePort: () => { if (callback === "writePort") inspect(); },
+    });
+    if (callback === "read") {
+      const read = ram.read.bind(ram);
+      t.mock.method(ram, "read", (address: number) => { inspect(); return read(address); });
+    } else if (callback === "write") {
+      const write = ram.write.bind(ram);
+      t.mock.method(ram, "write", (address: number, value: number) => { inspect(); write(address, value); });
+    }
+    assert.equal(cpu.step().outcome, "executed");
+    assert.ok(calls > 0);
+    t.mock.restoreAll();
+    cpu.reset();
+  }
+});
+
+test("8088 port callbacks can change later code without changing captured instruction bytes or retained records", () => {
+  const ram = new ObservedRam(0x100000);
+  const before = initialState();
+  put(ram, before.cs, before.ip, [0xe7, 0xff, 0x90]);
+  let calls = 0;
+  const cpu = new Cpu8088(ram, before, { readPort: () => assert.fail("output only"), writePort: () => {
+    if (calls++ === 0) put(ram, before.cs, before.ip, [0x90, 0x90, 0xf4]);
+  } });
+  const first = cpu.step(), retained = structuredClone(first);
+  assert.deepEqual(first.instruction?.bytes, [0xe7, 0xff]);
+  assert.deepEqual(first.accesses, [...dataReads(before.cs, before.ip, [0xe7, 0xff]),
+    { kind: "output", port: 255, value: 0x22 }, { kind: "output", port: 256, value: 0x11 }]);
+  assert.equal(cpu.step().outcome, "halted");
+  cpu.reset();
+  assert.deepEqual(first, retained);
+  assert.equal(calls, 2);
 });
