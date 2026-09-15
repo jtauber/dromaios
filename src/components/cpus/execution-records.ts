@@ -12,3 +12,17 @@ export interface StateTransition<Snapshot> {
   readonly after: Snapshot;
   readonly accesses: readonly MemoryAccess[];
 }
+
+/** Ordinary execution or rejection of a fetched encoding. CPU-specific faults extend this union. */
+export type InstructionStep<Snapshot> = StateTransition<Snapshot> & {
+  readonly instruction: FetchedInstruction;
+} & (
+  | { readonly outcome: "executed" }
+  | { readonly outcome: "unsupported"; readonly reason: "opcode" }
+);
+
+/** HALT either executes an instruction or reports an already halted CPU without fetching. */
+export type HaltedStep<Snapshot> = StateTransition<Snapshot> & {
+  readonly outcome: "halted";
+  readonly instruction: FetchedInstruction | null;
+};

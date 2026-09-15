@@ -48,7 +48,8 @@ type FieldValue<Field extends StateField> = Field extends UnsignedField ? number
 
 /** Mutable stored values described by the fields; derived register views are absent. */
 export type StateValues<Fields extends StateFields> = { -readonly [Name in keyof Fields]: FieldValue<Fields[Name]> };
-type ReadonlyState<State> = { readonly [Name in keyof State]: State[Name] extends object ? ReadonlyState<State[Name]> : State[Name] };
+/** Recursively readonly state, retaining register names, nested groups, and fixed tuple lengths. */
+export type ReadonlyState<State> = { readonly [Name in keyof State]: State[Name] extends object ? ReadonlyState<State[Name]> : State[Name] };
 
 /** An unsigned integer of the given width, up to JavaScript's exact integer range. */
 export function unsigned(bits: number): UnsignedField {

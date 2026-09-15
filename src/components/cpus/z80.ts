@@ -1,11 +1,15 @@
 import type { Ram } from "../memory/ram.js";
-import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { callStack16LE } from "./call-stack.ts";
+import { pairViews, readRegisterPair, writeRegisterPair } from "./register-pairs.ts";
+import type { RegisterPair as ByteRegisterPair } from "./register-pairs.ts";
+import { flagRegister } from "./flags.ts";
+import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { signed8, readWordLE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, choices, group } from "./state.ts";
-import type { StateValues } from "./state.js";
+import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.js";
 import { add, subtract, shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
@@ -29,8 +33,7 @@ export type CpuZ80Flags = CpuZ80State["flags"];
 
 export type CpuZ80RegisterBank = StateValues<typeof bankFields>;
 
-export type CpuZ80BankSnapshot = Readonly<Omit<CpuZ80RegisterBank, "flags">> & {
-  readonly flags: Readonly<CpuZ80Flags>;
+export type CpuZ80BankSnapshot = ReadonlyState<CpuZ80RegisterBank> & {
   readonly bc: number;
   readonly de: number;
   readonly hl: number;
@@ -45,11 +48,7 @@ export type CpuZ80MemoryAccess = MemoryAccess;
 
 export type CpuZ80Instruction = FetchedInstruction;
 
-export type CpuZ80StepRecord = StateTransition<CpuZ80Snapshot> & (
-  | { readonly outcome: "executed"; readonly instruction: CpuZ80Instruction }
-  | { readonly outcome: "unsupported"; readonly instruction: CpuZ80Instruction; readonly reason: "opcode" }
-  | { readonly outcome: "halted"; readonly instruction: CpuZ80Instruction | null }
-);
+export type CpuZ80StepRecord = InstructionStep<CpuZ80Snapshot> | HaltedStep<CpuZ80Snapshot>;
 
 export type CpuZ80ResetRecord = StateTransition<CpuZ80Snapshot>;
 
@@ -57,24 +56,25 @@ type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperation = (value: number) => number;
 type ByteRegister = "a" | "b" | "c" | "d" | "e" | "h" | "l";
 type ByteOperand = ByteRegister | "(hl)";
-type RegisterPair = readonly ["b", "c"] | readonly ["d", "e"] | readonly ["h", "l"] | "sp" | "af";
+type RegisterPair = ByteRegisterPair | "sp" | "af";
 
 // Fix the handler type once so pattern callbacks infer their instruction context.
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
-function pairViews(bank: CpuZ80RegisterBank): { readonly bc: number; readonly de: number; readonly hl: number } {
-  return { bc: (bank.b << 8) | bank.c, de: (bank.d << 8) | bank.e, hl: (bank.h << 8) | bank.l };
-}
+// F = S Z 0 H 0 PV N C. Unmodeled bits 5/3 pack as zero, not hardware constants.
+const packedFlags = flagRegister({ s: 7, z: 6, h: 4, pv: 2, n: 1, c: 0 });
 
 /** Instruction-level Zilog Z80 subset with documented flags and opcode-fetch R updates. */
 export class CpuZ80 {
   readonly #ram: Ram;
   readonly #state: CpuZ80State;
+  readonly #stack: ReturnType<typeof callStack16LE>;
 
   constructor(ram: Ram, initialState: CpuZ80State) {
     if (ram.size !== 0x10000) throw new RangeError("The Z80 model requires exactly 64 KiB of RAM.");
     this.#ram = ram;
     this.#state = readState(cpuZ80StateDescription, initialState);
+    this.#stack = callStack16LE(this.#state);
   }
 
   /** Inspect detached register banks and their derived pair views without reading RAM. */
@@ -149,18 +149,12 @@ export class CpuZ80 {
   }
 
   get #af(): number {
-    const { a, flags } = this.#state;
-    // F = S Z 0 H 0 PV N C. Unmodeled bits 5/3 pack as zero, not hardware constants.
-    return (a << 8) | (Number(flags.s) << 7) | (Number(flags.z) << 6)
-      | (Number(flags.h) << 4) | (Number(flags.pv) << 2) | (Number(flags.n) << 1) | Number(flags.c);
+    return (this.#state.a << 8) | packedFlags.encode(this.#state.flags);
   }
 
   set #af(value: number) {
     this.#state.a = value >>> 8;
-    this.#state.flags = {
-      s: (value & 0x80) !== 0, z: (value & 0x40) !== 0, h: (value & 0x10) !== 0,
-      pv: (value & 0x04) !== 0, n: (value & 0x02) !== 0, c: (value & 0x01) !== 0,
-    };
+    this.#state.flags = packedFlags.decode(value);
   }
 
   // Opcode selectors and construction.
@@ -168,11 +162,11 @@ export class CpuZ80 {
   // rrr/ddd/sss select B/C/D/E/H/L/(HL)/A in order; 110 addresses RAM through HL.
   readonly #byteOperands = ["b", "c", "d", "e", "h", "l", "(hl)", "a"] as const;
 
-  // pp selects BC/DE/HL/SP. Pairs name their high and low stored bytes.
-  readonly #registerPairs = [["b", "c"], ["d", "e"], ["h", "l"], "sp"] as const;
+  // pp selects BC/DE/HL/SP; byte-pair views share the 8080 register relationships.
+  readonly #registerPairs = ["bc", "de", "hl", "sp"] as const;
 
   // qq selects BC/DE/HL/AF for the stack families; AF replaces pp's SP slot.
-  readonly #stackPairs = [["b", "c"], ["d", "e"], ["h", "l"], "af"] as const;
+  readonly #stackPairs = ["bc", "de", "hl", "af"] as const;
 
   // bbb selects a bit number; bind its mask once when constructing the CB page.
   readonly #bitMasks = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80] as const;
@@ -190,17 +184,10 @@ export class CpuZ80 {
     value => this.#compare(value), // 111 CP
   ];
 
-  // ccc selects NZ/Z/NC/C/PO/PE/P/M; conditional JR uses just the first four (cc).
-  readonly #conditions = [
-    () => !this.#state.flags.z, // 000 NZ
-    () => this.#state.flags.z, // 001 Z
-    () => !this.#state.flags.c, // 010 NC
-    () => this.#state.flags.c, // 011 C
-    () => !this.#state.flags.pv, // 100 PO
-    () => this.#state.flags.pv, // 101 PE
-    () => !this.#state.flags.s, // 110 P
-    () => this.#state.flags.s, // 111 M
-  ] as const;
+  // ccc=ffv: ff selects Z/C/PV/S; v is the required value, giving NZ/Z/NC/C/PO/PE/P/M.
+  // Conditional JR uses just the first four tests.
+  readonly #conditions = (["z", "c", "pv", "s"] as const).flatMap(flag =>
+    [false, true].map(value => () => this.#state.flags[flag] === value));
 
   // Unprefixed opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
   // xx selects a block; the other fields select its operation and operands.
@@ -253,11 +240,11 @@ export class CpuZ80 {
       (instruction: InstructionContext) => { this.#state.a = operate(this.#readOperand(operand, instruction)); }), // ALU r / ALU (HL)
 
     // 11 ccc 000: conditional returns read the stack only when the condition is true.
-    ...opcodeFamily("11 ccc 000", { c: this.#conditions }, ({ c: condition }) => ({ readByte }: InstructionContext) => this.#return(readByte, condition())), // RET cc
+    ...opcodeFamily("11 ccc 000", { c: this.#conditions }, ({ c: condition }) => ({ readByte }: InstructionContext) => this.#stack.return(readByte, condition())), // RET cc
 
     // 11 pp q 001: q=0 pops BC/DE/HL/AF; q=1 selects RET, EXX, JP (HL), or LD SP,HL.
-    ...opcodeFamily("11 qq 0 001", { q: this.#stackPairs }, ({ q: pair }) => ({ readByte }: InstructionContext) => this.#writePair(pair, this.#popWord(readByte))), // POP qq
-    ...instructionPattern("11 00 1 001", ({ readByte }) => this.#return(readByte)), // RET
+    ...opcodeFamily("11 qq 0 001", { q: this.#stackPairs }, ({ q: pair }) => ({ readByte }: InstructionContext) => this.#writePair(pair, this.#stack.pop(readByte))), // POP qq
+    ...instructionPattern("11 00 1 001", ({ readByte }) => this.#stack.return(readByte)), // RET
     ...instructionPattern("11 01 1 001", () => this.#exchangeGeneralBanks()), // EXX
     ...instructionPattern("11 10 1 001", () => this.#jump(this.#hl)), // JP (HL)
     ...instructionPattern("11 11 1 001", () => { this.#state.sp = this.#hl; }), // LD SP,HL
@@ -272,18 +259,18 @@ export class CpuZ80 {
     ...instructionPattern("11 101 011", () => this.#exchangeDeHl()), // EX DE,HL
 
     // 11 ccc 100: conditional calls always fetch nn, then push only on a taken path.
-    ...opcodeFamily("11 ccc 100", { c: this.#conditions }, ({ c: condition }) => ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte, condition())), // CALL cc,nn
+    ...opcodeFamily("11 ccc 100", { c: this.#conditions }, ({ c: condition }) => ({ fetchWord, writeByte }: InstructionContext) => this.#stack.call(fetchWord(), writeByte, condition())), // CALL cc,nn
 
     // 11 qq 0 101: PUSH uses BC/DE/HL/AF. Bit 3=1 includes unconditional CALL.
-    ...opcodeFamily("11 qq 0 101", { q: this.#stackPairs }, ({ q: pair }) => ({ writeByte }: InstructionContext) => this.#pushWord(this.#readPair(pair), writeByte)), // PUSH qq
-    ...instructionPattern("11 00 1 101", ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte)), // CALL nn
+    ...opcodeFamily("11 qq 0 101", { q: this.#stackPairs }, ({ q: pair }) => ({ writeByte }: InstructionContext) => this.#stack.push(this.#readPair(pair), writeByte)), // PUSH qq
+    ...instructionPattern("11 00 1 101", ({ fetchWord, writeByte }) => this.#stack.call(fetchWord(), writeByte)), // CALL nn
 
     // 11 ooo 110: the same ooo operations with an immediate byte instead of a register/memory selector.
     ...opcodeFamily("11 ooo 110", { o: this.#aluOperations }, ({ o: operate }) =>
       ({ fetchByte }: InstructionContext) => { this.#state.a = operate(fetchByte()); }), // ALU n
 
     // 11 ttt 111: ttt selects the restart address 00,08,10,18,20,28,30,38; it is an ordinary call.
-    ...opcodeFamily("11 ttt 111", { t: [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] }, ({ t: address }) => ({ writeByte }: InstructionContext) => this.#call(address, writeByte)), // RST p
+    ...opcodeFamily("11 ttt 111", { t: [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] }, ({ t: address }) => ({ writeByte }: InstructionContext) => this.#stack.call(address, writeByte)), // RST p
   ]);
 
   // After CB (11001011), xx yyy rrr selects the operation and B/C/D/E/H/L/(HL)/A.
@@ -343,16 +330,13 @@ export class CpuZ80 {
   #readPair(pair: RegisterPair): number {
     if (pair === "sp") return this.#state.sp;
     if (pair === "af") return this.#af;
-    return (this.#state[pair[0]] << 8) | this.#state[pair[1]];
+    return readRegisterPair(this.#state, pair);
   }
 
   #writePair(pair: RegisterPair, value: number): void {
     if (pair === "sp") this.#state.sp = value;
     else if (pair === "af") this.#af = value;
-    else {
-      this.#state[pair[0]] = value >>> 8;
-      this.#state[pair[1]] = value & 0xff;
-    }
+    else writeRegisterPair(this.#state, pair, value);
   }
 
   #exchangeAf(): void {
@@ -386,32 +370,6 @@ export class CpuZ80 {
 
   #jump(address: number, take = true): void {
     if (take) this.#state.pc = address;
-  }
-
-  #call(address: number, writeByte: InstructionContext["writeByte"], take = true): void {
-    if (!take) return;
-    // PC already holds the return address before stack writes, even when the stack overlaps code.
-    this.#pushWord(this.#state.pc, writeByte);
-    this.#state.pc = address;
-  }
-
-  #return(readByte: InstructionContext["readByte"], take = true): void {
-    if (take) this.#state.pc = this.#popWord(readByte);
-  }
-
-  #pushWord(value: number, writeByte: InstructionContext["writeByte"]): void {
-    this.#state.sp = (this.#state.sp - 1) & 0xffff;
-    writeByte(this.#state.sp, value >>> 8);
-    this.#state.sp = (this.#state.sp - 1) & 0xffff;
-    writeByte(this.#state.sp, value & 0xff);
-  }
-
-  #popWord(readByte: InstructionContext["readByte"]): number {
-    const low = readByte(this.#state.sp);
-    this.#state.sp = (this.#state.sp + 1) & 0xffff;
-    const high = readByte(this.#state.sp);
-    this.#state.sp = (this.#state.sp + 1) & 0xffff;
-    return low | (high << 8);
   }
 
   #jumpRelative(displacement: number, take: boolean): void {
@@ -512,41 +470,22 @@ export class CpuZ80 {
 
   #add(value: number, carryIn: 0 | 1 = 0): number {
     const { result, carry, halfCarry, overflow } = add(8, this.#state.a, value, carryIn);
-    this.#state.flags = {
-      s: (result & 0x80) !== 0,
-      z: result === 0,
-      h: halfCarry,
-      pv: overflow,
-      n: false,
-      c: carry,
-    };
-    return result;
+    return this.#aluResult(result, { h: halfCarry, pv: overflow, n: false, c: carry });
   }
 
   #subtract(value: number, borrowIn: 0 | 1 = 0): number {
     const { result, borrow, halfBorrow, overflow } = subtract(8, this.#state.a, value, borrowIn);
     // Z80 H and C both report borrows; N identifies subtraction.
-    this.#state.flags = {
-      s: (result & 0x80) !== 0,
-      z: result === 0,
-      h: halfBorrow,
-      pv: overflow,
-      n: true,
-      c: borrow,
-    };
-    return result;
+    return this.#aluResult(result, { h: halfBorrow, pv: overflow, n: true, c: borrow });
   }
 
-  // Set S/Z/parity and the supplied H/C; clear N, which DAA then restores from its input.
+  // Logic and CB shifts use parity; DAA restores N from its input afterward.
   #parityResult(result: number, { h, c }: Pick<CpuZ80Flags, "h" | "c">): number {
-    this.#state.flags = {
-      s: (result & 0x80) !== 0,
-      z: result === 0,
-      h,
-      pv: evenParity8(result),
-      n: false,
-      c,
-    };
+    return this.#aluResult(result, { h, pv: evenParity8(result), n: false, c });
+  }
+
+  #aluResult(result: number, flags: Omit<CpuZ80Flags, "s" | "z">): number {
+    this.#state.flags = { s: (result & 0x80) !== 0, z: result === 0, ...flags };
     return result;
   }
 

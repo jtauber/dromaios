@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readWordBE, readWordLE } from "../../../src/components/cpus/binary.js";
-import { executeByteInstruction } from "../../../src/components/cpus/execute-byte-instruction.js";
+import { executeByteInstruction, programCounter } from "../../../src/components/cpus/execute-byte-instruction.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 
 test("an unsupported opcode records one read and leaves PC unchanged, including at FFFF", () => {
@@ -143,4 +143,56 @@ test("a rejected operand encoding retains its fetches, restores PC, and can be r
   ram.write(0, 0);
   assert.equal(executeByteInstruction(state, ram, handlers, readWordBE).executed, true);
   assert.equal(state.pc, 1);
+});
+
+test("a PC view can wrap a narrower selected address register and follow a changed selector", () => {
+  const slots = [0x3fff, 0x100];
+  let selected = 0, reads = 0;
+  const counter = programCounter(() => { reads++; return slots[selected]!; }, value => { slots[selected] = value % 0x4000; });
+  assert.equal(reads, 0);
+  const ram = new ObservedRam(0x4000);
+  ram.write(0x3fff, 0x42); ram.write(0, 0x12); ram.write(0x100, 0x34);
+  ram.accesses.length = 0;
+  const result = executeByteInstruction(counter, ram, { 0x42: ({ fetchByte }) => {
+    assert.equal(fetchByte(), 0x12);
+    selected = 1;
+    assert.equal(fetchByte(), 0x34);
+  } }, readWordLE);
+  assert.deepEqual(slots, [1, 0x101]);
+  assert.deepEqual(result.instruction, { address: 0x3fff, bytes: [0x42, 0x12, 0x34] });
+  assert.deepEqual(result.accesses, [
+    { kind: "read", address: 0x3fff, value: 0x42 }, { kind: "read", address: 0, value: 0x12 },
+    { kind: "read", address: 0x100, value: 0x34 },
+  ]);
+  assert.deepEqual(ram.accesses, result.accesses);
+});
+
+test("fetch mapping preserves physical records, wraps logical PC, leaves data addresses alone, and restores logical PC on rejection", () => {
+  const ram = new ObservedRam(0x20000);
+  const state = { ip: 0xfffe };
+  const counter = programCounter(() => state.ip, value => { state.ip = value; });
+  const map = (pc: number) => 0x10000 + pc;
+  ram.write(0x1fffe, 0x42); ram.write(0x1ffff, 0x34); ram.write(0x10000, 0x12);
+  const reject = { 0x42: ({ fetchWord }: { fetchWord: () => number }) => { fetchWord(); return "unsupported" as const; } };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    ram.accesses.length = 0;
+    const result = executeByteInstruction(counter, ram, reject, readWordLE, map);
+    assert.equal(result.executed, false);
+    assert.equal(state.ip, 0xfffe);
+    assert.deepEqual(result.instruction, { address: 0x1fffe, bytes: [0x42, 0x34, 0x12] });
+    assert.deepEqual(result.accesses, ram.accesses);
+  }
+  ram.accesses.length = 0;
+  const result = executeByteInstruction(counter, ram, { 0x42: ({ fetchWord, writeByte, readByte }) => {
+    assert.equal(fetchWord(), 0x1234);
+    writeByte(0x40, 0x56);
+    assert.equal(readByte(0x40), 0x56);
+  } }, readWordLE, map);
+  assert.equal(state.ip, 1);
+  assert.deepEqual(result.accesses, [
+    { kind: "read", address: 0x1fffe, value: 0x42 }, { kind: "read", address: 0x1ffff, value: 0x34 },
+    { kind: "read", address: 0x10000, value: 0x12 }, { kind: "write", address: 0x40, value: 0x56 },
+    { kind: "read", address: 0x40, value: 0x56 },
+  ]);
+  assert.deepEqual(result.accesses, ram.accesses);
 });

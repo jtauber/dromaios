@@ -1,11 +1,11 @@
 import type { Ram } from "../memory/ram.js";
-import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { readWordLE } from "./binary.ts";
-import { recordMemory } from "./memory-access.ts";
+import { executeByteInstruction, programCounter } from "./execute-byte-instruction.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, array, group } from "./state.ts";
-import type { StateValues } from "./state.js";
+import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import { add, subtract, evenParity8 } from "./alu.ts";
 
@@ -25,8 +25,7 @@ export type Cpu8008State = Omit<StoredState, "addressStack"> & {
 };
 export type Cpu8008Flags = Cpu8008State["flags"];
 
-export type Cpu8008Snapshot = Readonly<Omit<Cpu8008State, "flags">> & {
-  readonly flags: Readonly<Cpu8008Flags>;
+export type Cpu8008Snapshot = ReadonlyState<Cpu8008State> & {
   readonly pc: number;
   /** Raw H:L byte pair; memory addressing uses only its low 14 bits. */
   readonly hl: number;
@@ -36,11 +35,7 @@ export type Cpu8008MemoryAccess = MemoryAccess;
 
 export type Cpu8008Instruction = FetchedInstruction;
 
-export type Cpu8008StepRecord = StateTransition<Cpu8008Snapshot> & (
-  | { readonly outcome: "executed"; readonly instruction: Cpu8008Instruction }
-  | { readonly outcome: "unsupported"; readonly instruction: Cpu8008Instruction; readonly reason: "opcode" }
-  | { readonly outcome: "halted"; readonly instruction: Cpu8008Instruction | null }
-);
+export type Cpu8008StepRecord = InstructionStep<Cpu8008Snapshot> | HaltedStep<Cpu8008Snapshot>;
 
 export type Cpu8008ResetRecord = StateTransition<Cpu8008Snapshot>;
 
@@ -51,6 +46,7 @@ type ByteOperand = "a" | "b" | "c" | "d" | "e" | "h" | "l" | "m";
 export class Cpu8008 {
   readonly #ram: Ram;
   readonly #state: StoredState;
+  readonly #counter = programCounter(() => this.#pc, value => { this.#pc = value & 0x3fff; });
 
   constructor(ram: Ram, initialState: Cpu8008State) {
     if (ram.size !== 0x4000) throw new RangeError("The 8008 model requires exactly 16 KiB of RAM.");
@@ -80,28 +76,9 @@ export class Cpu8008 {
     if (this.#state.halted) {
       return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
     }
-    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
-    const address = this.#pc;
-    const opcode = readByte(address);
-    const bytes = [opcode];
-    const handler = this.#opcodeHandlers[opcode];
-    if (handler) {
-      this.#pc = (address + 1) & 0x3fff;
-      const fetchByte = () => {
-        const byte = readByte(this.#pc);
-        this.#pc = (this.#pc + 1) & 0x3fff;
-        bytes.push(byte);
-        return byte;
-      };
-      handler({
-        fetchByte,
-        fetchWord: () => readWordLE(fetchByte),
-        readByte,
-        writeByte,
-      });
-    }
-    const record = { instruction: { address, bytes }, before, after: this.snapshot(), accesses };
-    return handler
+    const { instruction, accesses, executed } = executeByteInstruction(this.#counter, this.#ram, this.#opcodeHandlers, readWordLE);
+    const record = { before, after: this.snapshot(), instruction, accesses };
+    return executed
       ? { ...record, outcome: this.#state.halted ? "halted" : "executed" }
       : { ...record, outcome: "unsupported", reason: "opcode" };
   }
@@ -141,16 +118,8 @@ export class Cpu8008 {
 
   // ccc = vff: v (bit 5) requires false/true; ff (bits 4..3) selects C/Z/S/P.
   // Conditions read the current flags when executing, not when binding an opcode.
-  readonly #conditions = [
-    () => !this.#state.flags.c, // 000 FC
-    () => !this.#state.flags.z, // 001 FZ
-    () => !this.#state.flags.s, // 010 FS
-    () => !this.#state.flags.p, // 011 FP
-    () => this.#state.flags.c, // 100 TC
-    () => this.#state.flags.z, // 101 TZ
-    () => this.#state.flags.s, // 110 TS
-    () => this.#state.flags.p, // 111 TP
-  ] as const;
+  readonly #conditions = [false, true].flatMap(value =>
+    (["c", "z", "s", "p"] as const).map(flag => () => this.#state.flags[flag] === value));
 
   // Native 8008 opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
   // xx selects a block; the other fields select its operation and operands.

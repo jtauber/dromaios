@@ -1,15 +1,17 @@
 import type { Ram } from "../memory/ram.js";
-import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { flagRegister } from "./flags.ts";
+import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { signed8, readWordBE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
-import type { StateValues } from "./state.js";
+import type { StateValues, ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
+import { motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
+import { shiftLeft, shiftRight } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu6809StateDescription = defineState({
@@ -21,8 +23,7 @@ export const cpu6809StateDescription = defineState({
 export type Cpu6809State = StateValues<typeof cpu6809StateDescription>;
 export type Cpu6809Flags = Cpu6809State["flags"];
 
-export type Cpu6809Snapshot = Readonly<Omit<Cpu6809State, "flags">> & {
-  readonly flags: Readonly<Cpu6809Flags>;
+export type Cpu6809Snapshot = ReadonlyState<Cpu6809State> & {
   readonly d: number;
 };
 
@@ -30,12 +31,7 @@ export type Cpu6809MemoryAccess = MemoryAccess;
 
 export type Cpu6809Instruction = FetchedInstruction;
 
-export type Cpu6809StepRecord = StateTransition<Cpu6809Snapshot> & {
-  readonly instruction: Cpu6809Instruction;
-} & (
-  | { readonly outcome: "executed" }
-  | { readonly outcome: "unsupported"; readonly reason: "opcode" }
-);
+export type Cpu6809StepRecord = InstructionStep<Cpu6809Snapshot>;
 
 export type Cpu6809ResetRecord = StateTransition<Cpu6809Snapshot>;
 
@@ -50,12 +46,16 @@ type AddressReader = (instruction: InstructionContext) => number | undefined;
 type WordRegister = "d" | "x" | "u";
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
+
+// CC bits 7..0: E F H I N Z V C.
+const packedFlags = flagRegister({ e: 7, f: 6, h: 5, i: 4, n: 3, z: 2, v: 1, c: 0 });
 const addressPattern = opcodePattern<AddressedHandler>;
 
 /** Instruction-level MC6809 subset for the 6809 examples. */
 export class Cpu6809 {
   readonly #ram: Ram;
   readonly #state: Cpu6809State;
+  readonly #alu = motorolaByteAlu(() => this.#state.flags);
 
   constructor(ram: Ram, initialState: Omit<Cpu6809Snapshot, "d">) {
     if (ram.size !== 0x10000) {
@@ -111,69 +111,38 @@ export class Cpu6809 {
     }
   }
 
-  get #cc(): number {
-    const flags = this.#state.flags;
-    // CC bits 7..0: E F H I N Z V C.
-    return (Number(flags.e) << 7) | (Number(flags.f) << 6)
-      | (Number(flags.h) << 5) | (Number(flags.i) << 4)
-      | (Number(flags.n) << 3) | (Number(flags.z) << 2)
-      | (Number(flags.v) << 1) | Number(flags.c);
-  }
-
-  set #cc(value: number) {
-    this.#state.flags = {
-      e: (value & 0x80) !== 0, f: (value & 0x40) !== 0,
-      h: (value & 0x20) !== 0, i: (value & 0x10) !== 0,
-      n: (value & 0x08) !== 0, z: (value & 0x04) !== 0,
-      v: (value & 0x02) !== 0, c: (value & 0x01) !== 0,
-    };
-  }
-
   // Opcode selectors and construction.
-
-  // Branches 20–2F use 0010 ttt p: bits 3..1 select the test; bit 0 inverts it.
-  // Each entry gives the p=0 test, followed by its p=0 / p=1 mnemonics.
-  readonly #branchConditions = [
-    () => true, // 000: BRA / BRN
-    () => !this.#state.flags.c && !this.#state.flags.z, // 001: BHI / BLS
-    () => !this.#state.flags.c, // 010: BCC (BHS) / BCS (BLO)
-    () => !this.#state.flags.z, // 011: BNE / BEQ
-    () => !this.#state.flags.v, // 100: BVC / BVS
-    () => !this.#state.flags.n, // 101: BPL / BMI
-    () => this.#state.flags.n === this.#state.flags.v, // 110: BGE / BLT
-    () => !this.#state.flags.z && this.#state.flags.n === this.#state.flags.v, // 111: BGT / BLE
-  ] as const;
 
   // Unary encodings: 0000 oooo = direct, 010r oooo = A/B,
   // 0110 oooo = indexed, 0111 oooo = extended. r=0 selects A, r=1 selects B.
   // TST (1101) is read-only and JMP (1110) changes PC; neither is a byte transform.
   readonly #unaryOperations: readonly { bits: string; apply: ByteOperation }[] = [
-    { bits: "0000", apply: value => this.#negate(value) }, // NEG
-    { bits: "0011", apply: value => this.#complement(value) }, // COM
-    { bits: "0100", apply: value => this.#shiftRight(value, 0) }, // LSR
-    { bits: "0110", apply: value => this.#shiftRight(value, this.#state.flags.c ? 1 : 0) }, // ROR
-    { bits: "0111", apply: value => this.#shiftRight(value, value >= 0x80 ? 1 : 0) }, // ASR
+    { bits: "0000", apply: value => this.#alu.subtract(0, value) }, // NEG
+    { bits: "0011", apply: value => this.#alu.complement(value) }, // COM
+    { bits: "0100", apply: value => this.#alu.shift(shiftRight(8, value, 0)) }, // LSR
+    { bits: "0110", apply: value => this.#alu.shift(shiftRight(8, value, this.#state.flags.c ? 1 : 0)) }, // ROR
+    { bits: "0111", apply: value => this.#alu.shift(shiftRight(8, value, value >= 0x80 ? 1 : 0)) }, // ASR
     { bits: "1000", apply: value => this.#shiftLeft(value, 0) }, // ASL (LSL)
     { bits: "1001", apply: value => this.#shiftLeft(value, this.#state.flags.c ? 1 : 0) }, // ROL
-    { bits: "1010", apply: value => this.#adjust(value, -1) }, // DEC
-    { bits: "1100", apply: value => this.#adjust(value, 1) }, // INC
-    { bits: "1111", apply: () => this.#clear() }, // CLR
+    { bits: "1010", apply: value => this.#alu.adjust(value, -1) }, // DEC
+    { bits: "1100", apply: value => this.#alu.adjust(value, 1) }, // INC
+    { bits: "1111", apply: () => this.#alu.clear() }, // CLR
   ];
 
   // Accumulator encodings: 1 r mm oooo, r=0 A / r=1 B.
   // mm=00 immediate, 01 direct, 10 indexed, 11 extended.
   // The listed oooo values take byte operands; 0111 stores are separate below.
   readonly #accumulatorOperations: readonly { bits: string; apply: AccumulatorOperation }[] = [
-    { bits: "0000", apply: (r, value) => { this.#state[r] = this.#subtract(this.#state[r], value); } }, // SUBA/B
-    { bits: "0001", apply: (r, value) => { this.#subtract(this.#state[r], value); } }, // CMPA/B
-    { bits: "0010", apply: (r, value) => { this.#state[r] = this.#subtract(this.#state[r], value, this.#state.flags.c ? 1 : 0); } }, // SBCA/B
+    { bits: "0000", apply: (r, value) => { this.#state[r] = this.#alu.subtract(this.#state[r], value); } }, // SUBA/B
+    { bits: "0001", apply: (r, value) => { this.#alu.subtract(this.#state[r], value); } }, // CMPA/B
+    { bits: "0010", apply: (r, value) => { this.#state[r] = this.#alu.subtract(this.#state[r], value, this.#state.flags.c ? 1 : 0); } }, // SBCA/B
     { bits: "0100", apply: (r, value) => this.#loadAccumulator(r, this.#state[r] & value) }, // ANDA/B
-    { bits: "0101", apply: (r, value) => this.#test(this.#state[r] & value) }, // BITA/B
+    { bits: "0101", apply: (r, value) => this.#alu.test(this.#state[r] & value) }, // BITA/B
     { bits: "0110", apply: (r, value) => this.#loadAccumulator(r, value) }, // LDA/B
     { bits: "1000", apply: (r, value) => this.#loadAccumulator(r, this.#state[r] ^ value) }, // EORA/B
-    { bits: "1001", apply: (r, value) => { this.#state[r] = this.#add(this.#state[r], value, this.#state.flags.c ? 1 : 0); } }, // ADCA/B
+    { bits: "1001", apply: (r, value) => { this.#state[r] = this.#alu.add(this.#state[r], value, this.#state.flags.c ? 1 : 0); } }, // ADCA/B
     { bits: "1010", apply: (r, value) => this.#loadAccumulator(r, this.#state[r] | value) }, // ORA/B
-    { bits: "1011", apply: (r, value) => { this.#state[r] = this.#add(this.#state[r], value); } }, // ADDA/B
+    { bits: "1011", apply: (r, value) => { this.#state[r] = this.#alu.add(this.#state[r], value); } }, // ADDA/B
   ];
 
   // Word transfers append a load/store bit: 0=LD, 1=ST (no immediate stores).
@@ -197,12 +166,12 @@ export class Cpu6809 {
     ...instructionPattern("0001 0110", ({ fetchWord }) => { this.#state.pc = this.#relativeAddress(fetchWord()); }), // LBRA rel16
     ...instructionPattern("0001 0111", ({ fetchWord, writeByte }) => this.#call(this.#relativeAddress(fetchWord()), writeByte)), // LBSR rel16
 
-    // 0010 ttt p: bits 3..1 select the test above; bit 0 inverts it.
+    // 0010 ttt p: ttt selects T/HI/CC/NE/VC/PL/GE/GT; bit 0 inverts it.
     ...opcodeFamily("0010 ttt p", {
-      t: this.#branchConditions,
+      t: motorolaConditionPairs,
       p: [false, true],
     }, ({ t: test, p: invert }) => ({ fetchByte }: InstructionContext) =>
-      this.#branch(signed8(fetchByte()), test() !== invert)),
+      this.#branch(signed8(fetchByte()), test(this.#state.flags) !== invert)),
 
     // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
     ...instructionPattern("001101 0 0", ({ fetchByte, writeByte }) => this.#pushRegisters("s", fetchByte(), writeByte)), // PSHS
@@ -215,7 +184,7 @@ export class Cpu6809 {
     ...this.#unaryOperations.flatMap(({ bits, apply }) => opcodeFamily(`010 r ${bits}`, {
       r: ["a", "b"],
     }, ({ r: register }) => () => { this.#state[register] = apply(this.#state[register]); })),
-    ...opcodeFamily("010 r 1101", { r: ["a", "b"] }, ({ r: register }) => () => this.#test(this.#state[register])), // TSTA/B
+    ...opcodeFamily("010 r 1101", { r: ["a", "b"] }, ({ r: register }) => () => this.#alu.test(this.#state[register])), // TSTA/B
 
     // 0110 oooo is indexed; 0111 oooo uses an extended address (including JMP).
     ...this.#memoryUnaryHandlers("0110", this.#indexedOperandAddress),
@@ -238,7 +207,7 @@ export class Cpu6809 {
     return this.#addressedHandlers(address, [
       ...this.#unaryOperations.flatMap(({ bits, apply }) => addressPattern(`${prefix} ${bits}`,
         (address, instruction) => this.#modifyMemory(address, apply, instruction))),
-      ...addressPattern(`${prefix} 1101`, (address, { readByte }) => this.#test(readByte(address))), // TST
+      ...addressPattern(`${prefix} 1101`, (address, { readByte }) => this.#alu.test(readByte(address))), // TST
       ...addressPattern(`${prefix} 1110`, address => { this.#state.pc = address; }), // JMP
     ]);
   }
@@ -323,18 +292,18 @@ export class Cpu6809 {
 
   #loadAccumulator(register: Accumulator, value: number): void {
     this.#state[register] = value;
-    this.#test(value);
+    this.#alu.test(value);
   }
 
   #storeAccumulator(register: Accumulator, address: number, writeByte: InstructionContext["writeByte"]): void {
     const value = this.#state[register];
     writeByte(address, value);
-    this.#test(value);
+    this.#alu.test(value);
   }
 
   #loadWord(register: WordRegister, value: number): void {
     this.#writeWordRegister(register, value);
-    this.#test(value, 16);
+    this.#alu.test(value, 16);
   }
 
   #storeWord(register: WordRegister, address: number, writeByte: InstructionContext["writeByte"]): void {
@@ -342,7 +311,7 @@ export class Cpu6809 {
     const value = this.#readWordRegister(register);
     writeByte(address, value >>> 8);
     writeByte((address + 1) & 0xffff, value & 0xff);
-    this.#test(value, 16);
+    this.#alu.test(value, 16);
   }
 
   // Control flow.
@@ -377,14 +346,14 @@ export class Cpu6809 {
     if (mask & 0x08) pushByte(this.#state.dp);
     if (mask & 0x04) pushByte(this.#state.b);
     if (mask & 0x02) pushByte(this.#state.a);
-    if (mask & 0x01) pushByte(this.#cc);
+    if (mask & 0x01) pushByte(packedFlags.encode(this.#state.flags));
   }
 
   #pullRegisters(stack: StackPointer, mask: number, readByte: InstructionContext["readByte"]): void {
     const pullByte = (): number => this.#pullByte(stack, readByte);
     const pullWord = (): number => this.#pullWord(stack, readByte);
     // Reverse the push order; ordinary pulls do not apply load-instruction flags.
-    if (mask & 0x01) this.#cc = pullByte();
+    if (mask & 0x01) this.#state.flags = packedFlags.decode(pullByte());
     if (mask & 0x02) this.#state.a = pullByte();
     if (mask & 0x04) this.#state.b = pullByte();
     if (mask & 0x08) this.#state.dp = pullByte();
@@ -414,75 +383,12 @@ export class Cpu6809 {
     return readWordBE(() => this.#pullByte(stack, readByte));
   }
 
-  // Arithmetic, logic, and flags.
-
-  #add(left: number, right: number, carryIn: 0 | 1 = 0): number {
-    const { result, carry, halfCarry, overflow } = add(8, left, right, carryIn);
-    this.#setNZ(result);
-    this.#state.flags.h = halfCarry;
-    this.#state.flags.c = carry;
-    this.#state.flags.v = overflow;
-    return result;
-  }
-
-  #subtract(left: number, right: number, borrowIn: 0 | 1 = 0): number {
-    const { result, borrow, overflow } = subtract(8, left, right, borrowIn);
-    this.#setNZ(result);
-    this.#state.flags.v = overflow;
-    this.#state.flags.c = borrow;
-    // H is undefined for subtraction; this model preserves it.
-    return result;
-  }
-
-  #negate(value: number): number {
-    return this.#subtract(0, value);
-  }
-
-  #complement(value: number): number {
-    const result = value ^ 0xff;
-    this.#test(result);
-    this.#state.flags.c = true;
-    return result;
-  }
-
-  #shiftRight(value: number, incomingBit: 0 | 1): number {
-    const { result, carry } = shiftRight(8, value, incomingBit);
-    this.#setNZ(result);
-    this.#state.flags.c = carry;
-    // Unlike left shifts, LSR, ROR, and ASR preserve V on the 6809.
-    return result;
-  }
+  // The 6809 preserves V for right shifts and replaces it for left shifts.
 
   #shiftLeft(value: number, incomingBit: 0 | 1): number {
-    const { result, carry } = shiftLeft(8, value, incomingBit);
-    this.#setNZ(result);
-    this.#state.flags.c = carry;
+    const result = this.#alu.shift(shiftLeft(8, value, incomingBit));
     this.#state.flags.v = this.#state.flags.n !== this.#state.flags.c;
     return result;
-  }
-
-  #adjust(value: number, delta: -1 | 1): number {
-    const result = (value + delta) & 0xff;
-    this.#setNZ(result);
-    this.#state.flags.v = value === (delta === 1 ? 0x7f : 0x80);
-    return result;
-  }
-
-  #clear(): number {
-    this.#test(0);
-    this.#state.flags.c = false;
-    return 0;
-  }
-
-  #test(value: number, width: 8 | 16 = 8): void {
-    // Loads, stores, logic, and TST share N/Z from the result and V=0.
-    this.#setNZ(value, width);
-    this.#state.flags.v = false;
-  }
-
-  #setNZ(value: number, width: 8 | 16 = 8): void {
-    this.#state.flags.n = (value & (1 << (width - 1))) !== 0;
-    this.#state.flags.z = value === 0;
   }
 
   // Memory operations.

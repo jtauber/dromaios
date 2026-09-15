@@ -1,12 +1,13 @@
 import type { Ram } from "../memory/ram.js";
-import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
 import { signed8 } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess, RecordedMemory } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
-import type { StateValues } from "./state.js";
+import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
+import { motorolaConditions } from "./motorola.ts";
 import { add, subtract } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
@@ -22,8 +23,7 @@ export const cpu68000StateDescription = defineState({
 export type Cpu68000State = StateValues<typeof cpu68000StateDescription>;
 export type Cpu68000Flags = Cpu68000State["flags"];
 
-export type Cpu68000Snapshot = Readonly<Omit<Cpu68000State, "flags">> & {
-  readonly flags: Readonly<Cpu68000Flags>;
+export type Cpu68000Snapshot = ReadonlyState<Cpu68000State> & {
   /** Active stack pointer: SSP in supervisor mode, USP in user mode. */
   readonly a7: number;
   /** Low 24 bits of the full 32-bit PC. */
@@ -42,12 +42,10 @@ export interface Cpu68000AlignmentFault {
   readonly address: number;
 }
 
-export type Cpu68000StepRecord = StateTransition<Cpu68000Snapshot> & (
-  | { readonly outcome: "executed"; readonly instruction: Cpu68000Instruction }
-  | { readonly outcome: "unsupported"; readonly reason: "opcode"; readonly instruction: Cpu68000Instruction }
-  | { readonly outcome: "unsupported"; readonly reason: "unaligned-address";
-      readonly instruction: Cpu68000Instruction | null; readonly fault: Cpu68000AlignmentFault }
-);
+export type Cpu68000StepRecord = InstructionStep<Cpu68000Snapshot> | (StateTransition<Cpu68000Snapshot> & {
+  readonly outcome: "unsupported"; readonly reason: "unaligned-address";
+  readonly instruction: Cpu68000Instruction | null; readonly fault: Cpu68000AlignmentFault;
+});
 
 export type Cpu68000ResetRecord = StateTransition<Cpu68000Snapshot>;
 
@@ -62,7 +60,6 @@ type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => Cpu6800
 type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
 type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
 type OperandSize = 8 | 16 | 32;
-type Condition = (flags: Readonly<Cpu68000Flags>) => boolean;
 // A result requests writeback; a comparison updates flags and returns nothing.
 type AluOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
 // The EA field's role and permitted set; only plain sources allow An (word/long).
@@ -162,25 +159,7 @@ export class Cpu68000 {
 
   // cccc condition encodings. BRA uses T; BSR replaces F in the branch family.
   // DBcc uses all sixteen tests directly, including DBT and DBF (also called DBRA).
-  static readonly #conditions: readonly Condition[] = [
-    () => true,                     // 0000 T
-    () => false,                    // 0001 F
-    ({ c, z }) => !c && !z,         // 0010 HI
-    ({ c, z }) => c || z,           // 0011 LS
-    ({ c }) => !c,                  // 0100 CC (HS)
-    ({ c }) => c,                   // 0101 CS (LO)
-    ({ z }) => !z,                  // 0110 NE
-    ({ z }) => z,                   // 0111 EQ
-    ({ v }) => !v,                  // 1000 VC
-    ({ v }) => v,                   // 1001 VS
-    ({ n }) => !n,                  // 1010 PL
-    ({ n }) => n,                   // 1011 MI
-    ({ n, v }) => n === v,          // 1100 GE
-    ({ n, v }) => n !== v,          // 1101 LT
-    ({ n, v, z }) => !z && n === v, // 1110 GT
-    ({ n, v, z }) => z || n !== v,  // 1111 LE
-  ];
-
+  // The shared Motorola table orders T/F, HI/LS, CC/CS, NE/EQ, VC/VS, PL/MI, GE/LT, GT/LE.
   // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
   static readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // Immediate ALU: 0000 ooo 0 ss mmm rrr. ooo selects the operation below;
@@ -205,7 +184,7 @@ export class Cpu68000 {
 
     // 0101 cccc 11001 rrr: cccc is the termination condition; rrr selects Dn.W.
     // The following signed word is relative to the extension word's address.
-    ...opcodeFamily("0101 cccc 11001 rrr", { c: this.#conditions, r: this.#dataRegisters }, ({ c: test, r: register }) => (cpu: Cpu68000, instruction: InstructionContext) => cpu.#decrementBranch(register, test(cpu.#state.flags), instruction)), // DBcc Dn,<label>
+    ...opcodeFamily("0101 cccc 11001 rrr", { c: motorolaConditions, r: this.#dataRegisters }, ({ c: test, r: register }) => (cpu: Cpu68000, instruction: InstructionContext) => cpu.#decrementBranch(register, test(cpu.#state.flags), instruction)), // DBcc Dn,<label>
 
     // 0110 cccc dddddddd: cccc=0000 BRA, 0001 BSR, otherwise Bcc using the tests above.
     // d is a signed byte; 00 fetches a signed word. FF remains -1 on the original 68000.
@@ -259,7 +238,7 @@ export class Cpu68000 {
   }
 
   static #branchHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
-    const conditions = this.#conditions.map((test, code) => ({ test, code }));
+    const conditions = motorolaConditions.map((test, code) => ({ test, code }));
     return opcodeFamily(pattern, { c: conditions, d: this.#immediateBytes }, ({ c: { test, code }, d: byte }) => {
       // The F encoding is a subroutine call, selected while building the table.
       if (code === 0b0001) return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#branchToSubroutine(byte, instruction);

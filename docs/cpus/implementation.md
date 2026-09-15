@@ -51,8 +51,9 @@ type. The description owns stored field names, types, and constraints. The
 immutable descriptions. `StateValues<typeof cpu…StateDescription>` derives the
 mutable stored-state type, including nested groups, fixed tuple lengths, and
 permitted-value unions. Public flag types select the state's `flags` field.
-This avoids declaring each register and flag twice. Snapshots add readonly
-guarantees and derived views explicitly; the 8008 also exposes its address
+This avoids declaring each register and flag twice. `ReadonlyState<State>`
+supplies recursive readonly snapshots, retaining nested groups and fixed tuple
+lengths; CPU snapshots add their derived views. The 8008 also exposes its address
 stack as readonly in caller-supplied state. Widths and hardware semantics still
 require independent tests. The Z80 describes its register bank once and reuses
 that description for both banks.
@@ -164,17 +165,44 @@ provide the common fields used by all eight CPUs:
 - `StateTransition<Snapshot>` contains `before`, `after`, and ordered memory
   `accesses`. The supplied snapshot type retains its CPU's fields, derived
   views, and nested readonly guarantees.
+- `InstructionStep<Snapshot>` describes ordinary execution or opcode rejection,
+  both with a fetched instruction.
+- `HaltedStep<Snapshot>` describes HALT, with a null instruction only for an
+  already halted CPU.
 
 CPU modules keep their public names as aliases, such as `Cpu6502Instruction`
-and `Cpu6502ResetRecord`. Step records combine `StateTransition` with their
-own instruction fields and outcome unions. Null instructions, rejection reasons,
-and alignment faults remain specific to the CPU. Address conventions are still
+and `Cpu6502ResetRecord`. Each step type selects its supported outcomes; the
+68000 adds its alignment-fault branch, including a possible null instruction
+on an unaligned opcode fetch. Address conventions are still
 documented beside the aliases, including the 8088's physical instruction
 address and the 68000's full logical instruction address.
 
 These types describe records; each CPU still constructs detached snapshots and
 access lists. Existing [public type checks](../../tests/types) verify readonly
 fields, concrete snapshot types, and outcome narrowing through the CPU exports.
+
+## Register pairs and packed flags
+
+The [register-pair helpers](../../src/components/cpus/register-pairs.ts) define
+BC, DE, and HL as high/low byte views shared by the 8080 and Z80. Reading,
+writing, and snapshot views use that one mapping. CPU tables select pair names;
+SP and PSW/AF retain their distinct CPU-specific handling. The Z80 applies the
+same views independently to each bank.
+
+The [flag-register helper](../../src/components/cpus/flags.ts) takes a map from
+flag names to bit positions, plus any fixed output bits. `encode` reads current
+Booleans; `decode` creates a fresh flag object and ignores unmodeled input bits.
+The 6502's PHP/PLP, 8080's PSW, Z80's AF, and 6809's CC declare their own layouts
+beside their types. Fixed output bits describe the model's packing policy;
+they do not add stored flags or assert hardware behavior for omitted bits.
+Layouts are checked for invalid, repeated, and overlapping bit positions.
+
+[Register-pair tests](../../tests/components/cpus/register-pairs.test.ts)
+check every word against native byte conversion, including preservation of
+other registers and detached views. [Flag tests](../../tests/components/cpus/flags.test.ts)
+check round trips, ignored/fixed bits, live values, and invalid layouts.
+[Type checks](../../tests/types/cpu-helpers.ts) preserve named flags, valid pairs,
+and the concrete readonly snapshot/record contracts.
 
 ## Shared instruction contexts
 
@@ -203,7 +231,7 @@ absent rather than optional.
 
 Instruction fetches track fetched bytes and advance PC according to the CPU's
 execution policy, while data accesses leave the instruction stream alone.
-The shared executor below constructs these callbacks for four CPUs; the others
+The shared executor below constructs these callbacks for six CPUs; the others
 construct them in `step()`. Each CPU selects byte order and keeps any special
 address mapping, alignment, and rejection rules. Handler return types also
 remain local, including the 68000's alignment fault.
@@ -215,15 +243,18 @@ expectations.
 ## Shared byte-instruction execution
 
 The [byte-instruction executor](../../src/components/cpus/execute-byte-instruction.ts)
-shares the fetch/dispatch loop used by the 8080, 6502, 6800, and 6809:
+shares the fetch/dispatch loop used by the 8008, 8080, 6502, 6800, 6809, and 8088:
 
 ```ts
 executeByteInstruction(state, ram, handlers, readWordLE)
 ```
 
-It attempts one byte opcode with a wrapping 16-bit PC and flat byte memory.
+It attempts one byte opcode with a wrapping 16-bit PC and byte memory.
 The CPU supplies its stored state, opcode table, and word reader (`readWordLE`
-or `readWordBE`). An absent handler records the opcode read and preserves PC.
+or `readWordBE`). A PC view may impose a narrower wrap; an optional
+`mapFetchAddress` callback translates instruction addresses before recording
+their reads. Data addresses come directly from handlers. An absent handler
+records the opcode read and preserves PC.
 A supported opcode advances PC before invoking its handler. Operand fetches
 read the current PC and RAM, advance only after a successful read, and append
 only fetched instruction bytes. Handlers can interleave fetches with data
@@ -231,24 +262,44 @@ accesses or change PC, including the 6502's JSR operand/stack ordering.
 
 The result contains the fetched instruction, ordered accesses, and whether a
 handler executed. Each CPU's `step()` owns its before/after snapshots and
-outcome; the 8080 checks HALT before calling the helper. A handler can return
+outcome; the 8008 and 8080 check HALT before calling the helper. A handler can return
 `"unsupported"` after fetching an operand selector, as the 6809 does for an
 undefined indexed postbyte. It must reject before changing other state or RAM;
 the executor restores PC and retains the actual fetches. This is not general
 rollback. RAM and handler errors
 propagate without rolling back completed effects. Each call owns its records.
 
-This contract fits those four CPUs. The 8008 retains its selected 14-bit address
-register; the Z80 retains prefix decoding and refresh updates; the 8088 retains
-segmented addresses and group rejection; the 68000 retains word opcodes and
-alignment faults. Extending the helper should require another matching execution
-contract, rather than CPU-specific switches or hooks.
+The four CPUs with a stored PC pass their state directly. The 8008 and 8088
+use `programCounter(read, write)` to expose a live view without adding stored
+state: the 8008 selects an address-stack slot and masks writes to 14 bits;
+the 8088 exposes IP and maps fetches through the current CS. Rejection restores
+the logical PC, while the instruction record retains its mapped start address.
+The 8008's circular call stack and the 8088's segmented data/stack access remain
+in their CPU files. The Z80 retains complete-prefix decoding and R updates;
+the 68000 retains word opcodes and alignment faults. Those contracts do not
+fit this executor.
 
 [Helper tests](../../tests/components/cpus/execute-byte-instruction.test.ts)
-check unsupported attempts, byte order, wraparound, live fetches, interleaved
-accesses, record independence, and error propagation.
+check unsupported attempts, byte order, wraparound, live register selection,
+mapped fetches, interleaved data accesses, record independence, and error propagation.
 [Type checks](../../tests/types/execute-byte-instruction.ts) preserve readonly
 records. Existing CPU and example tests retain independent hardware expectations.
+
+## Shared 8080/Z80 call stack
+
+The [call-stack helper](../../src/components/cpus/call-stack.ts) binds the
+8080 or Z80's live PC/SP state. `push` predecrements SP before each byte write,
+high then low; `pop` reads low then high, incrementing SP after each read.
+Both wrap at 16 bits. `call` pushes the already advanced PC and selects the
+fetched target; `return` pops PC. False conditions perform no stack access.
+Opcode tables still define instruction encodings, conditions, and targets,
+including Z80 RST's ordinary call semantics.
+
+The 6502, 6800, 6809, 8008, 8088, and 68000 retain their different stack
+policies. The helper introduces no shared CPU base class and does not own flags,
+interrupt state, memory recording, or CPU lifecycle. [Tests](../../tests/components/cpus/call-stack.test.ts)
+cover every SP value, actual access order, live state, and partial effects when
+an access throws. CPU tests retain independent instruction expectations.
 
 ## Shared binary helpers
 
@@ -340,7 +391,7 @@ between bits 3 and 4, even for wider operands.
 
 All eight CPUs use shared addition and subtraction. The 8088 supplies its
 selected byte/word width directly; the 68000 selects byte, word, or long.
-CPU flag assignments remain beside the instruction:
+CPU flag policies remain explicit in the core or a matching family helper:
 the 6502 sets C when there is no borrow; the 8080 uses borrow for CY and inverted
 half borrow for AC; the Z80 and 8088 use both borrow facts directly; the 6800
 and 6809 preserve H during subtraction. The 68000 copies addition's carry or
@@ -348,7 +399,9 @@ subtraction's borrow to X and C, while comparison preserves X. Parity, flag
 preservation, decimal corrections, and the NMOS 6502's intermediate flag rules
 remain CPU behavior.
 
-The 6800, 6809, Z80, and 8088 use the shift helpers. The 6800 sets V=N XOR C for
+The 6502, 8080, 6800, 6809, Z80, and 8088 use the shift helpers. The 6502
+updates C there and N/Z at writeback; 8080 accumulator rotates update only CY.
+The 6800 sets V=N XOR C for
 both directions; the 6809 sets V for left shifts and preserves it for right
 shifts. The Z80's unprefixed accumulator rotates preserve S/Z/PV, while CB
 rotates and shifts derive sign, zero, and parity from the result. The 8088
@@ -365,6 +418,29 @@ unsigned-long samples and every bit position, against bit-string movement.
 [Type checks](../../tests/types/alu.ts) check widths,
 incoming bits, distinct carry/borrow names, and readonly results. Existing CPU
 and example tests retain their independently authored expectations.
+
+## Shared Motorola behavior
+
+[Motorola helpers](../../src/components/cpus/motorola.ts) capture two existing
+family relationships. The 6800, 6809, and 68000 share the T/F, HI/LS, CC/CS,
+NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition tests. The opcode tables retain
+the 6800's absent BRN and the 68000 branch family's BSR exception.
+
+`motorolaByteAlu` shares the 6800/6809 byte addition, subtraction, complement,
+increment/decrement, shift-result, test-result, and clear behavior. It receives
+a flag getter and reads it only during execution, so restoring CC cannot leave
+operations attached to an old flag object. Addition replaces H; subtraction
+preserves it under the existing model contracts. Unnamed flags are preserved.
+The CPUs keep their differences visible: 6800 TST clears C, 6809 TST preserves
+it; every 6800 shift sets V=N XOR C, while 6809 right shifts preserve V.
+The 6800's write-only CLR and the 6809's read/modify/write CLR stay in their
+addressing/dispatch code.
+
+[Tests](../../tests/components/cpus/motorola.test.ts) compare encoded conditions
+with unsigned and signed arithmetic and verify preserved flags and replaced
+flag objects. The existing exhaustive CPU tests independently check arithmetic
+and all addressing forms. Sharing these behaviors does not imply that all
+Motorola instructions or flag rules agree.
 
 ## Verify a reorganization
 

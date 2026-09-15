@@ -1,15 +1,17 @@
 import type { Ram } from "../memory/ram.js";
-import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import { flagRegister } from "./flags.ts";
+import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { signed8, readWordLE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
-import type { StateValues } from "./state.js";
+import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { add, subtract } from "./alu.ts";
+import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
+import type { ShiftResult } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu6502StateDescription = defineState({
@@ -20,20 +22,13 @@ export const cpu6502StateDescription = defineState({
 export type Cpu6502State = StateValues<typeof cpu6502StateDescription>;
 export type Cpu6502Flags = Cpu6502State["flags"];
 
-export type Cpu6502Snapshot = Readonly<Omit<Cpu6502State, "flags">> & {
-  readonly flags: Readonly<Cpu6502Flags>;
-};
+export type Cpu6502Snapshot = ReadonlyState<Cpu6502State>;
 
 export type Cpu6502MemoryAccess = MemoryAccess;
 
 export type Cpu6502Instruction = FetchedInstruction;
 
-export type Cpu6502StepRecord = StateTransition<Cpu6502Snapshot> & {
-  readonly instruction: Cpu6502Instruction;
-} & (
-  | { readonly outcome: "executed" }
-  | { readonly outcome: "unsupported"; readonly reason: "opcode" }
-);
+export type Cpu6502StepRecord = InstructionStep<Cpu6502Snapshot>;
 
 export type Cpu6502ResetRecord = StateTransition<Cpu6502Snapshot>;
 
@@ -45,6 +40,9 @@ type ByteRegister = "a" | "x" | "y";
 
 // Fix the handler type once so pattern callbacks infer their instruction context.
 const instructionPattern = opcodePattern<OpcodeHandler>;
+
+// PHP writes NV11DIZC; PLP ignores the two unstored bits.
+const packedFlags = flagRegister({ n: 7, v: 6, d: 3, i: 2, z: 1, c: 0 }, 0x30);
 
 /** Instruction-level NMOS 6502 subset for the 6502 examples. */
 export class Cpu6502 {
@@ -86,24 +84,6 @@ export class Cpu6502 {
       : { ...record, outcome: "unsupported", reason: "opcode" };
   }
 
-  // Register and flag views.
-
-  // PHP writes NV11DIZC. Bits 5/4 (unused/B) have no stored state; PLP ignores them.
-  get #stackStatus(): number {
-    const flags = this.#state.flags;
-    return (flags.n ? 0x80 : 0) | (flags.v ? 0x40 : 0) | 0x30 |
-      (flags.d ? 0x08 : 0) | (flags.i ? 0x04 : 0) |
-      (flags.z ? 0x02 : 0) | (flags.c ? 0x01 : 0);
-  }
-
-  set #stackStatus(value: number) {
-    this.#state.flags = {
-      n: (value & 0x80) !== 0, v: (value & 0x40) !== 0,
-      d: (value & 0x08) !== 0, i: (value & 0x04) !== 0,
-      z: (value & 0x02) !== 0, c: (value & 0x01) !== 0,
-    };
-  }
-
   // Opcode selectors and construction.
 
   // bbb (bits 4..2) in the accumulator group aaa bbb 01.
@@ -121,10 +101,10 @@ export class Cpu6502 {
 
   // ss (bits 6..5) in 0ss bbb 10. Rotates insert the live incoming carry; shifts insert zero.
   readonly #shifts: readonly ByteOperation[] = [
-    value => this.#shiftLeft(value, 0),                          // 00 ASL
-    value => this.#shiftLeft(value, this.#state.flags.c ? 1 : 0), // 01 ROL
-    value => this.#shiftRight(value, 0),                         // 10 LSR
-    value => this.#shiftRight(value, this.#state.flags.c ? 1 : 0), // 11 ROR
+    value => this.#shiftResult(shiftLeft(8, value, 0)),                          // 00 ASL
+    value => this.#shiftResult(shiftLeft(8, value, this.#state.flags.c ? 1 : 0)), // 01 ROL
+    value => this.#shiftResult(shiftRight(8, value, 0)),                         // 10 LSR
+    value => this.#shiftResult(shiftRight(8, value, this.#state.flags.c ? 1 : 0)), // 11 ROR
   ];
 
   // Opcode bits: 7 6 5 | 4 3 2 | 1 0 = aaa bbb cc.
@@ -146,8 +126,8 @@ export class Cpu6502 {
     ...opcodeFamily("11r 001 00", { r: ["y", "x"] }, ({ r }) => ({ fetchByte, readByte }: InstructionContext) => this.#compare(r, readByte(fetchByte()))), // CPY/CPX zp
 
     // cc=00, bbb=010: 0rp 010 00. r (bit 6) selects status (0)/A (1); p (bit 5) selects push (0)/pull (1).
-    ...instructionPattern("00 0 010 00", ({ writeByte }) => this.#pushByte(this.#stackStatus, writeByte)), // PHP
-    ...instructionPattern("00 1 010 00", ({ readByte }) => { this.#stackStatus = this.#pullByte(readByte); }), // PLP
+    ...instructionPattern("00 0 010 00", ({ writeByte }) => this.#pushByte(packedFlags.encode(this.#state.flags), writeByte)), // PHP
+    ...instructionPattern("00 1 010 00", ({ readByte }) => { this.#state.flags = packedFlags.decode(this.#pullByte(readByte)); }), // PLP
     ...instructionPattern("01 0 010 00", ({ writeByte }) => this.#pushByte(this.#state.a, writeByte)), // PHA
     ...instructionPattern("01 1 010 00", ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte))), // PLA
     // aaa=100..111 selects DEY, TAY, INY, INX in this subgroup.
@@ -352,14 +332,9 @@ export class Cpu6502 {
 
   // Shifts, arithmetic, and flags.
 
-  #shiftLeft(value: number, incomingBit: 0 | 1): number {
-    this.#state.flags.c = (value & 0x80) !== 0;
-    return ((value << 1) | incomingBit) & 0xff;
-  }
-
-  #shiftRight(value: number, incomingBit: 0 | 1): number {
-    this.#state.flags.c = (value & 1) !== 0;
-    return (value >>> 1) | (incomingBit << 7);
+  #shiftResult({ result, carry }: ShiftResult): number {
+    this.#state.flags.c = carry;
+    return result; // The accumulator or memory writeback supplies N/Z.
   }
 
   #setNegativeZero(value: number): void {

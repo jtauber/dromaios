@@ -15,14 +15,14 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [254](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [457](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [315](../../src/components/cpus/6800.ts) | 155 / 197 | 78.7% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [423](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [569](../../src/components/cpus/z80.ts) | 496 / 698 | 71.1% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [503](../../src/components/cpus/6809.ts) | 193 / 268 | 72.0% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [526](../../src/components/cpus/8088.ts) | 205 / 291 | 70.4% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [525](../../src/components/cpus/68000.ts) | 25,699 / 36,029 | 71.3% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [223](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [364](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [265](../../src/components/cpus/6800.ts) | 155 / 197 | 78.7% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [398](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [508](../../src/components/cpus/z80.ts) | 496 / 698 | 71.1% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [409](../../src/components/cpus/6809.ts) | 193 / 268 | 72.0% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [493](../../src/components/cpus/8088.ts) | 205 / 291 | 70.4% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [504](../../src/components/cpus/68000.ts) | 25,699 / 36,029 | 71.3% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"

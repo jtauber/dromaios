@@ -1,11 +1,11 @@
 import type { Ram } from "../memory/ram.js";
-import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
+import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
 import { signed8, readWordLE } from "./binary.ts";
-import { recordMemory } from "./memory-access.ts";
+import { executeByteInstruction, programCounter } from "./execute-byte-instruction.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
-import type { StateValues } from "./state.js";
+import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import { add, subtract, shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
@@ -21,8 +21,7 @@ export const cpu8088StateDescription = defineState({
 export type Cpu8088State = StateValues<typeof cpu8088StateDescription>;
 export type Cpu8088Flags = Cpu8088State["flags"];
 
-export type Cpu8088Snapshot = Readonly<Omit<Cpu8088State, "flags">> & {
-  readonly flags: Readonly<Cpu8088Flags>;
+export type Cpu8088Snapshot = ReadonlyState<Cpu8088State> & {
   readonly al: number;
   readonly ah: number;
   readonly bl: number;
@@ -41,12 +40,7 @@ export type Cpu8088MemoryAccess = MemoryAccess;
 /** Instruction address is physical; before.cs and before.ip retain its logical address. */
 export type Cpu8088Instruction = FetchedInstruction;
 
-export type Cpu8088StepRecord = StateTransition<Cpu8088Snapshot> & {
-  readonly instruction: Cpu8088Instruction;
-} & (
-  | { readonly outcome: "executed" }
-  | { readonly outcome: "unsupported"; readonly reason: "opcode" }
-);
+export type Cpu8088StepRecord = InstructionStep<Cpu8088Snapshot>;
 
 export type Cpu8088ResetRecord = StateTransition<Cpu8088Snapshot>;
 
@@ -79,6 +73,7 @@ function physicalAddress(segment: number, offset: number): number {
 export class Cpu8088 {
   readonly #ram: Ram;
   readonly #state: Cpu8088State;
+  readonly #counter = programCounter(() => this.#state.ip, value => { this.#state.ip = value; });
 
   constructor(ram: Ram, initialState: Cpu8088State) {
     if (ram.size !== 0x100000) throw new RangeError("The 8088 model requires exactly 1 MiB of RAM.");
@@ -113,30 +108,9 @@ export class Cpu8088 {
   /** Attempt one instruction; unsupported encodings preserve all state and RAM. */
   step(): Cpu8088StepRecord {
     const before = this.snapshot();
-    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
-    const address = before.pc;
-    const opcode = readByte(address);
-    const bytes = [opcode];
-    const handler = this.#opcodeHandlers[opcode];
-    let executed = false;
-    if (handler) {
-      this.#state.ip = (this.#state.ip + 1) & 0xffff;
-      const fetchByte = (): number => {
-        const value = readByte(physicalAddress(this.#state.cs, this.#state.ip));
-        this.#state.ip = (this.#state.ip + 1) & 0xffff;
-        bytes.push(value);
-        return value;
-      };
-      executed = handler({
-        fetchByte,
-        fetchWord: () => readWordLE(fetchByte),
-        readByte,
-        writeByte,
-      }) !== "unsupported";
-      // Group handlers reject unused operation selectors before resolving or changing operands.
-      if (!executed) this.#state.ip = before.ip;
-    }
-    const record = { instruction: { address, bytes }, before, after: this.snapshot(), accesses };
+    const { instruction, accesses, executed } = executeByteInstruction(this.#counter, this.#ram, this.#opcodeHandlers, readWordLE,
+      pc => physicalAddress(this.#state.cs, pc));
+    const record = { before, after: this.snapshot(), instruction, accesses };
     return executed
       ? { ...record, outcome: "executed" }
       : { ...record, outcome: "unsupported", reason: "opcode" };
@@ -147,10 +121,6 @@ export class Cpu8088 {
   #writeByteRegister({ word, shift }: ByteRegister, value: number): void {
     const mask = 0xff << shift;
     this.#state[word] = (this.#state[word] & ~mask) | (value << shift);
-  }
-
-  #writeAccumulator(width: OperandWidth, value: number): void {
-    this.#state.ax = width === 8 ? (this.#state.ax & 0xff00) | value : value;
   }
 
   // Opcode selectors and construction. Arrays follow encoded register order.
@@ -263,8 +233,8 @@ export class Cpu8088 {
     ...opcodeFamily("1001 0 rrr", { r: this.#wordRegisters }, ({ r: register }) => () => { [this.#state.ax, this.#state[register]] = [this.#state[register], this.#state.ax]; }), // XCHG AX,r16 / NOP
 
     // 1010 00 d w: d=0 loads, d=1 stores; w=0 AL, w=1 AX. The DS offset is always a word.
-    ...opcodeFamily("1010 00 0 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#loadAccumulator(width, instruction)), // MOV AL/AX,[offset]
-    ...opcodeFamily("1010 00 1 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#storeAccumulator(width, instruction)), // MOV [offset],AL/AX
+    ...opcodeFamily("1010 00 0 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#moveAbsolute(width, true, instruction)), // MOV AL/AX,[offset]
+    ...opcodeFamily("1010 00 1 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#moveAbsolute(width, false, instruction)), // MOV [offset],AL/AX
 
     // 1010 100w: immediate TEST shares the accumulator ALU operand layout.
     ...opcodeFamily("1010 100 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#aluAccumulator(this.#test, width, instruction)), // TEST AL/AX,n
@@ -320,7 +290,8 @@ export class Cpu8088 {
     return { read: () => this.#state[register], write: value => { this.#state[register] = value; } };
   }
 
-  #registerMemoryOperand(width: OperandWidth, modRM: number, { fetchByte, fetchWord, readByte, writeByte }: InstructionContext): Operand {
+  #registerMemoryOperand(width: OperandWidth, modRM: number, instruction: InstructionContext): Operand {
+    const { fetchByte, fetchWord } = instruction;
     const mode = modRM >>> 6;
     const selector = modRM & 7;
     if (mode === 3) return this.#registerOperand(width, selector);
@@ -328,7 +299,10 @@ export class Cpu8088 {
     const base = direct ? { segment: this.#state.ds, offset: 0 } : this.#memoryBases[selector]!();
     const displacement = direct || mode === 2 ? fetchWord() : mode === 1 ? signed8(fetchByte()) : 0;
     const offset = (base.offset + displacement) & 0xffff;
-    const { segment } = base;
+    return this.#memoryOperand(width, base.segment, offset, instruction);
+  }
+
+  #memoryOperand(width: OperandWidth, segment: number, offset: number, { readByte, writeByte }: InstructionContext): Operand {
     return width === 8 ? {
       read: () => readByte(physicalAddress(segment, offset)),
       write: value => writeByte(physicalAddress(segment, offset), value),
@@ -357,19 +331,12 @@ export class Cpu8088 {
     right.write(leftValue);
   }
 
-  #loadAccumulator(width: OperandWidth, { fetchWord, readByte }: InstructionContext): void {
-    const offset = fetchWord();
-    const value = width === 8 ? readByte(physicalAddress(this.#state.ds, offset))
-      : this.#readMemoryWord(this.#state.ds, offset, readByte);
-    this.#writeAccumulator(width, value);
-  }
-
-  #storeAccumulator(width: OperandWidth, { fetchWord, writeByte }: InstructionContext): void {
-    const offset = fetchWord();
-    const { ax, ds } = this.#state;
-    const address = physicalAddress(ds, offset);
-    if (width === 8) writeByte(address, ax & 0xff);
-    else this.#writeMemoryWord(ds, offset, ax, writeByte);
+  #moveAbsolute(width: OperandWidth, toAccumulator: boolean, instruction: InstructionContext): void {
+    const offset = instruction.fetchWord();
+    const accumulator = this.#registerOperand(width, 0);
+    const memory = this.#memoryOperand(width, this.#state.ds, offset, instruction);
+    const [destination, source] = toAccumulator ? [accumulator, memory] : [memory, accumulator];
+    destination.write(source.read());
   }
 
   // Control flow and stack operations.
