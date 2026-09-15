@@ -1,0 +1,51 @@
+// Decimal arithmetic, signed division, alternate-byte transfers, and status/stack control.
+ram 1000000
+
+cpu 68000 {
+  D0 = 11223344  D1 = 55667788  D2 = 99AABBCC  D3 = DDEEFF00
+  D4 = 01234567  D5 = 89ABCDEF  D6 = FEDCBA98  D7 = 76543210
+  A0 = AB003000  A1 = CD004000  A2 = EF005000  A3 = 40000000
+  A4 = 50000000  A5 = 60000000  A6 = 70000000
+  USP = 34008000  SSP = 56009000  PC = AB002000
+  halted = false
+  interruptMask = 2
+  flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 1 }
+}
+
+memory 000000 { 56 00 90 00  AB 00 20 00 }
+
+memory 002000 {
+  70 45              // 2000: MOVEQ #45,D0
+  72 55              // 2002: MOVEQ #55,D1
+  44 FC 00 04        // 2004: MOVE #04,CCR: start a decimal chain with X=0, Z=1
+  C3 00              // 2008: ABCD D0,D1: 45 + 55 = 00 with carry
+  C3 00              // 200A: ABCD D0,D1: consume the carry, producing 46
+  83 00              // 200C: SBCD D0,D1: subtract 45, producing 01
+  48 01              // 200E: NBCD D1: decimal negation produces 99
+  48 81              // 2010: EXT.W D1: sign-extend byte 99
+  48 C1              // 2012: EXT.L D1: signed -103
+  C3 FC 00 03        // 2014: MULS #3,D1: signed -309
+  83 FC 00 07        // 2018: DIVS #7,D1: remainder -1, quotient -44
+  48 41              // 201C: SWAP D1: quotient in high word
+  C3 42              // 201E: EXG D1,D2: retain the packed result
+  05 C8 00 01        // 2020: MOVEP.L D2,(1,A0): store to alternate bytes
+  07 08 00 01        // 2024: MOVEP.W (1,A0),D3: read the signed quotient
+  4A D1              // 2028: TAS (A1): test an empty marker then set its high bit
+  40 C4              // 202A: MOVE SR,D4: capture condition and system state
+  00 3C 00 01        // 202C: ORI #1,CCR: set carry
+  44 FC 05 04        // 2030: MOVE #0504,CCR: only low five bits survive
+  4E 62              // 2034: MOVE A2,USP: prepare the user stack
+  4E 6B              // 2036: MOVE USP,A3: inspect it
+  46 FC A3 04        // 2038: MOVE #A304,SR: supervisor, trace stored, interrupt mask 3
+  41 BC 7F FF        // 203C: CHK #7FFF,D0: accepted signed bounds
+  4E 71              // 2040: NOP
+  4E 77              // 2042: RTR: restore CCR and skip the following NOP
+  4E 71              // 2044: NOP: skipped
+  4E 72 00 1F        // 2046: STOP #001F: switch to user stack and stop
+}
+
+memory 003000 { 5A CC 5A CC 5A CC 5A CC 5A }
+memory 003FFF { DE 00 AD }
+memory 008FFE { DE AD 00 05 AB 00 20 46 BE EF }
+
+end AB00204A

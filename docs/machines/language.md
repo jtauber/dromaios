@@ -175,7 +175,9 @@ views nor `PC` can be assigned. See the [8088 example](../cpus/8088/examples/ari
 for a complete definition using different code and data segments.
 
 The 68000 stores `D0`–`D7`, `A0`–`A6`, `USP`, `SSP`, and `PC` as unsigned
-32-bit values, plus `interruptMask` in `0`–`7` and flags `X/N/Z/V/C/T/S`.
+32-bit values, plus `interruptMask` in `0`–`7`, flags `X/N/Z/V/C/T/S`, and
+the Boolean `halted` latch. All are required, including `halted = false` for
+a running CPU.
 `A7` and `physicalPc` are derived and cannot be assigned. The original processor
 has one trace bit and no master-mode bit. See the
 [68000 example](../cpus/68000/examples/arithmetic.md) for a complete definition.

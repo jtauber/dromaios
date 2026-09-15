@@ -18,6 +18,7 @@ and right through X. All eight shift and rotate operations participate.
 | A4, A5, A6 | `50000000`, `60000000`, `70000000` |
 | USP, SSP, PC | `34008000`, `56009000`, `AB002000` |
 | interruptMask | `2` |
+| halted | `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `0` |
 
 Zero-filled 16 MiB RAM contains reset vectors `56 00 90 00 AB 00 20 00`

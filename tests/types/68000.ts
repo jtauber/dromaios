@@ -13,6 +13,7 @@ import { create68000UnaryExample } from "../../src/machines/generated/68000/unar
 import { create68000ShiftsExample } from "../../src/machines/generated/68000/shifts-example.js";
 import { create68000BitsExample } from "../../src/machines/generated/68000/bits-example.js";
 import { create68000ExtendedExample } from "../../src/machines/generated/68000/extended-example.js";
+import { create68000DecimalPipelineExample } from "../../src/machines/generated/68000/decimal-pipeline-example.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import type { CpuRunResult } from "../../src/runtime/run-cpu.js";
 
@@ -26,12 +27,16 @@ export function check68000(ram: Ram, state: Cpu68000State, snapshot: Cpu68000Sna
   state.physicalPc;
   // @ts-expect-error Flags are Boolean.
   new Cpu68000(ram, { ...state, flags: { ...state.flags, x: 1 } });
+  // @ts-expect-error STOP state is Boolean.
+  new Cpu68000(ram, { ...state, halted: 1 });
   // @ts-expect-error Stored snapshot fields are readonly.
   snapshot.d0 = 0;
   // @ts-expect-error Derived snapshot views are readonly.
   snapshot.a7 = 0;
   // @ts-expect-error Nested flags are readonly.
   snapshot.flags.s = true;
+  const pipeline = create68000DecimalPipelineExample();
+  const pipelineResult: CpuRunResult<Cpu68000StepRecord> = runCpu(pipeline.cpu, { maxSteps: 30, endAddress: pipeline.endAddress });
   const machine: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000Example();
   const transfers: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000TransfersExample();
   const transferResult: CpuRunResult<Cpu68000StepRecord> = runCpu(transfers.cpu, { maxSteps: 8, endAddress: transfers.endAddress });
@@ -69,16 +74,23 @@ export function check68000Records(record: Cpu68000StepRecord, reset: Cpu68000Res
     const address: number = record.instruction.address;
     // @ts-expect-error Executed records have no rejection reason.
     record.reason;
+  } else if (record.outcome === "halted") {
+    const halted: boolean = record.after.halted;
   } else if (record.reason === "opcode") {
     const bytes: readonly number[] = record.instruction.bytes;
     // @ts-expect-error An unsupported opcode has no alignment fault.
     record.fault;
-  } else {
+  } else if (record.reason === "unaligned-address") {
     const operation: "fetch" | "read" | "write" = record.fault.operation;
     // @ts-expect-error Odd-PC attempts have no instruction.
     record.instruction.bytes;
     // @ts-expect-error Fault details are readonly.
     record.fault.address = 0;
+  } else {
+    const reason: "divide-by-zero" | "bounds-check" | "privilege-violation" = record.reason;
+    const bytes: readonly number[] = record.instruction.bytes;
+    // @ts-expect-error Deferred synchronous exceptions have no alignment metadata.
+    record.fault;
   }
   // @ts-expect-error Access lists are readonly.
   record.accesses.push({ kind: "read", address: 0, value: 0 });

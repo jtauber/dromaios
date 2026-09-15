@@ -61,7 +61,7 @@ This gives the following boundary behavior:
 | Zero budget away from the endpoint | `step-limit`, no records |
 | Last permitted executed step reaches the endpoint | `completed`, including that step's record |
 | Last permitted step halts or reports unsupported | `halted` or `unsupported`, including that record |
-| HLT or HALT advances PC to the endpoint | `halted`, retaining the CPU's terminal result |
+| HLT, HALT, or STOP advances PC to the endpoint | `halted`, retaining the CPU's terminal result |
 | Budget ends before any other stopping condition | `step-limit`, with exactly `maxSteps` records |
 
 A step budget counts attempts, including unsupported instructions and the
@@ -88,8 +88,8 @@ its non-null instruction and `opcode` unsupported reason;
 an 8080 run retains its halted-record union; a 6809 run retains D and both
 stack pointers in snapshots; a Z80 run retains both register banks, P/V, and R;
 an 8088 run retains CS:IP, word registers, derived byte views, and physical PC;
-a 68000 run retains long registers, both stack pointers, and alignment-fault
-details, including a null instruction when an odd PC prevents fetching.
+a 68000 run retains long registers, both stack pointers, STOP state, and
+alignment/synchronous-exception details, including a null instruction when an odd PC prevents fetching.
 Selecting between CPU types produces the union of their record types. Run-level `stopReason` is separate from each record's
 CPU-level `outcome` and optional `reason`.
 

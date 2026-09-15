@@ -330,3 +330,40 @@ neither exception delivery nor cycle ordering is added here. The
 [combined example](examples/extended.md) restores a 64-bit memory value and
 compares it with a reference, while retaining the sum in registers. Tests
 restore snapshots at all four low/high carry and borrow boundaries.
+
+## Ordinary-instruction completion
+
+The programmer's reference is authoritative for the remaining ordinary
+families: ABCD (4-2–4-3), CHK (4-69–4-70), DIVS (4-92) and DIVU (4-96),
+EXG (4-105), EXT (4-106), MOVE to CCR (4-123–4-124), MOVE from SR (4-125),
+MOVEP (4-131–4-133), NBCD (4-141–4-142), RTR (4-168), TAS (4-186–4-187),
+and the system-instruction entries for SR/USP transfers and STOP. Only the
+original chip's word multiply/divide, single T bit, and defined SR bits apply.
+MOVE from SR is unprivileged on the 68000 and reads a memory destination
+before writing it. MOVE to CCR reads a word, then retains five bits.
+
+The Mac reference's multiply/divide handlers offer a useful comparison for
+packed remainder/quotient layout, but its divide-by-zero path sets V instead
+of delivering the processor exception. Dromaios explicitly reports the
+missing delivery with an atomic `divide-by-zero` rejection. Quotient overflow
+is distinct: V sets, C clears, Dn is preserved, and source auto-updates commit.
+Undefined N/Z remain unchanged by model policy.
+
+Its decimal handlers preserve undefined N/V and apply corrections in two
+nibbles. Dromaios uses a shared byte operation for ABCD/SBCD/NBCD and the
+existing paired-operand path for predecrement. That path also handles A7's
+two-byte step; the reference's decimal path decrements byte A7 by one.
+Valid packed operands are checked against independent integer decimal
+arithmetic; non-BCD inputs follow the explicit deterministic correction
+policy in the [model contract](model.md#decimal-arithmetic).
+
+MOVEP reuses ordered memory transfer with a stride of two. Word-source
+execution shares EA resolution, alignment checks, and deferred address
+updates across multiply/divide, CHK, and status loads. Status packing reuses
+the shared flag-register helper. RTR shares RTS's stack/target validation,
+adding the CCR word without changing supervisor state. These checks use
+manual-derived expectations, not a claim of external hardware conformance.
+
+The [decimal pipeline](examples/decimal-pipeline.md) exercises the families
+together. Software exception delivery remains deferred alongside interrupts
+and devices; RESET, RTE, TRAP, TRAPV, and ILLEGAL remain unsupported.

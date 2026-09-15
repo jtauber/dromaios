@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [504](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [773](../../src/components/cpus/8088.ts) | 268 / 291 | 92.1% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [781](../../src/components/cpus/68000.ts) | 32,895 / 36,029 | 91.3% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [990](../../src/components/cpus/68000.ts) | 36,024 / 36,029 | >99.9% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -58,7 +58,8 @@ the documented-form totals; the checkpoint does not require a common percentage.
 
 Opcode completion is **complete documented opcode forms / total documented
 opcode forms × 100**, rounded to one decimal place. A positive result that
-would round to zero is shown as **<0.1%**. It measures instruction
+would round to zero is shown as **<0.1%**; an incomplete result that would
+round to 100% is shown as **>99.9%**. It measures instruction
 coverage, not overall processor completeness or the proportion of work done.
 Timing, interrupts, reset, and other processor features are tracked separately
 below and do not contribute to this percentage.
@@ -173,7 +174,7 @@ forms accept 4,096 words. Embedded literal values do not add coverage forms.
 | Stepping | At most one instruction attempt; before/after snapshots, fetched instruction bytes, ordered accesses, and outcome |
 | Reset records | Separate before/after snapshots and access list; CPU-specific reset effects |
 | Arithmetic and addresses | Results wrap at their modeled widths; 14-bit addresses for the 8008, 16-bit addresses for the other 8-bit cores; the 8088 forms 20-bit physical addresses from segments/offsets; the 68000 preserves 32-bit registers and masks bus addresses to 24 bits |
-| Unsupported attempts | `reason: "opcode"`, one opcode byte fetched (two for the 68000), unchanged CPU state and RAM; additional 6502 mode, 8088 divide-error, and 68000 alignment boundaries below |
+| Unsupported attempts | `reason: "opcode"`, one opcode byte fetched (two for the 68000), unchanged CPU state and RAM; additional 6502 mode, 8088 divide-error, and 68000 alignment/synchronous-exception boundaries below |
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
 All eight currently omit cycle counts, dummy bus accesses, electrical signals,
@@ -1721,7 +1722,17 @@ addresses are compared; local tests check exact instruction-level ordering.
 [Extended arithmetic example](68000/examples/extended.md) ·
 [Extended definition](../../src/machines/68000/extended-example.machine)
 
-**32,895 of 36,029 documented forms are complete (91.3%).** MOVE and MOVEA
+[Decimal pipeline example](68000/examples/decimal-pipeline.md) ·
+[Pipeline definition](../../src/machines/68000/decimal-pipeline-example.machine)
+
+**36,024 of 36,029 documented forms are complete (>99.9%).** All ordinary
+instructions are covered within the [model contract](68000/model.md).
+RESET, RTE, TRAP, TRAPV, and ILLEGAL remain deferred. The instruction-word
+inventory contains 45,796 supported opwords; the coverage count collapses
+embedded literals. Exception detection in ordinary instructions is included;
+exception delivery and device behavior remain outside the checkpoint.
+
+MOVE and MOVEA
 support every original-68000 source/destination combination and documented
 index extension. The operation-word patterns below are binary. In MOVE,
 `ddd mmm` selects the destination register then mode, while `sss rrr` selects
@@ -1735,6 +1746,7 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `0000 011 0 ss mmm rrr` | `ADDI.B/W/L #n,<ea>` | 150 | 4–10 | Set X/N/Z/V/C; X and C report unsigned carry |
 | `0000 101 0 ss mmm rrr` | `EORI.B/W/L #n,<ea>` | 150 | 4–10 | Same sizes, destinations, and flags as ORI |
 | `0000 110 0 ss mmm rrr` | `CMPI.B/W/L #n,<ea>` | 150 | 4–10 | Destination minus immediate; set NZVC, preserve X, no writeback |
+| `0000 ooo0 0 f 111100` | ORI/ANDI/EORI #n,CCR/SR | 6 | 4 | ooo=000/001/101; f=0 CCR, 1 SR; masked status writes; SR privileged |
 | `0000 1000 00 mmm rrr` | `BTST #n,<ea>` | 52 | 4–8 | Dn, memory, and PC-relative operands; test original bit, setting only Z |
 | `0000 bbb 1 00 mmm rrr` | `BTST Dn,<ea>` | 424 | 2–6 | Eight bit-number registers × 53 operands; includes an immediate byte |
 | `0000 1000 01 mmm rrr` | `BCHG #n,<ea>` | 50 | 4–8 | Complement bit in a data-alterable operand; Z describes original bit |
@@ -1743,6 +1755,7 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `0000 bbb 1 10 mmm rrr` | `BCLR Dn,<ea>` | 400 | 2–6 | Eight bit-number registers × 50 data-alterable operands |
 | `0000 1000 11 mmm rrr` | `BSET #n,<ea>` | 50 | 4–8 | Set bit in a data-alterable operand; Z describes original bit |
 | `0000 bbb 1 11 mmm rrr` | `BSET Dn,<ea>` | 400 | 2–6 | Eight bit-number registers × 50 data-alterable operands |
+| `0000 ddd 1 t s 001 aaa` | MOVEP.W/L | 256 | 4 | Eight data × eight address registers × two sizes × two directions; alternate-byte transfers |
 | `00 01 ddd mmm sss rrr` | `MOVE.B <ea>,<ea>` | 2,650 | 2–10 | 53 sources × 50 data-alterable destinations; neither operand may be An |
 | `00 10 ddd mmm sss rrr` (`mmm ≠ 001`) | `MOVE.L <ea>,<ea>` | 3,050 | 2–10 | 61 sources × 50 data-alterable destinations |
 | `00 10 ddd 001 sss rrr` | `MOVEA.L <ea>,An` | 488 | 2–6 | 61 sources × 8 address registers; no flag changes |
@@ -1753,6 +1766,14 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `0100 0100 ss mmm rrr` | `NEG.B/W/L <ea>` | 150 | 2–6 | Zero minus operand; subtraction flags; all data-alterable EAs |
 | `0100 0110 ss mmm rrr` | `NOT.B/W/L <ea>` | 150 | 2–6 | Width-limited complement; set NZ, clear VC, preserve X |
 | `0100 1010 ss mmm rrr` | `TST.B/W/L <ea>` | 150 | 2–6 | Set NZ from operand, clear VC, preserve X; no writeback; original-chip data-alterable EAs only |
+| `0100 0000 11 mmm rrr` | MOVE SR,<ea> | 50 | 2–6 | Word destination; user mode permitted on original 68000; memory read before write |
+| `0100 0100 11 mmm rrr` | MOVE <ea>,CCR | 53 | 2–6 | Word source, low five bits stored; preserve system flags |
+| `0100 0110 11 mmm rrr` | MOVE <ea>,SR | 53 | 2–6 | Word source; mask unused bits; privileged |
+| `0100 ddd 110 mmm rrr` | CHK.W <ea>,Dn | 424 | 2–6 | Signed bounds test; failed checks report a deferred exception atomically |
+| `0100 1000 00 mmm rrr` | NBCD <ea> | 50 | 2–6 | Decimal zero minus byte minus X; cumulative Z; preserve undefined NV |
+| `0100 1010 11 mmm rrr` | TAS <ea> | 50 | 2–6 | Test original byte, then set bit 7; set NZ, clear VC, preserve X |
+| `0100 1000 01 000 rrr` | SWAP Dn | 8 | 2 | Exchange words; set NZ, clear VC, preserve X |
+| `0100 1000 1 s 000 rrr` | EXT.W/L Dn | 16 | 2 | Sign-extend byte to word or word to long; result flags |
 | `0100 aaa 111 mmm rrr` | `LEA <ea>,An` | 224 | 2–6 | 28 control EAs × eight address registers; compute address without reading data; preserve flags |
 | `0100 1000 01 mmm rrr` | `PEA <ea>` | 28 | 2–6 | Push a computed control EA as a long; preserve flags |
 | `0100 1 d 00 1 s mmm rrr` | `MOVEM.W/L <list>,<ea>` / `<ea>,<list>` | 140 | 4–8 | Two sizes × (34 store + 36 load EAs); every mask; word loads sign-extend both register banks; preserve flags |
@@ -1761,6 +1782,10 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `0100 1110 10 mmm rrr` | `JSR <ea>` | 28 | 2–6 | All control EAs; push full address after extensions; preserve flags |
 | `0100 1110 11 mmm rrr` | `JMP <ea>` | 28 | 2–6 | All control EAs; validate target without a target read; preserve flags |
 | `0100 1110 0111 0101` | `RTS` | 1 | 2 | Pop the full return address through active A7; preserve flags |
+| `0100 1110 0110 d rrr` | MOVE An,USP / USP,An | 16 | 2 | Privileged full-long transfer; A7 selects SSP |
+| `0100 1110 0111 0001` | NOP | 1 | 2 | Advance PC only |
+| `0100 1110 0111 0010` | STOP #SR | 1 | 4 | Privileged status load and stop; external reset wakes the stored latch |
+| `0100 1110 0111 0111` | RTR | 1 | 2 | Restore CCR and full PC through active stack; preserve system state |
 | `0101 qqq 0 ss mmm rrr` | `ADDQ.B/W/L #n,<ea>` | 166 | 2–6 | Counts 1–8; 50 byte or 58 word/long destinations; An uses all 32 bits and preserves flags |
 | `0101 qqq 1 ss mmm rrr` | `SUBQ.B/W/L #n,<ea>` | 166 | 2–6 | Same sizes, counts, and destinations as ADDQ; data subtraction flags |
 | `0101 cccc 11 mmm rrr` (`mmm ≠ 001`) | `Scc <ea>` | 800 | 2–6 | Sixteen conditions × 50 byte destinations; write FF/00; read memory first; preserve flags |
@@ -1770,6 +1795,8 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `0110 cccc dddddddd` (`cccc=0010`–`1111`) | `Bcc <label>` | 28 | 2/4 | All fourteen conditions and both displacement forms; preserve flags |
 | `0111 rrr 0 iiiiiiii` | `MOVEQ #n,Dn` | 8 | 2 | Sign-extend the embedded byte to a long; MOVE flags |
 | `1000 rrr d ss mmm eee` | `OR.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,280 | 2–6 | 53 data sources or 42 memory destinations; set NZ, clear VC, preserve X |
+| `1000 ddd s11 mmm rrr` | DIVU/DIVS.W <ea>,Dn | 848 | 2–6 | Divide Dn.L by EA.W; packed remainder/quotient; overflow and zero-divisor policies |
+| `1000 ddd 10000 m rrr` | SBCD | 128 | 2 | Register/predecrement decimal subtraction with X and cumulative Z |
 | `1001 rrr d ss mmm eee` | `SUB.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,408 | 2–6 | All legal source/memory-destination forms; set XNZVC from destination minus source |
 | `1001 ddd 1 ss 00 0 rrr` | `SUBX.B/W/L Dn,Dn` | 192 | 2 | Three sizes × 64 register pairs; destination minus source minus X; cumulative Z |
 | `1001 ddd 1 ss 00 1 rrr` | `SUBX.B/W/L -(An),-(An)` | 192 | 2 | Same arithmetic; two predecrement operands, source before destination |
@@ -1779,6 +1806,9 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `1011 ddd 1 ss 001 rrr` | `CMPM.B/W/L (An)+,(An)+` | 192 | 2 | Three sizes × 64 pointer pairs; destination minus source; replace NZVC, preserve X, no writeback |
 | `1011 rrr s11 mmm eee` | `CMPA.W/L <ea>,An` | 976 | 2–6 | Sign-extend word source; full 32-bit comparison; preserve X; no writeback |
 | `1100 rrr d ss mmm eee` | `AND.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,280 | 2–6 | Same sizes, sources, destinations, and flags as OR |
+| `1100 ddd s11 mmm rrr` | MULU/MULS.W <ea>,Dn | 848 | 2–6 | Word operands to full-long result; signed/unsigned; preserve X |
+| `1100 ddd 10000 m rrr` | ABCD | 128 | 2 | Register/predecrement decimal addition with X and cumulative Z |
+| `1100 ddd 1 ooooo rrr` | EXG | 192 | 2 | ooooo=01000 Dn/Dn, 01001 An/An, 10001 Dn/An; full longs, no flags |
 | `1101 rrr d ss mmm eee` | `ADD.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,408 | 2–6 | All legal source/memory-destination forms; set XNZVC from addition |
 | `1101 ddd 1 ss 00 0 rrr` | `ADDX.B/W/L Dn,Dn` | 192 | 2 | Three sizes × 64 register pairs; destination plus source plus X; cumulative Z |
 | `1101 ddd 1 ss 00 1 rrr` | `ADDX.B/W/L -(An),-(An)` | 192 | 2 | Same arithmetic; two predecrement operands, source before destination |
@@ -1860,7 +1890,7 @@ intermediate overflow, register aliases, and memory updates.
 
 | Area | Implemented scope |
 | --- | --- |
-| Stored state | D0–D7, A0–A6, USP/SSP, and PC as unsigned 32-bit values; X/N/Z/V/C/T/S and three-bit interrupt mask |
+| Stored state | D0–D7, A0–A6, USP/SSP, and PC as unsigned 32-bit values; X/N/Z/V/C/T/S and three-bit interrupt mask; Boolean `halted` latch |
 | Views | A7 derived from S and USP/SSP; physical PC derived from the low 24 bits of PC |
 | Transfers | Complete MOVE.B/W/L, MOVEA.W/L, and MOVEM.W/L families; MOVEQ; partial Dn writes and sign-extended address-register word writes |
 | Immediate ALU | ADDI, SUBI, CMPI, ANDI, ORI, EORI in all three sizes and data-alterable modes; preserve upper Dn bits on byte/word writes |
@@ -1877,8 +1907,12 @@ intermediate overflow, register aliases, and memory updates.
 | Control flow | BRA/Bcc, DBcc, BSR/RTS, JMP/JSR; complete conditions, displacement forms, and counter registers |
 | Alignment | Even instruction, word, and long addresses; odd byte operands allowed; read/write faults preserve state and RAM, including pending address updates |
 | Stack and addresses | A7 selects USP/SSP from S; BSR/JSR push and RTS pops a four-byte return address; LINK/UNLK frames, LEA/PEA address calculation, MOVEM saves/restores; byte auto-updates step by two |
-| Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts; preserve other registers, condition codes, and RAM under the documented policy |
-| Remaining scope | Decimal arithmetic, multiply/divide, other transfers, packed status, TAS/NOP, STOP, exceptions, interrupts, devices, timing, and prefetch |
+| Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts, clear halt; preserve other registers, condition codes, and RAM under the documented policy |
+| Decimal and multiply/divide | ABCD/SBCD/NBCD, MULU/MULS/DIVU/DIVS; cumulative decimal Z, packed remainder/quotient, explicit undefined-flag policies |
+| Further transfers | MOVEP alternate-byte RAM transfers, EXG, EXT, and SWAP; every documented form |
+| Status and control | Packed CCR/SR moves and immediate logic, USP moves, RTR, CHK, TAS, NOP, and STOP; atomic privilege/bounds/divide-zero rejection |
+| Stopping | STOP loads SR and sets `halted`; later steps do not fetch; snapshots retain it and external reset clears it |
+| Remaining scope | RESET, RTE, TRAP, TRAPV, ILLEGAL; exception/interrupt/trace delivery, devices, bus faults, timing, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
@@ -1893,7 +1927,17 @@ Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [shifts](../../tests/machines/68000/shifts-example.test.ts),
 [bit operations](../../tests/machines/68000/bits-example.test.ts), and
 [extended arithmetic example tests](../../tests/machines/68000/extended-example.test.ts),
+[decimal pipeline tests](../../tests/machines/68000/decimal-pipeline-example.test.ts),
 plus [public type checks](../../tests/types/68000.ts).
+
+Completion checks execute all new register/EA forms. Decimal expectations use
+integer arithmetic on all valid packed operands and incoming X/Z; multiply
+and divide use independent BigInt products, quotients, and remainders across
+word operands and signed limits. Tests cover every status word and MOVEP
+displacement, EXG aliases, EXT/SWAP word inputs, original-value TAS flags,
+privilege/alignment rejection, zero-divisor retry, CHK bounds, RTR stack/target
+faults, and STOP/reset/snapshot behavior. The 26-step decimal pipeline checks
+complete records and resumption at every instruction boundary.
 
 The independent transfer fixtures execute all **9,726 MOVE/MOVEA encodings**
 in both user and supervisor modes, checking complete state, instruction bytes,

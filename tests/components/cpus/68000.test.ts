@@ -33,7 +33,7 @@ function initialState(overrides: Partial<Cpu68000State> = {}): Cpu68000State {
     d4: 0x01234567, d5: 0x89abcdef, d6: 0xfedcba98, d7: 0x76543210,
     a0: 0x10000000, a1: 0x20000000, a2: 0x30000000, a3: 0x40000000,
     a4: 0x50000000, a5: 0x60000000, a6: 0x70000000, usp: 0x34ffe000, ssp: 0x56ffd000,
-    pc: 0xab001000, interruptMask: 2, flags: flags(127), ...overrides };
+    pc: 0xab001000, halted: false, interruptMask: 2, flags: flags(127), ...overrides };
 }
 
 function snapshot(state: Cpu68000State): Cpu68000Snapshot {
@@ -108,7 +108,7 @@ test("68000 reads declared getters once and ignores contradictory derived views 
     }
   }
   assert.deepEqual(new Cpu68000(new Ram(0x1000000), state).snapshot(), expected);
-  assert.equal(calls.size, 27);
+  assert.equal(calls.size, 28);
   assert.ok([...calls.values()].every(count => count === 1));
 });
 
@@ -341,7 +341,21 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
       supported.add(base + destination * 512 + source);
     }
   }
-  assert.equal(supported.size, 42667); // Includes embedded MOVEQ, branch, quick, and shift counts, unlike coverage forms.
+  for (const base of [0x40c0, 0x4800, 0x4ac0]) for (const ea of dataDestinations) supported.add(base + ea);
+  for (const base of [0x44c0, 0x46c0]) for (const ea of byteSources) supported.add(base + ea);
+  for (const opcode of [0x003c, 0x007c, 0x023c, 0x027c, 0x0a3c, 0x0a7c, 0x4e71, 0x4e72, 0x4e77]) supported.add(opcode);
+  for (let register = 0; register < 8; register++) {
+    for (const base of [0x4840, 0x4880, 0x48c0, 0x4e60, 0x4e68]) supported.add(base + register);
+    for (const base of [0x4180, 0x80c0, 0x81c0, 0xc0c0, 0xc1c0]) {
+      for (const ea of byteSources) supported.add(base + register * 512 + ea);
+    }
+    for (let other = 0; other < 8; other++) {
+      for (const base of [0x0108, 0x0148, 0x0188, 0x01c8, 0x8100, 0x8108, 0xc100, 0xc108, 0xc140, 0xc148, 0xc188]) {
+        supported.add(base + register * 512 + other);
+      }
+    }
+  }
+  assert.equal(supported.size, 45796); // Includes embedded MOVEQ, branch, quick, and shift counts, unlike coverage forms.
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
@@ -1092,13 +1106,12 @@ test("68000 EOR memory writes, including unchanged values, cover every size, res
   }
 });
 
-test("68000 logic rejects invalid address forms and unsupported decimal/exchange opcodes", () => {
+test("68000 logic rejects invalid address forms", () => {
   const ram = new ObservedRam(0x1000000);
   const before = snapshot(initialState());
   const cpu = new Cpu68000(ram, before);
-  // OR/AND An sources; EOR PC/immediate destinations; SBCD, ABCD, EXG. Mode 001 in EOR's slot is CMPM.
-  for (const opcode of [0x8008, 0x8048, 0x8088, 0xc008, 0xc048, 0xc088, 0xb17a, 0xb1bb, 0xb1bc,
-    0x8100, 0x8108, 0xc100, 0xc108, 0xc140, 0xc148, 0xc188]) {
+  // OR/AND An sources; EOR PC/immediate destinations. Mode 001 in EOR's slot is CMPM.
+  for (const opcode of [0x8008, 0x8048, 0x8088, 0xc008, 0xc048, 0xc088, 0xb17a, 0xb1bb, 0xb1bc]) {
     const bytes = wordBytes(opcode);
     bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
     ram.accesses.length = 0;
@@ -2621,5 +2634,428 @@ test("68000 ADDX and SUBX consume live X and cumulative Z across multiword resul
     const cleared = { ...high, pc: high.pc + 2, d0: subtracting ? 0 : high.d0,
       flags: { ...high.flags, x: false, n: false, v: false, c: false } };
     checkStep(ram, high, subtracting ? [0x91, 0x81] : [0x93, 0x81], cleared, [], cpu); // SUBX.L D1,D0 or D1,D1
+  }
+});
+
+// Ordinary-instruction completion. These oracles use decimal integers, BigInt division,
+// and literal manual opwords rather than the core's decoder or ALU helpers.
+function checkOrdinary(ram: ObservedRam, before: Cpu68000State, bytes: readonly number[], after: Cpu68000State,
+  data: readonly Cpu68000MemoryAccess[] = [], runningCpu?: Cpu68000, outcome: "executed" | "halted" = "executed"): void {
+  bytes.forEach((value, offset) => ram.write(physical(before.pc + offset), value));
+  ram.accesses.length = 0;
+  const cpu = runningCpu ?? new Cpu68000(ram, before);
+  const accesses = [...memoryAccesses("read", before.pc, bytes), ...data];
+  assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after),
+    instruction: { address: before.pc, bytes }, outcome, accesses });
+  assert.deepEqual(ram.accesses, accesses);
+  const finalBytes = new Map(data.map(({ address, value }) => [address, value]));
+  for (const [address, value] of finalBytes) assert.equal(ram.read(address), value);
+}
+
+function decimalResult(left: number, right: number, direction: number, before: Cpu68000Flags) {
+  const decode = (value: number) => Math.floor(value / 16) * 10 + value % 16;
+  const total = decode(left) + direction * (decode(right) + Number(before.x));
+  const normalized = (total % 100 + 100) % 100;
+  const result = Math.floor(normalized / 10) * 16 + normalized % 10;
+  return { result, flags: { ...before, x: total < 0 || total > 99, c: total < 0 || total > 99,
+    z: before.z && result === 0 } };
+}
+
+for (const [name, opcode, direction] of [["ABCD", 0xc300, 1], ["SBCD", 0x8300, -1], ["NBCD", 0x4801, -1]] as const) {
+  test(`68000 ${name} exhausts valid packed decimal operands, incoming X/Z, and preserves undefined N/V`, () => {
+    const ram = new ObservedRam(0x1000000);
+    const packed = Array.from({ length: 100 }, (_, n) => Math.floor(n / 10) * 16 + n % 10);
+    for (const left of name === "NBCD" ? [0] : packed) for (const right of packed) for (const x of [false, true]) for (const z of [false, true]) {
+      const before = initialState({ d0: 0x12340000 + right, d1: 0xabcd0000 + (name === "NBCD" ? right : left),
+        flags: { ...flags((left + right) % 128), x, z } });
+      const expected = decimalResult(left, right, direction, before.flags);
+      checkOrdinary(ram, before, wordBytes(opcode), { ...before, d1: 0xabcd0000 + expected.result,
+        pc: before.pc + 2, flags: expected.flags });
+    }
+  });
+}
+
+test("68000 decimal forms cover every register pair, predecrement aliases, both stacks, and chained zero", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const [base, direction] of [[0xc100, 1], [0x8100, -1]] as const) {
+    for (const memory of [false, true]) for (let source = 0; source < 8; source++) for (let destination = 0; destination < 8; destination++) {
+      for (const supervisor of [false, true]) {
+        const before = transferState(supervisor ? 127 : 63);
+        const after = { ...before, pc: before.pc + 2 };
+        const data: Cpu68000MemoryAccess[] = [];
+        const sourceRegister = registerForms[source]!.register;
+        const destinationRegister = registerForms[destination]!.register;
+        let right = 0x19, left = 0x80;
+        if (memory) {
+          const names = addressNames(before);
+          const s = names[source]!, d = names[destination]!;
+          after[s] = unsignedLong(after[s] - (source === 7 ? 2 : 1));
+          const sourceAddress = after[s];
+          after[d] = unsignedLong(after[d] - (destination === 7 ? 2 : 1));
+          ram.write(physical(sourceAddress), right);
+          ram.write(physical(after[d]), left);
+          const expected = decimalResult(left, right, direction, before.flags);
+          data.push(...memoryAccesses("read", sourceAddress, [right]), ...memoryAccesses("read", after[d], [left]),
+            ...memoryAccesses("write", after[d], [expected.result]));
+          after.flags = expected.flags;
+        } else {
+          before[sourceRegister] = 0x12340000 + right;
+          before[destinationRegister] = 0xabcd0000 + left;
+          right = before[sourceRegister] % 256;
+          Object.assign(after, before, { pc: before.pc + 2 });
+          const expected = decimalResult(left, right, direction, before.flags);
+          after[destinationRegister] = 0xabcd0000 + expected.result;
+          after.flags = expected.flags;
+        }
+        checkOrdinary(ram, before, wordBytes(base + destination * 512 + (memory ? 8 : 0) + source), after, data);
+      }
+    }
+  }
+  // Invalid BCD digits have an explicit deterministic policy, not claimed hardware flags.
+  for (const [opcode, left, right, x, result, carry] of [
+    [0xc300, 0xff, 0xff, false, 0x54, true], [0xc300, 0x0f, 0x0f, true, 0x15, false],
+    [0x8300, 0x00, 0xff, false, 0xab, true], [0x4801, 0x00, 0xff, true, 0xaa, true],
+  ] as const) {
+    const before = initialState({ d0: right, d1: opcode === 0x4801 ? right : left, flags: { ...flags(127), x } });
+    checkOrdinary(ram, before, wordBytes(opcode), { ...before, d1: result, pc: before.pc + 2,
+      flags: { ...before.flags, x: carry, c: carry, z: false } });
+  }
+});
+
+function productResult(left: number, right: number, signed: boolean, before: Cpu68000Flags) {
+  const operand = (n: number) => signed ? BigInt.asIntN(16, BigInt(n)) : BigInt(n % 65536);
+  const result = Number(BigInt.asUintN(32, operand(left) * operand(right)));
+  return { result, flags: moveFlags(before, result) };
+}
+function quotientResult(left: number, right: number, signed: boolean, before: Cpu68000Flags) {
+  if (!right) return { result: left, flags: before, fault: "divide-by-zero" as const };
+  const dividend = signed ? BigInt.asIntN(32, BigInt(left)) : BigInt(left);
+  const divisor = signed ? BigInt.asIntN(16, BigInt(right)) : BigInt(right);
+  const quotient = dividend / divisor;
+  if (quotient < (signed ? -32768n : 0n) || quotient > (signed ? 32767n : 65535n)) {
+    return { result: left, flags: { ...before, v: true, c: false } };
+  }
+  const low = Number(BigInt.asUintN(16, quotient));
+  const result = Number(BigInt.asUintN(16, dividend % divisor)) * 65536 + low;
+  return { result, flags: { ...before, n: low >= 32768, z: low === 0, v: false, c: false } };
+}
+
+for (const [name, base, signed, divide] of [
+  ["MULU", 0xc0c0, false, false], ["MULS", 0xc1c0, true, false],
+  ["DIVU", 0x80c0, false, true], ["DIVS", 0x81c0, true, true],
+] as const) {
+  test(`68000 ${name} exhausts word operands against independent BigInt arithmetic`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (let right = divide ? 1 : 0; right < 65536; right++) {
+      const left = [0, 0x7fffffff, 0x80000000, 0xffffffff, 0x00010001, 0x12345678, 0xffff8000][right % 7]!;
+      const before = initialState({ d0: left, flags: flags(right % 128) });
+      const expected = (divide ? quotientResult : productResult)(left, right, signed, before.flags);
+      checkOrdinary(ram, before, [...wordBytes(base + 60), ...wordBytes(right)],
+        { ...before, d0: expected.result, flags: expected.flags, pc: before.pc + 4 });
+    }
+  });
+  test(`68000 ${name} covers all 424 forms, including source/destination and index aliases`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (let register = 0; register < 8; register++) {
+      const before = transferState(register % 2 ? 127 : 0);
+      for (const ea of transferFixtures(before, 2, before.pc + 2).filter(ea => ea.code < 8 || ea.code >= 16)) {
+        const value = ea.register ? before[ea.register] % 65536 : ea.immediate ?? 0xfffd;
+        if (ea.address !== undefined) bytesFor(2, value).forEach((byte, offset) => ram.write(physical(ea.address! + offset), byte));
+        const destination = registerForms[register]!.register;
+        const expected = (divide ? quotientResult : productResult)(before[destination], value, signed, before.flags);
+        const bytes = [...wordBytes(base + register * 512 + ea.code), ...ea.extension];
+        const after = { ...before, [destination]: expected.result, flags: expected.flags, pc: before.pc + bytes.length };
+        if (ea.update) after[ea.update[0]] = ea.update[1];
+        checkOrdinary(ram, before, bytes, after, ea.address === undefined ? [] : memoryAccesses("read", ea.address, bytesFor(2, value)));
+      }
+    }
+  });
+}
+
+test("68000 division distinguishes quotient limits, remainder signs, overflow, and divide-by-zero retry", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const signed of [false, true]) for (const divisor of [1, 2, 3, 0x7fff, 0x8000, 0xffff]) {
+    for (const dividend of [0, 1, 0x7fff, 0x8000, 0xffff, 0x10000, 0x7fffffff, 0x80000000, 0xffff8000, 0xffffffff]) {
+      for (const bits of [0, 127]) {
+        const before = initialState({ d0: dividend, flags: flags(bits) });
+        const expected = quotientResult(dividend, divisor, signed, before.flags);
+        checkOrdinary(ram, before, [...wordBytes(signed ? 0x81fc : 0x80fc), ...wordBytes(divisor)],
+          { ...before, d0: expected.result, flags: expected.flags, pc: before.pc + 4 });
+      }
+    }
+  }
+  for (const opcode of [0x80d8, 0x81d8]) {
+    const before = initialState({ d0: 100, a0: 0xfffffffe });
+    const cpu = new Cpu68000(ram, before);
+    [0x80, opcode % 256].forEach((byte, i) => ram.write(0x1000 + i, i === 0 ? Math.floor(opcode / 256) : byte));
+    ram.write(0xfffffe, 0); ram.write(0xffffff, 0);
+    ram.accesses.length = 0;
+    const rejected = cpu.step();
+    assert.deepEqual(rejected, { before: snapshot(before), after: snapshot(before), outcome: "unsupported", reason: "divide-by-zero",
+      instruction: { address: before.pc, bytes: wordBytes(opcode) },
+      accesses: [...memoryAccesses("read", before.pc, wordBytes(opcode)), ...memoryAccesses("read", before.a0, [0, 0])] });
+    assert.deepEqual(ram.accesses, rejected.accesses);
+    ram.write(0xffffff, 3);
+    checkOrdinary(ram, before, wordBytes(opcode), { ...before, a0: 0, d0: 0x00010021, pc: before.pc + 2,
+      flags: { ...before.flags, n: false, z: false, v: false, c: false } }, memoryAccesses("read", before.a0, [0, 3]), cpu);
+    assert.deepEqual(rejected.after, snapshot(before));
+  }
+});
+
+test("68000 CHK covers all 424 forms and signed bounds while preserving state on deferred exceptions", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let register = 0; register < 8; register++) {
+    const before = transferState(register % 2 ? 127 : 0);
+    before[registerForms[register]!.register] = 0xabcd0008;
+    for (const ea of transferFixtures(before, 2, before.pc + 2).filter(ea => ea.code < 8 || ea.code >= 16)) {
+      const bound = ea.register ? before[ea.register] % 65536 : ea.immediate ?? 0x7fff;
+      if (ea.address !== undefined) bytesFor(2, bound).forEach((b, i) => ram.write(physical(ea.address! + i), b));
+      const bytes = [...wordBytes(0x4180 + register * 512 + ea.code), ...ea.extension];
+      bytes.forEach((b, i) => ram.write(physical(before.pc + i), b));
+      ram.accesses.length = 0;
+      const step = new Cpu68000(ram, before).step();
+      const after = { ...before, pc: before.pc + bytes.length };
+      if (ea.update) after[ea.update[0]] = ea.update[1];
+      assert.deepEqual(step, { before: snapshot(before), after: snapshot(signedWord(bound) < 8 ? before : after),
+        instruction: { address: before.pc, bytes },
+        ...(signedWord(bound) < 8 ? { outcome: "unsupported", reason: "bounds-check" } : { outcome: "executed" }),
+        accesses: [...memoryAccesses("read", before.pc, bytes), ...(ea.address === undefined ? [] : memoryAccesses("read", ea.address, bytesFor(2, bound)))] });
+      assert.deepEqual(ram.accesses, step.accesses);
+    }
+  }
+  for (let value = 0; value < 65536; value++) {
+    const bound = [0, 1, 0x7fff, 0x8000, 0xffff][value % 5]!;
+    const before = initialState({ d0: 0xabcd0000 + value, flags: flags(value % 128) });
+    const bytes = [0x41, 0xbc, ...wordBytes(bound)];
+    bytes.forEach((b, i) => ram.write(0x1000 + i, b));
+    ram.accesses.length = 0;
+    const record = new Cpu68000(ram, before).step();
+    const rejected = signedWord(value) < 0 || signedWord(value) > signedWord(bound);
+    assert.equal(record.outcome, rejected ? "unsupported" : "executed");
+    if (record.outcome === "unsupported") assert.equal(record.reason, "bounds-check");
+    assert.deepEqual(record.after, snapshot(rejected ? before : { ...before, pc: before.pc + 4 }));
+    assert.deepEqual(record.accesses, memoryAccesses("read", before.pc, bytes));
+    assert.deepEqual(ram.accesses, record.accesses);
+  }
+});
+
+function statusFlags(word: number, before: Cpu68000Flags, full = true): Cpu68000Flags {
+  return { ...before, x: Boolean(word & 16), n: Boolean(word & 8), z: Boolean(word & 4), v: Boolean(word & 2), c: Boolean(word & 1),
+    ...(full ? { s: Boolean(word & 8192), t: Boolean(word & 32768) } : {}) };
+}
+function statusWord(state: Cpu68000State): number {
+  const f = state.flags;
+  return Number(f.t) * 32768 + Number(f.s) * 8192 + state.interruptMask * 256
+    + Number(f.x) * 16 + Number(f.n) * 8 + Number(f.z) * 4 + Number(f.v) * 2 + Number(f.c);
+}
+
+test("68000 MOVE to CCR/SR and immediate status logic mask every possible word", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const full of [false, true]) {
+    for (const [base, operation] of [[0x44fc, "move"], [0x003c, "or"], [0x023c, "and"], [0x0a3c, "xor"]] as const) {
+      for (let word = 0; word < 65536; word++) {
+        const before = initialState({ flags: { ...flags(word % 128), s: full || Boolean(word & 1) }, interruptMask: word % 8 });
+        const old = statusWord(before);
+        const value = operation === "move" ? word : operation === "or" ? old | word : operation === "and" ? old & word : old ^ word;
+        const opcode = base + (full ? operation === "move" ? 0x200 : 0x40 : 0);
+        checkOrdinary(ram, before, [...wordBytes(opcode), ...wordBytes(word)], { ...before, pc: before.pc + 4,
+          flags: statusFlags(value, before.flags, full), interruptMask: full ? Math.floor(value / 256) % 8 : before.interruptMask });
+      }
+    }
+  }
+});
+
+test("68000 MOVE from SR, NBCD, and TAS cover every data-alterable EA and ordered read/write", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const [base, size] of [[0x40c0, 2], [0x4800, 1], [0x4ac0, 1]] as const) {
+    for (let bits = 0; bits < 128; bits++) {
+      const initial = transferState(bits);
+      for (const ea of transferFixtures(initial, size, initial.pc + 2).filter(ea => ea.code < 8 || (ea.code >= 16 && ea.code <= 57))) {
+        const before = { ...initial };
+        const value = ea.register ? before[ea.register] % 2 ** (size * 8) : base === 0x4800 ? 0x19 : bits * 2;
+        if (ea.address !== undefined) bytesFor(size, value).forEach((b, i) => ram.write(physical(ea.address! + i), b));
+        const bytes = [...wordBytes(base + ea.code), ...ea.extension];
+        const after = { ...before, pc: before.pc + bytes.length };
+        let result = statusWord(before);
+        if (base === 0x4800) {
+          // Register fixtures may contain non-BCD digits; substitute a valid operand first.
+          if (ea.register) before[ea.register] = after[ea.register] = Math.floor(before[ea.register] / 256) * 256 + 0x19;
+          const decimal = decimalResult(0, 0x19, -1, before.flags);
+          result = decimal.result; after.flags = decimal.flags;
+        } else if (base === 0x4ac0) {
+          result = value | 128;
+          after.flags = { ...before.flags, n: value >= 128, z: value === 0, v: false, c: false };
+        }
+        if (ea.update) after[ea.update[0]] = ea.update[1];
+        if (ea.register) after[ea.register] = Math.floor(before[ea.register] / 2 ** (size * 8)) * 2 ** (size * 8) + result;
+        checkOrdinary(ram, before, bytes, after, ea.address === undefined ? [] : [
+          ...memoryAccesses("read", ea.address, bytesFor(size, value)), ...memoryAccesses("write", ea.address, bytesFor(size, result)),
+        ]);
+      }
+    }
+  }
+});
+
+test("68000 status sources cover every EA, including postincrement of SSP while changing S", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const full of [false, true]) {
+    const before = transferState(127);
+    for (const ea of transferFixtures(before, 2, before.pc + 2).filter(ea => ea.code < 8 || ea.code >= 16)) {
+      const value = ea.register ? before[ea.register] % 65536 : ea.immediate ?? 0x0515;
+      if (ea.address !== undefined) wordBytes(value).forEach((b, i) => ram.write(physical(ea.address! + i), b));
+      const bytes = [...wordBytes((full ? 0x46c0 : 0x44c0) + ea.code), ...ea.extension];
+      const after = { ...before, pc: before.pc + bytes.length, flags: statusFlags(value, before.flags, full),
+        interruptMask: full ? Math.floor(value / 256) % 8 : before.interruptMask };
+      if (ea.update) after[ea.update[0]] = ea.update[1];
+      checkOrdinary(ram, before, bytes, after, ea.address === undefined ? [] : memoryAccesses("read", ea.address, wordBytes(value)));
+    }
+  }
+});
+
+test("68000 privileged ordinary instructions reject before fetching operands and USP transfers use active A7", () => {
+  const ram = new ObservedRam(0x1000000);
+  const opcodes = [0x007c, 0x027c, 0x0a7c, 0x4e72];
+  for (let ea = 0; ea <= 60; ea++) if (ea < 8 || ea >= 16) opcodes.push(0x46c0 + ea);
+  for (let code = 0; code < 16; code++) opcodes.push(0x4e60 + code);
+  for (const opcode of opcodes) {
+    const before = transferState(63);
+    const bytes = wordBytes(opcode);
+    bytes.forEach((b, i) => ram.write(0x1000 + i, b));
+    ram.accesses.length = 0;
+    const cpu = new Cpu68000(ram, before);
+    const expected = { before: snapshot(before), after: snapshot(before), instruction: { address: before.pc, bytes },
+      accesses: memoryAccesses("read", before.pc, bytes), outcome: "unsupported", reason: "privilege-violation" };
+    assert.deepEqual(cpu.step(), expected);
+    assert.deepEqual(ram.accesses, expected.accesses);
+    ram.accesses.length = 0;
+    assert.deepEqual(cpu.step(), expected);
+  }
+  for (let code = 0; code < 8; code++) for (const load of [false, true]) {
+    const before = initialState();
+    const register = addressNames(before)[code]!;
+    const after = { ...before, pc: before.pc + 2, [load ? register : "usp"]: load ? before.usp : before[register] };
+    checkOrdinary(ram, before, wordBytes(0x4e60 + (load ? 8 : 0) + code), after);
+  }
+});
+
+test("68000 MOVEP covers every encoding, odd addresses, signed displacement, bus wrapping, and byte gaps", () => {
+  const ram = new ObservedRam(0x1000000);
+  function check(code: number, register: number, size: 2 | 4, store: boolean, displacement: number, supervisor: boolean, base: number): void {
+    const before = transferState(supervisor ? 127 : 0);
+    const name = registerForms[register]!.register;
+    before[addressNames(before)[code]!] = base;
+    const address = unsignedLong(base + signedWord(displacement));
+    const bytes = [...wordBytes(0x0108 + register * 512 + (size === 4 ? 64 : 0) + (store ? 128 : 0) + code), ...wordBytes(displacement)];
+    const transfer = store ? bytesFor(size, before[name]) : [0x89, 0xab, 0xcd, 0xef].slice(0, size);
+    for (let offset = 0; offset < size * 2; offset++) ram.write(physical(address + offset), offset % 2 ? 0x5a : transfer[offset / 2]!);
+    const after = { ...before, pc: before.pc + 4 };
+    if (!store) after[name] = Math.floor(before[name] / 2 ** (size * 8)) * 2 ** (size * 8)
+      + transfer.reduce((value, byte) => value * 256 + byte, 0);
+    checkOrdinary(ram, before, bytes, after, transfer.map((value, offset) => ({ kind: store ? "write" : "read", value, address: physical(address + offset * 2) })));
+    for (let offset = 1; offset < size * 2; offset += 2) assert.equal(ram.read(physical(address + offset)), 0x5a);
+  }
+  for (let code = 0; code < 8; code++) for (let register = 0; register < 8; register++) {
+    for (const size of [2, 4] as const) for (const store of [false, true]) for (const supervisor of [false, true]) {
+      for (const base of [0xab008001, 0xffffffff]) check(code, register, size, store, 0xfffe, supervisor, base);
+    }
+  }
+  for (let displacement = 0; displacement < 65536; displacement++) {
+    check(7, 7, displacement % 2 ? 2 : 4, Boolean(displacement & 2), displacement, Boolean(displacement & 4), 0xcd030001);
+  }
+});
+
+test("68000 EXG covers every bank pair and self-alias; EXT and SWAP preserve unselected data and X", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const supervisor of [false, true]) for (let left = 0; left < 8; left++) for (let right = 0; right < 8; right++) {
+    const before = transferState(supervisor ? 127 : 0);
+    for (const [base, l, r] of [[0xc140, registerForms[left]!.register, registerForms[right]!.register],
+      [0xc148, addressNames(before)[left]!, addressNames(before)[right]!], [0xc188, registerForms[left]!.register, addressNames(before)[right]!]] as const) {
+      checkOrdinary(ram, before, wordBytes(base + left * 512 + right), { ...before, pc: before.pc + 2, [l]: before[r], [r]: before[l] });
+    }
+  }
+  for (const [base, size] of [[0x4840, 4], [0x4880, 2], [0x48c0, 4]] as const) for (let value = 0; value < 65536; value++) {
+    const register = value % 8, name = registerForms[register]!.register;
+    const original = 0xabc00000 + value;
+    const result = base === 0x4840 ? value * 65536 + 0xabc0 : base === 0x4880
+      ? (value % 256 < 128 ? value % 256 : 0xff00 + value % 256) : unsignedLong(signedWord(value));
+    const before = initialState({ [name]: original, flags: flags(value % 128) });
+    checkOrdinary(ram, before, wordBytes(base + register), { ...before, [name]: size === 2 ? 0xabc00000 + result : result,
+      pc: before.pc + 2, flags: { ...before.flags, n: result >= 2 ** (size * 8 - 1), z: result === 0, v: false, c: false } });
+  }
+});
+
+test("68000 RTR restores only CCR and full PC, validates before committing, and uses either wrapping stack", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const supervisor of [false, true]) for (const address of [0x12345678, 0xfffffffe, 0xffffffff]) {
+    for (const target of [0xab003000, 0xffffffff]) {
+      const before = initialState({ flags: { ...flags(127), s: supervisor }, [supervisor ? "ssp" : "usp"]: address });
+      const bytes = [0x4e, 0x77], frame = [0xff, 0xe0, ...longBytes(target)];
+      frame.forEach((b, i) => ram.write(physical(address + i), b));
+      bytes.forEach((b, i) => ram.write(0x1000 + i, b));
+      ram.accesses.length = 0;
+      const record = new Cpu68000(ram, before).step();
+      const oddStack = address % 2 !== 0, oddTarget = target % 2 !== 0;
+      const after = { ...before, pc: target, [supervisor ? "ssp" : "usp"]: unsignedLong(address + 6), flags: statusFlags(0xffe0, before.flags, false) };
+      assert.deepEqual(record, { before: snapshot(before), after: snapshot(oddStack || oddTarget ? before : after),
+        instruction: { address: before.pc, bytes }, accesses: [...memoryAccesses("read", before.pc, bytes), ...(oddStack ? [] : memoryAccesses("read", address, frame))],
+        ...(oddStack || oddTarget ? { outcome: "unsupported", reason: "unaligned-address", fault: {
+          operation: oddStack ? "read" : "fetch", address: oddStack ? address : target } } : { outcome: "executed" }) });
+      assert.deepEqual(ram.accesses, record.accesses);
+    }
+  }
+});
+
+test("68000 NOP preserves state and STOP owns a validated, restorable latch cleared by external reset", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let bits = 0; bits < 128; bits++) {
+    const before = initialState({ pc: 0xfffffffe, flags: flags(bits) });
+    checkOrdinary(ram, before, [0x4e, 0x71], { ...before, pc: 0 });
+  }
+  for (const value of [undefined, 0, 1, "false", null]) {
+    const before = initialState(); Reflect.set(before, "halted", value);
+    assert.throws(() => new Cpu68000(ram, before), TypeError);
+  }
+  for (const status of [0, 0x2000, 0xa71f, 0xffff]) {
+    const before = initialState({ pc: 0xfffffffc });
+    const cpu = new Cpu68000(ram, before);
+    const after = { ...before, pc: 0, halted: true, flags: statusFlags(status, before.flags), interruptMask: Math.floor(status / 256) % 8 };
+    checkOrdinary(ram, before, [0x4e, 0x72, ...wordBytes(status)], after, [], cpu, "halted");
+    const saved = cpu.snapshot();
+    for (const stopped of [cpu, new Cpu68000(ram, saved), new Cpu68000(ram, { ...saved, pc: 1 })]) {
+      ram.accesses.length = 0;
+      const snapshot = stopped.snapshot();
+      assert.deepEqual(stopped.step(), { before: snapshot, after: snapshot, accesses: [], outcome: "halted", instruction: null });
+      assert.deepEqual(ram.accesses, []);
+    }
+    const vector = [0x12, 0x34, 0x56, 0x78, 0xab, 0, 0x10, 0];
+    vector.forEach((b, i) => ram.write(i, b));
+    const resetState = { ...after, halted: false, ssp: 0x12345678, pc: 0xab001000, interruptMask: 7, flags: { ...after.flags, s: true, t: false } };
+    ram.accesses.length = 0;
+    assert.deepEqual(cpu.reset(), { before: saved, after: snapshot(resetState), accesses: memoryAccesses("read", 0, vector) });
+    checkOrdinary(ram, resetState, [0x4e, 0x71], { ...resetState, pc: resetState.pc + 2 }, [], cpu);
+    assert.deepEqual(saved, snapshot(after));
+  }
+});
+
+test("68000 new word-source operations and MOVE from SR reject every odd memory EA atomically", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const base of [0x4180, 0x44c0, 0x46c0, 0xc0c0, 0xc1c0, 0x80c0, 0x81c0, 0x40c0]) {
+    const before = transferState(127);
+    for (const name of addressNames(before)) before[name] += 1;
+    for (const original of transferFixtures(before, 2, before.pc + 2).filter(ea => ea.address !== undefined && (base !== 0x40c0 || ea.code <= 57))) {
+      const ea = { ...original };
+      if (ea.address! % 2 === 0) {
+        ea.address! += 1;
+        ea.extension = [...ea.extension.slice(0, -1), ea.extension.at(-1)! + 1];
+      }
+      const bytes = [...wordBytes(base + ea.code), ...ea.extension];
+      bytes.forEach((b, i) => ram.write(0x1000 + i, b));
+      ram.accesses.length = 0;
+      const record = new Cpu68000(ram, before).step();
+      assert.deepEqual(record, { before: snapshot(before), after: snapshot(before), instruction: { address: before.pc, bytes },
+        accesses: memoryAccesses("read", before.pc, bytes), outcome: "unsupported", reason: "unaligned-address",
+        fault: { operation: "read", address: ea.address } });
+      assert.deepEqual(ram.accesses, record.accesses);
+    }
   }
 });

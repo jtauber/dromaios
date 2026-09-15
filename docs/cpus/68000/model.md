@@ -26,13 +26,14 @@ stored fields:
 | `usp`, `ssp` | Unsigned 32-bit user and supervisor stack pointers |
 | `pc` | Unsigned 32-bit program counter |
 | `interruptMask` | Integer from 0 through 7 |
+| `halted` | Boolean STOP latch; required in initial state |
 | `flags.x/n/z/v/c` | Boolean extend, negative, zero, overflow, and carry |
 | `flags.t/s` | Boolean trace and supervisor bits |
 
 The original status register has X/N/Z/V/C at bits 4–0, interrupt mask at
 10–8, S at 13, and T at 15. There is no master-mode bit or second trace bit.
-Packed SR/CCR values and a stopped latch are not exposed yet. Interrupt and
-trace delivery are deferred; storing T or the interrupt mask does not enable
+Instructions pack and unpack SR/CCR from these fields; snapshots keep no duplicate
+packed register. STOP sets the stored `halted` latch. Interrupt and trace delivery are deferred; storing T or the interrupt mask does not enable
 exception handling.
 
 The exported `cpu68000StateDescription` owns field names and constraints.
@@ -472,11 +473,101 @@ Both preserve all flags and the inactive stack. The
 [stack-frame example](examples/stack-frame.md) combines LINK/UNLK with
 LEA/PEA, JSR/JMP, MOVEM saves/restores, and signed word-array loads.
 
+## Decimal arithmetic
+
+ABCD and SBCD operate on packed decimal bytes in Dn pairs or predecrement
+memory pairs; NBCD subtracts a byte and X from decimal zero. Every instruction
+sets both X and C from decimal carry/borrow and retains Z only if it was
+already set and the result is zero. N and V are undefined by the manual and
+are preserved by this model. Byte writes retain the upper 24 bits of Dn.
+
+Predecrement pairs read the source first, then decrement/read/write the
+destination. Selecting the same An uses successive addresses. A7 decrements
+by two for each byte, using the active stack. Unchanged results still write.
+
+Valid packed digits implement decimal arithmetic modulo 100. Non-BCD inputs
+have a deterministic model policy: process low then high nibble, propagating
+one carry/borrow, with one correction of +6 for a digit above 9 (addition)
+or −6 for a negative digit (subtraction), then retain four bits per digit.
+This defines reproducible results without claiming undocumented silicon flags.
+
+## Multiply, divide, and bounds checks
+
+MULU/MULS multiply EA.W by Dn.W and replace all of Dn with the unsigned/signed
+32-bit product. They set N/Z from the full result, clear V/C, and preserve X.
+DIVU/DIVS divide unsigned/signed Dn.L by EA.W, placing the remainder in Dn's
+high word and quotient in its low word. Signed division truncates toward zero;
+the remainder has the dividend's sign. N/Z describe the 16-bit quotient, V/C
+clear on success, and X is preserved. Source EAs exclude An and otherwise
+include all data sources, including PC-relative and immediate.
+
+An unsigned quotient must fit 0..65535; a signed quotient must fit
+−32768..32767. Overflow is a successful instruction: Dn is unchanged, V is
+set, C clears, and the source's auto-update commits. Undefined N/Z are
+preserved. A zero divisor instead reports the deferred synchronous exception
+without changing any state, including flags, PC, or source address updates.
+
+CHK.W interprets both Dn.W and the bound EA.W as signed values and accepts
+`0 <= Dn.W <= bound`. High Dn bits are ignored. A successful check preserves
+X and, by model policy, undefined N/Z/V/C. A failed check reports
+`bounds-check` atomically. It does not synthesize the exception's N value or
+stack frame; all flags remain unchanged on this deferred path.
+
+## Additional transfers and byte tests
+
+- MOVEP.W/L transfers between Dn and a signed displacement from An. The
+  high byte transfers first, then subsequent bytes at offsets 2, 4, and 6.
+  Odd addresses are valid, each byte wraps on the physical bus, and no address
+  register or flag changes. Word loads preserve Dn's high word. This RAM
+  operation requires no peripheral model despite the instruction's name.
+- EXG exchanges full longs between Dn/Dn, An/An, or Dn/An. A7 resolves to the
+  active stack; self-exchanges and all flags are preserved.
+- EXT.W sign-extends Dn.B into its low word; EXT.L sign-extends Dn.W into all
+  32 bits. SWAP exchanges Dn's words. Each sets N/Z at its result width,
+  clears V/C, and preserves X. Later-chip EXTB.L is excluded.
+- TAS reads a data-alterable byte, sets N/Z from its original value, clears
+  V/C, preserves X, and writes the byte with bit 7 set. It records read then
+  write even if the high bit was already set. Bus arbitration is not modeled.
+
+## Status, stack selection, and stopping
+
+MOVE to CCR reads a word but stores only bits 4..0. MOVE to SR accepts only
+bits `A71F`: T, S, interrupt mask, and X/N/Z/V/C. ORI/ANDI/EORI to CCR or SR
+fetch an immediate word and affect only the defined destination bits. CCR
+operations preserve all system fields. MOVE from SR writes a word with unused
+bits clear, preserving flags; the original 68000 permits it in user mode and
+reads memory destinations before writing them.
+
+MOVE to SR, immediate SR logic, MOVE An/USP in either direction, and STOP are
+privileged. In user mode they reject immediately after the opcode fetch.
+USP transfers preserve all flags; An=7 selects SSP because execution requires
+supervisor mode. Updating S immediately switches the A7 view. A source such
+as `MOVE (A7)+,SR` still increments the stack pointer resolved before S changes.
+
+RTR reads a word and a long through active A7, restores only the five CCR
+bits, sets the full 32-bit PC, and advances that stack by six. It preserves
+S/T/interrupt mask, is unprivileged, and validates stack/target alignment
+before committing either flags or stack updates. NOP advances PC by two.
+
+STOP loads its immediate SR, advances PC by four, sets `halted`, and returns
+`outcome: "halted"` with the fetched instruction. Its new S may select the
+user stack. Later steps return `halted`, `instruction: null`, unchanged state,
+and no accesses, even if stored PC is odd. Snapshots retain the latch;
+external `reset()` clears it. Trace and interrupt wakeup are deferred, so
+storing T does not override this instruction-level STOP policy.
+
+RESET, RTE, TRAP, TRAPV, and ILLEGAL remain opcode rejections. All other
+documented original-68000 instruction forms are implemented within this
+instruction-level contract. Exception frames/vector delivery, external
+interrupts, trace delivery, devices, bus faults, timing, and prefetch remain
+outside it. In particular, software exception detection is implemented for
+ordinary instructions while delivery stays deferred, matching the 8088 model.
+
 ## Stepping and records
 
 `step()` attempts one instruction using current RAM. The
 [coverage tracker](../coverage.md#68000) lists the exact supported operation
-words. Each successful instruction returns:
+words. An ordinary successful instruction returns:
 
 - `outcome: "executed"`;
 - `instruction.address`: the full 32-bit starting PC;
@@ -488,6 +579,7 @@ MOVE fetches the operation word and source extensions, then reads the source.
 It next fetches destination extensions and writes the destination. All
 instruction bytes are therefore fetched before any store. Data reads/writes
 use ascending byte addresses, high byte first, including predecrement stores.
+MOVEP advances by two between bytes, leaving the intervening locations untouched.
 These are instruction-level records, not physical bus-cycle traces; prefetch
 and the chip's word-transfer scheduling are outside this model. Each access
 reflects an actual RAM call, without synthetic destination reads or trace
@@ -517,16 +609,19 @@ Unsupported attempts preserve all CPU state and RAM:
 
 | Case | Outcome details | Accesses |
 | --- | --- | --- |
+| Divide by zero | `reason: "divide-by-zero"`; instruction present | Opcode, extensions, and any divisor reads |
+| Failed CHK bounds | `reason: "bounds-check"`; instruction present | Opcode, extensions, and any bound reads |
+| Privileged ordinary instruction in user mode | `reason: "privilege-violation"`; instruction present | Two opcode fetches only; no extensions or operands |
 | Unimplemented operation word | `reason: "opcode"`; two instruction bytes | Two fetch reads |
 | Odd PC | `reason: "unaligned-address"`; `instruction: null`; `fault.operation: "fetch"` | None |
 | Odd word/long MOVE source | `reason: "unaligned-address"`; `fault.operation: "read"` | Opcode and source extension fetches; no source data read or destination fetch |
 | Odd word/long ALU operand | `reason: "unaligned-address"`; `fault.operation: "read"` | All instruction fetches; no operand reads or writes |
 | Odd word/long MOVE destination | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches and any source data reads; no writes |
 | Odd BSR/JSR/PEA/LINK stack address | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches; no writes |
-| Odd RTS stack address | `reason: "unaligned-address"`; `fault.operation: "read"` | Two opcode fetches; no stack reads |
+| Odd RTS/RTR stack address | `reason: "unaligned-address"`; `fault.operation: "read"` | Two opcode fetches; no stack reads |
 | Odd UNLK frame address | `reason: "unaligned-address"`; `fault.operation: "read"` | Two opcode fetches; no frame reads |
 | Odd nonempty MOVEM transfer | `reason: "unaligned-address"`; `fault.operation: "read"` or `"write"` | All instruction fetches; no data transfers |
-| Odd taken branch/jump/return target | `reason: "unaligned-address"`; `fault.operation: "fetch"`; instruction present | Instruction fetches; RTS also reads four stack bytes; no writes or target reads |
+| Odd taken branch/jump/return target | `reason: "unaligned-address"`; `fault.operation: "fetch"`; instruction present | Instruction fetches; RTS/RTR also reads four/six stack bytes; no writes or target reads |
 
 Alignment faults include the full rejected address in `fault.address`. A local
 fetch cursor and pending address updates allow rejection without changing PC,
@@ -549,7 +644,7 @@ transactions, function codes, prefetch, speculative reads, or device activity.
 
 1. Read bytes `000000`–`000003` into SSP, high byte first.
 2. Read bytes `000004`–`000007` into PC, high byte first.
-3. Set S, clear T, and set `interruptMask` to 7.
+3. Set S, clear T, set `interruptMask` to 7, and clear `halted`.
 
 Both vectors retain all 32 bits. A7 now exposes the new SSP. D0–D7, A0–A6,
 USP, X/N/Z/V/C, and RAM are preserved. Preserving registers and condition codes
@@ -670,3 +765,10 @@ rejection at either operand, and retrying a rejected instruction as bytes.
 The [extended example tests](../../../tests/machines/68000/extended-example.test.ts)
 check 29 complete records and RAM images in both modes, live addends and
 comparison data, reset preservation, and four carry/borrow snapshot boundaries.
+
+The ordinary-completion checks cover all remaining legal EA/register forms,
+packed-decimal combinations, word operands against independent BigInt
+arithmetic, every status word and MOVEP displacement, privilege/alignment
+rejection, division limits and retry, CHK signed bounds, and stopped snapshot
+resumption. The [decimal pipeline](examples/decimal-pipeline.md) combines the
+new families, checks complete records, and resumes at every instruction boundary.

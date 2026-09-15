@@ -20,6 +20,7 @@ address auto-updates without duplicate increments during read/modify/write.
 | A4, A5, A6 | `50000000`, `60000000`, `70000000` |
 | USP, SSP, PC | `34008000`, `56009000`, `AB002000` |
 | interruptMask | `2` |
+| halted | `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `0` |
 
 The 16 MiB RAM image starts zero-filled. Reset vectors at `000000` contain

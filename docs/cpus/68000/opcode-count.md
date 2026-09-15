@@ -112,3 +112,14 @@ operand values, that enumeration has 45,816 operation words. The difference is
 counts, 1,344 immediate-shift counts, and 15 TRAP vectors: 9,787 fewer forms.
 The manual-derived family audit above owns the denominator; emulator output
 alone does not define documented support.
+
+## Ordinary-instruction checkpoint
+
+The implementation covers **36,024 forms** (45,796 expanded operation words).
+The five remaining forms are RESET, RTE, TRAP, TRAPV, and ILLEGAL: four fixed
+opwords plus sixteen embedded TRAP-vector opwords, giving 20 deferred opwords.
+Thus 36,024 + 5 = 36,029 forms and 45,796 + 20 = 45,816 opwords.
+Ordinary instruction fault detection is counted within the declared model;
+exception delivery, interrupt wakeup, and device behavior remain deferred.
+The [coverage tracker](../coverage.md#68000) lists implemented families and
+shows >99.9% rather than rounding this incomplete total to 100%.
