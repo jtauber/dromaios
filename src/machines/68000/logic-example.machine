@@ -1,0 +1,42 @@
+// Merge selected bytes from four source longs into a destination buffer.
+// EOR accumulates a checksum; OR accumulates the bits present anywhere in the result.
+ram 1000000
+
+cpu 68000 {
+  D0 = 11223344  D1 = 55667788  D2 = 99AABBCC  D3 = DDEEFF00
+  D4 = 01234567  D5 = 89ABCDEF  D6 = FEDCBA98  D7 = 76543210
+  A0 = 10000000  A1 = 20000000  A2 = 30000000  A3 = 40000000
+  A4 = 50000000  A5 = 60000000  A6 = 70000000
+  USP = 34008000  SSP = 56009000  PC = AB002000
+  interruptMask = 2
+  flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 0 }
+}
+
+memory 000000 { 56 00 90 00  AB 00 20 00 }
+
+memory 002000 {
+  20 7C AB 00 30 00  // MOVEA.L #AB003000,A0: source buffer
+  22 7C CD 00 40 00  // MOVEA.L #CD004000,A1: destination buffer
+  24 3C 00 FF 00 FF  // MOVE.L #00FF00FF,D2: replacement mask
+  76 FF              // MOVEQ #-1,D3
+  B5 83              // EOR.L D2,D3: complementary preservation mask FF00FF00
+  78 00              // MOVEQ #0,D4: XOR checksum
+  7A 00              // MOVEQ #0,D5: OR summary
+  7E 03              // MOVEQ #3,D7: four iterations
+  20 18              // loop (201C): MOVE.L (A0)+,D0
+  C0 82              // AND.L D2,D0: select replacement bytes
+  C7 91              // AND.L D3,(A1): preserve the other destination bytes
+  81 91              // OR.L D0,(A1): merge replacement bytes
+  22 19              // MOVE.L (A1)+,D1: read back the merged long
+  B3 84              // EOR.L D1,D4: accumulate checksum
+  8A 81              // OR.L D1,D5: accumulate result bits
+  51 CF FF F0        // DBF D7,loop (201C)
+  23 C4 CD 00 50 00  // MOVE.L D4,(CD005000).L: store checksum
+  23 C5 CD 00 50 04  // MOVE.L D5,(CD005004).L: store OR summary
+}
+
+memory 002FFE { DE AD  11 22 33 44  89 AB CD EF  FF FF 00 00  00 00 FF FF  BE EF }
+memory 003FFE { DE AD  AA BB CC DD  12 34 56 78  FF 00 FF 00  00 00 00 00  BE EF }
+memory 004FFE { DE AD  CC CC CC CC  CC CC CC CC  BE EF }
+
+end AB00203A

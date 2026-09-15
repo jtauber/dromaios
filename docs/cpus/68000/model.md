@@ -171,6 +171,25 @@ adds the sign-extended word to the incremented pointer. CMPA also compares
 against the updated pointer and retains that update. Active A7 selects USP/SSP.
 The [word-sum example](examples/word-sum.md) combines all six families.
 
+## Register and memory logic
+
+AND/OR use `oooo rrr d ss mmm eee`, with `oooo=1100`/`1000` and the same
+size/direction fields as ADD/SUB. Their sources exclude An in every size;
+memory destinations use the same alterable set as ADD/SUB. EOR uses
+`1011 rrr 1 ss mmm eee`: Dn is always the source, and its destination may be
+Dn or alterable memory. PC-relative and immediate destinations are excluded.
+
+All three set N/Z from the selected result width, clear V/C, and preserve X
+and control state. Byte/word Dn results retain the upper bits. Long results
+remain unsigned, including values with bit 31 set. Register aliases work
+normally: `EOR.L D0,D0` clears D0 while preserving X.
+
+The same resolved-operand execution paths handle arithmetic and logic. Memory
+destinations are read and written once at the selected width, even when the
+result is unchanged; address auto-updates occur once. Word/long alignment
+faults preserve all state and RAM. The [masked-merge example](examples/logic.md)
+combines register and memory logic with a loop, checksum, and bit summary.
+
 ## Control flow and subroutines
 
 BRA, BSR, and Bcc encode `0110 cccc dddddddd`. Condition `cccc=0000`
@@ -251,7 +270,7 @@ Opcode `0000` is valid `ORI.B #n,D0`; four zero bytes execute `ORI.B #0,D0`.
 Zero-filled memory does not signal completion. The runner's endpoint or step
 budget determines when to stop.
 
-Register/address arithmetic fetches the opcode and EA extensions, then reads
+Register/address arithmetic and logic fetch the opcode and EA extensions, then read
 the memory operand if present. A memory destination is resolved once and read
 before its result is written to the same address. CMP/CMPA perform no writes;
 predecrement/postincrement still takes effect. All alignment checks precede
@@ -324,6 +343,7 @@ Control-flow references are Bcc (4-25–4-26), BRA (4-55), BSR (4-59–4-60),
 DBcc (4-90–4-91), RTS (4-169), and condition table 3-19.
 Register/address arithmetic uses ADD (4-4–4-6), ADDA (4-7–4-8),
 CMP (4-75–4-76), CMPA (4-77–4-78), SUB (4-174–4-176), and SUBA (4-177–4-178).
+Register/memory logic uses AND (4-15–4-17), OR (4-150–4-152), and EOR (4-100–4-101).
 Addressing is defined in §§2.2.1–2.2.7 and §§2.2.11–2.2.18; §2.4 distinguishes
 the original brief extension from later chips. Later-family additions are excluded.
 
@@ -352,5 +372,10 @@ operand pair, every sign-extended word, word/long boundaries with every incoming
 flag pattern, pointer aliases, wrapped and overlapping operands, and atomic
 alignment rejection. The [word-sum tests](../../../tests/machines/68000/word-sum-example.test.ts)
 check all six families together with literal traces and complete RAM images.
+Logic checks execute all 5,760 forms, exhaust byte operand pairs against bit
+truth tables, and cover every result bit and incoming flag pattern, partial
+Dn writes, register aliases, unchanged memory writes, wrapping, and alignment
+rejection. The [logic example tests](../../../tests/machines/68000/logic-example.test.ts)
+check complete merge/checksum traces and RAM images, resumption, and live masks.
 [Public type checks](../../../tests/types/68000.ts) establish
 readonly records, outcome narrowing, and concrete runner results.

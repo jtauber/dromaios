@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [455](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [396](../../src/components/cpus/6809.ts) | 137 / 268 | 51.1% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [428](../../src/components/cpus/8088.ts) | 155 / 291 | 53.3% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [514](../../src/components/cpus/68000.ts) | 19,939 / 36,029 | 55.3% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [525](../../src/components/cpus/68000.ts) | 25,699 / 36,029 | 71.3% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -153,7 +153,9 @@ DBcc supplies 128 (sixteen conditions × eight registers), and RTS supplies one.
 ADD/SUB supply 4,816 (two × eight registers × (53 byte sources + 61 word
 sources + 61 long sources + three sizes × 42 memory destinations)). CMP supplies
 1,400 (eight × (53 + 61 + 61)); ADDA/SUBA/CMPA supply 2,928 (three × two sizes
-× eight address registers × 61 sources).
+× eight address registers × 61 sources). AND/OR supply 4,560 (two × three sizes
+× eight registers × (53 sources + 42 memory destinations)); EOR supplies 1,200
+(three sizes × eight source registers × 50 data-alterable destinations).
 The eight MOVEQ forms accept 2,048 operation words; the 32 relative-branch
 forms accept 4,096 words. Embedded literal values do not add coverage forms.
 
@@ -1373,7 +1375,10 @@ the comparison; independent local tests establish instruction-level access order
 [Word-sum example](68000/examples/word-sum.md) ·
 [Word-sum definition](../../src/machines/68000/word-sum-example.machine)
 
-**19,939 of 36,029 documented forms are complete (55.3%).** MOVE and MOVEA
+[Masked-merge example](68000/examples/logic.md) ·
+[Logic definition](../../src/machines/68000/logic-example.machine)
+
+**25,699 of 36,029 documented forms are complete (71.3%).** MOVE and MOVEA
 support every original-68000 source/destination combination and documented
 index extension. The operation-word patterns below are binary. In MOVE,
 `ddd mmm` selects the destination register then mode, while `sss rrr` selects
@@ -1398,18 +1403,27 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `0110 0001 dddddddd` | `BSR <label>` | 2 | 2/4 | Push the full address after the instruction, then branch; preserve flags |
 | `0110 cccc dddddddd` (`cccc=0010`–`1111`) | `Bcc <label>` | 28 | 2/4 | All fourteen conditions and both displacement forms; preserve flags |
 | `0111 rrr 0 iiiiiiii` | `MOVEQ #n,Dn` | 8 | 2 | Sign-extend the embedded byte to a long; MOVE flags |
+| `1000 rrr d ss mmm eee` | `OR.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,280 | 2–6 | 53 data sources or 42 memory destinations; set NZ, clear VC, preserve X |
 | `1001 rrr d ss mmm eee` | `SUB.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,408 | 2–6 | All legal source/memory-destination forms; set XNZVC from destination minus source |
 | `1001 rrr s11 mmm eee` | `SUBA.W/L <ea>,An` | 976 | 2–6 | Sign-extend word source; full 32-bit subtraction; preserve all flags |
 | `1011 rrr 0 ss mmm eee` | `CMP.B/W/L <ea>,Dn` | 1,400 | 2–6 | Set NZVC from Dn minus source; preserve X; no writeback |
+| `1011 rrr 1 ss mmm eee` | `EOR.B/W/L Dn,<ea>` | 1,200 | 2–6 | Eight sources × three sizes × 50 data-alterable destinations; logic flags |
 | `1011 rrr s11 mmm eee` | `CMPA.W/L <ea>,An` | 976 | 2–6 | Sign-extend word source; full 32-bit comparison; preserve X; no writeback |
+| `1100 rrr d ss mmm eee` | `AND.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,280 | 2–6 | Same sizes, sources, destinations, and flags as OR |
 | `1101 rrr d ss mmm eee` | `ADD.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,408 | 2–6 | All legal source/memory-destination forms; set XNZVC from addition |
 | `1101 rrr s11 mmm eee` | `ADDA.W/L <ea>,An` | 976 | 2–6 | Sign-extend word source; full 32-bit addition; preserve all flags |
 
-Register arithmetic uses `ss=00/01/10` for byte/word/long. Direction `d=0`
+ADD/SUB/CMP use `ss=00/01/10` for byte/word/long. Direction `d=0`
 reads any EA except byte An; `d=1` permits only memory-alterable destinations.
 Address arithmetic uses `s=0/1` for word/long sources and accepts all 61 EAs.
 The [arithmetic contract](68000/model.md#register-and-address-arithmetic)
 defines widths, flag preservation, and source/destination pointer aliases.
+
+AND/OR exclude An sources in every size, with the same memory destinations as
+ADD/SUB. EOR uses only direction 1 and also permits Dn destinations. All three
+preserve X and control state, set NZ from the selected width, and clear VC.
+The [logic contract](68000/model.md#register-and-memory-logic) defines result
+preservation and read/modify/write behavior, including unchanged-value writes.
 
 Immediate ALU size `ss` is `00` byte, `01` word, `10` long; `11` is reserved.
 The destination `mmm rrr` allows Dn, indirect, postincrement, predecrement,
@@ -1439,6 +1453,7 @@ stack behavior and atomic rejection of unaligned taken targets.
 | Transfers | Complete MOVE.B/W/L and MOVEA.W/L families; MOVEQ; partial Dn writes and sign-extended address-register word writes |
 | Immediate ALU | ADDI, SUBI, CMPI, ANDI, ORI, EORI in all three sizes and data-alterable modes; preserve upper Dn bits on byte/word writes |
 | Register/address ALU | ADD, SUB, CMP, ADDA, SUBA, CMPA; all documented sizes and EAs, with shared destination execution and arithmetic helpers |
+| Register/memory logic | AND, OR, EOR in all three sizes and legal directions/address sets; shared ALU execution and width-aware flag handling |
 | Effective addresses | Dn, An, indirect, postincrement, predecrement, signed displacement/index, absolute word/long, PC displacement/index, immediate; restrictions above |
 | Memory | Exactly 16 MiB; mask each address at RAM access, preserving full register values; big-endian bytes, words, and longs |
 | Instruction fetching | Even PC; 16-bit operation word; word/long extensions; sequential and branch PC wrap at 32 bits; no target prefetch |
@@ -1453,8 +1468,9 @@ Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [register-transfer](../../tests/machines/68000/transfers-example.test.ts),
 [addressing](../../tests/machines/68000/addressing-example.test.ts),
 [immediate ALU](../../tests/machines/68000/alu-example.test.ts),
-[control-flow](../../tests/machines/68000/control-flow-example.test.ts), and
-[word-sum example tests](../../tests/machines/68000/word-sum-example.test.ts),
+[control-flow](../../tests/machines/68000/control-flow-example.test.ts),
+[word-sum](../../tests/machines/68000/word-sum-example.test.ts), and
+[masked-merge example tests](../../tests/machines/68000/logic-example.test.ts),
 plus [public type checks](../../tests/types/68000.ts).
 
 The independent transfer fixtures execute all **9,726 MOVE/MOVEA encodings**
@@ -1500,6 +1516,16 @@ code/data, odd bytes, and atomic word/long alignment rejection. The 32-step
 word-sum program cross-checks register and memory sums, applies a correction,
 and repositions pointers while preserving comparison flags. Tests check full
 traces and RAM images, bounded running, snapshot resumption, and changed input.
+
+Register/memory logic checks execute all **5,760 added forms** in both modes,
+exhaust byte operand pairs against bit truth tables, and cover every result bit
+and incoming flag pattern. They verify EOR register aliases, partial Dn writes,
+high-bit long results, unchanged memory writes, wrapping, overlapping code/data,
+atomic alignment rejection, and excluded neighboring instructions. The 42-step
+masked-merge example combines AND/OR on registers and memory, EOR mask inversion
+and checksum accumulation, an OR summary, and a counted loop. Tests specify
+complete records and RAM images, including unchanged writes, and check snapshot
+resumption between a destination clear and merge, live masks, and reset.
 
 ## CPUs and variants not started
 

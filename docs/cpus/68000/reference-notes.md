@@ -152,7 +152,28 @@ hardware comparison.
 
 Manual address sets remain authoritative: the memory-destination ADD/SUB
 encodings exclude Dn/An modes, which encode ADDX/SUBX. CMP's other direction
-belongs to EOR/CMPM. Those families remain unsupported. The tests execute all
+belongs to EOR/CMPM; CMPM remains unsupported. The tests execute all
 9,144 added forms and reject every remaining operation word; BigInt arithmetic,
 sign-extension sweeps, and the [word-sum example](examples/word-sum.md) supply
 independent result and access expectations.
+
+## Register and memory logic
+
+AND/OR/EOR use the same operation callbacks, resolved operands, and flag helper
+as the existing ALU. The shared data-ALU builder now names the EA field's role:
+ordinary source, data source, memory destination, or data destination. These
+sets express the original chip's restrictions without decoding operation names
+or adding execution paths. EOR's data destination includes Dn, while AND/OR's
+data sources exclude An for all sizes.
+
+The Mac reference makes the AND/OR distinction explicit, but its EOR decoder
+admits PC-relative and immediate destinations. Motorola permits only data
+alterable destinations. Dromaios rejects those extra forms and the neighboring
+SBCD, SUBX, CMPM, ABCD/EXG, and ADDX encodings. Long logic uses the existing
+unsigned-result helper, avoiding signed JavaScript register values.
+
+Independent bit truth tables, all 5,760 forms, and complete
+[masked-merge traces](examples/logic.md) check the new bindings. Memory checks
+include unchanged writes, postincrement/predecrement, both stacks, physical
+and logical wrapping, overlapping code/data, and atomic alignment rejection.
+These are local and manual-based checks; no hardware corpus comparison is claimed.

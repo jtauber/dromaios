@@ -65,6 +65,8 @@ type OperandSize = 8 | 16 | 32;
 type Condition = (flags: Readonly<Cpu68000Flags>) => boolean;
 // A result requests writeback; a comparison updates flags and returns nothing.
 type AluOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
+// The EA field's role and permitted set; only plain sources allow An (word/long).
+type AluAddressing = "source" | "data-source" | "memory-destination" | "data-destination";
 type Operand =
   | { readonly kind: "data"; readonly register: DataRegister }
   | { readonly kind: "address"; readonly register: AddressRegister }
@@ -213,14 +215,21 @@ export class Cpu68000 {
     // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
     ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => (cpu: Cpu68000) => cpu.#loadQuickRegister(register, value)), // MOVEQ #n,Dn
 
-    // Register ALU: oooo rrr d ss mmm eee. rrr selects Dn; ss=00 byte, 01 word, 10 long.
-    // d=0 reads any EA (except An for bytes); d=1 writes only memory-alterable EAs.
-    // The excluded d=1 register modes belong to SUBX/ADDX; CMP has no d=1 form.
-    ...this.#dataAluHandlers("1001 rrr 0 ss mmm eee", "register", (cpu, size, left, right) => cpu.#subtract(size, left, right)), // SUB <ea>,Dn
-    ...this.#dataAluHandlers("1001 rrr 1 ss mmm eee", "memory", (cpu, size, left, right) => cpu.#subtract(size, left, right)), // SUB Dn,<ea>
-    ...this.#dataAluHandlers("1011 rrr 0 ss mmm eee", "register", (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMP <ea>,Dn
-    ...this.#dataAluHandlers("1101 rrr 0 ss mmm eee", "register", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADD <ea>,Dn
-    ...this.#dataAluHandlers("1101 rrr 1 ss mmm eee", "memory", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADD Dn,<ea>
+    // Data ALU: oooo rrr d ss mmm eee. rrr selects Dn; ss=00 byte, 01 word, 10 long.
+    // d=0 reads EA into arithmetic/logic on Dn; d=1 reads/modifies/writes EA using Dn.
+    // Data sources exclude An; plain sources permit An for word/long. Destinations
+    // allow alterable memory, with Dn also allowed for EOR's data-destination form.
+    ...this.#dataAluHandlers("1000 rrr 0 ss mmm eee", "data-source", (cpu, size, left, right) => cpu.#logic(size, left | right)), // OR <ea>,Dn
+    ...this.#dataAluHandlers("1000 rrr 1 ss mmm eee", "memory-destination", (cpu, size, left, right) => cpu.#logic(size, left | right)), // OR Dn,<ea>
+    ...this.#dataAluHandlers("1001 rrr 0 ss mmm eee", "source", (cpu, size, left, right) => cpu.#subtract(size, left, right)), // SUB <ea>,Dn
+    ...this.#dataAluHandlers("1001 rrr 1 ss mmm eee", "memory-destination", (cpu, size, left, right) => cpu.#subtract(size, left, right)), // SUB Dn,<ea>
+    ...this.#dataAluHandlers("1011 rrr 0 ss mmm eee", "source", (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMP <ea>,Dn
+    ...this.#dataAluHandlers("1011 rrr 1 ss mmm eee", "data-destination", (cpu, size, left, right) => cpu.#logic(size, left ^ right)), // EOR Dn,<ea>
+    ...this.#dataAluHandlers("1100 rrr 0 ss mmm eee", "data-source", (cpu, size, left, right) => cpu.#logic(size, left & right)), // AND <ea>,Dn
+    ...this.#dataAluHandlers("1100 rrr 1 ss mmm eee", "memory-destination", (cpu, size, left, right) => cpu.#logic(size, left & right)), // AND Dn,<ea>
+    ...this.#dataAluHandlers("1101 rrr 0 ss mmm eee", "source", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADD <ea>,Dn
+    ...this.#dataAluHandlers("1101 rrr 1 ss mmm eee", "memory-destination", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADD Dn,<ea>
+    // Excluded d=1 register modes belong to SBCD, SUBX, CMPM, ABCD/EXG, or ADDX.
 
     // Address ALU: oooo rrr s11 mmm eee. rrr selects An; s=0 signed word, 1 long source.
     // Every source EA is legal. The operation is always 32-bit; only CMPA changes flags.
@@ -258,16 +267,18 @@ export class Cpu68000 {
     });
   }
 
-  static #dataAluHandlers(pattern: string, destination: "register" | "memory", apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
+  static #dataAluHandlers(pattern: string, addressing: AluAddressing, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
     const sizes = [8, 16, 32, undefined] as const;
+    const source = addressing === "source" || addressing === "data-source";
     return opcodeFamily(pattern, { r: this.#dataRegisters, s: sizes, m: this.#selectors, e: this.#selectors }, ({ r: register, s: size, m, e }) => {
       if (size === undefined) return undefined;
-      if (destination === "memory") {
-        if (m < 2 || (m === 7 && e > 1)) return undefined;
-        return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(size, m, e, cpu.#state[register] % 2 ** size, apply, instruction);
+      if (m === 7 && e > (source ? 4 : 1)) return undefined;
+      if (m === 1 && (addressing !== "source" || size === 8)) return undefined;
+      if (m === 0 && addressing === "memory-destination") return undefined;
+      if (source) {
+        return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#registerAlu(size, m, e, { kind: "data", register }, apply, instruction);
       }
-      if ((size === 8 && m === 1) || (m === 7 && e > 4)) return undefined;
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#registerAlu(size, m, e, { kind: "data", register }, apply, instruction);
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(size, m, e, cpu.#state[register] % 2 ** size, apply, instruction);
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 

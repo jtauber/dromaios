@@ -299,7 +299,12 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
       : size === 1 ? byteSources : allSources;
     for (let register = 0; register < 8; register++) for (const ea of addresses) supported.add(base + register * 512 + ea);
   }
-  assert.equal(supported.size, 26043); // Includes embedded MOVEQ/branch operands, unlike coverage forms.
+  for (const { base, destination } of logicForms) {
+    const addresses = destination === "data" ? byteSources : destination === "ea" ? dataDestinations
+      : allSources.filter(code => code >= 16 && code <= 57);
+    for (let register = 0; register < 8; register++) for (const ea of addresses) supported.add(base + register * 512 + ea);
+  }
+  assert.equal(supported.size, 31803); // Includes embedded MOVEQ/branch operands, unlike coverage forms.
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
@@ -770,9 +775,26 @@ const arithmeticForms = [
   { name: "CMPA", size: 2, base: 0xb0c0, destination: "address" },
   { name: "CMPA", size: 4, base: 0xb1c0, destination: "address" },
 ] as const;
-type ArithmeticForm = typeof arithmeticForms[number];
+const logicForms = [
+  { name: "AND", size: 1, base: 0xc000, destination: "data" },
+  { name: "AND", size: 2, base: 0xc040, destination: "data" },
+  { name: "AND", size: 4, base: 0xc080, destination: "data" },
+  { name: "AND", size: 1, base: 0xc100, destination: "memory" },
+  { name: "AND", size: 2, base: 0xc140, destination: "memory" },
+  { name: "AND", size: 4, base: 0xc180, destination: "memory" },
+  { name: "OR", size: 1, base: 0x8000, destination: "data" },
+  { name: "OR", size: 2, base: 0x8040, destination: "data" },
+  { name: "OR", size: 4, base: 0x8080, destination: "data" },
+  { name: "OR", size: 1, base: 0x8100, destination: "memory" },
+  { name: "OR", size: 2, base: 0x8140, destination: "memory" },
+  { name: "OR", size: 4, base: 0x8180, destination: "memory" },
+  { name: "EOR", size: 1, base: 0xb100, destination: "ea" },
+  { name: "EOR", size: 2, base: 0xb140, destination: "ea" },
+  { name: "EOR", size: 4, base: 0xb180, destination: "ea" },
+] as const;
+type AluForm = typeof arithmeticForms[number] | typeof logicForms[number];
 
-function checkArithmetic(ram: ObservedRam, before: Cpu68000State, form: ArithmeticForm,
+function checkAlu(ram: ObservedRam, before: Cpu68000State, form: AluForm,
   selector: number, ea: TransferFixture, memoryValue = 0x81234567): void {
   const { name, size, base, destination } = form;
   const modulus = 2 ** (size * 8);
@@ -799,21 +821,24 @@ function checkArithmetic(ram: ObservedRam, before: Cpu68000State, form: Arithmet
   }
   const after = { ...before, flags: { ...before.flags }, pc: unsignedLong(before.pc + bytes.length) };
   if (ea.update) after[ea.update[0]] = ea.update[1];
-  const register = destination === "address" ? addressNames(before)[selector]! : registerForms[selector]!.register;
-  const left = destination === "memory" ? value : after[register] % (destination === "address" ? 4294967296 : modulus);
-  const right = destination === "memory" ? before[register] % modulus
+  const toEa = destination === "memory" || destination === "ea";
+  const register = destination === "address" ? addressNames(before)[selector]!
+    : destination === "ea" && ea.register !== undefined ? ea.register : registerForms[selector]!.register;
+  const left = toEa ? value : after[register] % (destination === "address" ? 4294967296 : modulus);
+  const right = toEa ? before[registerForms[selector]!.register] % modulus
     : destination === "address" && size === 2 ? unsignedLong(signedWord(value)) : value;
   let result: number;
   if (name === "ADDA" || name === "SUBA") {
     result = Number(BigInt.asUintN(32, BigInt(left) + (name === "ADDA" ? 1n : -1n) * BigInt(right)));
   } else {
-    const expected = immediateResult(name === "ADD" ? "ADDI" : name === "SUB" ? "SUBI" : "CMPI",
+    const operation = { ADD: "ADDI", SUB: "SUBI", CMP: "CMPI", CMPA: "CMPI", AND: "ANDI", OR: "ORI", EOR: "EORI" } as const;
+    const expected = immediateResult(operation[name],
       destination === "address" ? 4 : size, left, right, before.flags);
     result = expected.result;
     after.flags = expected.flags;
   }
   if (name !== "CMP" && name !== "CMPA") {
-    if (destination === "memory") bytesFor(size, result).forEach((byte, offset) => {
+    if (toEa && ea.address !== undefined) bytesFor(size, result).forEach((byte, offset) => {
       const address = physical(ea.address! + offset);
       accesses.push({ kind: "write", address, value: byte });
       memory.set(address, byte);
@@ -838,7 +863,7 @@ for (const [name, count] of [["ADD", 2408], ["SUB", 2408], ["CMP", 1400], ["ADDA
       for (const form of arithmeticForms.filter(form => form.name === name)) {
         for (let register = 0; register < 8; register++) for (const ea of transferFixtures(before, form.size, before.pc + 2)) {
           if (form.destination === "memory" ? ea.code < 16 || ea.code > 57 : form.size === 1 && ea.code >= 8 && ea.code < 16) continue;
-          checkArithmetic(ram, before, form, register, ea);
+          checkAlu(ram, before, form, register, ea);
           forms++;
         }
       }
@@ -867,7 +892,7 @@ test("68000 word/long data and address arithmetic checks signed boundaries with 
       const before = { ...transferState(bits), d0: left, d1: right, a0: left };
       const ea: TransferFixture = form.destination === "memory" ? { code: 57, extension: [0x12, 0, 0x30, 0], address: 0x12003000 }
         : { code: 1, extension: [], register: "d1" };
-      checkArithmetic(ram, before, form, 0, ea, right);
+      checkAlu(ram, before, form, 0, ea, right);
     }
   }
 });
@@ -877,14 +902,14 @@ test("68000 ADDA/SUBA/CMPA sign-extend every word and use all 32 destination bit
   for (const form of arithmeticForms.filter(form => form.destination === "address" && form.size === 2)) {
     for (let value = 0; value < 65536; value++) {
       const before = initialState({ d1: 0xabcd0000 + value, a0: 0x80000000, flags: flags(value % 128) });
-      checkArithmetic(ram, before, form, 0, { code: 1, extension: [], register: "d1" });
+      checkAlu(ram, before, form, 0, { code: 1, extension: [], register: "d1" });
     }
   }
 });
 
-test("68000 arithmetic resolves memory once, accepts odd bytes, and wraps operands, A7 updates, and PC", () => {
+test("68000 arithmetic and logic resolve memory once, accept odd bytes, and wrap operands, A7 updates, and PC", () => {
   const ram = new ObservedRam(0x1000000);
-  for (const form of arithmeticForms) for (const bits of [0, 127]) {
+  for (const form of [...arithmeticForms, ...logicForms]) for (const bits of [0, 127]) {
     for (const address of [form.size === 1 ? 0xffffffff : 0xfffffffe, 0xab001000]) {
       const before = { ...transferState(bits), pc: 0xfffffffe, usp: address, ssp: address, d7: 0xffff8000 };
       for (const code of [31, 39, 57]) {
@@ -892,11 +917,11 @@ test("68000 arithmetic resolves memory once, accepts odd bytes, and wraps operan
         const ea: TransferFixture = code === 57 ? { code, extension: longBytes(address), address }
           : { code, extension: [], address: code === 31 ? address : unsignedLong(address - step),
               update: [bits === 0 ? "usp" : "ssp", unsignedLong(address + (code === 31 ? step : -step))] };
-        checkArithmetic(ram, before, form, 7, ea);
+        checkAlu(ram, before, form, 7, ea);
       }
-      if (form.destination !== "memory") {
-        checkArithmetic(ram, before, form, 7, { code: 58, extension: [0xff, 0xfe], address: 0xfffffffe });
-        checkArithmetic(ram, before, form, 7, { code: 59, extension: [0x70, 0xfe], address: 0xffff7ffe });
+      if (form.destination === "data" || form.destination === "address") {
+        checkAlu(ram, before, form, 7, { code: 58, extension: [0xff, 0xfe], address: 0xfffffffe });
+        checkAlu(ram, before, form, 7, { code: 59, extension: [0x70, 0xfe], address: 0xffff7ffe });
       }
     }
   }
@@ -910,19 +935,19 @@ test("68000 CMPA compares against its own updated source pointer, preserving X a
       for (const [code, address, updated] of [[24 + selector, base, unsignedLong(base + form.size)],
         [32 + selector, unsignedLong(base - form.size), unsignedLong(base - form.size)]] as const) {
         // Memory equals An after auto-update, so CMPA must set Z; reading old An would fail.
-        checkArithmetic(ram, before, form, selector, { code, extension: [], address, update: [register, updated] }, updated);
+        checkAlu(ram, before, form, selector, { code, extension: [], address, update: [register, updated] }, updated);
       }
     }
   }
 });
 
-test("68000 all word/long arithmetic memory modes reject odd reads atomically, including pending An updates", () => {
+test("68000 all word/long arithmetic and logic memory modes reject odd reads atomically, including pending An updates", () => {
   const ram = new ObservedRam(0x1000000);
-  for (const form of arithmeticForms.filter(form => form.size !== 1)) for (const bits of [0, 127]) {
+  for (const form of [...arithmeticForms, ...logicForms].filter(form => form.size !== 1)) for (const bits of [0, 127]) {
     const state = transferState(bits);
     for (const register of addressNames(state)) state[register]++;
     for (const ea of transferFixtures(state, form.size, state.pc + 2)) {
-      if (ea.address === undefined || (form.destination === "memory" && ea.code > 57)) continue;
+      if (ea.address === undefined || ((form.destination === "memory" || form.destination === "ea") && ea.code > 57)) continue;
       const extension = [...ea.extension];
       let address = ea.address;
       if (address % 2 === 0) {
@@ -943,6 +968,93 @@ test("68000 all word/long arithmetic memory modes reject odd reads atomically, i
         assert.equal(ram.read(physical(address)), 0xa5);
       }
     }
+  }
+});
+
+for (const [name, count] of [["AND", 2280], ["OR", 2280], ["EOR", 1200]] as const) {
+  test(`68000 ${name} executes all ${count} forms with both stacks, register aliases, and exact accesses`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (const bits of [0, 31, 64, 127]) {
+      const before = transferState(bits);
+      let forms = 0;
+      for (const form of logicForms.filter(form => form.name === name)) {
+        for (let register = 0; register < 8; register++) for (const ea of transferFixtures(before, form.size, before.pc + 2)) {
+          if (ea.code >= 8 && ea.code < 16) continue;
+          if (form.destination === "memory" && ea.code < 16) continue;
+          if (form.destination !== "data" && ea.code > 57) continue;
+          checkAlu(ram, before, form, register, ea);
+          forms++;
+        }
+      }
+      assert.equal(forms, count);
+    }
+  });
+}
+
+for (const [name, opcode, oracle] of [["AND", 0xc001, "ANDI"], ["OR", 0x8001, "ORI"], ["EOR", 0xb300, "EORI"]] as const) {
+  test(`68000 ${name}.B checks every register operand pair against bit truth tables and preserves upper bytes`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (let left = 0; left < 256; left++) for (let right = 0; right < 256; right++) {
+      const before = initialState({ d0: 0xabcdef00 + left, d1: 0x12345600 + right, flags: flags((left + right) % 128) });
+      const expected = immediateResult(oracle, 1, left, right, before.flags);
+      checkStep(ram, before, wordBytes(opcode), { ...before, pc: before.pc + 2, flags: expected.flags,
+        d0: 0xabcdef00 + expected.result });
+    }
+  });
+}
+
+test("68000 logic tests every result bit, high-bit longs, identities, and incoming flag pattern in both directions", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const form of logicForms) {
+    const modulus = 2 ** (form.size * 8);
+    for (let bits = 0; bits < 128; bits++) {
+      const bit = 2 ** (bits % (form.size * 8));
+      for (const [left, right] of [[0, 0], [bit, bit], [bit, modulus - 1 - bit], [bit, 0],
+        [bit, modulus - 1], [0xaaaaaaaa % modulus, 0x55555555 % modulus]] as const) {
+        const before = { ...transferState(bits), d0: 0xabcd0000 + left % 65536, d1: right };
+        if (form.size === 4) before.d0 = left;
+        // EA-to-Dn reads D1; Dn-to-EA reads D0 and modifies RAM or D1.
+        if (form.destination !== "data") before.d0 = right;
+        if (form.destination === "ea") {
+          before.d1 = form.size === 4 ? left : 0xef120000 + left;
+          checkAlu(ram, before, form, 0, { code: 1, extension: [], register: "d1" });
+        } else {
+          const ea: TransferFixture = form.destination === "data" ? { code: 1, extension: [], register: "d1" }
+            : { code: 57, extension: [0x12, 0, 0x30, 0], address: 0x12003000 };
+          checkAlu(ram, before, form, 0, ea, left);
+        }
+      }
+    }
+  }
+});
+
+test("68000 EOR memory writes, including unchanged values, cover every size, result bit, and flag pattern", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const form of logicForms.filter(form => form.name === "EOR")) for (let bits = 0; bits < 128; bits++) {
+    const value = 2 ** (bits % (form.size * 8));
+    for (const source of [0, value, 2 ** (form.size * 8) - 1]) {
+      const before = { ...transferState(bits), d0: source };
+      for (const ea of transferFixtures(before, form.size, before.pc + 2).filter(ea => [31, 39, 57].includes(ea.code))) {
+        checkAlu(ram, before, form, 0, ea, value);
+      }
+    }
+  }
+});
+
+test("68000 logic excludes An, PC/immediate destinations, and neighboring decimal/exchange/compare-memory opcodes", () => {
+  const ram = new ObservedRam(0x1000000);
+  const before = snapshot(initialState());
+  const cpu = new Cpu68000(ram, before);
+  // OR/AND An sources; EOR An/PC/immediate destinations; SBCD, ABCD, EXG, CMPM.
+  for (const opcode of [0x8008, 0x8048, 0x8088, 0xc008, 0xc048, 0xc088, 0xb108, 0xb17a, 0xb1bb, 0xb1bc,
+    0x8100, 0x8108, 0xc100, 0xc108, 0xc140, 0xc148, 0xc188, 0xb148, 0xb188]) {
+    const bytes = wordBytes(opcode);
+    bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
+    ram.accesses.length = 0;
+    const accesses = bytes.map((value, offset) => ({ kind: "read", address: physical(before.pc + offset), value }));
+    assert.deepEqual(cpu.step(), { before, after: before, accesses, instruction: { address: before.pc, bytes },
+      outcome: "unsupported", reason: "opcode" });
+    assert.deepEqual(ram.accesses, accesses);
   }
 });
 
