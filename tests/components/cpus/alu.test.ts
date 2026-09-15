@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { add, subtract, evenParity8 } from "../../../src/components/cpus/alu.js";
+import { add, subtract, evenParity8, shiftLeft8, shiftRight8 } from "../../../src/components/cpus/alu.js";
 import type { ArithmeticWidth } from "../../../src/components/cpus/alu.js";
 
 test("eight-bit addition matches independent range calculations for every byte pair and carry input", () => {
@@ -137,5 +137,20 @@ test("evenParity8 matches a binary-string count for every byte, including zero",
   for (let byte = 0; byte < 256; byte++) {
     const ones = [...byte.toString(2)].filter(digit => digit === "1").length;
     assert.equal(evenParity8(byte), ones % 2 === 0, `parity of ${byte}`);
+  }
+});
+
+
+test("byte shifts match bit-string movement for every byte and incoming bit", () => {
+  for (let value = 0; value < 256; value++) {
+    const bits = value.toString(2).padStart(8, "0");
+    for (const incoming of [0, 1] as const) {
+      assert.deepEqual(shiftLeft8(value, incoming), {
+        result: parseInt(bits.slice(1) + incoming, 2), carry: bits[0] === "1",
+      });
+      assert.deepEqual(shiftRight8(value, incoming), {
+        result: parseInt(incoming + bits.slice(0, -1), 2), carry: bits.at(-1) === "1",
+      });
+    }
   }
 });

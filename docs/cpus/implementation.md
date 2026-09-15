@@ -102,8 +102,8 @@ Choose the grouping from the CPU's encoding:
 | [8008](../../src/components/cpus/8008.ts) | Native `xx yyy zzz` groups; A is register selector `000`, M is `111`; preserve documented HLT exceptions |
 | [8080](../../src/components/cpus/8080.ts) | `xx yyy zzz`; leading `xx` blocks, then `zzz` subgroups where it selects the family; split `yyy` into `pp q` for pair operations |
 | [6502](../../src/components/cpus/6502.ts) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand readers; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
-| [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; short branches use `0010 ttt p`, keeping the unused `21` explicit |
-| [6809](../../src/components/cpus/6809.ts) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte |
+| [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
+| [6809](../../src/components/cpus/6809.ts) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte |
 | [Z80](../../src/components/cpus/z80.ts) | Unprefixed `xx yyy zzz` groups and a separate CB `xx yyy rrr` table; decode the complete supported encoding before committing state |
 | [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 0 d w` / `00 ooo 10 w` for ALU families, `mm ggg rrr` for ModR/M operands or operation extensions, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
 | [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; immediate ALU families encode operation, size, and a data-alterable effective address |
@@ -324,6 +324,10 @@ without reading CPU state or updating flags:
 - `subtract(width, left, right, borrowIn = 0)` computes `left - right - borrowIn`
   and returns an unsigned result, borrow, half borrow, and signed overflow.
   Borrow means the unsigned subtraction fell below zero.
+- `shiftLeft8(value, incomingBit)` and `shiftRight8(value, incomingBit)` move
+  an unsigned byte by one bit, returning the wrapped result and the outgoing
+  bit as `carry`. The required incoming bit is `0 | 1`; CPUs select zero, the
+  sign bit, or current carry for their particular shift/rotate instruction.
 - `evenParity8(byte)` reports whether an unsigned byte contains an even number
   of set bits, including zero. The 8088 explicitly selects the low byte of a
   word result before calling it.
@@ -344,11 +348,16 @@ subtraction's borrow to X and C, while comparison preserves X. Parity, flag
 preservation, decimal corrections, and the NMOS 6502's intermediate flag rules
 remain CPU behavior.
 
+The 6800 and 6809 use the byte-shift helpers. The 6800 sets V=N XOR C for
+both directions; the 6809 sets V for left shifts and preserves it for right
+shifts. These flag rules remain visible in the CPU code.
+
 [Helper tests](../../tests/components/cpus/alu.test.ts) exhaust every byte pair
 and incoming carry/borrow against unsigned and signed range calculations.
 For 16 and 32 bits, tests use independent `BigInt` ranges around every bit
 boundary and across seeded operand pairs. Every parity byte is checked against
-a binary-string count. [Type checks](../../tests/types/alu.ts) check widths,
+a binary-string count; shifts cover every byte and incoming bit against
+bit-string movement. [Type checks](../../tests/types/alu.ts) check widths,
 incoming bits, distinct carry/borrow names, and readonly results. Existing CPU
 and example tests retain their independently authored expectations.
 

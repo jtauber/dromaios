@@ -1,0 +1,26 @@
+// Arithmetic-shift a signed word right, then negate it in memory.
+ram 10000
+
+cpu 6800 {
+    A = 81  B = 22  X = FF80  SP = 789A  PC = 0200
+    flags { H = 1  I = 0  N = 1  Z = 0  V = 1  C = 1 }
+}
+
+memory 0000 { FF 81  DE AD } // Signed word -127, followed by guard bytes.
+
+memory 0200 {
+    67 80       // ASR $80,X: high byte at 0000 (unsigned indexed displacement wraps)
+    76 00 01    // ROR >$0001: carry the high byte's bit 0 into the low byte
+    63 80       // COM $80,X: complement the high byte
+    73 00 01    // COM >$0001: complement the low byte
+    7C 00 01    // INC >$0001: finish two's complement by adding one
+    26 02       // BNE $0211: skip high-byte increment unless the low byte wrapped
+    6C 80       // INC $80,X
+    A6 80       // LDAA $80,X: inspect the resulting high byte in A
+    F6 00 01    // LDAB >$0001: inspect the resulting low byte in B
+    7D 00 00    // TST >$0000: test the high byte for zero; clear C
+}
+
+memory FFFE { 02 00 }
+
+end 0219

@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [254](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [457](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [249](../../src/components/cpus/6800.ts) | 115 / 197 | 58.4% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [315](../../src/components/cpus/6800.ts) | 155 / 197 | 78.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [423](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [455](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [503](../../src/components/cpus/6809.ts) | 193 / 268 | 72.0% |
@@ -578,10 +578,13 @@ final RAM, resumption before adjustment, reset, and restart.
 [Addressing/carry specification](6800/examples/addressing.md) ·
 [Addressing/carry definition](../../src/machines/6800/addressing-example.machine)
 
-**115 of 197 documented forms are complete (58.4%).** The accumulator families
+[Word-transformation specification](6800/examples/word-transform.md) ·
+[Word-transformation definition](../../src/machines/6800/word-transform-example.machine)
+
+**155 of 197 documented forms are complete (78.7%).** The accumulator families
 below contribute 86 forms: ten byte-read operations for both A/B across four
-addressing modes, plus three stores for each accumulator. The remaining 29
-forms appear in the following table.
+addressing modes, plus three stores for each accumulator. Unary operations
+contribute 44 forms; the remaining 25 forms appear in the final opcode table.
 
 All documented forms of LDAA/LDAB, STAA/STAB, ADDA/ADDB, ADCA/ADCB,
 SUBA/SUBB, SBCA/SBCB, CMPA/CMPB, ANDA/ANDB, BITA/BITB, EORA/EORB, and
@@ -615,6 +618,29 @@ first. A dash means there is no documented form on the original 6800.
 | ADDA | `8B` | `9B` | `AB` | `BB` |
 | ADDB | `CB` | `DB` | `EB` | `FB` |
 
+Unary encodings use **`01 tt oooo`**: `tt=00/01/10/11` selects A/B/indexed/extended;
+`oooo` selects the operation. Accumulator forms are one byte, indexed two,
+extended three. The original 6800 has no direct-page unary forms. All preserve
+H/I, and memory forms preserve both accumulators and X/SP.
+
+| Operation | A | B | Indexed | Extended | Flag effects |
+| --- | --- | --- | --- | --- | --- |
+| NEG | `40` | `50` | `60` | `70` | N/Z/V/C from subtraction from zero |
+| COM | `43` | `53` | `63` | `73` | N/Z; V=0, C=1 |
+| LSR | `44` | `54` | `64` | `74` | N=0; Z/C from shift, V=C |
+| ROR | `46` | `56` | `66` | `76` | N/Z/C from rotation through C; V=N XOR C |
+| ASR | `47` | `57` | `67` | `77` | Preserve sign; N/Z/C from shift, V=N XOR C |
+| ASL | `48` | `58` | `68` | `78` | N/Z/C from shift; V=N XOR C |
+| ROL | `49` | `59` | `69` | `79` | N/Z/C from rotation through C; V=N XOR C |
+| DEC | `4A` | `5A` | `6A` | `7A` | N/Z/V; preserve C |
+| INC | `4C` | `5C` | `6C` | `7C` | N/Z/V; preserve C |
+| TST | `4D` | `5D` | `6D` | `7D` | N/Z from operand; V=0, C=0; no write |
+| CLR | `4F` | `5F` | `6F` | `7F` | N=0, Z=1, V=0, C=0 |
+
+The [unary model contract](6800/model.md#unary-operations) defines memory-access
+records and the flag differences from the 6809. JMP occupies `oooo=1110` in
+the two memory groups and remains deferred.
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `16` | TAB | Inherent | 1 | Copy A to B; set N/Z, clear V, preserve H/I/C |
@@ -639,10 +665,6 @@ first. A dash means there is no documented form on the original 6800.
 | `36` | PSHA | Inherent | 1 | Write A at SP, then decrement SP; preserve all flags |
 | `37` | PSHB | Inherent | 1 | Write B at SP, then decrement SP; preserve all flags |
 | `39` | RTS | Inherent | 1 | Pull return address high byte first; preserve all flags |
-| `4A` | DECA | Inherent | 1 | Decrement A; set N/Z/V, preserve H/I/C |
-| `4C` | INCA | Inherent | 1 | Increment A; set N/Z/V, preserve H/I/C |
-| `5A` | DECB | Inherent | 1 | Decrement B; set N/Z/V, preserve H/I/C |
-| `5C` | INCB | Inherent | 1 | Increment B; set N/Z/V, preserve H/I/C |
 | `8D` | BSR rel | Relative | 2 | Push return PC low byte first, then branch relative to it; preserve flags |
 | `8E` | LDS #nn | Immediate | 3 | Load SP; set N/Z from the full word, clear V, preserve H/I/C |
 | `BD` | JSR addr | Extended | 3 | Push return PC low byte first, then jump to the high-byte-first target; preserve flags |
@@ -660,20 +682,22 @@ independently checked bounded run. The stack example also checks nested calls.
 | Stored state | Byte A/B, word X/SP/PC, and H/I/N/Z/V/C flags |
 | Inspection | Detached registers and flags; no derived register pairs |
 | Accumulator operations | A/B loads in all four modes, A↔B transfers, and wrapping A/B increment/decrement; preserve H/I/C |
+| Unary operations | All 44 A/B/indexed/extended forms of NEG/COM/LSR/ROR/ASR/ASL/ROL/DEC/INC/TST/CLR; preserve H/I, with CPU-specific N/Z/V/C rules |
 | Arithmetic and logic | A/B ADD/ADC/SUB/SBC/CMP and AND/OR/XOR/BIT in all four modes; CMP/BIT preserve operands, subtraction preserves H/I |
 | Control flow | BRA and all fourteen short conditional branches, relative BSR, extended JSR, and RTS; 16-bit targets and unchanged flags |
 | Stack | Immediate LDS; A/B pushes and pulls; calls and returns share ordinary RAM, with SP pointing to the next free byte and wrapping at 16 bits |
 | Memory | Exactly 64 KiB RAM; page-zero direct, unsigned X+offset indexed, and high-byte-first extended addressing; A/B stores in all three memory modes |
 | Reset | Read FFFE then FFFF into PC, set I; preserve other registers, flags, and RAM under the model policy |
 | Stopping | Caller completion address or step budget; unsupported instructions preserve state; no halt/wait latch |
-| Remaining scope | Word loads/stores beyond immediate LDS, unary operations beyond accumulator INC/DEC, decimal adjust, indexed JSR, jumps, remaining stack operations, interrupts, mapped devices, and timing |
+| Remaining scope | Word loads/stores beyond immediate LDS, decimal adjust, indexed JSR, jumps, remaining stack operations, interrupts, mapped devices, and timing |
 
 Verification: [CPU tests](../../tests/components/cpus/6800.test.ts),
 [arithmetic example tests](../../tests/machines/6800/example.test.ts),
 [counted-loop tests](../../tests/machines/6800/counted-loop-example.test.ts),
 [stack tests](../../tests/machines/6800/stack-example.test.ts),
 [logic tests](../../tests/machines/6800/logic-example.test.ts),
-[addressing/carry tests](../../tests/machines/6800/addressing-example.test.ts), and
+[addressing/carry tests](../../tests/machines/6800/addressing-example.test.ts),
+[word-transformation tests](../../tests/machines/6800/word-transform-example.test.ts), and
 [public type checks](../../tests/types/6800.ts). Checks cover every addition
 operand pair, every load/store/transfer/increment/decrement byte and incoming
 flag pattern, arithmetic boundaries, every store destination, PC, and
@@ -685,6 +709,14 @@ code/stack overlap, PC/SP wrapping, byte order, and reads of edited stack RAM.
 Independent per-bit truth tables check every logic operand pair in both
 accumulators; mixed flag patterns and boundary operands check N/Z/V replacement,
 H/I/C preservation, wrapped fetches, and BIT leaving registers unchanged.
+Every unary form covers all 256 byte values and all 64 flag combinations
+against independent arithmetic ranges and bit strings. Indexed forms check
+every unsigned displacement across base/address boundaries; memory forms
+check operand/code overlap, read/write ordering, TST without writes, and CLR
+as a zero write. Shared shift helpers are also exercised by the 6809's existing
+independent tests. The word-transformation example checks arithmetic right
+shift across two bytes, negation with a low-byte wrap path, exact records, full
+memory images, resumption between shifts, reset, and bounded looping.
 Complete records and observed RAM calls verify wrapping, byte order,
 self-modifying code, unchanged-value stores, unsupported attempts, reset, and
 detached snapshots. The examples check whole RAM images, complete records,

@@ -9,7 +9,8 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { add, subtract } from "./alu.ts";
+import { add, subtract, shiftLeft8, shiftRight8 } from "./alu.ts";
+import type { ShiftResult } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu6800StateDescription = defineState({
@@ -39,6 +40,10 @@ export type Cpu6800ResetRecord = StateTransition<Cpu6800Snapshot>;
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type Accumulator = "a" | "b";
+type ByteOperation = (value: number) => number;
+type AddressReader = (instruction: InstructionContext) => number;
+
+const instructionPattern = opcodePattern<OpcodeHandler>;
 
 /** Instruction-level Motorola 6800 subset with flat 64 KiB RAM. */
 export class Cpu6800 {
@@ -87,14 +92,28 @@ export class Cpu6800 {
     ({ fetchWord, readByte }) => readByte(fetchWord()),
   ];
 
+  // 01 tt oooo: tt=00 A, 01 B, 10 indexed, 11 extended; oooo selects the operation.
+  // TST (1101) only reads; CLR (1111) only writes. Neither needs a byte transform.
+  readonly #unaryOperations: readonly { bits: string; apply: ByteOperation }[] = [
+    { bits: "0000", apply: value => this.#subtract(0, value) }, // NEG
+    { bits: "0011", apply: value => this.#complement(value) }, // COM
+    { bits: "0100", apply: value => this.#shiftResult(shiftRight8(value, 0)) }, // LSR
+    { bits: "0110", apply: value => this.#shiftResult(shiftRight8(value, this.#state.flags.c ? 1 : 0)) }, // ROR
+    { bits: "0111", apply: value => this.#shiftResult(shiftRight8(value, value >= 0x80 ? 1 : 0)) }, // ASR
+    { bits: "1000", apply: value => this.#shiftResult(shiftLeft8(value, 0)) }, // ASL
+    { bits: "1001", apply: value => this.#shiftResult(shiftLeft8(value, this.#state.flags.c ? 1 : 0)) }, // ROL
+    { bits: "1010", apply: value => this.#adjust(value, -1) }, // DEC
+    { bits: "1100", apply: value => this.#adjust(value, 1) }, // INC
+  ];
+
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // 0001011 d: d=0 transfers A to B; d=1 transfers B to A. Both update N/Z/V.
-    ...opcodePattern("0001011 0", () => this.#loadAccumulator("b", this.#state.a)), // TAB
-    ...opcodePattern("0001011 1", () => this.#loadAccumulator("a", this.#state.b)), // TBA
+    ...instructionPattern("0001011 0", () => this.#loadAccumulator("b", this.#state.a)), // TAB
+    ...instructionPattern("0001011 1", () => this.#loadAccumulator("a", this.#state.b)), // TBA
 
     // 0010 ttt p: bits 3..1 select a condition; bit 0 selects it (0) or its inverse (1).
     // ttt=000 has only BRA. The original 6800 leaves 21 unused; it has no BRN.
-    ...opcodePattern("0010 000 0", ({ fetchByte }: InstructionContext) => this.#branch(fetchByte(), true)), // BRA
+    ...instructionPattern("0010 000 0", ({ fetchByte }: InstructionContext) => this.#branch(fetchByte(), true)), // BRA
     ...this.#branchPair("0010 001 p", () => !this.#state.flags.c && !this.#state.flags.z), // BHI / BLS
     ...this.#branchPair("0010 010 p", () => !this.#state.flags.c), // BCC / BCS
     ...this.#branchPair("0010 011 p", () => !this.#state.flags.z), // BNE / BEQ
@@ -107,11 +126,17 @@ export class Cpu6800 {
     // Pulls preserve flags, unlike ordinary accumulator loads.
     ...opcodeFamily("00110 0 1 r", { r: ["a", "b"] }, ({ r: register }) => ({ readByte }: InstructionContext) => { this.#state[register] = this.#pullByte(readByte); }), // PULA / PULB
     ...opcodeFamily("00110 1 1 r", { r: ["a", "b"] }, ({ r: register }) => ({ writeByte }: InstructionContext) => this.#pushByte(this.#state[register], writeByte)), // PSHA / PSHB
-    ...opcodePattern("0011 1001", ({ readByte }: InstructionContext) => this.#return(readByte)), // RTS
+    ...instructionPattern("0011 1001", ({ readByte }: InstructionContext) => this.#return(readByte)), // RTS
 
-    // 010 r oooo: r (bit 4) selects A=0/B=1; oooo=1010 decrements, 1100 increments.
-    ...opcodeFamily("010 r 1010", { r: ["a", "b"] }, ({ r: register }) => () => this.#adjustAccumulator(register, -1)), // DECA / DECB
-    ...opcodeFamily("010 r 1100", { r: ["a", "b"] }, ({ r: register }) => () => this.#adjustAccumulator(register, 1)), // INCA / INCB
+    // 010 r oooo (tt=00/01): r selects A=0/B=1. 1110 is unused here.
+    ...this.#unaryOperations.flatMap(({ bits, apply }) => opcodeFamily(`010 r ${bits}`,
+      { r: ["a", "b"] }, ({ r }) => () => { this.#state[r] = apply(this.#state[r]); })),
+    ...opcodeFamily("010 r 1101", { r: ["a", "b"] }, ({ r }) => () => this.#test(this.#state[r])), // TSTA / TSTB
+    ...opcodeFamily("010 r 1111", { r: ["a", "b"] }, ({ r }) => () => { this.#state[r] = this.#clear(); }), // CLRA / CLRB
+
+    // 011 m oooo (tt=10/11): m selects indexed=0/extended=1. JMP (1110) is deferred.
+    ...this.#memoryUnaryHandlers("0110", ({ fetchByte }) => this.#indexedAddress(fetchByte())),
+    ...this.#memoryUnaryHandlers("0111", ({ fetchWord }) => fetchWord()),
 
     // 1 r mm oooo: r (bit 6) selects A=0/B=1; mm (bits 5–4) selects addressing;
     // oooo (bits 3–0) selects the operation, as labeled on each row.
@@ -133,11 +158,11 @@ export class Cpu6800 {
     ...this.#accumulatorHandlers("1 r mm 1011", (r, value) => { this.#state[r] = this.#add(this.#state[r], value); }), // ADDA / ADDB
 
     // 10 mm 1101: mm=00 is relative BSR; mm=11 is extended JSR. Indexed JSR is deferred.
-    ...opcodePattern("10 00 1101", ({ fetchByte, writeByte }: InstructionContext) => this.#call(this.#relativeAddress(fetchByte()), writeByte)), // BSR rel
-    ...opcodePattern("10 11 1101", ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte)), // JSR addr
+    ...instructionPattern("10 00 1101", ({ fetchByte, writeByte }: InstructionContext) => this.#call(this.#relativeAddress(fetchByte()), writeByte)), // BSR rel
+    ...instructionPattern("10 11 1101", ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte)), // JSR addr
 
     // 1 r mm 1110: r selects SP=0/X=1 rather than an accumulator; only immediate LDS is supported.
-    ...opcodePattern("1 0 00 1110", ({ fetchWord }: InstructionContext) => this.#loadStackPointer(fetchWord())), // LDS #nn
+    ...instructionPattern("1 0 00 1110", ({ fetchWord }: InstructionContext) => this.#loadStackPointer(fetchWord())), // LDS #nn
 
     // Other instruction groups, including interrupt controls, are unsupported.
   ]);
@@ -145,6 +170,15 @@ export class Cpu6800 {
   #branchPair(pattern: string, test: () => boolean): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { p: [false, true] }, ({ p: invert }) =>
       ({ fetchByte }: InstructionContext) => this.#branch(fetchByte(), test() !== invert));
+  }
+
+  #memoryUnaryHandlers(prefix: "0110" | "0111", address: AddressReader): readonly OpcodeEntry<OpcodeHandler>[] {
+    return [
+      ...this.#unaryOperations.flatMap(({ bits, apply }) => instructionPattern(`${prefix} ${bits}`,
+        instruction => this.#modifyMemory(address(instruction), apply, instruction))),
+      ...instructionPattern(`${prefix} 1101`, instruction => this.#test(instruction.readByte(address(instruction)))), // TST
+      ...instructionPattern(`${prefix} 1111`, instruction => instruction.writeByte(address(instruction), this.#clear())), // CLR
+    ];
   }
 
   #accumulatorHandlers(pattern: string, apply: (register: Accumulator, value: number) => void): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -174,13 +208,6 @@ export class Cpu6800 {
     const value = this.#state[register];
     writeByte(address, value);
     this.#setResultFlags(value);
-  }
-
-  #adjustAccumulator(register: Accumulator, delta: -1 | 1): void {
-    const value = this.#state[register];
-    this.#loadAccumulator(register, (value + delta) & 0xff);
-    // Incrementing +127 or decrementing -128 overflows the signed byte range.
-    this.#state.flags.v = value === (delta === 1 ? 0x7f : 0x80);
   }
 
   // Control flow and stack operations.
@@ -240,10 +267,49 @@ export class Cpu6800 {
     return result;
   }
 
+  #complement(value: number): number {
+    const result = value ^ 0xff;
+    this.#setResultFlags(result);
+    this.#state.flags.c = true;
+    return result;
+  }
+
+  #shiftResult({ result, carry }: ShiftResult): number {
+    this.#setResultFlags(result);
+    this.#state.flags.c = carry;
+    // Every 6800 shift/rotate sets V=N XOR C; the 6809's right shifts preserve V.
+    this.#state.flags.v = this.#state.flags.n !== carry;
+    return result;
+  }
+
+  #adjust(value: number, delta: -1 | 1): number {
+    const result = (value + delta) & 0xff;
+    this.#setResultFlags(result);
+    this.#state.flags.v = value === (delta === 1 ? 0x7f : 0x80);
+    return result;
+  }
+
+  #test(value: number): void {
+    this.#setResultFlags(value);
+    this.#state.flags.c = false; // Unlike 6809 TST, 6800 TST clears C.
+  }
+
+  #clear(): number {
+    this.#test(0);
+    return 0;
+  }
+
   #setResultFlags(value: number, signBit = 0x80): void {
     // Loads, stores, and logic share these N/Z/V rules; arithmetic may replace V afterward.
     this.#state.flags.n = (value & signBit) !== 0;
     this.#state.flags.z = value === 0;
     this.#state.flags.v = false;
+  }
+
+  // Memory operations.
+
+  #modifyMemory(address: number, operation: ByteOperation, { readByte, writeByte }: InstructionContext): void {
+    const value = readByte(address);
+    writeByte(address, operation(value));
   }
 }

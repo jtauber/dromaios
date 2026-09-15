@@ -1,4 +1,4 @@
-import { add, subtract, evenParity8 } from "../../src/components/cpus/alu.js";
+import { add, subtract, evenParity8, shiftLeft8, shiftRight8 } from "../../src/components/cpus/alu.js";
 import type { AdditionResult, SubtractionResult, ArithmeticWidth } from "../../src/components/cpus/alu.js";
 
 // Compiled, never called: arithmetic facts are readonly and the carry input is a bit.
@@ -47,4 +47,20 @@ export function checkAlu(left: number, right: number, carryIn: 0 | 1, width: Ari
   subtraction.carry;
   // @ts-expect-error Addition does not report a borrow.
   addition.borrow;
+}
+
+
+export function checkShifts(value: number, incomingBit: 0 | 1): void {
+  const left = shiftLeft8(value, incomingBit);
+  const right = shiftRight8(value, incomingBit);
+  const result: number = left.result;
+  const carry: boolean = right.carry;
+  // @ts-expect-error Shift facts are readonly.
+  left.result = result;
+  // @ts-expect-error The outgoing bit is readonly too.
+  right.carry = carry;
+  // @ts-expect-error The incoming value must be a single bit.
+  shiftLeft8(value, 2);
+  // @ts-expect-error The incoming value must be a numeric bit.
+  shiftRight8(value, true);
 }

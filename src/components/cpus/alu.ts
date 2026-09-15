@@ -16,6 +16,12 @@ export interface SubtractionResult {
   readonly overflow: boolean;
 }
 
+/** Shifted byte and the bit shifted out; flag interpretation belongs to the CPU. */
+export interface ShiftResult {
+  readonly result: number;
+  readonly carry: boolean;
+}
+
 /**
  * Binary addition of unsigned operands and an optional carry bit. Inputs must already fit the width.
  * Half carry always describes the low nibble (bit 3 to bit 4), independently of operand width.
@@ -51,6 +57,16 @@ export function subtract(width: ArithmeticWidth, left: number, right: number, bo
     // Subtracting opposite-signed operands overflows if the result changes the left operand's sign.
     overflow: ((left ^ right) & (left ^ result) & signBit) !== 0,
   };
+}
+
+/** Shift an unsigned byte left once, inserting incomingBit into bit 0. */
+export function shiftLeft8(value: number, incomingBit: 0 | 1): ShiftResult {
+  return { result: ((value << 1) | incomingBit) & 0xff, carry: (value & 0x80) !== 0 };
+}
+
+/** Shift an unsigned byte right once, inserting incomingBit into bit 7. */
+export function shiftRight8(value: number, incomingBit: 0 | 1): ShiftResult {
+  return { result: (value >>> 1) | (incomingBit << 7), carry: (value & 1) !== 0 };
 }
 
 /** Whether an unsigned byte has an even number of set bits, including zero. */

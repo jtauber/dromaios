@@ -9,7 +9,7 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateValues } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { add, subtract } from "./alu.ts";
+import { add, subtract, shiftLeft8, shiftRight8 } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu6809StateDescription = defineState({
@@ -446,17 +446,17 @@ export class Cpu6809 {
   }
 
   #shiftRight(value: number, incomingBit: 0 | 1): number {
-    const result = (value >>> 1) | (incomingBit << 7);
+    const { result, carry } = shiftRight8(value, incomingBit);
     this.#setNZ(result);
-    this.#state.flags.c = (value & 1) !== 0;
+    this.#state.flags.c = carry;
     // Unlike left shifts, LSR, ROR, and ASR preserve V on the 6809.
     return result;
   }
 
   #shiftLeft(value: number, incomingBit: 0 | 1): number {
-    const result = ((value << 1) | incomingBit) & 0xff;
+    const { result, carry } = shiftLeft8(value, incomingBit);
     this.#setNZ(result);
-    this.#state.flags.c = (value & 0x80) !== 0;
+    this.#state.flags.c = carry;
     this.#state.flags.v = this.#state.flags.n !== this.#state.flags.c;
     return result;
   }
