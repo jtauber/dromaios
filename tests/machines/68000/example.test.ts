@@ -78,10 +78,14 @@ test("68000 example records long arithmetic and physical accesses, completing at
   t.mock.restoreAll();
   checkMemory(ram, true);
   assert.deepEqual(cpu.snapshot(), records[2]!.after);
-  const unsupported = runCpu(cpu, { maxSteps: 4 });
-  assert.equal(unsupported.stopReason, "unsupported");
-  assert.equal(unsupported.records.length, 1);
-  assert.deepEqual(unsupported.records[0]!.instruction?.bytes, [0, 0]);
+  // Zero-filled memory now executes ORI.B #0,D0; only the caller's end address marks completion.
+  const continued = runCpu(cpu, { maxSteps: 1 });
+  assert.equal(continued.stopReason, "step-limit");
+  const before = records[2]!.after;
+  assert.deepEqual(continued.records, [{ before,
+    after: { ...before, pc: 0xab001016, physicalPc: 0x1016, flags: { ...before.flags, n: false, z: true } },
+    outcome: "executed", instruction: { address: before.pc, bytes: [0, 0, 0, 0] },
+    accesses: [0x1012, 0x1013, 0x1014, 0x1015].map(address => ({ kind: "read", address, value: 0 })) }]);
 });
 
 test("68000 example pauses and resumes, resets from vectors, and restarts with independent initial state", () => {

@@ -96,7 +96,10 @@ test("68000 transfers distinguish carry and overflow through all five families w
   assert.equal(read.mock.callCount(), 36);
   t.mock.restoreAll();
   checkMemory(ram, true);
-  assert.equal(runCpu(cpu, { maxSteps: 1 }).stopReason, "unsupported");
+  const continued = runCpu(cpu, { maxSteps: 1 });
+  assert.equal(continued.stopReason, "step-limit");
+  assert.deepEqual(continued.records[0]!.instruction?.bytes, [0, 0, 0, 0]);
+  assert.equal(cpu.snapshot().pc, endAddress + 4);
 });
 
 test("68000 transfers pause, restore a snapshot, reset and rerun, and retain detached earlier records", () => {

@@ -109,7 +109,10 @@ test("68000 mixed-size transfers and address arithmetic produce all 18 exact rec
   assert.equal(runCpu(cpu, { maxSteps: 0, endAddress: 0x203a }).stopReason, "step-limit");
   t.mock.restoreAll();
   checkMemory(ram, true);
-  assert.equal(cpu.step().outcome, "unsupported");
+  const continued = cpu.step();
+  assert.equal(continued.outcome, "executed");
+  assert.deepEqual(continued.instruction?.bytes, [0, 0, 0, 0]);
+  assert.deepEqual(continued.after, { ...records[17]!.after, pc: endAddress + 4, physicalPc: 0x203e });
 });
 
 test("68000 addressing pauses across stack operations, resumes from snapshots, and preserves detached traces", () => {

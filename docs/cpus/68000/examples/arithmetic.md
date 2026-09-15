@@ -59,7 +59,8 @@ full PC; memory-access addresses contain only the physical address.
 `runCpu(cpu, { maxSteps: 3, endAddress: 0xAB001012 })` returns three executed
 records and `stopReason: "completed"`. Using physical `001012` as the endpoint
 does not match this PC. Without an endpoint the same three-step run stops at
-the budget; another step reads `00 00` and reports an unsupported opcode.
+the budget; another step reads `00 00 00 00` and executes `ORI.B #0,D0`.
+Zero-filled RAM is executable: only the caller's endpoint marks completion.
 
 External reset preserves the arithmetic result in D0 and RAM, replaces SSP/PC
 from the vectors, sets S, clears T, and sets the interrupt mask to 7. A7 then

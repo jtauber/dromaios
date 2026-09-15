@@ -55,12 +55,6 @@ explicit unsupported attempts rather than simulated successful accesses.
 
 ## Ideas to revisit
 
-- Extend the resolved operands now established by MOVE when arithmetic needs
-  read/modify/write behavior. Preserve the explicit operand size, extension
-  fetching, and auto-update lifetime.
-- Preserve a resolved address for read/modify/write operands so addressing
-  side effects happen once. The reference caches effective addresses; an
-  explicit operand value may make the lifetime clearer here.
 - Review supervisor transitions and exception stacks when adding status and
   exception behavior. Keep original-68000 rules separate from 68010/68020 ones.
 - Keep Macintosh mapping and ROM behavior in future machine/device components.
@@ -95,3 +89,22 @@ The [CPU tests](../../../tests/components/cpus/68000.test.ts) establish all
 [addressing example](examples/addressing.md) specifies complete state and RAM
 traces. These are local/manual-based checks; no external hardware corpus or
 cycle-level comparison is claimed.
+
+## Immediate arithmetic and logic
+
+The six immediate families reuse MOVE's resolved operands and width-aware
+read/write helpers. The immediate is fetched before destination extensions;
+one resolved operand supplies both the read and write address. This makes
+address auto-updates explicit without a separate effective-address cache.
+CMPI commits its address update while omitting writeback.
+
+The Mac reference's shared immediate-ALU path is a useful comparison, but its
+CMPI decoder also admits address-register and PC-relative destinations that the
+original chip disallows. Dromaios constructs only the manual's data-alterable
+forms. Packed CCR/SR operations remain separate, unsupported encodings.
+
+Shared binary arithmetic supplies carry, borrow, and signed overflow. The
+68000 assigns flags locally: ADDI/SUBI copy carry/borrow to X; CMPI preserves
+X; logical operations preserve X and clear V/C. Independent tests cover every
+byte pair, all 900 legal forms, partial Dn writes, and read/modify/write traces.
+No external hardware corpus or cycle comparison is claimed for this slice.

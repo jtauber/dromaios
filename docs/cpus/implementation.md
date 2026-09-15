@@ -106,7 +106,7 @@ Choose the grouping from the CPU's encoding:
 | [6809](../../src/components/cpus/6809.ts) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte |
 | [Z80](../../src/components/cpus/z80.ts) | Unprefixed `xx yyy zzz` groups and a separate CB `xx yyy rrr` table; decode the complete supported encoding before committing state |
 | [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 0 d w` / `00 ooo 10 w` for ALU families, `mm ggg rrr` for ModR/M operands or operation extensions, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
-| [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; ADDI uses a size field and source-independent effective address |
+| [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; immediate ALU families encode operation, size, and a data-alterable effective address |
 
 Keep each encoded subgroup contiguous, including its alternate selector cases
 and exceptions. For example, the 8080's `11 pp q 001` group contains both the
@@ -329,14 +329,15 @@ the selected width and remain unsigned, including 32-bit values with bit 31
 set. Half carry and half borrow always describe the low nibble's boundary
 between bits 3 and 4, even for wider operands.
 
-All eight CPUs use shared addition; the 8008, 8080, 6502, 6800, 6809, Z80, and 8088
-also use subtraction. The 8088 supplies its selected byte/word width directly,
-and the 68000 selects 32 bits. CPU flag assignments remain beside the instruction:
+All eight CPUs use shared addition and subtraction. The 8088 supplies its
+selected byte/word width directly; the 68000 selects byte, word, or long.
+CPU flag assignments remain beside the instruction:
 the 6502 sets C when there is no borrow; the 8080 uses borrow for CY and inverted
 half borrow for AC; the Z80 and 8088 use both borrow facts directly; the 6800
-and 6809 preserve H during subtraction. The 68000 copies addition's carry to both X
-and C. Parity, flag preservation, decimal corrections, and the NMOS 6502's
-intermediate flag rules remain CPU behavior.
+and 6809 preserve H during subtraction. The 68000 copies addition's carry or
+subtraction's borrow to X and C, while comparison preserves X. Parity, flag
+preservation, decimal corrections, and the NMOS 6502's intermediate flag rules
+remain CPU behavior.
 
 [Helper tests](../../tests/components/cpus/alu.test.ts) exhaust every byte pair
 and incoming carry/borrow against unsigned and signed range calculations.

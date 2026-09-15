@@ -283,7 +283,12 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
       supported.add(base + (destination % 8) * 512 + Math.floor(destination / 8) * 64 + source);
     }
   }
-  assert.equal(supported.size, 11782); // 9,726 MOVE/MOVEA + 8 ADDI + 8 × 256 MOVEQ words.
+  for (const base of [0x0000, 0x0200, 0x0400, 0x0600, 0x0a00, 0x0c00]) {
+    for (const size of [0, 0x40, 0x80]) for (const destination of dataDestinations) {
+      supported.add(base + size + destination);
+    }
+  }
+  assert.equal(supported.size, 12674); // 9,726 MOVE/MOVEA + 900 immediate ALU + 8 × 256 MOVEQ words.
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
@@ -728,4 +733,215 @@ test("68000 PC-relative reads use the extension address even across logical and 
       }
     }
   }
+});
+
+const immediateFamilies = [
+  { name: "ORI", base: 0x0000 }, { name: "ANDI", base: 0x0200 }, { name: "SUBI", base: 0x0400 },
+  { name: "ADDI", base: 0x0600 }, { name: "EORI", base: 0x0a00 }, { name: "CMPI", base: 0x0c00 },
+] as const;
+type ImmediateName = typeof immediateFamilies[number]["name"];
+
+// Independently derive arithmetic from BigInt signed ranges and logic from bit truth tables.
+function immediateResult(name: ImmediateName, size: number, left: number, right: number, before: Cpu68000Flags) {
+  const width = size * 8;
+  const modulus = 2 ** width;
+  const sign = modulus / 2;
+  let result: number;
+  let carry = false;
+  let overflow = false;
+  let extend = before.x;
+  if (name === "ADDI" || name === "SUBI" || name === "CMPI") {
+    const direction = name === "ADDI" ? 1n : -1n;
+    const total = BigInt(left) + direction * BigInt(right);
+    result = Number(BigInt.asUintN(width, total));
+    const signed = BigInt.asIntN(width, BigInt(left)) + direction * BigInt.asIntN(width, BigInt(right));
+    carry = total < 0n || total >= BigInt(modulus);
+    overflow = signed < -BigInt(sign) || signed >= BigInt(sign);
+    if (name !== "CMPI") extend = carry;
+  } else {
+    result = 0;
+    for (let bit = 0; bit < width; bit++) {
+      const l = Math.floor(left / 2 ** bit) % 2 === 1;
+      const r = Math.floor(right / 2 ** bit) % 2 === 1;
+      if (name === "ANDI" ? l && r : name === "ORI" ? l || r : l !== r) result += 2 ** bit;
+    }
+  }
+  return { result, flags: { ...before, x: extend, n: result >= sign, z: result === 0, v: overflow, c: carry } };
+}
+
+function checkImmediate(ram: ObservedRam, before: Cpu68000State, name: ImmediateName, opcode: number,
+  size: number, destination: TransferFixture, value: number, immediate: number, highByte = 0xa5): void {
+  const bytes = [...wordBytes(opcode), ...(size === 4 ? longBytes(immediate) : wordBytes(immediate + (size === 1 ? highByte * 256 : 0))),
+    ...destination.extension];
+  const memory = new Map<number, number>();
+  if (destination.register) before = { ...before, [destination.register]:
+    Math.floor(before[destination.register] / 2 ** (size * 8)) * 2 ** (size * 8) + value };
+  if (destination.address !== undefined) {
+    memory.set(physical(destination.address - 1), 0xde);
+    memory.set(physical(destination.address + size), 0xad);
+    bytesFor(size, value).forEach((byte, offset) => memory.set(physical(destination.address! + offset), byte));
+  }
+  // Code can overlap the operand: fetching completes before its read or write.
+  bytes.forEach((byte, offset) => memory.set(physical(before.pc + offset), byte));
+  for (const [address, byte] of memory) ram.write(address, byte);
+  const accesses: Cpu68000MemoryAccess[] = bytes.map((byte, offset) =>
+    ({ kind: "read", address: physical(before.pc + offset), value: byte }));
+  if (destination.address !== undefined) {
+    value = 0;
+    for (let offset = 0; offset < size; offset++) {
+      const address = physical(destination.address + offset);
+      const byte = memory.get(address)!;
+      accesses.push({ kind: "read", address, value: byte });
+      value = value * 256 + byte;
+    }
+  }
+  const expected = immediateResult(name, size, value, immediate, before.flags);
+  const after = { ...before, flags: expected.flags, pc: unsignedLong(before.pc + bytes.length) };
+  if (destination.update) after[destination.update[0]] = destination.update[1];
+  if (name !== "CMPI") {
+    if (destination.register) after[destination.register] =
+      Math.floor(before[destination.register] / 2 ** (size * 8)) * 2 ** (size * 8) + expected.result;
+    else bytesFor(size, expected.result).forEach((byte, offset) => {
+      const address = physical(destination.address! + offset);
+      accesses.push({ kind: "write", address, value: byte });
+      memory.set(address, byte);
+    });
+  }
+  const cpu = new Cpu68000(ram, before);
+  ram.accesses.length = 0;
+  assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), outcome: "executed",
+    instruction: { address: before.pc, bytes }, accesses }, `${name} ${opcode.toString(16)}`);
+  assert.deepEqual(cpu.snapshot(), snapshot(after));
+  assert.deepEqual(ram.accesses, accesses);
+  for (const [address, byte] of memory) assert.equal(ram.read(address), byte);
+}
+
+for (const { name, base } of immediateFamilies) {
+  test(`68000 ${name} executes all 150 size/address forms with every incoming flag pattern`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (let bits = 0; bits < 128; bits++) {
+      const before = transferState(bits);
+      let forms = 0;
+      for (const [size, code] of [[1, 0], [2, 0x40], [4, 0x80]] as const) {
+        const sign = 2 ** (size * 8 - 1);
+        const pairs = [[0, 0], [0, 1], [sign - 1, 1], [sign, 1], [sign, sign], [sign * 2 - 1, sign * 2 - 1]];
+        for (const destination of transferFixtures(before, size, before.pc + (size === 4 ? 6 : 4))) {
+          if ((destination.code >= 8 && destination.code < 16) || destination.code > 57) continue;
+          const [left, right] = pairs[(bits + destination.code) % pairs.length]!;
+          checkImmediate(ram, before, name, base + code + destination.code, size, destination, left!, right!);
+          forms++;
+        }
+      }
+      assert.equal(forms, 150);
+    }
+  });
+
+  test(`68000 ${name}.B checks every operand pair against an independent oracle`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (let left = 0; left < 256; left++) for (let right = 0; right < 256; right++) {
+      const before = initialState({ d0: 0xabcdef00 + left, flags: flags((left + right) % 128) });
+      const expected = immediateResult(name, 1, left, right, before.flags);
+      checkStep(ram, before, [...wordBytes(base), 0xa5, right], { ...before, pc: before.pc + 4,
+        d0: name === "CMPI" ? before.d0 : 0xabcdef00 + expected.result, flags: expected.flags });
+    }
+  });
+
+  test(`68000 ${name}.W/L checks signed and unsigned boundaries in registers and memory`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (const [size, code] of [[2, 0x40], [4, 0x80]] as const) {
+      const sign = 2 ** (size * 8 - 1);
+      const values = [0, 1, 0xff, 0x100, 0x7fff, 0x8000, 0xffff, sign - 1, sign, sign + 1, sign * 2 - 1];
+      for (const bits of [0, 127]) for (const left of values) for (const right of values) {
+        const before = transferState(bits);
+        for (const destination of [{ code: 0, extension: [], register: "d0" },
+          { code: 24, extension: [], address: before.a0, update: ["a0", before.a0 + size] }] as const) {
+          checkImmediate(ram, before, name, base + code + destination.code, size, destination, left, right);
+        }
+      }
+    }
+  });
+}
+
+test("68000 byte immediates ignore every high byte and still write memory for identity operations", () => {
+  const ram = new ObservedRam(0x1000000);
+  const before = transferState(127);
+  for (const { name, base } of immediateFamilies) for (let high = 0; high < 256; high++) {
+    checkImmediate(ram, before, name, base + 16, 1, { code: 16, extension: [], address: before.a0 },
+      0x80, name === "ANDI" ? 0xff : 0, high);
+  }
+});
+
+test("68000 immediate read/modify/write wraps addresses, updates either stack once, and fetches before code overlap", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const { name, base } of immediateFamilies) for (const [size, code] of [[1, 0], [2, 0x40], [4, 0x80]] as const) {
+    for (const bits of [0, 127]) for (const address of [0, 0x12fffffe, 0xfffffffe]) {
+      const before = transferState(bits);
+      before.usp = before.ssp = address;
+      const stack = before.flags.s ? "ssp" : "usp";
+      const step = size === 1 ? 2 : size;
+      checkImmediate(ram, before, name, base + code + 31, size,
+        { code: 31, extension: [], address, update: [stack, unsignedLong(address + step)] }, 0, 1);
+      const previous = unsignedLong(address - step);
+      checkImmediate(ram, before, name, base + code + 39, size,
+        { code: 39, extension: [], address: previous, update: [stack, previous] }, 0, 1);
+    }
+    for (const pc of [0xab001000, 0x12fffffe, 0xfffffffe]) {
+      const before = initialState({ pc });
+      for (const offset of [0, 2, 4]) {
+        const address = unsignedLong(pc + offset);
+        checkImmediate(ram, before, name, base + code + 57, size,
+          { code: 57, extension: longBytes(address), address }, 0, 1);
+      }
+    }
+  }
+});
+
+test("68000 immediate ALU rejects every odd word/long memory mode without operand reads, writes, flags, or auto-updates", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const { base } of immediateFamilies) for (const [size, code] of [[2, 0x40], [4, 0x80]] as const) {
+    for (const bits of [0, 127]) {
+      const state = transferState(bits);
+      for (const register of addressNames(state)) state[register]++;
+      const destinations = transferFixtures(state, size, state.pc + (size === 4 ? 6 : 4));
+      destinations.push({ code: 56, extension: [0xff, 0xff], address: 0xffffffff },
+        { code: 57, extension: [0xab, 0xff, 0xff, 0xff], address: 0xabffffff });
+      for (const destination of destinations) {
+        if (destination.code > 57 || destination.address === undefined || destination.address % 2 === 0) continue;
+        const bytes = [...wordBytes(base + code + destination.code), ...bytesFor(size, 1), ...destination.extension];
+        const accesses = bytes.map((value, offset) => ({ kind: "read", address: 0x1000 + offset, value }));
+        for (const { address, value } of accesses) ram.write(address, value);
+        const cpu = new Cpu68000(ram, state);
+        const before = snapshot(state);
+        for (let attempt = 0; attempt < 2; attempt++) {
+          ram.accesses.length = 0;
+          assert.deepEqual(cpu.step(), { before, after: before, instruction: { address: state.pc, bytes }, accesses,
+            outcome: "unsupported", reason: "unaligned-address", fault: { operation: "read", address: destination.address } });
+          assert.deepEqual(ram.accesses, accesses);
+        }
+      }
+    }
+  }
+});
+
+test("68000 immediate alignment rejection can be retried with changed RAM and retains detached fault records", () => {
+  const ram = new ObservedRam(0x1000000);
+  const state = transferState(127);
+  const cpu = new Cpu68000(ram, state);
+  [0x04, 0x79, 0, 1, 0xff, 0xff, 0xff, 0xff].forEach((value, offset) => ram.write(0x1000 + offset, value));
+  const rejected = cpu.step();
+  assert.equal(rejected.outcome, "unsupported");
+  const saved = structuredClone(rejected);
+  ram.write(0x1007, 0xfe);
+  ram.write(0x1003, 2);
+  ram.write(0xfffffe, 0);
+  ram.write(0xffffff, 1);
+  const record = cpu.step();
+  assert.equal(record.outcome, "executed");
+  assert.deepEqual(record.after, snapshot({ ...state, pc: state.pc + 8,
+    flags: { ...state.flags, x: true, n: true, z: false, v: false, c: true } }));
+  assert.deepEqual(record.accesses.slice(-4), [
+    { kind: "read", address: 0xfffffe, value: 0 }, { kind: "read", address: 0xffffff, value: 1 },
+    { kind: "write", address: 0xfffffe, value: 0xff }, { kind: "write", address: 0xffffff, value: 0xff },
+  ]);
+  assert.deepEqual(rejected, saved);
 });

@@ -4,6 +4,7 @@
 [Coverage](../coverage.md#68000) ·
 [Arithmetic example](examples/arithmetic.md) ·
 [Addressing example](examples/addressing.md) ·
+[Immediate ALU example](examples/alu.md) ·
 [Reference review](reference-notes.md)
 
 This is an instruction-level model of the original Motorola 68000. It uses
@@ -113,12 +114,39 @@ Self-transfers still update these flags.
 An address-register destination selects MOVEA.W/L. MOVEA.W sign-extends its
 source into the full 32-bit destination; MOVEA.L copies the long. Neither
 changes flags. MOVEQ sign-extends its embedded byte into Dn and applies long
-MOVE flags; bit 8 of its operation word must be zero. ADDI.L to Dn retains
-its existing unsigned long result and X/N/Z/V/C behavior.
+MOVE flags; bit 8 of its operation word must be zero.
 
 The [register-transfer example](examples/transfers.md) combines MOVEQ, long
 transfers, and addition. The [addressing example](examples/addressing.md)
 compares partial-register writes, MOVEA, auto-updates, and memory/stack transfers.
+
+## Immediate arithmetic and logic
+
+The six immediate families encode `0000 ooo 0 ss mmm rrr`. Operation `ooo`
+selects ORI (`000`), ANDI (`001`), SUBI (`010`), ADDI (`011`), EORI (`101`),
+or CMPI (`110`). Size `ss` is `00` byte, `01` word, `10` long; `11` is reserved.
+The destination uses the effective-address vocabulary above, restricted to
+**data-alterable** operands: Dn, `(An)`, `(An)+`, `-(An)`, displacement/index,
+or absolute word/long. An direct, PC-relative, and immediate destinations are
+excluded. Later chips add CMPI modes; this model follows the original 68000.
+The separate ORI/ANDI/EORI-to-CCR/SR forms remain unsupported.
+
+Byte/word register results preserve the upper portion of Dn; long results
+replace all 32 bits. Arithmetic wraps to the selected width. Incoming X and C
+do not enter these calculations, and control state is preserved.
+
+| Operation | Result and flags |
+| --- | --- |
+| ADDI | Destination + immediate; N/Z from result, V from signed overflow, X/C from unsigned carry |
+| SUBI | Destination − immediate; N/Z from result, V from signed overflow, X/C from unsigned borrow |
+| CMPI | Same subtraction flags as SUBI, but preserve X and perform no writeback |
+| ANDI, ORI, EORI | Bitwise result; set N/Z, clear V/C, preserve X |
+
+The immediate extension comes before destination extensions. The destination
+is resolved once, read once at the selected width, then written back at the
+same address. Postincrement/predecrement is committed once, including for
+CMPI. Logic identity operations still write memory; comparison never does.
+The [ALU example](examples/alu.md) demonstrates these rules in a RAM transformation.
 
 ## Stepping and records
 
@@ -141,6 +169,13 @@ and the chip's word-transfer scheduling are outside this model. Each access
 reflects an actual RAM call, without synthetic destination reads or trace
 reconstruction.
 
+Immediate ALU instructions fetch the operation word, immediate, and destination
+extensions, then read the destination and (except CMPI) write the result.
+These reads and writes also use ascending byte addresses, high byte first.
+Opcode `0000` is valid `ORI.B #n,D0`; four zero bytes execute `ORI.B #0,D0`.
+Zero-filled memory does not signal completion. The runner's endpoint or step
+budget determines when to stop.
+
 Unsupported attempts preserve all CPU state and RAM:
 
 | Case | Outcome details | Accesses |
@@ -148,7 +183,8 @@ Unsupported attempts preserve all CPU state and RAM:
 | Unimplemented operation word | `reason: "opcode"`; two instruction bytes | Two fetch reads |
 | Odd PC | `reason: "unaligned-address"`; `instruction: null`; `fault.operation: "fetch"` | None |
 | Odd word/long source | `reason: "unaligned-address"`; `fault.operation: "read"` | Opcode and source extension fetches; no source data read or destination fetch |
-| Odd word/long destination | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches and any source data reads; no writes |
+| Odd word/long immediate-ALU operand | `reason: "unaligned-address"`; `fault.operation: "read"` | All instruction fetches; no operand reads or writes |
+| Odd word/long MOVE destination | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches and any source data reads; no writes |
 
 Alignment faults include the full rejected address in `fault.address`. A local
 fetch cursor and pending address updates allow rejection without changing PC,
@@ -193,7 +229,9 @@ Motorola's [MC68000 User's Manual, ninth edition](https://www.nxp.com/docs/en/re
 defines the programmer's model and data organization in chapter 2, external
 reset in §6.3.1, and address errors in §6.3.10. The
 [M68000 Family Programmer's Reference Manual](https://www.nxp.com/docs/en/reference-manual/M68000PRM.pdf)
-supplies ADDI, MOVE (4-116–4-118), and MOVEA (4-119–4-120) encodings and flags.
+supplies ADDI (4-9–4-10), ANDI (4-18–4-19), CMPI (4-79–4-80),
+EORI (4-102–4-103), ORI (4-153–4-154), SUBI (4-179–4-180),
+MOVE (4-116–4-118), and MOVEA (4-119–4-120) encodings and flags.
 Addressing is defined in §§2.2.1–2.2.7 and §§2.2.11–2.2.18; §2.4 distinguishes
 the original brief extension from later chips. Later-family additions are excluded.
 
@@ -207,5 +245,10 @@ every word displacement, source/destination aliasing, partial-register writes,
 and all word/long memory modes' alignment rejection. The
 [addressing example tests](../../../tests/machines/68000/addressing-example.test.ts)
 check full traces and RAM images through bounded running, resumption, and reset.
+Immediate checks execute every legal size/address form and incoming flag
+pattern, exhaust byte operand pairs, and check word/long boundaries, flags,
+read/modify/write order, comparison auto-updates, and atomic alignment rejection.
+The [ALU example tests](../../../tests/machines/68000/alu-example.test.ts)
+check all six families together, including complete traces and RAM images.
 [Public type checks](../../../tests/types/68000.ts) establish
 readonly records, outcome narrowing, and concrete runner results.

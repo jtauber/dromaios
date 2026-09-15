@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [455](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [396](../../src/components/cpus/6809.ts) | 137 / 268 | 51.1% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [428](../../src/components/cpus/8088.ts) | 155 / 291 | 53.3% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [304](../../src/components/cpus/68000.ts) | 9,742 / 36,029 | 27.0% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [359](../../src/components/cpus/68000.ts) | 10,634 / 36,029 | 29.5% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -146,8 +146,9 @@ immediates, ADDQ/SUBQ and shift counts, branch displacements, and TRAP vectors
 are collapsed. Index extension words and MOVEM register masks do not multiply
 forms, but each form must support all its documented choices to be complete.
 The [count audit](68000/opcode-count.md) gives the permitted address sets and
-family arithmetic. MOVE and MOVEA supply 9,726 forms; ADDI.L to Dn and MOVEQ
-supply eight each. Those eight MOVEQ forms accept 2,048 operation words because
+family arithmetic. MOVE and MOVEA supply 9,726 forms; the six immediate ALU
+families supply 900 (six × three sizes × 50 destinations), and MOVEQ supplies
+eight. Those eight MOVEQ forms accept 2,048 operation words because
 the low byte is an immediate operand, not an additional form.
 
 ## Support shared by the current models
@@ -1357,7 +1358,10 @@ the comparison; independent local tests establish instruction-level access order
 [Addressing example](68000/examples/addressing.md) ·
 [Addressing definition](../../src/machines/68000/addressing-example.machine)
 
-**9,742 of 36,029 documented forms are complete (27.0%).** MOVE and MOVEA
+[Immediate ALU example](68000/examples/alu.md) ·
+[ALU definition](../../src/machines/68000/alu-example.machine)
+
+**10,634 of 36,029 documented forms are complete (29.5%).** MOVE and MOVEA
 support every original-68000 source/destination combination and documented
 index extension. The operation-word patterns below are binary. In MOVE,
 `ddd mmm` selects the destination register then mode, while `sss rrr` selects
@@ -1365,13 +1369,26 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 
 | Operation-word pattern | Instruction | Forms | Length | Scope |
 | --- | --- | --- | --- | --- |
-| `0000 0110 10 000 rrr` | `ADDI.L #n,Dn` | 8 | 6 | All Dn; set X/N/Z/V/C, preserve control state |
+| `0000 000 0 ss mmm rrr` | `ORI.B/W/L #n,<ea>` | 150 | 4–10 | Three sizes × 50 data-alterable destinations; set NZ, clear VC, preserve X |
+| `0000 001 0 ss mmm rrr` | `ANDI.B/W/L #n,<ea>` | 150 | 4–10 | Same sizes, destinations, and flags as ORI |
+| `0000 010 0 ss mmm rrr` | `SUBI.B/W/L #n,<ea>` | 150 | 4–10 | Set X/N/Z/V/C; X and C report unsigned borrow |
+| `0000 011 0 ss mmm rrr` | `ADDI.B/W/L #n,<ea>` | 150 | 4–10 | Set X/N/Z/V/C; X and C report unsigned carry |
+| `0000 101 0 ss mmm rrr` | `EORI.B/W/L #n,<ea>` | 150 | 4–10 | Same sizes, destinations, and flags as ORI |
+| `0000 110 0 ss mmm rrr` | `CMPI.B/W/L #n,<ea>` | 150 | 4–10 | Destination minus immediate; set NZVC, preserve X, no writeback |
 | `00 01 ddd mmm sss rrr` | `MOVE.B <ea>,<ea>` | 2,650 | 2–10 | 53 sources × 50 data-alterable destinations; neither operand may be An |
 | `00 10 ddd mmm sss rrr` (`mmm ≠ 001`) | `MOVE.L <ea>,<ea>` | 3,050 | 2–10 | 61 sources × 50 data-alterable destinations |
 | `00 10 ddd 001 sss rrr` | `MOVEA.L <ea>,An` | 488 | 2–6 | 61 sources × 8 address registers; no flag changes |
 | `00 11 ddd mmm sss rrr` (`mmm ≠ 001`) | `MOVE.W <ea>,<ea>` | 3,050 | 2–10 | 61 sources × 50 data-alterable destinations |
 | `00 11 ddd 001 sss rrr` | `MOVEA.W <ea>,An` | 488 | 2–6 | Sign-extend the word into An; no flag changes |
 | `0111 rrr 0 iiiiiiii` | `MOVEQ #n,Dn` | 8 | 2 | Sign-extend the embedded byte to a long; MOVE flags |
+
+Immediate ALU size `ss` is `00` byte, `01` word, `10` long; `11` is reserved.
+The destination `mmm rrr` allows Dn, indirect, postincrement, predecrement,
+displacement/index, and absolute word/long addresses. An direct, PC-relative,
+and immediate destinations are excluded. ORI/ANDI/EORI to CCR/SR remain
+unsupported and are not included in these counts. The immediate is fetched
+before address extensions; each memory operand is resolved once. CMPI still
+performs address auto-updates, despite doing no writeback.
 
 MOVE/MOVEQ set N/Z from the transferred size, clear V/C, and preserve X and
 control state. Byte/word writes to Dn preserve the upper register bits.
@@ -1383,18 +1400,20 @@ mode encodings, extension words, and auto-update sequencing.
 | Stored state | D0–D7, A0–A6, USP/SSP, and PC as unsigned 32-bit values; X/N/Z/V/C/T/S and three-bit interrupt mask |
 | Views | A7 derived from S and USP/SSP; physical PC derived from the low 24 bits of PC |
 | Transfers | Complete MOVE.B/W/L and MOVEA.W/L families; MOVEQ; partial Dn writes and sign-extended address-register word writes |
+| Immediate ALU | ADDI, SUBI, CMPI, ANDI, ORI, EORI in all three sizes and data-alterable modes; preserve upper Dn bits on byte/word writes |
 | Effective addresses | Dn, An, indirect, postincrement, predecrement, signed displacement/index, absolute word/long, PC displacement/index, immediate; restrictions above |
 | Memory | Exactly 16 MiB; mask each address at RAM access, preserving full register values; big-endian bytes, words, and longs |
 | Instruction fetching | Even PC; 16-bit operation word; word/long extensions; sequential PC wraps at 32 bits |
 | Alignment | Even instruction, word, and long addresses; odd byte operands allowed; read/write faults preserve state and RAM, including pending address updates |
-| Stack | MOVE through A7 uses USP or SSP according to S; byte auto-updates still step by two |
+| Stack | MOVE and immediate ALU through A7 use USP or SSP according to S; byte auto-updates still step by two |
 | Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts; preserve other registers, condition codes, and RAM under the documented policy |
-| Remaining scope | Other transfers and address operations, arithmetic beyond ADDI.L to Dn, logic, branches, calls/returns, stack frames, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
+| Remaining scope | Other transfers and address operations, other arithmetic/logic families, branches, calls/returns, stack frames, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
-[register-transfer](../../tests/machines/68000/transfers-example.test.ts), and
-[addressing example tests](../../tests/machines/68000/addressing-example.test.ts),
+[register-transfer](../../tests/machines/68000/transfers-example.test.ts),
+[addressing](../../tests/machines/68000/addressing-example.test.ts), and
+[immediate ALU example tests](../../tests/machines/68000/alu-example.test.ts),
 plus [public type checks](../../tests/types/68000.ts).
 
 The independent transfer fixtures execute all **9,726 MOVE/MOVEA encodings**
@@ -1406,6 +1425,15 @@ preservation; source/destination aliases; unsigned register and physical-bus
 wrapping; overlapping code and data; every word/long memory form's alignment
 rejection; and all unsupported operation words. Existing tests retain independent
 BigInt addition expectations, reset, live operands, and detached records.
+
+Immediate ALU checks execute all **900 legal forms** with all 128 incoming flag
+patterns, exhaust every byte operand pair for each family, and check word/long
+boundaries against independent signed/unsigned ranges and logic truth tables.
+They check memory read/write order, partial-register preservation, identity
+writes, CMPI without writes, both stacks, ignored immediate high bytes, wrapped
+addresses, overlapping code/data, atomic alignment rejection, and retrying with
+changed RAM. The 16-step ALU example combines all six families, all three sizes,
+RAM transformations, comparison auto-updates, and bounded running/reset checks.
 
 The 18-step addressing program copies mixed-size data through RAM, saves and
 restores a word through A7, and distinguishes partial Dn writes from MOVEA's

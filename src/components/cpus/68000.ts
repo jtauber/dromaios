@@ -7,7 +7,7 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { add } from "./alu.ts";
+import { add, subtract } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu68000StateDescription = defineState({
@@ -61,6 +61,8 @@ type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => Cpu6800
 type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
 type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
 type OperandSize = 8 | 16 | 32;
+// A result requests writeback; a comparison updates flags and returns nothing.
+type ImmediateOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
 type Operand =
   | { readonly kind: "data"; readonly register: DataRegister }
   | { readonly kind: "address"; readonly register: AddressRegister }
@@ -155,8 +157,15 @@ export class Cpu68000 {
 
   // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
   static readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // 0000 0110 ss mmm rrr: ss=10 selects long (00 byte, 01 word); EA mmm=000 selects Dn.
-    ...opcodeFamily("0000 0110 10 000 rrr", { r: this.#dataRegisters }, ({ r: register }) => (cpu: Cpu68000, { fetchLong }: InstructionContext) => cpu.#addToRegister(register, fetchLong())), // ADDI.L #n,Dn
+    // Immediate ALU: 0000 ooo 0 ss mmm rrr. ooo selects the operation below;
+    // ss=00 byte, 01 word, 10 long (11 reserved); mmm rrr selects a data-alterable EA.
+    // An, PC-relative, and immediate destinations are excluded, including CCR/SR encodings.
+    ...this.#immediateHandlers("0000 000 0 ss mmm rrr", (cpu, size, left, right) => cpu.#logic(size, left | right)), // ORI #n,<ea>
+    ...this.#immediateHandlers("0000 001 0 ss mmm rrr", (cpu, size, left, right) => cpu.#logic(size, left & right)), // ANDI #n,<ea>
+    ...this.#immediateHandlers("0000 010 0 ss mmm rrr", (cpu, size, left, right) => cpu.#subtract(size, left, right)), // SUBI #n,<ea>
+    ...this.#immediateHandlers("0000 011 0 ss mmm rrr", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADDI #n,<ea>
+    ...this.#immediateHandlers("0000 101 0 ss mmm rrr", (cpu, size, left, right) => cpu.#logic(size, left ^ right)), // EORI #n,<ea>
+    ...this.#immediateHandlers("0000 110 0 ss mmm rrr", (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMPI #n,<ea>
 
     // MOVE: 00 zz ddd mmm sss rrr. zz=01 byte, 10 long, 11 word.
     // Destination is register ddd then mode mmm; source is mode sss then register rrr.
@@ -169,8 +178,16 @@ export class Cpu68000 {
     // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
     ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => (cpu: Cpu68000) => cpu.#loadQuickRegister(register, value)), // MOVEQ #n,Dn
 
-    // Other transfer families, arithmetic sizes/modes, control flow, and exceptions are deferred.
+    // Other transfer and ALU families, control flow, and exceptions are deferred.
   ], 16);
+
+  static #immediateHandlers(pattern: string, apply: ImmediateOperation): readonly OpcodeEntry<OpcodeHandler>[] {
+    const sizes = [8, 16, 32, undefined] as const;
+    return opcodeFamily(pattern, { s: sizes, m: this.#selectors, r: this.#selectors }, ({ s: size, m, r }) => {
+      if (size === undefined || m === 1 || (m === 7 && r > 1)) return undefined;
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#immediate(size, m, r, apply, instruction);
+    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
 
   static #moveHandlers(pattern: string, size: OperandSize): readonly OpcodeEntry<OpcodeHandler>[] {
     const codes = this.#selectors;
@@ -210,7 +227,7 @@ export class Cpu68000 {
           // PC-relative bases are the extension word's address, before fetching it.
           case 0b010: address = nextAddress() + (fetchWord() << 16 >> 16); break; // (d16,PC)
           case 0b011: address = nextAddress() + this.#indexOffset(fetchWord(), updates); break; // (d8,PC,Xn)
-          case 0b100: return { kind: "immediate", value: size === 32 ? fetchLong() : fetchWord() }; // #n
+          case 0b100: return { kind: "immediate", value: this.#fetchImmediate(size, instruction) }; // #n
           default: throw new Error("Unsupported effective address reached execution.");
         }
         break;
@@ -235,6 +252,17 @@ export class Cpu68000 {
     return value % 2 ** size;
   }
 
+  #writeOperand(size: OperandSize, operand: Exclude<Operand, { kind: "immediate" }>, value: number, writeByte: ByteMemory["writeByte"]): void {
+    if (operand.kind === "address") this.#state[operand.register] = (size === 16 ? (value << 16 >> 16) : value) >>> 0;
+    else if (operand.kind === "memory") this.#writeMemory(size, operand.address, value, writeByte);
+    else this.#state[operand.register] = ((this.#state[operand.register] & ~(2 ** size - 1)) | value) >>> 0;
+  }
+
+  #fetchImmediate(size: OperandSize, { fetchWord, fetchLong }: InstructionContext): number {
+    // Byte immediates occupy a word whose high byte is ignored.
+    return size === 32 ? fetchLong() : fetchWord() % 2 ** size;
+  }
+
   // Loads and stores. Source reads finish before resolving or writing the destination.
 
   #move(size: OperandSize, sourceMode: number, sourceCode: number, destinationMode: number, destinationCode: number,
@@ -247,33 +275,60 @@ export class Cpu68000 {
     if (destination.kind === "memory" && size !== 8 && destination.address % 2 !== 0) return { operation: "write", address: destination.address };
     if (destination.kind === "immediate") throw new Error("Immediate destination reached execution.");
     for (const [register, address] of updates) this.#state[register] = address;
-    if (destination.kind === "address") {
-      this.#state[destination.register] = (size === 16 ? (value << 16 >> 16) : value) >>> 0;
-    } else {
-      if (destination.kind === "memory") this.#writeMemory(size, destination.address, value, instruction.writeByte);
-      else this.#state[destination.register] = ((this.#state[destination.register] & ~(2 ** size - 1)) | value) >>> 0;
-      this.#moveFlags(value, size);
-    }
+    this.#writeOperand(size, destination, value, instruction.writeByte);
+    if (destination.kind !== "address") this.#setResultFlags(value, size);
   }
 
   #loadQuickRegister(register: DataRegister, byte: number): void {
     const value = signed8(byte) >>> 0;
     this.#state[register] = value;
-    this.#moveFlags(value);
+    this.#setResultFlags(value);
   }
 
   // Arithmetic and flags.
 
-  #addToRegister(register: DataRegister, value: number): void {
-    const { result, carry, overflow } = add(32, this.#state[register], value);
-    this.#state[register] = result;
-    this.#state.flags.x = this.#state.flags.c = carry;
-    this.#state.flags.n = (result & 0x80000000) !== 0;
-    this.#state.flags.z = result === 0;
-    this.#state.flags.v = overflow;
+  #immediate(size: OperandSize, mode: number, code: number, apply: ImmediateOperation,
+    instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    const value = this.#fetchImmediate(size, instruction);
+    const updates: AddressUpdates = new Map();
+    const destination = this.#resolveOperand(size, mode, code, instruction, updates);
+    if (destination.kind === "immediate" || destination.kind === "address") throw new Error("Invalid immediate-ALU destination reached execution.");
+    if (destination.kind === "memory" && size !== 8 && destination.address % 2 !== 0) return { operation: "read", address: destination.address };
+    const result = apply(this, size, this.#readOperand(size, destination, instruction.readByte), value);
+    for (const [register, address] of updates) this.#state[register] = address;
+    // CMPI still commits an address auto-update, but performs no writeback.
+    if (result !== undefined) this.#writeOperand(size, destination, result, instruction.writeByte);
   }
 
-  #moveFlags(value: number, size: OperandSize = 32): void {
+  #logic(size: OperandSize, value: number): number {
+    const result = value >>> 0;
+    this.#setResultFlags(result, size);
+    return result;
+  }
+
+  #add(size: OperandSize, left: number, right: number): number {
+    const { result, carry, overflow } = add(size, left, right);
+    this.#setResultFlags(result, size);
+    this.#state.flags.x = this.#state.flags.c = carry;
+    this.#state.flags.v = overflow;
+    return result;
+  }
+
+  #subtract(size: OperandSize, left: number, right: number): number {
+    const result = this.#compare(size, left, right);
+    this.#state.flags.x = this.#state.flags.c;
+    return result;
+  }
+
+  #compare(size: OperandSize, left: number, right: number): number {
+    const { result, borrow, overflow } = subtract(size, left, right);
+    this.#setResultFlags(result, size);
+    this.#state.flags.c = borrow;
+    this.#state.flags.v = overflow;
+    return result;
+  }
+
+  #setResultFlags(value: number, size: OperandSize = 32): void {
     this.#state.flags.n = value >= 2 ** (size - 1);
     this.#state.flags.z = value === 0;
     this.#state.flags.v = this.#state.flags.c = false;
