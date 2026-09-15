@@ -121,6 +121,10 @@ Further examples and comparison of the models continue within this stage.
 This work can begin with the existing examples and shared runner, alongside
 opcode expansion and the introduction of further CPUs.
 
+The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
+learning milestones and review points, beginning with an arithmetic explorer
+connected to a real CPU instruction and extending into later device work.
+
 - Add a small interface for stepping, resetting, and inspecting state.
 - Introduce register, memory, and instruction views that serve the
   examples while preserving each CPU's distinctions.

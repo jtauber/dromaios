@@ -10,7 +10,7 @@ see the [development instructions](../README.md#development).
 - [Architecture](architecture.md): component responsibilities, execution and
   inspection boundaries, and the implementation language.
 - [Pedagogical explorations](pedagogy.md): teaching principles, reusable
-  instruments, and a first candidate connecting arithmetic to instructions.
+  instruments, and learning milestones from arithmetic to machine interactions.
 - [CPU scope](cpus/scope.md): intended CPU targets, existing reference work,
   and the reasons for testing generalizations across three architectures.
 - [CPU implementation coverage](cpus/coverage.md): current opcode percentages,
