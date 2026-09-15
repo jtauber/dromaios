@@ -304,7 +304,16 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
       : allSources.filter(code => code >= 16 && code <= 57);
     for (let register = 0; register < 8; register++) for (const ea of addresses) supported.add(base + register * 512 + ea);
   }
-  assert.equal(supported.size, 31803); // Includes embedded MOVEQ/branch operands, unlike coverage forms.
+  for (const ea of controlAddresses) {
+    for (const base of [0x4840, 0x4e80, 0x4ec0]) supported.add(base + ea);
+    for (const base of [0x41c0, 0x43c0, 0x45c0, 0x47c0, 0x49c0, 0x4bc0, 0x4dc0, 0x4fc0]) supported.add(base + ea);
+  }
+  for (let register = 0; register < 8; register++) {
+    supported.add(0x4e50 + register);
+    supported.add(0x4e58 + register);
+  }
+  for (const { base, addresses } of multipleForms) for (const ea of addresses) supported.add(base + ea);
+  assert.equal(supported.size, 32267); // Includes embedded MOVEQ/branch operands, unlike coverage forms.
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
@@ -457,6 +466,20 @@ const bytesFor = (size: number, value: number): number[] => longBytes(value).sli
 const physical = (address: number): number => unsignedLong(address) % 16777216;
 const addressNames = (state: Cpu68000State): readonly AddressName[] =>
   ["a0", "a1", "a2", "a3", "a4", "a5", "a6", state.flags.s ? "ssp" : "usp"];
+
+// Literal manual EA sets: control, alterable control plus predecrement, control plus postincrement.
+const controlAddresses = [16, 17, 18, 19, 20, 21, 22, 23, 40, 41, 42, 43, 44, 45, 46, 47,
+  48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59];
+const multipleStores = [16, 17, 18, 19, 20, 21, 22, 23, 32, 33, 34, 35, 36, 37, 38, 39,
+  40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57];
+const multipleLoads = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+  40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59];
+const multipleForms = [
+  { base: 0x4880, size: 2, load: false, addresses: multipleStores },
+  { base: 0x48c0, size: 4, load: false, addresses: multipleStores },
+  { base: 0x4c80, size: 2, load: true, addresses: multipleLoads },
+  { base: 0x4cc0, size: 4, load: true, addresses: multipleLoads },
+] as const;
 
 function transferState(bits = 0): Cpu68000State {
   return initialState({ a0: 0xab020000, a1: 0xcd020100, a2: 0xef020200, a3: 0x12020300,
@@ -1493,4 +1516,242 @@ test("68000 branches wrap from the last instruction word on taken and untaken pa
       }
     }
   }
+});
+
+const memoryAccesses = (kind: "read" | "write", address: number, bytes: readonly number[]): Cpu68000MemoryAccess[] =>
+  bytes.map((value, offset) => ({ kind, address: physical(address + offset), value }));
+
+test("68000 LEA/PEA/JMP/JSR cover all control EAs and destinations, preserving every flag pattern", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let bits = 0; bits < 128; bits++) {
+    const before = transferState(bits);
+    const stack = before.flags.s ? "ssp" : "usp";
+    const pushed = unsignedLong(before[stack] - 4);
+    const fixtures = transferFixtures(before, 4, before.pc + 2).filter(ea => controlAddresses.includes(ea.code));
+    assert.equal(fixtures.length, 28);
+    for (const ea of fixtures) {
+      const address = ea.address!;
+      for (const [n, register] of addressNames(before).entries()) {
+        const bytes = [...wordBytes(0x41c0 + n * 512 + ea.code), ...ea.extension];
+        checkStep(ram, before, bytes, { ...before, [register]: address, pc: before.pc + bytes.length });
+      }
+      const pea = [...wordBytes(0x4840 + ea.code), ...ea.extension];
+      checkStep(ram, before, pea, { ...before, [stack]: pushed, pc: before.pc + pea.length },
+        memoryAccesses("write", pushed, longBytes(address)));
+      checkStep(ram, before, [...wordBytes(0x4ec0 + ea.code), ...ea.extension], { ...before, pc: address });
+      const jsr = [...wordBytes(0x4e80 + ea.code), ...ea.extension];
+      checkStep(ram, before, jsr, { ...before, [stack]: pushed, pc: address },
+        memoryAccesses("write", pushed, longBytes(before.pc + jsr.length)));
+    }
+  }
+});
+
+test("68000 address operations preserve odd EAs, validate taken targets, and resolve A7 before a push", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const bits of [0, 127]) for (const address of [1, 0x12ffffff, 0xffffffff]) {
+    const before = { ...transferState(bits), a0: address };
+    const stack = before.flags.s ? "ssp" : "usp";
+    const pushed = unsignedLong(before[stack] - 4);
+    checkStep(ram, before, [0x41, 0xd0], { ...before, pc: before.pc + 2 }); // LEA (A0),A0
+    checkStep(ram, before, [0x48, 0x50], { ...before, [stack]: pushed, pc: before.pc + 2 },
+      memoryAccesses("write", pushed, longBytes(address))); // PEA (A0), no target read
+    for (const opcode of [0x4e90, 0x4ed0]) checkControlRejection(ram, before, wordBytes(opcode), "fetch", address);
+    for (const opcode of [0x4850, 0x4e90]) {
+      checkControlRejection(ram, { ...before, [stack]: 3 }, wordBytes(opcode), "write", 0xffffffff);
+    }
+    // A7 as both source and destination must not be changed until its EA has been captured.
+    const even = transferState(bits);
+    checkStep(ram, even, [0x48, 0x57], { ...even, [stack]: pushed, pc: even.pc + 2 },
+      memoryAccesses("write", pushed, longBytes(even[stack])));
+    checkStep(ram, even, [0x4e, 0x97], { ...even, [stack]: pushed, pc: even[stack] },
+      memoryAccesses("write", pushed, longBytes(even.pc + 2)));
+  }
+});
+
+test("68000 control EAs and return addresses wrap logical PC and physical stack independently", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const pc of [0x12fffffe, 0xfffffffe]) for (const sp of [0, 2, 0x12fffffe, 0xfffffffe]) {
+    const before = initialState({ pc, ssp: sp });
+    const target = unsignedLong(pc + 2 + 6);
+    const pushed = unsignedLong(sp - 4);
+    checkStep(ram, before, [0x4e, 0xba, 0, 6], { ...before, ssp: pushed, pc: target },
+      memoryAccesses("write", pushed, longBytes(unsignedLong(pc + 4))));
+    checkStep(ram, before, [0x43, 0xf8, 0xff, 0xff], { ...before, a1: 0xffffffff, pc: unsignedLong(pc + 4) });
+  }
+});
+
+test("68000 LINK/UNLK select every An and active stack, preserving flags and handling A7 aliases", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let bits = 0; bits < 128; bits++) for (const displacement of [0, 1, 0x7fff, 0x8000, 0xfffe, 0xffff]) {
+    const before = transferState(bits);
+    const stack = before.flags.s ? "ssp" : "usp";
+    const frame = before[stack] - 4;
+    for (const [code, register] of addressNames(before).entries()) {
+      const saved = code === 7 ? frame : before[register];
+      checkStep(ram, before, [...wordBytes(0x4e50 + code), ...wordBytes(displacement)],
+        { ...before, [register]: frame, [stack]: unsignedLong(frame + signedWord(displacement)), pc: before.pc + 4 },
+        memoryAccesses("write", frame, longBytes(saved)));
+      const restored = unsignedLong(0xfedc0000 + displacement); // Odd restored pointers are valid.
+      longBytes(restored).forEach((value, offset) => ram.write(physical(before[register] + offset), value));
+      checkStep(ram, before, wordBytes(0x4e58 + code),
+        { ...before, [stack]: unsignedLong(before[register] + 4), [register]: restored, pc: before.pc + 2 },
+        memoryAccesses("read", before[register], longBytes(restored)));
+    }
+  }
+});
+
+test("68000 LINK signed allocations cover every word; frames wrap and reject odd accesses atomically", () => {
+  const ram = new ObservedRam(0x1000000);
+  const before = initialState({ ssp: 2 });
+  for (let displacement = 0; displacement < 65536; displacement++) {
+    checkStep(ram, before, [0x4e, 0x56, ...wordBytes(displacement)],
+      { ...before, a6: 0xfffffffe, ssp: unsignedLong(0xfffffffe + signedWord(displacement)), pc: before.pc + 4 },
+      memoryAccesses("write", 0xfffffffe, longBytes(before.a6)));
+  }
+  for (const bits of [0, 127]) {
+    const state = transferState(bits);
+    const stack = state.flags.s ? "ssp" : "usp";
+    checkControlRejection(ram, { ...state, [stack]: 3 }, [0x4e, 0x56, 0xff, 0xf0], "write", 0xffffffff);
+    checkControlRejection(ram, { ...state, a6: 0xffffffff }, [0x4e, 0x5e], "read", 0xffffffff);
+    longBytes(0x12345679).forEach((value, offset) => ram.write(physical(0xfffffffe + offset), value));
+    checkStep(ram, { ...state, a6: 0xfffffffe }, [0x4e, 0x5e],
+      { ...state, a6: 0x12345679, [stack]: 2, pc: state.pc + 2 }, memoryAccesses("read", 0xfffffffe, longBytes(0x12345679)));
+  }
+});
+
+// Enumerate selected register names from the manual's list, independently of the CPU's bit loop.
+// A memory map supplies data/guards and accounts for code/data overlap before execution.
+function checkMultiple(ram: ObservedRam, before: Cpu68000State, form: typeof multipleForms[number],
+  ea: TransferFixture, mask: number): void {
+  const predecrement = ea.code >= 32 && ea.code <= 39;
+  const postincrement = ea.code >= 24 && ea.code <= 31;
+  const names = [...registerForms.map(row => row.register), ...addressNames(before)];
+  const selected = names.filter((_name, index) => Math.floor(mask / 2 ** (predecrement ? 15 - index : index)) % 2 === 1);
+  if (predecrement) selected.reverse();
+  const bytes = [...wordBytes(form.base + ea.code), ...wordBytes(mask), ...ea.extension];
+  const after = { ...before, pc: unsignedLong(before.pc + bytes.length) };
+  const memory = new Map<number, number>();
+  const addresses = selected.map((_name, index) => unsignedLong(ea.address! + (predecrement ? -index : index) * form.size));
+  for (const [index, address] of addresses.entries()) {
+    // Signed word boundaries, distinct long values, and guards around every transfer.
+    const value = unsignedLong(0x89ab7fff + index * 0x10001);
+    for (let offset = -1; offset <= form.size; offset++) memory.set(physical(address + offset), 0xa5);
+    bytesFor(form.size, value).forEach((byte, offset) => memory.set(physical(address + offset), byte));
+  }
+  bytes.forEach((value, offset) => memory.set(physical(before.pc + offset), value));
+  for (const [address, value] of memory) ram.write(address, value);
+  const accesses = memoryAccesses("read", before.pc, bytes);
+  for (const [index, register] of selected.entries()) {
+    const address = addresses[index]!;
+    if (form.load) {
+      const data = Array.from({ length: form.size }, (_unused, offset) => memory.get(physical(address + offset))!);
+      const value = data.reduce((total, byte) => total * 256 + byte, 0);
+      after[register] = unsignedLong(form.size === 2 ? signedWord(value) : value);
+      accesses.push(...memoryAccesses("read", address, data));
+    } else {
+      const data = bytesFor(form.size, before[register]);
+      accesses.push(...memoryAccesses("write", address, data));
+      data.forEach((value, offset) => memory.set(physical(address + offset), value));
+    }
+  }
+  if (selected.length && (predecrement || postincrement)) {
+    const register = addressNames(before)[ea.code % 8]!;
+    after[register] = unsignedLong(before[register] + (predecrement ? -1 : 1) * form.size * selected.length);
+  }
+  ram.accesses.length = 0;
+  const cpu = new Cpu68000(ram, before);
+  assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), outcome: "executed",
+    instruction: { address: before.pc, bytes }, accesses });
+  assert.deepEqual(ram.accesses, accesses);
+  assert.deepEqual(cpu.snapshot(), snapshot(after));
+  for (const [address, value] of memory) assert.equal(ram.read(address), value);
+}
+
+test("68000 MOVEM covers all 140 forms, mask extremes, both stacks, and bases included in the list", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const bits of [0, 127]) {
+    const before = transferState(bits);
+    let forms = 0;
+    for (const form of multipleForms) {
+      for (const ea of transferFixtures(before, form.size, before.pc + 4).filter(ea => form.addresses.includes(ea.code))) {
+        forms++;
+        for (const mask of [0, 1, 0x8000, 0xffff, 0x5aa5, 0x8181]) checkMultiple(ram, before, form, ea, mask);
+      }
+    }
+    assert.equal(forms, 140);
+  }
+});
+
+test("68000 MOVEM sweeps every mask in both sizes and directions, including reversed and discarded base values", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let mask = 0; mask < 65536; mask++) {
+    const before = transferState(mask % 128);
+    for (const form of multipleForms) {
+      // Saving/restoring through A7 includes it in both ends of the normal/reversed mask.
+      const code = form.load ? 31 : 39;
+      const ea = transferFixtures(before, form.size, before.pc + 4).find(ea => ea.code === code)!;
+      checkMultiple(ram, before, form, ea, mask);
+    }
+  }
+});
+
+test("68000 MOVEM.W sign-extends every word into full data and address registers without setting flags", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let value = 0; value < 65536; value++) {
+    const before = transferState(value % 128);
+    const data = [...wordBytes(value), ...wordBytes(value)];
+    data.forEach((byte, offset) => ram.write(0x20000 + offset, byte));
+    const extended = value < 32768 ? value : value + 0xffff0000;
+    checkStep(ram, before, [0x4c, 0x90, 1, 1], { ...before, d0: extended, a0: extended, pc: before.pc + 4 },
+      memoryAccesses("read", before.a0, data)); // MOVEM.W (A0),D0/A0; latch EA before loading A0.
+  }
+});
+
+test("68000 MOVEM resolves extensions once before register changes, wraps transfers, and fetches before overlapping stores", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const bits of [0, 127]) for (const address of [0, 2, 0x12fffffe, 0xfffffffe]) {
+    const before = { ...transferState(bits), a0: address, a1: address };
+    for (const form of multipleForms) for (const code of [16, form.load ? 25 : 33]) {
+      const ea = transferFixtures(before, form.size, before.pc + 4).find(ea => ea.code === code)!;
+      checkMultiple(ram, before, form, ea, 0xffff);
+    }
+  }
+  for (const form of multipleForms) {
+    const before = { ...transferState(), a0: 0xab001000, d7: 0 };
+    for (const ea of [
+      { code: 16, extension: [], address: before.pc },
+      { code: 48, extension: [0x70, 0], address: before.pc },
+      ...(form.load ? [{ code: 58, extension: [0xff, 0xfc], address: before.pc }] : []),
+    ]) checkMultiple(ram, before, form, ea, 0xffff);
+    // The PC base follows the register mask, even when both fetches cross the address boundary.
+    const wrapped = { ...transferState(), pc: 0xfffffffe };
+    if (form.load) checkMultiple(ram, wrapped, form, { code: 58, extension: [0, 0x80], address: 0x82 }, 0xffff);
+  }
+});
+
+test("68000 MOVEM rejects odd transfers before writes or register changes, but an empty list accesses no data", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const bits of [0, 127]) for (const form of multipleForms) {
+    const before = { ...transferState(bits), a0: 1 };
+    for (const code of [16, form.load ? 24 : 32]) {
+      const ea = transferFixtures(before, form.size, before.pc + 4).find(ea => ea.code === code)!;
+      checkMultiple(ram, before, form, ea, 0);
+      for (const mask of [1, 0x8000, 0xffff]) {
+        checkControlRejection(ram, before, [...wordBytes(form.base + code), ...wordBytes(mask)],
+          form.load ? "read" : "write", ea.address!);
+      }
+    }
+  }
+  // Correct the live address extension after rejection; the same CPU retries with unchanged state.
+  const before = transferState();
+  [0x48, 0xf9, 0xff, 0xff, 0xab, 0, 0x30, 1].forEach((value, offset) => ram.write(0x1000 + offset, value));
+  const cpu = new Cpu68000(ram, before);
+  assert.equal(cpu.step().outcome, "unsupported");
+  assert.deepEqual(cpu.snapshot(), snapshot(before));
+  ram.write(0x1007, 0);
+  const saved = cpu.step();
+  assert.equal(saved.outcome, "executed");
+  const expected = structuredClone(saved);
+  cpu.reset();
+  assert.deepEqual(saved, expected);
 });

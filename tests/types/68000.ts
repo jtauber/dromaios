@@ -8,6 +8,7 @@ import { create68000AluExample } from "../../src/machines/generated/68000/alu-ex
 import { create68000ControlFlowExample } from "../../src/machines/generated/68000/control-flow-example.js";
 import { create68000WordSumExample } from "../../src/machines/generated/68000/word-sum-example.js";
 import { create68000LogicExample } from "../../src/machines/generated/68000/logic-example.js";
+import { create68000StackFrameExample } from "../../src/machines/generated/68000/stack-frame-example.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import type { CpuRunResult } from "../../src/runtime/run-cpu.js";
 
@@ -39,6 +40,8 @@ export function check68000(ram: Ram, state: Cpu68000State, snapshot: Cpu68000Sna
   const wordSumResult: CpuRunResult<Cpu68000StepRecord> = runCpu(wordSum.cpu, { maxSteps: 32, endAddress: wordSum.endAddress });
   const logic: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000LogicExample();
   const logicResult: CpuRunResult<Cpu68000StepRecord> = runCpu(logic.cpu, { maxSteps: 42, endAddress: logic.endAddress });
+  const frame: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000StackFrameExample();
+  const frameResult: CpuRunResult<Cpu68000StepRecord> = runCpu(frame.cpu, { maxSteps: 16, endAddress: frame.endAddress });
   const controlResult: CpuRunResult<Cpu68000StepRecord> = runCpu(control.cpu, { maxSteps: 36, endAddress: control.endAddress });
   const result: CpuRunResult<Cpu68000StepRecord> = runCpu(cpu, { maxSteps: 3, endAddress: machine.endAddress });
   if (result.records[0]) {

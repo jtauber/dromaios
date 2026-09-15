@@ -6,6 +6,7 @@
 [Addressing example](examples/addressing.md) ·
 [Immediate ALU example](examples/alu.md) ·
 [Control-flow example](examples/control-flow.md) ·
+[Stack-frame example](examples/stack-frame.md) ·
 [Reference review](reference-notes.md)
 
 This is an instruction-level model of the original Motorola 68000. It uses
@@ -86,8 +87,8 @@ mode before register. Both use this effective-address vocabulary:
 | `111` | `011` | `(d8,PC,Xn)` | Brief index word |
 | `111` | `100` | Immediate | Word for byte/word; long for long |
 
-Byte transfers cannot use address-register direct. PC-relative and immediate
-operands are source-only. Other mode-`111` selectors are unsupported.
+Byte transfers cannot use address-register direct. In MOVE, PC-relative and
+immediate operands are source-only. Other mode-`111` selectors are unsupported.
 Immediate bytes use the low byte of their extension word; its high byte is ignored.
 
 All address arithmetic wraps at 32 bits before bus mapping. PC-relative modes
@@ -190,6 +191,53 @@ result is unchanged; address auto-updates occur once. Word/long alignment
 faults preserve all state and RAM. The [masked-merge example](examples/logic.md)
 combines register and memory logic with a loop, checksum, and bit summary.
 
+## Address calculations and register lists
+
+LEA (`0100 aaa 111 mmm rrr`) writes the computed 32-bit address into An,
+selected by `aaa`. PEA (`0100 1000 01 mmm rrr`) pushes that address as a long
+through active A7. Neither reads data at the computed address. Both allow only
+the 28 control EAs: `(An)`, displacement/index from An, absolute word/long,
+and PC displacement/index. These exclude register-direct, auto-update, and
+immediate modes. Odd computed addresses are valid; PEA's stack write must
+still be aligned. Computing an EA precedes changing its destination or A7.
+Both instructions preserve every flag.
+
+MOVEM (`0100 1 d 00 1 s mmm rrr`) transfers a register list. Direction `d=0`
+stores registers to memory; `d=1` loads memory into registers. Size `s=0` is
+word and `s=1` is long. Stores allow 26 control-alterable EAs plus the eight
+predecrement forms; loads allow all 28 control EAs plus eight postincrement
+forms. PC-relative stores, postincrement stores, and predecrement loads are
+excluded.
+
+The word immediately after the opcode is a register mask, fetched before any
+EA extensions. Thus a PC-relative MOVEM uses the opcode address plus four as
+its displacement/index base. Mask bits normally select D0–D7 then A0–A7 from
+bit 0 to bit 15. Selected registers transfer in that order at increasing
+addresses. Predecrement stores reverse the mask correspondence and transfer
+order: bit 0 selects A7, bit 15 selects D0, and each selected register decrements
+the address before its store.
+
+Word stores use the low 16 bits. Word loads sign-extend into the entire 32-bit
+register, including Dn; long transfers use all 32 bits. MOVEM preserves every
+flag, even when loading a zero or negative value. A7 always refers to the
+active stack pointer.
+
+The EA is resolved once, before transferring any registers. On the original
+68000, a predecrement base included in the list stores its **original** value;
+later processors differ. A postincrement base included in a load list discards
+its loaded value in favor of the final transfer address. Other base/index
+registers included in a load list retain their loaded values without changing
+the already resolved transfer addresses.
+
+An empty mask fetches all instruction extensions but performs no data accesses
+or register updates, and imposes no data alignment requirement in this model.
+A nonempty list validates its first transfer address before any state change
+or data access; advancing by words/longs preserves alignment for the whole
+list. Register addresses wrap at 32 bits and each byte access maps to 24 bits.
+Within each word/long, bytes remain high-first and ascending, including
+predecrement stores. This is the model's instruction-level access convention,
+not the hardware's word bus-transfer order.
+
 ## Control flow and subroutines
 
 BRA, BSR, and Bcc encode `0110 cccc dddddddd`. Condition `cccc=0000`
@@ -222,10 +270,15 @@ the counter wraps. DBF (also called DBRA) tests only the counter; DBT never
 decrements or branches. Entering at the loop body with a counter of three
 therefore permits four iterations.
 
-BSR decrements active A7 by four and writes the full 32-bit return address;
-this is the address after the complete two- or four-byte instruction. RTS
+JMP (`0100 1110 11 mmm rrr`) and JSR (`0100 1110 10 mmm rrr`) use the same
+28 control EAs as LEA/PEA. They compute the target without reading it as an
+operand. JSR captures its target before changing A7, including when A7 supplies
+the base or index.
+
+BSR and JSR decrement active A7 by four and write the full 32-bit return address;
+this is the address after the complete instruction, including extensions. RTS
 (`0100 1110 0111 0101`) reads that long word into PC and increments A7 by four.
-Both use USP in user mode and SSP in supervisor mode, preserve the inactive
+All use USP in user mode and SSP in supervisor mode, preserve the inactive
 stack, and leave condition/control flags unchanged. Stack addresses need only
 two-byte alignment; arithmetic wraps at 32 bits and individual accesses wrap
 on the 24-bit bus. Stack reads/writes are high-byte-first and ascending, as for
@@ -235,12 +288,30 @@ Taken targets are checked before committing PC, a DBcc counter, or stack
 changes. An odd target produces an unsupported `fetch` alignment fault in the
 current instruction's record, with its instruction bytes present and no target
 read. Untaken and expired-counter paths do not validate the unused target.
-BSR checks stack alignment before target alignment and writes nothing on either
+BSR/JSR check stack alignment before target alignment and write nothing on either
 failure. RTS checks stack alignment before reading the return address; an odd
 return target retains those four reads but leaves A7 and PC unchanged. These
 atomic rejection rules are model policies, not exception/bus sequencing for
 physical hardware. The [control-flow example](examples/control-flow.md)
 exercises nested calls and both active stacks.
+
+## Stack frames
+
+LINK (`0100 1110 0101 0 rrr`) fetches a signed word displacement, pushes An
+as a long, sets An to the resulting SP, then adds the displacement to SP.
+Negative displacements reserve local storage; zero and positive displacements
+are also valid. LINK A7 saves the decremented SP itself, then applies the
+allocation. The long-displacement LINK of later processors is excluded.
+
+UNLK (`0100 1110 0101 1 rrr`) reads the saved long at An, sets SP to An plus
+four, then restores An. For UNLK A7, the popped value is the final SP.
+An unaligned frame read or push preserves all state and RAM. An odd pointer
+produced by LINK's allocation or popped by UNLK is permitted until an
+instruction attempts a word/long access through it.
+
+Both preserve all flags and the inactive stack. The
+[stack-frame example](examples/stack-frame.md) combines LINK/UNLK with
+LEA/PEA, JSR/JMP, MOVEM saves/restores, and signed word-array loads.
 
 ## Stepping and records
 
@@ -277,8 +348,11 @@ predecrement/postincrement still takes effect. All alignment checks precede
 state changes, including flags and pending An updates.
 
 Control-flow records fetch only the current instruction's bytes, followed by
-BSR's four writes or RTS's four reads where applicable. They contain no fetch
-from the target. DBcc's decrement produces no RAM access.
+BSR/JSR's four writes or RTS's four reads where applicable. They contain no
+fetch from the target. DBcc's decrement produces no RAM access.
+PEA and LINK append four stack writes after all instruction fetches; UNLK
+appends four frame reads. MOVEM fetches the mask and EA extensions before any
+data transfer, then records the selected registers in transfer order.
 
 Unsupported attempts preserve all CPU state and RAM:
 
@@ -289,9 +363,11 @@ Unsupported attempts preserve all CPU state and RAM:
 | Odd word/long MOVE source | `reason: "unaligned-address"`; `fault.operation: "read"` | Opcode and source extension fetches; no source data read or destination fetch |
 | Odd word/long ALU operand | `reason: "unaligned-address"`; `fault.operation: "read"` | All instruction fetches; no operand reads or writes |
 | Odd word/long MOVE destination | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches and any source data reads; no writes |
-| Odd BSR stack address | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches; no writes |
+| Odd BSR/JSR/PEA/LINK stack address | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches; no writes |
 | Odd RTS stack address | `reason: "unaligned-address"`; `fault.operation: "read"` | Two opcode fetches; no stack reads |
-| Odd taken branch/return target | `reason: "unaligned-address"`; `fault.operation: "fetch"`; instruction present | Instruction fetches; RTS also reads four stack bytes; no writes or target reads |
+| Odd UNLK frame address | `reason: "unaligned-address"`; `fault.operation: "read"` | Two opcode fetches; no frame reads |
+| Odd nonempty MOVEM transfer | `reason: "unaligned-address"`; `fault.operation: "read"` or `"write"` | All instruction fetches; no data transfers |
+| Odd taken branch/jump/return target | `reason: "unaligned-address"`; `fault.operation: "fetch"`; instruction present | Instruction fetches; RTS also reads four stack bytes; no writes or target reads |
 
 Alignment faults include the full rejected address in `fault.address`. A local
 fetch cursor and pending address updates allow rejection without changing PC,
@@ -341,6 +417,10 @@ EORI (4-102–4-103), ORI (4-153–4-154), SUBI (4-179–4-180),
 MOVE (4-116–4-118), and MOVEA (4-119–4-120) encodings and flags.
 Control-flow references are Bcc (4-25–4-26), BRA (4-55), BSR (4-59–4-60),
 DBcc (4-90–4-91), RTS (4-169), and condition table 3-19.
+Address, register-list, and frame references are JMP (4-108), JSR (4-109),
+LEA (4-110), LINK (4-111–4-112), MOVEM (4-128–4-130), PEA (4-159), and
+UNLK (4-194). The [reference notes](reference-notes.md#addresses-register-lists-and-stack-frames)
+record the source cross-checks for base-register and A7 aliases.
 Register/address arithmetic uses ADD (4-4–4-6), ADDA (4-7–4-8),
 CMP (4-75–4-76), CMPA (4-77–4-78), SUB (4-174–4-176), and SUBA (4-177–4-178).
 Register/memory logic uses AND (4-15–4-17), OR (4-150–4-152), and EOR (4-100–4-101).
@@ -377,5 +457,12 @@ truth tables, and cover every result bit and incoming flag pattern, partial
 Dn writes, register aliases, unchanged memory writes, wrapping, and alignment
 rejection. The [logic example tests](../../../tests/machines/68000/logic-example.test.ts)
 check complete merge/checksum traces and RAM images, resumption, and live masks.
+Address/frame checks exercise all 464 added forms, every MOVEM mask in both
+sizes/directions, every sign-extended word and LINK displacement, flag
+preservation, base/index aliases, both stacks, empty lists, wrapping, overlapping
+code/data, and atomic rejection. The
+[stack-frame example tests](../../../tests/machines/68000/stack-frame-example.test.ts)
+check all seven families together with complete records and RAM images,
+bounded execution, snapshot resumption, changed input, and reset.
 [Public type checks](../../../tests/types/68000.ts) establish
 readonly records, outcome narrowing, and concrete runner results.

@@ -177,3 +177,41 @@ Independent bit truth tables, all 5,760 forms, and complete
 include unchanged writes, postincrement/predecrement, both stacks, physical
 and logical wrapping, overlapping code/data, and atomic alignment rejection.
 These are local and manual-based checks; no hardware corpus comparison is claimed.
+
+## Addresses, register lists, and stack frames
+
+LEA/PEA/JMP/JSR reuse the existing EA resolver but use its address without
+reading operand data. BSR and JSR share one call operation, including full
+return addresses and atomic alignment rejection. The Mac reference's LEA
+and JSR tables admit extra modes; Dromaios uses Motorola's 28 control EAs
+consistently for all four instructions.
+
+The Mac reference handles MOVEM's reversed predecrement mask and final
+postincrement base explicitly, but repeats its register loops for each bank
+and direction. Dromaios uses one transfer loop, mapping mask bits to Dn or An
+and retaining an independent transfer address. Motorola specifies that a
+predecrement base in the list stores its original value on the 68000; the
+later-processor rule is excluded. Word loads sign-extend into both banks.
+
+The pinned [Musashi handlers](https://github.com/kstenerud/Musashi/blob/313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd/m68k_in.c)
+cross-check the MOVEM base rules and specialize LINK/UNLK for A7. LINK A7
+saves the decremented SP; UNLK A7 leaves the popped value itself in SP.
+The Mac reference agrees on LINK but increments the popped value for UNLK A7.
+Dromaios follows Musashi's explicit A7 behavior and tests both cases separately.
+This is a source comparison, not a hardware validation claim.
+
+MOVEM fetches its mask before resolving the EA. PC-relative bases therefore
+follow the mask, and all register updates occur after the EA has been captured.
+An empty mask performs no data access or base update, matching the reference
+loops; this model does not impose data alignment in that case. Nonempty lists
+validate alignment before transferring anything. Within each transfer,
+Dromaios retains ascending, high-first byte records, including predecrement
+long stores; Musashi models their low-word-first hardware ordering instead.
+No timing or physical bus-order comparison is claimed.
+
+Independent tests enumerate the manual's legal forms, sweep every register
+mask in both sizes and directions, and exercise every word sign extension and
+LINK displacement. They also check unchanged flags, original and discarded
+base values, A7 aliases, wrapping, overlapping code/data, and atomic faults.
+The [frame example](examples/stack-frame.md) checks complete records and RAM
+images for a caller and subroutine using all seven new families.
