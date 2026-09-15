@@ -44,6 +44,7 @@ type. The description owns stored field names, types, and constraints. The
 | `flag` | A Boolean architectural flag |
 | `boolean` | A Boolean control latch |
 | `choices(0, 1, 2)` | An explicit set of permitted integer values |
+| `namedChoices("none", "sync", "cwai")` | Named alternatives with a literal string union |
 | `array(8, unsigned(14))` | Eight unsigned 14-bit values in physical slot order |
 | `group(fields)` | A nested group, such as flags or an alternate register bank |
 
@@ -199,9 +200,11 @@ provide the common fields used by all eight CPUs:
   both with a fetched instruction.
 - `HaltedStep<Snapshot>` describes HALT, with a null instruction only for an
   already halted CPU.
+- `WaitingStep<Snapshot>` describes a wait instruction or an already waiting
+  CPU, with a null instruction in the latter case. The 6800 and 6809 share it.
 
 CPU modules keep their public names as aliases, such as `Cpu6502Instruction`
-and `Cpu6502ResetRecord`. `InstructionStep` and `HaltedStep` accept the same
+and `Cpu6502ResetRecord`. `InstructionStep`, `HaltedStep`, and `WaitingStep` accept the same
 optional access type. The 8008 and 8080 supply a union of memory and port accesses;
 other CPUs retain the memory-only default. Each step type selects its supported outcomes; the
 68000 adds its alignment-fault branch, including a possible null instruction
@@ -209,12 +212,12 @@ on an unaligned opcode fetch. Address conventions are still
 documented beside the aliases, including the 8088's physical instruction
 address and the 68000's full logical instruction address.
 
-The separate interrupt records for the 6502 and 6800 use `StateTransition` with
+The separate interrupt records for the 6502, 6800, and 6809 use `StateTransition` with
 memory accesses,
 a source, and a null instruction: external entry performs no opcode fetch.
-Each distinguishes accepted entry from an ignored, masked IRQ. The 6800 also
-adds a CPU-specific `waiting` step branch, with a null instruction only when
-already waiting. The runner preserves this outcome as a stopping reason.
+Each distinguishes accepted entry from an ignored request. The 6809 also
+distinguishes masked SYNC resumption and unarmed NMI. Wait modes and native
+frames stay in each CPU; the runner preserves `waiting` as a stopping reason.
 
 The 8080's separate interrupt record uses `StateTransition` with memory, port,
 and acknowledgement accesses. Its supplied instruction has a source and bytes,
@@ -329,7 +332,7 @@ acknowledgement supplying instruction bytes while PC stays unchanged by fetches.
 It records data-memory and port transfers as they complete. Acceptance and HALT
 release stay in the CPU; the shared RAM-fetch executor does not need an interrupt mode.
 
-The 8008, 8080, 6502, and 6800 wrap their mutating public operations with a per-instance
+The 8008, 8080, 6502, 6800, and 6809 wrap their mutating public operations with a per-instance
 [`executionBoundary`](../../src/components/cpus/execution-boundary.ts) guard.
 External callbacks may inspect snapshots, but nested mutations throw before
 changing CPU state. The guard clears even when an operation throws; it neither

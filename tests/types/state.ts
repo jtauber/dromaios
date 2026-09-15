@@ -1,4 +1,4 @@
-import { array, boolean, choices, copyState, defineState, flag, group, readState, unsigned } from "../../src/components/cpus/state.js";
+import { array, boolean, choices, namedChoices, copyState, defineState, flag, group, readState, unsigned } from "../../src/components/cpus/state.js";
 import type { StateDescription, StateValues } from "../../src/components/cpus/state.js";
 
 interface State {
@@ -59,3 +59,19 @@ const wrongChoices: StateDescription<State> = { ...description, mode: choices(0,
 const extra: StateDescription<State> = { ...description, pc: unsigned(16) };
 // @ts-expect-error A choice field must have at least one value.
 choices();
+
+const named = defineState({ mode: namedChoices("none", "sync", "cwai") } satisfies StateDescription<{ mode: "none" | "sync" | "cwai" }>);
+export function checkNamedChoices(): void {
+  const copy = readState(named, { mode: "sync" });
+  const mode: "none" | "sync" | "cwai" = copy.mode;
+  // @ts-expect-error Named modes retain their literal union.
+  copy.mode = "waiting";
+  // @ts-expect-error Named modes do not become numeric selectors.
+  copy.mode = 0;
+  // @ts-expect-error Published choices cannot be replaced.
+  named.mode.values[0] = mode;
+  // @ts-expect-error A named choice field must be nonempty.
+  namedChoices();
+  // @ts-expect-error Named choices cannot include values outside the public union.
+  const invalid: StateDescription<{ mode: "none" | "sync" }> = { mode: namedChoices("none", "other") };
+}

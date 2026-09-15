@@ -9,7 +9,7 @@ import {
 } from "../../../src/machines/generated/6809/stack-example.js";
 
 function expectedInitialState() {
-  return {
+  return { waitMode: "none" as const, nmiArmed: false,
     a: 0x56, b: 0x78, d: 0x5678, dp: 0x12, x: 0x3456, y: 0x789a, s: 0x8000, u: 0x4000, pc: 0x0200,
     flags: { e: false, f: false, h: true, i: false, n: true, z: false, v: true, c: true },
   };
@@ -50,7 +50,7 @@ test("the 6809 stack lesson retrieves independent S and U values with exact stat
   assert.equal(stopReason, "completed");
   const before = expectedInitialState();
   const loadS = { ...before, a: 0x12, d: 0x1278, pc: 0x0202, flags: { ...before.flags, n: false, v: false } };
-  const pushS = { ...loadS, s: 0x7fff, pc: 0x0204 };
+  const pushS = { ...loadS, nmiArmed: true, s: 0x7fff, pc: 0x0204 };
   const loadU = { ...pushS, a: 0x34, d: 0x3478, pc: 0x0206 };
   const pushU = { ...loadU, u: 0x3fff, pc: 0x0208 };
   const clear = { ...pushU, a: 0, d: 0x0078, pc: 0x020a, flags: { ...pushU.flags, z: true } };
@@ -174,11 +174,11 @@ test("6809 reset preserves occupied S and U stacks while restarting the lesson c
   const records = Array.from({ length: 4 }, () => first.cpu.step());
   const savedRecords = structuredClone(records);
   const before = {
-    ...expectedInitialState(), a: 0x34, d: 0x3478, pc: 0x0208, s: 0x7fff, u: 0x3fff,
+    ...expectedInitialState(), nmiArmed: true, a: 0x34, d: 0x3478, pc: 0x0208, s: 0x7fff, u: 0x3fff,
     flags: { ...expectedInitialState().flags, n: false, v: false },
   };
   assert.deepEqual(first.cpu.snapshot(), before);
-  const after = { ...before, pc: 0x0200, dp: 0, flags: { ...before.flags, f: true, i: true } };
+  const after = { ...before, pc: 0x0200, dp: 0, nmiArmed: false, flags: { ...before.flags, f: true, i: true } };
   const read = t.mock.method(first.ram, "read");
   const write = t.mock.method(first.ram, "write");
   const reset = first.cpu.reset();
@@ -196,7 +196,7 @@ test("6809 reset preserves occupied S and U stacks while restarting the lesson c
   t.mock.restoreAll();
   checkExampleMemory(first.ram, [[0x7fff, 0x12], [0x3fff, 0x34]]);
   for (let step = 0; step < 9; step++) assert.equal(first.cpu.step().outcome, "executed");
-  assert.deepEqual(first.cpu.snapshot(), { ...after, pc: 0x0214 });
+  assert.deepEqual(first.cpu.snapshot(), { ...after, nmiArmed: true, pc: 0x0214 });
   checkExampleMemory(first.ram, [
     [0x7fff, 0x12], [0x3fff, 0x34], [0x7ffe, 0x12], [0x3ffe, 0x34], [0x0080, 0x12], [0x0081, 0x34],
   ]);

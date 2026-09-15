@@ -2,6 +2,7 @@
 ram 10000
 
 cpu 6809 {
+  waitMode = none  nmiArmed = false
     A = 11  B = 34  DP = 20
     X = 2345  Y = 4567  S = 8888  U = 5555  PC = 0200
     flags { E = 1  F = 0  H = 1  I = 0  N = 1  Z = 0  V = 1  C = 1 }

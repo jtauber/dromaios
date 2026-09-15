@@ -32,6 +32,7 @@ cpu 6800 {
 }`,
   "6809": `ram 10000
 cpu 6809 {
+  waitMode=none nmiArmed=false
   A=00 B=00 DP=00 X=0000 Y=0000 S=0000 U=0000 PC=0000
   flags { E=0 F=0 H=0 I=0 N=0 Z=0 V=0 C=0 }
 }`,
@@ -559,5 +560,25 @@ test("68000 parsing validates complete long state, three-bit mask, and original-
   }
   for (const field of ["M", "T0", "T1"]) {
     assert.throws(() => parseMachine(source68000.replace("X=1", `X=1 ${field}=0`)), /Unknown field/);
+  }
+});
+
+test("6809 parses named wait modes and an explicit NMI latch from its CPU state description", () => {
+  for (const waitMode of ["none", "sync", "cwai"]) {
+    for (const nmiArmed of [false, true]) {
+      const machine = parseMachine(sources["6809"].replace("waitMode=none", `waitMode=${waitMode}`)
+        .replace("nmiArmed=false", `nmiArmed=${nmiArmed}`));
+      assert.equal(machine.cpu, "6809");
+      if (machine.cpu !== "6809") throw new Error("Wrong CPU");
+      assert.equal(machine.initialState.waitMode, waitMode);
+      assert.equal(machine.initialState.nmiArmed, nmiArmed);
+    }
+  }
+  for (const value of ["0", "true", "SYNC", "waiting"]) {
+    assert.throws(() => parseMachine(sources["6809"].replace("waitMode=none", `waitMode=${value}`)), /none, sync, cwai/);
+  }
+  for (const field of ["waitMode=none", "nmiArmed=false"]) {
+    assert.throws(() => parseMachine(sources["6809"].replace(field, "")), /Missing fields/);
+    assert.throws(() => parseMachine(sources["6809"].replace(field, `${field} ${field.toUpperCase()}`)), /Duplicate field/);
   }
 });

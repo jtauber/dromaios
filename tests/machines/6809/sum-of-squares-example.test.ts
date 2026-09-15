@@ -13,7 +13,7 @@ const routine = [0x32, 0x7e, 0x3d, 0x1e, 3, 0xed, 0xe4, 0x1f, 0x30, 0xe3, 0xe4, 
 const flags = (cc: number) => ({ e: Boolean(cc & 128), f: Boolean(cc & 64), h: Boolean(cc & 32), i: Boolean(cc & 16),
   n: Boolean(cc & 8), z: Boolean(cc & 4), v: Boolean(cc & 2), c: Boolean(cc & 1) });
 function initialState(): Cpu6809Snapshot {
-  return { a: 0x11, b: 0x34, d: 0x1134, dp: 0x20, x: 0x2345, y: 0x4567, s: 0x8888, u: 0x5555, pc: 0x200, flags: flags(0xab) };
+  return { waitMode: "none" as const, nmiArmed: false, a: 0x11, b: 0x34, d: 0x1134, dp: 0x20, x: 0x2345, y: 0x4567, s: 0x8888, u: 0x5555, pc: 0x200, flags: flags(0xab) };
 }
 function checkMemory(ram: Ram, completed = false): void {
   const expected = new Uint8Array(65536);
@@ -37,7 +37,7 @@ function expectedRecords(): Cpu6809StepRecord[] {
     records.push({ before, after: state, instruction: { address: before.pc, bytes }, outcome: "executed",
       accesses: [...bytes.map((value, offset) => read(before.pc + offset, value)), ...data] });
   };
-  step([0x10, 0xce, 8, 0], { s: 0x800, flags: flags(0xa1) });
+  step([0x10, 0xce, 8, 0], { s: 0x800, nmiArmed: true, flags: flags(0xa1) });
   step([0x10, 0x8e, 0x30, 0xff], { y: 0x30ff });
   step([0xce, 0, 0], { u: 0, flags: flags(0xa5) });
   for (const [inputAddress, value, square, previous, total, last] of [
@@ -103,7 +103,7 @@ test("6809 sum of squares resumes inside its stack frame, resets without clearin
   assert.deepEqual(runCpu(resumed, { maxSteps: 40, endAddress }), { records: records.slice(8), stopReason: "completed" });
   checkMemory(ram, true);
   const before = resumed.snapshot();
-  assert.deepEqual(resumed.reset(), { before, after: { ...before, dp: 0, pc: 0x200, flags: { ...before.flags, f: true, i: true } },
+  assert.deepEqual(resumed.reset(), { before, after: { ...before, dp: 0, pc: 0x200, nmiArmed: false, flags: { ...before.flags, f: true, i: true } },
     accesses: [{ kind: "read", address: 0xfffe, value: 2 }, { kind: "read", address: 0xffff, value: 0 }] });
   checkMemory(ram, true);
   assert.deepEqual(first, saved);

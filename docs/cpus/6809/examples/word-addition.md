@@ -11,6 +11,9 @@ high-byte ADC. Both returns restore S, while U remains untouched.
 
 ## Definition and initial state
 
+Initial control state is `waitMode = none` and `nmiArmed = false`. Neither
+changes during this program.
+
 Addresses, bytes, register values, and packed CC values are hexadecimal;
 step numbers are decimal. Begin with zero-filled 64 KiB RAM and load:
 

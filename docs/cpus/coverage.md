@@ -17,10 +17,10 @@ emulators do not count toward implementation here.
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [279](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [281](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [388](../../src/components/cpus/6800.ts) | 197 / 197 | 100% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [385](../../src/components/cpus/6800.ts) | 197 / 197 | 100% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [449](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [498](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [598](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [773](../../src/components/cpus/8088.ts) | 268 / 291 | 92.1% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [986](../../src/components/cpus/68000.ts) | 36,024 / 36,029 | >99.9% |
 
@@ -50,7 +50,7 @@ in the [example catalog](../README.md#cpu-examples).
 All eight initial CPU models meet the [CPU-only capability checkpoint](completion.md#cpu-only-checkpoint-review).
 The next milestone is complete documented opcode coverage across all eight,
 following the [completion sequence](completion.md#completion-sequence). The 8008,
-8080, 6502, and 6800 have reached full opcode coverage. The latter three also
+8080, 6502, 6800, and 6809 have reached full opcode coverage. The latter four also
 support explicit external interrupt delivery at instruction boundaries; their
 model contracts define recognition policies. The 8008 has no external delivery yet.
 Cycle timing remains unmodeled. Instructions still awaiting implementation on
@@ -1106,16 +1106,26 @@ between bytes, full memory images, and fresh factories.
 [Sum-of-squares specification](6809/examples/sum-of-squares.md) ·
 [Sum-of-squares definition](../../src/machines/6809/sum-of-squares-example.machine)
 
-**262 / 268 forms (97.8%).** All ordinary documented forms are complete:
-217 on the base page, 37 on page 2 (`10`), and eight on page 3 (`11`).
-Only SYNC, CWAI, RTI, and SWI/SWI2/SWI3 remain deferred. There are no separate
-port-I/O forms; interrupt delivery, mapped devices, and timing remain outside
+**268 / 268 forms (100%).** All documented forms are complete: 221 on the
+base page, 38 on page 2 (`10`), and nine on page 3 (`11`). IRQ/FIRQ/NMI delivery
+uses explicit boundary offers, with full/short frames, wait modes, and NMI arming.
+There are no separate port-I/O forms. Mapped devices and timing remain outside
 the model. All 56 indexed forms support every documented postbyte.
 
 The totals comprise 86 accumulator forms, 55 unary forms, 35 word transfers,
 28 word arithmetic/comparison forms, 16 short and 15 prefixed long branches,
 four register-mask stack transfers, six calls/returns, three JMP forms,
-LBRA, NOP, and the 12 additional inherent/status/register forms below.
+LBRA, NOP, the 12 additional inherent/status/register forms below, and six
+interrupt/wait forms:
+
+| Opcode | Instruction | Behavior |
+| --- | --- | --- |
+| `13` | SYNC | Wait; masked IRQ/FIRQ resume without vector entry |
+| `3B` | RTI | Restore CC, then the full or short frame selected by saved E |
+| `3C` | CWAI #mask | Mask CC, set E, save the entire frame, and wait for acceptance |
+| `3F` | SWI | Entire frame, set F/I, vector `FFFA` |
+| `10 3F` | SWI2 | Entire frame, preserve masks, vector `FFF4` |
+| `11 3F` | SWI3 | Entire frame, preserve masks, vector `FFF2` |
 
 Accumulator opcodes use **`1 r mm oooo`**: `r=0` selects A, `r=1` selects B;
 `mm=00/01/10/11` selects immediate/direct/indexed/extended addressing.
@@ -1244,16 +1254,19 @@ comparison differs from the original 6800's bytewise CPX.
 | Addressing | Immediate bytes/words, direct DP:offset, extended addresses, all documented indexed modes, and signed byte/word relative offsets; 16-bit wrapping |
 | Branches | All short and long conditions, BRA/BRN, LBRN, and LBRA; fetch operands on every path and preserve flags |
 | Stack | Descending S/U, all register masks, wrapping pointers; calls/RTS share S word transfers |
-| Reset | Read `FFFE` then `FFFF` for PC, clear DP, set F/I; preserve other state and RAM |
+| Reset | Read `FFFE` then `FFFF` for PC, clear DP, set F/I, release waits and disarm NMI; preserve other state and RAM |
 | Prefixes | `10`/`11` select separate opcode pages; unsupported page entries read prefix and opcode, then restore PC without other effects |
 | Stopping | Caller-owned completion address and budget; no synthetic halt or completion outcome |
 | Word and arithmetic operations | All D/X/Y/U/S loads/stores, ADDD/SUBD and word comparisons; LEA, ABX, SEX, MUL, and DAA with explicit original-6809 flag rules |
 | Status operations | ANDCC/ORCC and CC transfers replace all eight flags; later instructions use live flags |
-| Remaining scope | SYNC, CWAI, RTI, SWI/SWI2/SWI3, interrupt delivery, mapped devices, timing, and NMI arming |
+| Wait and interrupt state | `waitMode` (none/sync/cwai), `nmiArmed`; snapshots preserve both |
+| Interrupt delivery | Explicit IRQ/FIRQ/NMI offers, native masks/vectors and full/short frames; CWAI reuses its frame; masked IRQ/FIRQ release SYNC |
+| Remaining scope | Mapped devices, pin sampling, interrupt scheduling, and timing |
 
 The [reset preservation policy](6809/model.md#cpu-reset) does not claim
-hardware power-on values for unspecified state. NMI arming, interrupt handling,
-timing, and MC6809/MC6809E clock and pin differences remain outside this model.
+hardware power-on values for unspecified state. The [delivery contract](6809/model.md#waiting-and-external-interrupt-delivery)
+defines boundary recognition and caller-owned pending signals. Timing and
+MC6809/MC6809E clock and pin differences remain outside this model.
 
 Verification: [CPU tests](../../tests/components/cpus/6809.test.ts) exhaust
 ADD/ADC/SUB/SBC/CMP for every byte pair and carry on both accumulators; unary
@@ -1263,7 +1276,10 @@ check addressing, flag replacement and preservation, wrapping, real memory
 accesses, code overlap, CLR's read, and TST's absence of writes. Calls, returns,
 and jumps cover all CC values, stack/PC wrapping and operand overlap. Existing
 checks retain all branch conditions, stack masks, state validation, snapshots,
-reset and unsupported-attempt contracts.
+reset and unsupported-attempt contracts. Interrupt tests cover all CC values,
+wait/wake paths, edited frames, NMI arming, vector overlap, memory failures, and
+reentrancy. A [runner program](../../tests/runtime/run-cpu.test.ts) combines both
+waits, software entry, nested full/short frames, and snapshot resumption.
 
 Indexed checks cover all 217 documented postbytes across signed offsets,
 register selectors, auto-update and PC/pointer wrapping. All 56 indexed forms
@@ -1296,7 +1312,7 @@ auto-update interactions, every same-width TFR/EXG pair, and invalid selectors.
 ANDCC/ORCC, SEX, and DAA exhaust bytes and CC values; MUL exhausts byte pairs.
 BCD results also match base-ten addition. Long branches cover every flag
 pattern and all word displacements on taken/untaken paths. Literal opcode
-sets audit all three pages and distinguish the six deferred interrupt forms.
+sets audit all 268 documented forms across all three pages and reject undefined encodings.
 
 ## Z80
 

@@ -1,13 +1,14 @@
 import type { Ram } from "../memory/ram.js";
 import { flagRegister } from "./flags.ts";
-import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
+import type { FetchedInstruction, StateTransition, InstructionStep, WaitingStep } from "./execution-records.ts";
+import { executionBoundary } from "./execution-boundary.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { signed8, readWordBE } from "./binary.ts";
 import { modifyByte } from "./memory-operations.ts";
 import { recordMemory } from "./memory-access.ts";
-import type { MemoryAccess } from "./memory-access.ts";
+import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
-import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
+import { defineState, copyState, readState, unsigned, flag, boolean, namedChoices, group } from "./state.ts";
 import type { StateValues, ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
@@ -18,6 +19,7 @@ import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 export const cpu6809StateDescription = defineState({
   a: unsigned(8), b: unsigned(8), dp: unsigned(8),
   x: unsigned(16), y: unsigned(16), s: unsigned(16), u: unsigned(16), pc: unsigned(16),
+  waitMode: namedChoices("none", "sync", "cwai"), nmiArmed: boolean,
   flags: group({ e: flag, f: flag, h: flag, i: flag, n: flag, z: flag, v: flag, c: flag }),
 });
 
@@ -32,9 +34,18 @@ export type Cpu6809MemoryAccess = MemoryAccess;
 
 export type Cpu6809Instruction = FetchedInstruction;
 
-export type Cpu6809StepRecord = InstructionStep<Cpu6809Snapshot>;
+export type Cpu6809StepRecord = InstructionStep<Cpu6809Snapshot> | WaitingStep<Cpu6809Snapshot>;
 
 export type Cpu6809ResetRecord = StateTransition<Cpu6809Snapshot>;
+
+export type Cpu6809InterruptSource = "irq" | "firq" | "nmi";
+
+/** A masked request can release SYNC without entering an interrupt handler. */
+export type Cpu6809InterruptRecord = StateTransition<Cpu6809Snapshot> & { readonly instruction: null } & (
+  | { readonly source: Cpu6809InterruptSource; readonly outcome: "accepted" }
+  | { readonly source: "irq" | "firq"; readonly outcome: "ignored" | "resumed"; readonly reason: "masked" }
+  | { readonly source: "nmi"; readonly outcome: "ignored"; readonly reason: "unarmed" }
+);
 
 type OpcodeHandler = (instruction: InstructionContext) => "unsupported" | void;
 type AddressedHandler = (address: number, instruction: InstructionContext) => void;
@@ -54,10 +65,21 @@ const instructionPattern = opcodePattern<OpcodeHandler>;
 const packedFlags = flagRegister({ e: 7, f: 6, h: 5, i: 4, n: 3, z: 2, v: 1, c: 0 });
 const addressPattern = opcodePattern<AddressedHandler>;
 
-/** Instruction-level MC6809 subset for the 6809 examples. */
+// Vector address, frame size, and masks applied AFTER saving the original CC.
+const interruptEntries = {
+  swi3: { vector: 0xfff2, entire: true, masks: 0x00 },
+  swi2: { vector: 0xfff4, entire: true, masks: 0x00 },
+  firq: { vector: 0xfff6, entire: false, masks: 0x50 },
+  irq:  { vector: 0xfff8, entire: true, masks: 0x10 },
+  swi:  { vector: 0xfffa, entire: true, masks: 0x50 },
+  nmi:  { vector: 0xfffc, entire: true, masks: 0x50 },
+} as const;
+
+/** Instruction-level Motorola 6809 with explicit boundary IRQ/FIRQ/NMI delivery. */
 export class Cpu6809 {
   readonly #ram: Ram;
   readonly #state: Cpu6809State;
+  readonly #atBoundary = executionBoundary("6809 step, reset, and interrupt calls must not be reentrant.");
   readonly #alu = motorolaByteAlu(() => this.#state.flags);
 
   constructor(ram: Ram, initialState: Omit<Cpu6809Snapshot, "d">) {
@@ -74,27 +96,56 @@ export class Cpu6809 {
     return { ...state, d: (state.a << 8) | state.b };
   }
 
-  /** Reset PC, DP, F, and I with only the vector reads; preserve other state and RAM. */
+  /** Read the reset vector, set DP/F/I, release waits, and disarm NMI. */
   reset(): Cpu6809ResetRecord {
-    const before = this.snapshot();
-    const { accesses, readByte } = recordMemory(this.#ram);
-    const high = readByte(0xfffe);
-    const low = readByte(0xffff);
-    this.#state.pc = (high << 8) | low;
-    this.#state.dp = 0;
-    this.#state.flags.f = true;
-    this.#state.flags.i = true;
-    return { before, after: this.snapshot(), accesses };
+    return this.#atBoundary(() => {
+      const before = this.snapshot();
+      const { accesses, readByte } = recordMemory(this.#ram);
+      this.#state.pc = this.#readWord(0xfffe, readByte);
+      this.#state.dp = 0;
+      this.#state.flags.f = true;
+      this.#state.flags.i = true;
+      this.#state.waitMode = "none";
+      this.#state.nmiArmed = false;
+      return { before, after: this.snapshot(), accesses };
+    });
   }
 
-  /** Attempt one instruction; unsupported encodings (including prefixes) leave state unchanged. */
+  /** Attempt one instruction, or report an existing wait without accessing RAM. */
   step(): Cpu6809StepRecord {
-    const before = this.snapshot();
-    const { instruction, accesses, executed } = executeByteInstruction(this.#state, this.#ram, this.#opcodeHandlers, readWordBE);
-    const record = { before, after: this.snapshot(), instruction, accesses };
-    return executed
-      ? { ...record, outcome: "executed" }
-      : { ...record, outcome: "unsupported", reason: "opcode" };
+    return this.#atBoundary(() => {
+      const before = this.snapshot();
+      if (this.#state.waitMode !== "none") {
+        return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "waiting" };
+      }
+      const { instruction, accesses, executed } = executeByteInstruction(this.#state, this.#ram, this.#opcodeHandlers, readWordBE);
+      const record = { before, after: this.snapshot(), instruction, accesses };
+      return executed
+        ? { ...record, outcome: this.#state.waitMode === "none" ? "executed" : "waiting" }
+        : { ...record, outcome: "unsupported", reason: "opcode" };
+    });
+  }
+
+  /** Offer one selected request; the caller owns pending signals, priorities, and NMI edges. */
+  interrupt(source: Cpu6809InterruptSource): Cpu6809InterruptRecord {
+    return this.#atBoundary<Cpu6809InterruptRecord>(() => {
+      if (source !== "irq" && source !== "firq" && source !== "nmi") {
+        throw new RangeError("6809 interrupt source must be irq, firq, or nmi.");
+      }
+      const before = this.snapshot();
+      const idle = { before, instruction: null, accesses: [], source } as const;
+      if (source === "nmi" && !this.#state.nmiArmed) {
+        return { ...idle, after: this.snapshot(), source, outcome: "ignored", reason: "unarmed" };
+      }
+      if (source !== "nmi" && this.#state.flags[source === "irq" ? "i" : "f"]) {
+        const outcome = this.#state.waitMode === "sync" ? "resumed" : "ignored";
+        if (outcome === "resumed") this.#state.waitMode = "none";
+        return { ...idle, after: this.snapshot(), source, outcome, reason: "masked" };
+      }
+      const memory = recordMemory(this.#ram);
+      this.#enterInterrupt(source, memory);
+      return { before, after: this.snapshot(), instruction: null, accesses: memory.accesses, source, outcome: "accepted" };
+    });
   }
 
   // Register and flag views.
@@ -111,6 +162,7 @@ export class Cpu6809 {
       this.#state.b = value & 0xff;
     } else {
       this.#state[register] = value;
+      if (register === "s") this.#state.nmiArmed = true;
     }
   }
 
@@ -152,6 +204,7 @@ export class Cpu6809 {
   // Prefix 10 selects page 2. Word encodings retain mm=00/01/10/11 addressing.
   // Transfers append 0=load/1=store; immediate stores are undefined.
   readonly #page2Handlers = opcodeTable<OpcodeHandler>([
+    ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi2", instruction)), // SWI2
     ...this.#branchHandlers(({ fetchWord }) => fetchWord()).filter(([opcode]) => opcode !== 0x20), // LBRN and LBcc; LBRA has base opcode 16
     ...this.#wordHandlers([
       { bits: "10 mm 0011", apply: value => this.#wordArithmetic("compare", "d", value) }, // CMPD
@@ -162,10 +215,13 @@ export class Cpu6809 {
     ]),
   ]);
   // Prefix 11 selects page 3: the same comparison fields select U/S rather than D/Y.
-  readonly #page3Handlers = opcodeTable<OpcodeHandler>(this.#wordHandlers([
-    { bits: "10 mm 0011", apply: value => this.#wordArithmetic("compare", "u", value) }, // CMPU
-    { bits: "10 mm 1100", apply: value => this.#wordArithmetic("compare", "s", value) }, // CMPS
-  ]));
+  readonly #page3Handlers = opcodeTable<OpcodeHandler>([
+    ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi3", instruction)), // SWI3
+    ...this.#wordHandlers([
+      { bits: "10 mm 0011", apply: value => this.#wordArithmetic("compare", "u", value) }, // CMPU
+      { bits: "10 mm 1100", apply: value => this.#wordArithmetic("compare", "s", value) }, // CMPS
+    ]),
+  ]);
 
   // Base opcode page; 10/11 dispatch exactly one following opcode in their own page.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
@@ -175,6 +231,7 @@ export class Cpu6809 {
     ...instructionPattern("0001 0000", instruction => this.#executePage(this.#page2Handlers, instruction)),
     ...instructionPattern("0001 0001", instruction => this.#executePage(this.#page3Handlers, instruction)),
     ...instructionPattern("0001 0010", () => {}), // NOP
+    ...instructionPattern("0001 0011", () => { this.#state.waitMode = "sync"; }), // SYNC
     ...instructionPattern("0001 0110", ({ fetchWord }) => { this.#state.pc = this.#relativeAddress(fetchWord()); }), // LBRA rel16
     ...instructionPattern("0001 0111", ({ fetchWord, writeByte }) => this.#call(this.#relativeAddress(fetchWord()), writeByte)), // LBSR rel16
 
@@ -194,13 +251,14 @@ export class Cpu6809 {
       ({ r }) => (address: number) => this.#loadEffectiveAddress(r, address))), // LEAX / LEAY / LEAS / LEAU
 
     // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
-    ...instructionPattern("001101 0 0", ({ fetchByte, writeByte }) => this.#pushRegisters("s", fetchByte(), writeByte)), // PSHS
-    ...instructionPattern("001101 0 1", ({ fetchByte, readByte }) => this.#pullRegisters("s", fetchByte(), readByte)), // PULS
-    ...instructionPattern("001101 1 0", ({ fetchByte, writeByte }) => this.#pushRegisters("u", fetchByte(), writeByte)), // PSHU
-    ...instructionPattern("001101 1 1", ({ fetchByte, readByte }) => this.#pullRegisters("u", fetchByte(), readByte)), // PULU
+    ...opcodeFamily("001101 s p", { s: ["s", "u"], p: [false, true] },
+      ({ s, p }) => (instruction: InstructionContext) => this.#stackInstruction(s, p, instruction)), // PSHS / PULS / PSHU / PULU
     ...instructionPattern("0011 1001", ({ readByte }) => { this.#state.pc = this.#pullWord("s", readByte); }), // RTS
     ...instructionPattern("0011 1010", () => { this.#state.x = (this.#state.x + this.#state.b) & 0xffff; }), // ABX, unsigned B; preserve flags
+    ...instructionPattern("0011 1011", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
+    ...instructionPattern("0011 1100", instruction => this.#waitForInterrupt(instruction)), // CWAI #mask
     ...instructionPattern("0011 1101", () => this.#multiply()), // MUL
+    ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi", instruction)), // SWI
 
     // 010 r oooo: A/B unary operations. TST updates flags without writing a result.
     ...this.#unaryOperations.flatMap(({ bits, apply }) => opcodeFamily(`010 r ${bits}`, {
@@ -230,7 +288,6 @@ export class Cpu6809 {
       { bits: "10 mm 111", register: "x" }, // LDX / STX
       { bits: "11 mm 111", register: "u" }, // LDU / STU
     ]),
-    // SYNC, CWAI, RTI, SWI/SWI2/SWI3, and undefined encodings remain unsupported.
   ]);
 
   #executePage(table: Readonly<Partial<Record<number, OpcodeHandler>>>, instruction: InstructionContext): "unsupported" | void {
@@ -313,12 +370,14 @@ export class Cpu6809 {
         if (indirect && mode === 0) return undefined;
         address = base;
         this.#state[register] = (base + mode + 1) & 0xffff;
+        if (register === "s") this.#state.nmiArmed = true;
         break;
       case 0b0010: // ,-R (no indirect form)
       case 0b0011: // ,--R
         if (indirect && mode === 2) return undefined;
         address = (base - (mode - 1)) & 0xffff;
         this.#state[register] = address;
+        if (register === "s") this.#state.nmiArmed = true;
         break;
       case 0b0100: address = base; break; // ,R
       case 0b0101: address = base + signed8(this.#state.b); break; // B,R
@@ -363,6 +422,7 @@ export class Cpu6809 {
   #loadEffectiveAddress(register: "x" | "y" | "s" | "u", address: number): void {
     this.#state[register] = address; // Overwrite any auto-update of the destination during addressing.
     if (register === "x" || register === "y") this.#state.flags.z = address === 0;
+    if (register === "s") this.#state.nmiArmed = true;
   }
 
   #readTransferRegister(register: TransferRegister): number {
@@ -374,6 +434,7 @@ export class Cpu6809 {
     if (register === "cc") this.#state.flags = packedFlags.decode(value);
     else if (register === "d") this.#writeWordRegister("d", value);
     else this.#state[register] = value;
+    if (register === "s") this.#state.nmiArmed = true;
   }
 
   #transfer(postbyte: number, exchange: boolean): "unsupported" | void {
@@ -403,9 +464,45 @@ export class Cpu6809 {
     this.#state.pc = address;
   }
 
+  // Interrupt entry and return share the mask-driven register stack operations.
+
+  #saveInterruptFrame(entire: boolean, writeByte: ByteMemory["writeByte"]): void {
+    this.#state.flags.e = entire;
+    this.#pushRegisters("s", entire ? 0xff : 0x81, writeByte); // Full frame or PC/CC only.
+  }
+
+  #enterInterrupt(source: keyof typeof interruptEntries, { readByte, writeByte }: ByteMemory): void {
+    const { vector, entire, masks } = interruptEntries[source];
+    // CWAI already saved a full frame, even when FIRQ is the request that wakes it.
+    if (this.#state.waitMode !== "cwai") this.#saveInterruptFrame(entire, writeByte);
+    this.#state.flags = packedFlags.decode(packedFlags.encode(this.#state.flags) | masks);
+    this.#state.waitMode = "none";
+    this.#state.pc = this.#readWord(vector, readByte);
+  }
+
+  #waitForInterrupt({ fetchByte, writeByte }: InstructionContext): void {
+    this.#state.flags = packedFlags.decode(packedFlags.encode(this.#state.flags) & fetchByte());
+    this.#saveInterruptFrame(true, writeByte);
+    this.#state.waitMode = "cwai";
+  }
+
+  #returnFromInterrupt(readByte: ByteMemory["readByte"]): void {
+    this.#pullRegisters("s", 0x01, readByte); // Restored E, not hidden state, selects the frame.
+    this.#pullRegisters("s", this.#state.flags.e ? 0xfe : 0x80, readByte);
+    this.#state.nmiArmed = true;
+  }
+
   // Stack operations.
   // Postbyte bits 7..0: PC, other stack pointer, Y, X, DP, B, A, CC.
   // Bit 6 always names the pointer not selected by the opcode's s bit.
+
+  #stackInstruction(stack: StackPointer, pull: boolean, instruction: InstructionContext): void {
+    const mask = instruction.fetchByte();
+    if (pull) this.#pullRegisters(stack, mask, instruction.readByte);
+    else this.#pushRegisters(stack, mask, instruction.writeByte);
+    // Nonempty PSHS/PULS arm NMI; interrupt stacking and subroutine calls do not.
+    if (stack === "s" && mask !== 0) this.#state.nmiArmed = true;
+  }
 
   #pushRegisters(stack: StackPointer, mask: number, writeByte: InstructionContext["writeByte"]): void {
     const pushByte = (value: number): void => this.#pushByte(stack, value, writeByte);
@@ -431,7 +528,10 @@ export class Cpu6809 {
     if (mask & 0x08) this.#state.dp = pullByte();
     if (mask & 0x10) this.#state.x = pullWord();
     if (mask & 0x20) this.#state.y = pullWord();
-    if (mask & 0x40) this.#state[stack === "s" ? "u" : "s"] = pullWord();
+    if (mask & 0x40) {
+      this.#state[stack === "s" ? "u" : "s"] = pullWord();
+      if (stack === "u") this.#state.nmiArmed = true;
+    }
     if (mask & 0x80) this.#state.pc = pullWord();
   }
 

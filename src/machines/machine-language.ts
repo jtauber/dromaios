@@ -45,7 +45,7 @@ export type MachineDefinition = {
 };
 
 interface Token { readonly text: string; readonly offset: number }
-type Value = number | boolean | number[] | { [name: string]: Value };
+type Value = number | string | boolean | number[] | { [name: string]: Value };
 
 /** Parse and validate one flat-RAM machine without constructing or running it. */
 export function parseMachine(source: string, filename = "<machine>"): MachineDefinition {
@@ -90,7 +90,7 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
     }
     return value;
   }
-  function readValue(field: Exclude<StateField, GroupField>, label: string): number | boolean | number[] {
+  function readValue(field: Exclude<StateField, GroupField>, label: string): number | string | boolean | number[] {
     if (field.kind === "array") {
       expect("[");
       const values: number[] = [];
@@ -104,6 +104,10 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
       return values;
     }
     const token = take();
+    if (field.kind === "named-choice") {
+      if (!field.values.includes(token.text)) fail(token, `${label} must be one of ${field.values.join(", ")}`);
+      return token.text;
+    }
     if (field.kind === "boolean") {
       if (token.text !== "true" && token.text !== "false") fail(token, `Expected true or false for ${label}`);
       return token.text === "true";
@@ -117,7 +121,7 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
     return field.kind === "flag" ? value === 1 : value;
   }
   function fieldLabel(name: string, field: StateField): string {
-    return field.kind === "group" || field.kind === "boolean" || field.kind === "array" || /[A-Z]/.test(name)
+    return field.kind === "group" || field.kind === "boolean" || field.kind === "named-choice" || field.kind === "array" || /[A-Z]/.test(name)
       ? name : name.toUpperCase();
   }
   function readState<Fields extends StateFields>(description: Fields, context: string): StateValues<Fields> {

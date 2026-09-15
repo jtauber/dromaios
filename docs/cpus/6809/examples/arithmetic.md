@@ -52,6 +52,9 @@ Extended addressing bypasses DP; this lesson deliberately initializes DP to
 
 ## Initial state and setup
 
+Initial control state is `waitMode = none` and `nmiArmed = false`. Neither
+changes during this program.
+
 | State | Width | Lesson initial value |
 | --- | --- | --- |
 | A | 8 bits | `00` |

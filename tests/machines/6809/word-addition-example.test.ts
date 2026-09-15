@@ -18,7 +18,7 @@ function flags(cc: number): Cpu6809Flags {
 }
 
 function initial(): Cpu6809Snapshot {
-  return { a: 0x11, b: 0x34, d: 0x1134, dp: 0x12, x: 0x2345, y: 0x4567,
+  return { waitMode: "none", nmiArmed: false, a: 0x11, b: 0x34, d: 0x1134, dp: 0x12, x: 0x2345, y: 0x4567,
     s: 0x8000, u: 0x4000, pc: 0x200, flags: flags(0xaf) };
 }
 
@@ -102,7 +102,7 @@ test("6809 word addition resumes from a snapshot inside nested calls, preserves 
   checkMemory(ram, true);
   const before = resumed.snapshot();
   assert.deepEqual(resumed.reset(), { before,
-    after: { ...before, pc: 0x200, dp: 0, flags: { ...before.flags, f: true, i: true } },
+    after: { ...before, pc: 0x200, dp: 0, nmiArmed: false, flags: { ...before.flags, f: true, i: true } },
     accesses: [{ kind: "read", address: 0xfffe, value: 2 }, { kind: "read", address: 0xffff, value: 0 }] });
   checkMemory(ram, true);
   const fresh = create6809WordAdditionExample();

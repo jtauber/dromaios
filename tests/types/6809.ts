@@ -45,14 +45,16 @@ export function checkPublicTypes(cpu: Cpu6809, record: Cpu6809StepRecord): void 
     record.accesses[0].value = 0;
   }
 
-  // @ts-expect-error Instruction addresses are readonly.
-  record.instruction.address = 0;
-  // @ts-expect-error Instruction bytes cannot be replaced.
-  record.instruction.bytes = [];
-  // @ts-expect-error Instruction byte arrays are readonly.
-  record.instruction.bytes.push(0);
-  // @ts-expect-error Individual instruction bytes are readonly.
-  record.instruction.bytes[0] = 0;
+  if (record.instruction) {
+    // @ts-expect-error Instruction addresses are readonly.
+    record.instruction.address = 0;
+    // @ts-expect-error Instruction bytes cannot be replaced.
+    record.instruction.bytes = [];
+    // @ts-expect-error Instruction byte arrays are readonly.
+    record.instruction.bytes.push(0);
+    // @ts-expect-error Individual instruction bytes are readonly.
+    record.instruction.bytes[0] = 0;
+  }
 }
 
 export function checkInitialization(ram: Ram, state: Cpu6809State, snapshot: Cpu6809Snapshot): Cpu6809[] {
@@ -65,6 +67,10 @@ export function checkInitialization(ram: Ram, state: Cpu6809State, snapshot: Cpu
 
 export function checkOutcomes(record: Cpu6809StepRecord): readonly number[] {
   switch (record.outcome) {
+    case "waiting":
+      // @ts-expect-error An already waiting step need not have fetched an instruction.
+      record.instruction.bytes;
+      return record.instruction?.bytes ?? [];
     case "executed":
       // @ts-expect-error Executed records have no unsupported reason.
       record.reason;
@@ -95,6 +101,8 @@ export function checkRecordConstruction(cpu: Cpu6809): readonly Cpu6809StepRecor
   const invalidOutcome: Cpu6809StepRecord = { ...common, outcome: "halted" };
 
   return [
+    { ...common, outcome: "waiting" },
+    { ...common, outcome: "waiting", instruction: null },
     { ...common, outcome: "executed" },
     { ...common, outcome: "unsupported", reason: "opcode" },
   ];
@@ -129,4 +137,28 @@ export function checkResetTypes(cpu: Cpu6809): Cpu6809ResetRecord {
   // @ts-expect-error A reset record cannot serve as an instruction step record.
   const step: Cpu6809StepRecord = record;
   return record;
+}
+
+export function checkInterruptTypes(cpu: Cpu6809): void {
+  const waitMode: "none" | "sync" | "cwai" = cpu.snapshot().waitMode;
+  const nmiArmed: boolean = cpu.snapshot().nmiArmed;
+  // @ts-expect-error Wait state is readonly.
+  cpu.snapshot().waitMode = waitMode;
+  // @ts-expect-error NMI state is readonly.
+  cpu.snapshot().nmiArmed = nmiArmed;
+  // @ts-expect-error Software interrupts are instructions, not external offers.
+  cpu.interrupt("swi");
+  const entry = cpu.interrupt("firq");
+  const instruction: null = entry.instruction;
+  if (entry.outcome === "accepted") {
+    // @ts-expect-error Accepted entries have no rejection reason.
+    entry.reason;
+  } else if (entry.outcome === "resumed") {
+    const source: "irq" | "firq" = entry.source;
+    const reason: "masked" = entry.reason;
+  } else if (entry.reason === "unarmed") {
+    const source: "nmi" = entry.source;
+  }
+  // @ts-expect-error Interrupt records are readonly.
+  entry.source = "nmi";
 }

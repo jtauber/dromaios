@@ -17,22 +17,25 @@ the MC6809E, connected to flat
 pin differences between those parts are outside this instruction-level model.
 This is not an HD6309 model or a complete Color Computer.
 
-One `step()` attempts one instruction. The caller owns any completion address
-and execution budget; the CPU has no example-specific halt latch. Interrupt
-inputs, timing, dummy bus accesses, devices, and browser controls are deferred.
-All 262 ordinary documented forms are implemented; SYNC, CWAI, RTI, and
-SWI/SWI2/SWI3 remain deferred. The 6809 has no separate port-I/O instructions.
+One `step()` attempts one instruction or reports an existing wait without
+fetching. The caller owns completion addresses and execution budgets. All 268
+documented forms are implemented, including SYNC, CWAI, RTI, and SWI/SWI2/SWI3.
+External IRQ/FIRQ/NMI requests are explicit instruction-boundary offers.
+Timing, pin sampling, dummy bus accesses, devices, and browser controls remain
+outside the model. The 6809 has no separate port-I/O instructions.
 
 ## State and initialization
 
 `Cpu6809State` contains `a`, `b`, `dp`, `x`, `y`, `s`, `u`, `pc`, and
-`flags`. `Cpu6809Flags` contains eight booleans: `e`, `f`, `h`, `i`, `n`,
+`flags`, `waitMode`, and `nmiArmed`. `Cpu6809Flags` contains eight booleans: `e`, `f`, `h`, `i`, `n`,
 `z`, `v`, and `c`, corresponding to the condition-code register's bit order.
 
 `new Cpu6809(ram, initialState: Omit<Cpu6809Snapshot, "d">)` requires exactly
 64 KiB of RAM. A, B, and DP must be integers in `00`–`FF`; X, Y, S, U, and PC
 must be integers in `0000`–`FFFF`. Invalid numeric values or RAM sizes throw
-`RangeError`; non-boolean flags throw `TypeError`. The constructor copies only
+`RangeError`; non-boolean flags or `nmiArmed` throw `TypeError`.
+`waitMode` must be exactly `"none"`, `"sync"`, or `"cwai"`; other values throw
+`RangeError`. Both control fields are required and copied into snapshots. The constructor copies only
 declared stored fields, including inherited getters and non-enumerable fields,
 once before validation. It retains neither the caller's state object nor its
 nested flags object. Construction performs no reset, vector read, or
@@ -40,7 +43,7 @@ instruction fetch.
 
 Initial registers and flags are explicit caller choices, not power-on or reset
 defaults. Flags are supplied state, not inferred from the initial A value.
-Values exposed in records are numbers; hexadecimal formatting belongs to
+Register values exposed in records are numbers; hexadecimal formatting belongs to
 presentation. PC and operand fetches wrap to 16 bits, while RAM validates host
 addresses and values instead of wrapping them.
 
@@ -49,7 +52,7 @@ S is the hardware stack pointer used by calls and interrupts; U is a separate
 programmer-controlled stack pointer. See the [register descriptions][model].
 The [stack example](examples/stack.md#instruction-behavior) defines packing
 and unpacking CC for stack transfers; CC is not separately stored public state.
-Interrupt handling remains deferred.
+NMI arming is separate from S's numeric value; see [NMI arming](#nmi-arming).
 
 ## Register views
 
@@ -90,22 +93,22 @@ and `value: number`. `Cpu6809Instruction` has readonly `address: number` and
 `bytes: readonly number[]`. The step record is:
 
 ```ts
-export type Cpu6809StepRecord = {
-  readonly instruction: Cpu6809Instruction;
-  readonly before: Cpu6809Snapshot;
-  readonly after: Cpu6809Snapshot;
-  readonly accesses: readonly Cpu6809MemoryAccess[];
-} & (
-  | { readonly outcome: "executed" }
-  | { readonly outcome: "unsupported"; readonly reason: "opcode" }
-);
+export type Cpu6809StepRecord =
+  | InstructionStep<Cpu6809Snapshot>
+  | WaitingStep<Cpu6809Snapshot>;
 ```
 
-Every attempt returns a non-null instruction. Executed records have no
-`reason`; the CPU has no `halted` or `complete` outcome. It retains no record
-history. Instruction bytes come from actual opcode and operand fetches; data
-reads and writes appear only in `accesses`. Do not reread RAM to construct a
-record.
+The [shared record types](../../../src/components/cpus/execution-records.ts)
+provide readonly `before`, `after`, `instruction`, and `accesses` fields.
+An executed or unsupported attempt has a non-null instruction; unsupported
+records also carry `reason: "opcode"`. Executing SYNC or CWAI returns
+`outcome: "waiting"` with its fetched instruction and accesses. Later `step()`
+calls while waiting return `waiting`, a null instruction, no accesses, and
+unchanged state. Executed and waiting records have no reason.
+
+The CPU has no `halted` or `complete` outcome and retains no record history.
+Instruction bytes come from actual opcode and operand fetches; data reads and
+writes appear only in `accesses`. Do not reread RAM to construct a record.
 
 These accesses describe the instruction-level model, not every electrical bus
 operation or idle cycle. Records have no cycle-count or elapsed-time field.
@@ -236,7 +239,7 @@ CC reads/writes all eight flags. Other registers and flags remain unchanged.
 
 ANDCC/ORCC combine the immediate byte with packed CC and replace all eight
 flags. These and TFR/EXG are ordinary status operations even when they change
-interrupt-mask bits; interrupt delivery remains outside the model. Later
+interrupt-mask bits; the next explicit offer uses their current values. Later
 arithmetic reads the replaced flags, while older snapshots remain detached.
 
 ## Multiply, sign extension, and decimal adjustment
@@ -285,6 +288,106 @@ Calls, returns, jumps, and NOP preserve all flags. The
 [word-addition example](examples/word-addition.md) relies on a nested BSR
 preserving carry between ADDB and ADCA, with both returns restoring S.
 
+## Interrupt entry and return
+
+Each vector contains the destination PC high byte first. Entry performs stack
+writes before vector reads, so overlapping stack writes can change the vector.
+There is no opcode fetch or prefetch for an external offer.
+
+| Source | Vector | Frame | Masks set after saving CC |
+| --- | --- | --- | --- |
+| SWI3 (`11 3F`) | `FFF2` | Entire | None |
+| SWI2 (`10 3F`) | `FFF4` | Entire | None |
+| FIRQ | `FFF6` | Short, except after CWAI | F and I |
+| IRQ | `FFF8` | Entire | I |
+| SWI (`3F`) | `FFFA` | Entire | F and I |
+| NMI | `FFFC` | Entire | F and I |
+
+An entire frame sets E and predecrements S for twelve writes: PC low/high,
+U low/high, Y low/high, X low/high, DP, B, A, and CC. A short frame clears E
+and writes only PC low/high and CC. The saved CC contains the entry-selected
+E and the original F/I masks. Software entries save PC after the opcode
+(including its prefix); external entries save the current boundary PC.
+
+RTI (`3B`) pulls CC first. If the restored E is set, it then pulls A, B, DP,
+X high/low, Y high/low, U high/low, and PC high/low. Otherwise it pulls only
+PC high/low. Each successful byte read increments S with 16-bit wrapping.
+RTI neither adds to PC nor changes the restored CC. E describes the saved
+frame; interrupt entry/return need not preserve the pre-entry E value.
+There is no hidden frame stack: edited or caller-created RAM frames determine
+return behavior. Restoring a snapshot requires the corresponding RAM too.
+
+## Waiting and external interrupt delivery
+
+SYNC (`13`) advances PC and sets `waitMode` to `"sync"`, preserving registers
+and flags and making no stack accesses. An accepted request stacks its native
+frame and enters its vector. A masked IRQ or FIRQ releases SYNC without stack
+or vector accesses, leaving PC at the following instruction. An unarmed NMI
+is ignored and does not release it.
+
+CWAI (`3C mask`) first ANDs CC with its immediate byte, forces E, saves the
+entire frame, then sets `waitMode` to `"cwai"`. Only an accepted request wakes
+it. Entry reuses that frame, sets the source's masks, releases the wait, and
+reads the vector. This includes FIRQ: E stays set and RTI restores the entire
+CWAI frame. Masked IRQ/FIRQ and unarmed NMI leave CWAI waiting.
+
+`interrupt(source: "irq" | "firq" | "nmi")` offers one request at the current
+boundary. IRQ checks I, FIRQ checks F, and NMI checks `nmiArmed`. It returns a
+`Cpu6809InterruptRecord` with detached `before`/`after` snapshots, a null
+`instruction`, ordered `accesses`, `source`, and one of:
+
+- `accepted`, with no reason, after entry;
+- `resumed`, with reason `masked`, for IRQ/FIRQ releasing SYNC;
+- `ignored`, with reason `masked` for IRQ/FIRQ or `unarmed` for NMI.
+
+Ignored and resumed offers make no memory accesses. Invalid source names throw
+`RangeError` without changing state. `step()` does not deliver queued requests:
+the caller owns pending signals, NMI edges, and selection among simultaneous
+sources (hardware priority is NMI, FIRQ, then IRQ). Unarmed or masked offers
+are not retained; the caller must offer a request again when appropriate.
+Pin sampling, pulse lengths, recognition delays, and interrupt latching are
+outside this API. This is an explicit boundary policy, not cycle-accurate
+interrupt recognition. The [runner](../../runtime/runner.md) stops on `waiting`;
+a caller may offer an interrupt and run again.
+
+## NMI arming
+
+Reset clears `nmiArmed`, regardless of S. Construction instead uses the explicit
+supplied latch, allowing a snapshot of initialized execution to resume.
+Instruction effects are checked against Motorola's S-initialization discussion
+and [XRoar's MC6809 core][xroar] (version 1.12.1):
+
+- LDS, LEAS, TFR to S, and EXG involving S arm NMI, even when the value is unchanged.
+- PULU arms when it successfully restores S; nonempty PSHS/PULS and completed
+  RTI also arm NMI.
+- Indexed increment/decrement of S arms NMI when that address update occurs.
+- Merely reading S, empty stack masks, implicit call/RTS stack updates, and
+  interrupt/CWAI stacking do not arm it. Rejected encodings do not arm it.
+
+The latch stays armed until reset. An interrupted load cannot arm before the
+value is complete; an indexed S update already performed survives a later
+memory failure. An explicit request after the arming instruction can be
+accepted; a prior unarmed offer is not automatically redelivered.
+
+## Host failures and reentrancy
+
+RAM errors propagate immediately, without a fabricated record or transaction
+rollback. Completed fetches advance PC, completed reads/writes retain their
+effects, and S predecrements before each attempted push. A failed pull does
+not increment S; a word register changes only after both bytes are read.
+Entry selects E before stacking and applies masks/releases a wait only after
+its frame is complete. CWAI applies its CC mask before stacking and enters its
+wait only after all writes succeed. RTI exposes successfully restored registers
+even if a later read fails. Vector PC commits only after both reads; reset
+commits all of its state changes at that point.
+
+A shared execution guard rejects nested `step()`, `reset()`, or `interrupt()`
+calls during any of those transitions, including calls through RAM callbacks.
+`snapshot()` remains available to inspect the current partial state. The guard
+is released on success or failure. After a host error the caller must inspect
+or restore state before deciding how to continue; repeating the operation is
+not an automatic retry of an atomic instruction.
+
 ## Unsupported instructions and prefixes
 
 For an unsupported first byte, record one opcode read and unchanged state and
@@ -319,7 +422,7 @@ ownership as step records. It has no instruction, outcome, or reason fields.
 The model's reset operation:
 
 1. Reads `FFFE`, then `FFFF`, combining high and low bytes into the new PC.
-2. Sets DP to `00` and F/I to true.
+2. Sets DP to `00`, F/I to true, `waitMode` to `"none"`, and `nmiArmed` to false.
 3. Preserves A, B, X, Y, S, U, E, H, N, Z, V, C, and all RAM. D consequently
    remains unchanged. Neither stack pointer is initialized or decremented.
 
@@ -330,10 +433,8 @@ register values is this model's deterministic reset policy, not a claim about
 their power-on values. Reset and creating a fresh lesson are separate actions.
 
 Only the two vector reads are performed and recorded, with no dummy cycles,
-stack accesses, or opcode prefetch. Always use the current vector. Hardware
-also inhibits NMI recognition after reset until S is loaded; that latch and its
-arming rules are deferred together with interrupt handling, as described in
-Motorola's [NMI discussion][model]. No NMI behavior is claimed by this subset.
+stack accesses, or opcode prefetch. Always use the current vector. NMI remains
+inhibited until one of the [arming instructions](#nmi-arming) initializes it.
 
 Repeated resets have the same state effects; editing the vector changes the
 destination. Restarting an example instead creates fresh CPU and RAM
@@ -372,8 +473,8 @@ and load/store aliasing with updated index registers. Indexed JSR checks S
 wrapping and indirect pointer reads before return-address writes.
 
 All three opcode pages are audited against literal independent encoding sets:
-217 base forms, 37 page-2 forms, and eight page-3 forms. Unsupported page
-entries include the six deferred interrupt forms and repeated prefixes.
+221 base forms, 38 page-2 forms, and nine page-3 forms. Undefined entries and
+repeated prefixes remain unsupported.
 All 56 indexed forms reject all 39 undefined postbytes; valid indexed modes
 also test auto-update, indirection, and overlap with code/data.
 
@@ -398,6 +499,12 @@ Records remain independent across execution, reset, restart, host RAM edits,
 and caller edits. Public types enforce readonly fields and outcome/reason
 relationships, including the distinction between reset and step records.
 
+Interrupt checks cover all CC values, full/short frames, software prefix wrapping,
+vector overlap, all CWAI masks, masked SYNC wakeups, NMI arming, edited RTI
+frames, snapshot restoration, every memory failure position, and reentrancy.
+A runner program combines both waits, nested IRQ/FIRQ/NMI, and SWI2, comparing
+complete traces and RAM after reconstruction.
+
 ## Implementation notes
 
 Private operation helpers compose with recorded operand/address access through
@@ -416,6 +523,9 @@ implementation and ideas to revisit.
   word arithmetic, addressing, register transfers, decimal adjustment, multiply,
   sign extension, branch conditions, RESTART, and calls.
 - [Appendix F opcode map][opcodes]: prefixes and opcode pages.
+- [XRoar source release 1.12.1][xroar], `src/mc6809/mc6809.c`: cross-check
+  for the instruction-specific NMI arming effects, including stack and indexed
+  updates beyond the manual's explicit LDS/TFR/EXG examples.
 
 These links are HTML transcriptions of the manufacturer manual. Explicit
 initialization, preservation of unspecified state on reset, prefix rejection,
@@ -424,3 +534,5 @@ record ownership, and omitted accesses are deliberate model choices.
 [model]: https://www.maddes.net/m6809pm/sections.htm
 [instructions]: https://www.maddes.net/m6809pm/appendix_a.htm
 [opcodes]: https://www.maddes.net/m6809pm/appendix_f.htm
+
+[xroar]: https://www.6809.org.uk/xroar/dl/xroar-1.12.1.tar.gz

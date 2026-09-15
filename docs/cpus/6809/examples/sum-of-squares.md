@@ -11,6 +11,9 @@ local on the stack. It finishes with D and U equal to `0032`.
 
 ## Initial state and memory
 
+Initial control state is `waitMode = none` and `nmiArmed = false`. The opening
+LDS arms NMI; reset disarms it.
+
 Numbers below are hexadecimal except step/access counts and explicitly decimal
 quantities. A/B/D/DP start at `11/34/1134/20`, X/Y/S/U at
 `2345/4567/8888/5555`, PC at `0200`, and CC at `AB`

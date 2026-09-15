@@ -1,6 +1,7 @@
 ram 10000
 
 cpu 6809 {
+  waitMode = none  nmiArmed = false
     A = 00  B = 34  DP = 12
     X = 0000  Y = 0000  S = 8000  U = 4000
     PC = 0200

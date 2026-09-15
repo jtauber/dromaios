@@ -26,3 +26,9 @@ export type HaltedStep<Snapshot, Access = MemoryAccess> = StateTransition<Snapsh
   readonly outcome: "halted";
   readonly instruction: FetchedInstruction | null;
 };
+
+/** A wait instruction executes once; later waiting steps make no instruction fetch. */
+export type WaitingStep<Snapshot, Access = MemoryAccess> = StateTransition<Snapshot, Access> & {
+  readonly outcome: "waiting";
+  readonly instruction: FetchedInstruction | null;
+};

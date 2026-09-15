@@ -38,6 +38,9 @@ RAM. A source edit after loading leaves the captured byte in A.
 
 ## Definition and initial state
 
+Initial control state is `waitMode = none` and `nmiArmed = false`. Neither
+changes during this program.
+
 All numbers below are hexadecimal. Create zero-filled RAM and load:
 
 | Address | Bytes | Instruction or data |

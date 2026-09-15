@@ -11,6 +11,11 @@ export interface ChoiceField<Values extends readonly number[] = readonly number[
   readonly values: Values;
 }
 
+export interface NamedChoiceField<Values extends readonly string[] = readonly string[]> {
+  readonly kind: "named-choice";
+  readonly values: Values;
+}
+
 export interface ArrayField<Length extends number = number> {
   readonly kind: "array";
   readonly length: Length;
@@ -27,7 +32,7 @@ export const flag = Object.freeze({ kind: "flag" } as const);
 /** A Boolean control latch. Its textual spelling belongs to the consuming format. */
 export const boolean = Object.freeze({ kind: "boolean" } as const);
 
-export type StateField = UnsignedField | ChoiceField | ArrayField | GroupField | typeof flag | typeof boolean;
+export type StateField = UnsignedField | ChoiceField | NamedChoiceField | ArrayField | GroupField | typeof flag | typeof boolean;
 export interface StateFields { readonly [name: string]: StateField }
 
 /** Check that a description covers a public state type, including nested fields and tuple lengths. */
@@ -36,13 +41,14 @@ export type StateDescription<State> = {
     : [State[Name]] extends [boolean] ? typeof flag | typeof boolean
     : number extends State[Name] ? UnsignedField
     : State[Name] extends number ? ChoiceField<readonly State[Name][]>
+    : State[Name] extends string ? NamedChoiceField<readonly State[Name][]>
     : State[Name] extends object ? GroupField<StateDescription<State[Name]>> : never;
 };
 
 type Repeated<Value, Length extends number, Items extends Value[] = []> = number extends Length ? Value[]
   : Items["length"] extends Length ? Items : Repeated<Value, Length, [...Items, Value]>;
 type FieldValue<Field extends StateField> = Field extends UnsignedField ? number
-  : Field extends ChoiceField ? Field["values"][number]
+  : Field extends ChoiceField | NamedChoiceField ? Field["values"][number]
   : Field extends ArrayField ? Repeated<number, Field["length"]>
   : Field extends GroupField ? StateValues<Field["fields"]> : boolean;
 
@@ -64,6 +70,15 @@ export function choices<const Values extends readonly [number, ...number[]]>(...
   if (new Set(values).size !== values.length) throw new RangeError("State choices must be distinct.");
   // A rest parameter already owns its array; freezing it cannot affect the caller's list.
   return Object.freeze({ kind: "choice", values: Object.freeze(values) });
+}
+
+/** Named alternatives for control state, retaining their literal union type. */
+export function namedChoices<const Values extends readonly [string, ...string[]]>(...values: Values): NamedChoiceField<Readonly<Values>> {
+  if (values.length === 0 || values.some(value => typeof value !== "string" || value.length === 0)) {
+    throw new RangeError("Named state choices must be nonempty strings.");
+  }
+  if (new Set(values).size !== values.length) throw new RangeError("Named state choices must be distinct.");
+  return Object.freeze({ kind: "named-choice", values: Object.freeze(values) });
 }
 
 /** A fixed number of unsigned values, such as physical address registers. */
@@ -121,6 +136,11 @@ function copyValue(field: StateField, value: unknown, label: string, validate: b
       return value;
     case "choice":
       if (validate && (typeof value !== "number" || !field.values.includes(value))) {
+        throw new RangeError(`${label} must be one of ${field.values.join(", ")}.`);
+      }
+      return value;
+    case "named-choice":
+      if (validate && (typeof value !== "string" || !field.values.includes(value))) {
         throw new RangeError(`${label} must be one of ${field.values.join(", ")}.`);
       }
       return value;

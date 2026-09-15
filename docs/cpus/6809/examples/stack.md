@@ -68,6 +68,9 @@ detached from later execution, RAM edits, reset, and JavaScript caller edits.
 
 ## Program and initial state
 
+Initial control state is `waitMode = none` and `nmiArmed = false`. The first
+PSHS arms NMI; reset disarms it, and running the stack program arms it again.
+
 All numeric values below are hexadecimal. Load the following program into
 zero-filled 64 KiB RAM, with reset vector `02 00` at `FFFE`:
 
@@ -144,7 +147,7 @@ endpoint to check rejection independently of caller completion.
 
 Reset follows the [existing 6809 policy](../model.md#cpu-reset).
 After step 4, it reads `FFFE` then `FFFF`, returns PC to `0200`, clears DP,
-and sets F/I. It preserves S = `7FFF`, U = `3FFF`, both saved bytes, and the
+sets F/I, releases any wait, and disarms NMI. It preserves S = `7FFF`, U = `3FFF`, both saved bytes, and the
 rest of the modeled state.
 
 Resuming the full program uses those occupied stacks: the next saves write

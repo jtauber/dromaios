@@ -11,6 +11,9 @@ pointers using the direct page after the sentinel ends the loop.
 
 ## Definition and initial state
 
+Initial control state is `waitMode = none` and `nmiArmed = false`. Neither
+changes during this program.
+
 Addresses, register values, and bytes below are hexadecimal; step counts are
 decimal. Start with zero-filled 64 KiB RAM and these regions:
 

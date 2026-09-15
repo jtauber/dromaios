@@ -78,7 +78,9 @@ implements the second. The 6502 now implements [entry and return](6502/model.md#
 and [explicit IRQ/NMI offers](6502/model.md#external-interrupt-delivery), with
 its recognition timing limits documented there. The 6800 now completes its
 [interrupt and wait behavior](6800/model.md#waiting-and-external-interrupt-delivery),
-including native frames, return, and snapshot-preserved WAI. The next slice is
-the 6809’s interrupt and wait behavior.
+including native frames, return, and snapshot-preserved WAI. The 6809 completes
+[its interrupt and wait behavior](6809/model.md#waiting-and-external-interrupt-delivery)
+with SYNC/CWAI, full/short frames, RTI, software vectors, and NMI arming.
+The next slice is Z80 port families and interrupt modes.
 Timing and device scheduling remain separate from completed opcode inventories;
 8008 external interrupt delivery is also still deferred.

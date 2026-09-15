@@ -12,6 +12,9 @@ throughout execution.
 
 ## Definition and initial state
 
+Initial control state is `waitMode = none` and `nmiArmed = false`. Neither
+changes during this program.
+
 Addresses, bytes, and register values below are hexadecimal; step numbers are
 decimal. Begin with zero-filled 64 KiB RAM and load:
 

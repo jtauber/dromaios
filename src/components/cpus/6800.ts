@@ -1,5 +1,5 @@
 import type { Ram } from "../memory/ram.js";
-import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
+import type { FetchedInstruction, StateTransition, InstructionStep, WaitingStep } from "./execution-records.ts";
 import { flagRegister } from "./flags.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
@@ -32,10 +32,7 @@ export type Cpu6800MemoryAccess = MemoryAccess;
 
 export type Cpu6800Instruction = FetchedInstruction;
 
-export type Cpu6800StepRecord = InstructionStep<Cpu6800Snapshot> | (StateTransition<Cpu6800Snapshot> & {
-  readonly outcome: "waiting";
-  readonly instruction: Cpu6800Instruction | null;
-});
+export type Cpu6800StepRecord = InstructionStep<Cpu6800Snapshot> | WaitingStep<Cpu6800Snapshot>;
 
 export type Cpu6800ResetRecord = StateTransition<Cpu6800Snapshot>;
 

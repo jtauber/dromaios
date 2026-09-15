@@ -8,6 +8,7 @@ import { ObservedRam } from "../../helpers/observed-ram.js";
 function initialState(overrides: Partial<Cpu6809State> = {}): Cpu6809State {
   return {
     a: 0x11, b: 0x34, dp: 0x56, x: 0x2345, y: 0x4567, s: 0x89ab, u: 0xcdef, pc: 0x1234,
+    waitMode: "none", nmiArmed: true,
     flags: { e: true, f: false, h: true, i: false, n: true, z: false, v: true, c: true },
     ...overrides,
   };
@@ -470,6 +471,7 @@ test("successive 6809 ADDA instructions use live A and operands while keeping in
   Reflect.set(first.after, "a", 0xff);
   Reflect.set(first.after, "d", 0xffff);
   Reflect.set(first.after.flags, "c", false);
+  assert.ok(first.instruction);
   Reflect.set(first.instruction.bytes, 1, 0xff);
   assert.ok(first.accesses[1]);
   Reflect.set(first.accesses[1], "value", 0xff);
@@ -652,6 +654,7 @@ test("6809 STA records keep written values independent of later stores, memory c
   Reflect.set(first.after, "a", 0xff);
   Reflect.set(first.after, "d", 0xffff);
   Reflect.set(first.after.flags, "c", false);
+  assert.ok(first.instruction);
   Reflect.set(first.instruction.bytes, 1, 0xff);
   assert.ok(first.accesses[3]);
   Reflect.set(first.accesses[3], "value", 0xff);
@@ -1132,6 +1135,7 @@ test("6809 stack records own flags and values across RAM edits, later execution,
     assert.deepEqual(pulled.after, savedPull.after);
     Reflect.set(pulled.after.flags, "z", false);
     Reflect.set(pulled.after, stack, 0);
+    assert.ok(pulled.instruction);
     Reflect.set(pulled.instruction.bytes, 1, 0xff);
     assert.ok(pulled.accesses[2]);
     Reflect.set(pulled.accesses[2], "value", 0xff);
@@ -1330,7 +1334,7 @@ test("6809 signed branches use current overflow after DECB and current CC after 
   assert.deepEqual(pulled.after, { ...branch.after, pc: 0x0209, s: 0x8001, flags: flagsFor(0x04) });
   const next = cpu.step();
   assert.deepEqual(next.after, { ...pulled.after, pc: 0x020b }); // BNE is now untaken.
-  assert.deepEqual(next.instruction.bytes, [0x26, 0xfe]);
+  assert.deepEqual(next.instruction?.bytes, [0x26, 0xfe]);
   const saved = structuredClone([loaded, decremented, branch, pulled, next]);
   cpu.reset();
   ram.write(0x0204, 0xff);
@@ -1347,12 +1351,13 @@ test("6809 branches fetch current operands and return records isolated from call
   assert.equal(first.after.pc, 0x1234);
   ram.write(0x1235, 0);
   const next = cpu.step();
-  assert.deepEqual(next.instruction.bytes, [0x26, 0]);
+  assert.deepEqual(next.instruction?.bytes, [0x26, 0]);
   assert.equal(next.after.pc, 0x1236);
   assert.deepEqual(first, savedFirst);
   const savedNext = structuredClone(next);
   Reflect.set(first.after.flags, "z", true);
   Reflect.set(first.after, "d", 0);
+  assert.ok(first.instruction);
   Reflect.set(first.instruction.bytes, 1, 0x80);
   assert.ok(first.accesses[1]);
   Reflect.set(first.accesses[1], "value", 0xff);
@@ -1364,6 +1369,7 @@ test("6809 branches fetch current operands and return records isolated from call
 
 // Literal supported base-page encodings; prefix selectors are not instruction forms.
 const baseOpcodes = new Set([
+  0x13, 0x3b, 0x3c, 0x3f,
       0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
       0x00, 0x03, 0x04, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0c, 0x0d, 0x0e, 0x0f,
       0x12, 0x16, 0x17, 0x34, 0x35, 0x36, 0x37, 0x39,
@@ -1483,6 +1489,7 @@ test("6809 records retain fetched bytes and independent snapshots across RAM edi
   Reflect.set(first.after, "b", 0xff);
   Reflect.set(first.after, "d", 0xffff);
   Reflect.set(first.after.flags, "c", false);
+  assert.ok(first.instruction);
   Reflect.set(first.instruction.bytes, "0", 0);
   assert.ok(first.accesses[0]);
   Reflect.set(first.accesses[0], "value", 0);
@@ -1491,7 +1498,7 @@ test("6809 records retain fetched bytes and independent snapshots across RAM edi
   assert.deepEqual(cpu.snapshot(), savedSecond.after);
 });
 
-test("6809 reset changes only PC, DP, F, and I and reads the vector high byte first", () => {
+test("6809 reset changes PC, DP, F, I, and control state and reads the vector high byte first", () => {
   const preservedFlags = [
     { e: false, h: false, n: false, z: false, v: false, c: false },
     { e: true, h: true, n: true, z: true, v: true, c: true },
@@ -1508,7 +1515,7 @@ test("6809 reset changes only PC, DP, F, and I and reads the vector high byte fi
         ram.accesses.length = 0;
         const before = { ...initialState({ flags: { ...preserved, f, i } }), d: 0x1134 };
         const cpu = new Cpu6809(ram, before);
-        const after = { ...before, pc: 0x3456, dp: 0, flags: { ...preserved, f: true, i: true } };
+        const after = { ...before, pc: 0x3456, dp: 0, nmiArmed: false, flags: { ...preserved, f: true, i: true } };
         const accesses = [
           { kind: "read", address: 0xfffe, value: 0x34 },
           { kind: "read", address: 0xffff, value: 0x56 },
@@ -1541,7 +1548,7 @@ test("6809 reset rereads changed vectors, preserves both stack pointers on repea
     ram.write(0xfffe, high);
     ram.write(0xffff, low);
     ram.accesses.length = 0;
-    const afterReset = { ...before, pc, dp: 0, flags: { ...before.flags, f: true, i: true } };
+    const afterReset = { ...before, pc, dp: 0, nmiArmed: false, flags: { ...before.flags, f: true, i: true } };
     const accesses = [
       { kind: "read", address: 0xfffe, value: high },
       { kind: "read", address: 0xffff, value: low },
@@ -2637,21 +2644,19 @@ test("6809 long conditional branches reach every word displacement on taken and 
 });
 
 const page2Opcodes = new Set([
+  0x3f,
   0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
   0x83, 0x93, 0xa3, 0xb3, 0x8c, 0x9c, 0xac, 0xbc,
   0x8e, 0x9e, 0xae, 0xbe, 0x9f, 0xaf, 0xbf,
   0xce, 0xde, 0xee, 0xfe, 0xdf, 0xef, 0xff,
 ]);
-const page3Opcodes = new Set([0x83, 0x93, 0xa3, 0xb3, 0x8c, 0x9c, 0xac, 0xbc]);
+const page3Opcodes = new Set([0x3f, 0x83, 0x93, 0xa3, 0xb3, 0x8c, 0x9c, 0xac, 0xbc]);
 
-test("6809 implements 262 documented ordinary forms and rejects all other encodings on all three pages", () => {
-  assert.equal(baseOpcodes.size, 217);
-  assert.equal(page2Opcodes.size, 37);
-  assert.equal(page3Opcodes.size, 8);
-  assert.equal(baseOpcodes.size + page2Opcodes.size + page3Opcodes.size, 262);
-  // Six documented interrupt forms: SYNC, RTI, CWAI, SWI, SWI2, SWI3.
-  assert.equal(new Set([...baseOpcodes, 0x13, 0x3b, 0x3c, 0x3f]).size
-    + new Set([...page2Opcodes, 0x3f]).size + new Set([...page3Opcodes, 0x3f]).size, 268);
+test("6809 implements all 268 documented forms and rejects all other encodings on all three pages", () => {
+  assert.equal(baseOpcodes.size, 221);
+  assert.equal(page2Opcodes.size, 38);
+  assert.equal(page3Opcodes.size, 9);
+  assert.equal(baseOpcodes.size + page2Opcodes.size + page3Opcodes.size, 268);
   for (const [prefix, supported] of [[[], baseOpcodes], [[0x10], page2Opcodes], [[0x11], page3Opcodes]] as const) {
     for (let opcode = 0; opcode < 256; opcode++) {
       if (!prefix.length && [0x10, 0x11].includes(opcode)) continue;
@@ -2662,7 +2667,7 @@ test("6809 implements 262 documented ordinary forms and rejects all other encodi
         const cpu = new Cpu6809(ram, initialState({ pc }));
         const before = cpu.snapshot();
         ram.accesses.length = 0;
-        if (supported.has(opcode)) assert.equal(cpu.step().outcome, "executed", `${prefix} ${opcode}`);
+        if (supported.has(opcode)) assert.equal(cpu.step().outcome, !prefix.length && [0x13, 0x3c].includes(opcode) ? "waiting" : "executed", `${prefix} ${opcode}`);
         else {
           const accesses = bytes.map((value, i) => ({ kind: "read", address: wrapAddress(pc + i), value }));
           for (let repeat = 0; repeat < 2; repeat++) {
@@ -2731,4 +2736,393 @@ test("6809 indexed STX retains its address update and first write but delays fla
   assert.deepEqual(ram.accesses, [...bytes.map((value, offset) => ({ kind: "read", address: before.pc + offset, value })),
     { kind: "write", address: 0x4000, value: 0x40 }]);
   assert.equal(ram.read(0x4000), 0x40); assert.equal(ram.read(0x4001), 0xcc);
+});
+
+// Interrupt vectors and frame bytes are taken from Motorola's programming manual.
+const interruptCases = [
+  { source: "swi", bytes: [0x3f], vector: 0xfffa, entire: true, masks: 0x50 },
+  { source: "swi2", bytes: [0x10, 0x3f], vector: 0xfff4, entire: true, masks: 0 },
+  { source: "swi3", bytes: [0x11, 0x3f], vector: 0xfff2, entire: true, masks: 0 },
+  { source: "irq", bytes: [], vector: 0xfff8, entire: true, masks: 0x10 },
+  { source: "firq", bytes: [], vector: 0xfff6, entire: false, masks: 0x50 },
+  { source: "nmi", bytes: [], vector: 0xfffc, entire: true, masks: 0x50 },
+] as const;
+
+function enter(cpu: Cpu6809, source: typeof interruptCases[number]["source"]) {
+  return source === "irq" || source === "firq" || source === "nmi" ? cpu.interrupt(source) : cpu.step();
+}
+
+// Descending S writes PC low/high, U low/high, Y low/high, X low/high, DP, B, A, CC.
+function frameBytes(state: Cpu6809State, pc: number, cc: number, entire: boolean): number[] {
+  return [pc % 256, Math.floor(pc / 256), ...(entire ? [state.u % 256, Math.floor(state.u / 256),
+    state.y % 256, Math.floor(state.y / 256), state.x % 256, Math.floor(state.x / 256), state.dp, state.b, state.a] : []), cc];
+}
+
+for (const { source, bytes, vector, entire, masks } of interruptCases) {
+  test(`6809 ${source.toUpperCase()} stacks the correct frame before masks/vector reads and RTI restores it`, () => {
+    const ram = new ObservedRam();
+    for (let cc = 0; cc < 256; cc++) {
+      if ((source === "irq" && (cc & 0x10)) || (source === "firq" && (cc & 0x40))) continue;
+      for (const s of [0, 1, 0x8000]) {
+        const state = initialState({ pc: 0x0200, s, flags: flagsFor(cc) });
+        bytes.forEach((byte, offset) => ram.write(state.pc + offset, byte));
+        ram.write(vector, 0x40); ram.write(vector + 1, 0); ram.write(0x4000, 0x3b);
+        const cpu = new Cpu6809(ram, state);
+        const returnPc = state.pc + bytes.length;
+        const savedCc = entire ? cc | 0x80 : cc & 0x7f;
+        const frame = frameBytes(state, returnPc, savedCc, entire);
+        const writes = frame.map((value, offset) => ({ kind: "write", address: wrapAddress(s - offset - 1), value }));
+        // Wrapped stack writes can overwrite the vector itself; entry reads the updated RAM.
+        const high = writes.find(access => access.address === vector)?.value ?? 0x40;
+        const low = writes.find(access => access.address === vector + 1)?.value ?? 0;
+        const target = high * 256 + low;
+        ram.accesses.length = 0;
+        const record = enter(cpu, source);
+        const after = snapshotOf({ ...state, pc: target, s: wrapAddress(s - frame.length), flags: flagsFor(savedCc | masks) });
+        const accesses = [...bytes.map((value, offset) => ({ kind: "read", address: state.pc + offset, value })),
+          ...writes, { kind: "read", address: vector, value: high }, { kind: "read", address: vector + 1, value: low }];
+        assert.deepEqual(record, { before: snapshotOf(state), after, accesses,
+          instruction: bytes.length ? { address: state.pc, bytes } : null, outcome: bytes.length ? "executed" : "accepted",
+          ...(bytes.length ? {} : { source }) });
+        assert.deepEqual(ram.accesses, accesses);
+        // Put RTI away from the possibly overlapping vector/frame and use a restored snapshot.
+        const restored = new Cpu6809(ram, { ...after, pc: 0x4000 });
+        ram.accesses.length = 0;
+        const returned = restored.step();
+        assert.deepEqual(returned.after, snapshotOf({ ...state, pc: returnPc, flags: flagsFor(savedCc) }));
+        assert.deepEqual(returned.accesses, [{ kind: "read", address: 0x4000, value: 0x3b },
+          ...[...writes].reverse().map(access => ({ ...access, kind: "read" }))]);
+        assert.deepEqual(ram.accesses, returned.accesses);
+      }
+    }
+  });
+}
+
+test("6809 software interrupt fetches wrap before stacking the return PC", () => {
+  for (const { source, bytes, vector } of interruptCases.filter(entry => entry.bytes.length)) {
+    const ram = new ObservedRam();
+    bytes.forEach((byte, index) => ram.write(wrapAddress(0xffff + index), byte));
+    ram.write(vector, 0x40); ram.write(vector + 1, 0);
+    const cpu = new Cpu6809(ram, initialState({ pc: 0xffff, s: 0x8000 }));
+    const record = enter(cpu, source);
+    assert.deepEqual(record.instruction, { address: 0xffff, bytes });
+    assert.equal(ram.read(0x7fff), bytes.length - 1);
+    assert.equal(ram.read(0x7ffe), 0);
+    assert.equal(record.after.pc, 0x4000);
+  }
+});
+
+test("6809 SYNC has no stack effects and masked requests resume without entry or automatic redelivery", () => {
+  for (const source of ["irq", "firq"] as const) {
+    const ram = new ObservedRam();
+    const state = initialState({ flags: flagsFor(0xff), pc: 0xffff });
+    ram.write(0xffff, 0x13); ram.write(0, 0x12);
+    const cpu = new Cpu6809(ram, state);
+    ram.accesses.length = 0;
+    const waited = cpu.step();
+    const waiting = snapshotOf({ ...state, pc: 0, waitMode: "sync" });
+    assert.deepEqual(waited, { before: snapshotOf(state), after: waiting, outcome: "waiting",
+      instruction: { address: 0xffff, bytes: [0x13] }, accesses: [{ kind: "read", address: 0xffff, value: 0x13 }] });
+    const saved = structuredClone(waited);
+    ram.accesses.length = 0;
+    ram.write(0, 0x12); // Editing the next opcode cannot release the wait.
+    ram.accesses.length = 0;
+    for (let repeat = 0; repeat < 2; repeat++) assert.deepEqual(cpu.step(), {
+      before: waiting, after: waiting, instruction: null, accesses: [], outcome: "waiting",
+    });
+    assert.deepEqual(cpu.interrupt(source), { before: waiting, after: { ...waiting, waitMode: "none" },
+      instruction: null, accesses: [], source, outcome: "resumed", reason: "masked" });
+    assert.deepEqual(ram.accesses, []);
+    assert.equal(cpu.step().after.pc, 1);
+    assert.equal(cpu.interrupt(source).outcome, "ignored");
+    assert.deepEqual(waited, saved);
+  }
+});
+
+test("6809 CWAI applies every immediate mask, forces E, and saves exactly one full frame", () => {
+  const ram = new ObservedRam();
+  for (let mask = 0; mask < 256; mask++) {
+    for (const cc of [0, 0x55, 0xaa, 0xff]) {
+      const state = initialState({ pc: 0x200, s: 0x8000, flags: flagsFor(cc) });
+      ram.write(0x200, 0x3c); ram.write(0x201, mask);
+      const cpu = new Cpu6809(ram, state);
+      const savedCc = (cc & mask) | 0x80;
+      const frame = frameBytes(state, 0x202, savedCc, true);
+      ram.accesses.length = 0;
+      const record = cpu.step();
+      assert.deepEqual(record, { before: snapshotOf(state), after: snapshotOf({ ...state, pc: 0x202,
+        s: 0x7ff4, waitMode: "cwai", flags: flagsFor(savedCc) }), outcome: "waiting",
+        instruction: { address: 0x200, bytes: [0x3c, mask] }, accesses: [
+          { kind: "read", address: 0x200, value: 0x3c }, { kind: "read", address: 0x201, value: mask },
+          ...frame.map((value, offset) => ({ kind: "write", address: 0x7fff - offset, value })),
+        ] });
+      assert.deepEqual(record.accesses, ram.accesses);
+      ram.accesses.length = 0;
+      assert.equal(cpu.step().instruction, null);
+      assert.deepEqual(ram.accesses, []);
+    }
+  }
+});
+
+for (const waitMode of ["sync", "cwai"] as const) {
+  test(`6809 ${waitMode.toUpperCase()} survives snapshots and distinguishes masked, unarmed, and accepted offers`, () => {
+    for (const { source, vector, masks, entire } of interruptCases) {
+      if (source !== "irq" && source !== "firq" && source !== "nmi") continue;
+      for (const masked of [false, true]) {
+        const ram = new ObservedRam();
+        const state = initialState({ waitMode, nmiArmed: !masked, pc: 0x2345, s: 0x8000,
+          flags: flagsFor(masked ? 0xd0 : 0x80) });
+        ram.write(vector, 0x40); ram.write(vector + 1, 0);
+        const cpu = new Cpu6809(ram, state);
+        const restored = new Cpu6809(ram, cpu.snapshot());
+        ram.accesses.length = 0;
+        const record = restored.interrupt(source);
+        if (masked) {
+          const resumed: boolean = waitMode === "sync" && source !== "nmi";
+          assert.deepEqual(record, { before: snapshotOf(state), after: snapshotOf({ ...state, waitMode: resumed ? "none" : waitMode }),
+            source, outcome: resumed ? "resumed" : "ignored", reason: source === "nmi" ? "unarmed" : "masked",
+            instruction: null, accesses: [] });
+        } else {
+          const savedCc = waitMode === "cwai" || entire ? 0x80 : 0;
+          assert.equal(record.outcome, "accepted");
+          assert.deepEqual(record.after, snapshotOf({ ...state, waitMode: "none", pc: 0x4000,
+            s: waitMode === "cwai" ? 0x8000 : entire ? 0x7ff4 : 0x7ffd, flags: flagsFor(savedCc | masks) }));
+          if (waitMode === "cwai") assert.deepEqual(record.accesses, [
+            { kind: "read", address: vector, value: 0x40 }, { kind: "read", address: vector + 1, value: 0 },
+          ]);
+        }
+        assert.deepEqual(record.accesses, ram.accesses);
+        assert.deepEqual(cpu.snapshot(), snapshotOf(state));
+      }
+    }
+  });
+}
+
+test("6809 RTI trusts current stack RAM and E, including edited or caller-created frames", () => {
+  const ram = new ObservedRam();
+  ram.write(0x200, 0x3b);
+  for (let cc = 0; cc < 256; cc++) {
+    const full = cc >= 0x80;
+    const frame = full ? [cc, 0x91, 0xa2, 0xb3, 0xc4, 0xd5, 0xe6, 0xf7, 0x08, 0x19, 0x2a, 0x3b] : [cc, 0x2a, 0x3b];
+    const s = 0xfffa;
+    const state = initialState({ pc: 0x200, s, nmiArmed: false, flags: flagsFor(255 - cc) });
+    const cpu = new Cpu6809(ram, state);
+    frame.forEach((byte, offset) => ram.write(wrapAddress(s + offset), byte));
+    ram.accesses.length = 0;
+    const record = cpu.step();
+    assert.deepEqual(record.after, snapshotOf({ ...state, flags: flagsFor(cc), s: wrapAddress(s + frame.length),
+      pc: 0x2a3b, nmiArmed: true, ...(full ? { a: 0x91, b: 0xa2, dp: 0xb3, x: 0xc4d5, y: 0xe6f7, u: 0x0819 } : {}) }));
+    assert.deepEqual(record.accesses, [{ kind: "read", address: 0x200, value: 0x3b },
+      ...frame.map((value, offset) => ({ kind: "read", address: wrapAddress(s + offset), value }))]);
+    assert.deepEqual(ram.accesses, record.accesses);
+  }
+});
+
+test("6809 NMI arming follows S initialization and stack instructions, not simply a nonzero S", () => {
+  const cases = [
+    { bytes: [0x10, 0xce, 0, 0], armed: true }, // LDS #0 still initializes S.
+    { bytes: [0x10, 0xde, 0x80], armed: true }, // LDS direct
+    { bytes: [0x10, 0xee, 0x84], armed: true }, // LDS ,X
+    { bytes: [0x10, 0xfe, 0x30, 0], armed: true }, // LDS extended
+    { bytes: [0x32, 0xe4], armed: true }, // LEAS ,S
+    { bytes: [0x1f, 0x14], armed: true }, // TFR X,S
+    { bytes: [0x1e, 0x14], armed: true }, // EXG X,S
+    { bytes: [0x1e, 0x41], armed: true }, // EXG S,X
+    { bytes: [0x1f, 0x44], armed: true }, // TFR S,S
+    { bytes: [0x37, 0x40], armed: true }, // PULU S
+    ...[0x34, 0x35].flatMap(opcode => [0, 1, 0x80].map(mask => ({ bytes: [opcode, mask], armed: mask !== 0 }))),
+    ...[0xe0, 0xe1, 0xe2, 0xe3, 0xf1, 0xf3].map(postbyte => ({ bytes: [0xa6, postbyte], armed: true })),
+    { bytes: [0x3b], armed: true }, // RTI, even a short frame
+    { bytes: [0xa6, 0xe4], armed: false }, // LDA ,S has no auto-update
+    { bytes: [0x1f, 0x41], armed: false }, // TFR S,X only reads S
+    { bytes: [0x36, 0x40], armed: false }, // PSHU S only reads S
+    { bytes: [0x37, 0x02], armed: false }, // PULU A
+    { bytes: [0xbd, 0x40, 0], armed: false }, // JSR
+    { bytes: [0x39], armed: false }, // RTS
+    { bytes: [0x3f], armed: false }, // SWI's implicit stack use
+    { bytes: [0x3c, 0xff], armed: false }, // CWAI's implicit stack use
+    { bytes: [0x32, 0xe7], armed: false }, // Rejected indexed postbyte
+    { bytes: [0x1f, 0x84], armed: false }, // Rejected mixed-width transfer
+  ];
+  for (const { bytes, armed } of cases) {
+    for (const wasArmed of [false, true]) {
+      const ram = new ObservedRam();
+      const cpu = new Cpu6809(ram, initialState({ pc: 0x200, nmiArmed: wasArmed }));
+      bytes.forEach((byte, offset) => ram.write(0x200 + offset, byte));
+      const record = cpu.step();
+      assert.equal(record.after.nmiArmed, wasArmed || armed, bytes.map(byte => byte.toString(16)).join(" "));
+      const restored = new Cpu6809(ram, record.after);
+      assert.equal(restored.interrupt("nmi").outcome, wasArmed || armed ? "accepted" : "ignored");
+    }
+  }
+});
+
+test("6809 validates wait modes, NMI state, and request sources without RAM access", () => {
+  const ram = new ObservedRam();
+  for (const waitMode of [undefined, null, false, 0, "SYNC", "waiting", ""]) {
+    assert.throws(() => new Cpu6809(ram, { ...initialState(), ...{ waitMode } } as Cpu6809State), RangeError);
+  }
+  for (const nmiArmed of [undefined, null, 0, 1, "true"]) {
+    assert.throws(() => new Cpu6809(ram, { ...initialState(), ...{ nmiArmed } } as unknown as Cpu6809State), TypeError);
+  }
+  const cpu = new Cpu6809(ram, initialState());
+  for (const source of [undefined, null, 0, "IRQ", "swi", "reset", "toString"]) {
+    assert.throws(() => Reflect.apply(cpu.interrupt, cpu, [source]), RangeError);
+  }
+  assert.deepEqual(cpu.snapshot(), snapshotOf(initialState()));
+  assert.deepEqual(ram.accesses, []);
+});
+
+class InterruptFaultRam extends ObservedRam {
+  failAt = -1;
+  attempts = 0;
+  readonly failure = new Error("interrupt memory failure");
+  #attempt(): void { if (this.attempts++ === this.failAt) throw this.failure; }
+  override read(address: number): number { this.#attempt(); return super.read(address); }
+  override write(address: number, value: number): void { this.#attempt(); super.write(address, value); }
+  start(failAt: number): void { this.failAt = failAt; this.attempts = 0; this.accesses.length = 0; }
+}
+
+test("6809 failed interrupt entry retains completed effects, including predecrement before a failed write", () => {
+  for (const { source, bytes, vector, entire, masks } of interruptCases) {
+    const frameLength = entire ? 12 : 3;
+    for (let failAt = 0; failAt < bytes.length + frameLength + 2; failAt++) {
+      const ram = new InterruptFaultRam();
+      const state = initialState({ pc: 0x200, s: 0x8000, flags: flagsFor(0x2b) });
+      bytes.forEach((byte, offset) => ram.write(0x200 + offset, byte));
+      ram.write(vector, 0x40); ram.write(vector + 1, 0);
+      const cpu = new Cpu6809(ram, state);
+      ram.start(failAt);
+      assert.throws(() => enter(cpu, source), error => error === ram.failure);
+      const fetched = Math.min(failAt, bytes.length);
+      const begunFrame = failAt >= bytes.length;
+      const writes = Math.min(Math.max(failAt - bytes.length + 1, 0), frameLength);
+      const vectorPhase = failAt >= bytes.length + frameLength;
+      const savedCc = entire ? 0xab : 0x2b;
+      assert.deepEqual(cpu.snapshot(), snapshotOf({ ...state, pc: 0x200 + fetched, s: 0x8000 - writes,
+        flags: flagsFor(begunFrame ? savedCc | (vectorPhase ? masks : 0) : 0x2b) }));
+      assert.equal(ram.accesses.length, failAt);
+      ram.start(-1);
+      // A failed transition releases the execution guard; reset still commits only after both reads.
+      ram.write(0xfffe, 2); ram.write(0xffff, 0);
+      assert.equal(cpu.reset().after.pc, 0x200);
+    }
+  }
+});
+
+test("6809 failed CWAI does not enter wait early, and failed wakeup never stacks a second frame", () => {
+  for (let failAt = 0; failAt < 14; failAt++) {
+    const ram = new InterruptFaultRam();
+    const state = initialState({ pc: 0x200, s: 0x8000, flags: flagsFor(0x7f) });
+    ram.write(0x200, 0x3c); ram.write(0x201, 0xaf);
+    const cpu = new Cpu6809(ram, state);
+    ram.start(failAt);
+    assert.throws(() => cpu.step(), error => error === ram.failure);
+    assert.deepEqual(cpu.snapshot(), snapshotOf({ ...state, pc: 0x200 + Math.min(failAt, 2),
+      s: 0x8000 - Math.max(0, failAt - 1), flags: flagsFor(failAt < 2 ? 0x7f : 0xaf) }));
+    assert.equal(ram.accesses.length, failAt);
+  }
+  for (const source of ["irq", "firq", "nmi"] as const) {
+    for (let failAt = 0; failAt < 2; failAt++) {
+      const ram = new InterruptFaultRam();
+      const state = initialState({ waitMode: "cwai", flags: flagsFor(0x8f) });
+      const cpu = new Cpu6809(ram, state);
+      ram.start(failAt);
+      assert.throws(() => cpu.interrupt(source), error => error === ram.failure);
+      assert.deepEqual(cpu.snapshot(), snapshotOf({ ...state, waitMode: "none", flags: flagsFor(source === "irq" ? 0x9f : 0xdf) }));
+      assert.equal(ram.accesses.length, failAt);
+      assert.ok(ram.accesses.every(access => access.kind === "read"));
+    }
+  }
+});
+
+test("6809 failed RTI commits only successfully read registers and never advances S for a failed read", () => {
+  for (const full of [false, true]) {
+    const frame = full ? [0xab, 0x91, 0xa2, 0xb3, 0xc4, 0xd5, 0xe6, 0xf7, 0x08, 0x19, 0x2a, 0x3b] : [0x2b, 0x2a, 0x3b];
+    for (let failAt = 0; failAt <= frame.length; failAt++) {
+      const ram = new InterruptFaultRam();
+      const state = initialState({ pc: 0x200, s: 0x8000, nmiArmed: false, flags: flagsFor(0x54) });
+      ram.write(0x200, 0x3b);
+      frame.forEach((byte, offset) => ram.write(0x8000 + offset, byte));
+      const cpu = new Cpu6809(ram, state);
+      ram.start(failAt);
+      assert.throws(() => cpu.step(), error => error === ram.failure);
+      const count = Math.max(0, failAt - 1);
+      assert.deepEqual(cpu.snapshot(), snapshotOf({ ...state, pc: failAt ? 0x201 : 0x200, s: 0x8000 + count,
+        ...(count >= 1 ? { flags: flagsFor(full ? 0xab : 0x2b) } : {}),
+        ...(full && count >= 2 ? { a: 0x91 } : {}), ...(full && count >= 3 ? { b: 0xa2 } : {}),
+        ...(full && count >= 4 ? { dp: 0xb3 } : {}), ...(full && count >= 6 ? { x: 0xc4d5 } : {}),
+        ...(full && count >= 8 ? { y: 0xe6f7 } : {}), ...(full && count >= 10 ? { u: 0x0819 } : {}),
+      }));
+      assert.equal(ram.accesses.length, failAt);
+    }
+  }
+});
+
+test("6809 reset releases both waits and disarms NMI only after both vector reads succeed", () => {
+  for (const waitMode of ["none", "sync", "cwai"] as const) {
+    for (const failAt of [0, 1, -1]) {
+      const ram = new InterruptFaultRam();
+      const state = initialState({ waitMode });
+      ram.write(0xfffe, 0x20); ram.write(0xffff, 0x12);
+      const cpu = new Cpu6809(ram, state);
+      ram.start(failAt);
+      if (failAt >= 0) {
+        assert.throws(() => cpu.reset(), error => error === ram.failure);
+        assert.deepEqual(cpu.snapshot(), snapshotOf(state));
+        ram.start(-1);
+      }
+      assert.deepEqual(cpu.reset().after, snapshotOf({ ...state, pc: 0x2012, dp: 0,
+        flags: { ...state.flags, f: true, i: true }, waitMode: "none", nmiArmed: false }));
+      ram.accesses.length = 0;
+      assert.equal(cpu.interrupt("nmi").outcome, "ignored");
+      assert.deepEqual(ram.accesses, []);
+    }
+  }
+});
+
+test("6809 RAM callbacks can inspect snapshots but cannot reenter step, reset, or interrupt", () => {
+  for (const operation of ["step", "reset", "interrupt"] as const) {
+    let cpu: Cpu6809;
+    let callbacks = 0;
+    class CallbackRam extends ObservedRam {
+      enabled = false;
+      #callback(): void {
+        if (!this.enabled) return;
+        callbacks++;
+        assert.ok(cpu.snapshot().pc >= 0);
+        for (const mutate of [() => cpu.step(), () => cpu.reset(), () => cpu.interrupt("nmi")]) {
+          assert.throws(mutate, /must not be reentrant/);
+        }
+      }
+      override read(address: number): number { this.#callback(); return super.read(address); }
+      override write(address: number, value: number): void { this.#callback(); super.write(address, value); }
+    }
+    const ram = new CallbackRam();
+    ram.write(0x200, 0x3f); // Exercise writes and vector reads from an instruction too.
+    cpu = new Cpu6809(ram, initialState({ pc: 0x200 }));
+    ram.enabled = true;
+    const record = operation === "interrupt" ? cpu.interrupt("nmi") : cpu[operation]();
+    assert.equal(callbacks, record.accesses.length);
+    assert.equal(cpu.reset().after.pc, 0);
+  }
+});
+
+test("6809 failed S loads do not arm NMI, but completed indexed S updates remain visible", () => {
+  for (const { bytes, failAt, armed, s } of [
+    { bytes: [0x10, 0xce, 0x80, 0], failAt: 3, armed: false, s: 0x8000 },
+    { bytes: [0x10, 0xfe, 0x30, 0], failAt: 5, armed: false, s: 0x8000 },
+    { bytes: [0x37, 0x40], failAt: 3, armed: false, s: 0x8000 },
+    { bytes: [0x32, 0x9f, 0x30, 0], failAt: 5, armed: false, s: 0x8000 },
+    { bytes: [0xa6, 0xe1], failAt: 2, armed: true, s: 0x8002 },
+    { bytes: [0xa6, 0xf3], failAt: 2, armed: true, s: 0x7ffe },
+  ]) {
+    const ram = new InterruptFaultRam();
+    bytes.forEach((byte, offset) => ram.write(0x200 + offset, byte));
+    const cpu = new Cpu6809(ram, initialState({ pc: 0x200, s: 0x8000, nmiArmed: false }));
+    ram.start(failAt);
+    assert.throws(() => cpu.step(), error => error === ram.failure);
+    assert.equal(cpu.snapshot().nmiArmed, armed);
+    assert.equal(cpu.snapshot().s, s);
+  }
 });

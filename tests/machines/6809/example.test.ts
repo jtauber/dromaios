@@ -5,7 +5,7 @@ import type { Ram } from "../../../src/components/memory/ram.js";
 import { create6809Example } from "../../../src/machines/generated/6809/example.js";
 
 function expectedInitialState() {
-  return {
+  return { waitMode: "none" as const, nmiArmed: false,
     a: 0, b: 0x34, dp: 0x12, x: 0, y: 0, s: 0x8000, u: 0x4000, pc: 0x0200, d: 0x0034,
     flags: { e: false, f: true, h: true, i: true, n: false, z: false, v: true, c: true },
   };

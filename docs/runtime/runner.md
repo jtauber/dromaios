@@ -64,7 +64,7 @@ This gives the following boundary behavior:
 | Last permitted executed step reaches the endpoint | `completed`, including that step's record |
 | Last permitted step halts, waits, or reports unsupported | `halted`, `waiting`, or `unsupported`, including that record |
 | HLT, HALT, or STOP advances PC to the endpoint | `halted`, retaining the CPU's terminal result |
-| WAI advances PC to the endpoint | `waiting`, retaining the instruction and saved-frame writes |
+| WAI, SYNC, or CWAI advances PC to the endpoint | `waiting`, retaining the instruction and any saved-frame writes |
 | Budget ends before any other stopping condition | `step-limit`, with exactly `maxSteps` records |
 
 A step budget counts attempts, including unsupported instructions and the
@@ -79,6 +79,11 @@ The runner never fetches the next instruction to decide whether it should stop.
 For endpoint checks, `snapshot()` supplies PC without accessing RAM, following
 the [CPU model contracts](../README.md#cpu-models).
 
+For the 6809, a masked IRQ/FIRQ can release SYNC, while CWAI requires an
+accepted interrupt and reuses its saved frame. The caller performs the
+[boundary offer](../cpus/6809/model.md#waiting-and-external-interrupt-delivery)
+between runs; the runner does not poll interrupt sources.
+
 ## Records and types
 
 `CpuRunResult<Step>` has readonly `records` and `stopReason` fields. Each call
@@ -90,7 +95,8 @@ TypeScript infers the record type from the supplied CPU. A 6502 run retains
 its non-null instruction and `opcode` unsupported reason;
 an 8080 run retains its halted-record union; a 6800 run retains its waiting
 state and nullable instruction on an already waiting step; a 6809 run retains D and both
-stack pointers in snapshots; a Z80 run retains both register banks, P/V, and R;
+stack pointers, named wait mode, and NMI arming in snapshots, with a nullable
+instruction while waiting; a Z80 run retains both register banks, P/V, and R;
 an 8088 run retains CS:IP, word registers, derived byte views, and physical PC;
 a 68000 run retains long registers, both stack pointers, STOP state, and
 alignment/synchronous-exception details, including a null instruction when an odd PC prevents fetching.

@@ -7,7 +7,7 @@ import { create6809IndexedCopyExample, create6809IndexedCopyExampleMemory } from
 import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 function initialState(): Cpu6809Snapshot {
-  return { a: 0x11, b: 0x34, d: 0x1134, dp: 0x20, x: 0x2345, y: 0x4567, s: 0x8000, u: 0x5000, pc: 0x200,
+  return { waitMode: "none" as const, nmiArmed: false, a: 0x11, b: 0x34, d: 0x1134, dp: 0x20, x: 0x2345, y: 0x4567, s: 0x8000, u: 0x5000, pc: 0x200,
     flags: { e: true, f: false, h: true, i: false, n: true, z: true, v: true, c: true } };
 }
 

@@ -8,7 +8,7 @@ import {
 } from "../../../src/machines/generated/6809/addressing-example.js";
 
 function expectedInitialState() {
-  return {
+  return { waitMode: "none" as const, nmiArmed: false,
     a: 0x11, b: 0x34, dp: 0x12, x: 0x2345, y: 0x4567,
     s: 0x8000, u: 0x4000, pc: 0x0200, d: 0x1134,
     flags: { e: true, f: false, h: true, i: false, n: false, z: true, v: true, c: true },

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { array, boolean, choices, copyState, defineState, flag, group, readState, unsigned } from "../../../src/components/cpus/state.js";
+import { array, boolean, choices, namedChoices, copyState, defineState, flag, group, readState, unsigned } from "../../../src/components/cpus/state.js";
 
 test("state descriptions validate unsigned widths independently of CPU-specific register names", () => {
   for (const [bits, maximum] of [[1, 1], [3, 7], [8, 255], [14, 16383], [16, 65535],
@@ -136,4 +136,28 @@ test("published state descriptions are immutable and own field maps and choice a
     assert.equal(Object.isFrozen(object), true);
     assert.equal(Reflect.set(object, "extra", 1), false);
   }
+});
+
+test("named state choices retain exact strings, validate nested paths, and own immutable alternatives", () => {
+  const values = ["none", "sync", "cwai"] as const;
+  const mode = namedChoices(...values);
+  const fields = defineState({ control: group({ mode }) });
+  for (const value of values) {
+    const state = { control: { mode: value } };
+    assert.deepEqual(readState(fields, state), state);
+    assert.deepEqual(copyState(fields, state), state);
+  }
+  for (const value of [undefined, null, false, 0, "", "NONE", "waiting", { toString: () => "sync" }]) {
+    assert.throws(() => readState(fields, { control: { mode: value } }), {
+      name: "RangeError", message: "control.mode must be one of none, sync, cwai.",
+    });
+  }
+  for (const alternatives of [[], [""], ["same", "same"], [undefined], [false], [0], Array(2)]) {
+    assert.throws(() => Reflect.apply(namedChoices, undefined, alternatives), RangeError);
+  }
+  assert.notEqual(mode.values, values);
+  assert.equal(Object.isFrozen(mode), true);
+  assert.equal(Object.isFrozen(mode.values), true);
+  assert.equal(Reflect.set(mode.values, 0, "changed"), false);
+  assert.deepEqual(values, ["none", "sync", "cwai"]);
 });

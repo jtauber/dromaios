@@ -9,7 +9,7 @@ import {
 import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 function expectedInitialState(): Cpu6809Snapshot {
-  return {
+  return { waitMode: "none" as const, nmiArmed: false,
     a: 0x11, b: 0x34, d: 0x1134, dp: 0x12, x: 0x2345, y: 0x4567, s: 0x8000, u: 0x4000, pc: 0x0200,
     flags: { e: true, f: false, h: true, i: false, n: true, z: true, v: true, c: true },
   };
@@ -100,6 +100,7 @@ test("the 6809 counted loop adds five three times and stores fifteen with exact 
   write.mock.restore();
   checkMemory(ram, true);
   const final = {
+    waitMode: "none", nmiArmed: false,
     a: 0x0f, b: 0, d: 0x0f00, dp: 0x12, x: 0x2345, y: 0x4567, s: 0x8000, u: 0x4000, pc: 0x020c,
     flags: { e: true, f: false, h: false, i: false, n: false, z: false, v: false, c: false },
   };
@@ -118,6 +119,7 @@ test("the 6809 counted loop resumes before BNE, preserves RAM and both stacks on
   const saved = structuredClone(first);
   assert.equal(first.stopReason, "step-limit");
   assert.deepEqual(cpu.snapshot(), {
+    waitMode: "none", nmiArmed: false,
     a: 5, b: 2, d: 0x0502, dp: 0x12, x: 0x2345, y: 0x4567, s: 0x8000, u: 0x4000, pc: 0x0207,
     flags: { e: true, f: false, h: false, i: false, n: false, z: false, v: false, c: false },
   });
@@ -126,7 +128,7 @@ test("the 6809 counted loop resumes before BNE, preserves RAM and both stacks on
   assert.equal(rest.stopReason, "completed");
   assert.deepEqual([...first.records, ...rest.records], expectedRecords());
   const before = cpu.snapshot();
-  const afterReset = { ...before, pc: 0x0200, dp: 0, flags: { ...before.flags, f: true, i: true } };
+  const afterReset = { ...before, pc: 0x0200, dp: 0, nmiArmed: false, flags: { ...before.flags, f: true, i: true } };
   assert.deepEqual(cpu.reset(), {
     before, after: afterReset,
     accesses: [{ kind: "read", address: 0xfffe, value: 2 }, { kind: "read", address: 0xffff, value: 0 }],
