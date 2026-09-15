@@ -1,9 +1,9 @@
 # Z80 model contract
 
-The Z80 model implements an instruction-level subset against flat 64 KiB
-RAM. It adds a related processor to the initial three-architecture comparison,
-with its own state and flags. The existing RAM setup and CPU runner work with
-this model without adapters.
+The Z80 model implements every documented instruction form except I/O and
+interrupt controls/returns against flat 64 KiB RAM. It uses instruction-level
+execution records, with one iteration per step for repeating block instructions.
+The existing RAM setup and CPU runner work with this model without adapters.
 
 [Implementation](../../../src/components/cpus/z80.ts) ·
 [CPU tests](../../../tests/components/cpus/z80.test.ts) ·
@@ -13,7 +13,8 @@ this model without adapters.
 [Counted-loop example](examples/counted-loop.md) ·
 [Transfer example](examples/transfers.md) ·
 [Checksum example](examples/checksum.md) ·
-[Bit-count and nested-call example](examples/bit-count.md)
+[Bit-count and nested-call example](examples/bit-count.md) ·
+[Indexed buffer and block-search example](examples/indexed-buffer.md)
 
 Expected hardware behavior comes from the
 [Zilog Z80 CPU User Manual, UM008011-0816](https://www.zilog.com/docs/z80/um0080.pdf):
@@ -48,9 +49,9 @@ Snapshots derive readonly BC, DE, and HL views in each bank from its stored
 bytes, high byte first. These pair views are not separate state and cannot be
 initialized independently. Immediate pair loads update the stored bytes of BC,
 DE, or HL, or replace SP. EX AF,AF′ exchanges A and the six flags; EXX exchanges
-BC, DE, and HL while preserving both accumulators and flag sets. Index registers
-and the interrupt vector can be initialized and inspected but remain unused by
-this subset. PUSH/POP update SP and transfer BC, DE, HL, or AF; calls, returns,
+BC, DE, and HL while preserving both accumulators and flag sets. IX/IY supply
+indexed operands and word operations; I/R have transfers to and from A.
+PUSH/POP update SP and transfer BC, DE, HL, AF, IX, or IY; calls, returns,
 and RST use the same memory stack.
 
 ## Construction and inspection
@@ -74,7 +75,7 @@ snapshot. The CPU keeps mutable private state and retains no record history.
 
 ## Instruction steps
 
-`step()` attempts at most one instruction and returns `CpuZ80StepRecord`:
+`step()` attempts one instruction, or one block iteration, and returns `CpuZ80StepRecord`:
 
 - `before` and `after`: independent complete snapshots.
 - `instruction`: its starting address and the bytes actually fetched, in order;
@@ -92,18 +93,23 @@ destination to reconstruct an old value. Captured instruction bytes survive
 stores that overwrite code. Subsequent steps fetch current RAM.
 
 Each supported instruction increments the low seven bits of R for each opcode
-fetch, preserving bit 7: once for an unprefixed instruction and twice for a CB
-instruction. Operand reads and data accesses do not increment R. For example,
-unprefixed `7F` becomes `00`, while CB `FF` becomes `81`. PC and R are advanced
-only after the complete supported encoding has been identified.
+fetch, preserving bit 7: once for an unprefixed instruction and twice for every
+supported prefixed form. In `DD/FD CB d op`, only the first two bytes are M1
+opcode fetches; neither the displacement nor the final opcode increments R.
+Operand reads and data accesses do not increment R. For example, unprefixed
+`7F` becomes `00`, while prefixed `FF` becomes `81`. PC and R are advanced only
+after the complete supported encoding has been identified. LD A,R observes
+this increment; LD R,A then replaces all eight bits with A.
 
 An unsupported opcode is read and recorded, but PC, R, all other CPU state,
 and RAM remain unchanged. This atomic rejection is a model policy, including
-the choice to leave R unchanged despite the recorded reads. DD, ED, and FD are
-rejected after that byte alone. CB fetches a second byte, wrapping at FFFF;
-undocumented SLL encodings (`CB 30`–`CB 37`) are rejected with both bytes and
-reads retained, without a data access. Repeating an unsupported attempt reads
-the encoding again from current RAM and preserves all CPU state and RAM.
+the choice to leave R unchanged despite the recorded reads. CB, ED, DD, and FD
+fetch a second byte, wrapping at FFFF. An unsupported entry retains both reads
+without fetching operands. DD/FD CB additionally fetch displacement and final
+opcode before rejecting an unsupported entry, retaining all four reads. SLL,
+index half-register operations, indexed-CB register destinations, repeated
+prefixes, ignored-prefix encodings, and undocumented ED aliases are unsupported.
+Repeating an unsupported attempt reads current RAM again and preserves all state.
 
 HALT advances PC past its opcode, increments R once, sets `halted`, and reports
 `outcome: "halted"` with the HALT instruction. Subsequent halted steps report
@@ -139,10 +145,46 @@ Byte INC/DEC wrap at eight bits and replace S/Z/H/PV/N while preserving C. P/V r
 overflow: INC sets it for `7F` → `80`, DEC for `80` → `7F`. H records a carry
 from bit 3 for INC or a borrow from bit 4 for DEC. INC clears N; DEC sets it.
 Pair views reflect the resulting bytes. `(HL)` forms read once and write once.
-Register and memory forms share the modification builder used by CB
-instructions. Word INC/DEC on BC/DE/HL/SP instead wrap at 16 bits and preserve
+Register and memory forms share byte operations and operand access helpers.
+Word INC/DEC on BC/DE/HL/SP instead wrap at 16 bits and preserve
 every flag. The alternate bank remains
 unchanged.
+
+ED word loads/stores add BC, DE, and SP to absolute word transfers. The
+documented ED 63/6B forms also transfer HL, with the same behavior as 22/2A
+and an additional prefix fetch. All capture the complete address before reading
+or writing low then high, wrapping at FFFF, and preserve flags.
+
+LD I,A and LD R,A copy all eight A bits and preserve every flag. LD A,I and
+LD A,R set S/Z from the transferred byte, clear H/N, copy IFF2 into P/V, and
+preserve C. IFF1 does not select this flag result. Interrupt-time quirks of
+these transfers are outside the current model. See the
+[Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages 94–97
+and 106–109.
+
+## Indexed operands
+
+DD selects IX and FD selects IY. The pages share documented behavior and
+encoding patterns, with their word operations substituting IX/IY for HL.
+ADD IX/IY,ss selects BC, DE, the same index, or SP and follows ADD HL's flag
+rules. Word INC/DEC, immediate/absolute loads, PUSH/POP, EX (SP),IX/IY,
+JP (IX/IY), and LD SP,IX/IY preserve flags. JP takes the index itself as its
+target, with no displacement or data read. Stack operations keep the byte
+order described below; EX reads low/high then writes high/low without moving SP.
+
+Byte memory operands use the live index plus a signed eight-bit displacement,
+with 16-bit address wrapping. Loads transfer to/from all seven ordinary byte
+registers, including H and L themselves. `LD (IX/IY+d),n` fetches d before n
+and captures both before writing. INC/DEC and all eight byte ALU operations use
+the same flag behavior as their `(HL)` counterparts.
+
+Indexed-CB encodings are `DD/FD CB d op`. Only documented memory forms, whose
+final `rrr` field is `110`, are supported: seven rotates/shifts and eight each
+of BIT/RES/SET. They share the ordinary CB operations and flags, capture all
+four encoding bytes before reading data, and leave every byte register intact.
+BIT reads once without writing; other forms read then write once, including
+unchanged results. See the [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf),
+its IX/IY instruction entries, and the [indexed-buffer example](examples/indexed-buffer.md).
 
 ## Register exchanges
 
@@ -164,7 +206,7 @@ register exchanges; the independent cases below also check the memory order.
 ADD, ADC, SUB, SBC, AND, XOR, OR, and CP support every unprefixed byte form:
 B/C/D/E/H/L/A, memory through HL, and an immediate byte. The operation field
 `ooo` has the same meaning in `10 ooo rrr` and `11 ooo 110`; `rrr` selects
-B/C/D/E/H/L/(HL)/A. Indexed byte ALU forms remain unsupported.
+B/C/D/E/H/L/(HL)/A. DD/FD replace the memory source with `(IX/IY+d)`.
 
 All eight operations replace S/Z/H/PV/N/C. CP preserves A; the others replace
 it with the low byte of the result. S reflects result bit 7 and Z tests the
@@ -189,7 +231,7 @@ their opcode, `(HL)` forms additionally read the current data address, and
 immediate forms fetch one operand byte. Repeated reads remain separate if HL
 points at the opcode itself. RAM, byte registers other than A, the alternate
 bank, index registers, SP, I, and interrupt state are preserved. PC wraps at 16 bits
-and R increments once, following the ordinary instruction-step contract.
+and R increments once for the unprefixed forms, twice for indexed forms.
 
 The [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages
 66–69 and 145–164, defines these operations. Its flag overview specifies
@@ -207,6 +249,14 @@ It replaces H with carry from bit 11 into bit 12 and C with carry from bit 15,
 clears N, and preserves S/Z/PV even when the resulting word is zero or changes
 sign. The shared addition helper supplies the word result and carry; its
 low-nibble half-carry does not describe this instruction's bit-11 boundary.
+
+ED ADC/SBC HL,ss accept BC/DE/HL/SP and incoming C. Both replace all six flags:
+S is result bit 15, Z tests the whole word, H reports carry/borrow across bit 11,
+P/V reports signed 16-bit overflow, N selects subtraction, and C reports the
+word carry/borrow. The original source is captured even for HL as both operands.
+NEG computes zero minus A, setting the byte subtraction flags; only A=`80`
+overflows, and only A=`00` leaves C clear. See the
+[Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages 182 and 190–193.
 
 The [checksum example](examples/checksum.md) passes ADD's carry into ADC
 through intervening loads, stores the two-byte result, and branches on CP.
@@ -262,10 +312,50 @@ The Zilog manual leaves S/PV unspecified for BIT. This model sets PV equal to Z
 and sets S only when testing bit 7 and finding it set, matching the independent
 reference cases. RES clears the selected bit and SET sets it; both preserve all
 flags. SLL's undocumented selector slot remains unsupported and earns no
-coverage credit. DD/FD indexed forms are a separate future page.
+coverage credit. The indexed pages reuse these same operations and flag rules.
 
 See the [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages
 213–237 and 243–264, and the reference comparison under [checks](#checks-and-limits).
+
+## Nibble rotates
+
+RLD rotates the three nibbles `(A low, memory high, memory low)` left; RRD
+rotates them right. A's high nibble and HL remain fixed. Both read `(HL)` once
+and write the rotated byte once, including unchanged values and code overlap.
+S/Z and even-parity P/V describe the resulting A, H/N clear, and C is preserved.
+These are binary nibble operations for every input, without decimal correction.
+See the [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages 238–242.
+
+## Block copies and comparisons
+
+LDI/LDD read `(HL)`, write `(DE)`, advance both pointers by +1/−1, and decrement
+BC. H/N clear, P/V indicates whether the resulting BC is nonzero, and S/Z/C
+are preserved. CPI/CPD instead compare A with `(HL)`, advance HL by +1/−1,
+and decrement BC. They preserve A/DE/C, set S/Z/H from the discarded byte
+subtraction, set N, and set P/V from the remaining count. All pointer/count
+updates wrap at 16 bits. Copies always record a write, even for identical
+source/destination addresses or unchanged bytes.
+
+LDIR/LDDR and CPIR/CPDR perform **one iteration per `step()`**. If repetition
+continues, PC moves back two bytes to the ED prefix: copies repeat while BC is
+nonzero; comparisons also require a mismatch. The next step fetches the
+instruction again, advances R twice again, and uses the current pointers,
+count, and RAM. No hidden progress state is needed for snapshot resumption.
+Changing code or data between iterations affects the next step normally.
+Overlapping copies propagate values in the selected direction, byte by byte.
+
+An initial BC of zero wraps to FFFF after the first iteration; repeating copy
+therefore transfers 65,536 bytes. Repeating comparison also allows that many
+iterations, stopping sooner on a match. A match on the last byte sets Z with
+P/V clear. A match earlier sets both. Carry is preserved on every path.
+
+Runner budgets count these visible iterations, so even a zero-count block can
+be paused with a small `maxSteps`. There are no cycle-level dummy/refresh
+accesses, and interrupt delivery remains deferred. This stepping convention
+follows the instruction's PC-rewind/refetch behavior in the
+[Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages 130–144.
+The [indexed-buffer example](examples/indexed-buffer.md) checks complete copy
+and search traces with resumption at every boundary.
 
 ## Stack, calls, and returns
 
@@ -359,8 +449,8 @@ patterns, including A as its own source, unchanged CP results, and H/L operands.
 Other checks cover
 all immediate-load bytes and flag patterns, exact memory accesses, PC and R
 wrapping, overlapping stores, current RAM, and retained records. All unsupported
-first bytes are checked, including DD/ED/FD; CB rejects its eight SLL encodings
-after the second byte. Construction, nested snapshots,
+first bytes and every prefix-page entry are checked; CB rejects its eight SLL
+encodings after the second byte. Construction, nested snapshots,
 reset, and readonly public types have separate checks.
 
 Register loads and INC/DEC cover every byte and all 64 incoming flag patterns,
@@ -429,7 +519,28 @@ memory transactions under the same exclusions above. In particular, it
 checks arbitrary DAA states and EX (SP),HL's read/write order. These are
 independent emulator cases; they do not establish hardware or cycle accuracy.
 
-The only unsupported unprefixed instructions are the deferred DI, EI, IN,
-and OUT. ED, DD, and FD pages remain unsupported, including indexed operands,
-word ADC/SBC, block operations, special-register transfers, and nibble rotates.
-The [coverage inventory](../coverage.md#z80) tracks the documented-form count.
+Indexed tests cover both registers, every signed displacement, byte value,
+and carry input, real H/L transfers, word/stack wrapping, and overlap with
+every encoding byte. All 171 new forms check every initial R value. ED checks
+cover word arithmetic boundaries with every flag pattern, word-transfer
+aliasing, every NEG input/flag combination, IFF1/IFF2 disagreement, live R
+transfers, and every A/memory pair for RLD/RRD. Block checks cover all eight
+forms, both pointer directions and wraps, zero/final/nonzero counts, every
+comparison byte pair, overlapping copies, rewritten code, a full 65,536-byte
+copy, and early comparison matches. The indexed-buffer example checks 24 full
+records, every match position, failure, bounded running, snapshot resumption,
+reset, complete memory images, and fresh factories.
+
+All 1,000 independent cases for each of the **171 indexed/ED additions** also
+passed: **171,000 cases** from
+[SingleStepTests Z80 at revision ebe1875](https://github.com/SingleStepTests/z80/tree/ebe1875d48f374bcfd4b505d8eb8ee751568b5f7/v1).
+They compare every modeled state field, final RAM, fetched bytes, and ordered
+memory transactions, excluding undocumented F bits/internal latches and bus
+refresh activity as above. Repeating block cases describe one iteration.
+These supplementary emulator comparisons do not establish cycle accuracy;
+repository tests remain self-contained.
+
+The remaining documented forms are DI/EI, all port and block I/O, interrupt
+mode selection, RETI, and RETN. Interrupt delivery, cycle timing, undocumented
+instructions, and F bits 3/5 remain outside this model. The
+[coverage inventory](../coverage.md#z80) tracks the documented-form count.

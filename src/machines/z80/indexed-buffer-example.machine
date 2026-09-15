@@ -1,0 +1,45 @@
+// Copy a buffer, transform indexed bytes, then find the marked byte and record the following address.
+ram 10000
+
+cpu z80 {
+    A = 11  B = 22  C = 33  D = 44  E = 55  H = 66  L = 77
+    flags { S = 1  Z = 0  H = 1  PV = 0  N = 1  C = 0 }
+    alternate {
+        A = 88  B = 99  C = AA  D = BB  E = CC  H = DD  L = EE
+        flags { S = 0  Z = 1  H = 0  PV = 1  N = 0  C = 1 }
+    }
+    IX = 1234  IY = 5678  PC = 0200  SP = 9000
+    I = 42  R = FE  IM = 2
+    iff1 = true  iff2 = false  halted = false
+}
+
+memory 00FD { DE 12 34 56 78 AD } // Source crosses a page boundary; guards stay intact.
+memory 03FF { DE AA BB CC DD 80 AD } // Destination 0400–0403, status 0404 (bit 7 preserved).
+memory 04FF { DE AA BB AD } // Following address at 0500–0501, low byte first.
+
+memory 0200 {
+    21 FE 00       // LD HL,00FEH
+    11 00 04       // LD DE,0400H
+    01 04 00       // LD BC,0004H
+    ED B0          // LDIR: four separately inspectable copy iterations
+    DD 21 01 04    // LD IX,0401H
+    FD 21 04 04    // LD IY,0404H
+    DD 7E FF       // LD A,(IX-1): original first byte, 12H
+    FD 77 FF       // LD (IY-1),A: mirror it at the end
+    DD CB FF 0E    // RRC (IX-1): first byte becomes 09H
+    FD CB FF C6    // SET 0,(IY-1): mark the last byte, now 13H
+    3E 13          // LD A,13H: byte to find
+    21 00 04       // LD HL,0400H
+    01 04 00       // LD BC,0004H
+    ED B1          // CPIR: stop on a match or after four comparisons
+    C2 40 02       // JP NZ,0240H: failure path
+    ED 63 00 05    // LD (0500H),HL: following address is 0404H
+    FD CB 00 C6    // SET 0,(IY+0): success status becomes 81H
+    76             // HALT
+}
+
+memory 0240 {
+    3E 00          // LD A,00H
+    FD 77 00       // LD (IY+0),A: failure status
+    76             // HALT
+}

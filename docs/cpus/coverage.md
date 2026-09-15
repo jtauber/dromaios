@@ -19,7 +19,7 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [364](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [332](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [398](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [508](../../src/components/cpus/z80.ts) | 496 / 698 | 71.1% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [632](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [522](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [493](../../src/components/cpus/8088.ts) | 205 / 291 | 70.4% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [504](../../src/components/cpus/68000.ts) | 25,699 / 36,029 | 71.3% |
@@ -1269,12 +1269,15 @@ sets audit all three pages and distinguish the six deferred interrupt forms.
 [Bit-count specification](z80/examples/bit-count.md) ·
 [Bit-count definition](../../src/machines/z80/bit-count-example.machine) ·
 [Decimal-total specification](z80/examples/decimal-total.md) ·
-[Decimal-total definition](../../src/machines/z80/decimal-total-example.machine)
+[Decimal-total definition](../../src/machines/z80/decimal-total-example.machine) ·
+[Indexed-buffer specification](z80/examples/indexed-buffer.md) ·
+[Indexed-buffer definition](../../src/machines/z80/indexed-buffer-example.machine)
 
-**496 of 698 documented forms are complete (71.1%): 248 unprefixed and
-248 CB forms.** The CB page is complete for documented encodings. The only
-remaining unprefixed forms are the deferred DI, EI, IN, and OUT. Stack
-operations, calls/returns, and the bit-count example complete the Z80
+**667 of 698 documented forms are complete (95.6%): 248 unprefixed, 248 CB,
+31 ED, 39 DD, 39 FD, 31 DD CB, and 31 FD CB forms.** Every documented form
+except I/O and interrupt controls/returns is implemented. The remaining 31
+forms comprise DI/EI, 24 port/block I/O forms, three IM forms, RETI, and RETN.
+Stack operations, calls/returns, and the bit-count example complete the Z80
 [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint).
 
 | Opcode | Instruction | Addressing form | Length | Scope |
@@ -1380,26 +1383,64 @@ ignores them. BIT's unspecified S/PV behavior follows the independent reference
 cases. The [model contract](z80/model.md#cb-rotates-shifts-and-bit-operations)
 defines these policies and the ordered memory accesses.
 
+### Indexed and ED forms
+
+DD and FD implement the same 39 forms with IX and IY respectively. In this
+table `index` means the selected register, and `ss` selects BC/DE/index/SP.
+
+| Opcode after DD/FD | Family | Forms per prefix | Length including prefix |
+| --- | --- | ---: | --- |
+| `09/19/29/39` | ADD index,ss | 4 | 2 |
+| `21`, `22/2A` | LD index,nn; LD (nn),index / index,(nn) | 3 | 4 |
+| `23/2B` | INC/DEC index | 2 | 2 |
+| `34/35`, `36` | INC/DEC (index+d); LD (index+d),n | 3 | 3; 4 for immediate store |
+| `46/4E/56/5E/66/6E/7E` | LD r,(index+d), including real H/L | 7 | 3 |
+| `70/71/72/73/74/75/77` | LD (index+d),r | 7 | 3 |
+| `86/8E/96/9E/A6/AE/B6/BE` | Byte ALU (index+d) | 8 | 3 |
+| `E1/E5`, `E3`, `E9`, `F9` | POP/PUSH index; EX (SP),index; JP (index); LD SP,index | 5 | 2 |
+
+Each indexed-CB page adds **31** four-byte forms, `DD/FD CB d op`: the seven
+shifts/rotates and eight each of BIT/RES/SET from the CB table, with final
+`rrr=110`. BIT reads without writing; other forms read then write the indexed
+byte. Undocumented SLL and register destinations are excluded. Displacements
+are signed bytes, fetched before the final opcode; R advances twice.
+
+| ED opcode | Family | Forms | Length including prefix |
+| --- | --- | ---: | --- |
+| `42/52/62/72`, `4A/5A/6A/7A` | SBC / ADC HL,BC/DE/HL/SP | 8 | 2 |
+| `43/53/63/73`, `4B/5B/6B/7B` | LD (nn),BC/DE/HL/SP and reverse | 8 | 4 |
+| `44` | NEG | 1 | 2 |
+| `47/4F/57/5F` | LD I,A; LD R,A; LD A,I; LD A,R | 4 | 2 |
+| `67/6F` | RRD / RLD | 2 | 2 |
+| `A0/A8/B0/B8` | LDI / LDD / LDIR / LDDR | 4 | 2 |
+| `A1/A9/B1/B9` | CPI / CPD / CPIR / CPDR | 4 | 2 |
+
+Repeating blocks expose one byte transfer/comparison per step, rewinding PC
+two bytes while repetition continues. An initial BC of zero permits 65,536
+iterations; searches stop earlier on a match. Snapshots contain all state
+needed to resume. See [block stepping](z80/model.md#block-copies-and-comparisons).
+
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A/B/C/D/E/H/L in main and alternate banks; IX, IY, PC, SP, I, R |
 | Stored flags | S/Z/H/PV/N/C in both banks; undocumented F bits 3/5 and public raw F/AF views are omitted; stack AF packs/unpacks the six flags |
 | Register relationships | Snapshots derive BC, DE, and HL in both banks; EX AF,AF′ exchanges A/flags, EXX exchanges BC/DE/HL, and EX DE,HL exchanges main pairs |
-| Register operations | Byte/word loads preserve flags; byte INC/DEC replace S/Z/H/PV/N, preserving C; word INC/DEC preserve all flags; NOP preserves state except PC/R |
-| Arithmetic and logic | All unprefixed byte ALU forms; arithmetic P/V means overflow, logic P/V means parity; ADD HL updates H/N/C only; DAA handles addition/subtraction correction; CPL/SCF/CCF and accumulator rotates preserve S/Z/PV |
-| Indirect transfers | Byte transfers through HL, A transfers through BC/DE, absolute A/HL transfers; H/L destinations use the original address; HALT occupies the absent memory-to-memory transfer slot |
-| Stack and subroutines | PUSH/POP BC/DE/HL/AF; CALL/RET and all eight conditions; RST vectors; EX (SP),HL reads low/high then writes high/low without moving SP |
-| CB operations | All documented rotates/shifts, BIT/RES/SET on registers and (HL); BIT preserves C, RES/SET preserve all flags |
+| Register operations | Memory and general-register loads preserve flags; byte INC/DEC replace S/Z/H/PV/N, preserving C; word INC/DEC preserve all flags; NOP preserves state except PC/R |
+| Arithmetic and logic | All byte ALU forms, including indexed operands; ADC/SBC HL update all six flags; NEG, RLD/RRD; arithmetic P/V means overflow, logic P/V means parity; ADD HL updates H/N/C only; DAA handles addition/subtraction correction; CPL/SCF/CCF and accumulator rotates preserve S/Z/PV |
+| Indirect transfers | Byte transfers through HL/IX/IY, A transfers through BC/DE, absolute A and all word-pair/index transfers; H/L destinations use the original address; HALT occupies the absent memory-to-memory transfer slot |
+| Stack and subroutines | PUSH/POP BC/DE/HL/AF/IX/IY; CALL/RET and all eight conditions; RST vectors; EX (SP),HL/IX/IY reads low/high then writes high/low without moving SP |
+| CB operations | All documented rotates/shifts, BIT/RES/SET on registers, (HL), and (IX/IY+d); BIT preserves C, RES/SET preserve all flags |
 | Relative jumps | Unconditional JR and NZ/Z/NC/C conditions; signed displacement from PC after the operand, wrapping at 16 bits; fetch operand on every path |
-| Absolute jumps | JP nn and all eight conditions; JP (HL) takes its target directly from HL; preserve flags and make no target read |
+| Absolute jumps | JP nn and all eight conditions; JP (HL/IX/IY) takes its target directly from the register; preserve flags and make no target read |
 | Counted loops | DJNZ decrements B and tests its result while preserving all flags; zero wraps to FF; BC follows the updated B |
-| Interrupt state | IFF1, IFF2, and IM 0/1/2 can be initialized and inspected; no interrupt delivery or interrupt-control instructions |
-| Refresh register | Each supported unprefixed opcode increments R bits 0–6 once, CB twice, preserving bit 7; no increments for operand/data accesses |
+| Special registers and interrupt state | LD I/R,A preserves flags; LD A,I/R sets S/Z, clears H/N, copies IFF2 into PV, preserves C; IFF1/IFF2/IM are initialized/inspected, with no interrupt delivery or controls |
+| Block operations | LDI/LDD/CPI/CPD and repeating counterparts; one iteration per step, 16-bit count/pointer wrapping, repeat refetches current code |
+| Refresh register | Unprefixed fetch increments R bits 0–6 once; all supported prefixed forms increment twice, including indexed CB; LD R,A then replaces all eight bits |
 | Reset | Clear PC/I/R, IFF1/IFF2, and IM; release HALT; preserve banks, flags, IX/IY/SP, and RAM under the documented model policy |
-| Prefixes | CB dispatches on the second byte; its eight undocumented SLL forms reject atomically after both bytes; DD/ED/FD reject after one byte |
+| Prefixes | CB/ED/DD/FD decode the second byte; indexed CB decodes four bytes; unsupported forms reject atomically after the encoding, without further operand/data accesses |
 | Stopping | HALT reports its instruction once; already halted steps perform no accesses or refresh updates |
-| Remaining instruction scope | Indexed and ED forms, including word ADC/SBC, further word/special-register transfers, block operations, NEG, nibble rotates, and deferred interrupt controls/returns and I/O |
-| Remaining addressing scope | DD/FD indexed forms and the additional word-memory forms on ED |
+| Remaining instruction scope | DI/EI, port and block I/O, IM, RETI/RETN; interrupt delivery and cycle activity remain deferred |
+| Remaining addressing scope | None for documented non-I/O, non-interrupt forms |
 
 The model covers documented instruction semantics for the listed forms, not
 undocumented flag bits or cycle activity. In particular, a physical Z80 keeps
@@ -1413,7 +1454,8 @@ Verification: [CPU tests](../../tests/components/cpus/z80.test.ts),
 [transfer example tests](../../tests/machines/z80/transfers-example.test.ts),
 [checksum example tests](../../tests/machines/z80/checksum-example.test.ts),
 [bit-count example tests](../../tests/machines/z80/bit-count-example.test.ts),
-[decimal-total example tests](../../tests/machines/z80/decimal-total-example.test.ts), and
+[decimal-total example tests](../../tests/machines/z80/decimal-total-example.test.ts),
+[indexed-buffer example tests](../../tests/machines/z80/indexed-buffer-example.test.ts), and
 [public type checks](../../tests/types/z80.ts). ALU checks exhaust every byte operand
 pair and both carry inputs for all eight operations against signed/unsigned
 arithmetic, low-digit carries/borrows, and binary-string parity. Boundary
@@ -1476,6 +1518,17 @@ overlapping instruction/data/stack addresses, live RAM, and retained records.
 The decimal-total example checks 46 complete records, full RAM, both decimal
 carry paths, preserved caller registers/flags, and resumption at every boundary.
 Alternate inputs exercise decimal totals from zero through 396.
+
+The 171 indexed/ED additions passed **171,000 independent reference cases**,
+including complete modeled state, final RAM, fetched bytes, and ordered memory
+accesses. Repository checks cover all new encoding/R combinations, both index
+registers and every displacement, word/stack boundaries, every NEG input/flag
+combination, special-register and IFF2 behavior, every nibble-rotate byte pair,
+and every block-comparison byte pair. Block tests include overlapping copies,
+rewritten code, early matches, zero-count wrapping, a full 65,536-byte copy,
+and snapshot resumption. The indexed-buffer example verifies 24 complete records,
+all match positions and failure, guarded full memory, and bounded resumption
+at every step. See [checks and limits](z80/model.md#checks-and-limits).
 
 ## 8088
 

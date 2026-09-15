@@ -828,11 +828,11 @@ test("Z80 relative jumps and loads fetch current operands and retain independent
   assert.deepEqual(second, savedSecond);
 });
 
-test("Z80 rejects every unsupported first byte atomically, including DD/ED/FD", () => {
+test("Z80 rejects deferred unprefixed I/O and interrupt controls atomically", () => {
   const ram = new ObservedRam();
   const before = initialState({ pc: 0xffff, r: 0xff });
   for (let opcode = 0; opcode < 256; opcode++) {
-    if (![0xd3, 0xdb, 0xdd, 0xed, 0xf3, 0xfb, 0xfd].includes(opcode)) continue;
+    if (![0xd3, 0xdb, 0xf3, 0xfb].includes(opcode)) continue;
     ram.write(0xffff, opcode);
     ram.write(0, 0x3e);
     const cpu = new CpuZ80(ram, before);
@@ -1568,4 +1568,369 @@ test("Z80 word loads and stack exchanges observe edited RAM and leave earlier re
   resumed.reset();
   assert.deepEqual(load, saved);
   assert.equal(cpu.snapshot().hl, 0x1234);
+});
+
+// Documented prefix-page inventories transcribed independently of the implementation's patterns.
+const indexOpcodes = [0x09, 0x19, 0x21, 0x22, 0x23, 0x29, 0x2a, 0x2b, 0x34, 0x35, 0x36, 0x39,
+  0x46, 0x4e, 0x56, 0x5e, 0x66, 0x6e, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x77, 0x7e,
+  0x86, 0x8e, 0x96, 0x9e, 0xa6, 0xae, 0xb6, 0xbe, 0xe1, 0xe3, 0xe5, 0xe9, 0xf9];
+const edOpcodes = [0x42, 0x43, 0x44, 0x47, 0x4a, 0x4b, 0x4f, 0x52, 0x53, 0x57, 0x5a, 0x5b, 0x5f,
+  0x62, 0x63, 0x67, 0x6a, 0x6b, 0x6f, 0x72, 0x73, 0x7a, 0x7b, 0xa0, 0xa1, 0xa8, 0xa9, 0xb0, 0xb1, 0xb8, 0xb9];
+const indexes = [{ prefix: 0xdd, index: "ix" }, { prefix: 0xfd, index: "iy" }] as const;
+const readAccess = (address: number, value: number): CpuZ80MemoryAccess => ({ kind: "read", address, value });
+const writeAccess = (address: number, value: number): CpuZ80MemoryAccess => ({ kind: "write", address, value });
+const refreshTwice = (r: number): number => Math.floor(r / 128) * 128 + (r + 2) % 128;
+
+function checkPrefixedStep(ram: ObservedRam, before: CpuZ80State, bytes: readonly number[], changes: Partial<CpuZ80State> = {}, data: readonly CpuZ80MemoryAccess[] = []): void {
+  checkBaseStep(ram, before, bytes, { r: refreshTwice(before.r), ...changes }, data);
+}
+
+test("Z80 completes 667 documented forms; every other prefix encoding rejects atomically", () => {
+  const ram = new ObservedRam();
+  const pages = [
+    { prefix: [0xed], codes: edOpcodes },
+    ...indexes.flatMap(({ prefix }) => [{ prefix: [prefix], codes: indexOpcodes },
+      { prefix: [prefix, 0xcb, 0x80], codes: cbRows.map(row => row.base + 6) }]),
+  ];
+  assert.equal(248 + 248 + pages.reduce((sum, page) => sum + new Set(page.codes).size, 0), 667);
+  for (const { prefix, codes } of pages) for (let opcode = 0; opcode < 256; opcode++) {
+    // CB on DD/FD is a further page selector, checked separately with all final bytes.
+    if (prefix.length === 1 && prefix[0] !== 0xed && opcode === 0xcb) continue;
+    const bytes = [...prefix, opcode];
+    const before = initialState({ pc: 0xffff, r: 0xff });
+    [...bytes, 0, 0].forEach((byte, i) => ram.write((before.pc + i) % 65536, byte));
+    const cpu = new CpuZ80(ram, before);
+    ram.accesses.length = 0;
+    if (codes.includes(opcode)) {
+      const record = cpu.step();
+      assert.equal(record.outcome, "executed", bytes.toString());
+      assert.equal(record.after.r, prefix[0] === 0xed && opcode === 0x4f ? before.a : 0x81);
+    } else for (let attempt = 0; attempt < 2; attempt++) {
+      ram.accesses.length = 0;
+      const accesses = bytes.map((value, i) => readAccess((before.pc + i) % 65536, value));
+      assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(before), outcome: "unsupported", reason: "opcode",
+        instruction: { address: before.pc, bytes }, accesses });
+      assert.deepEqual(ram.accesses, accesses);
+    }
+  }
+  // Every supported new form observes all 256 initial R values, including LD A,R and LD R,A.
+  for (const { prefix, codes } of pages) for (const opcode of codes) for (let r = 0; r < 256; r++) {
+    const before = initialState({ r });
+    [...prefix, opcode, 0, 0].forEach((byte, i) => ram.write(before.pc + i, byte));
+    const record = new CpuZ80(ram, before).step();
+    assert.equal(record.outcome, "executed");
+    assert.equal(record.after.r, prefix[0] === 0xed && opcode === 0x4f ? before.a : refreshTwice(r));
+    assert.equal(record.after.iff1, before.iff1); assert.equal(record.after.iff2, before.iff2);
+    assert.equal(record.after.im, before.im);
+  }
+});
+
+for (const { prefix, index } of indexes) {
+  test(`Z80 ${index.toUpperCase()} byte transfers use signed displacement, real H/L, and captured immediate bytes`, () => {
+    const ram = new ObservedRam();
+    const transfers = [
+      { register: "b", load: 0x46, store: 0x70 }, { register: "c", load: 0x4e, store: 0x71 },
+      { register: "d", load: 0x56, store: 0x72 }, { register: "e", load: 0x5e, store: 0x73 },
+      { register: "h", load: 0x66, store: 0x74 }, { register: "l", load: 0x6e, store: 0x75 },
+      { register: "a", load: 0x7e, store: 0x77 },
+    ] as const;
+    for (let displacement = 0; displacement < 256; displacement++) for (const pointer of [0, 0xffff]) {
+      const target = (pointer + (displacement < 128 ? displacement : displacement - 256) + 65536) % 65536;
+      const value = (displacement * 37 + 11) % 256;
+      const before = initialState({ [index]: pointer, flags: flagPattern(displacement % 64) });
+      for (const { register, load, store } of transfers) {
+        ram.write(target, value);
+        checkPrefixedStep(ram, before, [prefix, load, displacement], { [register]: value }, [readAccess(target, value)]);
+        checkPrefixedStep(ram, { ...before, [register]: value }, [prefix, store, displacement], {}, [writeAccess(target, value)]);
+      }
+      checkPrefixedStep(ram, before, [prefix, 0x36, displacement, value], {}, [writeAccess(target, value)]);
+    }
+    for (const target of [0xffff, 0, 1, 2]) {
+      // The immediate store can overwrite its prefix, opcode, displacement, or immediate.
+      const before = initialState({ pc: 0xffff, [index]: target });
+      checkPrefixedStep(ram, before, [prefix, 0x36, 0, 0x9a], {}, [writeAccess(target, 0x9a)]);
+    }
+  });
+
+  test(`Z80 ${index.toUpperCase()} memory ALU and INC/DEC share byte semantics without changing the pointer`, () => {
+    const ram = new ObservedRam();
+    for (let value = 0; value < 256; value++) for (const carry of [false, true]) {
+      const before = initialState({ a: (value * 73 + 7) % 256, [index]: 0x80, flags: { ...flagPattern(value % 32), c: carry } });
+      ram.write(0, value);
+      for (const { name, opcodes } of aluForms) {
+        checkPrefixedStep(ram, before, [prefix, opcodes[6]!, 0x80], expectedAlu(name, before.a, value, carry), [readAccess(0, value)]);
+      }
+      for (const [opcode, delta] of [[0x34, 1], [0x35, -1]] as const) {
+        ram.write(0, value);
+        const result = (value + delta + 256) % 256;
+        const signed = (value < 128 ? value : value - 256) + delta;
+        checkPrefixedStep(ram, before, [prefix, opcode, 0x80], { flags: {
+          s: result >= 128, z: result === 0, h: value % 16 + delta < 0 || value % 16 + delta > 15,
+          pv: signed < -128 || signed > 127, n: delta < 0, c: carry,
+        } }, [readAccess(0, value), writeAccess(0, result)]);
+      }
+    }
+  });
+
+  test(`Z80 ${index.toUpperCase()} word operations preserve byte registers and flags, with wrapped data and stack order`, () => {
+    const ram = new ObservedRam();
+    const boundaries = [0, 1, 0xff, 0x0fff, 0x1000, 0x7fff, 0x8000, 0xffff];
+    for (const value of boundaries) for (let bits = 0; bits < 64; bits++) {
+      const before = initialState({ pc: 0xfffe, [index]: value, sp: 0xffff, flags: flagPattern(bits) });
+      const immediate = value ^ 0xffff;
+      checkPrefixedStep(ram, before, [prefix, 0x21, immediate % 256, Math.floor(immediate / 256)], { [index]: immediate });
+      checkPrefixedStep(ram, before, [prefix, 0x23], { [index]: (value + 1) % 65536 });
+      checkPrefixedStep(ram, before, [prefix, 0x2b], { [index]: (value + 65535) % 65536 });
+      checkPrefixedStep(ram, before, [prefix, 0xe9], { pc: value });
+      checkPrefixedStep(ram, before, [prefix, 0xf9], { sp: value });
+      for (const [pair, opcode] of [["bc", 0x09], ["de", 0x19], [index, 0x29], ["sp", 0x39]] as const) {
+        const right = pair === "bc" ? 0x2233 : pair === "de" ? 0x4455 : before[pair];
+        const sum = value + right;
+        checkPrefixedStep(ram, before, [prefix, opcode], { [index]: sum % 65536,
+          flags: { ...before.flags, h: value % 4096 + right % 4096 >= 4096, n: false, c: sum >= 65536 } });
+      }
+      // Data/stack wraps across FFFF; code is elsewhere for these cases.
+      const state = { ...before, pc: 0x2000 };
+      ram.write(0xffff, 0x34); ram.write(0, 0x12);
+      checkPrefixedStep(ram, state, [prefix, 0x2a, 0xff, 0xff], { [index]: 0x1234 }, [readAccess(0xffff, 0x34), readAccess(0, 0x12)]);
+      checkPrefixedStep(ram, state, [prefix, 0xe1], { [index]: 0x1234, sp: 1 }, [readAccess(0xffff, 0x34), readAccess(0, 0x12)]);
+      checkPrefixedStep(ram, state, [prefix, 0xe3], { [index]: 0x1234 },
+        [readAccess(0xffff, 0x34), readAccess(0, 0x12), writeAccess(0, Math.floor(value / 256)), writeAccess(0xffff, value % 256)]);
+      checkPrefixedStep(ram, state, [prefix, 0x22, 0xff, 0xff], {}, [writeAccess(0xffff, value % 256), writeAccess(0, Math.floor(value / 256))]);
+      checkPrefixedStep(ram, { ...state, sp: 1 }, [prefix, 0xe5], { sp: 0xffff }, [writeAccess(0, Math.floor(value / 256)), writeAccess(0xffff, value % 256)]);
+    }
+    // Stack can contain either encoding byte; both fetches precede data access.
+    for (const sp of [0xffff, 0, 1]) {
+      const before = initialState({ pc: 0xffff, sp, [index]: 0x7e9a });
+      ram.write(1, 0x56); ram.write(2, 0x34);
+      const low = sp === 0xffff ? prefix : sp === 0 ? 0xe3 : 0x56;
+      const high = sp === 0xffff ? 0xe3 : sp === 0 ? 0x56 : 0x34;
+      checkPrefixedStep(ram, before, [prefix, 0xe3], { [index]: high * 256 + low },
+        [readAccess(sp, low), readAccess((sp + 1) % 65536, high), writeAccess((sp + 1) % 65536, 0x7e), writeAccess(sp, 0x9a)]);
+    }
+  });
+
+  test(`Z80 ${index.toUpperCase()} CB covers every documented operation, byte, displacement, and carry`, () => {
+    const ram = new ObservedRam();
+    for (const { name, bit, base } of cbRows) for (let value = 0; value < 256; value++) for (const carry of [false, true]) {
+      const displacement = (value * 17) % 256;
+      const target = (displacement < 128 ? displacement : displacement - 256) + 1;
+      const address = (target + 65536) % 65536;
+      const before = initialState({ [index]: 1, r: value, flags: { ...flagPattern(value % 32), c: carry } });
+      const expected = expectedCb(name, bit, value, before.flags);
+      ram.write(address, value);
+      checkPrefixedStep(ram, before, [prefix, 0xcb, displacement, base + 6], { flags: expected.flags },
+        [readAccess(address, value), ...(name === "BIT" ? [] : [writeAccess(address, expected.value)])]);
+    }
+    for (const { name, bit, base } of cbRows) for (let overlap = 0; overlap < 4; overlap++) {
+      const bytes = [prefix, 0xcb, 0, base + 6];
+      const address = (0xfffe + overlap) % 65536;
+      const before = initialState({ pc: 0xfffe, [index]: address });
+      const value = bytes[overlap]!;
+      const expected = expectedCb(name, bit, value, before.flags);
+      checkPrefixedStep(ram, before, bytes, { flags: expected.flags },
+        [readAccess(address, value), ...(name === "BIT" ? [] : [writeAccess(address, expected.value)])]);
+    }
+  });
+}
+
+const edWords = [
+  { ...wordPairForms[0], adc: 0x4a, sbc: 0x42, load: 0x4b, store: 0x43 },
+  { ...wordPairForms[1], adc: 0x5a, sbc: 0x52, load: 0x5b, store: 0x53 },
+  { ...wordPairForms[2], adc: 0x6a, sbc: 0x62, load: 0x6b, store: 0x63 },
+  { ...wordPairForms[3], adc: 0x7a, sbc: 0x72, load: 0x7b, store: 0x73 },
+] as const;
+
+for (const form of edWords) {
+  test(`Z80 ED word arithmetic ${form.high ?? "SP"} uses full-word S/Z/overflow and bit-11 half carry`, () => {
+    const ram = new ObservedRam();
+    const boundaries = [0, 1, 0x0ffe, 0x0fff, 0x1000, 0x7ffe, 0x7fff, 0x8000, 0x8001, 0xfffe, 0xffff];
+    const signed = (value: number): number => value < 32768 ? value : value - 65536;
+    for (const left of boundaries) for (const right of boundaries) for (let bits = 0; bits < 64; bits++) for (const subtract of [false, true]) {
+      const before = withPair(initialState({ h: Math.floor(left / 256), l: left % 256, flags: flagPattern(bits), pc: 0xffff }), form, right);
+      const hl = before.h * 256 + before.l, carry = Number(before.flags.c);
+      const total = subtract ? hl - right - carry : hl + right + carry;
+      const signedTotal = subtract ? signed(hl) - signed(right) - carry : signed(hl) + signed(right) + carry;
+      const lowTotal = subtract ? hl % 4096 - right % 4096 - carry : hl % 4096 + right % 4096 + carry;
+      const result = (total + 65536) % 65536;
+      checkPrefixedStep(ram, before, [0xed, subtract ? form.sbc : form.adc], {
+        h: Math.floor(result / 256), l: result % 256,
+        flags: { s: result >= 32768, z: result === 0, h: lowTotal < 0 || lowTotal >= 4096,
+          pv: signedTotal < -32768 || signedTotal > 32767, n: subtract, c: total < 0 || total >= 65536 },
+      });
+    }
+  });
+
+  test(`Z80 ED word transfers ${form.high ?? "SP"} capture addresses and transfer low/high across wrap and code overlap`, () => {
+    const ram = new ObservedRam();
+    for (const target of [0, 0xffff, 0x2000, 0x2001, 0x2002, 0x2003]) for (let bits = 0; bits < 64; bits++) {
+      const before = withPair(initialState({ flags: flagPattern(bits) }), form, 0x9a7e);
+      const addressBytes = [target % 256, Math.floor(target / 256)];
+      const bytes = [0xed, form.load, ...addressBytes];
+      const initialByte = (address: number) => address >= 0x2000 && address < 0x2004 ? bytes[address - 0x2000]!
+        : address === target ? 0x34 : 0x12;
+      ram.write(target, 0x34); ram.write((target + 1) % 65536, 0x12);
+      const low = initialByte(target), high = initialByte((target + 1) % 65536);
+      const loaded = withPair(before, form, high * 256 + low);
+      checkPrefixedStep(ram, before, bytes, { ...loaded, pc: 0x2004, r: refreshTwice(before.r) },
+        [readAccess(target, low), readAccess((target + 1) % 65536, high)]);
+      checkPrefixedStep(ram, before, [0xed, form.store, ...addressBytes], {},
+        [writeAccess(target, 0x7e), writeAccess((target + 1) % 65536, 0x9a)]);
+    }
+  });
+}
+
+test("Z80 NEG checks every A and flag pattern, including zero and signed overflow", () => {
+  const ram = new ObservedRam();
+  for (let a = 0; a < 256; a++) for (let bits = 0; bits < 64; bits++) {
+    checkPrefixedStep(ram, initialState({ a, flags: flagPattern(bits) }), [0xed, 0x44], expectedAlu("SUB", 0, a, false));
+  }
+});
+
+test("Z80 special-register transfers distinguish IFF2 from IFF1 and observe R after opcode fetches", () => {
+  const ram = new ObservedRam();
+  for (let value = 0; value < 256; value++) for (let bits = 0; bits < 64; bits++) for (const iff2 of [false, true]) {
+    const before = initialState({ a: value, i: value ^ 0xff, r: (value + 51) % 256, iff1: !iff2, iff2, flags: flagPattern(bits), pc: 0xffff });
+    checkPrefixedStep(ram, before, [0xed, 0x47], { i: value });
+    checkPrefixedStep(ram, before, [0xed, 0x4f], { r: value });
+    for (const [opcode, a] of [[0x57, before.i], [0x5f, refreshTwice(before.r)]] as const) {
+      checkPrefixedStep(ram, before, [0xed, opcode], { a, flags: { s: a >= 128, z: a === 0, h: false, pv: iff2, n: false, c: before.flags.c } });
+    }
+  }
+  [0xed, 0x4f, 0xed, 0x5f, 0x00].forEach((value, i) => ram.write(0x2000 + i, value));
+  const cpu = new CpuZ80(ram, initialState({ a: 0xff, r: 0 }));
+  assert.equal(cpu.step().after.r, 0xff);
+  const saved = cpu.step();
+  assert.equal(saved.after.a, 0x81); assert.equal(saved.after.r, 0x81);
+  const retained = structuredClone(saved);
+  assert.equal(cpu.step().after.r, 0x82);
+  cpu.reset();
+  assert.deepEqual(saved, retained);
+});
+
+for (const [opcode, left] of [[0x67, false], [0x6f, true]] as const) {
+  test(`Z80 ${left ? "RLD" : "RRD"} covers every A/memory pair and preserves carry`, () => {
+    const ram = new ObservedRam();
+    const check = (a: number, value: number, flags: CpuZ80Flags, address = 0xffff) => {
+      const before = initialState({ a, flags, h: Math.floor(address / 256), l: address % 256 });
+      // Rotate the three hexadecimal digits as characters, independently of core nibble masks.
+      const digits = (a % 16).toString(16) + value.toString(16).padStart(2, "0");
+      const rotated = left ? digits.slice(1) + digits[0] : digits[2] + digits.slice(0, 2);
+      const nextA = Math.floor(a / 16) * 16 + Number.parseInt(rotated[0]!, 16);
+      const nextMemory = Number.parseInt(rotated.slice(1), 16);
+      ram.write(address, value);
+      checkPrefixedStep(ram, before, [0xed, opcode], { a: nextA, flags: {
+        s: nextA >= 128, z: nextA === 0, h: false,
+        pv: nextA.toString(2).replaceAll("0", "").length % 2 === 0, n: false, c: flags.c,
+      } }, [readAccess(address, value), writeAccess(address, nextMemory)]);
+    };
+    for (let a = 0; a < 256; a++) for (let value = 0; value < 256; value++) check(a, value, flagPattern((a + value) % 64));
+    for (let bits = 0; bits < 64; bits++) for (const a of [0, 0x11, 0x7f, 0x80, 0xff]) for (const value of [0, 0x11, 0x7f, 0x80, 0xff]) check(a, value, flagPattern(bits));
+    check(0xed, 0xed, flagPattern(63), 0x2000);
+    check(0x11, opcode, flagPattern(0), 0x2001);
+  });
+}
+
+const blockForms = [
+  { name: "LDI", opcode: 0xa0, delta: 1, compare: false, repeat: false },
+  { name: "LDD", opcode: 0xa8, delta: -1, compare: false, repeat: false },
+  { name: "LDIR", opcode: 0xb0, delta: 1, compare: false, repeat: true },
+  { name: "LDDR", opcode: 0xb8, delta: -1, compare: false, repeat: true },
+  { name: "CPI", opcode: 0xa1, delta: 1, compare: true, repeat: false },
+  { name: "CPD", opcode: 0xa9, delta: -1, compare: true, repeat: false },
+  { name: "CPIR", opcode: 0xb1, delta: 1, compare: true, repeat: true },
+  { name: "CPDR", opcode: 0xb9, delta: -1, compare: true, repeat: true },
+] as const;
+
+for (const { name, opcode, delta, compare, repeat } of blockForms) {
+  test(`Z80 ${name} exposes one iteration with correct counter, flags, direction, and repeat condition`, () => {
+    const ram = new ObservedRam();
+    for (const count of [0, 1, 2, 0x100, 0x8000, 0xffff]) for (const hl of [0, 0xffff]) for (let bits = 0; bits < 64; bits++) {
+      for (const [a, value] of [[0, 0], [0, 1], [0x80, 1], [0x7f, 0xff], [0x10, 0x0f], [0xff, 0xff]] as const) {
+        const before = initialState({ a, b: Math.floor(count / 256), c: count % 256, d: Math.floor(hl / 256), e: hl % 256,
+          h: Math.floor(hl / 256), l: hl % 256, flags: flagPattern(bits) });
+        const remaining = (count + 65535) % 65536, next = (hl + delta + 65536) % 65536;
+        const difference = (a - value + 256) % 256;
+        const flags = compare ? { s: difference >= 128, z: a === value, h: a % 16 < value % 16, pv: remaining !== 0, n: true, c: before.flags.c }
+          : { ...before.flags, h: false, pv: remaining !== 0, n: false };
+        ram.write(hl, value);
+        checkPrefixedStep(ram, before, [0xed, opcode], { b: Math.floor(remaining / 256), c: remaining % 256,
+          h: Math.floor(next / 256), l: next % 256, ...(compare ? {} : { d: Math.floor(next / 256), e: next % 256 }), flags,
+          pc: repeat && remaining !== 0 && (!compare || a !== value) ? before.pc : before.pc + 2 },
+        [readAccess(hl, value), ...(compare ? [] : [writeAccess(hl, value)])]);
+      }
+    }
+  });
+}
+
+test("Z80 block comparisons set S/Z/H from every byte pair, PV from BC, and preserve A/C", () => {
+  const ram = new ObservedRam();
+  for (let a = 0; a < 256; a++) for (let value = 0; value < 256; value++) {
+    const before = initialState({ a, b: 0, c: 2, flags: flagPattern(value % 64) });
+    ram.write(0x6677, value);
+    const result = (a - value + 256) % 256;
+    checkPrefixedStep(ram, before, [0xed, 0xa1], { c: 1, l: 0x78,
+      flags: { s: result >= 128, z: result === 0, h: a % 16 < value % 16, pv: true, n: true, c: before.flags.c } }, [readAccess(0x6677, value)]);
+  }
+});
+
+test("Z80 repeating blocks refetch current code and data, propagate overlap, and resume from snapshots", () => {
+  for (const [opcode, delta] of [[0xb0, 1], [0xb8, -1]] as const) {
+    const ram = new ObservedRam();
+    const start = delta === 1 ? 0x100 : 0x104, destination = start + delta;
+    [0xed, opcode, 0x76].forEach((byte, i) => ram.write(0x2000 + i, byte));
+    ram.write(start, 0x5a);
+    const cpu = new CpuZ80(ram, initialState({ b: 0, c: 4, h: Math.floor(start / 256), l: start % 256,
+      d: Math.floor(destination / 256), e: destination % 256 }));
+    const retained = cpu.step(), saved = structuredClone(retained);
+    assert.equal(retained.after.pc, 0x2000); assert.equal(retained.after.bc, 3);
+    const resumed = new CpuZ80(ram, retained.after);
+    for (let iteration = 1; iteration < 4; iteration++) {
+      const record = resumed.step();
+      assert.equal(record.after.bc, 3 - iteration);
+      assert.equal(record.after.pc, iteration === 3 ? 0x2002 : 0x2000);
+      assert.deepEqual(record.accesses, [readAccess(0x2000, 0xed), readAccess(0x2001, opcode),
+        readAccess(start + delta * iteration, 0x5a), writeAccess(destination + delta * iteration, 0x5a)]);
+    }
+    assert.equal(resumed.step().outcome, "halted");
+    assert.deepEqual(retained, saved);
+  }
+  for (const destination of [0xffff, 0]) {
+    const ram = new ObservedRam();
+    ram.write(0xffff, 0xed); ram.write(0, 0xb0); ram.write(0x100, 0x76);
+    const cpu = new CpuZ80(ram, initialState({ pc: 0xffff, b: 0, c: 2, h: 1, l: 0, d: Math.floor(destination / 256), e: destination % 256 }));
+    const record = cpu.step();
+    assert.deepEqual(record.instruction, { address: 0xffff, bytes: [0xed, 0xb0] });
+    assert.equal(record.after.pc, 0xffff);
+    const next = cpu.step();
+    assert.equal(next.outcome, destination === 0xffff ? "halted" : "unsupported");
+    assert.deepEqual(next.instruction?.bytes, destination === 0xffff ? [0x76] : [0xed, 0x76]);
+  }
+});
+
+test("Z80 initial BC=0 repeats a full 65536 iterations, while CPIR/CPDR stop on an early match", () => {
+  // In-place copy visits all RAM without corrupting its own code and demonstrates the zero-count wrap.
+  const ram = new Ram(65536);
+  ram.write(0x2000, 0xed); ram.write(0x2001, 0xb0);
+  const before = initialState({ b: 0, c: 0, d: 0, e: 0, h: 0, l: 0 });
+  const cpu = new CpuZ80(ram, before);
+  for (let iteration = 0; iteration < 65536; iteration++) {
+    const record = cpu.step();
+    assert.equal(record.after.bc, 65535 - iteration);
+    assert.equal(record.after.pc, iteration === 65535 ? 0x2002 : 0x2000);
+  }
+  assert.equal(cpu.snapshot().r, before.r);
+  assert.equal(cpu.snapshot().hl, 0); assert.equal(cpu.snapshot().de, 0);
+  for (const [opcode, delta] of [[0xb1, 1], [0xb9, -1]] as const) for (const count of [0, 4]) for (const match of [0, 1, 3]) {
+    const ram = new Ram(65536);
+    [0xed, opcode].forEach((byte, i) => ram.write(0x2000 + i, byte));
+    ram.write(0x100 + delta * match, 0x5a);
+    const cpu = new CpuZ80(ram, initialState({ a: 0x5a, h: 1, l: 0, b: 0, c: count }));
+    for (let i = 0; i <= match; i++) {
+      const record = cpu.step();
+      assert.equal(record.after.pc, i === match ? 0x2002 : 0x2000);
+      assert.equal(record.after.flags.z, i === match);
+      assert.equal(record.after.bc, (count - i - 1 + 65536) % 65536);
+    }
+  }
 });
