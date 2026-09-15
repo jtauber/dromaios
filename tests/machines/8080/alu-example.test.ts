@@ -13,7 +13,7 @@ function expectedInitialState(): Cpu8080Snapshot {
     a: 0x11, b: 0x22, c: 0x33, d: 0x44, e: 0x55, h: 0x66, l: 0x77,
     bc: 0x2233, de: 0x4455, hl: 0x6677, pc: 0, sp: 0xabcd,
     flags: { s: true, z: false, ac: true, p: false, cy: true },
-    interruptEnabled: false, halted: false,
+    interruptEnabled: false, interruptDeferred: false, halted: false,
   };
 }
 
@@ -107,7 +107,7 @@ test("the 8080 ALU lesson propagates carry and borrow, applies logic, and branch
   assert.deepEqual(result.records, expected);
   const accesses = expected.flatMap(record => record.accesses);
   assert.deepEqual(read.mock.calls.map(call => call.arguments),
-    accesses.filter(access => access.kind === "read").map(access => [access.address]));
+    accesses.flatMap(access => access.kind === "read" ? [[access.address]] : []));
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [
     [0x82, 0x10], [0x83, 2], [0x84, 0xf0], [0x85, 1], [0x86, 0x75],
   ]);

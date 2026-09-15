@@ -6,12 +6,15 @@ import type {
   Cpu8080StepRecord,
 } from "../../src/components/cpus/8080.js";
 import type { Ram } from "../../src/components/memory/ram.js";
+import type { BytePorts, PortAccess } from "../../src/components/cpus/port-access.js";
 
 // Compiled by npm test; never called. Each expected error guards the public API.
 export function checkPublicTypes(cpu: Cpu8080, record: Cpu8080StepRecord): void {
   const snapshot = cpu.snapshot();
   // @ts-expect-error Snapshot registers are readonly.
   snapshot.a = 1;
+  // @ts-expect-error The EI delay is part of the readonly snapshot.
+  snapshot.interruptDeferred = false;
   // @ts-expect-error The snapshot's flags object cannot be replaced.
   snapshot.flags = { s: false, z: false, ac: false, p: false, cy: false };
   // @ts-expect-error Nested snapshot flags are readonly too.
@@ -153,3 +156,24 @@ export function checkResetTypes(cpu: Cpu8080): Cpu8080ResetRecord {
 
 // Sharing an internal family keeps the public CPU surface limited to its three operations.
 const publicCpuMethods: Record<keyof Cpu8080, true> = { snapshot: true, reset: true, step: true };
+
+export function checkPorts(ram: Ram, state: Cpu8080State, ports: BytePorts, record: Cpu8080StepRecord): void {
+  new Cpu8080(ram, state, ports);
+  // @ts-expect-error A port connection requires both directions.
+  new Cpu8080(ram, state, { readPort: () => 0 });
+  // @ts-expect-error Port callbacks are readonly.
+  ports.readPort = () => 0;
+  for (const access of record.accesses) {
+    if (access.kind === "input" || access.kind === "output") {
+      const port: PortAccess = access;
+      // @ts-expect-error Port accesses use a port number, not a memory address.
+      access.address;
+      // @ts-expect-error Port addresses in records are readonly.
+      access.port = 0;
+    } else if (access.kind === "read" || access.kind === "write") {
+      const address: number = access.address;
+      // @ts-expect-error Memory accesses have no port number.
+      access.port;
+    }
+  }
+}

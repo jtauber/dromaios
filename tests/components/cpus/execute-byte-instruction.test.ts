@@ -19,6 +19,32 @@ test("an unsupported opcode records one read and leaves PC unchanged, including 
   assert.deepEqual(ram.accesses, result.accesses);
 });
 
+test("opcode lookup binds per-step capabilities after one fetch and still rejects unknown encodings", () => {
+  const ram = new ObservedRam();
+  ram.write(0xffff, 0x42); ram.write(0, 0x34);
+  const state = { pc: 0xffff };
+  const outputs: number[] = [];
+  let lookups = 0;
+  const lookup = (opcode: number) => {
+    lookups++;
+    assert.equal(state.pc, 0xffff);
+    assert.deepEqual(ram.accesses, [{ kind: "read", address: 0xffff, value: opcode }]);
+    if (opcode === 0x42) return ({ fetchByte }: { fetchByte: () => number }) => { outputs.push(fetchByte()); };
+  };
+  ram.accesses.length = 0;
+  assert.equal(executeByteInstruction(state, ram, lookup, readWordLE).executed, true);
+  assert.equal(lookups, 1);
+  assert.deepEqual(outputs, [0x34]);
+  assert.equal(state.pc, 1);
+  ram.write(0xffff, 0x43);
+  state.pc = 0xffff;
+  ram.accesses.length = 0;
+  assert.equal(executeByteInstruction(state, ram, lookup, readWordLE).executed, false);
+  assert.equal(lookups, 2);
+  assert.equal(state.pc, 0xffff);
+  assert.deepEqual(outputs, [0x34]);
+});
+
 for (const [name, readWord, expectedWord] of [
   ["little-endian", readWordLE, 0x1234], ["big-endian", readWordBE, 0x3412],
 ] as const) {

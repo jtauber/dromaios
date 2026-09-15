@@ -1,15 +1,18 @@
 import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
-import type { OpcodeHandler, ByteOperation } from "./8080-family.ts";
+import type { ByteOperation } from "./8080-family.ts";
 import { flagRegister, signZeroParity8 } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { readWordLE } from "./binary.ts";
 import type { MemoryAccess } from "./memory-access.ts";
+import { recordPorts } from "./port-access.ts";
+import type { BytePorts, PortAccess } from "./port-access.ts";
+import type { WordInstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, group } from "./state.ts";
 import type { StateValues, ReadonlyState } from "./state.js";
-import { opcodeTable } from "./opcodes.ts";
+import { opcodeTable, opcodePattern } from "./opcodes.ts";
 import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
 
@@ -18,7 +21,7 @@ export const cpu8080StateDescription = defineState({
   a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
   pc: unsigned(16), sp: unsigned(16),
   flags: group({ s: flag, z: flag, ac: flag, p: flag, cy: flag }),
-  interruptEnabled: boolean, halted: boolean,
+  interruptEnabled: boolean, interruptDeferred: boolean, halted: boolean,
 });
 
 export type Cpu8080State = StateValues<typeof cpu8080StateDescription>;
@@ -31,26 +34,35 @@ export type Cpu8080Snapshot = ReadonlyState<Cpu8080State> & {
 };
 
 export type Cpu8080MemoryAccess = MemoryAccess;
+export type Cpu8080Access = MemoryAccess | PortAccess;
 
 export type Cpu8080Instruction = FetchedInstruction;
 
-export type Cpu8080StepRecord = InstructionStep<Cpu8080Snapshot> | HaltedStep<Cpu8080Snapshot>;
+export type Cpu8080StepRecord = InstructionStep<Cpu8080Snapshot, Cpu8080Access> | HaltedStep<Cpu8080Snapshot, Cpu8080Access>;
 
 export type Cpu8080ResetRecord = StateTransition<Cpu8080Snapshot>;
+
+interface InstructionContext extends WordInstructionContext, BytePorts {
+  readonly deferInterrupt: () => void;
+}
+type OpcodeHandler = (instruction: InstructionContext) => void;
+const instructionPattern = opcodePattern<OpcodeHandler>;
 
 // PSW low byte: S Z 0 AC 0 P 1 CY.
 const packedFlags = flagRegister({ s: 7, z: 6, ac: 4, p: 2, cy: 0 }, 0x02);
 
-/** Instruction-level Intel 8080 subset for the 8080 examples. */
+/** Instruction-level Intel 8080; external interrupt delivery and timing remain unmodeled. */
 export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
   readonly #ram: Ram;
+  readonly #ports: BytePorts | undefined;
 
-  constructor(ram: Ram, initialState: Omit<Cpu8080Snapshot, "bc" | "de" | "hl">) {
+  constructor(ram: Ram, initialState: Omit<Cpu8080Snapshot, "bc" | "de" | "hl">, ports?: BytePorts) {
     if (ram.size !== 0x10000) {
       throw new RangeError("The 8080 model requires exactly 64 KiB of RAM.");
     }
     super(readState(cpu8080StateDescription, initialState));
     this.#ram = ram;
+    this.#ports = ports;
   }
 
   /** Inspect a detached copy, readonly to TypeScript, without accessing RAM. */
@@ -64,6 +76,7 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
     const before = this.snapshot();
     this.state.pc = 0;
     this.state.interruptEnabled = false;
+    this.state.interruptDeferred = false;
     this.state.halted = false;
     return { before, after: this.snapshot(), accesses: [] };
   }
@@ -74,7 +87,20 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
     if (this.state.halted) {
       return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
     }
-    const { instruction, accesses, executed } = executeByteInstruction(this.state, this.#ram, this.#opcodeHandlers, readWordLE);
+    const ports = recordPorts(this.#ports);
+    let interruptDeferred = false;
+    const execution = executeByteInstruction(this.state, this.#ram, opcode => {
+      const handler = this.#opcodeHandlers[opcode];
+      return handler && (context => handler({
+        ...context, readPort: ports.readPort, writePort: ports.writePort,
+        deferInterrupt: () => { interruptDeferred = true; },
+      }));
+    }, readWordLE);
+    const { instruction, executed } = execution;
+    // Only a retired instruction consumes the previous EI delay; another EI renews it.
+    if (executed) this.state.interruptDeferred = interruptDeferred;
+    // IN/OUT perform exactly one port transfer after all their memory fetches.
+    const accesses: readonly Cpu8080Access[] = [...execution.accesses, ...ports.accesses];
     const record = { before, after: this.snapshot(), instruction, accesses };
     return executed
       ? { ...record, outcome: this.state.halted ? "halted" : "executed" }
@@ -125,7 +151,15 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
   ];
 
   // Common encodings and operand handling live in 8080-family.ts.
-  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>(this.baseInstructions());
+  readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
+    ...this.baseInstructions(),
+    // 1101 d 011: d=0 outputs A; d=1 inputs A. The next byte selects the port.
+    ...instructionPattern("1101 0 011", ({ fetchByte, writePort }) => writePort(fetchByte(), this.state.a)), // OUT
+    ...instructionPattern("1101 1 011", ({ fetchByte, readPort }) => { this.state.a = readPort(fetchByte()); }), // IN
+    // 1111 e 011: e selects interrupt enable; EI inhibits acceptance through the next instruction.
+    ...instructionPattern("1111 0 011", () => { this.state.interruptEnabled = false; }), // DI
+    ...instructionPattern("1111 1 011", ({ deferInterrupt }) => { this.state.interruptEnabled = true; deferInterrupt(); }), // EI
+  ]);
 
   // Arithmetic, logic, and flags.
 

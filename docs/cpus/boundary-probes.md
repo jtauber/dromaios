@@ -4,7 +4,8 @@ This reviews the [first shared operations](shared-operation-blocks.md) against
 [stage 3 of the proposal](shared-building-blocks.md#3-review-the-boundaries-and-probe-future-cpus).
 Existing cores remain unchanged. Three new regression tests cover partial
 execution; the 6507 and 4004 examples below are **hand-worked design traces**,
-not implemented CPUs. I/O, interrupts, and exception delivery remain deferred.
+not implemented CPUs. These probes do not implement I/O, interrupts, or
+exception delivery; that work follows the separate [completion plan](completion.md).
 Numbers in traces are hexadecimal, except widths and numbered steps.
 
 The useful distinction is between a **register view**, a **resolved location**,
@@ -262,8 +263,8 @@ those processors. Additional TypeScript sharing should follow demonstrated
 benefit rather than becoming a prerequisite for the language experiment.
 
 The project's [eight-CPU completion milestone](../../ROADMAP.md#complete-opcode-coverage-for-all-eight)
-continues alongside these experiments. Review the CPU-only checkpoint and plan
-the remaining deferred instruction families before extending the language work.
+continues alongside these experiments. The [checkpoint review and completion
+sequence](completion.md) now direct the remaining instruction work.
 Completing a DSL or adding the probe CPUs must not delay finishing the eight
 current instruction sets.
 

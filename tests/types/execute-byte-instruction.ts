@@ -24,4 +24,9 @@ export function checkByteInstructionExecution(ram: Ram, state: { pc: number }): 
   result.accesses[0]!.value = 0;
   // @ts-expect-error A segmented IP alone does not satisfy the flat PC contract.
   executeByteInstruction({ ip: 0 }, ram, {}, readWordLE);
+  executeByteInstruction(state, ram, opcode => opcode === 0 ? ({ fetchWord, writeByte }) => {
+    writeByte(fetchWord(), 0);
+    // @ts-expect-error Word fetches return numbers.
+    const word: string = fetchWord();
+  } : undefined, readWordLE);
 }

@@ -13,34 +13,38 @@ instruction behavior, and expected execution.
 
 `Cpu8080` models an Intel 8080 connected to flat
 [64 KiB RAM](../../machines/definitions.md#ram-and-cpu-ownership).
-One call to `step()` executes at most one instruction. Execution and access
-records are instruction-level; timing, electrical bus activity, interrupts,
-devices, and browser controls are outside this model.
+An optional byte-port connection supplies `IN` and `OUT`. One call to `step()`
+executes at most one instruction. Records are instruction-level; timing,
+electrical bus activity, external interrupt delivery, specific device models,
+and browser controls are outside this model.
 
-The interrupt-enable latch is stored state. There are no interrupt inputs or
-instructions that enable interrupts in the current implementation. Initial
+Interrupt enable and its one-instruction deferral are stored state. Initial
 registers, flags, and control latches are supplied explicitly by the caller;
 example values are not claims about hardware power-on state.
 
 ## State and initialization
 
 The TypeScript state fields are `a`, `b`, `c`, `d`, `e`, `h`, `l`, `pc`, `sp`,
-`flags`, `interruptEnabled`, and `halted`. `Cpu8080Flags` contains `s`, `z`,
+`flags`, `interruptEnabled`, `interruptDeferred`, and `halted`. `Cpu8080Flags` contains `s`, `z`,
 `ac`, `p`, and `cy`. Flags are stored state; initializing A to zero does not
 itself set Z or P.
 
 The constructor is
-`new Cpu8080(ram, initialState: Omit<Cpu8080Snapshot, "bc" | "de" | "hl">)`.
+`new Cpu8080(ram, initialState: Omit<Cpu8080Snapshot, "bc" | "de" | "hl">, ports?: BytePorts)`.
 It requires exactly 64 KiB of RAM and copies only declared stored fields into
 new plain objects before validation. Declared fields may be supplied through
 getters, including inherited and non-enumerable fields; each is read once.
 Extra properties are ignored. The CPU retains neither the caller's state
-object nor its nested flags object. Construction performs no reset or RAM access.
+object nor its nested flags object. Construction performs no reset, RAM access,
+or port transfer. The port connection is retained; the device owns its state.
 
 A, B, C, D, E, H, and L must be integers in `00`–`FF`; PC and SP must be
 integers in `0000`–`FFFF`. Invalid numeric values or RAM size throw `RangeError`.
 Flags and control latches must be booleans, otherwise construction throws
 `TypeError`.
+
+The existing 8080 example definitions initialize `interruptDeferred = false`;
+their programs begin outside an EI deferral interval.
 
 Values exposed in records are numbers. Hexadecimal formatting belongs to
 presentation. CPU arithmetic and PC advancement wrap to their hardware widths;
@@ -102,7 +106,7 @@ These types are specific to the 8080; shared CPU interfaces remain provisional.
 | `instruction` | Object with `address` and `bytes`, or null if already halted |
 | `before` | Complete CPU snapshot, including derived BC, DE, and HL |
 | `after` | Snapshot of the same state after this call |
-| `accesses` | Ordered list of `{ kind, address, value }` entries; kind is `read` or `write` |
+| `accesses` | Ordered memory entries `{ kind: "read" \| "write", address, value }` and port entries `{ kind: "input" \| "output", port, value }` |
 | `outcome` | `executed`, `halted`, or `unsupported` |
 | `reason` | `opcode` for unsupported records; absent for other outcomes |
 
@@ -122,10 +126,56 @@ These entries describe the accesses required by this instruction-level model.
 They do not claim to reproduce every electrical bus operation or idle cycle.
 Records have no cycle-count or elapsed-time field.
 
+### Interrupt controls and instruction retirement
+
+`DI` clears `interruptEnabled`; `EI` sets it and sets `interruptDeferred`.
+Both fetch only their opcode, advance PC with wrapping, and preserve registers
+and arithmetic flags. The deferral represents an acceptance inhibit, not a
+second architectural interrupt flag: eligibility at an instruction boundary
+requires `interruptEnabled && !interruptDeferred`. No public API delivers an
+interrupt yet, and these fields make no claim about pin transition timing.
+
+Every successfully executed instruction consumes the previous deferral;
+another `EI` renews it. Thus `EI; NOP`, `EI; RET`, and `EI; HLT` leave enable
+set and deferral clear after the second instruction; `EI; DI` clears both.
+An unsupported attempt, an already halted step, or a thrown host error does
+not retire the delay. Reset clears both fields. Snapshots and machine
+definitions include `interruptDeferred` explicitly, so restoring a CPU between
+`EI` and the following instruction preserves this boundary behavior.
+Descriptions below of other instructions omit this common retirement rule.
+
+This follows the delayed acceptance described in Intel's
+[8080/8085 Assembly Language Programming manual, EI, printed page 3-23](https://st.sdf-eu.org/i8080/Intel%208080-8085%20Assembly%20Language%20Programming%201977%20Intel.pdf).
+External interrupt acknowledgement and HALT release remain a separate delivery
+contract to implement next.
+
+### Port I/O
+
+The [byte-port interface](../../../src/components/cpus/port-access.ts) exposes
+`readPort(port): number` and `writePort(port, value): void`. The 8080 selects
+ports `00`–`FF` using the instruction's second byte. `IN` reads one byte into A;
+`OUT` writes A once. Both preserve flags and unrelated registers. PC advances
+by two with 16-bit wrapping; the opcode and port operand are memory fetches,
+followed by the single port transfer. These are logical port numbers; electrical
+address-line duplication is not modeled.
+
+A missing connection throws when `IN` or `OUT` attempts its transfer. It does
+not silently return a byte or discard output. Device callbacks may throw;
+input values outside the integer range `00`–`FF` throw `RangeError` before A
+changes. Completed operand fetches and device side effects are not rolled back,
+and a thrown call returns no step record. A failed operand fetch never contacts
+the device. No extra input is performed to construct a record.
+
+Snapshots and CPU reset neither read nor reset the device. Device state is
+owned and restored by the caller alongside RAM when restarting a machine.
+The existing `.machine` factories remain CPU-and-RAM examples; port wiring is
+currently supplied through the TypeScript constructor.
+
 ### NOP
 
 NOP fetches only its opcode, advances PC by one with 16-bit wrapping, and
-reports `executed`. It preserves all other state and performs no data accesses.
+reports `executed`. It preserves registers and flags, retires any EI delay,
+and performs no data accesses.
 It consumes one step of a runner's budget, like any other executed instruction.
 
 ### Stack accesses and PSW
@@ -333,8 +383,9 @@ from the guest's `unsupported` outcome.
 ## CPU reset
 
 CPU reset affects the CPU's modeled reset state: PC becomes `0000`, interrupt
-enable becomes false, and halted becomes false. It preserves A, B, C, D, E,
-H, L, SP, and the arithmetic flags. It does not read, clear, or reload RAM.
+enable and deferral become false, and halted becomes false. It preserves A, B, C, D, E,
+H, L, SP, and the arithmetic flags. It does not read, clear, or reload RAM or
+access the port connection.
 This follows the 8080 reset distinction in the [Intel hardware reference][reset].
 
 `reset()` returns a `Cpu8080ResetRecord` with detached `before` and `after`

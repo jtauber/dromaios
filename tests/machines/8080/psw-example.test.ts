@@ -13,7 +13,7 @@ function expectedInitialState(): Cpu8080Snapshot {
     a: 0x81, b: 0x22, c: 0x33, d: 0x44, e: 0x55, h: 0x66, l: 0x77,
     bc: 0x2233, de: 0x4455, hl: 0x6677, pc: 0x0200, sp: 0xabcd,
     flags: { s: true, z: false, ac: true, p: false, cy: true },
-    interruptEnabled: true, halted: false,
+    interruptEnabled: true, interruptDeferred: false, halted: false,
   };
 }
 
@@ -86,7 +86,7 @@ test("the 8080 PSW example restores A and flags across stack wrapping and uses t
   assert.deepEqual(result.records, expected);
   const accesses = expected.flatMap(record => record.accesses);
   assert.deepEqual(read.mock.calls.map(call => call.arguments),
-    accesses.filter(access => access.kind === "read").map(access => [access.address]));
+    accesses.flatMap(access => access.kind === "read" ? [[access.address]] : []));
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [[0, 0x81], [0xffff, 0x93], [0x80, 0x81], [0x81, 0x82]]);
   checkMemory(ram, true);
   const final = expected[8]?.after;

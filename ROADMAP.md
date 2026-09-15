@@ -10,8 +10,9 @@ Every commit requires maintainer review and an explicit go-ahead.
 
 The introductory examples were built in the order **8080 → 6502 → 6809**.
 The CPU milestone is **complete documented opcode coverage across all eight
-initial targets**. Interrupts and I/O wait until all eight have met the reviewed
-CPU-only capability checkpoint. Bounded shared-code and DSL
+initial targets**. The [capability audit](docs/cpus/completion.md#cpu-only-checkpoint-review)
+found that all eight meet the CPU-only checkpoint; interrupt and I/O work now
+proceeds in bounded completion slices. Shared-code and DSL
 experiments, and browser work, can proceed alongside CPU completion; none is
 a prerequisite for finishing the instruction sets.
 Implementation order is independent of the tutorial's historical teaching
@@ -99,14 +100,11 @@ nearly complete instruction sets. Coverage continues to use the full documented
 opcode totals, including instructions deferred from this checkpoint; timing and
 interrupt delivery remain separate measures.
 
-Defer interrupt delivery, interrupt-specific control instructions (including
-`DI`/`EI`), port I/O, and memory-mapped devices across all eight until the
-checkpoint is met. Existing architectural flags and ordinary memory and
-status-register operations remain in scope. The 8080 can pause at **240/244
-forms (98.4%)**, with `DI`, `EI`, `IN`, and `OUT` deferred.
-
-Review the implemented models and combined examples against these criteria,
-then revisit the deferred interrupts and I/O as part of opcode completion.
+The [checkpoint audit](docs/cpus/completion.md#cpu-only-checkpoint-review)
+records passing evidence for all eight. The earlier deferral of interrupt
+controls, delivery, and I/O has served its purpose. These capabilities now
+proceed through the [CPU completion sequence](docs/cpus/completion.md#completion-sequence),
+starting with 8080 port and control instructions, then external interrupt delivery.
 
 The introductory [8080](docs/cpus/8080/examples/arithmetic.md), [6502](docs/cpus/6502/examples/arithmetic.md),
 [6809](docs/cpus/6809/examples/arithmetic.md), [Z80](docs/cpus/z80/examples/arithmetic.md), [8008](docs/cpus/8008/examples/arithmetic.md),
@@ -123,8 +121,7 @@ Finish every documented opcode form for each initial CPU, using the existing
 [coverage definitions and inventories](docs/cpus/coverage.md). The CPU-only
 checkpoint is an intermediate milestone, not the endpoint of CPU work.
 
-- Review the checkpoint against the current models and examples; identify any
-  remaining capability gaps before beginning the deferred work.
+- Use the completed checkpoint audit as the baseline for the remaining work.
 - Define the required I/O, interrupt, exception, and external-processor
   interfaces and delivery contracts in reviewable slices, then implement the
   remaining instruction families with independent checks.

@@ -191,8 +191,8 @@ The [execution-record types](../../src/components/cpus/execution-records.ts)
 provide the common fields used by all eight CPUs:
 
 - `FetchedInstruction` contains the start `address` and actual fetched `bytes`.
-- `StateTransition<Snapshot>` contains `before`, `after`, and ordered memory
-  `accesses`. The supplied snapshot type retains its CPU's fields, derived
+- `StateTransition<Snapshot, Access = MemoryAccess>` contains `before`, `after`,
+  and ordered `accesses`. The supplied snapshot type retains its CPU's fields, derived
   views, and nested readonly guarantees.
 - `InstructionStep<Snapshot>` describes ordinary execution or opcode rejection,
   both with a fetched instruction.
@@ -200,7 +200,9 @@ provide the common fields used by all eight CPUs:
   already halted CPU.
 
 CPU modules keep their public names as aliases, such as `Cpu6502Instruction`
-and `Cpu6502ResetRecord`. Each step type selects its supported outcomes; the
+and `Cpu6502ResetRecord`. `InstructionStep` and `HaltedStep` accept the same
+optional access type. The 8080 supplies a union of memory and port accesses;
+other CPUs retain the memory-only default. Each step type selects its supported outcomes; the
 68000 adds its alignment-fault branch, including a possible null instruction
 on an unaligned opcode fetch. Address conventions are still
 documented beside the aliases, including the 8088's physical instruction
@@ -299,6 +301,14 @@ undefined indexed postbyte. It must reject before changing other state or RAM;
 the executor restores PC and retains the actual fetches. This is not general
 rollback. RAM and handler errors
 propagate without rolling back completed effects. Each call owns its records.
+
+The executor also accepts an opcode lookup callback in place of a table. It
+calls the lookup after fetching the opcode, before advancing PC. The 8080 uses
+this to bind fresh port recording callbacks and an EI deferral callback to its
+local instruction context. Its prebuilt handler table still exposes the opcode
+patterns; the bound callbacks and logs belong to one execution. The 8080 appends its port log
+after the memory log because `IN`/`OUT` transfer once, after all memory fetches.
+A future block-I/O implementation must record actual interleaving explicitly.
 
 The four CPUs with a stored PC pass their state directly. The 8008 uses
 `programCounter(read, write)` to expose its live address-stack slot and mask

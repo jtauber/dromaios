@@ -1179,14 +1179,12 @@ an independent milestone. Language representation, generation, and broader
 migration follow only if the preceding review supports them. Neither this
 sequence nor a finished DSL is a prerequisite for completing the current cores.
 
-The [project roadmap](../../ROADMAP.md#cpu-only-checkpoint) still places
-interrupts and I/O after the eight-CPU capability checkpoint. Review that
-checkpoint against its existing criteria and address any actual gaps. The
-initial refactor and design probes can proceed alongside that review and
-browser work. Executable I/O and device-interface experiments follow the
-checkpoint; early traces can identify their requirements without introducing
-that support. The DSL must not become a prerequisite for continuing to use
-the current CPU interfaces.
+The [capability audit](completion.md#cpu-only-checkpoint-review) found that all
+eight CPUs meet the checkpoint. Interrupt and I/O implementation now follows
+the [completion sequence](completion.md#completion-sequence), alongside these
+design probes and browser work. Later executable device-interface experiments
+can use that evidence. The DSL must not become a prerequisite for continuing
+to use the current CPU interfaces.
 
 ### 1. Specify contracts and difficult cases
 

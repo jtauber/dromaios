@@ -17,16 +17,16 @@ will be organized for learning, exploration, and reference as support develops.
   judge generalizations, including examples that expose their differences.
 - Keep changes small and reviewable. The initial examples used minimal
   instruction subsets; broader support now grows in instruction-family batches.
-- Bring **eight initial CPU targets** to the roadmap's
+- The **eight initial CPU targets** meet the roadmap's
   [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint): Intel 8008,
   Intel 8080, Motorola 6800, MOS 6502, Zilog Z80, Motorola 6809, Intel 8088,
-  and Motorola 68000. All eight have initial slices; expand them through
-  instruction-family batches that exercise the checkpoint's capabilities.
-- Defer interrupts and I/O across all eight until that checkpoint is met,
-  including interrupt-specific control instructions and memory-mapped devices.
-  Ordinary memory and status-register operations remain in scope. Opcode
-  percentages retain the full documented totals; timing and interrupt delivery
-  are separate measures of progress.
+  and Motorola 68000. The [capability audit](completion.md#cpu-only-checkpoint-review)
+  records the evidence across their models and combined examples.
+- Complete documented opcode coverage for all eight through the
+  [completion sequence](completion.md#completion-sequence), including the
+  previously deferred interrupt controls and I/O. Introduce delivery and device
+  contracts in reviewable slices. Opcode percentages retain the full documented
+  totals; timing and interrupt delivery are separate measures of progress.
 - The **Z80 is the fourth CPU**, introduced after substantial 8080 opcode
   coverage. Its initial arithmetic example tests common encodings and distinct
   flags while using the shared RAM setup and runner. Further instruction families

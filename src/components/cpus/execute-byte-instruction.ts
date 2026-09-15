@@ -4,6 +4,8 @@ import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext } from "./instruction-context.ts";
 
+type OpcodeHandler = (instruction: WordInstructionContext) => "unsupported" | void;
+
 export interface ByteInstructionExecution {
   readonly instruction: FetchedInstruction;
   readonly accesses: readonly MemoryAccess[];
@@ -20,11 +22,12 @@ export function programCounter(read: () => number, write: (value: number) => voi
  * A PC view can impose a narrower wrap; mapFetchAddress translates instruction addresses only.
  * Unknown opcodes record only their fetch. Handlers may reject an encoding after operand fetches,
  * but must do so before changing other state or RAM. Either rejection restores PC.
+ * A lookup callback may bind extra per-step capabilities after the opcode has been fetched.
  * Callers own snapshots and HALT.
  */
 export function executeByteInstruction(
   state: { pc: number }, ram: Ram,
-  handlers: Readonly<Partial<Record<number, (instruction: WordInstructionContext) => "unsupported" | void>>>,
+  handlers: Readonly<Partial<Record<number, OpcodeHandler>>> | ((opcode: number) => OpcodeHandler | undefined),
   readWord: (nextByte: () => number) => number,
   mapFetchAddress: (pc: number) => number = pc => pc,
 ): ByteInstructionExecution {
@@ -33,7 +36,7 @@ export function executeByteInstruction(
   const address = mapFetchAddress(initialPc);
   const opcode = readByte(address);
   const bytes = [opcode];
-  const handler = handlers[opcode];
+  const handler = typeof handlers === "function" ? handlers(opcode) : handlers[opcode];
   let executed = false;
   if (handler) {
     state.pc = (initialPc + 1) & 0xffff;

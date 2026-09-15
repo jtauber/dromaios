@@ -11,7 +11,7 @@ function expectedInitialState() {
     a: 0x11, b: 0x22, c: 0x33, d: 0x44, e: 0x55, h: 0x66, l: 0x77,
     bc: 0x2233, de: 0x4455, hl: 0x6677, pc: 0, sp: 0xabcd,
     flags: { s: true, z: false, ac: true, p: false, cy: true },
-    interruptEnabled: false,
+    interruptEnabled: false, interruptDeferred: false,
     halted: false,
   };
 }

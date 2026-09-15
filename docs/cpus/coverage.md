@@ -16,7 +16,7 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [253](../../src/components/cpus/8008.ts) | 218 / 250 | 87.2% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [187](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [221](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [317](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [394](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
@@ -42,17 +42,17 @@ comments and blank lines, using `wc -l`. Shared helpers, tests, and machine
 definitions are excluded, including the [8080/Z80 family core](../../src/components/cpus/8080-family.ts)
 and [Motorola operations](../../src/components/cpus/motorola.ts). A CPU row therefore
 measures its own module rather than all the code it executes. These counts describe
-the current incomplete models.
+the current instruction-level models.
 
 Completed examples are linked in each CPU section below and grouped by topic
 in the [example catalog](../README.md#cpu-examples).
 
-All eight initial CPU models have implementations; each remains incomplete.
-
-The next milestone is the [CPU-only checkpoint across all eight targets](../../ROADMAP.md#cpu-only-checkpoint).
-Interrupt delivery, interrupt-specific control instructions, port I/O, and
-memory-mapped devices are deferred until then. Deferred instructions remain in
-the documented-form totals; the checkpoint does not require a common percentage.
+All eight initial CPU models meet the [CPU-only capability checkpoint](completion.md#cpu-only-checkpoint-review).
+The next milestone is complete documented opcode coverage across all eight,
+following the [completion sequence](completion.md#completion-sequence). The 8080
+has reached full opcode coverage; external interrupt delivery and timing remain
+unmodeled processor features. Instructions still awaiting implementation on
+other CPUs remain in their documented-form totals.
 
 ## How the percentages are counted
 
@@ -455,12 +455,14 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | `D0` | `RNC` | Stack | 1 | Return if CY = 0 |
 | `D1` | `POP D` | Stack | 1 | Read low then high into D:E; increment SP by 2; preserve flags |
 | `D2` | `JNC addr` | Absolute target | 3 | Jump if CY = 0 |
+| `D3` | `OUT n` | Immediate port | 2 | Write A to the selected byte port; preserve flags |
 | `D4` | `CNC addr` | Absolute target / stack | 3 | Call if CY = 0 |
 | `D5` | `PUSH D` | Stack | 1 | Write D:E high then low; decrement SP by 2; preserve flags |
 | `D6` | `SUI n` | Immediate | 2 | Subtract from A without incoming borrow |
 | `D7` | `RST 2` | Encoded vector / stack | 1 | Push following PC; jump to `0010`; preserve interrupt enable |
 | `D8` | `RC` | Stack | 1 | Return if CY = 1 |
 | `DA` | `JC addr` | Absolute target | 3 | Jump if CY = 1 |
+| `DB` | `IN n` | Immediate port | 2 | Read the selected byte port into A; preserve flags |
 | `DC` | `CC addr` | Absolute target / stack | 3 | Call if CY = 1 |
 | `DE` | `SBI n` | Immediate | 2 | Subtract from A with incoming borrow |
 | `DF` | `RST 3` | Encoded vector / stack | 1 | Push following PC; jump to `0018`; preserve interrupt enable |
@@ -482,6 +484,7 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | `F0` | `RP` | Stack | 1 | Return if S = 0 |
 | `F1` | `POP PSW` | Stack | 1 | Read flags then A; ignore reserved flag bits; increment SP by 2 |
 | `F2` | `JP addr` | Absolute target | 3 | Jump if S = 0 |
+| `F3` | `DI` | Implied | 1 | Clear interrupt enable and any EI deferral; preserve flags |
 | `F4` | `CP addr` | Absolute target / stack | 3 | Call if S = 0 |
 | `F5` | `PUSH PSW` | Stack | 1 | Write A then packed flags; decrement SP by 2; preserve A and flags |
 | `F6` | `ORI n` | Immediate | 2 | OR with A; clear AC and CY |
@@ -489,6 +492,7 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | `F8` | `RM` | Stack | 1 | Return if S = 1 |
 | `F9` | `SPHL` | Register pair | 1 | Copy HL to SP; preserve HL and flags |
 | `FA` | `JM addr` | Absolute target | 3 | Jump if S = 1 |
+| `FB` | `EI` | Implied | 1 | Set interrupt enable; defer acceptance through the following instruction; preserve flags |
 | `FC` | `CM addr` | Absolute target / stack | 3 | Call if S = 1 |
 | `FE` | `CPI n` | Immediate | 2 | Subtraction flags without incoming borrow; preserve A |
 | `FF` | `RST 7` | Encoded vector / stack | 1 | Push following PC; jump to `0038`; preserve interrupt enable |
@@ -496,18 +500,19 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A, B, C, D, E, H, L, PC, SP |
-| Stored flags/control | S, Z, AC, P, CY; interrupt-enable and halted latches |
+| Stored flags/control | S, Z, AC, P, CY; interrupt-enable, interrupt-deferral, and halted state |
 | Register relationships | Snapshots derive BC, DE, and HL from stored bytes; byte transfers, INR/DCR, and pair operations update those views; XCHG exchanges DE/HL and SPHL copies HL to SP |
 | Memory addressing | MOV/MVI, INR/DCR, and accumulator ALU operands through current HL; LDAX/STAX through BC or DE; LDA/STA and LHLD/SHLD with an explicit 16-bit address |
 | Stack | PUSH/POP for BC, DE, HL, and PSW plus control-flow return addresses, using a descending RAM stack and wrapping 16-bit SP; PSW packs/restores A and five flags with fixed reserved bits on PUSH; XTHL exchanges HL with stack memory without moving SP |
 | Control flow | JMP, CALL, RET and all eight conditions for each; PCHL and RST 0–7; preserve arithmetic flags and interrupt enable |
-| Reset | Set PC to `0000`, clear interrupt-enable and halted; preserve data registers, SP, flags, and RAM; no memory accesses |
+| Reset | Set PC to `0000`, clear interrupt-enable, deferral, and halted; preserve data registers, SP, flags, and RAM; no memory accesses |
 | Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
 | Accumulator arithmetic/logic | ADD/ADC, SUB/SBB, ANA/XRA/ORA, CMP and all immediate counterparts; 8-bit results, carry/borrow propagation, comparison without changing A, and 8080 auxiliary carry rules |
 | Decimal adjustment | DAA corrects A using incoming AC/CY; updates result flags and AC while retaining or setting CY; no decimal-mode latch |
 | Byte and word arithmetic | INR/DCR update byte results and S/Z/AC/P while preserving CY; INX/DCX wrap pairs and SP without changing flags; DAD adds to HL and updates only CY |
 | Rotates and carry | RLC/RRC rotate within A; RAL/RAR rotate through CY; all preserve S/Z/AC/P. CMA complements A without changing flags; STC/CMC change only CY |
-| Deferred instruction scope | DI, EI, IN, OUT; resume after the eight-CPU checkpoint |
+| Port I/O | IN/OUT through an explicit byte-port connection; ordered port records; missing connections and invalid input bytes throw host errors |
+| Interrupt controls | DI/EI with snapshot-preserved one-instruction EI deferral; external acceptance, acknowledgement, and HALT release remain unmodeled |
 
 Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [arithmetic example tests](../../tests/machines/8080/example.test.ts),
@@ -1001,7 +1006,7 @@ comparisons feeding both branch paths, and A/X/Y memory transfers. It verifies
 the complete RAM image, bounded resumption, reset during a call, fresh restart,
 and an edited self-loop. Together with the existing examples, this satisfies
 the 6502's [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint);
-interrupts and devices remain deferred across the eight targets.
+its interrupt instructions follow the [completion sequence](completion.md#completion-sequence).
 
 Shift/rotate and memory INC/DEC checks cover all 28 forms, every operand byte,
 and all 64 incoming flag patterns. They verify complete state and accesses,

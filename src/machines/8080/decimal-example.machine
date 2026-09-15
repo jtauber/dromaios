@@ -6,6 +6,7 @@ cpu 8080 {
     PC = 0200  SP = ABCD
     flags { S = 1  Z = 0  AC = 1  P = 0  CY = 1 }
     interruptEnabled = true
+    interruptDeferred = false
     halted = false
 }
 

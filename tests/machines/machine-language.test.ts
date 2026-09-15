@@ -18,7 +18,7 @@ cpu z80 {
 cpu 8080 {
   A=00 B=00 C=00 D=00 E=00 H=00 L=00 PC=0000 SP=0000
   flags { S=0 Z=0 AC=0 P=0 CY=0 }
-  interruptEnabled=false halted=false
+  interruptEnabled=false interruptDeferred=false halted=false
 }`,
   "6502": `ram 10000
 cpu 6502 {
@@ -142,7 +142,7 @@ cpu 8080 {
   a=10 B=00 C=00 D=00 E=00 H=00 L=00
   pC=01e2 SP=0100
   flags { cy=1 S=0 z=1 AC=0 P=1 }
-  INTERRUPTENABLED=true HaLtEd=false
+  INTERRUPTENABLED=true interruptDeferred=false HaLtEd=false
 }
 memory 0201 { fF }
 memory FFFF { AB }
@@ -153,7 +153,7 @@ ram 10000 // The model name above is an identifier; numbers here are hex.\n`;
     initialState: {
       a: 0x10, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0, pc: 0x1e2, sp: 0x100,
       flags: { s: false, z: true, ac: false, p: true, cy: true },
-      interruptEnabled: true, halted: false,
+      interruptEnabled: true, interruptDeferred: false, halted: false,
     },
     memory: [
       { address: 0x0200, bytes: [0x3e, 2, 0xc6, 3] },
@@ -234,7 +234,7 @@ test("flags are complete bit assignments while control latches require Boolean l
       }
     }
   }
-  for (const field of ["interruptEnabled", "halted"]) {
+  for (const field of ["interruptEnabled", "interruptDeferred", "halted"]) {
     for (const value of ["0", "1", "False", "TRUE"]) {
       assert.throws(() => parseMachine(set(sources["8080"], field, value)), /Expected true or false/);
     }
@@ -246,6 +246,7 @@ test("missing, duplicate, unknown, and derived CPU fields are rejected", () => {
     [sources["8080"].replace("A=00", ""), /Missing fields in 8080: A/],
     [sources["8080"].replace("Z=0", ""), /Missing fields in 8080.flags: Z/],
     [sources["8080"].replace(/flags \{[^}]*\}/, ""), /Missing fields in 8080: flags/],
+    [sources["8080"].replace("interruptDeferred=false", ""), /Missing fields in 8080: interruptDeferred/],
     [sources["8080"].replace("halted=false", ""), /Missing fields in 8080: halted/],
     [sources["8080"].replace("PC=0000", "PC=0000 pc=0001"), /Duplicate field PC/],
     [sources["8080"].replace("CY=0", "CY=0 cy=1"), /Duplicate field CY/],

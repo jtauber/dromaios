@@ -557,7 +557,7 @@ test("8080 and Z80 ALU encodings retain their distinct half-carry and parity/ove
     ram.write(0x2001, operand);
     const z80 = new CpuZ80(ram, initialState({ a, flags: { ...flagPattern(63), c: carry } })).step();
     const intel = new Cpu8080(ram, { a, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0, pc: 0x2000, sp: 0,
-      flags: { s: true, z: true, ac: true, p: true, cy: carry }, interruptEnabled: false, halted: false }).step();
+      flags: { s: true, z: true, ac: true, p: true, cy: carry }, interruptEnabled: false, interruptDeferred: false, halted: false }).step();
     assert.equal(z80.outcome, "executed");
     assert.equal(intel.outcome, "executed");
     assert.deepEqual(z80.instruction, intel.instruction);
@@ -905,7 +905,7 @@ test("8080 and Z80 share these instruction bytes but arithmetic P and P/V mean d
       const zilog = new CpuZ80(zilogRam, initialState({ pc: 0, r: 0, flags: flagPattern(bits) }));
       const intel = new Cpu8080(intelRam, {
         a: 0, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0, pc: 0, sp: 0,
-        flags: { s: false, z: false, ac: false, p: false, cy: false }, interruptEnabled: false, halted: false,
+        flags: { s: false, z: false, ac: false, p: false, cy: false }, interruptEnabled: false, interruptDeferred: false, halted: false,
       });
       for (let step = 0; step < 4; step++) {
         const i = intel.step();

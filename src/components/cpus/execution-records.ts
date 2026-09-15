@@ -7,14 +7,14 @@ export interface FetchedInstruction {
 }
 
 /** Snapshots and ordered accesses from a step or reset; Snapshot supplies its own readonly fields. */
-export interface StateTransition<Snapshot> {
+export interface StateTransition<Snapshot, Access = MemoryAccess> {
   readonly before: Snapshot;
   readonly after: Snapshot;
-  readonly accesses: readonly MemoryAccess[];
+  readonly accesses: readonly Access[];
 }
 
 /** Ordinary execution or rejection of a fetched encoding. CPU-specific faults extend this union. */
-export type InstructionStep<Snapshot> = StateTransition<Snapshot> & {
+export type InstructionStep<Snapshot, Access = MemoryAccess> = StateTransition<Snapshot, Access> & {
   readonly instruction: FetchedInstruction;
 } & (
   | { readonly outcome: "executed" }
@@ -22,7 +22,7 @@ export type InstructionStep<Snapshot> = StateTransition<Snapshot> & {
 );
 
 /** HALT either executes an instruction or reports an already halted CPU without fetching. */
-export type HaltedStep<Snapshot> = StateTransition<Snapshot> & {
+export type HaltedStep<Snapshot, Access = MemoryAccess> = StateTransition<Snapshot, Access> & {
   readonly outcome: "halted";
   readonly instruction: FetchedInstruction | null;
 };

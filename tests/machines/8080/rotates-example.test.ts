@@ -13,7 +13,7 @@ function expectedInitialState(): Cpu8080Snapshot {
     a: 0x11, b: 0x22, c: 0x33, d: 0x44, e: 0x55, h: 0x66, l: 0x77,
     bc: 0x2233, de: 0x4455, hl: 0x6677, pc: 0x0200, sp: 0xabcd,
     flags: { s: true, z: false, ac: true, p: false, cy: false },
-    interruptEnabled: true, halted: false,
+    interruptEnabled: true, interruptDeferred: false, halted: false,
   };
 }
 
@@ -98,7 +98,7 @@ test("the 8080 rotates example restores a word through carry and complements a b
   assert.deepEqual(result.records, expected);
   const accesses = expected.flatMap(record => record.accesses);
   assert.deepEqual(read.mock.calls.map(call => call.arguments),
-    accesses.filter(access => access.kind === "read").map(access => [access.address]));
+    accesses.flatMap(access => access.kind === "read" ? [[access.address]] : []));
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [
     [0x80, 0], [0x81, 3], [0x82, 0x80], [0x83, 0x81], [0x84, 0x7f],
   ]);

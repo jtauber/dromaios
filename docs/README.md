@@ -19,6 +19,8 @@ see the [development instructions](../README.md#development).
 - [CPU implementation coverage](cpus/coverage.md): current opcode percentages,
   supported forms and features, and remaining gaps across all CPUs.
   The [68000 count audit](cpus/68000/opcode-count.md) details its denominator.
+- [CPU completion plan](cpus/completion.md): evidence for the eight-CPU
+  capability checkpoint and the sequence for finishing interrupts and I/O.
 - [CPU source organization](cpus/implementation.md): reading order, bit-encoding
   layout, and the separation of handler construction from instruction behavior.
 - [Opcode definition experiment](cpus/opcode-definitions.md): typed encoding
