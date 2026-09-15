@@ -1,7 +1,7 @@
 # 6800 model contract
 
-The Motorola 6800 model implements an instruction-level subset with flat
-64 KiB RAM. Instruction fetches and PC increments wrap at 16 bits; extended
+The Motorola 6800 model implements all documented instructions at instruction
+level with flat 64 KiB RAM. Instruction fetches and PC increments wrap at 16 bits; extended
 addresses and the reset vector use the high byte first.
 
 [Implementation](../../../src/components/cpus/6800.ts) ·
@@ -18,11 +18,14 @@ addresses and the reset vector use the high byte first.
 
 Hardware references are Motorola's
 [M6800 Programming Reference Manual, November 1976](https://manualzz.com/doc/1063126/motorola-m6800-microprocessor-programming-reference-manual),
-sections 1, 3.3.1, 3.4–3.5, 4.6–4.7 and Appendix A's ADD, ADC, SUB, SBC, CMP, LDA, STA, TAB, TBA,
+sections 1, 3.2–3.5, 4.6–4.7 and Appendix A's ADD, ADC, SUB, SBC, CMP, LDA, STA, TAB, TBA,
 INC, DEC, NEG, COM, ASL, ASR, LSR, ROL, ROR, TST, CLR, branch, LDS, PSH, PUL,
-JSR, RTS, AND, BIT, EOR, ORA, CPX, DAA, LDX, STX, STS, TSX, TXS, TAP, and TPA definitions; and the
+JSR, RTS, AND, BIT, EOR, ORA, CPX, DAA, LDX, STX, STS, TSX, TXS, TAP, TPA,
+CLI, SEI, WAI, SWI, and RTI definitions; and the
 [MC6800 data sheet in M6800 Systems Reference and Data Sheets](https://vtda.org/docs/computing/Motorola/M6800SystemsReferenceDataSheets_May75.pdf),
-reset description on pages 13–14 and instruction tables on pages 18–21.
+reset/interrupt descriptions and flow chart on pages 13–15 and instruction tables on pages 18–21.
+The [MAME 6800 core](https://github.com/mamedev/mame/blob/master/src/devices/cpu/m6800/m6800.cpp)
+also corroborates IRQ/NMI masking and reuse of the WAI frame.
 The supported encodings are for the original 6800; later-family additions
 and undocumented opcodes are outside this model.
 
@@ -37,21 +40,25 @@ and undocumented opcodes are outside this model.
 | SP | `0000`–`FFFF` | Stack pointer |
 | PC | `0000`–`FFFF` | Program counter |
 | H, I, N, Z, V, C in `flags` | Boolean | Half carry, interrupt mask, negative, zero, overflow, carry |
+| waiting | Boolean | WAI has saved a frame and suspended instruction execution |
 
 TypeScript fields are lowercase; `.machine` definitions conventionally use
 uppercase register and flag names. Snapshots expose this same state. H/I/N/Z/V/C
 correspond to condition-code bits 5–0. TPA packs those flags into A with bits
 7–6 set; TAP replaces the flags from A's low six bits. The upper bits are not
 mutable flags, and snapshots do not duplicate the flags in a packed field.
-Interrupt and external halt inputs are deferred; there is no halt or wait latch.
+`waiting` is required, including `false` for an ordinary initial state. A snapshot
+with `waiting: true` assumes its saved frame is already in the accompanying RAM;
+construction neither creates nor validates that frame. External HALT remains
+unmodeled and is distinct from this WAI latch.
 
 ## Construction and inspection
 
 `new Cpu6800(ram, initialState)` requires exactly 64 KiB RAM. It copies declared
-registers and flags, then validates numeric ranges and Boolean flag values.
+registers, flags, and the waiting latch, then validates numeric ranges and Boolean values.
 Each declared field is read once, including non-enumerable properties; extra
 metadata is ignored. Invalid register values or RAM size throw `RangeError`;
-non-Boolean flags throw `TypeError`. Construction neither resets the CPU nor
+non-Boolean flags or waiting values throw `TypeError`. Construction neither resets the CPU nor
 reads or writes RAM. All initial state must be supplied explicitly.
 
 `snapshot()` returns detached registers and flags without RAM accesses. Public
@@ -63,8 +70,11 @@ The CPU retains no execution history.
 
 `step()` attempts one instruction and returns a `Cpu6800StepRecord` containing
 independent `before` and `after` snapshots, the instruction's start address and
-fetched bytes, ordered `accesses`, and an `outcome`. The outcome is `executed`
-or `unsupported`; only the latter carries `reason: "opcode"`.
+fetched bytes, ordered `accesses`, and an `outcome`: `executed`, `waiting`, or
+`unsupported`. Only `unsupported` carries `reason: "opcode"`. WAI returns
+`waiting` with its fetched instruction and frame writes. An already waiting CPU
+returns `waiting` with `instruction: null`, no accesses, and unchanged state.
+No ordinary instruction executes until an accepted interrupt or reset releases WAI.
 
 Supported instructions fetch the opcode and then their operands, advancing PC
 after each byte with wrap from `FFFF` to `0000`. Accumulator instructions use
@@ -170,9 +180,10 @@ model clears it. DAA does not implement BCD subtraction or a decimal-mode latch.
 
 TAP copies A bits 5–0 into H/I/N/Z/V/C, ignoring the top two bits and preserving
 A. TPA copies those flags to A with bits 7–6 set, preserving all flags.
-CLC/SEC clear/set C; CLV/SEV clear/set V. Other state is unchanged, apart from
-the normal one-byte PC advance. TAP/TPA are ordinary status transfers in this
-CPU-only scope; interrupt delivery and its timing effects remain deferred.
+CLC/SEC clear/set C; CLV/SEV clear/set V; CLI/SEI clear/set I. Other state is
+unchanged, apart from the normal one-byte PC advance. The next explicit IRQ
+offer observes the current I, including after TAP or RTI. Hardware look-ahead
+and pin-sampling delays remain outside the instruction-level model.
 NOP only advances PC.
 
 ## Accumulator logic
@@ -284,10 +295,80 @@ history, frame type, depth limit, or underflow check. RTS can consume bytes
 placed in RAM without a preceding call. Editing stack memory changes what
 the next pull or return reads, and stack writes may overwrite code or vectors.
 
+## Interrupt entry and return
+
+SWI, IRQ, and NMI use a seven-byte frame on the ordinary RAM stack. Entry
+writes PC low/high, X low/high, A, B, and packed CC in that order, decrementing
+SP after each write and wrapping at 16 bits. CC has bits 7–6 set and retains
+the pre-entry I. After saving the frame, entry sets I and reads its vector
+high byte first; PC changes after both reads succeed.
+
+| Entry | Saved PC | Vector |
+| --- | --- | --- |
+| SWI (`3F`) | Address after the one-byte instruction, wrapping at 16 bits | `FFFA` / `FFFB` |
+| IRQ | Current PC at the offered boundary | `FFF8` / `FFF9` |
+| NMI | Current PC at the offered boundary | `FFFC` / `FFFD` |
+
+SWI executes regardless of I. All three preserve A/B/X and the other five
+flags. Vector reads use current RAM after the writes, so overlapping stack
+and vector locations affect the target. No handler instruction is prefetched.
+
+RTI (`3B`) increments SP before each of seven reads, restoring CC, B, A,
+X high/low, and PC high/low. It ignores CC bits 7–6 and replaces all six
+flags. It returns to the saved PC without an extra increment and needs no
+preceding interrupt: the frame may be supplied or edited by the caller.
+Words replace X or PC after both bytes are read. All reads are stack data
+accesses; the only fetched instruction byte is `3B`.
+
+## Waiting and external interrupt delivery
+
+WAI (`3E`) advances PC, saves the same frame, then sets `waiting: true`.
+It preserves every flag, including I. A masked IRQ leaves it waiting; an
+accepted IRQ or NMI reuses the existing frame, clears waiting, sets I, and
+reads the selected vector without further pushes. RTI consequently restores
+the state saved by WAI. Reset also releases waiting, without unwinding the frame.
+
+`interrupt("irq" | "nmi")` offers a selected request at the current instruction
+boundary. IRQ is ignored when current I is set; NMI is always accepted.
+The caller owns pending IRQ levels, NMI edge detection, and priority when
+multiple sources need service. Offers are neither queued nor sampled by
+`step()`. A repeated NMI offer represents another selected event and can nest.
+Hardware look-ahead, cycle timing, and pin-level recognition are unmodeled.
+
+`Cpu6800InterruptRecord` contains detached `before`/`after` snapshots,
+`source`, `instruction: null`, ordered memory `accesses`, and either
+`outcome: "accepted"` or `outcome: "ignored", reason: "masked"`. Only IRQ can
+be ignored; ignored entry makes no accesses or changes, including while waiting.
+Invalid source values throw `RangeError` before accessing RAM or changing state.
+
+The [runner](../../runtime/runner.md) returns `stopReason: "waiting"` as soon
+as a step reports it. The caller delivers an interrupt separately and can run
+again. A waiting snapshot plus its RAM can initialize a fresh CPU and resume
+through the same delivery path, without hidden saved frames or pending signals.
+
+## Transition boundaries and host failures
+
+`step()`, `interrupt()`, and `reset()` share a per-instance execution guard.
+RAM callbacks may inspect snapshots; nested mutating calls throw before they
+access RAM or change state. The guard is released even when a transition throws.
+
+A RAM error propagates without a result record or rollback. Completed accesses
+and register changes remain visible: instruction fetch advances PC after a
+successful read, a push decrements SP after a successful write, and a pull
+increments SP before its read. RTI retains each completed byte register/flag
+restore; a partly read word leaves X or PC unchanged. WAI sets waiting only
+after the complete frame. Entry sets I and releases waiting before the vector
+reads, retaining those changes if a read fails. Reset commits its PC/I/wait
+changes only after both reads succeed.
+
+This is host-error behavior, not a modeled hardware memory exception. A failed
+transition has no automatic retry or continuation; callers can restore CPU/RAM
+or reset explicitly.
+
 ## CPU reset
 
 `reset()` reads `FFFE` followed by `FFFF`, loads their high-byte-first address
-into PC, and sets I. It performs no instruction fetch or RAM write. A/B/X/SP,
+into PC, sets I, and clears waiting. It performs no instruction fetch or RAM write. A/B/X/SP,
 the other five flags, and RAM are preserved. Preserving state for which the
 reset specification does not establish values is a deterministic model policy;
 it does not claim defined power-on values for those registers.
@@ -372,7 +453,14 @@ The [decimal example](examples/decimal.md) combines an indexed call, stack
 inspection, decimal arithmetic, packed flags, and a word comparison. It verifies
 complete records, RAM images, snapshot resumption, and a bounded failure loop.
 
-All 192 documented ordinary forms are complete. Only `CLI`, `SEI`, `WAI`,
-`SWI`, and `RTI` remain unsupported; the opcode audit also rejects the 59
-undefined encodings. Interrupt delivery, mapped devices, and timing remain
-deferred. The 6800 has no separate port-I/O instruction forms.
+Interrupt checks cover every flag pattern, all packed RTI status bytes,
+stack/code/vector overlaps and wrapping, current-mask offers, masked waits,
+frame reuse on wake, and live RAM edits. Failure injection checks each entry,
+return, and reset access; callbacks check reentrancy and inspection. A runner
+program combines WAI, IRQ, nested NMIs, RTI, and SWI, comparing complete traces
+and RAM after resuming a waiting snapshot. Parser/generator/type checks include
+the required waiting field and the waiting/interrupt record unions.
+
+All 197 documented forms are complete; the opcode audit rejects the 59
+undefined encodings. Mapped devices, external HALT, look-ahead, and cycle timing
+remain deferred. The 6800 has no separate port-I/O instruction forms.

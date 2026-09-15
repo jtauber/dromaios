@@ -13,6 +13,8 @@ wrap to `007F` and `007E`.
 
 ## Definition and initial state
 
+`waiting` starts false and remains false throughout this example.
+
 Addresses, bytes, and register values are hexadecimal. Step counts are decimal.
 RAM starts as 64 KiB of zeros with these bytes loaded:
 

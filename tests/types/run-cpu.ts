@@ -1,6 +1,7 @@
 import type { Cpu8008, Cpu8008StepRecord } from "../../src/components/cpus/8008.js";
 import type { Cpu8080, Cpu8080StepRecord } from "../../src/components/cpus/8080.js";
 import type { Cpu6502, Cpu6502StepRecord } from "../../src/components/cpus/6502.js";
+import type { Cpu6800, Cpu6800StepRecord } from "../../src/components/cpus/6800.js";
 import type { Cpu6809, Cpu6809StepRecord } from "../../src/components/cpus/6809.js";
 import type { CpuZ80, CpuZ80StepRecord } from "../../src/components/cpus/z80.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
@@ -68,8 +69,21 @@ export function checkRecordTypes(intel: Cpu8080, mos: Cpu6502, motorola: Cpu6809
   }
 }
 
-export function checkSelectedCpu(cpu: Cpu8008 | Cpu8080 | Cpu6502 | Cpu6809 | CpuZ80): void {
-  const records: readonly (Cpu8008StepRecord | Cpu8080StepRecord | Cpu6502StepRecord | Cpu6809StepRecord | CpuZ80StepRecord)[] =
+export function checkWaitingCpu(cpu: Cpu6800): void {
+  const result = runCpu(cpu, { maxSteps: 1 });
+  const concrete: CpuRunResult<Cpu6800StepRecord> = result;
+  const record = result.records[0];
+  if (record?.outcome === "waiting") {
+    const waiting: boolean = record.after.waiting;
+    // @ts-expect-error An already waiting step has no fetched instruction.
+    record.instruction.bytes;
+    // @ts-expect-error Waiting state stays readonly through the runner.
+    record.after.waiting = false;
+  }
+}
+
+export function checkSelectedCpu(cpu: Cpu8008 | Cpu8080 | Cpu6502 | Cpu6800 | Cpu6809 | CpuZ80): void {
+  const records: readonly (Cpu8008StepRecord | Cpu8080StepRecord | Cpu6502StepRecord | Cpu6800StepRecord | Cpu6809StepRecord | CpuZ80StepRecord)[] =
     runCpu(cpu, { maxSteps: 5 }).records;
 }
 

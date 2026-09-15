@@ -10,7 +10,7 @@ import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 function expectedInitialState(): Cpu6800Snapshot {
   return {
-    a: 0x11, b: 0x22, x: 0x3456, sp: 0x7fff, pc: 0x0200,
+    waiting: false, a: 0x11, b: 0x22, x: 0x3456, sp: 0x7fff, pc: 0x0200,
     flags: { h: true, i: false, n: true, z: true, v: true, c: true },
   };
 }
@@ -100,7 +100,7 @@ test("the 6800 counted loop adds five three times and stores fifteen with exact 
   write.mock.restore();
   checkMemory(ram, true);
   const final = {
-    a: 0x0f, b: 0, x: 0x3456, sp: 0x7fff, pc: 0x020c,
+    waiting: false, a: 0x0f, b: 0, x: 0x3456, sp: 0x7fff, pc: 0x020c,
     flags: { h: false, i: false, n: false, z: false, v: false, c: false },
   };
   assert.deepEqual(cpu.snapshot(), final);
@@ -117,7 +117,7 @@ test("the 6800 counted loop resumes before BNE, preserves RAM and the stack poin
   const saved = structuredClone(first);
   assert.equal(first.stopReason, "step-limit");
   assert.deepEqual(cpu.snapshot(), {
-    a: 5, b: 2, x: 0x3456, sp: 0x7fff, pc: 0x0207,
+    waiting: false, a: 5, b: 2, x: 0x3456, sp: 0x7fff, pc: 0x0207,
     flags: { h: false, i: false, n: false, z: false, v: false, c: false },
   });
   checkMemory(ram, false);

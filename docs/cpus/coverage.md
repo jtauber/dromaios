@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [279](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [281](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [317](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [388](../../src/components/cpus/6800.ts) | 197 / 197 | 100% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [449](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [498](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
@@ -50,7 +50,7 @@ in the [example catalog](../README.md#cpu-examples).
 All eight initial CPU models meet the [CPU-only capability checkpoint](completion.md#cpu-only-checkpoint-review).
 The next milestone is complete documented opcode coverage across all eight,
 following the [completion sequence](completion.md#completion-sequence). The 8008,
-8080, and 6502 have reached full opcode coverage. The 8080 and 6502 also
+8080, 6502, and 6800 have reached full opcode coverage. The latter three also
 support explicit external interrupt delivery at instruction boundaries; their
 model contracts define recognition policies. The 8008 has no external delivery yet.
 Cycle timing remains unmodeled. Instructions still awaiting implementation on
@@ -621,14 +621,14 @@ final RAM, resumption before adjustment, reset, and restart.
 [Decimal and stack-inspection specification](6800/examples/decimal.md) ·
 [Decimal definition](../../src/machines/6800/decimal-example.machine)
 
-**192 of 197 documented forms are complete (97.5%).** The accumulator families
+**197 of 197 documented forms are complete (100%).** The accumulator families
 below contribute 86 forms: ten byte-read operations for both A/B across four
 addressing modes, plus three stores for each accumulator. Unary operations
 contribute 44 forms, word transfers and CPX contribute 18, and the final table
-contains 15 short branches plus 29 other forms. All ordinary instructions are
-implemented; only CLI, SEI, WAI, SWI, and RTI remain deferred. The 6800 has no
-separate port-I/O opcodes; mapped devices, interrupt delivery, and timing
-remain outside the model.
+contains 15 short branches plus 34 other forms, including CLI, SEI, WAI, SWI,
+and RTI. Explicit IRQ/NMI delivery supports native frames and vectors, masked
+offers, and WAI wake-up. The 6800 has no separate port-I/O opcodes; mapped
+devices, external HALT, look-ahead, and cycle timing remain outside the model.
 
 All documented forms of LDAA/LDAB, STAA/STAB, ADDA/ADDB, ADCA/ADCB,
 SUBA/SUBB, SBCA/SBCB, CMPA/CMPB, ANDA/ANDB, BITA/BITB, EORA/EORB, and
@@ -708,6 +708,7 @@ accesses are high byte first and wrap across `FFFF`, while a direct word at
 | `08` / `09` | INX / DEX | Inherent | 1 | Adjust X by one, wrapping at 16 bits; replace only Z |
 | `0A` / `0B` | CLV / SEV | Inherent | 1 | Clear/set V; preserve other flags |
 | `0C` / `0D` | CLC / SEC | Inherent | 1 | Clear/set C; preserve other flags |
+| `0E` / `0F` | CLI / SEI | Inherent | 1 | Clear/set I; preserve other flags |
 | `10` | SBA | Inherent | 1 | A − B into A; set N/Z/V/C, preserve H/I/B |
 | `11` | CBA | Inherent | 1 | Compare A − B without writeback; set N/Z/V/C, preserve H/I |
 | `16` | TAB | Inherent | 1 | Copy A to B; set N/Z, clear V, preserve H/I/C |
@@ -738,6 +739,9 @@ accesses are high byte first and wrap across `FFFF`, while a direct word at
 | `36` | PSHA | Inherent | 1 | Write A at SP, then decrement SP; preserve all flags |
 | `37` | PSHB | Inherent | 1 | Write B at SP, then decrement SP; preserve all flags |
 | `39` | RTS | Inherent | 1 | Pull return address high byte first; preserve all flags |
+| `3B` | RTI | Inherent | 1 | Pull CC, B, A, X high/low, PC high/low from current stack RAM |
+| `3E` | WAI | Inherent | 1 | Save full frame and wait; preserve I; accepted delivery reuses the frame |
+| `3F` | SWI | Inherent | 1 | Save full frame with original I, set I, and enter through FFFA/FFFB |
 | `6E` / `7E` | JMP | Indexed / extended | 2 / 3 | Set PC to the resolved address without a target read; preserve flags |
 | `8D` | BSR rel | Relative | 2 | Push return PC low byte first, then branch relative to it; preserve flags |
 | `AD` | JSR offset,X | Indexed | 2 | Resolve original X + unsigned offset, push return PC low byte first, and jump; preserve flags |
@@ -753,19 +757,20 @@ independently checked bounded run. The stack example also checks nested calls.
 
 | Area | Implemented scope |
 | --- | --- |
-| Stored state | Byte A/B, word X/SP/PC, and H/I/N/Z/V/C flags |
+| Stored state | Byte A/B, word X/SP/PC, H/I/N/Z/V/C flags, and required Boolean waiting latch |
 | Inspection | Detached registers and flags; no derived register pairs |
 | Accumulator operations | A/B loads in all four modes, A↔B transfers, and wrapping A/B increment/decrement; preserve H/I/C |
 | Unary operations | All 44 A/B/indexed/extended forms of NEG/COM/LSR/ROR/ASR/ASL/ROL/DEC/INC/TST/CLR; preserve H/I, with CPU-specific N/Z/V/C rules |
 | Arithmetic and logic | A/B ADD/ADC/SUB/SBC/CMP and AND/OR/XOR/BIT in all four modes; CMP/BIT preserve operands, subtraction preserves H/I |
 | Word and pointer operations | All LDS/LDX/STS/STX/CPX forms; INX/DEX replace only Z; INS/DES/TSX/TXS preserve flags |
-| Status and decimal operations | TAP/TPA, CLC/SEC/CLV/SEV, ABA/SBA/CBA, DAA; explicit original-6800 flag rules and undefined-result policies |
+| Status and decimal operations | TAP/TPA, CLC/SEC/CLV/SEV/CLI/SEI, ABA/SBA/CBA, DAA; explicit original-6800 flag rules and undefined-result policies |
 | Control flow | BRA and all fourteen short conditional branches, relative BSR, indexed/extended JMP and JSR, and RTS; 16-bit targets and unchanged flags |
 | Stack | All LDS/STS forms; A/B pushes and pulls; pointer adjustments/transfers; calls and returns share ordinary RAM, with SP pointing to the next free byte and wrapping at 16 bits |
 | Memory | Exactly 64 KiB RAM; page-zero direct, unsigned X+offset indexed, and high-byte-first extended addressing; A/B stores in all three memory modes |
-| Reset | Read FFFE then FFFF into PC, set I; preserve other registers, flags, and RAM under the model policy |
-| Stopping | Caller completion address or step budget; unsupported instructions preserve state; no halt/wait latch |
-| Remaining scope | CLI, SEI, WAI, SWI, RTI, interrupt delivery, mapped devices, and timing |
+| Interrupts | SWI and explicit IRQ/NMI offers use the seven-byte native frame and vectors; RTI restores from RAM; ignored masked IRQs make no accesses |
+| Reset | Read FFFE then FFFF into PC, set I, and clear waiting; preserve other registers, flags, and RAM under the model policy |
+| Stopping | WAI reports waiting after stacking; subsequent waiting steps have no instruction or accesses; accepted delivery/reset releases waiting |
+| Remaining scope | Mapped devices, external HALT, look-ahead, and cycle timing |
 
 Verification: [CPU tests](../../tests/components/cpus/6800.test.ts),
 [arithmetic example tests](../../tests/machines/6800/example.test.ts),
@@ -820,8 +825,13 @@ separate data reads and complete address fetches before stores. The addressing
 example checks carry/borrow propagation, indexed wraparound, memory comparisons,
 full records and RAM images, resumption, and an edited operand that selects a
 fallback path.
-Parser and generator checks preserve the 6800's own state schema and generated
-factory types.
+Interrupt tests check flags, packed status, wrapping, vector/stack overlaps,
+masked offers, wait/wake frame reuse, live returns, and each memory-failure
+position. The [runner tests](../../tests/runtime/run-cpu.test.ts) combine WAI,
+IRQ, nested NMIs, RTI, and SWI with complete trace/RAM comparison after restoring
+a waiting snapshot. Parser and generator checks preserve the 6800's required
+waiting state and generated factory types. See the [model contract](6800/model.md#waiting-and-external-interrupt-delivery)
+for current-mask recognition, snapshot, and host-failure policies.
 
 ## 6502
 

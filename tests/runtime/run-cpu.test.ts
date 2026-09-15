@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { Cpu6800 } from "../../src/components/cpus/6800.js";
+import { Ram } from "../../src/components/memory/ram.js";
 import { Cpu6502 } from "../../src/components/cpus/6502.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import { create8080Example } from "../../src/machines/generated/8080/example.js";
@@ -206,4 +208,71 @@ test("CPU errors propagate without retrying or inventing a stop record", () => {
   };
   assert.throws(() => runCpu(cpu, { maxSteps: 5 }), error => error === failure);
   assert.equal(steps, 1);
+});
+
+test("6800 WAI wins over a coincident endpoint and limit; already waiting steps do not fetch", t => {
+  const ram = new Ram(0x10000);
+  ram.write(0, 0x3e);
+  const cpu = new Cpu6800(ram, { a: 0, b: 0, x: 0, sp: 0x8000, pc: 0, waiting: false,
+    flags: { h: false, i: false, n: false, z: false, v: false, c: false } });
+  const step = t.mock.method(cpu, "step");
+  const result = runCpu(cpu, { maxSteps: 1, endAddress: 1 });
+  assert.equal(result.stopReason, "waiting");
+  assert.equal(result.records.length, 1);
+  assert.strictEqual(result.records[0], step.mock.calls[0]!.result);
+  assert.deepEqual(result.records[0]!.instruction, { address: 0, bytes: [0x3e] });
+  const waiting = cpu.snapshot();
+  const read = t.mock.method(ram, "read");
+  const write = t.mock.method(ram, "write");
+  assert.deepEqual(runCpu(cpu, { maxSteps: 10 }), { stopReason: "waiting",
+    records: [{ before: waiting, after: waiting, instruction: null, accesses: [], outcome: "waiting" }] });
+  assert.deepEqual(runCpu(cpu, { maxSteps: 0 }), { stopReason: "step-limit", records: [] });
+  for (const maxSteps of [0, 10]) assert.deepEqual(runCpu(cpu, { maxSteps, endAddress: 1 }), { stopReason: "completed", records: [] });
+  assert.equal(read.mock.callCount(), 0);
+  assert.equal(write.mock.callCount(), 0);
+});
+
+test("6800 resumes from WAI through IRQ, nested NMIs, RTI, and SWI with identical snapshot-restored traces and RAM", () => {
+  const ram = new Ram(0x10000);
+  for (const [address, bytes] of [
+    [0x0200, [0x0e, 0x3e, 0x86, 0x09, 0x3f, 0xb7, 0x00, 0x80, 0x3e]], // CLI; WAI; LDAA #9; SWI; STAA $80; WAI
+    [0x3000, [0x86, 0x77, 0x3b]], // IRQ: LDAA #$77; RTI
+    [0x4000, [0xc6, 0x88, 0x3b]], // NMI: LDAB #$88; RTI
+    [0x5000, [0x86, 0xaa, 0x3b]], // SWI: LDAA #$AA; RTI
+    [0xfff8, [0x30, 0x00, 0x50, 0x00, 0x40, 0x00]],
+  ] as const) for (const [offset, value] of bytes.entries()) ram.write(address + offset, value);
+  const initial = { a: 0x11, b: 0x22, x: 0x3456, sp: 0x8000, pc: 0x0200, waiting: false,
+    flags: { h: true, i: true, n: false, z: false, v: false, c: true } };
+  const cpu = new Cpu6800(ram, initial);
+  const first = runCpu(cpu, { maxSteps: 20 });
+  const saved = structuredClone(first);
+  assert.equal(first.stopReason, "waiting");
+  assert.equal(first.records.length, 2);
+  assert.deepEqual(cpu.snapshot(), { ...initial, pc: 0x0202, sp: 0x7ff9, waiting: true, flags: { ...initial.flags, i: false } });
+  const copiedRam = new Ram(0x10000);
+  for (let address = 0; address < ram.size; address++) copiedRam.write(address, ram.read(address));
+  const restored = new Cpu6800(copiedRam, cpu.snapshot());
+  function finish(cpu: Cpu6800) {
+    const wake = cpu.interrupt("irq");
+    assert.equal(wake.accesses.length, 2); // WAI's frame is reused.
+    const irq = runCpu(cpu, { maxSteps: 1 });
+    assert.equal(cpu.snapshot().a, 0x77);
+    const nmi = cpu.interrupt("nmi");
+    const nested = cpu.interrupt("nmi"); // A new selected NMI is accepted despite I.
+    assert.equal(cpu.snapshot().sp, 0x7feb);
+    const handlers = runCpu(cpu, { maxSteps: 4 });
+    assert.deepEqual(cpu.snapshot(), irq.records[0]!.after);
+    const returned = runCpu(cpu, { maxSteps: 1 });
+    assert.deepEqual(cpu.snapshot(), { ...initial, pc: 0x0202, flags: { ...initial.flags, i: false } });
+    const rest = runCpu(cpu, { maxSteps: 20, endAddress: 0x0209 });
+    assert.equal(rest.stopReason, "waiting");
+    assert.equal(rest.records.length, 6);
+    assert.deepEqual(cpu.snapshot(), { ...initial, pc: 0x0209, sp: 0x7ff9, a: 9, waiting: true, flags: { ...initial.flags, i: false } });
+    return [wake, irq, nmi, nested, handlers, returned, rest];
+  }
+  assert.deepEqual(finish(restored), finish(cpu));
+  assert.deepEqual(first, saved);
+  assert.equal(ram.read(0x80), 9);
+  assert.deepEqual(Array.from({ length: 7 }, (_, index) => ram.read(0x7ffa + index)), [0xe1, 0x22, 9, 0x34, 0x56, 2, 9]);
+  for (let address = 0; address < ram.size; address++) assert.equal(copiedRam.read(address), ram.read(address), `RAM ${address}`);
 });

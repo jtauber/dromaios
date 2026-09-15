@@ -1,7 +1,7 @@
 import { checkUnsigned } from "../components/validation.js";
 
 interface StepResult {
-  readonly outcome: "executed" | "halted" | "unsupported";
+  readonly outcome: "executed" | "halted" | "waiting" | "unsupported";
 }
 
 interface RunnableCpu<Step extends StepResult> {
@@ -10,15 +10,15 @@ interface RunnableCpu<Step extends StepResult> {
 }
 
 export interface CpuRunOptions {
-  /** Maximum step calls, including unsupported and already halted attempts. */
+  /** Maximum step calls, including unsupported and already halted/waiting attempts. */
   readonly maxSteps: number;
-  /** Stop before stepping at this address; independent of CPU halt state. */
+  /** Stop before stepping at this address; independent of CPU halt/wait state. */
   readonly endAddress?: number;
 }
 
 export interface CpuRunResult<Step> {
   readonly records: readonly Step[];
-  readonly stopReason: "completed" | "halted" | "unsupported" | "step-limit";
+  readonly stopReason: "completed" | "halted" | "waiting" | "unsupported" | "step-limit";
 }
 
 // Infer from the CPU so a selection of CPU types keeps the union of their records.

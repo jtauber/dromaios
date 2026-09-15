@@ -132,6 +132,8 @@ test("6800 generation uses Cpu6800, preserves its state and high-byte-first vect
   assert.ok(generated.includes("create: create6800Example, createMemory: create6800ExampleMemory"));
   assert.ok(generated.includes("defineRamExample(Cpu6800,"));
   assert.ok(generated.includes('"sp": 32767'));
+  assert.ok(generated.includes('"waiting": false'));
+  assert.ok(compileMachine(source.replace("waiting = false", "waiting = true"), "6800/example.machine").includes('"waiting": true'));
   assert.ok(generated.includes('"h": true'));
   assert.ok(generated.includes('"i": false'));
   assert.ok(generated.includes('"address": 65534'));

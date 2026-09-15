@@ -11,6 +11,8 @@ access records can be compared with the [6809 example](../../6809/examples/arith
 
 ## Initial state and program
 
+`waiting` starts false and remains false throughout this example.
+
 Addresses, byte values, and registers below are hexadecimal; step counts are
 decimal. Both factories create 64 KiB of zero-filled RAM and load:
 

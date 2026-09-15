@@ -12,7 +12,7 @@ function expectedFlags(bits: number): Cpu6800Flags {
 }
 
 function initialState(): Cpu6800Snapshot {
-  return { a: 0x81, b: 0x22, x: 0xff80, sp: 0x0101, pc: 0x0200, flags: expectedFlags(0x2e) };
+  return { waiting: false, a: 0x81, b: 0x22, x: 0xff80, sp: 0x0101, pc: 0x0200, flags: expectedFlags(0x2e) };
 }
 
 function checkMemory(ram: Ram, finished: boolean, edits: readonly (readonly [number, number])[] = []): void {
@@ -144,7 +144,7 @@ test("editing the 6800 example's addition operand changes the borrow chain and s
   assert.equal(result.stopReason, "completed");
   assert.equal(result.records.length, 20);
   assert.ok(result.records.every(record => record.outcome === "executed"));
-  assert.deepEqual(result.records.filter(record => record.instruction.address === 0x0225).map(record => record.instruction.bytes), [[0x86, 0]]);
+  assert.deepEqual(result.records.filter(record => record.instruction.address === 0x0225).map(record => record.instruction?.bytes), [[0x86, 0]]);
   assert.deepEqual(cpu.snapshot(), { ...initialState(), pc: 0x022c, a: 0, b: 0xff, flags: expectedFlags(9) });
   assert.deepEqual(result.records.flatMap(record => record.accesses).filter(access => access.kind === "write"), [
     { kind: "write", address: 0x82, value: 1 }, { kind: "write", address: 0x83, value: 0x13 },

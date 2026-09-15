@@ -21,6 +21,8 @@ const result = runCpu(cpu, { maxSteps: 16, endAddress });
 The result has `stopReason: "completed"` and four `Cpu6502StepRecord` entries.
 For an 8080 or Z80 example that ends in HLT or HALT, omit `endAddress`; its final
 record reports the halt instruction and the runner returns `stopReason: "halted"`.
+The 6800’s WAI similarly returns `stopReason: "waiting"`; an accepted explicit
+interrupt releases waiting so a subsequent run can resume.
 
 | Option | Meaning |
 | --- | --- |
@@ -50,7 +52,7 @@ After validating options, the runner repeats these checks in order:
 1. If an endpoint was supplied and the current PC equals it, return `completed`.
 2. If the step budget is exhausted, return `step-limit`.
 3. Call `step()` once and append its original record.
-4. If that record reports `halted` or `unsupported`, return that stopping reason
+4. If that record reports `halted`, `waiting`, or `unsupported`, return that stopping reason
    immediately. Otherwise, repeat from the endpoint check.
 
 This gives the following boundary behavior:
@@ -60,13 +62,14 @@ This gives the following boundary behavior:
 | CPU starts at the endpoint, including with a zero budget | `completed`, no records or instruction fetch |
 | Zero budget away from the endpoint | `step-limit`, no records |
 | Last permitted executed step reaches the endpoint | `completed`, including that step's record |
-| Last permitted step halts or reports unsupported | `halted` or `unsupported`, including that record |
+| Last permitted step halts, waits, or reports unsupported | `halted`, `waiting`, or `unsupported`, including that record |
 | HLT, HALT, or STOP advances PC to the endpoint | `halted`, retaining the CPU's terminal result |
+| WAI advances PC to the endpoint | `waiting`, retaining the instruction and saved-frame writes |
 | Budget ends before any other stopping condition | `step-limit`, with exactly `maxSteps` records |
 
 A step budget counts attempts, including unsupported instructions and the
-8080's and Z80's already halted, no-fetch steps. An already halted CPU therefore
-returns one such record if a step is permitted. With a zero budget it returns
+already halted or waiting no-fetch steps. An already halted or waiting CPU
+therefore returns one such record if a step is permitted. With a zero budget it returns
 `step-limit`; if it starts at a supplied endpoint, completion takes precedence
 and it is not stepped.
 
@@ -85,7 +88,8 @@ Record contents and isolation guarantees belong to the CPU's model contract.
 
 TypeScript infers the record type from the supplied CPU. A 6502 run retains
 its non-null instruction and `opcode` unsupported reason;
-an 8080 run retains its halted-record union; a 6809 run retains D and both
+an 8080 run retains its halted-record union; a 6800 run retains its waiting
+state and nullable instruction on an already waiting step; a 6809 run retains D and both
 stack pointers in snapshots; a Z80 run retains both register banks, P/V, and R;
 an 8088 run retains CS:IP, word registers, derived byte views, and physical PC;
 a 68000 run retains long registers, both stack pointers, STOP state, and
@@ -94,7 +98,7 @@ Selecting between CPU types produces the union of their record types. Run-level 
 CPU-level `outcome` and optional `reason`.
 
 The runner depends only on `snapshot().pc` and a `step()` result whose outcome
-is `executed`, `halted`, or `unsupported`. The current CPU classes satisfy
+is `executed`, `halted`, `waiting`, or `unsupported`. The current CPU classes satisfy
 that structural contract without adapters or changes to their state APIs.
 CPU exceptions propagate immediately; the runner does not retry a failed step
 or return a fabricated record. State changes already made remain visible.
@@ -109,7 +113,7 @@ Tests cover the existing examples at their exact step budgets, checking
 final PC, stopping reason, original record identity, RAM accesses, and writes.
 The example specifications retain independently authored expected records and
 memory images. Boundary checks cover zero and exhausted budgets, endpoint
-precedence, already halted CPUs, unsupported opcodes and modes, 6809 prefixes,
+precedence, already halted/waiting CPUs, wait/wake resumption, unsupported opcodes and modes, 6809 prefixes,
 successive runs, changed RAM, record retention, and propagated errors. Public
 type checks preserve CPU-specific record fields, discriminated unions, and
 readonly results.

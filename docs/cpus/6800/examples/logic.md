@@ -11,6 +11,8 @@ saves the caller's B on the same RAM stack as the return address.
 
 ## Definition and initial state
 
+`waiting` starts false and remains false throughout this example.
+
 Addresses, bytes, and registers below are hexadecimal; step counts and signed
 displacements are decimal. Begin with zero-filled 64 KiB RAM and load:
 

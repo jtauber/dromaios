@@ -2,6 +2,7 @@ ram 10000
 
 cpu 6800 {
     A = 11  B = 22  X = 3456  SP = 7FFF  PC = 0200
+    waiting = false
     flags { H = 1  I = 0  N = 1  Z = 1  V = 1  C = 1 }
 }
 

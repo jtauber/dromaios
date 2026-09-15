@@ -14,6 +14,8 @@ jumping to its completion address.
 
 ## Initial state and memory
 
+`waiting` starts false and remains false throughout this example.
+
 Numbers below are hexadecimal except step counts, flag values, and explicitly
 identified decimal values. The machine has 64 KiB RAM. A/B/X/SP/PC start at
 `81/22/3456/789A/0200`, with H/I/N/Z/V/C = `1/0/1/0/1/1`.

@@ -56,7 +56,7 @@ end 0208
 - CPU state field names are case-insensitive. Uppercase is the convention for
   registers and flags: `A`, `PC`, `SP`, `N`, `CY`. Keywords such as `cpu`, `flags`,
   `alternate`, and `memory` are lowercase. Descriptive control fields retain the
-  spellings `interruptEnabled`, `interruptDeferred`, `iff1`, `iff2`, and `halted`; the 8008 uses
+  spellings `interruptEnabled`, `interruptDeferred`, `iff1`, `iff2`, `halted`, and `waiting`; the 8008 uses
   `addressStack` and `stackIndex` for its address registers and selector, and the
   68000 uses `interruptMask`. Duplicate detection ignores case, so assigning
   both `PC` and `pc` is an error. Register and flag names are resolved within
@@ -125,7 +125,7 @@ All fields listed for the selected CPU are required, including every flag.
 | 8008 | A, B, C, D, E, H, L | Eight 14-bit address-stack entries | S, Z, P, C | halted |
 | 8080 | A, B, C, D, E, H, L | PC, SP | S, Z, AC, P, CY | interruptEnabled, interruptDeferred, halted |
 | 6502 | A, X, Y, SP | PC | N, V, D, I, Z, C | — |
-| 6800 | A, B | X, SP, PC | H, I, N, Z, V, C | — |
+| 6800 | A, B | X, SP, PC | H, I, N, Z, V, C | waiting |
 | 6809 | A, B, DP | X, Y, S, U, PC | E, F, H, I, N, Z, V, C | — |
 | z80 | A, B, C, D, E, H, L in both banks; I, R | IX, IY, PC, SP | S, Z, H, PV, N, C in both banks | iff1, iff2, halted |
 | 8088 | — | AX, BX, CX, DX, SP, BP, SI, DI, CS, DS, SS, ES, IP | CF, PF, AF, ZF, SF, TF, IF, DF, OF | `halted` |

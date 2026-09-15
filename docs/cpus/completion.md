@@ -76,7 +76,9 @@ and [external delivery API](8080/model.md#external-interrupt-delivery) implement
 the first item. The 8008's [port contract](8008/model.md#port-input-and-output)
 implements the second. The 6502 now implements [entry and return](6502/model.md#interrupt-entry-and-return)
 and [explicit IRQ/NMI offers](6502/model.md#external-interrupt-delivery), with
-its recognition timing limits documented there. The next slice is 6800
-interrupt and wait behavior, followed by the 6809.
+its recognition timing limits documented there. The 6800 now completes its
+[interrupt and wait behavior](6800/model.md#waiting-and-external-interrupt-delivery),
+including native frames, return, and snapshot-preserved WAI. The next slice is
+the 6809’s interrupt and wait behavior.
 Timing and device scheduling remain separate from completed opcode inventories;
 8008 external interrupt delivery is also still deferred.

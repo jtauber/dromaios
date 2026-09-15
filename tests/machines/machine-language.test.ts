@@ -27,7 +27,7 @@ cpu 6502 {
 }`,
   "6800": `ram 10000
 cpu 6800 {
-  A=00 B=00 X=3456 SP=9ABC PC=0000
+  A=00 B=00 X=3456 SP=9ABC PC=0000 waiting=false
   flags { H=1 I=0 N=1 Z=0 V=1 C=0 }
 }`,
   "6809": `ram 10000
@@ -38,7 +38,7 @@ cpu 6809 {
 };
 
 test("6800 parsing preserves its word-sized X/SP and six condition flags in any declaration order", () => {
-  const state = { a: 0, b: 0, x: 0x3456, sp: 0x9abc, pc: 0,
+  const state = { waiting: false, a: 0, b: 0, x: 0x3456, sp: 0x9abc, pc: 0,
     flags: { h: true, i: false, n: true, z: false, v: true, c: false } };
   const suffix = "memory FFFE { 12 AB } end FFFF";
   for (const text of [`${sources["6800"]} ${suffix}`, `${suffix} ${sources["6800"]}`]) {
@@ -68,6 +68,14 @@ test("6800 parsing validates every flag, rejects foreign registers and latches, 
   assert.throws(() => parseMachine(source.replace("SP=9ABC", "SP=9ABC sp=0")), /Duplicate field SP/);
   assert.throws(() => parseMachine(source.replace("H=1", "H=1 h=0")), /Duplicate field H/);
   assert.throws(() => parseMachine(source.replace("ram 10000", "ram 4000")), /RAM size for 6800 must be 10000/);
+  for (const value of ["true", "false"]) {
+    const machine = parseMachine(set(source, "waiting", value));
+    assert.equal(machine.cpu, "6800");
+    assert.equal(machine.initialState.waiting, value === "true");
+  }
+  for (const value of ["0", "1", "yes"]) assert.throws(() => parseMachine(set(source, "waiting", value)), SyntaxError);
+  assert.throws(() => parseMachine(source.replace("waiting=false", "")), /Missing fields in 6800: waiting/);
+  assert.throws(() => parseMachine(source.replace("waiting=false", "waiting=false WAITING=true")), /Duplicate field waiting/);
 });
 
 function set(source: string, name: string, value: string): string {

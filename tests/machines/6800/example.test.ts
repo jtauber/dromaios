@@ -6,7 +6,7 @@ import { create6800Example, create6800ExampleMemory } from "../../../src/machine
 import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 function expectedInitialState(): Cpu6800Snapshot {
-  return { a: 0x11, b: 0x22, x: 0x3456, sp: 0x7fff, pc: 0x0200,
+  return { waiting: false, a: 0x11, b: 0x22, x: 0x3456, sp: 0x7fff, pc: 0x0200,
     flags: { h: true, i: false, n: true, z: true, v: true, c: true } };
 }
 

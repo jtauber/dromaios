@@ -2,12 +2,13 @@ import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
 import { flagRegister } from "./flags.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
+import { executionBoundary } from "./execution-boundary.ts";
 import { signed8, readWordBE } from "./binary.ts";
 import { modifyByte } from "./memory-operations.ts";
 import { recordMemory } from "./memory-access.ts";
-import type { MemoryAccess } from "./memory-access.ts";
+import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
-import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
+import { defineState, copyState, readState, unsigned, flag, boolean, group } from "./state.ts";
 import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
@@ -19,6 +20,7 @@ import type { ShiftResult } from "./alu.ts";
 export const cpu6800StateDescription = defineState({
   a: unsigned(8), b: unsigned(8), x: unsigned(16), sp: unsigned(16), pc: unsigned(16),
   flags: group({ h: flag, i: flag, n: flag, z: flag, v: flag, c: flag }),
+  waiting: boolean,
 });
 
 export type Cpu6800State = StateValues<typeof cpu6800StateDescription>;
@@ -30,9 +32,20 @@ export type Cpu6800MemoryAccess = MemoryAccess;
 
 export type Cpu6800Instruction = FetchedInstruction;
 
-export type Cpu6800StepRecord = InstructionStep<Cpu6800Snapshot>;
+export type Cpu6800StepRecord = InstructionStep<Cpu6800Snapshot> | (StateTransition<Cpu6800Snapshot> & {
+  readonly outcome: "waiting";
+  readonly instruction: Cpu6800Instruction | null;
+});
 
 export type Cpu6800ResetRecord = StateTransition<Cpu6800Snapshot>;
+
+export type Cpu6800InterruptSource = "irq" | "nmi";
+
+/** External entry performs stack/vector accesses without fetching an instruction. */
+export type Cpu6800InterruptRecord = StateTransition<Cpu6800Snapshot> & { readonly instruction: null } & (
+  | { readonly source: Cpu6800InterruptSource; readonly outcome: "accepted" }
+  | { readonly source: "irq"; readonly outcome: "ignored"; readonly reason: "masked" }
+);
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type Accumulator = "a" | "b";
@@ -43,13 +56,14 @@ type AddressReader = (instruction: InstructionContext) => number;
 const instructionPattern = opcodePattern<OpcodeHandler>;
 const packedFlags = flagRegister({ h: 5, i: 4, n: 3, z: 2, v: 1, c: 0 }, 0xc0);
 
-/** Instruction-level Motorola 6800 subset with flat 64 KiB RAM. */
+/** Instruction-level Motorola 6800 with explicit boundary IRQ/NMI delivery. */
 export class Cpu6800 {
   readonly #ram: Ram;
   readonly #state: Cpu6800State;
+  readonly #atBoundary = executionBoundary("6800 step, reset, and interrupt calls must not be reentrant.");
   readonly #alu = motorolaByteAlu(() => this.#state.flags);
 
-  constructor(ram: Ram, initialState: Cpu6800State) {
+  constructor(ram: Ram, initialState: Cpu6800Snapshot) {
     if (ram.size !== 0x10000) throw new RangeError("The 6800 model requires exactly 64 KiB of RAM.");
     this.#ram = ram;
     this.#state = readState(cpu6800StateDescription, initialState);
@@ -60,25 +74,46 @@ export class Cpu6800 {
     return copyState(cpu6800StateDescription, this.#state);
   }
 
-  /** Read the reset vector and set I; preserve other state and RAM under the model policy. */
+  /** Read the reset vector, set I, and release WAI; preserve other state and RAM. */
   reset(): Cpu6800ResetRecord {
-    const before = this.snapshot();
-    const { accesses, readByte } = recordMemory(this.#ram);
-    const high = readByte(0xfffe);
-    const low = readByte(0xffff);
-    this.#state.pc = (high << 8) | low;
-    this.#state.flags.i = true;
-    return { before, after: this.snapshot(), accesses };
+    return this.#atBoundary(() => {
+      const before = this.snapshot();
+      const { accesses, readByte } = recordMemory(this.#ram);
+      this.#state.pc = this.#readWord(0xfffe, readByte);
+      this.#state.flags.i = true;
+      this.#state.waiting = false;
+      return { before, after: this.snapshot(), accesses };
+    });
   }
 
-  /** Attempt one instruction; unsupported opcodes preserve all state and RAM. */
+  /** Attempt one instruction; waiting CPUs do not fetch, and unsupported opcodes preserve state. */
   step(): Cpu6800StepRecord {
-    const before = this.snapshot();
-    const { instruction, accesses, executed } = executeByteInstruction(this.#state, this.#ram, this.#opcodeHandlers, readWordBE);
-    const record = { before, after: this.snapshot(), instruction, accesses };
-    return executed
-      ? { ...record, outcome: "executed" }
-      : { ...record, outcome: "unsupported", reason: "opcode" };
+    return this.#atBoundary<Cpu6800StepRecord>(() => {
+      const before = this.snapshot();
+      if (this.#state.waiting) {
+        return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "waiting" };
+      }
+      const { instruction, accesses, executed } = executeByteInstruction(this.#state, this.#ram, this.#opcodeHandlers, readWordBE);
+      const record = { before, after: this.snapshot(), instruction, accesses };
+      return executed
+        ? { ...record, outcome: this.#state.waiting ? "waiting" : "executed" }
+        : { ...record, outcome: "unsupported", reason: "opcode" };
+    });
+  }
+
+  /** Offer a selected request at this boundary; the caller owns pending signals and NMI edges. */
+  interrupt(source: Cpu6800InterruptSource): Cpu6800InterruptRecord {
+    return this.#atBoundary<Cpu6800InterruptRecord>(() => {
+      if (source !== "irq" && source !== "nmi") throw new RangeError("6800 interrupt source must be irq or nmi.");
+      const before = this.snapshot();
+      // Boundary offers consult current I; hardware look-ahead and pin sampling are unmodeled.
+      if (source === "irq" && this.#state.flags.i) {
+        return { before, after: this.snapshot(), instruction: null, accesses: [], source, outcome: "ignored", reason: "masked" };
+      }
+      const memory = recordMemory(this.#ram);
+      this.#enterInterrupt(source === "irq" ? 0xfff8 : 0xfffc, memory);
+      return { before, after: this.snapshot(), instruction: null, accesses: memory.accesses, source, outcome: "accepted" };
+    });
   }
 
   // Opcode selectors and construction. Each group labels its own encoding fields.
@@ -123,10 +158,11 @@ export class Cpu6800 {
     ...instructionPattern("0000011 0", () => { this.#state.flags = packedFlags.decode(this.#state.a); }), // TAP
     ...instructionPattern("0000011 1", () => { this.#state.a = packedFlags.encode(this.#state.flags); }), // TPA
 
-    // 00001 ff v: ff=00 adjusts X; ff=01/10 clears or sets V/C; ff=11 is deferred CLI/SEI.
+    // 00001 ff v: ff=00 adjusts X; ff=01/10/11 clears or sets V/C/I.
     ...opcodeFamily("00001 00 d", { d: [1, -1] }, ({ d: delta }) => () => this.#adjustIndex(delta)), // INX / DEX; only Z changes
     ...opcodeFamily("00001 01 v", { v: [false, true] }, ({ v: value }) => () => { this.#state.flags.v = value; }), // CLV / SEV
     ...opcodeFamily("00001 10 v", { v: [false, true] }, ({ v: value }) => () => { this.#state.flags.c = value; }), // CLC / SEC
+    ...opcodeFamily("00001 11 v", { v: [false, true] }, ({ v: value }) => () => { this.#state.flags.i = value; }), // CLI / SEI
 
     // 0001000 c: subtract B from A; c=1 compares without replacing A. Both ignore incoming carry.
     ...instructionPattern("0001000 0", () => { this.#state.a = this.#alu.subtract(this.#state.a, this.#state.b); }), // SBA
@@ -159,6 +195,11 @@ export class Cpu6800 {
     ...instructionPattern("00110 1 0 1", () => { this.#state.sp = (this.#state.x - 1) & 0xffff; }), // TXS
     ...opcodeFamily("00110 1 1 r", { r: ["a", "b"] }, ({ r: register }) => ({ writeByte }: InstructionContext) => this.#pushByte(this.#state[register], writeByte)), // PSHA / PSHB
     ...instructionPattern("0011 1001", ({ readByte }: InstructionContext) => this.#return(readByte)), // RTS
+    ...instructionPattern("0011 1011", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
+
+    // 0011111 s: both save the full frame; s=0 waits, s=1 enters the software vector.
+    ...instructionPattern("0011111 0", ({ writeByte }) => { this.#saveInterruptFrame(writeByte); this.#state.waiting = true; }), // WAI
+    ...instructionPattern("0011111 1", instruction => this.#enterInterrupt(0xfffa, instruction)), // SWI
 
     // 010 r oooo (tt=00/01): r selects A=0/B=1. 1110 is unused here.
     ...this.#unaryOperations.flatMap(({ bits, apply }) => opcodeFamily(`010 r ${bits}`,
@@ -193,7 +234,7 @@ export class Cpu6800 {
     ...this.#memoryModes.flatMap(({ bits, address }) => opcodeFamily(`1 r ${bits} 1111`, { r: this.#wordRegisters },
       ({ r }) => (instruction: InstructionContext) => this.#storeWord(r, address(instruction), instruction.writeByte))), // STS / STX
 
-    // CLI, SEI, WAI, SWI, RTI, and all undefined encodings remain unsupported.
+    // All 197 documented encodings are covered; undefined encodings remain unsupported.
   ]);
 
   #branchPair(pattern: string, condition: number): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -261,16 +302,46 @@ export class Cpu6800 {
 
   #call(address: number, writeByte: InstructionContext["writeByte"]): void {
     // All instruction bytes are fetched before stacking the return PC, low byte first.
-    const returnAddress = this.#state.pc;
-    this.#pushByte(returnAddress & 0xff, writeByte);
-    this.#pushByte(returnAddress >>> 8, writeByte);
+    this.#pushWord(this.#state.pc, writeByte);
     this.#state.pc = address;
   }
 
   #return(readByte: InstructionContext["readByte"]): void {
-    const high = this.#pullByte(readByte);
-    const low = this.#pullByte(readByte);
-    this.#state.pc = (high << 8) | low;
+    this.#state.pc = this.#pullWord(readByte);
+  }
+
+  #saveInterruptFrame(writeByte: ByteMemory["writeByte"]): void {
+    // Descending stack: PC low/high, X low/high, A, B, then CC with the original I.
+    this.#pushWord(this.#state.pc, writeByte);
+    this.#pushWord(this.#state.x, writeByte);
+    this.#pushByte(this.#state.a, writeByte);
+    this.#pushByte(this.#state.b, writeByte);
+    this.#pushByte(packedFlags.encode(this.#state.flags), writeByte);
+  }
+
+  #enterInterrupt(vector: number, memory: ByteMemory): void {
+    // WAI already saved the frame; waking only masks IRQ and loads the vector.
+    if (!this.#state.waiting) this.#saveInterruptFrame(memory.writeByte);
+    this.#state.waiting = false;
+    this.#state.flags.i = true;
+    this.#state.pc = this.#readWord(vector, memory.readByte);
+  }
+
+  #returnFromInterrupt(readByte: ByteMemory["readByte"]): void {
+    this.#state.flags = packedFlags.decode(this.#pullByte(readByte));
+    this.#state.b = this.#pullByte(readByte);
+    this.#state.a = this.#pullByte(readByte);
+    this.#state.x = this.#pullWord(readByte);
+    this.#return(readByte);
+  }
+
+  #pushWord(value: number, writeByte: ByteMemory["writeByte"]): void {
+    this.#pushByte(value & 0xff, writeByte);
+    this.#pushByte(value >>> 8, writeByte);
+  }
+
+  #pullWord(readByte: ByteMemory["readByte"]): number {
+    return readWordBE(() => this.#pullByte(readByte));
   }
 
   #pushByte(value: number, writeByte: InstructionContext["writeByte"]): void {

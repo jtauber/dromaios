@@ -6,7 +6,7 @@ import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 
 function initialState(overrides: Partial<Cpu6800State> = {}): Cpu6800State {
-  return { a: 0x81, b: 0x22, x: 0x3456, sp: 0x789a, pc: 0x2000,
+  return { waiting: false, a: 0x81, b: 0x22, x: 0x3456, sp: 0x789a, pc: 0x2000,
     flags: { h: true, i: false, n: true, z: false, v: true, c: true }, ...overrides };
 }
 
@@ -24,7 +24,7 @@ function addition(a: number, operand: number, i: boolean, carry = 0) {
   const total = a + operand + carry;
   const result = total % 256;
   const signedTotal = (a < 128 ? a : a - 256) + (operand < 128 ? operand : operand - 256) + carry;
-  return { a: result, flags: { h: a % 16 + operand % 16 + carry >= 16, i,
+  return { waiting: false, a: result, flags: { h: a % 16 + operand % 16 + carry >= 16, i,
     n: result >= 128, z: result === 0, v: signedTotal < -128 || signedTotal > 127, c: total >= 256 } };
 }
 
@@ -387,7 +387,7 @@ test("6800 memory operands may overlap the fetched opcode or address bytes, reta
           ram.accesses.length = 0;
           const record = new Cpu6800(ram, before).step();
           assert.deepEqual(record.after, { ...before, [register]: expected.value, flags: expected.flags, pc: (pc + length) % 65536 });
-          assert.deepEqual(record.instruction.bytes, bytes);
+          assert.deepEqual(record.instruction?.bytes, bytes);
           assert.deepEqual(record.accesses, [
             ...bytes.map((value, offset) => ({ kind: "read", address: (pc + offset) % 65536, value })),
             { kind: "read", address, value: bytes[slot] },
@@ -414,7 +414,7 @@ test("6800 all accumulator stores fetch their complete address before overwritin
         const before = initialState({ pc, x: pc, [register]: 0x55 });
         const record = new Cpu6800(ram, before).step();
         assert.deepEqual(record.after, { ...before, pc: (pc + length) % 65536, flags: loadStoreFlags(0x55, before.flags) });
-        assert.deepEqual(record.instruction.bytes, bytes);
+        assert.deepEqual(record.instruction?.bytes, bytes);
         assert.deepEqual(record.accesses, [
           ...bytes.map((value, offset) => ({ kind: "read", address: (pc + offset) % 65536, value })),
           { kind: "write", address, value: 0x55 },
@@ -477,7 +477,7 @@ test("6800 reads each declared getter once, including non-enumerable fields, and
     }
   }
   assert.deepEqual(new Cpu6800(new Ram(0x10000), state).snapshot(), initialState());
-  assert.equal(calls.size, 12);
+  assert.equal(calls.size, 13);
   assert.ok([...calls.values()].every(count => count === 1));
 });
 
@@ -775,10 +775,10 @@ test("6800 extended stores wrap across either operand fetch and preserve recorde
   }
 });
 
-test("6800 NOP and CLC/SEC/CLV/SEV preserve unrelated state for all flags and wrapped PCs", () => {
+test("6800 NOP and CLC/SEC/CLV/SEV/CLI/SEI preserve unrelated state for all flags and wrapped PCs", () => {
   const ram = new ObservedRam();
   for (const [opcode, changedFlag, value] of [[0x01, undefined, false], [0x0a, "v", false],
-    [0x0b, "v", true], [0x0c, "c", false], [0x0d, "c", true]] as const) {
+    [0x0b, "v", true], [0x0c, "c", false], [0x0d, "c", true], [0x0e, "i", false], [0x0f, "i", true]] as const) {
     for (let bits = 0; bits < 64; bits++) {
       for (const pc of [0x2000, 0xffff]) {
         const before = initialState({ pc, flags: flags(bits) });
@@ -1262,7 +1262,7 @@ test("6800 pulls read edited stack RAM and later calls use current SP while old 
   assert.deepEqual(first, saved);
 });
 
-test("6800 implements all 192 ordinary forms and atomically rejects the five interrupt forms and 59 undefined encodings", () => {
+test("6800 implements all 197 documented forms and atomically rejects the 59 undefined encodings", () => {
   const supported = new Set([
     0x16, 0x17, 0x20, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
     0x32, 0x33, 0x36, 0x37, 0x39, 0x4a, 0x4c, 0x5a, 0x5c,
@@ -1273,9 +1273,8 @@ test("6800 implements all 192 ordinary forms and atomically rejects the five int
     ...pointerOperations.map(form => form.opcode), ...interAccumulator.map(form => form.opcode),
     0x01, 0x06, 0x07, 0x0a, 0x0b, 0x0c, 0x0d, 0x19, 0x6e, 0x7e, 0xad,
   ]);
-  assert.equal(supported.size, 192);
-  const interrupts = [0x0e, 0x0f, 0x3b, 0x3e, 0x3f]; // CLI, SEI, RTI, WAI, SWI
-  assert.equal(new Set([...supported, ...interrupts]).size, 197);
+  for (const opcode of [0x0e, 0x0f, 0x3b, 0x3e, 0x3f]) supported.add(opcode); // CLI, SEI, RTI, WAI, SWI
+  assert.equal(supported.size, 197);
   const ram = new ObservedRam();
   for (let opcode = 0; opcode < 256; opcode++) {
     for (const pc of [0, 0x2000, 0xffff]) {
@@ -1284,7 +1283,7 @@ test("6800 implements all 192 ordinary forms and atomically rejects the five int
       const before = initialState({ pc, flags: flags(opcode % 64) });
       const cpu = new Cpu6800(ram, before);
       if (supported.has(opcode)) {
-        assert.equal(cpu.step().outcome, "executed", `documented opcode ${opcode.toString(16)}`);
+        assert.equal(cpu.step().outcome, opcode === 0x3e ? "waiting" : "executed", `documented opcode ${opcode.toString(16)}`);
         continue;
       }
       for (let attempt = 0; attempt < 2; attempt++) {
@@ -1607,4 +1606,283 @@ test("6800 unary steps read current data and retain independent records across r
   assert.deepEqual(first.instruction, saved.instruction);
   assert.deepEqual(first.accesses, saved.accesses);
   assert.deepEqual(rotate, savedRotate);
+});
+
+function load(ram: Ram, bytes: readonly number[], address: number): void {
+  for (const [offset, value] of bytes.entries()) ram.write(address + offset, value);
+}
+
+// Motorola's frame, laid out in ascending memory: CC, B, A, X high/low, PC high/low.
+// Buffer supplies independent word encoding; the CPU uses its own stack primitives.
+function interruptFrame(state: Cpu6800State, pc = state.pc): number[] {
+  const bytes = Buffer.alloc(7);
+  bytes[0] = 192 + [state.flags.h, state.flags.i, state.flags.n, state.flags.z, state.flags.v, state.flags.c]
+    .reduce((sum, value, index) => sum + Number(value) * 2 ** (5 - index), 0);
+  bytes[1] = state.b;
+  bytes[2] = state.a;
+  bytes.writeUInt16BE(state.x, 3);
+  bytes.writeUInt16BE(pc, 5);
+  return [...bytes];
+}
+
+for (const source of ["swi", "irq", "nmi", "wai"] as const) {
+  test(`6800 ${source} checks the full frame, vectors, flags, wrapping, and overlapping code/stack/vector RAM`, () => {
+    const ram = new ObservedRam();
+    const vector = source === "swi" ? 0xfffa : source === "irq" ? 0xfff8 : 0xfffc;
+    const opcode = source === "wai" ? 0x3e : 0x3f;
+    const external = source === "irq" || source === "nmi";
+    for (let bits = 0; bits < 64; bits++) {
+      for (const sp of [0, 1, 3, 6, 7, 0x2000, 0xfff9, 0xfffb, 0xfffd, 0xffff]) {
+        for (const pc of [0, 0x2000, 0xffff]) {
+          const before = initialState({ pc, sp, flags: flags(bits), a: bits * 3, b: 255 - bits, x: bits * 1025 });
+          ram.write(vector, 0x45);
+          ram.write(vector + 1, 0x67);
+          ram.write(pc, opcode);
+          const image = new Map([[vector, ram.read(vector)], [vector + 1, ram.read(vector + 1)]]);
+          const accesses: Cpu6800MemoryAccess[] = external ? [] : [{ kind: "read", address: pc, value: opcode }];
+          const returnPc = external ? pc : (pc + 1) % 65536;
+          const ignored = source === "irq" && before.flags.i;
+          if (!ignored) {
+            for (const [offset, value] of interruptFrame(before, returnPc).reverse().entries()) {
+              const address = (sp - offset + 65536) % 65536;
+              accesses.push({ kind: "write", address, value });
+              image.set(address, value);
+              // Unchanged writes still belong in the record.
+              if (address !== pc && address !== vector && address !== vector + 1) ram.write(address, value);
+            }
+          }
+          const target = image.get(vector)! * 256 + image.get(vector + 1)!;
+          if (!ignored && source !== "wai") {
+            accesses.push({ kind: "read", address: vector, value: image.get(vector)! },
+              { kind: "read", address: vector + 1, value: image.get(vector + 1)! });
+          }
+          const after = ignored ? before : { ...before, sp: (sp - 7 + 65536) % 65536,
+            pc: source === "wai" ? returnPc : target, waiting: source === "wai",
+            flags: source === "wai" ? before.flags : { ...before.flags, i: true } };
+          ram.accesses.length = 0;
+          const cpu = new Cpu6800(ram, before);
+          const record = external ? cpu.interrupt(source) : cpu.step();
+          const outcome = external ? { source, outcome: ignored ? "ignored" : "accepted", ...(ignored ? { reason: "masked" } : {}) }
+            : { outcome: source === "wai" ? "waiting" : "executed" };
+          assert.deepEqual(record, { before, after, instruction: external ? null : { address: pc, bytes: [opcode] }, accesses, ...outcome });
+          assert.deepEqual(cpu.snapshot(), after);
+          assert.deepEqual(ram.accesses, accesses);
+          for (const access of accesses) if (access.kind === "write") assert.equal(ram.read(access.address), access.value);
+        }
+      }
+    }
+  });
+}
+
+test("6800 RTI restores every packed status byte from live RAM, with full-width stack and return-address wrapping", () => {
+  const ram = new ObservedRam();
+  for (let cc = 0; cc < 256; cc++) {
+    for (const sp of [0, 0xfff8, 0xfffa, 0xfffc, 0xfffe, 0xffff, 0x1ffc, 0x1fff]) {
+      const before = initialState({ sp });
+      const bytes = [cc, 255 - cc, cc, cc, 255 - cc, cc, cc];
+      for (const [offset, value] of bytes.entries()) ram.write((sp + offset + 1) % 65536, value);
+      // The opcode wins an overlap; RTI must read the actual edited byte again as data.
+      ram.write(before.pc, 0x3b);
+      const reads = bytes.map((_, index) => {
+        const address = (sp + index + 1) % 65536;
+        return { kind: "read" as const, address, value: ram.read(address) };
+      });
+      const values = Buffer.from(reads.map(access => access.value));
+      const after = { ...before, sp: (sp + 7) % 65536, flags: flags(values[0]!), b: values[1]!, a: values[2]!,
+        x: values.readUInt16BE(3), pc: values.readUInt16BE(5) };
+      ram.accesses.length = 0;
+      const cpu = new Cpu6800(ram, before);
+      const accesses = [{ kind: "read", address: before.pc, value: 0x3b }, ...reads];
+      assert.deepEqual(cpu.step(), { before, after, instruction: { address: before.pc, bytes: [0x3b] }, outcome: "executed", accesses });
+      assert.deepEqual(ram.accesses, accesses);
+      assert.deepEqual(cpu.snapshot(), after);
+      // Restored flag objects must be the ones subsequent instructions use.
+      ram.write(after.pc, 0x07); // TPA
+      assert.equal(cpu.step().after.a, 192 + values[0]! % 64);
+    }
+  }
+});
+
+test("6800 WAI stays idle, ignores masked IRQ, and wakes through either vector without stacking twice", () => {
+  for (const source of ["irq", "nmi"] as const) {
+    for (const i of [false, true]) {
+      const ram = new ObservedRam();
+      load(ram, [0x3e, 0x01], 0x2000); // WAI; NOP
+      load(ram, [0x30, 0x00, 0x40, 0x00, 0x50, 0x00, 0x60, 0x00], 0xfff8);
+      const before = initialState({ sp: 3, flags: { ...flags(0x2b), i } });
+      const cpu = new Cpu6800(ram, before);
+      const wait = cpu.step();
+      const saved = structuredClone(wait);
+      const resumed = new Cpu6800(ram, cpu.snapshot());
+      ram.accesses.length = 0;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        assert.deepEqual(resumed.step(), { before: wait.after, after: wait.after, instruction: null, accesses: [], outcome: "waiting" });
+      }
+      assert.deepEqual(ram.accesses, []);
+      if (i && source === "irq") {
+        assert.equal(resumed.interrupt(source).outcome, "ignored");
+        assert.equal(resumed.snapshot().waiting, true);
+        assert.deepEqual(ram.accesses, []);
+        continue;
+      }
+      const vector = source === "irq" ? 0xfff8 : 0xfffc;
+      // WAI's wrapped frame overwrote some vectors. Host edits are observed on wake.
+      load(ram, [0x70, 0x00], vector);
+      ram.write(0x7000, 0x3b); // RTI
+      ram.accesses.length = 0;
+      const entry = resumed.interrupt(source);
+      assert.deepEqual(entry, { before: wait.after, after: { ...wait.after, waiting: false, pc: 0x7000,
+        flags: { ...before.flags, i: true } }, instruction: null, source, outcome: "accepted",
+        accesses: [{ kind: "read", address: vector, value: 0x70 }, { kind: "read", address: vector + 1, value: 0 }] });
+      assert.deepEqual(ram.accesses, entry.accesses);
+      // Reset the frame after the intentional vector overlap, then edit the saved B and PC.
+      const frame = interruptFrame(before, 0x2001);
+      for (const [offset, byte] of frame.entries()) ram.write((wait.after.sp + offset + 1) % 65536, byte);
+      ram.write((wait.after.sp + 2) % 65536, 0x99);
+      ram.write((wait.after.sp + 7) % 65536, 0x02);
+      assert.deepEqual(resumed.step().after, { ...before, b: 0x99, pc: 0x2002 });
+      assert.deepEqual(wait, saved);
+    }
+  }
+});
+
+test("6800 boundary IRQ offers use current I after CLI, SEI, TAP, RTI, and reset; ignored offers are not queued", () => {
+  for (const [opcode, i] of [[0x0e, false], [0x0f, true], [0x06, false], [0x3b, false]] as const) {
+    const ram = new ObservedRam();
+    load(ram, [opcode, 0x01], 0x2000);
+    load(ram, [0x30, 0x00], 0xfff8);
+    load(ram, [0xc0, 0, 0, 0, 0, 0x20, 0x01], 0x1001);
+    const cpu = new Cpu6800(ram, initialState({ a: 0xc0, sp: 0x1000, flags: flags(16) }));
+    ram.accesses.length = 0;
+    const ignored = cpu.interrupt("irq");
+    assert.equal(ignored.outcome, "ignored");
+    assert.deepEqual(ram.accesses, []);
+    assert.equal(cpu.step().after.flags.i, i);
+    assert.equal(cpu.step().after.pc, 0x2002); // No remembered request interrupts this NOP.
+    assert.equal(cpu.interrupt("irq").outcome, i ? "ignored" : "accepted");
+    cpu.reset();
+    assert.equal(cpu.interrupt("irq").outcome, "ignored");
+  }
+});
+
+class CallbackRam extends ObservedRam {
+  onAccess: (() => void) | undefined;
+  override read(address: number): number { this.onAccess?.(); return super.read(address); }
+  override write(address: number, value: number): void { this.onAccess?.(); super.write(address, value); }
+}
+
+test("6800 entry and WAI failures preserve each completed write, PC advance, mask change, and wait release", () => {
+  for (const source of ["swi", "wai", "irq", "nmi", "wake"] as const) {
+    const instruction = source === "swi" || source === "wai";
+    const count = source === "wai" ? 8 : source === "wake" ? 2 : instruction ? 10 : 9;
+    for (let failed = 0; failed < count; failed++) {
+      const ram = new CallbackRam();
+      const before = initialState({ waiting: source === "wake", sp: 0 });
+      ram.write(before.pc, source === "wai" ? 0x3e : 0x3f);
+      const cpu = new Cpu6800(ram, before);
+      const marker = new Error("RAM failure");
+      let calls = 0;
+      ram.accesses.length = 0;
+      ram.onAccess = () => { if (calls++ === failed) throw marker; };
+      assert.throws(() => instruction ? cpu.step() : cpu.interrupt(source === "irq" ? "irq" : "nmi"), error => error === marker);
+      assert.equal(calls, failed + 1);
+      assert.equal(ram.accesses.length, failed);
+      const writes = source === "wake" ? 0 : Math.min(7, Math.max(0, failed - Number(instruction)));
+      const entered = source === "wake" || writes === 7;
+      const expected = { ...before, sp: (65536 - writes) % 65536,
+        pc: before.pc + Number(instruction && failed > 0), waiting: false,
+        flags: entered ? { ...before.flags, i: true } : before.flags };
+      assert.deepEqual(cpu.snapshot(), expected);
+      ram.onAccess = undefined;
+      const values = interruptFrame(before, expected.pc).reverse();
+      for (let offset = 0; offset < writes; offset++) assert.equal(ram.read((65536 - offset) % 65536), values[offset]);
+      assert.doesNotThrow(() => cpu.reset()); // Guard is released even when a transition throws.
+    }
+  }
+});
+
+test("6800 RTI failure preserves completed fields and preincremented SP, committing words only after both reads", () => {
+  for (let failed = 0; failed < 8; failed++) {
+    const ram = new CallbackRam();
+    const before = initialState({ sp: 0xfffc });
+    const values = [0xc4, 0x98, 0x76, 0x54, 0x32, 0x10, 0xff];
+    for (const [offset, value] of values.entries()) ram.write((before.sp + offset + 1) % 65536, value);
+    ram.write(before.pc, 0x3b);
+    const cpu = new Cpu6800(ram, before);
+    const marker = new Error("RTI read failure");
+    let calls = 0;
+    ram.accesses.length = 0;
+    ram.onAccess = () => { if (calls++ === failed) throw marker; };
+    assert.throws(() => cpu.step(), error => error === marker);
+    assert.equal(ram.accesses.length, failed);
+    assert.equal(calls, failed + 1);
+    assert.deepEqual(cpu.snapshot(), { ...before, pc: before.pc + Number(failed > 0),
+      sp: (before.sp + failed) % 65536, flags: failed >= 2 ? flags(4) : before.flags,
+      b: failed >= 3 ? 0x98 : before.b, a: failed >= 4 ? 0x76 : before.a, x: failed >= 6 ? 0x5432 : before.x });
+    ram.onAccess = undefined;
+    assert.doesNotThrow(() => cpu.reset());
+  }
+});
+
+test("6800 reset releases waiting only after both vector reads, preserving the saved frame and other state", () => {
+  for (const failed of [0, 1, 2]) {
+    const ram = new CallbackRam();
+    const before = initialState({ waiting: true });
+    load(ram, [0x12, 0x34], 0xfffe);
+    const cpu = new Cpu6800(ram, before);
+    const marker = new Error("reset read failure");
+    let calls = 0;
+    ram.accesses.length = 0;
+    ram.onAccess = () => { if (calls++ === failed) throw marker; };
+    if (failed < 2) {
+      assert.throws(() => cpu.reset(), error => error === marker);
+      assert.deepEqual(cpu.snapshot(), before);
+    } else {
+      assert.deepEqual(cpu.reset(), { before, after: { ...before, pc: 0x1234, waiting: false, flags: { ...before.flags, i: true } },
+        accesses: [{ kind: "read", address: 0xfffe, value: 0x12 }, { kind: "read", address: 0xffff, value: 0x34 }] });
+    }
+    assert.ok(ram.accesses.every(access => access.kind === "read"));
+  }
+});
+
+test("6800 rejects nested mutations at every memory callback but permits snapshots, then releases its guard", () => {
+  for (const operation of ["swi", "wai", "rti", "irq", "nmi", "reset"] as const) {
+    const ram = new CallbackRam();
+    ram.write(0x2000, operation === "wai" ? 0x3e : operation === "rti" ? 0x3b : 0x3f);
+    const cpu = new Cpu6800(ram, initialState());
+    let callbacks = 0;
+    ram.onAccess = () => {
+      callbacks++;
+      const before = cpu.snapshot();
+      for (const nested of [() => cpu.step(), () => cpu.reset(), () => cpu.interrupt("irq"), () => cpu.interrupt("nmi")]) {
+        assert.throws(nested, /must not be reentrant/);
+        assert.deepEqual(cpu.snapshot(), before);
+      }
+    };
+    if (operation === "reset") cpu.reset();
+    else if (operation === "irq" || operation === "nmi") cpu.interrupt(operation);
+    else cpu.step();
+    assert.ok(callbacks > 0);
+    ram.onAccess = undefined;
+    assert.doesNotThrow(() => cpu.reset());
+  }
+});
+
+test("6800 validates interrupt sources and waiting state without RAM access and detaches the waiting latch", () => {
+  const ram = new ObservedRam();
+  for (const value of [0, 1, "false", undefined, null]) {
+    const state = initialState();
+    Reflect.set(state, "waiting", value);
+    assert.throws(() => new Cpu6800(ram, state), TypeError);
+  }
+  const state = initialState({ waiting: true });
+  const cpu = new Cpu6800(ram, state);
+  state.waiting = false;
+  const snapshot = cpu.snapshot();
+  Reflect.set(snapshot, "waiting", false);
+  assert.equal(cpu.snapshot().waiting, true);
+  for (const source of ["swi", "firq", "IRQ", "", 0, null, undefined]) {
+    assert.throws(() => Reflect.apply(cpu.interrupt, cpu, [source]), RangeError);
+  }
+  assert.deepEqual(ram.accesses, []);
 });

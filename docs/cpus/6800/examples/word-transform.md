@@ -11,6 +11,8 @@ word operations composed from byte shifts, rotates, complements, and increments.
 
 ## Definition and initial state
 
+`waiting` starts false and remains false throughout this example.
+
 Addresses, bytes, and register values below are hexadecimal; instruction counts
 are decimal. Start with zero-filled 64 KiB RAM and these regions:
 

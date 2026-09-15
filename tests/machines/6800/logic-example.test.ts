@@ -11,7 +11,7 @@ import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 function expectedInitialState(): Cpu6800Snapshot {
   return {
-    a: 0x81, b: 0x22, x: 0x3456, sp: 0x0101, pc: 0x0200,
+    waiting: false, a: 0x81, b: 0x22, x: 0x3456, sp: 0x0101, pc: 0x0200,
     flags: { h: true, i: false, n: true, z: true, v: true, c: true },
   };
 }
@@ -122,7 +122,7 @@ test("the 6800 logic example exercises all eight forms, branches on BIT flags, a
   write.mock.restore();
   checkMemory(ram, true);
   const final = {
-    a: 0x10, b: 0xa5, x: 0x3456, sp: 0x0101, pc: 0x020d,
+    waiting: false, a: 0x10, b: 0xa5, x: 0x3456, sp: 0x0101, pc: 0x020d,
     flags: { h: true, i: false, n: false, z: false, v: false, c: false },
   };
   assert.deepEqual(cpu.snapshot(), final);
@@ -180,9 +180,9 @@ test("editing either BIT mask selects the early return or fallback without losin
     ram.write(address, mask);
     const result = runCpu(cpu, { maxSteps: pcs.length, endAddress });
     assert.equal(result.stopReason, "completed");
-    assert.deepEqual(result.records.map(record => record.instruction.address), pcs);
+    assert.deepEqual(result.records.map(record => record.instruction?.address), pcs);
     assert.ok(result.records.every(record => record.outcome === "executed"));
-    assert.deepEqual(cpu.snapshot(), { a: answer, b: 0xa5, x: 0x3456, sp: 0x0101, pc: 0x020d, flags });
+    assert.deepEqual(cpu.snapshot(), { waiting: false, a: answer, b: 0xa5, x: 0x3456, sp: 0x0101, pc: 0x020d, flags });
     assert.deepEqual(result.records.flatMap(record => record.accesses).filter(access => access.kind === "write"), [
       { kind: "write", address: 0x0101, value: 0x0a }, { kind: "write", address: 0x0100, value: 2 },
       { kind: "write", address: 0x00ff, value: 0xa5 }, { kind: "write", address: 0x0080, value: answer },

@@ -209,9 +209,12 @@ on an unaligned opcode fetch. Address conventions are still
 documented beside the aliases, including the 8088's physical instruction
 address and the 68000's full logical instruction address.
 
-The 6502's separate interrupt record uses `StateTransition` with memory accesses,
+The separate interrupt records for the 6502 and 6800 use `StateTransition` with
+memory accesses,
 a source, and a null instruction: external entry performs no opcode fetch.
-It distinguishes accepted entry from an ignored, masked IRQ.
+Each distinguishes accepted entry from an ignored, masked IRQ. The 6800 also
+adds a CPU-specific `waiting` step branch, with a null instruction only when
+already waiting. The runner preserves this outcome as a stopping reason.
 
 The 8080's separate interrupt record uses `StateTransition` with memory, port,
 and acknowledgement accesses. Its supplied instruction has a source and bytes,
@@ -326,7 +329,7 @@ acknowledgement supplying instruction bytes while PC stays unchanged by fetches.
 It records data-memory and port transfers as they complete. Acceptance and HALT
 release stay in the CPU; the shared RAM-fetch executor does not need an interrupt mode.
 
-The 8008, 8080, and 6502 wrap their mutating public operations with a per-instance
+The 8008, 8080, 6502, and 6800 wrap their mutating public operations with a per-instance
 [`executionBoundary`](../../src/components/cpus/execution-boundary.ts) guard.
 External callbacks may inspect snapshots, but nested mutations throw before
 changing CPU state. The guard clears even when an operation throws; it neither

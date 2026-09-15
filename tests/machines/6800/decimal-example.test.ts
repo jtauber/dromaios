@@ -7,7 +7,7 @@ import { create6800DecimalExample, create6800DecimalExampleMemory } from "../../
 import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 function initialState(): Cpu6800Snapshot {
-  return { a: 0x81, b: 0x22, x: 0x3456, sp: 0x789a, pc: 0x200,
+  return { waiting: false, a: 0x81, b: 0x22, x: 0x3456, sp: 0x789a, pc: 0x200,
     flags: { h: true, i: false, n: true, z: false, v: true, c: true } };
 }
 

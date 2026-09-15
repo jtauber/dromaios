@@ -11,7 +11,7 @@ import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 function expectedInitialState(): Cpu6800Snapshot {
   return {
-    a: 0x80, b: 0, x: 0x3456, sp: 0x0101, pc: 0x0200,
+    waiting: false, a: 0x80, b: 0, x: 0x3456, sp: 0x0101, pc: 0x0200,
     flags: { h: true, i: false, n: true, z: true, v: true, c: true },
   };
 }
@@ -114,7 +114,7 @@ test("the 6800 stack example nests calls, stores the result, and restores A/B/SP
   write.mock.restore();
   checkMemory(ram, true);
   const final = {
-    a: 0x80, b: 0, x: 0x3456, sp: 0x0101, pc: 0x020d,
+    waiting: false, a: 0x80, b: 0, x: 0x3456, sp: 0x0101, pc: 0x020d,
     flags: { h: true, i: false, n: false, z: false, v: false, c: false },
   };
   assert.deepEqual(cpu.snapshot(), final);
@@ -147,7 +147,7 @@ test("6800 reset inside a nested call preserves SP and stack RAM; LDS and fresh 
   const { cpu, ram, endAddress } = create6800StackExample();
   runCpu(cpu, { maxSteps: 7, endAddress });
   const before = {
-    a: 5, b: 7, x: 0x3456, sp: 0x00fb, pc: 0x0230,
+    waiting: false, a: 5, b: 7, x: 0x3456, sp: 0x00fb, pc: 0x0230,
     flags: { h: true, i: false, n: false, z: false, v: false, c: true },
   };
   assert.deepEqual(cpu.snapshot(), before);
