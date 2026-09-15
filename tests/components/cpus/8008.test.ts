@@ -74,6 +74,28 @@ const conditions = [
   { flag: "p", value: true, jump: 0x78, call: 0x7a, ret: 0x3b },
 ] as const;
 
+// Literal encodings from Intel's index-register, rotate, and restart tables.
+const adjustments = [
+  { register: "b", increment: 0x08, decrement: 0x09 },
+  { register: "c", increment: 0x10, decrement: 0x11 },
+  { register: "d", increment: 0x18, decrement: 0x19 },
+  { register: "e", increment: 0x20, decrement: 0x21 },
+  { register: "h", increment: 0x28, decrement: 0x29 },
+  { register: "l", increment: 0x30, decrement: 0x31 },
+] as const;
+const rotations = [
+  { mnemonic: "RLC", opcode: 0x02, direction: "left", throughCarry: false },
+  { mnemonic: "RRC", opcode: 0x0a, direction: "right", throughCarry: false },
+  { mnemonic: "RAL", opcode: 0x12, direction: "left", throughCarry: true },
+  { mnemonic: "RAR", opcode: 0x1a, direction: "right", throughCarry: true },
+] as const;
+const restarts = [
+  { opcode: 0x05, address: 0x00 }, { opcode: 0x0d, address: 0x08 },
+  { opcode: 0x15, address: 0x10 }, { opcode: 0x1d, address: 0x18 },
+  { opcode: 0x25, address: 0x20 }, { opcode: 0x2d, address: 0x28 },
+  { opcode: 0x35, address: 0x30 }, { opcode: 0x3d, address: 0x38 },
+] as const;
+
 // Independent oracle: decimal ranges, logical truth tables, and binary-digit counts.
 function alu(operation: AluOperation, a: number, operand: number, carry: boolean) {
   let total: number;
@@ -420,6 +442,55 @@ test("8008 memory ALU forms mask H:L, keep code reads distinct, and never write 
   }
 });
 
+for (const { register, increment, decrement } of adjustments) {
+  test(`8008 IN${register.toUpperCase()}/DC${register.toUpperCase()} cover every byte and flag pattern, preserving carry and wrapping only the selected register`, () => {
+    const ram = new ObservedRam(0x4000);
+    for (const opcode of [increment, decrement]) {
+      ram.write(0x3fff, opcode);
+      for (let value = 0; value < 256; value++) {
+        const result = opcode === increment ? (value + 1) % 256 : (value + 255) % 256;
+        const ones = [...result.toString(2)].filter(bit => bit === "1").length;
+        for (let bits = 0; bits < 16; bits++) {
+          const before = atPc(0x3fff, bits % 8, { [register]: value, flags: flags(bits) });
+          const after = advanced(before, 0, { [register]: result,
+            flags: { s: result >= 128, z: result === 0, p: ones % 2 === 0, c: before.flags.c } });
+          const cpu = new Cpu8008(ram, before);
+          ram.accesses.length = 0;
+          const expected = { before: snapshot(before), after, outcome: "executed",
+            instruction: { address: 0x3fff, bytes: [opcode] }, accesses: [{ kind: "read", address: 0x3fff, value: opcode }] };
+          assert.deepEqual(cpu.step(), expected);
+          assert.deepEqual(cpu.snapshot(), after);
+          assert.deepEqual(ram.accesses, expected.accesses);
+        }
+      }
+    }
+  });
+}
+
+for (const { mnemonic, opcode, direction, throughCarry } of rotations) {
+  test(`8008 ${mnemonic} covers every accumulator and flag pattern against bit-string rotation, preserving S/Z/P`, () => {
+    const ram = new ObservedRam(0x4000);
+    ram.write(0x3fff, opcode);
+    for (let a = 0; a < 256; a++) {
+      const binary = a.toString(2).padStart(8, "0");
+      const outgoing = direction === "left" ? binary[0]! : binary[7]!;
+      for (let bits = 0; bits < 16; bits++) {
+        const before = atPc(0x3fff, bits % 8, { a, flags: flags(bits) });
+        const incoming = throughCarry ? String(Number(before.flags.c)) : outgoing;
+        const rotated = direction === "left" ? binary.slice(1) + incoming : incoming + binary.slice(0, 7);
+        const after = advanced(before, 0, { a: Number.parseInt(rotated, 2), flags: { ...before.flags, c: outgoing === "1" } });
+        const cpu = new Cpu8008(ram, before);
+        ram.accesses.length = 0;
+        const expected = { before: snapshot(before), after, outcome: "executed",
+          instruction: { address: 0x3fff, bytes: [opcode] }, accesses: [{ kind: "read", address: 0x3fff, value: opcode }] };
+        assert.deepEqual(cpu.step(), expected);
+        assert.deepEqual(cpu.snapshot(), after);
+        assert.deepEqual(ram.accesses, expected.accesses);
+      }
+    }
+  });
+}
+
 test("8008 LMA masks all H:L combinations to 14 bits and records unchanged-value and overlapping writes", () => {
   const ram = new ObservedRam(0x4000);
   for (let h = 0; h < 256; h++) {
@@ -637,6 +708,89 @@ test("8008 conditional jumps reread edited addresses and current flags while ret
   assert.deepEqual(first, saved);
 });
 
+test("8008 RST covers every vector, flag pattern, and stack slot with one-byte fetches, wrapping, and overlapping targets", () => {
+  const ram = new ObservedRam(0x4000);
+  for (const { opcode, address } of restarts) {
+    for (const pc of [0, address, address + 1, 0xff, 0x100, 0x3ffe, 0x3fff]) {
+      ram.write(pc, opcode);
+      for (let stackIndex = 0; stackIndex < 8; stackIndex++) {
+        for (let bits = 0; bits < 16; bits++) {
+          const before = atPc(pc, stackIndex, { flags: flags(bits) });
+          const nextIndex = [1, 2, 3, 4, 5, 6, 7, 0][stackIndex]!;
+          const addressStack: Cpu8008AddressStack = [...before.addressStack];
+          addressStack[stackIndex] = pc === 0x3fff ? 0 : pc + 1;
+          addressStack[nextIndex] = address;
+          const after = snapshot({ ...before, addressStack, stackIndex: nextIndex });
+          const cpu = new Cpu8008(ram, before);
+          ram.accesses.length = 0;
+          const expected = { before: snapshot(before), after, outcome: "executed",
+            instruction: { address: pc, bytes: [opcode] }, accesses: [{ kind: "read", address: pc, value: opcode }] };
+          assert.deepEqual(cpu.step(), expected);
+          assert.deepEqual(cpu.snapshot(), after);
+          assert.deepEqual(ram.accesses, expected.accesses);
+        }
+      }
+    }
+  }
+});
+
+test("8008 RST reaches every vector from every PC and RET uses the one-byte return address", () => {
+  const ram = new Ram(0x4000);
+  for (const { opcode, address } of restarts) {
+    for (let pc = 0; pc < 0x4000; pc++) {
+      ram.write(pc, opcode);
+      const before = atPc(pc, pc % 8);
+      const cpu = new Cpu8008(ram, before);
+      const call = cpu.step();
+      assert.equal(call.after.pc, address);
+      const returnAddress = (pc + 1) % 0x4000;
+      assert.equal(call.after.addressStack[before.stackIndex], returnAddress);
+      // RAM may be edited at the target, even if it held the RST just fetched.
+      ram.write(address, 0x07);
+      const returned = cpu.step();
+      assert.equal(returned.outcome, "executed");
+      assert.equal(returned.after.stackIndex, before.stackIndex);
+      assert.equal(returned.after.pc, returnAddress);
+      assert.equal(returned.after.addressStack[call.after.stackIndex], address + 1);
+      assert.deepEqual(call.instruction, { address: pc, bytes: [opcode] });
+    }
+  }
+});
+
+test("8008 eight nested RST calls overwrite the oldest return and leave advanced slots intact on return", () => {
+  const ram = new ObservedRam(0x4000);
+  ram.write(0x100, 0x05); // RST 00H
+  for (const [address, opcode] of [[0, 0x0d], [8, 0x15], [0x10, 0x1d], [0x18, 0x25],
+    [0x20, 0x2d], [0x28, 0x35], [0x30, 0x3d]] as const) {
+    ram.write(address, opcode);
+    ram.write(address + 1, 0x07);
+  }
+  ram.write(0x38, 0x07);
+  const initial = atPc(0x100, 0);
+  const cpu = new Cpu8008(ram, initial);
+  ram.accesses.length = 0;
+  const records = Array.from({ length: 8 }, () => cpu.step());
+  const saved = structuredClone(records);
+  assert.deepEqual(cpu.snapshot(), snapshot({ ...initial, stackIndex: 0,
+    addressStack: [0x38, 1, 9, 0x11, 0x19, 0x21, 0x29, 0x31] }));
+  assert.deepEqual(ram.accesses, [
+    [0x100, 0x05], [0, 0x0d], [8, 0x15], [0x10, 0x1d],
+    [0x18, 0x25], [0x20, 0x2d], [0x28, 0x35], [0x30, 0x3d],
+  ].map(([address, value]) => ({ kind: "read", address, value })));
+  for (const pc of [0x31, 0x29, 0x21, 0x19, 0x11, 9, 1, 0x39]) {
+    ram.accesses.length = 0;
+    const before = cpu.snapshot();
+    const record = cpu.step();
+    assert.equal(record.outcome, "executed");
+    assert.equal(record.after.pc, pc);
+    assert.deepEqual(record.accesses, [{ kind: "read", address: before.pc, value: 0x07 }]);
+    assert.deepEqual(ram.accesses, record.accesses);
+  }
+  assert.deepEqual(cpu.snapshot(), snapshot({ ...initial, stackIndex: 0,
+    addressStack: [0x39, 2, 0x0a, 0x12, 0x1a, 0x22, 0x2a, 0x32] }));
+  assert.deepEqual(records, saved);
+});
+
 test("8008 RET aliases select the previous physical slot and retain the advanced outgoing PC for every flag pattern", () => {
   const ram = new ObservedRam(0x4000);
   for (const opcode of [0x07, 0x0f, 0x17, 0x1f, 0x27, 0x2f, 0x37, 0x3f]) {
@@ -730,22 +884,36 @@ for (const opcode of [0x00, 0x01, 0xff]) {
   });
 }
 
-test("8008 rejects every other opcode atomically, including register adjustments, rotations, RST, and I/O", () => {
+test("8008 supports all 218 non-I/O forms and atomically rejects the 32 ports and six undefined encodings", () => {
   const supported = new Set([
     0x00, 0x01, 0x04, 0x06, 0x07, 0x0e, 0x0f, 0x16, 0x17, 0x1e, 0x1f, 0x26, 0x27, 0x2e, 0x2f, 0x36, 0x37, 0x3e, 0x3f,
     0x44, 0x46, 0x4c, 0x4e, 0x54, 0x56, 0x5c, 0x5e, 0x64, 0x66, 0x6c, 0x6e, 0x74, 0x76, 0x7c, 0x7e,
     ...transferRows.flatMap(row => [...row.opcodes]),
     ...aluRows.flatMap(row => [row.immediate, ...row.opcodes]),
     ...conditions.flatMap(condition => [condition.jump, condition.call, condition.ret]),
+    ...adjustments.flatMap(({ increment, decrement }) => [increment, decrement]),
+    ...rotations.map(({ opcode }) => opcode),
+    ...restarts.map(({ opcode }) => opcode),
   ]);
-  assert.equal(supported.size, 194);
+  assert.equal(supported.size, 218);
+  const undefinedOpcodes = [0x22, 0x2a, 0x32, 0x38, 0x39, 0x3a];
+  const ioOpcodes = [
+    0x41, 0x43, 0x45, 0x47, 0x49, 0x4b, 0x4d, 0x4f,
+    0x51, 0x53, 0x55, 0x57, 0x59, 0x5b, 0x5d, 0x5f,
+    0x61, 0x63, 0x65, 0x67, 0x69, 0x6b, 0x6d, 0x6f,
+    0x71, 0x73, 0x75, 0x77, 0x79, 0x7b, 0x7d, 0x7f,
+  ];
+  assert.equal(new Set([...supported, ...undefinedOpcodes, ...ioOpcodes]).size, 256);
   const ram = new ObservedRam(0x4000);
   for (let opcode = 0; opcode < 256; opcode++) {
-    if (supported.has(opcode)) continue;
     ram.write(0x3fff, opcode);
     ram.write(0, 0xa5);
     const before = atPc(0x3fff, opcode % 8);
     const cpu = new Cpu8008(ram, before);
+    if (supported.has(opcode)) {
+      assert.notEqual(cpu.step().outcome, "unsupported", `documented opcode ${opcode.toString(16)}`);
+      continue;
+    }
     const expected = { before: snapshot(before), after: snapshot(before), outcome: "unsupported", reason: "opcode",
       instruction: { address: 0x3fff, bytes: [opcode] }, accesses: [{ kind: "read", address: 0x3fff, value: opcode }] };
     for (let attempt = 0; attempt < 2; attempt++) {

@@ -15,7 +15,7 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [223](../../src/components/cpus/8008.ts) | 194 / 250 | 77.6% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [253](../../src/components/cpus/8008.ts) | 218 / 250 | 87.2% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [364](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [265](../../src/components/cpus/6800.ts) | 155 / 197 | 78.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [398](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
@@ -200,14 +200,21 @@ instruction lengths are in bytes.
 [Control-flow specification](8008/examples/control-flow.md) ·
 [Control-flow definition](../../src/machines/8008/control-flow-example.machine)
 
+[Carry and restart specification](8008/examples/carry.md) ·
+[Carry definition](../../src/machines/8008/carry-example.machine)
+
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
 | `00` | HLT | Implied | 1 | Advance PC and stop; preserve flags |
 | `01` | HLT | Implied | 1 | Second documented low-page HLT encoding |
+| `02/0A/12/1A` | RLC / RRC / RAL / RAR | Accumulator | 1 | Circular or through-carry rotation; replace C and preserve S/Z/P |
 | `03/0B/13/1B/23/2B/33/3B` | RFc / RTc | Conditional return | 1 | Test C/Z/S/P for false or true; advance the outgoing PC, then select the previous slot only when taken |
 | `04/0C/14/1C/24/2C/34/3C` | ADI / ACI / SUI / SBI / NDI / XRI / ORI / CPI | Immediate | 2 | All eight ALU operations with a fetched operand; [flag rules](8008/model.md#arithmetic-and-logic) match register/memory forms |
+| `05/0D/15/1D/25/2D/35/3D` | RST | Encoded vector | 1 | Call `0000/0008/0010/0018/0020/0028/0030/0038`, saving the address after the opcode in the circular stack |
 | `06/0E/16/1E/26/2E/36` | LrI n | Immediate | 2 | Load A/B/C/D/E/H/L; preserve flags |
 | `07` | RET | Implied | 1 | Select the preceding address slot; preserve flags |
+| `08/10/18/20/28/30` | INr | Register B/C/D/E/H/L | 1 | Increment the selected byte; set S/Z/P and preserve C |
+| `09/11/19/21/29/31` | DCr | Register B/C/D/E/H/L | 1 | Decrement the selected byte; set S/Z/P and preserve C |
 | `0F` | RET | Implied | 1 | Documented RET alias |
 | `17` | RET | Implied | 1 | Documented RET alias |
 | `1F` | RET | Implied | 1 | Documented RET alias |
@@ -246,8 +253,11 @@ instruction lengths are in bytes.
 | `FF` | HLT | Implied | 1 | HLT occupies the M,M transfer slot |
 
 These families contribute **8 immediate loads + 63 transfers + 3 HLT encodings +
-48 control-flow forms + 72 ALU forms = 194** complete forms. The control-flow
-total includes 24 unconditional encodings and 24 conditional forms.
+48 jump/call/return forms + 72 ALU forms + 12 register adjustments + 4 rotations +
+8 RST forms = 218** complete forms. The jump/call/return total includes
+24 unconditional encodings and 24 conditional forms. All documented non-I/O
+forms are complete; the remaining 32 forms are eight INP and 24 OUT encodings.
+Interrupt delivery and timing remain separate, deferred capabilities.
 
 The 8008 now meets the [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint).
 Its control-flow example combines loads, arithmetic, logic, conditional
@@ -262,18 +272,20 @@ calls and the circular address registers.
 | Memory | Exactly 16 KiB RAM; instruction fetches wrap at 14 bits; H bits 7–6 are ignored for memory addressing while H remains a full byte in register transfers |
 | Loads and transfers | All immediate and register/memory byte loads preserve flags; H/L memory destinations read through the original pair; stores do not read their destination |
 | Arithmetic and logic | All eight accumulator operations across seven register sources, indirect memory, and immediate bytes; shared operation selector, explicit carry/borrow, logical C clearing, and compare preserving A |
+| Adjustments and rotations | INr/DCr on B/C/D/E/H/L set S/Z/P and preserve C; all four accumulator rotations replace only C |
 | Control flow | Unconditional and all eight conditional jumps, calls, and returns; shared C/Z/S/P selector with explicit true/false choices; untaken jumps/calls still fetch their address bytes |
-| Address stack | Eight circular address registers: CAL selects the next slot, RET selects the preceding slot; overwrite on overflow, retain outgoing PC after RET, no RAM stack |
+| Address stack | Eight circular address registers: CAL/RST select the next slot, RET selects the preceding slot; RST saves a one-byte return address and selects one of eight vectors; overwrite on overflow, retain outgoing PC after RET, no RAM stack |
 | Reset | Model settled power-on clearing: zero data/address registers, select slot zero, stay stopped, preserve flags and RAM under the documented policy |
 | Stopping | All three documented HLT encodings report once; already halted steps have no instruction or accesses |
-| Remaining scope | Register increment/decrement, rotations, RST, interrupts, I/O, and timing |
+| Remaining scope | INP/OUT, interrupt delivery, and timing |
 
 Verification: [CPU tests](../../tests/components/cpus/8008.test.ts),
 [arithmetic example tests](../../tests/machines/8008/example.test.ts),
 [stack example tests](../../tests/machines/8008/stack-example.test.ts),
 [transfer example tests](../../tests/machines/8008/transfers-example.test.ts),
 [ALU example tests](../../tests/machines/8008/alu-example.test.ts),
-[control-flow example tests](../../tests/machines/8008/control-flow-example.test.ts), and
+[control-flow example tests](../../tests/machines/8008/control-flow-example.test.ts),
+[carry example tests](../../tests/machines/8008/carry-example.test.ts), and
 [public type checks](../../tests/types/8008.ts). Checks cover every immediate ALU
 operand pair and both carry inputs, all load bytes and flag patterns, arithmetic
 boundaries, every H:L combination and PC, all selectors, and every unsupported opcode. Complete
@@ -300,6 +312,10 @@ stack slots, taken/untaken paths, address aliases and wrapping, unchanged
 inactive slots, and current flags and address bytes. The control-flow example
 checks its 46-step trace, skipped failure path, single output byte, and
 resumption between two conditional returns.
+Adjustments and rotations check every byte and incoming flag pattern. RST
+checks every vector from every PC, all slots/flags, one-byte returns, and
+circular-stack overflow. The carry example checks its 20-step trace, both
+return paths, a pointer crossing a page boundary, and resumption between bytes.
 
 ## 8080
 

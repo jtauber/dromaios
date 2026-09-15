@@ -46,9 +46,10 @@ as used by the 68000. Absent entries remain unsupported.
 `opcodePattern(pattern, handler)` binds the same handler to every encoding of
 a pattern. Fixed bits describe one opcode; ignored bits describe aliases.
 A fixed pattern such as `00 000 100` describes the single 8008 ADI opcode.
-The 8008 uses `00 000 00x` for the adjacent `00`/`01` HLT encodings and
-`00 xxx 111` for the RET aliases `07`, `0F`, `17`, `1F`, `27`, `2F`, `37`,
-and `3F`. The same notation serves all three cases.
+The 8008 uses `00 xxx 111` for the RET aliases `07`, `0F`, `17`, `1F`, `27`,
+`2F`, `37`, and `3F`. Its `00 rrr 00d` adjustment family handles `00`/`01`
+as HLT exceptions at register selector `000` and omits the undefined memory
+forms at selector `111` during construction.
 
 `opcodeFamily(pattern, selectors, bind)` maps encoded fields to typed values
 and binds a handler for each combination. The 6502 branch definition is:

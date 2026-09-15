@@ -12,7 +12,8 @@ its memory addresses wrap at 14 bits.
 [ALU example](examples/alu.md) ·
 [Nested-call example](examples/stack.md) ·
 [Transfer example](examples/transfers.md) ·
-[Control-flow example](examples/control-flow.md)
+[Control-flow example](examples/control-flow.md) ·
+[Carry and restart example](examples/carry.md)
 
 The hardware reference is Intel's
 [8008 User's Manual, April 1972](https://www.bitsavers.org/components/intel/MCS8/Intel_8008_8-Bit_Parallel_Central_Processing_Unit_Rev1_Apr72.pdf)
@@ -150,6 +151,26 @@ are read during execution.
 The [ALU example](examples/alu.md) propagates carry and borrow between two
 bytes, combines bits, and stores results while preserving comparison flags.
 
+### Register increment and decrement
+
+`00 rrr 00d` selects INr (`d=0`) or DCr (`d=1`) for B/C/D/E/H/L.
+The selected byte wraps at eight bits; S/Z/P describe its result and C is
+preserved. A and the other registers stay unchanged. H remains a full byte;
+incrementing L does not automatically increment H. The `rrr=000` slots are
+HLT, and `rrr=111` is undefined: there is no accumulator or memory adjustment.
+
+### Accumulator rotations
+
+`00 0td 010` rotates A once. `t=0` uses the outgoing bit as the incoming
+bit (RLC/RRC); `t=1` uses the old carry (RAL/RAR). `d=0` rotates left,
+and `d=1` right. C receives the outgoing bit; S/Z/P remain unchanged.
+The four `00 1xx 010` encodings are undefined.
+
+Adjustments and rotations fetch one opcode byte and make no data accesses.
+Intel's November 1973 manual, printed pages 11 and 13, defines their flag
+rules. The [carry example](examples/carry.md) preserves carry across pointer
+and count adjustments between two byte rotations.
+
 ## Jumps, calls, and returns
 
 JMP and CAL fetch a low address byte followed by a high byte. The high byte's
@@ -159,18 +180,25 @@ All three fetches advance the caller's PC, including wrap at `3FFF`.
 - JMP replaces the selected PC with the destination and preserves other slots.
 - CAL leaves the address after its three bytes in the caller's slot, selects
   the next slot, and writes the destination there.
+- RST (`00 vvv 101`) calls `0000`, `0008`, …, `0038`. It saves the address
+  after its single opcode byte and selects the next slot, like CAL.
 - RET advances the outgoing PC by one for its opcode fetch, then selects the
   preceding slot. The outgoing slot retains that advanced address.
 
-Slot numbering is a model convention: CAL increments `stackIndex` modulo eight;
+Slot numbering is a model convention: CAL/RST increment `stackIndex` modulo eight;
 RET decrements it modulo eight. Seven calls can preserve all return addresses.
 An eighth nested call overwrites the oldest; extra returns continue around the
 same ring without a depth check or fault. No slot is cleared on return.
 
-Each unconditional instruction has eight documented encodings: `01 xxx 100` for JMP,
+JMP, CAL, and RET each have eight documented encodings: `01 xxx 100` for JMP,
 `01 xxx 110` for CAL, and `00 xxx 111` for RET. The `xxx` bits are ignored.
 All forms preserve data registers and flags. Their only RAM accesses are the
 instruction bytes: there is no RAM stack access or destination prefetch.
+RST's eight encodings select distinct vectors, rather than aliases. This is
+ordinary execution from RAM; interrupt delivery and externally supplied
+instructions remain deferred. RST is a call, not `reset()` or a way to resume
+an already halted CPU. Intel's November 1973 manual describes it on printed
+page 14.
 
 Conditional control flow uses the same flag selector in all three families:
 
@@ -252,6 +280,13 @@ Return cases check retained outgoing slots, boundary destinations, and equal
 PC values in different slots. A repeated conditional jump also checks current
 flags, edited address bytes, and detached records.
 
+Adjustment and rotation tests cover all 256 operand values and all 16 incoming
+flag patterns, checking full records, preserved registers/flags, and actual
+RAM calls. RST tests cover every vector from every PC, all stack selectors and
+flag patterns, wrapped fetches, overlapping targets, returns, and eight nested
+restarts overwriting the oldest return address. An opcode audit exercises all
+218 supported forms and rejects exactly 32 I/O forms and six undefined bytes.
+
 The generated examples check both factories, whole memory images, complete
 traces, bounded running, caller completion, reset, and fresh restart. The
 nested-call trace also checks inactive slot contents across returns.
@@ -259,9 +294,11 @@ The ALU example checks resumption with a pending borrow and preservation of
 comparison flags through the output stores and halt.
 The control-flow trace checks both paths of each conditional family, a skipped
 failure path, and resumption between an untaken RFZ and a taken RTZ.
+The carry trace checks RST/RET, both RFZ paths, pointer page crossing, and
+resumption with carry pending between two RAM bytes.
 Parser and generator tests cover address lists, ranges, RAM size, diagnostics,
 and declaration order. Type checks preserve concrete CPU and runner records.
 
-The remaining instruction set, interrupt delivery, I/O,
-mapped devices, and timing remain outside this slice. Coverage counts only
-the supported encodings, not the presence of unused stored registers.
+All documented non-I/O instruction forms are implemented. The remaining 32
+forms are INP/OUT. Interrupt delivery, I/O, mapped devices, and timing remain
+outside this model; instruction completion does not imply cycle accuracy.

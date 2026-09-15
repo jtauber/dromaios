@@ -7,7 +7,9 @@ import type { WordInstructionContext as InstructionContext } from "./instruction
 import { defineState, copyState, readState, unsigned, flag, boolean, array, group } from "./state.ts";
 import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { add, subtract, evenParity8 } from "./alu.ts";
+import type { OpcodeEntry } from "./opcodes.ts";
+import { add, subtract, shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
+import type { ShiftResult } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu8008StateDescription = defineState({
@@ -124,14 +126,25 @@ export class Cpu8008 {
   // Native 8008 opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
   // xx selects a block; the other fields select its operation and operands.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // 00 000 00x: both x values encode HLT, occupying the absent IN A/DC A slots.
-    ...opcodePattern("00 000 00x", () => this.#halt()), // HLT (00/01)
+    // 00 rrr 00d: d=0 increments, d=1 decrements B/C/D/E/H/L; preserve carry.
+    // rrr=000 selects HLT (00/01); rrr=111 is undefined, with no memory adjustment.
+    ...this.#adjustHandlers("00 rrr 00d"), // INr / DCr / HLT
+
+    // 00 0td 010: t=0 circular, t=1 through carry; d=0 left, d=1 right.
+    // Only carry changes; the four 00 1xx 010 encodings are undefined.
+    ...opcodePattern("00 000 010", () => this.#rotateAccumulator(shiftLeft(8, this.#state.a, (this.#state.a & 0x80) !== 0 ? 1 : 0))), // RLC
+    ...opcodePattern("00 001 010", () => this.#rotateAccumulator(shiftRight(8, this.#state.a, (this.#state.a & 1) !== 0 ? 1 : 0))), // RRC
+    ...opcodePattern("00 010 010", () => this.#rotateAccumulator(shiftLeft(8, this.#state.a, this.#state.flags.c ? 1 : 0))), // RAL
+    ...opcodePattern("00 011 010", () => this.#rotateAccumulator(shiftRight(8, this.#state.a, this.#state.flags.c ? 1 : 0))), // RAR
 
     // 00 ccc 011: conditional return; ccc = vff selects the flag and required value.
     ...opcodeFamily("00 ccc 011", { c: this.#conditions }, ({ c: condition }) => () => this.#return(condition())), // RFc / RTc
 
     // 00 ooo 100: ooo (bits 5..3) selects the ALU operation; the next byte is its operand.
     ...opcodeFamily("00 ooo 100", { o: this.#aluOperations }, ({ o: operation }) => ({ fetchByte }: InstructionContext) => { this.#state.a = operation(fetchByte()); }), // ADI / ACI / SUI / SBI / NDI / XRI / ORI / CPI
+
+    // 00 vvv 101: a one-byte call to 0000..0038; vvv supplies address bits 5..3.
+    ...opcodeFamily("00 vvv 101", { v: [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] }, ({ v: address }) => () => this.#call(address)), // RST
 
     // 00 rrr 110: rrr (bits 5..3) selects the destination, including memory at rrr=111.
     ...opcodeFamily("00 rrr 110", { r: this.#byteOperands }, ({ r: operand }) => (instruction: InstructionContext) => this.#writeOperand(operand, instruction.fetchByte(), instruction)), // LrI n / LMI n
@@ -148,7 +161,7 @@ export class Cpu8008 {
     ...opcodePattern("01 xxx 100", ({ fetchWord }: InstructionContext) => this.#jump(fetchWord())), // JMP addr
     ...opcodePattern("01 xxx 110", ({ fetchWord }: InstructionContext) => this.#call(fetchWord())), // CAL addr
 
-    // RST and I/O remain unsupported.
+    // 01 ppp pp1: eight input ports and 24 output ports remain unsupported.
 
     // 10 ooo sss: ooo (bits 5..3) selects the operation; sss (bits 2..0) selects A/B/C/D/E/H/L/M.
     ...opcodeFamily("10 ooo sss", { o: this.#aluOperations, s: this.#byteOperands }, ({ o: operation, s: source }) => (instruction: InstructionContext) => { this.#state.a = operation(this.#readOperand(source, instruction)); }), // ADr / ACr / SUr / SBr / NDr / XRr / ORr / CPr (including M)
@@ -157,6 +170,14 @@ export class Cpu8008 {
     // 11 111 111 is HLT, not LMM; the binding handles this exception without a data access.
     ...opcodeFamily("11 ddd sss", { d: this.#byteOperands, s: this.#byteOperands }, ({ d: destination, s: source }) => this.#transferHandler(destination, source)), // Lr1r2 / LrM / LMr / HLT
   ]);
+
+  #adjustHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { r: this.#byteOperands, d: [1, -1] }, ({ r: operand, d: delta }) => {
+      if (operand === "m") return undefined;
+      if (operand === "a") return () => this.#halt();
+      return () => this.#adjustRegister(operand, delta);
+    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
 
   #transferHandler(destination: ByteOperand, source: ByteOperand): OpcodeHandler {
     if (destination === "m" && source === "m") return () => this.#halt();
@@ -182,7 +203,7 @@ export class Cpu8008 {
 
   #call(address: number, taken = true): void {
     if (!taken) return;
-    // All three bytes have advanced the caller's slot to the return address.
+    // Fetching CAL's three bytes or RST's one byte has advanced the caller's slot.
     // The next physical slot becomes PC; an eighth nested call overwrites the oldest return.
     this.#state.stackIndex = (this.#state.stackIndex + 1) & 7;
     this.#jump(address);
@@ -199,6 +220,15 @@ export class Cpu8008 {
   }
 
   // Arithmetic, logic, and flags.
+
+  #adjustRegister(register: Exclude<ByteOperand, "a" | "m">, delta: number): void {
+    this.#state[register] = this.#aluResult((this.#state[register] + delta) & 0xff, this.#state.flags.c);
+  }
+
+  #rotateAccumulator({ result, carry }: ShiftResult): void {
+    this.#state.a = result;
+    this.#state.flags.c = carry;
+  }
 
   #add(value: number, carryIn: 0 | 1 = 0): number {
     const { result, carry } = add(8, this.#state.a, value, carryIn);

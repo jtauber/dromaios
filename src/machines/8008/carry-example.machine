@@ -1,0 +1,30 @@
+ram 4000
+
+cpu 8008 {
+    A = 11  B = 22  C = 33  D = 44  E = 55  H = C0  L = FF
+    flags { S = 1  Z = 0  P = 1  C = 1 }
+    addressStack = [1111 1222 1333 1444 1555 1666 1777 0200]
+    stackIndex = 7  halted = false
+}
+
+memory 00FE { CC 81 40 CC } // Little-endian input 4081H, with guards.
+
+// Rotate one byte through carry, store it, and advance H:L.
+// INL/INH and both returns preserve the carry for the next byte.
+memory 0008 {
+    C7          // LAM
+    12          // RAL
+    F8          // LMA
+    30          // INL
+    0B          // RFZ: return if L did not wrap
+    28          // INH: carry the pointer increment into H
+    07          // RET
+}
+
+memory 0200 {
+    16 02       // LCI 02H: two bytes
+    0D          // RST 0008H: one-byte call to the byte routine
+    11          // DCC: count down, preserving the carry between bytes
+    48 02 02    // JFZ 0202H
+    FF          // HLT: result 8103H, carry clear, H:L = C101H
+}

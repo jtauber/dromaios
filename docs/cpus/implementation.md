@@ -399,8 +399,8 @@ subtraction's borrow to X and C, while comparison preserves X. Parity, flag
 preservation, decimal corrections, and the NMOS 6502's intermediate flag rules
 remain CPU behavior.
 
-The 6502, 8080, 6800, 6809, Z80, and 8088 use the shift helpers. The 6502
-updates C there and N/Z at writeback; 8080 accumulator rotates update only CY.
+The 6502, 8080, 6800, 6809, 8008, Z80, and 8088 use the shift helpers. The 6502
+updates C there and N/Z at writeback; 8008/8080 accumulator rotates update only carry.
 The 6800 sets V=N XOR C for
 both directions; the 6809 sets V for left shifts and preserves it for right
 shifts. The Z80's unprefixed accumulator rotates preserve S/Z/PV, while CB
