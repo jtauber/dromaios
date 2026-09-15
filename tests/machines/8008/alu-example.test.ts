@@ -88,8 +88,8 @@ test("8008 ALU example propagates carry and borrow, combines bits, and retains A
   const write = t.mock.method(ram, "write");
   const expected = expectedRecords();
   assert.deepEqual(runCpu(cpu, { maxSteps: 28 }), { records: expected, stopReason: "halted" });
-  const reads = expected.flatMap(record => record.accesses).filter(access => access.kind === "read");
-  assert.deepEqual(read.mock.calls.map(call => call.arguments), reads.map(access => [access.address]));
+  const reads = expected.flatMap(record => record.accesses).flatMap(access => access.kind === "read" ? [[access.address]] : []);
+  assert.deepEqual(read.mock.calls.map(call => call.arguments), reads);
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [[0x81, 0x10], [0x82, 2], [0x83, 0xf0], [0x84, 1], [0x85, 0x75]]);
   const final = expected.at(-1)!.after;
   assert.deepEqual(cpu.snapshot(), final);

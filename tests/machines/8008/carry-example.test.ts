@@ -83,8 +83,8 @@ test("8008 carry example propagates carry across a page boundary and RST returns
   const write = t.mock.method(ram, "write");
   const records = expectedRecords();
   assert.deepEqual(runCpu(cpu, { maxSteps: 20 }), { records, stopReason: "halted" });
-  const reads = records.flatMap(record => record.accesses).filter(access => access.kind === "read");
-  assert.deepEqual(read.mock.calls.map(call => call.arguments), reads.map(access => [access.address]));
+  const reads = records.flatMap(record => record.accesses).flatMap(access => access.kind === "read" ? [[access.address]] : []);
+  assert.deepEqual(read.mock.calls.map(call => call.arguments), reads);
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [[0xff, 3], [0x100, 0x81]]);
   const final = records.at(-1)!.after;
   assert.deepEqual(cpu.snapshot(), final);

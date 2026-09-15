@@ -202,7 +202,7 @@ provide the common fields used by all eight CPUs:
 
 CPU modules keep their public names as aliases, such as `Cpu6502Instruction`
 and `Cpu6502ResetRecord`. `InstructionStep` and `HaltedStep` accept the same
-optional access type. The 8080 supplies a union of memory and port accesses;
+optional access type. The 8008 and 8080 supply a union of memory and port accesses;
 other CPUs retain the memory-only default. Each step type selects its supported outcomes; the
 68000 adds its alignment-fault branch, including a possible null instruction
 on an unaligned opcode fetch. Address conventions are still
@@ -255,9 +255,10 @@ describe the callbacks available to an opcode handler:
 `RecordedMemory` extends it with an access log. Instruction contexts expose the
 callbacks without exposing that log, and all callback properties are readonly.
 
-The 8008, 6502, 6800, 6809, Z80, and shared 8080-family core import
-`WordInstructionContext` as their local `InstructionContext`. The 8088 extends
-it with the instruction start IP and local segment/repeat prefixes. The 8008
+The 6502, 6800, 6809, Z80, and shared 8080-family core import
+`WordInstructionContext` as their local `InstructionContext`. The 8008 and
+8080 extend it with `BytePorts`; the 8080 also supplies an EI deferral callback.
+The 8088 extends it with the instruction start IP and local segment/repeat prefixes. The 8008
 fetches a full two-byte operand and masks it to a 14-bit address when jumping
 or calling. The 68000 currently
 extends `ByteMemory` with `fetchWord`, `fetchLong`, `nextAddress`, and `jump`.
@@ -308,18 +309,25 @@ rollback. RAM and handler errors
 propagate without rolling back completed effects. Each call owns its records.
 
 The executor also accepts an opcode lookup callback in place of a table. It
-calls the lookup after fetching the opcode, before advancing PC. The 8080 uses
-this to bind fresh port recording callbacks and an EI deferral callback to its
-local instruction context. Its prebuilt handler table still exposes the opcode
-patterns; the bound callbacks and logs belong to one execution. The 8080 appends its port log
-after the memory log because `IN`/`OUT` transfer once, after all memory fetches.
+calls the lookup after fetching the opcode, before advancing PC. The 8008 and
+8080 use this to bind fresh port recording callbacks; the 8080 also binds an
+EI deferral callback. Their prebuilt handler tables still expose the opcode
+patterns; the bound callbacks and logs belong to one execution. Both append
+their port logs after the memory log because their input/output instructions
+transfer once, after all memory fetches.
 A future block-I/O implementation must record actual interleaving explicitly.
 
 8080 interrupt delivery uses the same table and handler-context binding, with
 acknowledgement supplying instruction bytes while PC stays unchanged by fetches.
-It records data-memory and port transfers as they complete. Acceptance, HALT
-release, and host reentrancy checks stay in the CPU; the shared RAM-fetch
-executor does not need an interrupt mode.
+It records data-memory and port transfers as they complete. Acceptance and HALT
+release stay in the CPU; the shared RAM-fetch executor does not need an interrupt mode.
+
+The 8008 and 8080 wrap their mutating public operations with a per-instance
+[`executionBoundary`](../../src/components/cpus/execution-boundary.ts) guard.
+External callbacks may inspect snapshots, but nested mutations throw before
+changing CPU state. The guard clears even when an operation throws; it neither
+rolls back completed effects nor represents an architectural interrupt mask.
+Each CPU selects which operations to guard and supplies its diagnostic message.
 
 The four CPUs with a stored PC pass their state directly. The 8008 uses
 `programCounter(read, write)` to expose its live address-stack slot and mask

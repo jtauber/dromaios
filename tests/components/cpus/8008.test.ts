@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu8008 } from "../../../src/components/cpus/8008.js";
 import type { Cpu8008AddressStack, Cpu8008Flags, Cpu8008MemoryAccess, Cpu8008Snapshot, Cpu8008State } from "../../../src/components/cpus/8008.js";
+import type { PortAccess } from "../../../src/components/cpus/port-access.ts";
+import { runCpu } from "../../../src/runtime/run-cpu.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 
@@ -61,6 +63,14 @@ const aluRows = [
   { operation: "compare", immediate: 0x3c, opcodes: [0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf] },
 ] as const;
 type AluOperation = typeof aluRows[number]["operation"];
+
+// Intel's port selectors in numeric order: inputs 00..07, outputs 08..1F.
+const inputOpcodes = [0x41, 0x43, 0x45, 0x47, 0x49, 0x4b, 0x4d, 0x4f];
+const outputOpcodes = [
+  0x51, 0x53, 0x55, 0x57, 0x59, 0x5b, 0x5d, 0x5f,
+  0x61, 0x63, 0x65, 0x67, 0x69, 0x6b, 0x6d, 0x6f,
+  0x71, 0x73, 0x75, 0x77, 0x79, 0x7b, 0x7d, 0x7f,
+];
 
 // Literal encodings and truth conditions from Intel's instruction table.
 const conditions = [
@@ -884,7 +894,177 @@ for (const opcode of [0x00, 0x01, 0xff]) {
   });
 }
 
-test("8008 supports all 218 non-I/O forms and atomically rejects the 32 ports and six undefined encodings", () => {
+for (const [index, opcode] of [...inputOpcodes, ...outputOpcodes].entries()) {
+  const input = index < 8;
+  test(`8008 ${input ? "INP" : "OUT"} port ${index} transfers every byte, preserves flags and slots, and fetches only its opcode`, () => {
+    const ram = new ObservedRam(0x4000);
+    for (const pc of [0x1fff, 0x3fff]) ram.write(pc, opcode);
+    for (let value = 0; value < 256; value++) {
+      const pc = value % 2 ? 0x3fff : 0x1fff;
+      const next = pc === 0x3fff ? 0 : 0x2000;
+      const before = atPc(pc, value % 8, { a: input ? 255 - value : value, flags: flags(value % 16) });
+      const transfers: PortAccess[] = [];
+      const fetches = [{ kind: "read", address: pc, value: opcode }];
+      const cpu = new Cpu8008(ram, before, {
+        readPort: port => {
+          assert.equal(input, true);
+          assert.deepEqual(ram.accesses, fetches);
+          assert.deepEqual(cpu.snapshot(), advanced(before, next));
+          transfers.push({ kind: "input", port, value });
+          return value;
+        },
+        writePort: (port, byte) => {
+          assert.equal(input, false);
+          assert.deepEqual(ram.accesses, fetches);
+          assert.deepEqual(cpu.snapshot(), advanced(before, next));
+          transfers.push({ kind: "output", port, value: byte });
+        },
+      });
+      ram.accesses.length = 0;
+      const transfer = { kind: input ? "input" : "output", port: index, value };
+      assert.deepEqual(cpu.step(), {
+        before: snapshot(before), after: advanced(before, next, { a: value }), outcome: "executed",
+        instruction: { address: pc, bytes: [opcode] }, accesses: [...fetches, transfer],
+      });
+      assert.deepEqual(transfers, [transfer]);
+      assert.deepEqual(ram.accesses, fetches);
+    }
+  });
+}
+
+test("8008 port callbacks see live A and device state; repeated transfers retain separate records", () => {
+  const ram = new Ram(0x4000);
+  [0x41, 0x51, 0x41, 0x51, 0x41, 0x51].forEach((byte, i) => ram.write(0x2000 + i, byte));
+  let incoming = 0x81;
+  const outgoing: number[] = [];
+  const cpu = new Cpu8008(ram, initialState(), {
+    readPort: () => incoming,
+    writePort: (_, value) => { outgoing.push(value); incoming = 0x42; },
+  });
+  const first = cpu.step(); // Loading A with its existing value is still a transfer.
+  const retained = structuredClone(first);
+  cpu.step();
+  cpu.step();
+  cpu.step();
+  assert.deepEqual(outgoing, [0x81, 0x42]);
+  assert.deepEqual(first, retained);
+  Reflect.set(first.accesses[1]!, "value", 0xff);
+  Reflect.set(first.after.addressStack, 3, 0);
+  const next = cpu.step();
+  assert.equal(next.after.a, 0x42);
+  assert.equal(next.after.pc, 0x2005);
+  assert.deepEqual(next.accesses[1], { kind: "input", port: 0, value: 0x42 });
+});
+
+for (const opcode of [0x41, 0x7f]) {
+  test(`8008 port ${opcode.toString(16)} failures retain the completed fetch and propagate without a record`, () => {
+    const error = new Error("Device failed after an external effect");
+    for (const connected of [false, true]) {
+      const ram = new ObservedRam(0x4000);
+      ram.write(0x3fff, opcode);
+      ram.write(0, 0xc0); // LAA is available after a failed transfer.
+      const before = atPc(0x3fff, 7);
+      let effects = 0;
+      const fail = (): never => { effects++; throw error; };
+      const cpu = new Cpu8008(ram, before, connected ? { readPort: fail, writePort: fail } : undefined);
+      ram.accesses.length = 0;
+      assert.throws(() => cpu.step(), connected ? error : /Port I\/O requires a connected device/);
+      assert.equal(effects, connected ? 1 : 0);
+      assert.deepEqual(cpu.snapshot(), advanced(before, 0));
+      assert.deepEqual(ram.accesses, [{ kind: "read", address: 0x3fff, value: opcode }]);
+      assert.equal(cpu.step().outcome, "executed"); // A thrown callback releases the guard.
+      assert.equal(cpu.snapshot().pc, 1);
+    }
+  });
+}
+
+test("8008 rejects invalid input bytes without replacing A or rolling back device effects", () => {
+  for (const value of [-1, 256, 1.5, NaN, Infinity, -Infinity]) {
+    const ram = new Ram(0x4000);
+    ram.write(0x3fff, 0x4f);
+    const before = atPc(0x3fff);
+    let reads = 0;
+    const cpu = new Cpu8008(ram, before, {
+      readPort: () => { reads++; return value; }, writePort: () => assert.fail("Unexpected output"),
+    });
+    assert.throws(() => cpu.step(), /Port input byte/);
+    assert.equal(reads, 1);
+    assert.deepEqual(cpu.snapshot(), advanced(before, 0));
+    cpu.reset();
+  }
+});
+
+test("8008 construction, inspection, halted steps, undefined opcodes, and reset never call ports", () => {
+  const ram = new ObservedRam(0x4000);
+  ram.write(0x2000, 0x41);
+  const forbidden = (): never => assert.fail("Unexpected port access");
+  const cpu = new Cpu8008(ram, initialState({ halted: true }), { readPort: forbidden, writePort: forbidden });
+  ram.accesses.length = 0;
+  cpu.snapshot();
+  cpu.step();
+  cpu.reset();
+  cpu.step();
+  assert.deepEqual(ram.accesses, []);
+  ram.write(0, 0x22);
+  const restored = new Cpu8008(ram, { ...cpu.snapshot(), halted: false }, { readPort: forbidden, writePort: forbidden });
+  assert.equal(restored.step().outcome, "unsupported");
+});
+
+for (const opcode of [0x41, 0x51]) {
+  test(`8008 port ${opcode.toString(16)} callbacks may inspect state but cannot nest step or reset`, () => {
+    const ram = new Ram(0x4000);
+    ram.write(0x2000, opcode);
+    const before = initialState();
+    const transfer = (): number => {
+      const during = cpu.snapshot();
+      assert.deepEqual(during, advanced(before, 0x2001));
+      for (const mutate of [() => cpu.step(), () => cpu.reset()]) {
+        assert.throws(mutate, /must not be reentrant/);
+        assert.deepEqual(cpu.snapshot(), during);
+      }
+      return 0xa5;
+    };
+    const cpu = new Cpu8008(ram, before, { readPort: transfer, writePort: transfer });
+    assert.equal(cpu.step().outcome, "executed");
+    assert.equal(cpu.reset().after.halted, true);
+  });
+}
+
+test("8008 ports combine with wrapped calls and arithmetic, and resume with an explicitly reconnected device", () => {
+  const create = () => {
+    const ram = new Ram(0x4000);
+    ram.write(0x3ffe, 0x47); // INP 3
+    ram.write(0x3fff, 0x46); // CAL 0100, wrapping its operand fetches
+    ram.write(0, 0x00);
+    ram.write(1, 0x01);
+    ram.write(2, 0xff); // HLT after return
+    [0x04, 0x01, 0x7f, 0x07].forEach((byte, i) => ram.write(0x100 + i, byte)); // ADI 1; OUT 1F; RET
+    const transfers: PortAccess[] = [];
+    const ports = {
+      readPort: (port: number) => { transfers.push({ kind: "input", port, value: 0xfe }); return 0xfe; },
+      writePort: (port: number, value: number) => { transfers.push({ kind: "output", port, value }); },
+    };
+    return { ram, ports, transfers, cpu: new Cpu8008(ram, atPc(0x3ffe, 7), ports) };
+  };
+  const whole = create();
+  const result = runCpu(whole.cpu, { maxSteps: 6 });
+  assert.equal(result.stopReason, "halted");
+  assert.deepEqual(result.records.map(record => record.after.pc), [0x3fff, 0x100, 0x102, 0x103, 2, 3]);
+  assert.deepEqual(result.records.map(record => record.after.stackIndex), [7, 0, 0, 0, 7, 7]);
+  assert.deepEqual(whole.transfers, [{ kind: "input", port: 3, value: 0xfe }, { kind: "output", port: 31, value: 0xff }]);
+  assert.deepEqual(whole.cpu.snapshot().flags, { s: true, z: false, p: true, c: false });
+  const paused = create();
+  const first = runCpu(paused.cpu, { maxSteps: 2 });
+  assert.equal(first.stopReason, "step-limit");
+  const restored = new Cpu8008(paused.ram, paused.cpu.snapshot(), paused.ports);
+  const rest = runCpu(restored, { maxSteps: 4 });
+  assert.equal(rest.stopReason, "halted");
+  assert.deepEqual([...first.records, ...rest.records], result.records);
+  assert.deepEqual(paused.transfers, whole.transfers);
+  assert.deepEqual(restored.snapshot(), whole.cpu.snapshot());
+});
+
+test("8008 supports all 250 documented forms and atomically rejects only the six undefined encodings", () => {
   const supported = new Set([
     0x00, 0x01, 0x04, 0x06, 0x07, 0x0e, 0x0f, 0x16, 0x17, 0x1e, 0x1f, 0x26, 0x27, 0x2e, 0x2f, 0x36, 0x37, 0x3e, 0x3f,
     0x44, 0x46, 0x4c, 0x4e, 0x54, 0x56, 0x5c, 0x5e, 0x64, 0x66, 0x6c, 0x6e, 0x74, 0x76, 0x7c, 0x7e,
@@ -894,22 +1074,17 @@ test("8008 supports all 218 non-I/O forms and atomically rejects the 32 ports an
     ...adjustments.flatMap(({ increment, decrement }) => [increment, decrement]),
     ...rotations.map(({ opcode }) => opcode),
     ...restarts.map(({ opcode }) => opcode),
+    ...inputOpcodes, ...outputOpcodes,
   ]);
-  assert.equal(supported.size, 218);
+  assert.equal(supported.size, 250);
   const undefinedOpcodes = [0x22, 0x2a, 0x32, 0x38, 0x39, 0x3a];
-  const ioOpcodes = [
-    0x41, 0x43, 0x45, 0x47, 0x49, 0x4b, 0x4d, 0x4f,
-    0x51, 0x53, 0x55, 0x57, 0x59, 0x5b, 0x5d, 0x5f,
-    0x61, 0x63, 0x65, 0x67, 0x69, 0x6b, 0x6d, 0x6f,
-    0x71, 0x73, 0x75, 0x77, 0x79, 0x7b, 0x7d, 0x7f,
-  ];
-  assert.equal(new Set([...supported, ...undefinedOpcodes, ...ioOpcodes]).size, 256);
+  assert.equal(new Set([...supported, ...undefinedOpcodes]).size, 256);
   const ram = new ObservedRam(0x4000);
   for (let opcode = 0; opcode < 256; opcode++) {
     ram.write(0x3fff, opcode);
     ram.write(0, 0xa5);
     const before = atPc(0x3fff, opcode % 8);
-    const cpu = new Cpu8008(ram, before);
+    const cpu = new Cpu8008(ram, before, { readPort: () => 0xa5, writePort: () => {} });
     if (supported.has(opcode)) {
       assert.notEqual(cpu.step().outcome, "unsupported", `documented opcode ${opcode.toString(16)}`);
       continue;

@@ -121,8 +121,8 @@ test("8008 conditional control flow sums three counts, takes both paths of each 
   const write = t.mock.method(ram, "write");
   const expected = expectedRecords();
   assert.deepEqual(runCpu(cpu, { maxSteps: 46 }), { records: expected, stopReason: "halted" });
-  const reads = expected.flatMap(record => record.accesses).filter(access => access.kind === "read");
-  assert.deepEqual(read.mock.calls.map(call => call.arguments), reads.map(access => [access.address]));
+  const reads = expected.flatMap(record => record.accesses).flatMap(access => access.kind === "read" ? [[access.address]] : []);
+  assert.deepEqual(read.mock.calls.map(call => call.arguments), reads);
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [[0x80, 6]]);
   const final = expected.at(-1)!.after;
   assert.deepEqual(cpu.snapshot(), final);

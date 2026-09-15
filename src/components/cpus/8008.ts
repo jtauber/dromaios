@@ -2,8 +2,11 @@ import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { readWordLE } from "./binary.ts";
 import { executeByteInstruction, programCounter } from "./execute-byte-instruction.ts";
+import { executionBoundary } from "./execution-boundary.ts";
 import type { MemoryAccess } from "./memory-access.ts";
-import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
+import { recordPorts } from "./port-access.ts";
+import type { BytePorts, PortAccess } from "./port-access.ts";
+import type { WordInstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, array, group } from "./state.ts";
 import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
@@ -34,25 +37,30 @@ export type Cpu8008Snapshot = ReadonlyState<Cpu8008State> & {
 };
 
 export type Cpu8008MemoryAccess = MemoryAccess;
+export type Cpu8008Access = MemoryAccess | PortAccess;
 
 export type Cpu8008Instruction = FetchedInstruction;
 
-export type Cpu8008StepRecord = InstructionStep<Cpu8008Snapshot> | HaltedStep<Cpu8008Snapshot>;
+export type Cpu8008StepRecord = InstructionStep<Cpu8008Snapshot, Cpu8008Access> | HaltedStep<Cpu8008Snapshot, Cpu8008Access>;
 
 export type Cpu8008ResetRecord = StateTransition<Cpu8008Snapshot>;
 
+interface InstructionContext extends WordInstructionContext, BytePorts {}
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperand = "a" | "b" | "c" | "d" | "e" | "h" | "l" | "m";
 
-/** Instruction-level Intel 8008 subset with its native encodings and 14-bit addresses. */
+/** Instruction-level Intel 8008 with native port selectors and 14-bit addresses. */
 export class Cpu8008 {
   readonly #ram: Ram;
+  readonly #ports: BytePorts | undefined;
   readonly #state: StoredState;
+  readonly #atBoundary = executionBoundary("8008 step and reset calls must not be reentrant.");
   readonly #counter = programCounter(() => this.#pc, value => { this.#pc = value & 0x3fff; });
 
-  constructor(ram: Ram, initialState: Cpu8008State) {
+  constructor(ram: Ram, initialState: Cpu8008State, ports?: BytePorts) {
     if (ram.size !== 0x4000) throw new RangeError("The 8008 model requires exactly 16 KiB of RAM.");
     this.#ram = ram;
+    this.#ports = ports;
     this.#state = readState(cpu8008StateDescription, initialState);
   }
 
@@ -63,26 +71,36 @@ export class Cpu8008 {
 
   /** Model settled power-on clearing and STOPPED, not an interrupt or a lesson restart. */
   reset(): Cpu8008ResetRecord {
-    const before = this.snapshot();
-    for (const name of ["a", "b", "c", "d", "e", "h", "l"] as const) this.#state[name] = 0;
-    this.#state.addressStack.fill(0);
-    this.#state.stackIndex = 0;
-    this.#state.halted = true;
-    // The startup description does not specify flag values; preserve them as model policy.
-    return { before, after: this.snapshot(), accesses: [] };
+    return this.#atBoundary(() => {
+      const before = this.snapshot();
+      for (const name of ["a", "b", "c", "d", "e", "h", "l"] as const) this.#state[name] = 0;
+      this.#state.addressStack.fill(0);
+      this.#state.stackIndex = 0;
+      this.#state.halted = true;
+      // The startup description does not specify flag values; preserve them as model policy.
+      return { before, after: this.snapshot(), accesses: [] };
+    });
   }
 
   /** Attempt one instruction; unsupported and already halted attempts preserve all state. */
   step(): Cpu8008StepRecord {
-    const before = this.snapshot();
-    if (this.#state.halted) {
-      return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
-    }
-    const { instruction, accesses, executed } = executeByteInstruction(this.#counter, this.#ram, this.#opcodeHandlers, readWordLE);
-    const record = { before, after: this.snapshot(), instruction, accesses };
-    return executed
-      ? { ...record, outcome: this.#state.halted ? "halted" : "executed" }
-      : { ...record, outcome: "unsupported", reason: "opcode" };
+    return this.#atBoundary<Cpu8008StepRecord>(() => {
+      const before = this.snapshot();
+      if (this.#state.halted) {
+        return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
+      }
+      const ports = recordPorts(this.#ports);
+      const execution = executeByteInstruction(this.#counter, this.#ram, opcode => {
+        const handler = this.#opcodeHandlers[opcode];
+        return handler && (context => handler({ ...context, readPort: ports.readPort, writePort: ports.writePort }));
+      }, readWordLE);
+      // INP/OUT fetch one opcode byte, then perform one port transfer with no further RAM accesses.
+      const accesses: readonly Cpu8008Access[] = [...execution.accesses, ...ports.accesses];
+      const record = { before, after: this.snapshot(), instruction: execution.instruction, accesses };
+      return execution.executed
+        ? { ...record, outcome: this.#state.halted ? "halted" : "executed" }
+        : { ...record, outcome: "unsupported", reason: "opcode" };
+    });
   }
 
   // Register views. PC is a selected address register, not duplicate stored state.
@@ -161,7 +179,9 @@ export class Cpu8008 {
     ...opcodePattern("01 xxx 100", ({ fetchWord }: InstructionContext) => this.#jump(fetchWord())), // JMP addr
     ...opcodePattern("01 xxx 110", ({ fetchWord }: InstructionContext) => this.#call(fetchWord())), // CAL addr
 
-    // 01 ppp pp1: eight input ports and 24 output ports remain unsupported.
+    // 01 ppppp 1: bits 5..1 select the port. ppppp = rrmmm: rr=00 inputs 0..7;
+    // rr=01/10/11 outputs 8..31. INP replaces A; OUT sends A; both preserve flags.
+    ...opcodeFamily("01 ppppp 1", { p: Array.from({ length: 32 }, (_, port) => port) }, ({ p: port }) => this.#portHandler(port)), // INP / OUT
 
     // 10 ooo sss: ooo (bits 5..3) selects the operation; sss (bits 2..0) selects A/B/C/D/E/H/L/M.
     ...opcodeFamily("10 ooo sss", { o: this.#aluOperations, s: this.#byteOperands }, ({ o: operation, s: source }) => (instruction: InstructionContext) => { this.#state.a = operation(this.#readOperand(source, instruction)); }), // ADr / ACr / SUr / SBr / NDr / XRr / ORr / CPr (including M)
@@ -177,6 +197,12 @@ export class Cpu8008 {
       if (operand === "a") return () => this.#halt();
       return () => this.#adjustRegister(operand, delta);
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
+
+  #portHandler(port: number): OpcodeHandler {
+    return port < 8
+      ? ({ readPort }) => { this.#state.a = readPort(port); }
+      : ({ writePort }) => writePort(port, this.#state.a);
   }
 
   #transferHandler(destination: ByteOperand, source: ByteOperand): OpcodeHandler {

@@ -73,5 +73,7 @@ them. Keep cycle timing and electrical bus behavior explicit limitations.
 
 The 8080's [port and control contract](8080/model.md#interrupt-controls-and-instruction-retirement)
 and [external delivery API](8080/model.md#external-interrupt-delivery) implement
-the first item. The next CPU slice is 8008 port instructions. Timing and device
-scheduling remain separate from the 8080's completed opcode inventory.
+the first item. The 8008's [port contract](8008/model.md#port-input-and-output)
+implements the second. The next CPU slice is 6502 interrupt entry and return.
+Timing and device scheduling remain separate from completed opcode inventories;
+8008 external interrupt delivery is also still deferred.

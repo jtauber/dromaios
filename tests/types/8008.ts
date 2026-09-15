@@ -1,6 +1,7 @@
 import { Cpu8008 } from "../../src/components/cpus/8008.js";
 import type { Cpu8008State, Cpu8008Snapshot, Cpu8008StepRecord, Cpu8008ResetRecord } from "../../src/components/cpus/8008.js";
 import type { Ram } from "../../src/components/memory/ram.js";
+import type { BytePorts } from "../../src/components/cpus/port-access.ts";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import type { CpuRunResult } from "../../src/runtime/run-cpu.js";
 import { create8008Example } from "../../src/machines/generated/8008/example.js";
@@ -9,9 +10,14 @@ import { create8008AluExample } from "../../src/machines/generated/8008/alu-exam
 import { create8008ControlFlowExample } from "../../src/machines/generated/8008/control-flow-example.js";
 
 // Compiled, never called: preserve concrete CPU types and recursively readonly records.
-export function check8008(ram: Ram, state: Cpu8008State, snapshot: Cpu8008Snapshot): void {
+export function check8008(ram: Ram, state: Cpu8008State, snapshot: Cpu8008Snapshot, ports: BytePorts): void {
   const cpu = new Cpu8008(ram, state);
   new Cpu8008(ram, snapshot);
+  new Cpu8008(ram, snapshot, ports);
+  // @ts-expect-error A connection must supply both byte-transfer callbacks.
+  new Cpu8008(ram, state, { readPort: () => 0 });
+  // @ts-expect-error Ports are external connections, not snapshot state.
+  snapshot.ports;
   const pc: number = snapshot.pc;
   const address: number = snapshot.addressStack[7];
   // @ts-expect-error Caller-supplied address registers remain readonly too.
@@ -76,6 +82,20 @@ export function check8008Records(record: Cpu8008StepRecord, reset: Cpu8008ResetR
   if (record.accesses[0]) {
     // @ts-expect-error Access entries are readonly.
     record.accesses[0].value = 0;
+  }
+  for (const access of record.accesses) {
+    const byte: number = access.value;
+    if (access.kind === "input" || access.kind === "output") {
+      const port: number = access.port;
+      // @ts-expect-error Port transfers have no RAM address.
+      access.address;
+      // @ts-expect-error Port entries remain readonly.
+      access.port = 0;
+    } else if (access.kind === "read" || access.kind === "write") {
+      const address: number = access.address;
+      // @ts-expect-error Memory transfers have no port selector.
+      access.port;
+    }
   }
   if (record.instruction) {
     // @ts-expect-error Instruction bytes are readonly.

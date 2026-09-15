@@ -73,7 +73,7 @@ test("8008 transfers copy and replace a byte, load H through its original addres
   const expected = expectedRecords();
   assert.deepEqual(runCpu(cpu, { maxSteps: 14 }), { records: expected, stopReason: "halted" });
   const accesses = expected.flatMap(record => record.accesses);
-  assert.deepEqual(read.mock.calls.map(call => call.arguments), accesses.filter(access => access.kind === "read").map(access => [access.address]));
+  assert.deepEqual(read.mock.calls.map(call => call.arguments), accesses.flatMap(access => access.kind === "read" ? [[access.address]] : []));
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [[0x80, 0x5a], [0x81, 0x5a], [0x81, 0xa5]]);
   const final = expected.at(-1)!.after;
   assert.deepEqual(cpu.snapshot(), final);

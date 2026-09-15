@@ -6,6 +6,7 @@ import type { ByteOperation } from "./8080-family.ts";
 import { flagRegister, signZeroParity8 } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
+import { executionBoundary } from "./execution-boundary.ts";
 import { readWordLE } from "./binary.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import { recordMemory } from "./memory-access.ts";
@@ -71,7 +72,7 @@ const packedFlags = flagRegister({ s: 7, z: 6, ac: 4, p: 2, cy: 0 }, 0x02);
 export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
   readonly #ram: Ram;
   readonly #ports: BytePorts | undefined;
-  #transitionActive = false;
+  readonly #atBoundary = executionBoundary("8080 step, reset, and interrupt calls must not be reentrant.");
 
   constructor(ram: Ram, initialState: Omit<Cpu8080Snapshot, "bc" | "de" | "hl">, ports?: BytePorts) {
     if (ram.size !== 0x10000) {
@@ -155,16 +156,6 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
   }
 
   // Execution boundaries and shared handler capabilities.
-
-  #atBoundary<Result>(action: () => Result): Result {
-    if (this.#transitionActive) throw new Error("8080 step, reset, and interrupt calls must not be reentrant.");
-    this.#transitionActive = true;
-    try {
-      return action();
-    } finally {
-      this.#transitionActive = false;
-    }
-  }
 
   #executeHandler(handler: OpcodeHandler, context: WordInstructionContext, onAccess?: (access: PortAccess) => void): readonly PortAccess[] {
     const ports = recordPorts(this.#ports, onAccess);

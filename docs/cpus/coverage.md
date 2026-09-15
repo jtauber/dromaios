@@ -15,8 +15,8 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [253](../../src/components/cpus/8008.ts) | 218 / 250 | 87.2% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [290](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [279](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [281](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [317](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [394](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
@@ -49,9 +49,10 @@ in the [example catalog](../README.md#cpu-examples).
 
 All eight initial CPU models meet the [CPU-only capability checkpoint](completion.md#cpu-only-checkpoint-review).
 The next milestone is complete documented opcode coverage across all eight,
-following the [completion sequence](completion.md#completion-sequence). The 8080
-has reached full opcode coverage and instruction-boundary interrupt delivery;
-cycle timing remains unmodeled. Instructions still awaiting implementation on
+following the [completion sequence](completion.md#completion-sequence). The 8008
+and 8080 have reached full opcode coverage. The 8080 also supports external
+interrupt delivery at instruction boundaries; the 8008 does not yet.
+Cycle timing remains unmodeled. Instructions still awaiting implementation on
 other CPUs remain in their documented-form totals.
 
 ## How the percentages are counted
@@ -178,9 +179,10 @@ forms accept 4,096 words. Embedded literal values do not add coverage forms.
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
 All eight currently omit cycle counts, dummy bus accesses, electrical signals,
-interrupt delivery, mapped devices, disassembly, and an
-execution UI. Existing interrupt flags can be stored and inspected before interrupt
-delivery is implemented; the 8008 has no interrupt-enable flag.
+memory-mapped devices, disassembly, and an execution UI. External interrupt
+delivery is implemented on the 8080. Other CPUs can store and inspect their
+existing interrupt flags before delivery is implemented; the 8008 has no
+interrupt-enable flag.
 
 The following tables exhaustively list complete and partial opcode forms.
 Unlisted forms remain unsupported. Opcodes and addresses are hexadecimal;
@@ -246,6 +248,8 @@ instruction lengths are in bytes.
 | `76` | CAL addr | Absolute | 3 | Documented CAL alias |
 | `7C` | JMP addr | Absolute | 3 | Documented JMP alias |
 | `7E` | CAL addr | Absolute | 3 | Documented CAL alias |
+| `41`, `43`, …, `4F` | INP | Encoded port `00`–`07` | 1 | Read one byte into A; preserve flags |
+| `51`, `53`, …, `7F` | OUT | Encoded port `08`–`1F` | 1 | Send A to one output port; preserve registers and flags |
 | `80`–`87` | ADr / ADM | Register or indirect memory | 1 | Add the source to A, ignoring incoming C; set S/Z/P and carry out |
 | `88`–`8F` | ACr / ACM | Register or indirect memory | 1 | Add the source and incoming C to A; set S/Z/P and carry out |
 | `90`–`97` | SUr / SUM | Register or indirect memory | 1 | Subtract the source from A, ignoring incoming C; set S/Z/P and borrow |
@@ -259,9 +263,10 @@ instruction lengths are in bytes.
 
 These families contribute **8 immediate loads + 63 transfers + 3 HLT encodings +
 48 jump/call/return forms + 72 ALU forms + 12 register adjustments + 4 rotations +
-8 RST forms = 218** complete forms. The jump/call/return total includes
-24 unconditional encodings and 24 conditional forms. All documented non-I/O
-forms are complete; the remaining 32 forms are eight INP and 24 OUT encodings.
+8 RST forms + 32 port forms = 250** complete forms. The jump/call/return total includes
+24 unconditional encodings and 24 conditional forms. The eight INP and 24 OUT
+encodings complete the documented opcode inventory; only six undefined bytes
+remain unsupported.
 Interrupt delivery and timing remain separate, deferred capabilities.
 
 The 8008 now meets the [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint).
@@ -282,7 +287,8 @@ calls and the circular address registers.
 | Address stack | Eight circular address registers: CAL/RST select the next slot, RET selects the preceding slot; RST saves a one-byte return address and selects one of eight vectors; overwrite on overflow, retain outgoing PC after RET, no RAM stack |
 | Reset | Model settled power-on clearing: zero data/address registers, select slot zero, stay stopped, preserve flags and RAM under the documented policy |
 | Stopping | All three documented HLT encodings report once; already halted steps have no instruction or accesses |
-| Remaining scope | INP/OUT, interrupt delivery, and timing |
+| Port I/O | Optional shared byte-port connection; eight native inputs and 24 native outputs; one transfer after the opcode read; live device values, explicit connection errors, and guarded execution boundaries |
+| Remaining scope | External interrupt delivery, memory-mapped devices, and timing |
 
 Verification: [CPU tests](../../tests/components/cpus/8008.test.ts),
 [arithmetic example tests](../../tests/machines/8008/example.test.ts),
@@ -299,6 +305,10 @@ stores, HALT, reset, and retained snapshots. Control-flow checks cover every
 alias, encoded destination, selector, and flag pattern; wrapped fetches,
 overflowing calls, and unbalanced returns. Examples check whole RAM images,
 complete traces, bounded running, caller completion, and restart.
+Port checks exercise every encoding and byte, direction and native selector,
+flags and active slots, wrapping, current device state, failure effects,
+reentrancy, and detached records. A wrapped-call program combines ports with
+arithmetic, return, halt, bounded running, and snapshot restoration.
 Parser and generator checks cover the smaller RAM size and explicit address list.
 The load matrix checks every encoding, byte, and flag pattern, including
 self-transfers, all PC slots, and HLT's lack of a data access. LAM and LMA

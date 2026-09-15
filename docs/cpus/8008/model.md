@@ -1,7 +1,7 @@
 # 8008 model contract
 
-The Intel 8008 model implements an instruction-level subset with native 8008
-encodings and flat 16 KiB RAM. Its PC is a view of an internal address register;
+The Intel 8008 model implements all documented opcode forms with native port
+selectors and flat 16 KiB RAM. Its PC is a view of an internal address register;
 its memory addresses wrap at 14 bits.
 
 [Implementation](../../../src/components/cpus/8008.ts) ·
@@ -53,12 +53,12 @@ or overflow flag in this state model.
 
 ## Construction and inspection
 
-`new Cpu8008(ram, initialState)` requires exactly 16 KiB RAM. It copies declared
+`new Cpu8008(ram, initialState, ports?)` requires exactly 16 KiB RAM. It copies declared
 fields, flags, and all eight address slots, then validates register and address
 ranges, the selector, and Boolean flags and halt state. Numeric violations throw
 `RangeError`; malformed address arrays and non-Boolean flags or latches throw
 `TypeError`. Sparse address arrays fail numeric validation. Construction does
-not reset, execute instructions, or access RAM.
+not reset, execute instructions, or access RAM or ports.
 
 Each declared input field and array slot is read once, including non-enumerable
 properties. Derived views and extra metadata are ignored. A snapshot can be
@@ -83,7 +83,8 @@ the destination, and writes are recorded even if the value does not change.
 Instruction bytes remain intact in records when a store overwrites code;
 subsequent instructions read current RAM.
 
-Unsupported attempts read only the opcode and preserve all state and RAM.
+The six undefined encodings (`22`, `2A`, `32`, `38`, `39`, `3A`) remain
+unsupported. These attempts read only the opcode and preserve all state and RAM.
 Repeating the attempt repeats that one read. Atomic rejection is a model
 policy, including leaving PC unchanged despite the recorded fetch.
 
@@ -228,6 +229,54 @@ describes these encodings and both paths. The
 [control-flow example](examples/control-flow.md) connects comparisons and
 arithmetic flags to a loop and conditional subroutine calls and returns.
 
+## Port input and output
+
+`01 ppppp 1` embeds the five-bit port selector in a single opcode byte.
+Written as `rrmmm`, its high two bits select input (`rr=00`) or output
+(`rr=01/10/11`):
+
+| Instruction | Port numbers | Encodings | Effect |
+| --- | --- | --- | --- |
+| INP | `00`–`07` | `41`, `43`, …, `4F` | Read the selected input into A |
+| OUT | `08`–`1F` | `51`, `53`, …, `7F` | Write A to the selected output |
+
+Output port numbers retain their encoded values. Both instructions preserve
+S/Z/P/C and all other data registers. They fetch one opcode, advance the
+selected PC once with 14-bit wrapping, then transfer one byte. No operand
+byte, H:L access, or inactive address-slot change occurs.
+Intel's [November 1973 manual](https://deramp.com/downloads/mfe_archive/050-Component%20Specifications/Intel/Microprocessors%20and%20Support/8008%20Family/i8008UM%20Nov%2073.pdf),
+printed page 14, defines the transfers; page 62 confirms the assembler's
+port numbering (input `000`–`007`, output `010`–`037` in octal).
+
+The optional third constructor argument is the shared
+[`BytePorts`](../../../src/components/cpus/port-access.ts) connection, with
+`readPort(port): number` and `writePort(port, value): void`. Inputs must return
+an unsigned byte. The CPU retains the connection, calls it at execution time,
+and neither snapshots nor resets it. Reconstructing a CPU from a snapshot
+requires reconnecting the device explicitly; the caller owns device state.
+Construction, inspection, reset, undefined instructions, and already halted
+steps make no port calls. RAM-only programs need no connection.
+
+`Cpu8008Access` combines memory and port transfers. Memory entries retain
+`{ kind: "read" | "write", address, value }`; port entries use
+`{ kind: "input" | "output", port, value }`. A successful INP or OUT record
+contains its RAM opcode read followed by its port transfer, even when the
+input equals A's existing value or outputs repeat. Port transfers do not
+become instruction bytes. Records own their snapshots and access entries;
+later CPU or device activity does not change earlier records. Reset records
+retain their memory-only access type and empty list.
+
+Missing connections, invalid input bytes, and device errors throw host errors;
+they do not return an instruction record. The completed opcode fetch remains:
+the selected PC has advanced, while A, flags, and inactive slots stay unchanged.
+Device side effects are not rolled back. RAM errors likewise retain completed
+effects. Callbacks may inspect `snapshot()`, but nested `step()` or `reset()`
+calls throw before mutating CPU state. The guard clears after success or error.
+
+This models instruction-level transfers. Multiplexed pin activity, including
+A and the flags exposed during input cycles, READY waits, timing, and external
+interrupt delivery remain unmodeled.
+
 ## CPU reset
 
 The 8008 has no dedicated reset input. Its documented power-on sequence clears
@@ -285,7 +334,11 @@ flag patterns, checking full records, preserved registers/flags, and actual
 RAM calls. RST tests cover every vector from every PC, all stack selectors and
 flag patterns, wrapped fetches, overlapping targets, returns, and eight nested
 restarts overwriting the oldest return address. An opcode audit exercises all
-218 supported forms and rejects exactly 32 I/O forms and six undefined bytes.
+250 documented forms and rejects exactly the six undefined bytes. Port tests
+check every selector and byte, preserved flags and address slots, wrapped
+fetches, live device state, ordered transfers, detached records, callback
+reentrancy, and connection failures. A combined INP/CAL/ADI/OUT/RET/HLT program
+checks bounded running and snapshot restoration across a wrapped call.
 
 The generated examples check both factories, whole memory images, complete
 traces, bounded running, caller completion, reset, and fresh restart. The
@@ -299,6 +352,6 @@ resumption with carry pending between two RAM bytes.
 Parser and generator tests cover address lists, ranges, RAM size, diagnostics,
 and declaration order. Type checks preserve concrete CPU and runner records.
 
-All documented non-I/O instruction forms are implemented. The remaining 32
-forms are INP/OUT. Interrupt delivery, I/O, mapped devices, and timing remain
-outside this model; instruction completion does not imply cycle accuracy.
+All documented instruction forms are implemented. External interrupt delivery,
+memory-mapped devices, and timing remain outside this model; opcode completion
+does not imply complete processor emulation or cycle accuracy.
