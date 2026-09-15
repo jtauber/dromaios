@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [253](../../src/components/cpus/8008.ts) | 218 / 250 | 87.2% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [364](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [265](../../src/components/cpus/6800.ts) | 155 / 197 | 78.7% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [342](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [398](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [508](../../src/components/cpus/z80.ts) | 496 / 698 | 71.1% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [409](../../src/components/cpus/6809.ts) | 193 / 268 | 72.0% |
@@ -597,10 +597,17 @@ final RAM, resumption before adjustment, reset, and restart.
 [Word-transformation specification](6800/examples/word-transform.md) ·
 [Word-transformation definition](../../src/machines/6800/word-transform-example.machine)
 
-**155 of 197 documented forms are complete (78.7%).** The accumulator families
+[Decimal and stack-inspection specification](6800/examples/decimal.md) ·
+[Decimal definition](../../src/machines/6800/decimal-example.machine)
+
+**192 of 197 documented forms are complete (97.5%).** The accumulator families
 below contribute 86 forms: ten byte-read operations for both A/B across four
 addressing modes, plus three stores for each accumulator. Unary operations
-contribute 44 forms; the remaining 25 forms appear in the final opcode table.
+contribute 44 forms, word transfers and CPX contribute 18, and the final table
+contains 15 short branches plus 29 other forms. All ordinary instructions are
+implemented; only CLI, SEI, WAI, SWI, and RTI remain deferred. The 6800 has no
+separate port-I/O opcodes; mapped devices, interrupt delivery, and timing
+remain outside the model.
 
 All documented forms of LDAA/LDAB, STAA/STAB, ADDA/ADDB, ADCA/ADCB,
 SUBA/SUBB, SBCA/SBCB, CMPA/CMPB, ANDA/ANDB, BITA/BITB, EORA/EORB, and
@@ -655,12 +662,37 @@ H/I, and memory forms preserve both accumulators and X/SP.
 
 The [unary model contract](6800/model.md#unary-operations) defines memory-access
 records and the flag differences from the 6809. JMP occupies `oooo=1110` in
-the two memory groups and remains deferred.
+the two memory groups and uses the address without reading target data.
+
+Word transfers set N/Z from the full word and clear V, preserving H/I/C.
+CPX sets Z from whole-word equality and N/V from the separate high-byte
+subtraction, with no low-byte borrow; C is preserved. All word memory
+accesses are high byte first and wrap across `FFFF`, while a direct word at
+`00FF` continues at `0100`.
+
+| Instruction | Immediate | Direct | Indexed | Extended |
+| --- | --- | --- | --- | --- |
+| Length | 3 | 2 | 2 | 3 |
+| CPX | `8C` | `9C` | `AC` | `BC` |
+| LDS | `8E` | `9E` | `AE` | `BE` |
+| STS | — | `9F` | `AF` | `BF` |
+| LDX | `CE` | `DE` | `EE` | `FE` |
+| STX | — | `DF` | `EF` | `FF` |
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
+| `01` | NOP | Inherent | 1 | Advance PC only |
+| `06` | TAP | Inherent | 1 | Replace H/I/N/Z/V/C from A bits 5–0 |
+| `07` | TPA | Inherent | 1 | Pack flags into A with bits 7–6 set; preserve flags |
+| `08` / `09` | INX / DEX | Inherent | 1 | Adjust X by one, wrapping at 16 bits; replace only Z |
+| `0A` / `0B` | CLV / SEV | Inherent | 1 | Clear/set V; preserve other flags |
+| `0C` / `0D` | CLC / SEC | Inherent | 1 | Clear/set C; preserve other flags |
+| `10` | SBA | Inherent | 1 | A − B into A; set N/Z/V/C, preserve H/I/B |
+| `11` | CBA | Inherent | 1 | Compare A − B without writeback; set N/Z/V/C, preserve H/I |
 | `16` | TAB | Inherent | 1 | Copy A to B; set N/Z, clear V, preserve H/I/C |
 | `17` | TBA | Inherent | 1 | Copy B to A; set N/Z, clear V, preserve H/I/C |
+| `19` | DAA | Inherent | 1 | Correct A after packed-BCD addition; set N/Z/C, preserve H/I, clear undefined V as [model policy](6800/model.md#decimal-adjustment) |
+| `1B` | ABA | Inherent | 1 | A + B into A; set H/N/Z/V/C, preserve I/B |
 | `20` | BRA rel | Relative | 2 | Always branch |
 | `22` | BHI rel | Relative | 2 | Branch if C = 0 and Z = 0 |
 | `23` | BLS rel | Relative | 2 | Branch if C = 1 or Z = 1 |
@@ -676,13 +708,18 @@ the two memory groups and remains deferred.
 | `2D` | BLT rel | Relative | 2 | Branch if N ≠ V |
 | `2E` | BGT rel | Relative | 2 | Branch if Z = 0 and N = V |
 | `2F` | BLE rel | Relative | 2 | Branch if Z = 1 or N ≠ V |
+| `30` | TSX | Inherent | 1 | X = SP + 1, wrapping at 16 bits; preserve flags |
+| `31` | INS | Inherent | 1 | Increment SP without a data access; preserve flags |
 | `32` | PULA | Inherent | 1 | Increment SP, then read A; preserve all flags |
 | `33` | PULB | Inherent | 1 | Increment SP, then read B; preserve all flags |
+| `34` | DES | Inherent | 1 | Decrement SP without a data access; preserve flags |
+| `35` | TXS | Inherent | 1 | SP = X − 1, wrapping at 16 bits; preserve flags |
 | `36` | PSHA | Inherent | 1 | Write A at SP, then decrement SP; preserve all flags |
 | `37` | PSHB | Inherent | 1 | Write B at SP, then decrement SP; preserve all flags |
 | `39` | RTS | Inherent | 1 | Pull return address high byte first; preserve all flags |
+| `6E` / `7E` | JMP | Indexed / extended | 2 / 3 | Set PC to the resolved address without a target read; preserve flags |
 | `8D` | BSR rel | Relative | 2 | Push return PC low byte first, then branch relative to it; preserve flags |
-| `8E` | LDS #nn | Immediate | 3 | Load SP; set N/Z from the full word, clear V, preserve H/I/C |
+| `AD` | JSR offset,X | Indexed | 2 | Resolve original X + unsigned offset, push return PC low byte first, and jump; preserve flags |
 | `BD` | JSR addr | Extended | 3 | Push return PC low byte first, then jump to the high-byte-first target; preserve flags |
 
 Opcode `21` is unused on the original 6800 and remains unsupported. It is not
@@ -700,12 +737,14 @@ independently checked bounded run. The stack example also checks nested calls.
 | Accumulator operations | A/B loads in all four modes, A↔B transfers, and wrapping A/B increment/decrement; preserve H/I/C |
 | Unary operations | All 44 A/B/indexed/extended forms of NEG/COM/LSR/ROR/ASR/ASL/ROL/DEC/INC/TST/CLR; preserve H/I, with CPU-specific N/Z/V/C rules |
 | Arithmetic and logic | A/B ADD/ADC/SUB/SBC/CMP and AND/OR/XOR/BIT in all four modes; CMP/BIT preserve operands, subtraction preserves H/I |
-| Control flow | BRA and all fourteen short conditional branches, relative BSR, extended JSR, and RTS; 16-bit targets and unchanged flags |
-| Stack | Immediate LDS; A/B pushes and pulls; calls and returns share ordinary RAM, with SP pointing to the next free byte and wrapping at 16 bits |
+| Word and pointer operations | All LDS/LDX/STS/STX/CPX forms; INX/DEX replace only Z; INS/DES/TSX/TXS preserve flags |
+| Status and decimal operations | TAP/TPA, CLC/SEC/CLV/SEV, ABA/SBA/CBA, DAA; explicit original-6800 flag rules and undefined-result policies |
+| Control flow | BRA and all fourteen short conditional branches, relative BSR, indexed/extended JMP and JSR, and RTS; 16-bit targets and unchanged flags |
+| Stack | All LDS/STS forms; A/B pushes and pulls; pointer adjustments/transfers; calls and returns share ordinary RAM, with SP pointing to the next free byte and wrapping at 16 bits |
 | Memory | Exactly 64 KiB RAM; page-zero direct, unsigned X+offset indexed, and high-byte-first extended addressing; A/B stores in all three memory modes |
 | Reset | Read FFFE then FFFF into PC, set I; preserve other registers, flags, and RAM under the model policy |
 | Stopping | Caller completion address or step budget; unsupported instructions preserve state; no halt/wait latch |
-| Remaining scope | Word loads/stores beyond immediate LDS, decimal adjust, indexed JSR, jumps, remaining stack operations, interrupts, mapped devices, and timing |
+| Remaining scope | CLI, SEI, WAI, SWI, RTI, interrupt delivery, mapped devices, and timing |
 
 Verification: [CPU tests](../../tests/components/cpus/6800.test.ts),
 [arithmetic example tests](../../tests/machines/6800/example.test.ts),
@@ -713,7 +752,8 @@ Verification: [CPU tests](../../tests/components/cpus/6800.test.ts),
 [stack tests](../../tests/machines/6800/stack-example.test.ts),
 [logic tests](../../tests/machines/6800/logic-example.test.ts),
 [addressing/carry tests](../../tests/machines/6800/addressing-example.test.ts),
-[word-transformation tests](../../tests/machines/6800/word-transform-example.test.ts), and
+[word-transformation tests](../../tests/machines/6800/word-transform-example.test.ts),
+[decimal example tests](../../tests/machines/6800/decimal-example.test.ts), and
 [public type checks](../../tests/types/6800.ts). Checks cover every addition
 operand pair, every load/store/transfer/increment/decrement byte and incoming
 flag pattern, arithmetic boundaries, every store destination, PC, and
@@ -738,6 +778,14 @@ self-modifying code, unchanged-value stores, unsupported attempts, reset, and
 detached snapshots. The examples check whole RAM images, complete records,
 bounded running, caller completion, reset, and fresh restart. The counted loop
 also checks resumption and an edited displacement that branches to itself.
+Word tests cover every loaded/stored word, every mode and flag pattern at
+boundaries, direct/indexed addresses, and code/data overlap. CPX exhausts
+high-byte pairs with low-byte equality and borrowing; pointer operations
+exhaust their 16-bit inputs. TAP/TPA exhaust bytes and flags, and ABA/SBA/CBA
+exhaust byte pairs. DAA checks Motorola's adjustment table and every valid
+BCD pair after ABA/ADDA/ADCA. The decimal example follows a 20-step indexed
+call, stack inspection, BCD addition, flag capture, word comparison, and jump;
+it also checks resumption, reset, and a bounded failure path.
 The stack example checks nested calls, saved accumulators, residual stack bytes,
 resumption from snapshots and RAM at different call depths, and reset during a call.
 The logic example checks all eight immediate forms, branches after BIT,

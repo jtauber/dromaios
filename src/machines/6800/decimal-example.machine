@@ -1,0 +1,39 @@
+// Add two packed-decimal bytes through an indexed subroutine call.
+ram 10000
+
+cpu 6800 {
+    A = 81  B = 22  X = 3456  SP = 789A  PC = 0200
+    flags { H = 1  I = 0  N = 1  Z = 0  V = 1  C = 1 }
+}
+
+memory 007F { CC  00 00 00 00 00 00  CC } // Pointer, packed flags, sum, original SP.
+memory 03FE { CC  00 00  CC } // Two return-address bytes, with guards.
+
+memory 0200 {
+    8E 04 00    // LDS #$0400
+    9F 84       // STS <$84: retain the original stack pointer
+    CE 03 00    // LDX #$0300: subroutine address
+    86 58       // LDAA #$58: decimal 58
+    C6 67       // LDAB #$67: decimal 67
+    AD 00       // JSR 0,X: save return address 020E
+    D7 83       // STAB <$83: save decimal 25 (with decimal carry in saved CC)
+    DE 80       // LDX <$80: retrieve the pointer to the saved return address
+    8C 03 FF    // CPX #$03FF: verify the stack location
+    26 FE       // BNE $0215: failed check loops until the runner budget expires
+    7E 02 40    // JMP $0240: caller-owned completion address
+}
+
+memory 0300 {
+    30          // TSX: X points at the top stack byte, SP + 1
+    DF 80       // STX <$80: record where JSR saved the return address
+    1B          // ABA: binary 58H + 67H = BFH
+    19          // DAA: decimal 58 + 67 = 125; A = 25H and C = 1
+    16          // TAB: retain the decimal result in B
+    07          // TPA: capture CC in A, including fixed upper bits
+    97 82       // STAA <$82: save C1H before a later operation changes the flags
+    17          // TBA: restore the decimal result to A
+    39          // RTS
+}
+
+memory FFFE { 02 00 }
+end 0240

@@ -13,13 +13,14 @@ addresses and the reset vector use the high byte first.
 [Stack example](examples/stack.md) ·
 [Logic example](examples/logic.md) ·
 [Addressing/carry example](examples/addressing.md) ·
-[Word-transformation example](examples/word-transform.md)
+[Word-transformation example](examples/word-transform.md) ·
+[Decimal and stack-inspection example](examples/decimal.md)
 
 Hardware references are Motorola's
 [M6800 Programming Reference Manual, November 1976](https://manualzz.com/doc/1063126/motorola-m6800-microprocessor-programming-reference-manual),
 sections 1, 3.3.1, 3.4–3.5, 4.6–4.7 and Appendix A's ADD, ADC, SUB, SBC, CMP, LDA, STA, TAB, TBA,
 INC, DEC, NEG, COM, ASL, ASR, LSR, ROL, ROR, TST, CLR, branch, LDS, PSH, PUL,
-JSR, RTS, AND, BIT, EOR, and ORA definitions; and the
+JSR, RTS, AND, BIT, EOR, ORA, CPX, DAA, LDX, STX, STS, TSX, TXS, TAP, and TPA definitions; and the
 [MC6800 data sheet in M6800 Systems Reference and Data Sheets](https://vtda.org/docs/computing/Motorola/M6800SystemsReferenceDataSheets_May75.pdf),
 reset description on pages 13–14 and instruction tables on pages 18–21.
 The supported encodings are for the original 6800; later-family additions
@@ -39,8 +40,9 @@ and undocumented opcodes are outside this model.
 
 TypeScript fields are lowercase; `.machine` definitions conventionally use
 uppercase register and flag names. Snapshots expose this same state. H/I/N/Z/V/C
-correspond to condition-code bits 5–0. The two fixed upper bits are not mutable
-flags, and this slice does not expose a packed condition-code view.
+correspond to condition-code bits 5–0. TPA packs those flags into A with bits
+7–6 set; TAP replaces the flags from A's low six bits. The upper bits are not
+mutable flags, and snapshots do not duplicate the flags in a packed field.
 Interrupt and external halt inputs are deferred; there is no halt or wait latch.
 
 ## Construction and inspection
@@ -69,8 +71,8 @@ after each byte with wrap from `FFFF` to `0000`. Accumulator instructions use
 the addressing forms below. Immediate forms fetch a value without a separate
 data read; memory forms fetch their address bytes before reading or writing data.
 Transfers and accumulator unary operations fetch only their opcode. Branches
-always fetch a displacement byte, whether taken or untaken. LDS and extended JSR
-fetch a high-byte-first word. Stack pushes,
+always fetch a displacement byte, whether taken or untaken. Immediate word
+operands and extended addresses are high byte first. Stack pushes,
 pulls, and RTS fetch only their opcode; BSR fetches a displacement byte.
 Stack data reads appear in `accesses`, but not in the fetched instruction
 bytes, and do not advance PC. All instruction bytes are fetched before
@@ -99,11 +101,19 @@ Accumulator encodings use `1 r mm oooo`: `r=0` selects A, `r=1` selects B,
 | `11` | Extended | Address high byte, then low byte | Full 16-bit address |
 
 All four modes are implemented for A/B loads, ADD, ADC, SUB, SBC, CMP, AND,
-BIT, EOR, and ORA. Stores support direct, indexed, and extended modes; the
-original 6800 has no immediate accumulator store. Each memory source is read
+BIT, EOR, and ORA, and for word LDS/LDX/CPX (two value bytes in immediate mode).
+Stores support direct, indexed, and extended modes; the original 6800 has no
+immediate accumulator or word store. Each byte memory source is read
 once, including CMP and BIT. All accumulator instructions preserve X and SP.
 Indexed displacement bytes `80`–`FF` add 128–255; X itself does not change.
 Address addition wraps at 16 bits, independently of PC wrapping during fetch.
+
+Word operands use the resolved address for the high byte and the next address
+for the low byte. The second address wraps from `FFFF` to `0000`; a direct word
+at `00FF` continues at `0100`. Loads/CPX read both bytes before changing state.
+Stores write high then low, without destination reads. Indexed LDX/STX/CPX
+resolve their address using the original X, and instruction bytes remain
+captured when data overlaps code.
 
 ## Loads, stores, and addition
 
@@ -111,14 +121,16 @@ LDAA and LDAB load their operand into A or B respectively. STAA and STAB
 store the named accumulator without changing it. All set N from bit 7 of the value and Z from
 whether it is zero, clear V, and preserve H, I, and C.
 
-LDS loads its immediate word into SP. It sets N from bit 15 and Z from whether
-the entire word is zero, clears V, and preserves H/I/C. A/B/X are unchanged.
+LDS/LDX load SP/X; STS/STX store them. All set N from bit 15 and Z from whether
+the entire word is zero, clear V, and preserve H/I/C. Stores preserve their
+source register; loads preserve the other registers.
 
 ADDA/ADDB add their byte operand to A/B without incoming carry; ADCA/ADCB
 include the current C bit. Results wrap to a byte. Both families replace
 H/N/Z/V/C: H indicates carry from bit 3, N the result's
 sign bit, Z a zero result, V signed overflow, and C carry out of bit 7. I is
 preserved. Instructions leave the other accumulator, X, and SP unchanged.
+ABA applies the same addition to A + B, ignoring incoming C and retaining B.
 
 ## Subtraction and comparison
 
@@ -131,6 +143,37 @@ H and I are unaffected, as specified for the original 6800.
 CMPA/CMPB produce SUB's flags without changing either accumulator or memory.
 They ignore incoming C. Addition and subtraction use the shared binary
 arithmetic helpers; the CPU applies its own flag rules.
+SBA and CBA apply SUB and CMP respectively to A and B, retaining B and
+ignoring incoming C.
+
+CPX preserves X and H/I/C. Z tests equality of the whole word. On the original
+6800, N/V describe subtraction of the high bytes **without** a borrow from
+the low bytes. For example, `0100` compared with `0101` gives N=0, Z=0,
+V=0; it is not a full-width signed subtraction. Motorola cautions against
+using N/V for CPX conditional branches. This differs from later-family CPX.
+
+## Decimal adjustment
+
+DAA adjusts A after ABA, ADDA, or ADCA on packed-BCD operands. It adds `06`
+when the original low nibble exceeds nine or H is set, and `60` when the
+original A exceeds `99` or C is set. Both decisions use the pre-adjustment
+state. A wraps to a byte; N/Z describe that byte. C retains an incoming carry
+or is set by adjustment overflow. H/I remain unchanged.
+
+Motorola's Appendix A table defines results reachable from addition of two
+valid BCD operands, including incoming carry. For other A/H/C combinations,
+this model applies the same correction rules deterministically without
+claiming a documented decimal result. The manual leaves V undefined; the
+model clears it. DAA does not implement BCD subtraction or a decimal-mode latch.
+
+## Condition-code transfers and controls
+
+TAP copies A bits 5–0 into H/I/N/Z/V/C, ignoring the top two bits and preserving
+A. TPA copies those flags to A with bits 7–6 set, preserving all flags.
+CLC/SEC clear/set C; CLV/SEV clear/set V. Other state is unchanged, apart from
+the normal one-byte PC advance. TAP/TPA are ordinary status transfers in this
+CPU-only scope; interrupt delivery and its timing effects remain deferred.
+NOP only advances PC.
 
 ## Accumulator logic
 
@@ -212,6 +255,11 @@ or flags. Subsequent instructions see current state and current RAM operands.
 
 ## Stack and subroutines
 
+INX/DEX adjust X by one with 16-bit wrapping and replace **only Z**. INS/DES
+adjust SP by one with 16-bit wrapping and preserve every flag. TSX copies
+`SP + 1` to X; TXS copies `X - 1` to SP, both wrapping and preserving all
+flags. These four stack-pointer instructions make no RAM data accesses.
+
 SP points to the next free stack byte in the full 16-bit address space.
 A push writes at SP, then decrements SP; a pull increments SP, then reads
 at SP. Both wrap between `0000` and `FFFF`. PSHA/PSHB push the named
@@ -219,13 +267,16 @@ accumulator; PULA/PULB pull a byte into it. All four preserve every flag,
 including N/Z on pulls, and leave the other accumulator and X unchanged.
 Pulls do not clear memory.
 
-BSR and extended JSR push the address immediately after the instruction,
+BSR and indexed/extended JSR push the address immediately after the instruction,
 low byte first and then high byte, using two stack bytes. BSR adds its signed
 displacement to that return address, with the same 16-bit wrapping as short
 branches. Extended JSR takes its target from the high-byte-first address
 operand. RTS pulls the high byte and then the low byte and uses that return
 address directly. Calls and returns preserve A/B/X and all flags; they do not
-prefetch the target instruction. Indexed JSR remains unsupported.
+prefetch the target instruction. Indexed JSR adds its unsigned byte offset to
+the original X and saves the address after its two instruction bytes. Indexed
+and extended JMP replace PC with the resolved target without reading target
+data or using the stack. JMP preserves all other state.
 
 Stack accesses use ordinary current RAM and the current SP. Saved accumulator
 values and return addresses share the same stack; there is no hidden call
@@ -308,6 +359,20 @@ the unchanged 6809 instruction tests verify its own flag policies.
 Parser, generator, and type checks preserve CPU-specific state and record
 contracts.
 
-Other instruction forms, jumps, remaining stack operations, interrupt delivery,
-interrupt-control instructions, mapped devices, and timing remain deferred.
-Only complete implemented forms contribute to the coverage percentage.
+Word-transfer tests cover every loaded/stored word, all forms and flag patterns
+at boundaries, every direct address and indexed offset, and data/code overlap.
+CPX checks every high-byte pair with equal and unequal low bytes, including
+low-byte borrowing. Pointer operations check every 16-bit value and all flags
+at boundaries. TAP/TPA cover every A byte and flag pattern; subsequent arithmetic
+checks that restored flags remain live. ABA/SBA/CBA cover every byte pair.
+DAA checks every row of the adjustment table and every BCD operand pair after
+ABA/ADDA/ADCA, plus explicit policies for undefined inputs and V. JMP/JSR tests
+check target and stack wrapping, overlapping writes, and absence of target reads.
+The [decimal example](examples/decimal.md) combines an indexed call, stack
+inspection, decimal arithmetic, packed flags, and a word comparison. It verifies
+complete records, RAM images, snapshot resumption, and a bounded failure loop.
+
+All 192 documented ordinary forms are complete. Only `CLI`, `SEI`, `WAI`,
+`SWI`, and `RTI` remain unsupported; the opcode audit also rejects the 59
+undefined encodings. Interrupt delivery, mapped devices, and timing remain
+deferred. The 6800 has no separate port-I/O instruction forms.

@@ -192,8 +192,8 @@ same views independently to each bank.
 The [flag-register helper](../../src/components/cpus/flags.ts) takes a map from
 flag names to bit positions, plus any fixed output bits. `encode` reads current
 Booleans; `decode` creates a fresh flag object and ignores unmodeled input bits.
-The 6502's PHP/PLP, 8080's PSW, Z80's AF, and 6809's CC declare their own layouts
-beside their types. Fixed output bits describe the model's packing policy;
+The 6502's PHP/PLP, 8080's PSW, Z80's AF, 6800's TAP/TPA, and 6809's CC declare
+their own layouts beside their types. Fixed output bits describe the model's packing policy;
 they do not add stored flags or assert hardware behavior for omitted bits.
 Layouts are checked for invalid, repeated, and overlapping bit positions.
 
