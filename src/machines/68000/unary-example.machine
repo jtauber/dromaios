@@ -1,0 +1,46 @@
+// Classify signed words, store magnitudes, and negate a two-long value.
+ram 1000000
+
+cpu 68000 {
+  D0 = 11223344  D1 = 55667788  D2 = 99AABBCC  D3 = DDEEFF00
+  D4 = 01234567  D5 = 89ABCDEF  D6 = FEDCBA98  D7 = 76543210
+  A0 = 10000000  A1 = 20000000  A2 = 30000000  A3 = 40000000
+  A4 = 50000000  A5 = 60000000  A6 = 70000000
+  USP = 34008000  SSP = 56009000  PC = AB002000
+  interruptMask = 2
+  flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 0 }
+}
+
+memory 000000 { 56 00 90 00  AB 00 20 00 }
+
+memory 002000 {
+  41 F9 AB 00 30 00  // LEA (AB003000).L,A0: signed input words
+  43 F9 CD 00 40 00  // LEA (CD004000).L,A1: classification bytes
+  45 F9 EF 00 50 00  // LEA (EF005000).L,A2: unsigned magnitudes
+  42 82              // CLR.L D2: number of nonnegative inputs
+  76 04              // MOVEQ #4,D3: loop counter
+  4C 98 00 01        // loop (2016): MOVEM.W (A0)+,D0: sign-extend without changing flags
+  4A 40              // TST.W D0
+  5B D1              // SMI (A1): FF for a negative word, otherwise 00
+  6A 02              // BPL.B 2022: SMI preserved the test's flags
+  44 40              // NEG.W D0: form the magnitude of a negative word
+  34 80              // MOVE.W D0,(A2)
+  54 4A              // ADDQ.W #2,A2: full-width pointer addition, preserving flags
+  46 11              // NOT.B (A1): invert the negative mask
+  44 19              // NEG.B (A1)+: convert FF/00 to 1/0; advance once
+  D4 29 FF FF        // ADD.B (-1,A1),D2: count nonnegative inputs
+  53 43              // SUBQ.W #1,D3
+  66 E4              // BNE.B loop
+  47 F9 12 00 60 08  // LEA (12006008).L,A3: one past the two-long input
+  4A 83              // TST.L D3: seed Z=1; the final SUBQ left X=0
+  40 A3              // NEGX.L -(A3): negate low long 00000001 -> FFFFFFFF
+  40 A3              // NEGX.L -(A3): negate high long FFFFFFFF with X -> 00000000
+  57 C4              // SEQ D4: remains false despite the final long being zero
+}
+
+memory 002FFE { DE AD  00 00 00 01 FF FF 80 00  BE EF }
+memory 003FFE { DE AD  CC CC CC CC  BE EF }
+memory 004FFE { DE AD  CC CC CC CC CC CC CC CC  BE EF }
+memory 005FFE { DE AD  FF FF FF FF 00 00 00 01  BE EF }
+
+end AB002040

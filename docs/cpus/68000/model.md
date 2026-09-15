@@ -7,6 +7,7 @@
 [Immediate ALU example](examples/alu.md) ·
 [Control-flow example](examples/control-flow.md) ·
 [Stack-frame example](examples/stack-frame.md) ·
+[Unary and quick example](examples/unary.md) ·
 [Reference review](reference-notes.md)
 
 This is an instruction-level model of the original Motorola 68000. It uses
@@ -190,6 +191,50 @@ destinations are read and written once at the selected width, even when the
 result is unchanged; address auto-updates occur once. Word/long alignment
 faults preserve all state and RAM. The [masked-merge example](examples/logic.md)
 combines register and memory logic with a loop, checksum, and bit summary.
+
+## Quick arithmetic, unary operations, and condition bytes
+
+ADDQ/SUBQ encode `0101 qqq d ss mmm rrr`: `qqq=000` means eight, otherwise
+it encodes one through seven; `d=0` adds and `d=1` subtracts. Size `ss` is
+`00` byte, `01` word, or `10` long. Data-register and memory destinations
+follow the existing ADD/SUB result and XNZVC rules. Byte/word writes preserve
+the upper bits of Dn. Address-register destinations allow only word/long
+encodings, but both operate on **all 32 bits** and preserve every flag.
+All destinations must be alterable; PC-relative and immediate forms are excluded.
+
+Unary instructions encode `0100 oooo ss mmm rrr`, using the same size field
+and the 50 data-alterable EAs. An, PC-relative, and immediate modes are excluded,
+including for TST on the original chip. Size `11` belongs to other instruction
+groups and does not select a unary operation.
+
+| `oooo` | Operation | Result and flags |
+| --- | --- | --- |
+| `0000` | NEGX | Zero minus operand minus incoming X; set X/C from borrow and N/V from the result; clear Z for nonzero, otherwise preserve Z |
+| `0010` | CLR | Write zero; set Z, clear N/V/C, preserve X |
+| `0100` | NEG | Zero minus operand; set XNZVC as subtraction |
+| `0110` | NOT | Complement within the selected width; set NZ, clear VC, preserve X |
+| `1010` | TST | Set NZ from the operand, clear VC, preserve X; no writeback |
+
+NEGX's cumulative Z supports multi-precision negation from the least significant
+part upward. For example, negating `FFFFFFFF 00000001` as two longs produces
+`00000000 FFFFFFFF`: the final long is zero, but Z remains clear because the
+whole result is nonzero. An incoming X of one and an all-ones operand produce
+zero with borrow set. Control state is preserved by every operation.
+
+When `ss=11` in the quick encoding group, bits 11–8 instead select the condition:
+`0101 cccc 11 mmm rrr` is Scc. It writes a byte of `FF` if the condition is true
+or `00` otherwise, preserving all flags and the upper 24 bits of a Dn destination.
+All sixteen conditions are available, including ST and SF. Scc permits the same
+50 data-alterable EAs; mode `001` instead belongs to DBcc, described below.
+
+These instructions use the existing read/modify/write path: resolve the EA
+once, fetch all extensions, read the selected operand, and write the result
+unless the instruction is TST. On the original 68000, **CLR and Scc also read
+their memory destinations before writing**, even though the old value does
+not affect the result. Unchanged writes are recorded. Auto-updates occur once,
+including TST's updates without a write; byte A7 steps by two. Odd word/long
+operands are rejected before data access or state changes. The
+[unary example](examples/unary.md) combines all eight families.
 
 ## Address calculations and register lists
 
@@ -424,6 +469,11 @@ record the source cross-checks for base-register and A7 aliases.
 Register/address arithmetic uses ADD (4-4–4-6), ADDA (4-7–4-8),
 CMP (4-75–4-76), CMPA (4-77–4-78), SUB (4-174–4-176), and SUBA (4-177–4-178).
 Register/memory logic uses AND (4-15–4-17), OR (4-150–4-152), and EOR (4-100–4-101).
+Quick/unary references are ADDQ (4-11–4-12), SUBQ (4-181–4-182), CLR
+(4-73–4-74), NEG (4-143–4-144), NEGX (4-145–4-146), NOT (4-148–4-149),
+TST (4-192–4-193), and Scc (4-172–4-173). CLR and Scc's final notes specify
+their original-68000 memory reads. The [reference notes](reference-notes.md#quick-arithmetic-unary-operations-and-condition-bytes)
+distinguish those accesses from the existing emulators' behavior.
 Addressing is defined in §§2.2.1–2.2.7 and §§2.2.11–2.2.18; §2.4 distinguishes
 the original brief extension from later chips. Later-family additions are excluded.
 
@@ -466,3 +516,13 @@ check all seven families together with complete records and RAM images,
 bounded execution, snapshot resumption, changed input, and reset.
 [Public type checks](../../../tests/types/68000.ts) establish
 readonly records, outcome narrowing, and concrete runner results.
+
+Quick/unary checks execute all 1,882 added forms, every quick operand, every
+byte with all incoming flags for the five unary operations, and every Scc
+condition/EA with all flags. Independent arithmetic checks cover each word/long
+bit boundary, every NEGX word with both X/Z inputs, and full-width quick An
+arithmetic. Memory checks include actual reads for CLR/Scc, TST without writes,
+unchanged writes, both stacks, wrapping, code overlap, and atomic faults.
+The [unary example tests](../../../tests/machines/68000/unary-example.test.ts)
+check complete records and RAM images for a signed-word loop and two-long
+negation, including snapshot resumption between NEGX instructions.

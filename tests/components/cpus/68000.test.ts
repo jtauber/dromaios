@@ -313,7 +313,16 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
     supported.add(0x4e58 + register);
   }
   for (const { base, addresses } of multipleForms) for (const ea of addresses) supported.add(base + ea);
-  assert.equal(supported.size, 32267); // Includes embedded MOVEQ/branch operands, unlike coverage forms.
+  for (const { opcodes } of unaryFamilies) for (const base of opcodes) {
+    for (const ea of dataDestinations) supported.add(base + ea);
+  }
+  for (const { opcodes } of quickFamilies) for (const [size, base] of opcodes.entries()) {
+    for (const { field } of quickAmounts) for (const ea of size === 0 ? dataDestinations : allSources.filter(ea => ea < 58)) {
+      supported.add(base + field + ea);
+    }
+  }
+  for (const { opcode } of setConditions) for (const ea of dataDestinations) supported.add(opcode + ea);
+  assert.equal(supported.size, 36473); // Includes embedded MOVEQ, branch, and quick operands, unlike coverage forms.
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
@@ -1754,4 +1763,272 @@ test("68000 MOVEM rejects odd transfers before writes or register changes, but a
   const expected = structuredClone(saved);
   cpu.reset();
   assert.deepEqual(saved, expected);
+});
+
+const unaryFamilies = [
+  { name: "NEGX", opcodes: [0x4000, 0x4040, 0x4080] },
+  { name: "CLR", opcodes: [0x4200, 0x4240, 0x4280] },
+  { name: "NEG", opcodes: [0x4400, 0x4440, 0x4480] },
+  { name: "NOT", opcodes: [0x4600, 0x4640, 0x4680] },
+  { name: "TST", opcodes: [0x4a00, 0x4a40, 0x4a80] },
+] as const;
+const quickFamilies = [
+  { name: "ADDQ", opcodes: [0x5000, 0x5040, 0x5080] },
+  { name: "SUBQ", opcodes: [0x5100, 0x5140, 0x5180] },
+] as const;
+const quickAmounts = [
+  { field: 0x000, amount: 8 }, { field: 0x200, amount: 1 }, { field: 0x400, amount: 2 }, { field: 0x600, amount: 3 },
+  { field: 0x800, amount: 4 }, { field: 0xa00, amount: 5 }, { field: 0xc00, amount: 6 }, { field: 0xe00, amount: 7 },
+];
+// Manual operation words and independent NZVC truth tables; do not import the CPU condition selector.
+const setConditions = [
+  { opcode: 0x50c0, truth: 0xffff }, { opcode: 0x51c0, truth: 0x0000 },
+  { opcode: 0x52c0, truth: 0x0505 }, { opcode: 0x53c0, truth: 0xfafa },
+  { opcode: 0x54c0, truth: 0x5555 }, { opcode: 0x55c0, truth: 0xaaaa },
+  { opcode: 0x56c0, truth: 0x0f0f }, { opcode: 0x57c0, truth: 0xf0f0 },
+  { opcode: 0x58c0, truth: 0x3333 }, { opcode: 0x59c0, truth: 0xcccc },
+  { opcode: 0x5ac0, truth: 0x00ff }, { opcode: 0x5bc0, truth: 0xff00 },
+  { opcode: 0x5cc0, truth: 0xcc33 }, { opcode: 0x5dc0, truth: 0x33cc },
+  { opcode: 0x5ec0, truth: 0x0c03 }, { opcode: 0x5fc0, truth: 0xf3fc },
+] as const;
+type SingleOperation = typeof unaryFamilies[number]["name"] | typeof quickFamilies[number]["name"] | "Scc";
+
+function singleResult(name: SingleOperation, size: number, value: number, argument: number, before: Cpu68000Flags) {
+  if (name === "ADDQ" || name === "SUBQ") return immediateResult(name === "ADDQ" ? "ADDI" : "SUBI", size, value, argument, before);
+  if (name === "Scc") return { result: argument, flags: { ...before } };
+  const width = size * 8;
+  const modulus = 2 ** width;
+  if (name === "NEG" || name === "NEGX") {
+    const extend = name === "NEGX" && before.x ? 1n : 0n;
+    const total = -BigInt(value) - extend;
+    const signedTotal = -BigInt.asIntN(width, BigInt(value)) - extend;
+    const result = Number(BigInt.asUintN(width, total));
+    return { result, flags: { ...before, x: total < 0n, c: total < 0n, n: result >= modulus / 2,
+      z: result === 0 && (name !== "NEGX" || before.z), v: signedTotal < -modulus / 2 || signedTotal >= modulus / 2 } };
+  }
+  const result = name === "CLR" ? 0 : name === "NOT" ? modulus - 1 - value : value;
+  return { result, flags: { ...before, n: result >= modulus / 2, z: result === 0, v: false, c: false } };
+}
+
+function checkSingleOperand(ram: ObservedRam, before: Cpu68000State, name: SingleOperation, opcode: number, size: number,
+  ea: TransferFixture, argument = 0, memoryValue = 0x89abcdef): void {
+  const bytes = [...wordBytes(opcode), ...ea.extension];
+  const memory = new Map<number, number>();
+  if (ea.address !== undefined) {
+    memory.set(physical(ea.address - 1), 0xde);
+    memory.set(physical(ea.address + size), 0xad);
+    bytesFor(size, memoryValue).forEach((value, offset) => memory.set(physical(ea.address! + offset), value));
+  }
+  bytes.forEach((value, offset) => memory.set(physical(before.pc + offset), value));
+  for (const [address, value] of memory) ram.write(address, value);
+  const accesses = memoryAccesses("read", before.pc, bytes);
+  const addressRegister = ea.code >= 8 && ea.code < 16;
+  const modulus = addressRegister ? 4294967296 : 2 ** (size * 8);
+  let value = ea.register === undefined ? 0 : before[ea.register] % modulus;
+  if (ea.address !== undefined) {
+    const data = Array.from({ length: size }, (_unused, offset) => memory.get(physical(ea.address! + offset))!);
+    value = data.reduce((total, byte) => total * 256 + byte, 0);
+    accesses.push(...memoryAccesses("read", ea.address, data)); // Includes CLR and Scc, even for unchanged writes.
+  }
+  const expected = addressRegister
+    ? { result: unsignedLong(value + (name === "ADDQ" ? argument : -argument)), flags: { ...before.flags } }
+    : singleResult(name, size, value, argument, before.flags);
+  const after = { ...before, flags: expected.flags, pc: unsignedLong(before.pc + bytes.length) };
+  if (ea.update) after[ea.update[0]] = ea.update[1];
+  if (name !== "TST") {
+    if (ea.register !== undefined) after[ea.register] = Math.floor(before[ea.register] / modulus) * modulus + expected.result;
+    else bytesFor(size, expected.result).forEach((byte, offset) => {
+      const address = physical(ea.address! + offset);
+      accesses.push({ kind: "write", address, value: byte });
+      memory.set(address, byte);
+    });
+  }
+  const cpu = new Cpu68000(ram, before);
+  ram.accesses.length = 0;
+  assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), instruction: { address: before.pc, bytes },
+    accesses, outcome: "executed" }, `${name} ${opcode.toString(16)}`);
+  assert.deepEqual(cpu.snapshot(), snapshot(after));
+  assert.deepEqual(ram.accesses, accesses);
+  for (const [address, byte] of memory) assert.equal(ram.read(address), byte);
+}
+
+for (const { name, opcodes } of unaryFamilies) {
+  test(`68000 ${name} covers all 150 original-chip forms and every byte with every incoming flag pattern`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (const bits of [0, 127]) {
+      const before = transferState(bits);
+      let forms = 0;
+      for (const [index, base] of opcodes.entries()) {
+        const size = 2 ** index;
+        for (const ea of transferFixtures(before, size, before.pc + 2).filter(ea => ea.code < 8 || ea.code >= 16 && ea.code <= 57)) {
+          checkSingleOperand(ram, before, name, base + ea.code, size, ea);
+          forms++;
+        }
+      }
+      assert.equal(forms, 150);
+    }
+    for (let value = 0; value < 256; value++) for (let bits = 0; bits < 128; bits++) {
+      const before = initialState({ d0: 0xabcdef00 + value, flags: flags(bits) });
+      const expected = singleResult(name, 1, value, 0, before.flags);
+      checkStep(ram, before, wordBytes(opcodes[0]), { ...before, pc: before.pc + 2, flags: expected.flags,
+        d0: name === "TST" ? before.d0 : 0xabcdef00 + expected.result });
+    }
+  });
+}
+
+for (const { name, opcodes } of quickFamilies) {
+  test(`68000 ${name} covers all 166 forms with every quick operand and full-width address registers`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (const bits of [0, 127]) for (const { field, amount } of quickAmounts) {
+      const before = transferState(bits);
+      let forms = 0;
+      for (const [index, base] of opcodes.entries()) {
+        const size = 2 ** index;
+        for (const ea of transferFixtures(before, size, before.pc + 2)) {
+          if (ea.code > 57 || size === 1 && ea.code >= 8 && ea.code < 16) continue;
+          checkSingleOperand(ram, before, name, base + field + ea.code, size, ea, amount);
+          forms++;
+        }
+      }
+      assert.equal(forms, 166);
+    }
+    for (let value = 0; value < 256; value++) for (const { field, amount } of quickAmounts) for (const bits of [0, 127]) {
+      const before = initialState({ d7: 0xabcdef00 + value, flags: flags(bits) });
+      const expected = singleResult(name, 1, value, amount, before.flags);
+      checkStep(ram, before, wordBytes(opcodes[0] + field + 7), { ...before, pc: before.pc + 2,
+        d7: 0xabcdef00 + expected.result, flags: expected.flags });
+    }
+  });
+}
+
+test("68000 Scc covers all 800 forms and incoming flags, including ST/SF and preserved upper Dn bytes", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let bits = 0; bits < 128; bits++) {
+    const before = transferState(bits);
+    let forms = 0;
+    for (const { opcode, truth } of setConditions) {
+      const value = conditionResult(truth, before.flags) ? 255 : 0;
+      for (const ea of transferFixtures(before, 1, before.pc + 2).filter(ea => ea.code < 8 || ea.code >= 16 && ea.code <= 57)) {
+        checkSingleOperand(ram, before, "Scc", opcode + ea.code, 1, ea, value, value);
+        forms++;
+      }
+    }
+    assert.equal(forms, 800);
+  }
+});
+
+test("68000 unary and quick word/long results cover every bit boundary and incoming flag pattern", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const size of [2, 4]) {
+    const modulus = 2 ** (size * 8);
+    const values = new Set([0, modulus - 1]);
+    for (let bit = 0; bit < size * 8; bit++) for (const delta of [-1, 0, 1]) values.add((2 ** bit + delta) % modulus);
+    for (const value of values) for (let bits = 0; bits < 128; bits++) {
+      const before = initialState({ d0: size === 2 ? 0x89ab0000 + value : value, flags: flags(bits) });
+      for (const { name, opcodes } of unaryFamilies) {
+        const expected = singleResult(name, size, value, 0, before.flags);
+        checkStep(ram, before, wordBytes(opcodes[size === 2 ? 1 : 2]), { ...before, pc: before.pc + 2,
+          d0: name === "TST" ? before.d0 : size === 2 ? 0x89ab0000 + expected.result : expected.result, flags: expected.flags });
+      }
+      for (const { name, opcodes } of quickFamilies) for (const { field, amount } of quickAmounts) {
+        const expected = singleResult(name, size, value, amount, before.flags);
+        checkStep(ram, before, wordBytes(opcodes[size === 2 ? 1 : 2] + field), { ...before, pc: before.pc + 2,
+          d0: size === 2 ? 0x89ab0000 + expected.result : expected.result, flags: expected.flags });
+      }
+    }
+  }
+});
+
+test("68000 NEGX sweeps every word with both extend/zero inputs, preserving cumulative zero on wrapped results", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let value = 0; value < 65536; value++) for (const bits of [0, 1, 4, 5]) {
+    const before = initialState({ d3: 0xabcd0000 + value, flags: flags(bits) });
+    const expected = singleResult("NEGX", 2, value, 0, before.flags);
+    checkStep(ram, before, [0x40, 0x43], { ...before, pc: before.pc + 2, d3: 0xabcd0000 + expected.result, flags: expected.flags });
+  }
+});
+
+test("68000 quick An operations ignore the encoded word size and preserve all flags through 32-bit wrap", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let bits = 0; bits < 128; bits++) for (const value of [0, 1, 7, 0xffff, 0x7fffffff, 0x80000000, 0xfffffffe, 0xffffffff]) {
+    for (const { name, opcodes } of quickFamilies) for (const { field, amount } of quickAmounts) {
+      const before = transferState(bits);
+      for (const [n, register] of addressNames(before).entries()) {
+        before[register] = value;
+        for (const base of opcodes.slice(1)) checkStep(ram, before, wordBytes(base + field + 8 + n),
+          { ...before, [register]: unsignedLong(value + (name === "ADDQ" ? amount : -amount)), pc: before.pc + 2 });
+      }
+    }
+  }
+});
+
+test("68000 unary/quick/Scc memory access wraps, updates active A7 once, and fetches before overlapping writes", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const family of [...unaryFamilies, ...quickFamilies]) for (const [index, base] of family.opcodes.entries()) {
+    const size = 2 ** index;
+    const argument = family.name === "ADDQ" || family.name === "SUBQ" ? 8 : 0;
+    for (const bits of [0, 127]) for (const address of [0, 1, 0x12fffffe, 0xfffffffe, 0xffffffff]) {
+      if (size !== 1 && address % 2 !== 0) continue;
+      const before = { ...transferState(bits), usp: address, ssp: address };
+      for (const ea of transferFixtures(before, size, before.pc + 2).filter(ea => [31, 39].includes(ea.code))) {
+        checkSingleOperand(ram, before, family.name, base + ea.code, size, ea, argument, 0);
+      }
+    }
+    for (const pc of [0xab001000, 0x12fffffe, 0xfffffffe]) {
+      const before = initialState({ pc });
+      for (const offset of [0, 2, 4]) {
+        const address = unsignedLong(pc + offset);
+        checkSingleOperand(ram, before, family.name, base + 57, size, { code: 57, address, extension: longBytes(address) }, argument);
+      }
+    }
+  }
+  for (const { opcode, truth } of setConditions) for (const bits of [0, 127]) for (const address of [1, 0xffffffff]) {
+    const before = { ...transferState(bits), usp: address, ssp: address };
+    const value = conditionResult(truth, before.flags) ? 255 : 0;
+    for (const ea of transferFixtures(before, 1, before.pc + 2).filter(ea => [31, 39].includes(ea.code))) {
+      checkSingleOperand(ram, before, "Scc", opcode + ea.code, 1, ea, value, value);
+    }
+    checkSingleOperand(ram, before, "Scc", opcode + 57, 1, { code: 57, extension: longBytes(before.pc), address: before.pc }, value);
+  }
+});
+
+test("68000 unary/quick word and long alignment rejection preserves every memory mode, flags, and pending updates", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const { opcodes } of [...unaryFamilies, ...quickFamilies]) for (const [index, base] of opcodes.entries()) {
+    if (index === 0) continue;
+    const size = 2 ** index;
+    for (const bits of [0, 127]) {
+      const before = transferState(bits);
+      for (const register of addressNames(before)) before[register]++;
+      const destinations = transferFixtures(before, size, before.pc + 2);
+      destinations.push({ code: 56, extension: [0xff, 0xff], address: 0xffffffff },
+        { code: 57, extension: [0xab, 0xff, 0xff, 0xff], address: 0xabffffff });
+      for (const ea of destinations) {
+        if (ea.code > 57 || ea.address === undefined || ea.address % 2 === 0) continue;
+        checkControlRejection(ram, before, [...wordBytes(base + ea.code), ...ea.extension], "read", ea.address);
+      }
+    }
+  }
+});
+
+test("68000 unary alignment faults retry from live RAM without changing retained records", () => {
+  const ram = new ObservedRam(0x1000000);
+  const before = transferState(127);
+  [0x42, 0xb9, 0xab, 0, 0x30, 1].forEach((value, offset) => ram.write(0x1000 + offset, value));
+  const cpu = new Cpu68000(ram, before);
+  const fault = cpu.step();
+  const savedFault = structuredClone(fault);
+  assert.equal(fault.outcome, "unsupported");
+  assert.deepEqual(cpu.snapshot(), snapshot(before));
+  ram.write(0x1005, 0);
+  [0x12, 0x34, 0x56, 0x78].forEach((value, offset) => ram.write(0x3000 + offset, value));
+  const record = cpu.step();
+  const saved = structuredClone(record);
+  assert.equal(record.outcome, "executed");
+  assert.deepEqual(record.accesses.slice(-8), [...memoryAccesses("read", 0x3000, [0x12, 0x34, 0x56, 0x78]), ...memoryAccesses("write", 0x3000, [0, 0, 0, 0])]);
+  assert.equal(record.after.flags.z, true);
+  assert.equal(record.after.flags.x, true);
+  cpu.reset();
+  assert.deepEqual(record, saved);
+  assert.deepEqual(fault, savedFault);
 });

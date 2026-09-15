@@ -61,7 +61,7 @@ type ControlOperation = (cpu: Cpu68000, address: number, instruction: Instructio
 type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
 type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
 type OperandSize = 8 | 16 | 32;
-// A result requests writeback; a comparison updates flags and returns nothing.
+// A result requests writeback; comparisons and tests update flags and return nothing.
 type AluOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
 // The EA field's role and permitted set; only plain sources allow An (word/long).
 type AluAddressing = "source" | "data-source" | "memory-destination" | "data-destination";
@@ -156,10 +156,11 @@ export class Cpu68000 {
   static readonly #dataRegisters = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
   static readonly #addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
   static readonly #selectors = [0, 1, 2, 3, 4, 5, 6, 7] as const;
+  static readonly #sizes = [8, 16, 32, undefined] as const;
   static readonly #immediateBytes = Array.from({ length: 0x100 }, (_, value) => value);
 
   // cccc condition encodings. BRA uses T; BSR replaces F in the branch family.
-  // DBcc uses all sixteen tests directly, including DBT and DBF (also called DBRA).
+  // DBcc and Scc use all sixteen tests directly; DBF is also called DBRA.
   // The shared Motorola table orders T/F, HI/LS, CC/CS, NE/EQ, VC/VS, PL/MI, GE/LT, GT/LE.
   // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
   static readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
@@ -180,6 +181,15 @@ export class Cpu68000 {
     ...this.#moveHandlers("00 10 ddd mmm sss rrr", 32), // MOVE.L / MOVEA.L <ea>,<ea>
     ...this.#moveHandlers("00 11 ddd mmm sss rrr", 16), // MOVE.W / MOVEA.W <ea>,<ea>
 
+    // Unary ALU: 0100 oooo ss mmm rrr. ss=00 byte, 01 word, 10 long;
+    // mmm rrr selects a data-alterable EA, even for TST on the original 68000.
+    // ss=11 belongs to status transfers, TAS, or other instructions, not this family.
+    ...this.#unaryHandlers("0100 0000 ss mmm rrr", (cpu, size, value) => cpu.#negateExtended(size, value)), // NEGX <ea>
+    ...this.#unaryHandlers("0100 0010 ss mmm rrr", (cpu, size) => cpu.#logic(size, 0)), // CLR <ea>
+    ...this.#unaryHandlers("0100 0100 ss mmm rrr", (cpu, size, value) => cpu.#subtract(size, 0, value)), // NEG <ea>
+    ...this.#unaryHandlers("0100 0110 ss mmm rrr", (cpu, size, value) => cpu.#logic(size, value ^ (2 ** size - 1))), // NOT <ea>
+    ...this.#unaryHandlers("0100 1010 ss mmm rrr", (cpu, size, value) => { cpu.#setResultFlags(value, size); }), // TST <ea>
+
     // Control EAs: mmm rrr permits (An), displacement/index, absolute, and PC-relative;
     // register-direct, postincrement, predecrement, and immediate are excluded.
     // 0100 aaa 111 mmm rrr: aaa selects the address register receiving the EA itself.
@@ -199,6 +209,14 @@ export class Cpu68000 {
     ...this.#controlHandlers("0100 1110 10 mmm rrr", (cpu, address, instruction) => cpu.#call(address, instruction)), // JSR <ea>
     ...this.#controlHandlers("0100 1110 11 mmm rrr", (cpu, address, instruction) => cpu.#jump(address, instruction)), // JMP <ea>
 
+    // Quick ALU: 0101 qqq d ss mmm rrr. qqq=000 means 8, otherwise 1..7;
+    // d=0 ADDQ, 1 SUBQ; ss=00 byte, 01 word, 10 long. An allows word/long,
+    // always operates on all 32 bits, and preserves flags. Other EAs are data-alterable.
+    ...this.#quickHandlers("0101 qqq 0 ss mmm rrr", 1), // ADDQ #n,<ea>
+    ...this.#quickHandlers("0101 qqq 1 ss mmm rrr", -1), // SUBQ #n,<ea>
+    // ss=11 repurposes bits 11..8 as cccc: 0101 cccc 11 mmm rrr is Scc.
+    // Scc writes a condition byte to a data-alterable EA; mmm=001 instead selects DBcc.
+    ...this.#conditionHandlers("0101 cccc 11 mmm rrr"), // Scc <ea>
     // 0101 cccc 11001 rrr: cccc is the termination condition; rrr selects Dn.W.
     // The following signed word is relative to the extension word's address.
     ...opcodeFamily("0101 cccc 11001 rrr", { c: motorolaConditions, r: this.#dataRegisters }, ({ c: test, r: register }) => (cpu: Cpu68000, instruction: InstructionContext) => cpu.#decrementBranch(register, test(cpu.#state.flags), instruction)), // DBcc Dn,<label>
@@ -237,10 +255,14 @@ export class Cpu68000 {
   ], 16);
 
   static #immediateHandlers(pattern: string, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
-    const sizes = [8, 16, 32, undefined] as const;
-    return opcodeFamily(pattern, { s: sizes, m: this.#selectors, r: this.#selectors }, ({ s: size, m, r }) => {
+    return this.#sizedDataHandlers(pattern, (size, mode, code) =>
+      (cpu, instruction) => cpu.#immediate(size, mode, code, apply, instruction));
+  }
+
+  static #sizedDataHandlers(pattern: string, bind: (size: OperandSize, mode: number, code: number) => OpcodeHandler): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { s: this.#sizes, m: this.#selectors, r: this.#selectors }, ({ s: size, m, r }) => {
       if (size === undefined || m === 1 || (m === 7 && r > 1)) return undefined;
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#immediate(size, m, r, apply, instruction);
+      return bind(size, m, r);
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
@@ -254,13 +276,10 @@ export class Cpu68000 {
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
-  static #branchHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
-    const conditions = motorolaConditions.map((test, code) => ({ test, code }));
-    return opcodeFamily(pattern, { c: conditions, d: this.#immediateBytes }, ({ c: { test, code }, d: byte }) => {
-      // The F encoding is a subroutine call, selected while building the table.
-      if (code === 0b0001) return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#call(cpu.#branchTarget(byte, instruction), instruction);
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#branch(byte, test(cpu.#state.flags), instruction);
-    });
+  static #unaryHandlers(pattern: string, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
+    // CLR reads its memory destination before clearing it on the original 68000.
+    return this.#sizedDataHandlers(pattern, (size, mode, code) =>
+      (cpu, instruction) => cpu.#effectiveAddressAlu(size, mode, code, 0, apply, instruction));
   }
 
   static #isControlAddress(mode: number, code: number): boolean {
@@ -291,10 +310,40 @@ export class Cpu68000 {
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
+  static #quickHandlers(pattern: string, direction: 1 | -1): readonly OpcodeEntry<OpcodeHandler>[] {
+    const apply: AluOperation = direction === 1 ? (cpu, size, left, right) => cpu.#add(size, left, right)
+      : (cpu, size, left, right) => cpu.#subtract(size, left, right);
+    return opcodeFamily(pattern, { q: [8, 1, 2, 3, 4, 5, 6, 7], s: this.#sizes, m: this.#selectors, r: this.#selectors }, ({ q: amount, s: size, m, r }) => {
+      if (size === undefined || (m === 1 && size === 8) || (m === 7 && r > 1)) return undefined;
+      if (m === 1) return (cpu: Cpu68000) => {
+        const register = cpu.#addressRegister(r);
+        cpu.#state[register] = (cpu.#state[register] + direction * amount) >>> 0;
+      };
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(size, m, r, amount, apply, instruction);
+    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
+
+  static #conditionHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { c: motorolaConditions, m: this.#selectors, r: this.#selectors }, ({ c: test, m, r }) => {
+      if (m === 1 || (m === 7 && r > 1)) return undefined;
+      const apply: AluOperation = cpu => test(cpu.#state.flags) ? 0xff : 0;
+      // Like CLR, Scc reads before writing memory on the original 68000; flags are preserved.
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(8, m, r, 0, apply, instruction);
+    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
+
+  static #branchHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
+    const conditions = motorolaConditions.map((test, code) => ({ test, code }));
+    return opcodeFamily(pattern, { c: conditions, d: this.#immediateBytes }, ({ c: { test, code }, d: byte }) => {
+      // The F encoding is a subroutine call, selected while building the table.
+      if (code === 0b0001) return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#call(cpu.#branchTarget(byte, instruction), instruction);
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#branch(byte, test(cpu.#state.flags), instruction);
+    });
+  }
+
   static #dataAluHandlers(pattern: string, addressing: AluAddressing, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
-    const sizes = [8, 16, 32, undefined] as const;
     const source = addressing === "source" || addressing === "data-source";
-    return opcodeFamily(pattern, { r: this.#dataRegisters, s: sizes, m: this.#selectors, e: this.#selectors }, ({ r: register, s: size, m, e }) => {
+    return opcodeFamily(pattern, { r: this.#dataRegisters, s: this.#sizes, m: this.#selectors, e: this.#selectors }, ({ r: register, s: size, m, e }) => {
       if (size === undefined) return undefined;
       if (m === 7 && e > (source ? 4 : 1)) return undefined;
       if (m === 1 && (addressing !== "source" || size === 8)) return undefined;
@@ -548,7 +597,7 @@ export class Cpu68000 {
     // All alignment checks have passed. An destinations see source pre/post-updates.
     for (const [register, address] of updates) this.#state[register] = address;
     const result = apply(this, size, this.#readOperand(size, destination, instruction.readByte), value);
-    // Comparisons commit address auto-updates without writing their arithmetic result.
+    // Comparisons and tests retain address auto-updates without writing a result.
     if (result !== undefined) this.#writeOperand(size, destination, result, instruction.writeByte);
   }
 
@@ -569,6 +618,16 @@ export class Cpu68000 {
   #subtract(size: OperandSize, left: number, right: number): number {
     const result = this.#compare(size, left, right);
     this.#state.flags.x = this.#state.flags.c;
+    return result;
+  }
+
+  #negateExtended(size: OperandSize, value: number): number {
+    const zero = this.#state.flags.z;
+    const { result, borrow, overflow } = subtract(size, 0, value, this.#state.flags.x ? 1 : 0);
+    this.#setResultFlags(result, size);
+    this.#state.flags.x = this.#state.flags.c = borrow;
+    this.#state.flags.v = overflow;
+    this.#state.flags.z = zero && result === 0; // Accumulate zero across a multi-precision negation.
     return result;
   }
 

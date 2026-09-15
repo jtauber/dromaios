@@ -215,3 +215,36 @@ LINK displacement. They also check unchanged flags, original and discarded
 base values, A7 aliases, wrapping, overlapping code/data, and atomic faults.
 The [frame example](examples/stack-frame.md) checks complete records and RAM
 images for a caller and subroutine using all seven new families.
+
+## Quick arithmetic, unary operations, and condition bytes
+
+ADDQ/SUBQ reuse the existing arithmetic helpers and resolved destination path.
+The Mac reference separates An from data destinations: even the word encoding
+changes the entire address register without changing flags. Dromaios binds
+that distinction while constructing the opcode table, including the encoded
+zero that means an immediate eight. Immediate and unary families now share
+size and data-alterable EA validation; execution still fetches immediates only
+for the instructions that have them.
+
+The reference TST decoder admits later-chip An, PC-relative, and immediate
+forms. Dromaios retains the original 68000's data-alterable set. Its CLR and
+Scc memory handlers, like the pinned Musashi handlers, write without first
+reading. Motorola's programmer's reference explicitly requires that read on
+the 68000/68008 (notes on pages 4-74 and 4-173). Dromaios therefore uses the
+same read/modify/write path for CLR, Scc, and the other unary/quick operations;
+TST returns no result to suppress writeback while retaining address updates.
+
+NEGX uses the shared width-aware subtraction with incoming X, then applies
+its cumulative-zero rule explicitly. This agrees with the Mac reference and
+[Musashi's NEGX handlers](https://github.com/kstenerud/Musashi/blob/313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd/m68k_in.c).
+An all-ones operand plus incoming X produces a zero result with borrow; an
+already-clear Z must remain clear. Tests derive signed overflow from BigInt
+ranges and cover every word with each incoming X/Z pair, independently of
+the implementations' bit formulas. Scc uses the existing Motorola conditions,
+including T/F, with separate literal truth-table checks for all incoming flags.
+
+The [combined example](examples/unary.md) classifies signed words, computes
+magnitudes, and negates a two-long value. Its final high long becomes zero
+while the complete result is nonzero, checking cumulative Z across a restored
+snapshot. All checks here use manual expectations, local tests, and source
+comparisons; no external hardware corpus or cycle comparison is claimed.
