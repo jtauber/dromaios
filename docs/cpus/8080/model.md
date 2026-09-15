@@ -14,9 +14,10 @@ instruction behavior, and expected execution.
 `Cpu8080` models an Intel 8080 connected to flat
 [64 KiB RAM](../../machines/definitions.md#ram-and-cpu-ownership).
 An optional byte-port connection supplies `IN` and `OUT`. One call to `step()`
-executes at most one instruction. Records are instruction-level; timing,
-electrical bus activity, external interrupt delivery, specific device models,
-and browser controls are outside this model.
+executes at most one instruction from RAM; `interrupt(acknowledge)` offers an
+external instruction at the current boundary. Records are instruction-level;
+cycle timing, electrical bus activity, specific device models, and browser
+controls are outside this model.
 
 Interrupt enable and its one-instruction deferral are stored state. Initial
 registers, flags, and control latches are supplied explicitly by the caller;
@@ -132,8 +133,8 @@ Records have no cycle-count or elapsed-time field.
 Both fetch only their opcode, advance PC with wrapping, and preserve registers
 and arithmetic flags. The deferral represents an acceptance inhibit, not a
 second architectural interrupt flag: eligibility at an instruction boundary
-requires `interruptEnabled && !interruptDeferred`. No public API delivers an
-interrupt yet, and these fields make no claim about pin transition timing.
+requires `interruptEnabled && !interruptDeferred`. These fields make no claim
+about pin transition timing.
 
 Every successfully executed instruction consumes the previous deferral;
 another `EI` renews it. Thus `EI; NOP`, `EI; RET`, and `EI; HLT` leave enable
@@ -146,8 +147,71 @@ Descriptions below of other instructions omit this common retirement rule.
 
 This follows the delayed acceptance described in Intel's
 [8080/8085 Assembly Language Programming manual, EI, printed page 3-23](https://st.sdf-eu.org/i8080/Intel%208080-8085%20Assembly%20Language%20Programming%201977%20Intel.pdf).
-External interrupt acknowledgement and HALT release remain a separate delivery
-contract to implement next.
+
+### External interrupt delivery
+
+`interrupt(acknowledge: () => number): Cpu8080InterruptRecord` offers one
+request between instructions, including while halted. It does not store a
+request or advance an ordinary instruction. The caller owns the request level,
+priority, and scheduling, and must offer again if the request remains asserted.
+The shared runner remains synchronous: a caller can run a bounded batch, offer
+an interrupt, inspect its record, and resume running. Delivery is a separate
+operation and does not consume a runner step budget.
+
+If interrupt enable is clear, the result is `ignored` with reason `disabled`.
+Otherwise, if EI deferral is set, the reason is `deferred`. Both return equal
+before/after snapshots, `instruction: null`, and an empty access list. They do
+not call `acknowledge`, access RAM or ports, consume EI deferral, or release HALT.
+
+Acceptance clears enable and deferral and releases HALT **before** calling the
+device. `acknowledge()` supplies the opcode and is called again only for operand
+bytes actually needed. Each value must be an integer byte; invalid values throw
+`RangeError`. Instruction bytes come entirely from acknowledgement, including
+both operands of a three-byte CALL. These fetches never increment PC. Data
+reads/writes and port transfers still use their ordinary connections.
+
+The existing opcode handler executes with these fetch callbacks. For example,
+an injected RST or CALL saves the interrupted PC, while a program-memory call
+saves PC after its instruction bytes. There is no extra automatic stack push
+before the handler: an injected NOP simply releases HALT and retains PC. All
+documented handlers are available, with their ordinary register and flag effects;
+an injected EI applies the same one-instruction deferral. After an interrupt
+from HALT, a service routine's RET resumes at the byte following that HLT.
+
+Delivery records have `before`, `after`, and ordered `accesses`. For an accepted
+request, `instruction` is `{ source: "interrupt", bytes }`; it has no RAM fetch
+address. The interrupted address is available as `before.pc`. Each supplied
+byte adds `{ kind: "acknowledge", value }` to the same chronological log as
+memory and port transfers. The result is `executed` or `halted`, according to
+the supplied instruction. A halt result here always contains an instruction.
+
+An unsupported supplied opcode returns `unsupported`, reason `opcode`, and one
+acknowledgement entry. Acceptance has already cleared enable and HALT; those
+effects remain, while PC, data registers, flags, and RAM are unchanged. This
+differs from rejecting an opcode fetched by ordinary `step()`.
+
+Callback and RAM failures propagate without a record or rollback. Completed
+acknowledgements, device effects, and memory writes remain; CALL stack failures
+retain the predecrement for the failed write, and PC changes only after both
+stack writes succeed. The API does not resume a partially failed instruction.
+External device state is not captured by CPU snapshots or reset.
+
+The acceptance rules follow Intel's [8080/8085 Assembly Language Programming
+manual, chapter 7](https://st.sdf-eu.org/i8080/Intel%208080-8085%20Assembly%20Language%20Programming%201977%20Intel.pdf).
+The three-byte CALL sequence is described in Intel's 8259A material reprinted
+in the [CompuPro System Support 1 manual, printed page 37](https://www.bitsavers.org/pdf/compupro/IO/162G_System_Support_1/162G_System_Support_1_User_Manual_Nov81.pdf).
+This API models instruction boundaries rather than electrical sampling times.
+
+### Host callback boundaries
+
+`step()`, `reset()`, and `interrupt()` must finish before another mutating call
+on the same CPU begins. Reentrant calls from RAM, port, or acknowledgement
+callbacks throw before changing state or acknowledging. A callback can inspect
+`snapshot()`; that snapshot reflects completed effects at that point, rather
+than a new interrupt-acceptance boundary. The guard is released on success or
+failure and is host execution state, not a modeled latch to serialize. A device
+that raises an interrupt during I/O should retain the request externally for
+the caller to offer after the step finishes.
 
 ### Port I/O
 
@@ -352,7 +416,8 @@ No transfer reads the destination instruction in the same step. Branches,
 calls, RST, and returns report `executed`; transferring to a completion address
 or HLT opcode does not itself halt the CPU. Their only state changes are PC
 and, for taken calls, RST, and taken returns, SP. RST from program memory preserves
-interrupt enable and does not implement external interrupt delivery.
+interrupt enable; [external delivery](#external-interrupt-delivery) clears it
+before executing the supplied instruction.
 The [control-flow example](examples/control-flow.md) specifies a loop with calls
 and independently checked records.
 
@@ -362,9 +427,9 @@ Calling `step()` when already halted returns `outcome: halted`,
 `instruction: null`, equal before/after snapshots, and an empty access list.
 It performs no fetch and does not advance PC.
 
-Interrupt inputs are outside this model. Setting the initial interrupt-enable
-latch to true does not itself resume a halted CPU; `reset()` clears the halted
-state, and restarting the lesson creates a fresh CPU.
+Setting the initial interrupt-enable latch to true does not itself resume a
+halted CPU. An accepted `interrupt()` releases HALT; an ignored request leaves
+it set. `reset()` also clears HALT, and restarting the lesson creates a fresh CPU.
 
 For any opcode outside the [coverage inventory](../coverage.md#8080), return
 `outcome: unsupported` with `reason: opcode`.
@@ -405,8 +470,8 @@ fields only, ignored pair getters, independent snapshots and records, and
 readonly public views. Pair values are checked for byte order and unsigned
 range, including construction from an existing snapshot and caller edits.
 
-Unsupported opcodes preserve CPU state and RAM and record only the opcode
-read. Already halted steps do not access RAM. Reset preserves data registers,
+Unsupported memory-fetched opcodes preserve CPU state and RAM and record only
+the opcode read. Already halted steps do not access RAM. Reset preserves data registers,
 SP, flags, and RAM, returns fresh records, and allows execution to resume at
 `0000`. Example tests check reset and restart against each program's final state.
 

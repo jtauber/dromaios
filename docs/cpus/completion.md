@@ -39,10 +39,9 @@ and access mechanics when the next processor demonstrates the same need.
 
 1. **8080 ports and interrupt controls, then delivery.** Implement `IN`/`OUT`
    through a byte-port connection and `DI`/`EI` with snapshot-preserved deferral.
-   The next slice defines external interrupt acceptance, acknowledgement,
-   supplied instruction bytes, and HALT release. Check that interrupt-supplied
-   instructions preserve the interrupted return address and distinguish their
-   fetch source in records; do not assume every device supplies `RST`.
+   Follow with external acceptance, acknowledgement-supplied instruction bytes,
+   and HALT release. Preserve the interrupted return address and distinguish
+   the fetch source in records, including full supplied CALL instructions.
 2. **8008 port instructions.** Reuse the byte transfer connection while keeping
    the native input/output selectors in the CPU. Verify every documented
    encoding and independently check port direction and access order.
@@ -73,5 +72,6 @@ introduce scheduling and memory-mapped devices when a concrete machine needs
 them. Keep cycle timing and electrical bus behavior explicit limitations.
 
 The 8080's [port and control contract](8080/model.md#interrupt-controls-and-instruction-retirement)
-is the first implementation of this sequence. Its complete opcode inventory
-does not imply that external interrupt delivery is already implemented.
+and [external delivery API](8080/model.md#external-interrupt-delivery) implement
+the first item. The next CPU slice is 8008 port instructions. Timing and device
+scheduling remain separate from the 8080's completed opcode inventory.

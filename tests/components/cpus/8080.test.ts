@@ -2574,6 +2574,329 @@ test("8080 DI/EI preserve registers and flags, wrap PC, and retain EI deferral a
   }
 });
 
+test("8080 interrupt ignores disabled or deferred requests without acknowledgement, state changes, or HALT release", () => {
+  for (const interruptEnabled of [false, true]) {
+    for (const interruptDeferred of [false, true]) {
+      if (interruptEnabled && !interruptDeferred) continue;
+      for (const halted of [false, true]) {
+        const ram = new ObservedRam();
+        const before = expectedSnapshot({ interruptEnabled, interruptDeferred, halted });
+        const cpu = new Cpu8080(ram, before);
+        const first = cpu.interrupt(() => assert.fail("ignored request must not acknowledge"));
+        const expected = { before, after: before, instruction: null, accesses: [], outcome: "ignored",
+          reason: interruptEnabled ? "deferred" : "disabled" };
+        assert.deepEqual(first, expected);
+        const saved = structuredClone(first);
+        assert.deepEqual(cpu.interrupt(() => assert.fail("no queued request")), expected);
+        assert.deepEqual(cpu.snapshot(), before);
+        assert.deepEqual(ram.accesses, []);
+        Reflect.set(first.after, "interruptEnabled", true);
+        Reflect.set(first.accesses, 0, { kind: "acknowledge", value: 0xff });
+        assert.deepEqual(cpu.snapshot(), saved.after);
+      }
+    }
+  }
+});
+
+test("8080 interrupt RST covers all vectors and wrapped stacks, preserving the interrupted PC and flags", () => {
+  for (const [opcode, target] of [[0xc7, 0], [0xcf, 8], [0xd7, 16], [0xdf, 24], [0xe7, 32], [0xef, 40], [0xf7, 48], [0xff, 56]] as const) {
+    for (const pc of [0, 0x1234, 0xffff]) {
+      for (const sp of [0, 1, 0x4000, 0xffff]) {
+        for (const flags of flagCombinations) {
+          for (const halted of [false, true]) {
+            const ram = new ObservedRam();
+            ram.write(pc, 0x08); // RAM at PC would be an unsupported opcode if fetched.
+            ram.accesses.length = 0;
+            const before = expectedSnapshot({ pc, sp, flags, halted });
+            const cpu = new Cpu8080(ram, before);
+            const afterAcceptance = { ...before, interruptEnabled: false, halted: false };
+            let acknowledgements = 0;
+            const record = cpu.interrupt(() => {
+              acknowledgements++;
+              assert.deepEqual(cpu.snapshot(), afterAcceptance);
+              assert.deepEqual(ram.accesses, []);
+              return opcode;
+            });
+            const writes = [
+              { kind: "write", address: (sp - 1) & 0xffff, value: pc >>> 8 },
+              { kind: "write", address: (sp - 2) & 0xffff, value: pc & 0xff },
+            ];
+            assert.deepEqual(record, {
+              before, after: { ...afterAcceptance, pc: target, sp: (sp - 2) & 0xffff },
+              instruction: { source: "interrupt", bytes: [opcode] },
+              accesses: [{ kind: "acknowledge", value: opcode }, ...writes], outcome: "executed",
+            });
+            assert.equal(acknowledgements, 1);
+            assert.deepEqual(ram.accesses, writes);
+            assert.deepEqual(cpu.snapshot(), record.after);
+          }
+        }
+      }
+    }
+  }
+});
+
+test("8080 interrupt CALL acknowledges all three bytes without advancing PC, then writes the return address high first", () => {
+  const ram = new ObservedRam();
+  ram.write(0xffff, 0x08); ram.write(0, 0x76); ram.write(0x1234, 0xc9);
+  ram.accesses.length = 0;
+  const before = expectedSnapshot({ pc: 0xffff, sp: 1, halted: true });
+  const cpu = new Cpu8080(ram, before);
+  const supplied = [0xcd, 0x34, 0x12];
+  let next = 0;
+  const record = cpu.interrupt(() => {
+    assert.equal(cpu.snapshot().pc, 0xffff);
+    assert.equal(cpu.snapshot().sp, 1);
+    assert.equal(cpu.snapshot().interruptEnabled, false);
+    assert.equal(cpu.snapshot().halted, false);
+    assert.deepEqual(ram.accesses, []);
+    assert.ok(next < supplied.length);
+    return supplied[next++]!;
+  });
+  assert.equal(next, 3);
+  assert.deepEqual(record, {
+    before, after: { ...before, pc: 0x1234, sp: 0xffff, interruptEnabled: false, halted: false },
+    instruction: { source: "interrupt", bytes: [0xcd, 0x34, 0x12] }, outcome: "executed",
+    accesses: [
+      { kind: "acknowledge", value: 0xcd }, { kind: "acknowledge", value: 0x34 }, { kind: "acknowledge", value: 0x12 },
+      { kind: "write", address: 0, value: 0xff }, { kind: "write", address: 0xffff, value: 0xff },
+    ],
+  });
+  const saved = structuredClone(record);
+  supplied.fill(0);
+  const returned = cpu.step();
+  assert.deepEqual(returned.after, { ...before, interruptEnabled: false, halted: false });
+  assert.deepEqual(returned.accesses, [
+    { kind: "read", address: 0x1234, value: 0xc9 },
+    { kind: "read", address: 0xffff, value: 0xff }, { kind: "read", address: 0, value: 0xff },
+  ]);
+  assert.deepEqual(record, saved);
+  Reflect.set(record.instruction!.bytes, 0, 0);
+  Reflect.set(record.accesses[3]!, "value", 0);
+  assert.equal(ram.read(0), 0xff);
+  assert.deepEqual(cpu.snapshot(), returned.after);
+});
+
+test("8080 interrupt delivery preserves every documented handler's behavior with a different instruction source", () => {
+  // Independent Intel length/legality inventory; no CPU table introspection.
+  const absent = [0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0xcb, 0xd9, 0xdd, 0xed, 0xfd];
+  const wordOperands = [0x01, 0x11, 0x21, 0x31, 0x22, 0x2a, 0x32, 0x3a, 0xc3, 0xcd,
+    0xc2, 0xca, 0xd2, 0xda, 0xe2, 0xea, 0xf2, 0xfa, 0xc4, 0xcc, 0xd4, 0xdc, 0xe4, 0xec, 0xf4, 0xfc];
+  const byteOperands = [0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x36, 0x3e,
+    0xc6, 0xce, 0xd6, 0xde, 0xe6, 0xee, 0xf6, 0xfe, 0xd3, 0xdb];
+  for (let opcode = 0; opcode <= 0xff; opcode++) {
+    if (absent.includes(opcode)) continue;
+    const length = wordOperands.includes(opcode) ? 3 : byteOperands.includes(opcode) ? 2 : 1;
+    const bytes = [opcode, 0x24, 0x13].slice(0, length);
+    for (const set of [false, true]) {
+      const memories = [new ObservedRam(), new ObservedRam()] as const;
+      for (const ram of memories) {
+        bytes.forEach((byte, index) => ram.write(0x1000 + index, byte));
+        ram.write(0x6677, 0xab); ram.write(0xabcd, 0x89); ram.write(0xabce, 0x67);
+        ram.write(0x1324, 0x5a); ram.write(0x1325, 0xa5);
+        ram.accesses.length = 0;
+      }
+      const ports: BytePorts = { readPort: () => 0x96, writePort: () => {} };
+      const flags = { s: set, z: set, ac: set, p: set, cy: set };
+      const normal = new Cpu8080(memories[0], initialState({ pc: 0x1000, flags, interruptEnabled: false }), ports).step();
+      const interrupted = new Cpu8080(memories[1], initialState({ pc: 0x1000 + length, flags }), ports);
+      let next = 0;
+      const external = interrupted.interrupt(() => {
+        assert.ok(next < bytes.length, `extra acknowledgement for ${opcode}`);
+        return bytes[next++]!;
+      });
+      const context = `opcode=${opcode.toString(16)}, flags=${set}`;
+      assert.notEqual(normal.outcome, "unsupported", context);
+      assert.equal(external.outcome, normal.outcome, context);
+      assert.equal(next, length, context);
+      assert.deepEqual(external.instruction, { source: "interrupt", bytes }, context);
+      assert.deepEqual(external.after, normal.after, context);
+      assert.deepEqual(external.accesses, [
+        ...bytes.map(value => ({ kind: "acknowledge", value })), ...normal.accesses.slice(length),
+      ], context);
+      assert.deepEqual(memories[1].accesses, memories[0].accesses.slice(length), context);
+    }
+  }
+});
+
+test("8080 interrupt-supplied unsupported opcodes retain acceptance effects and acknowledge only once", () => {
+  for (const opcode of [0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0xcb, 0xd9, 0xdd, 0xed, 0xfd]) {
+    const ram = new ObservedRam();
+    const before = expectedSnapshot({ halted: true });
+    const cpu = new Cpu8080(ram, before);
+    let calls = 0;
+    assert.deepEqual(cpu.interrupt(() => { calls++; return opcode; }), {
+      before, after: { ...before, interruptEnabled: false, halted: false },
+      instruction: { source: "interrupt", bytes: [opcode] },
+      accesses: [{ kind: "acknowledge", value: opcode }], outcome: "unsupported", reason: "opcode",
+    });
+    assert.equal(cpu.interrupt(() => assert.fail("disabled after acceptance")).outcome, "ignored");
+    assert.equal(calls, 1);
+    assert.deepEqual(ram.accesses, []);
+  }
+});
+
+test("8080 interrupt wakes EI/HLT, protects EI/RET, resumes from snapshots, and returns to the byte after HLT", () => {
+  const ram = new ObservedRam();
+  [0xfb, 0x76, 0x3e, 0x99, 0x76].forEach((byte, address) => ram.write(address, byte));
+  [0x3e, 0x42, 0xfb, 0xc9].forEach((byte, index) => ram.write(0x38 + index, byte));
+  let cpu = new Cpu8080(ram, initialState({ pc: 0, sp: 1, interruptEnabled: false }));
+  assert.equal(cpu.interrupt(() => assert.fail("initially disabled")).outcome, "ignored");
+  cpu.step(); // EI
+  assert.equal(cpu.interrupt(() => assert.fail("EI deferral")).outcome, "ignored");
+  const halted = runCpu(cpu, { maxSteps: 1 });
+  assert.equal(halted.stopReason, "halted");
+  assert.equal(cpu.snapshot().pc, 2);
+  const savedHalt = structuredClone(halted);
+  const interrupt = cpu.interrupt(() => 0xff);
+  assert.equal(interrupt.outcome, "executed");
+  assert.deepEqual(interrupt.after, expectedSnapshot({ pc: 0x38, sp: 0xffff, interruptEnabled: false }));
+  const savedInterrupt = structuredClone(interrupt);
+  runCpu(cpu, { maxSteps: 1 }); // MVI A,42
+  assert.equal(cpu.snapshot().a, 0x42);
+  assert.equal(cpu.interrupt(() => assert.fail("service has not re-enabled interrupts")).outcome, "ignored");
+  runCpu(cpu, { maxSteps: 1 }); // EI
+  cpu = new Cpu8080(ram, cpu.snapshot());
+  assert.equal(cpu.interrupt(() => assert.fail("restored EI deferral")).outcome, "ignored");
+  const returned = runCpu(cpu, { maxSteps: 1 }); // RET
+  assert.deepEqual(returned.records[0]!.after, expectedSnapshot({ pc: 2, sp: 1, a: 0x42 }));
+  const resumed = runCpu(cpu, { maxSteps: 2 });
+  assert.equal(resumed.stopReason, "halted");
+  assert.equal(cpu.snapshot().a, 0x99);
+  assert.equal(cpu.snapshot().pc, 5);
+  assert.deepEqual(halted, savedHalt);
+  assert.deepEqual(interrupt, savedInterrupt);
+  // A fresh offer is required; ignored offers above did not queue another delivery.
+  assert.equal(cpu.interrupt(() => 0x00).outcome, "executed"); // Injected NOP releases HALT without advancing PC.
+  assert.equal(cpu.snapshot().pc, 5);
+  assert.equal(cpu.snapshot().halted, false);
+  cpu.reset();
+  assert.equal(cpu.interrupt(() => assert.fail("reset disables interrupts")).outcome, "ignored");
+  assert.deepEqual(interrupt, savedInterrupt);
+});
+
+test("8080 interrupt acknowledgement failures retain acceptance, avoid read-ahead, and release the host boundary guard", () => {
+  const failure = new Error("acknowledgement failure");
+  for (const failAt of [0, 1, 2]) {
+    for (const badByte of [undefined, -1, 256, 0.5, NaN, Infinity]) {
+      const ram = new ObservedRam();
+      const before = expectedSnapshot({ halted: true });
+      const cpu = new Cpu8080(ram, before);
+      let calls = 0;
+      assert.throws(() => cpu.interrupt(() => {
+        const index = calls++;
+        if (index !== failAt) return [0xcd, 0x34, 0x12][index]!;
+        if (badByte === undefined) throw failure;
+        return badByte;
+      }), error => badByte === undefined ? error === failure : error instanceof RangeError);
+      assert.equal(calls, failAt + 1);
+      assert.deepEqual(cpu.snapshot(), { ...before, interruptEnabled: false, halted: false });
+      assert.deepEqual(ram.accesses, []);
+      cpu.reset(); // A thrown callback does not leave the host guard locked.
+      assert.equal(cpu.step().outcome, "executed");
+    }
+  }
+});
+
+test("8080 interrupt stack-write failures retain completed acknowledgements and writes without advancing PC", () => {
+  const failure = new Error("stack write failure");
+  for (const failAt of [1, 2]) {
+    let writes = 0;
+    const ram = new class extends ObservedRam {
+      override write(address: number, value: number): void {
+        if (++writes === failAt) throw failure;
+        super.write(address, value);
+      }
+    }();
+    const before = expectedSnapshot({ pc: 0x1234, sp: 1, halted: true });
+    const cpu = new Cpu8080(ram, before);
+    let reads = 0;
+    assert.throws(() => cpu.interrupt(() => [0xcd, 0x78, 0x56][reads++]!), error => error === failure);
+    assert.equal(reads, 3);
+    assert.equal(writes, failAt);
+    assert.deepEqual(cpu.snapshot(), { ...before, sp: failAt === 1 ? 0 : 0xffff, interruptEnabled: false, halted: false });
+    assert.deepEqual(ram.accesses, failAt === 1 ? [] : [{ kind: "write", address: 0, value: 0x12 }]);
+    cpu.reset();
+    assert.equal(ram.read(0), failAt === 1 ? 0 : 0x12);
+  }
+});
+
+test("8080 interrupt-supplied I/O keeps acknowledgement and port records distinct and preserves device failure effects", () => {
+  for (const opcode of [0xd3, 0xdb]) {
+    for (const fail of [false, true]) {
+      const ram = new ObservedRam();
+      const before = expectedSnapshot({ halted: true, a: 0x5a });
+      const calls: string[] = [];
+      const failure = new Error("device failure");
+      const ports: BytePorts = {
+        readPort: port => { calls.push(`input ${port}`); if (fail) throw failure; return 0xa5; },
+        writePort: (port, value) => { calls.push(`output ${port} ${value}`); if (fail) throw failure; },
+      };
+      const cpu = new Cpu8080(ram, before, ports);
+      let next = 0;
+      const acknowledge = () => {
+        const value = [opcode, 0xff][next++]!;
+        calls.push(`acknowledge ${value}`);
+        return value;
+      };
+      if (fail) {
+        assert.throws(() => cpu.interrupt(acknowledge), error => error === failure);
+        assert.deepEqual(cpu.snapshot(), { ...before, interruptEnabled: false, halted: false });
+      } else {
+        assert.deepEqual(cpu.interrupt(acknowledge), {
+          before, after: { ...before, a: opcode === 0xdb ? 0xa5 : 0x5a, interruptEnabled: false, halted: false },
+          instruction: { source: "interrupt", bytes: [opcode, 0xff] }, outcome: "executed",
+          accesses: [
+            { kind: "acknowledge", value: opcode }, { kind: "acknowledge", value: 0xff },
+            { kind: opcode === 0xdb ? "input" : "output", port: 0xff, value: opcode === 0xdb ? 0xa5 : 0x5a },
+          ],
+        });
+      }
+      assert.deepEqual(calls, [`acknowledge ${opcode}`, "acknowledge 255", opcode === 0xdb ? "input 255" : "output 255 90"]);
+      assert.deepEqual(ram.accesses, []);
+    }
+  }
+});
+
+test("8080 interrupt and device callbacks may inspect snapshots but cannot reenter mutating CPU operations", () => {
+  for (const source of ["memory", "port", "acknowledge"] as const) {
+    let inspect: (() => void) | undefined;
+    const ram = new class extends ObservedRam {
+      override read(address: number): number {
+        const value = super.read(address);
+        if (source === "memory") inspect?.();
+        return value;
+      }
+    }();
+    ram.write(0, 0xdb); ram.write(1, 0xff);
+    const cpu = new Cpu8080(ram, initialState({ pc: 0 }), {
+      readPort: () => { if (source === "port") inspect?.(); return 0x42; },
+      writePort: () => assert.fail("unexpected output"),
+    });
+    let attempts = 0;
+    inspect = () => {
+      const during = cpu.snapshot();
+      for (const mutate of [() => cpu.step(), () => cpu.reset(), () => cpu.interrupt(() => assert.fail("nested acknowledge"))]) {
+        assert.throws(mutate, /must not be reentrant/);
+        attempts++;
+        assert.deepEqual(cpu.snapshot(), during);
+      }
+    };
+    if (source === "acknowledge") {
+      assert.equal(cpu.interrupt(() => { inspect!(); return 0; }).outcome, "executed");
+    } else {
+      assert.equal(cpu.step().after.a, 0x42);
+    }
+    assert.equal(attempts, source === "memory" ? 6 : 3);
+    cpu.reset(); // The guard is released on successful completion as well as failures.
+  }
+
+  const cpu = new Cpu8080(new Ram(0x10000), initialState());
+  assert.throws(() => cpu.interrupt(() => { cpu.reset(); return 0; }), /must not be reentrant/);
+  cpu.reset();
+  assert.equal(cpu.step().outcome, "executed");
+});
+
 test("8080 EI delays through the following instruction, another EI renews it, and DI cancels it", () => {
   const cases = [
     { bytes: [0xfb, 0x00], controls: [[true, true], [true, false]] },

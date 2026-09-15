@@ -180,9 +180,10 @@ protected members form the internal TypeScript inheritance boundary.
 
 State descriptions, public snapshots, reset, instruction fetching, and step
 outcomes remain in the concrete CPU modules. Z80 prefix validation and R updates
-therefore keep their existing execution contract. The public CPU methods remain
-`snapshot`, `reset`, and `step`; the family adds no public controls or mutable
-state access. This shallow hierarchy expresses the 8080/Z80 relationship and
+therefore keep their existing execution contract. Both expose `snapshot`,
+`reset`, and `step`; the 8080 additionally exposes its own boundary-level
+`interrupt` operation. The family adds no public controls or mutable state
+access. This shallow hierarchy expresses the 8080/Z80 relationship and
 is not a requirement for other processors.
 
 ## Shared execution records
@@ -207,6 +208,10 @@ other CPUs retain the memory-only default. Each step type selects its supported 
 on an unaligned opcode fetch. Address conventions are still
 documented beside the aliases, including the 8088's physical instruction
 address and the 68000's full logical instruction address.
+
+The 8080's separate interrupt record uses `StateTransition` with memory, port,
+and acknowledgement accesses. Its supplied instruction has a source and bytes,
+with no invented RAM address. Ordinary step records retain their existing shape.
 
 These types describe records; each CPU still constructs detached snapshots and
 access lists. Existing [public type checks](../../tests/types) verify readonly
@@ -310,6 +315,12 @@ patterns; the bound callbacks and logs belong to one execution. The 8080 appends
 after the memory log because `IN`/`OUT` transfer once, after all memory fetches.
 A future block-I/O implementation must record actual interleaving explicitly.
 
+8080 interrupt delivery uses the same table and handler-context binding, with
+acknowledgement supplying instruction bytes while PC stays unchanged by fetches.
+It records data-memory and port transfers as they complete. Acceptance, HALT
+release, and host reentrancy checks stay in the CPU; the shared RAM-fetch
+executor does not need an interrupt mode.
+
 The four CPUs with a stored PC pass their state directly. The 8008 uses
 `programCounter(read, write)` to expose its live address-stack slot and mask
 writes to 14 bits without adding stored state. Its circular call stack stays
@@ -389,6 +400,13 @@ writes are recorded separately; failed RAM operations propagate their errors
 without adding an entry. The log captures values at access time and is exposed
 as readonly. Separate recorders own separate logs, so later steps and resets
 do not alter earlier records.
+
+`recordMemory(ram, onAccess)` and `recordPorts(ports, onAccess)` can also report
+each completed transfer to a caller's combined log. This preserves actual order
+when memory, ports, and acknowledgement bytes share one execution record. A
+failed transfer does not notify the combined log. The 8080 interrupt path uses
+these callbacks to capture its distinct access kinds without duplicating the
+recorders' memory and port behavior.
 
 All eight CPUs use this helper. Their existing `Cpu…MemoryAccess` type names
 alias the common readonly `MemoryAccess` shape. The helper owns recording only:

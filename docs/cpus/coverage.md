@@ -16,7 +16,7 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [253](../../src/components/cpus/8008.ts) | 218 / 250 | 87.2% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [221](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [290](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [317](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [394](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
@@ -50,8 +50,8 @@ in the [example catalog](../README.md#cpu-examples).
 All eight initial CPU models meet the [CPU-only capability checkpoint](completion.md#cpu-only-checkpoint-review).
 The next milestone is complete documented opcode coverage across all eight,
 following the [completion sequence](completion.md#completion-sequence). The 8080
-has reached full opcode coverage; external interrupt delivery and timing remain
-unmodeled processor features. Instructions still awaiting implementation on
+has reached full opcode coverage and instruction-boundary interrupt delivery;
+cycle timing remains unmodeled. Instructions still awaiting implementation on
 other CPUs remain in their documented-form totals.
 
 ## How the percentages are counted
@@ -506,13 +506,13 @@ DCX, and DAD have distinct [flag and access rules](8080/model.md#increment-decre
 | Stack | PUSH/POP for BC, DE, HL, and PSW plus control-flow return addresses, using a descending RAM stack and wrapping 16-bit SP; PSW packs/restores A and five flags with fixed reserved bits on PUSH; XTHL exchanges HL with stack memory without moving SP |
 | Control flow | JMP, CALL, RET and all eight conditions for each; PCHL and RST 0–7; preserve arithmetic flags and interrupt enable |
 | Reset | Set PC to `0000`, clear interrupt-enable, deferral, and halted; preserve data registers, SP, flags, and RAM; no memory accesses |
-| Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access |
+| Stopping | HLT is implemented; subsequent steps return `halted` with no instruction or memory access; an accepted external interrupt releases HALT |
 | Accumulator arithmetic/logic | ADD/ADC, SUB/SBB, ANA/XRA/ORA, CMP and all immediate counterparts; 8-bit results, carry/borrow propagation, comparison without changing A, and 8080 auxiliary carry rules |
 | Decimal adjustment | DAA corrects A using incoming AC/CY; updates result flags and AC while retaining or setting CY; no decimal-mode latch |
 | Byte and word arithmetic | INR/DCR update byte results and S/Z/AC/P while preserving CY; INX/DCX wrap pairs and SP without changing flags; DAD adds to HL and updates only CY |
 | Rotates and carry | RLC/RRC rotate within A; RAL/RAR rotate through CY; all preserve S/Z/AC/P. CMA complements A without changing flags; STC/CMC change only CY |
 | Port I/O | IN/OUT through an explicit byte-port connection; ordered port records; missing connections and invalid input bytes throw host errors |
-| Interrupt controls | DI/EI with snapshot-preserved one-instruction EI deferral; external acceptance, acknowledgement, and HALT release remain unmodeled |
+| Interrupt controls and delivery | DI/EI with snapshot-preserved one-instruction EI deferral; explicit boundary offers, acknowledgement-supplied instructions, and HALT release; caller-owned request scheduling; no cycle-level sampling |
 
 Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [arithmetic example tests](../../tests/machines/8080/example.test.ts),

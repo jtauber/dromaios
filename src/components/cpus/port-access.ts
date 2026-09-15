@@ -18,8 +18,9 @@ export interface RecordedPorts extends BytePorts {
 }
 
 /** Record one step's port transfers. An absent connection fails only when an instruction uses it. */
-export function recordPorts(ports: BytePorts | undefined): RecordedPorts {
+export function recordPorts(ports: BytePorts | undefined, onAccess?: (access: PortAccess) => void): RecordedPorts {
   const accesses: PortAccess[] = [];
+  const record = (access: PortAccess): void => { accesses.push(access); onAccess?.(access); };
   const connected = (): BytePorts => {
     if (!ports) throw new Error("Port I/O requires a connected device.");
     return ports;
@@ -29,12 +30,12 @@ export function recordPorts(ports: BytePorts | undefined): RecordedPorts {
     readPort: port => {
       const value = connected().readPort(port);
       checkUnsigned("Port input byte", value, 0xff);
-      accesses.push({ kind: "input", port, value });
+      record({ kind: "input", port, value });
       return value;
     },
     writePort: (port, value) => {
       connected().writePort(port, value);
-      accesses.push({ kind: "output", port, value });
+      record({ kind: "output", port, value });
     },
   };
 }

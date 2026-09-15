@@ -17,19 +17,20 @@ export interface RecordedMemory extends ByteMemory {
   readonly accesses: readonly MemoryAccess[];
 }
 
-/** Create a fresh access log for one step or reset. Creation does not access RAM. */
-export function recordMemory(ram: Ram): RecordedMemory {
+/** Create a fresh log; optionally report completed accesses to a combined bus log as they happen. */
+export function recordMemory(ram: Ram, onAccess?: (access: MemoryAccess) => void): RecordedMemory {
   const accesses: MemoryAccess[] = [];
+  const record = (access: MemoryAccess): void => { accesses.push(access); onAccess?.(access); };
   return {
     accesses,
     readByte: address => {
       const value = ram.read(address);
-      accesses.push({ kind: "read", address, value });
+      record({ kind: "read", address, value });
       return value;
     },
     writeByte: (address, value) => {
       ram.write(address, value);
-      accesses.push({ kind: "write", address, value });
+      record({ kind: "write", address, value });
     },
   };
 }

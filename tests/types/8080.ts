@@ -4,6 +4,7 @@ import type {
   Cpu8080Snapshot,
   Cpu8080State,
   Cpu8080StepRecord,
+  Cpu8080InterruptRecord,
 } from "../../src/components/cpus/8080.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import type { BytePorts, PortAccess } from "../../src/components/cpus/port-access.js";
@@ -154,8 +155,46 @@ export function checkResetTypes(cpu: Cpu8080): Cpu8080ResetRecord {
   return record;
 }
 
-// Sharing an internal family keeps the public CPU surface limited to its three operations.
-const publicCpuMethods: Record<keyof Cpu8080, true> = { snapshot: true, reset: true, step: true };
+// Interrupt delivery is an explicit boundary operation, independent of ordinary stepping.
+const publicCpuMethods: Record<keyof Cpu8080, true> = { snapshot: true, reset: true, step: true, interrupt: true };
+
+export function checkInterrupt(cpu: Cpu8080, record: Cpu8080InterruptRecord): void {
+  const result: Cpu8080InterruptRecord = cpu.interrupt(() => 0xff);
+  // @ts-expect-error Acknowledgement supplies a byte, not an instruction array.
+  cpu.interrupt(() => [0xcd, 0, 0]);
+  // @ts-expect-error Interrupt records are distinct from ordinary memory-fetched steps.
+  const step: Cpu8080StepRecord = result;
+  // @ts-expect-error Record arrays are readonly.
+  record.accesses.push({ kind: "acknowledge", value: 0 });
+  // @ts-expect-error Control snapshots are readonly.
+  record.after.interruptEnabled = true;
+  if (record.outcome === "ignored") {
+    const reason: "disabled" | "deferred" = record.reason;
+    const instruction: null = record.instruction;
+  } else {
+    const source: "interrupt" = record.instruction.source;
+    // @ts-expect-error External instructions have no memory fetch address.
+    record.instruction.address;
+    // @ts-expect-error Acknowledged bytes are readonly.
+    record.instruction.bytes.push(0);
+    if (record.outcome === "unsupported") {
+      const reason: "opcode" = record.reason;
+    } else {
+      // @ts-expect-error Successful interrupt execution has no rejection reason.
+      record.reason;
+    }
+  }
+  for (const access of record.accesses) {
+    if (access.kind === "acknowledge") {
+      // @ts-expect-error Acknowledgement values are readonly.
+      access.value = 0;
+      // @ts-expect-error Acknowledgement is not a RAM read.
+      access.address;
+      // @ts-expect-error Acknowledgement is not port input.
+      access.port;
+    }
+  }
+}
 
 export function checkPorts(ram: Ram, state: Cpu8080State, ports: BytePorts, record: Cpu8080StepRecord): void {
   new Cpu8080(ram, state, ports);
