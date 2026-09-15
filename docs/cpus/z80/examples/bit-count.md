@@ -11,6 +11,8 @@ subroutines share the external memory stack. The generated factory is
 `createZ80BitCountExample()`; its memory-only companion is
 `createZ80BitCountExampleMemory()`.
 
+The explicit initial state sets `interruptDeferred` and `nmiDeferred` to false.
+
 ## Initial state and memory
 
 All addresses and byte/word values below are hexadecimal unless explicitly

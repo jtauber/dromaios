@@ -11,6 +11,8 @@ keeping the alternate bank and interrupt state intact.
 [Coverage](../../coverage.md#z80) ·
 [Counted-loop example](counted-loop.md)
 
+The explicit initial state sets `interruptDeferred` and `nmiDeferred` to false.
+
 ## Setup
 
 The machine has flat 64 KiB RAM. Its initial main registers are A = `11`,

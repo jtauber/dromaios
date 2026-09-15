@@ -19,7 +19,7 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [281](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [385](../../src/components/cpus/6800.ts) | 197 / 197 | 100% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [449](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [554](../../src/components/cpus/z80.ts) | 691 / 698 | 99.0% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [669](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [598](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [773](../../src/components/cpus/8088.ts) | 268 / 291 | 92.1% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [986](../../src/components/cpus/68000.ts) | 36,024 / 36,029 | >99.9% |
@@ -50,7 +50,7 @@ in the [example catalog](../README.md#cpu-examples).
 All eight initial CPU models meet the [CPU-only capability checkpoint](completion.md#cpu-only-checkpoint-review).
 The next milestone is complete documented opcode coverage across all eight,
 following the [completion sequence](completion.md#completion-sequence). The 8008,
-8080, 6502, 6800, and 6809 have reached full opcode coverage. The latter four also
+8080, 6800, 6502, Z80, and 6809 have reached full opcode coverage. The latter five also
 support explicit external interrupt delivery at instruction boundaries; their
 model contracts define recognition policies. The 8008 has no external delivery yet.
 Cycle timing remains unmodeled. Instructions still awaiting implementation on
@@ -1335,10 +1335,9 @@ sets audit all 268 documented forms across all three pages and reject undefined 
 [Indexed-buffer specification](z80/examples/indexed-buffer.md) ·
 [Indexed-buffer definition](../../src/machines/z80/indexed-buffer-example.machine)
 
-**691 of 698 documented forms are complete (99.0%): 250 unprefixed, 248 CB,
-53 ED, 39 DD, 39 FD, 31 DD CB, and 31 FD CB forms.** Every documented form
-except interrupt controls/returns is implemented. The remaining seven forms
-comprise DI/EI, three IM forms, RETI, and RETN.
+**698 of 698 documented forms are complete (100%): 252 unprefixed, 248 CB,
+58 ED, 39 DD, 39 FD, 31 DD CB, and 31 FD CB forms.** This includes all port
+families, DI/EI, three IM forms, RETI, and RETN, with explicit IRQ/NMI delivery.
 Stack operations, calls/returns, and the bit-count example complete the Z80
 [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint).
 
@@ -1497,6 +1496,16 @@ Repeating block I/O exposes one transfer per step; zero B allows 256 iterations.
 Memory and device accesses share one ordered log. Flag rules, including H/PV
 between repeat iterations, are in the [port contract](z80/model.md#port-input-and-output).
 
+| Opcode | Instruction | Forms | Scope |
+| --- | --- | ---: | --- |
+| `F3/FB` | DI / EI | 2 | Clear/set both IFFs; EI defers IRQ through the next instruction |
+| `ED 46/56/5E` | IM 0/1/2 | 3 | Select externally supplied instruction, fixed restart, or indirect vector entry |
+| `ED 45/4D` | RETN / RETI | 2 | Restore PC/IFF1; RETI also notifies the device after retirement |
+
+The [interrupt contract](z80/model.md#external-interrupt-delivery) defines
+acceptance, HALT release, snapshot-preserved inhibition, supplied bytes,
+stack/vector order, return notification, and failures.
+
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A/B/C/D/E/H/L in main and alternate banks; IX, IY, PC, SP, I, R |
@@ -1510,15 +1519,15 @@ between repeat iterations, are in the [port contract](z80/model.md#port-input-an
 | Relative jumps | Unconditional JR and NZ/Z/NC/C conditions; signed displacement from PC after the operand, wrapping at 16 bits; fetch operand on every path |
 | Absolute jumps | JP nn and all eight conditions; JP (HL/IX/IY) takes its target directly from the register; preserve flags and make no target read |
 | Counted loops | DJNZ decrements B and tests its result while preserving all flags; zero wraps to FF; BC follows the updated B |
-| Special registers and interrupt state | LD I/R,A preserves flags; LD A,I/R sets S/Z, clears H/N, copies IFF2 into PV, preserves C; IFF1/IFF2/IM are initialized/inspected, with no interrupt delivery or controls |
+| Special registers and interrupt state | LD I/R,A and LD A,I/R; DI/EI, IM 0/1/2, RETI/RETN; IRQ/NMI offers with native entries and snapshot-preserved inhibition |
 | Block operations | LDI/LDD/CPI/CPD and repeating counterparts; one iteration per step, 16-bit count/pointer wrapping, repeat refetches current code |
 | Refresh register | Unprefixed fetch increments R bits 0–6 once; all supported prefixed forms increment twice, including indexed CB; LD R,A then replaces all eight bits |
-| Reset | Clear PC/I/R, IFF1/IFF2, and IM; release HALT; preserve banks, flags, IX/IY/SP, and RAM under the documented model policy |
+| Reset | Clear PC/I/R, IFF1/IFF2, IM, and both inhibition latches; release HALT; preserve banks, flags, IX/IY/SP, and RAM under the documented model policy |
 | Prefixes | CB/ED/DD/FD decode the second byte; indexed CB decodes four bytes; unsupported forms reject atomically after the encoding, without further operand/data accesses |
 | Stopping | HALT reports its instruction once; already halted steps perform no accesses or refresh updates |
 | Port I/O | IN/OUT immediate and all seven registers; eight block forms with native address/count order, wrapped HL, all six flags, and one iteration per step |
-| Remaining instruction scope | DI/EI, IM, RETI/RETN; interrupt delivery and cycle activity remain deferred |
-| Remaining addressing scope | None for documented non-interrupt forms |
+| Remaining instruction scope | None for documented forms; cycle timing, undocumented forms/flags, and the LD A,I/R interrupt-time P/V quirk remain unmodeled |
+| Remaining addressing scope | None for documented forms |
 
 The model covers documented instruction semantics for the listed forms, not
 undocumented flag bits or cycle activity. In particular, a physical Z80 keeps
@@ -1614,6 +1623,13 @@ and device/RAM failures. Runner checks pause and reconstruct CPU, RAM, and
 device state independently at every boundary of an INIR/OTDR buffer program.
 A supplementary comparison passed **24,000 independent emulator cases** across
 all 24 I/O forms; see [checks and limits](z80/model.md#checks-and-limits).
+
+Interrupt tests cover all modes, IFFs, inhibition and HALT behavior, nested NMI,
+all mode-2 vector bytes, wrapped/overlapping stacks and vectors, mode-0 execution
+of all documented forms, callback failures, and restoration at every boundary
+of nested interrupt programs. All **7,000 independent instruction cases** for
+the final seven forms passed; [checks and limits](z80/model.md#checks-and-limits)
+distinguish those vectors from delivery and timing verification.
 
 ## 8088
 

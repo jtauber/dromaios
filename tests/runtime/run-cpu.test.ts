@@ -105,24 +105,24 @@ test("an already halted CPU contributes its own no-fetch record when stepped", (
 
 test("unsupported opcodes stop immediately, preserve their record, and beat the step limit", (t) => {
   // Unsupported encodings differ by CPU: 08 is PHP on the 6502; its undocumented 02 remains excluded.
-  for (const [create, opcode] of [
-    [create8080Example, 0x08], [create6502Example, 0x02],
-    [create6809Example, 0x01], [createZ80Example, 0xf3],
+  for (const [create, bytes] of [
+    [create8080Example, [0x08]], [create6502Example, [0x02]],
+    [create6809Example, [0x01]], [createZ80Example, [0xed, 0x00]],
   ] as const) {
     const { cpu, ram } = create();
     const before = cpu.snapshot();
-    ram.write(before.pc, opcode);
+    bytes.forEach((byte, i) => ram.write(before.pc + i, byte));
     const read = t.mock.method(ram, "read");
     const write = t.mock.method(ram, "write");
     const result = runCpu(cpu, { maxSteps: 1 });
     assert.equal(result.stopReason, "unsupported");
     assert.deepEqual(result.records, [{
       outcome: "unsupported", reason: "opcode",
-      instruction: { address: before.pc, bytes: [opcode] },
+      instruction: { address: before.pc, bytes },
       before, after: before,
-      accesses: [{ kind: "read", address: before.pc, value: opcode }],
+      accesses: bytes.map((value, i) => ({ kind: "read", address: before.pc + i, value })),
     }]);
-    assert.deepEqual(read.mock.calls.map(call => call.arguments), [[before.pc]]);
+    assert.deepEqual(read.mock.calls.map(call => call.arguments), bytes.map((_, i) => [before.pc + i]));
     assert.equal(write.mock.callCount(), 0);
     assert.deepEqual(cpu.snapshot(), before);
     // A later run sees the same limitation; the runner does not latch it or skip it.
@@ -406,3 +406,63 @@ test("Z80 block I/O budgets one iteration per step and resumes with independentl
     assert.deepEqual(resumed.device, full.device);
   }
 });
+
+for (const im of [0, 1, 2] as const) {
+  test(`Z80 IM ${im} interrupt program resumes across HALT, nested NMI, and every instruction/entry boundary`, () => {
+    const handler = im === 1 ? 0x38 : 0x4000;
+    const initial = { ...createZ80Example().cpu.snapshot(), pc: 0x2000, sp: 0, i: 0x42, r: 0xfe, im, a: 0x11 };
+    const interruptBytes = im === 0 ? [0xcd, handler % 256, Math.floor(handler / 256)] : [0x20];
+    function machine(state = initial, image?: readonly number[], saved = { acknowledged: 0, returns: 0, outputs: [] as { port: number; value: number }[] }) {
+      const ram = new Ram(65536);
+      if (image) image.forEach((value, address) => ram.write(address, value));
+      else {
+        [0xfb, 0x76, 0x3e, 0x2a, 0x76].forEach((value, i) => ram.write(0x2000 + i, value)); // EI; HALT; LD A,2A; HALT
+        [0xf5, 0x3e, 0x99, 0xd3, 0x10, 0xf1, 0xfb, 0xed, 0x4d].forEach((value, i) => ram.write(handler + i, value)); // Save AF; output 99; restore AF; EI; RETI
+        [0xf5, 0x3e, 0x55, 0xd3, 0x10, 0xf1, 0xed, 0x45].forEach((value, i) => ram.write(0x66 + i, value)); // Save AF; output 55; restore AF; RETN
+        ram.write(0x4220, handler % 256); ram.write(0x4221, Math.floor(handler / 256));
+      }
+      const device = structuredClone(saved);
+      const cpu = new CpuZ80(ram, state, {
+        readPort: () => assert.fail("output-only program"),
+        writePort: (port, value) => { device.outputs.push({ port, value }); },
+      }, () => { device.returns++; });
+      const acknowledge = (): number => {
+        const value = interruptBytes[device.acknowledged++];
+        assert.notEqual(value, undefined, "only expected instruction/vector bytes are requested");
+        return value!;
+      };
+      return { ram, cpu, device, acknowledge };
+    }
+    function advance(current: ReturnType<typeof machine>, boundary: number) {
+      if (boundary === 2) return current.cpu.interrupt("irq", current.acknowledge);
+      if (boundary === 4) return current.cpu.interrupt("nmi");
+      const run = runCpu(current.cpu, { maxSteps: 1 });
+      assert.equal(run.records.length, 1);
+      assert.equal(run.stopReason, boundary === 1 || boundary === 16 ? "halted" : "step-limit");
+      return run.records[0]!;
+    }
+    const full = machine();
+    const records = Array.from({ length: 17 }, (_, boundary) => advance(full, boundary));
+    assert.deepEqual(records.map(record => record.after.pc), [0x2001, 0x2002, handler, handler + 1, 0x66,
+      0x67, 0x69, 0x6b, 0x6c, handler + 1, handler + 3, handler + 5, handler + 6, handler + 7, 0x2002, 0x2004, 0x2005]);
+    assert.deepEqual(full.device, { acknowledged: interruptBytes.length, returns: 1,
+      outputs: [{ port: 0x5510, value: 0x55 }, { port: 0x9910, value: 0x99 }] });
+    assert.deepEqual(full.cpu.snapshot(), { ...initial, a: 0x2a, pc: 0x2005, r: 0x91, halted: true, iff1: true, iff2: true });
+    const image = Array.from({ length: 65536 }, (_, address) => full.ram.read(address));
+    for (let boundary = 0; boundary <= records.length; boundary++) {
+      const prefix = machine();
+      for (let i = 0; i < boundary; i++) assert.deepEqual(advance(prefix, i), records[i]);
+      const savedRam = image.map((_, address) => prefix.ram.read(address));
+      const resumed = machine(prefix.cpu.snapshot(), savedRam, prefix.device);
+      for (let i = boundary; i < records.length; i++) assert.deepEqual(advance(resumed, i), records[i]);
+      assert.deepEqual(resumed.cpu.snapshot(), full.cpu.snapshot());
+      assert.deepEqual(resumed.device, full.device);
+      assert.deepEqual(image.map((_, address) => resumed.ram.read(address)), image);
+    }
+    const retained = structuredClone(records);
+    full.cpu.step(); full.cpu.reset();
+    assert.deepEqual(records, retained);
+    assert.equal(full.device.returns, 1);
+    assert.equal(full.device.outputs.length, 2);
+  });
+}

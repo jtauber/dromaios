@@ -9,6 +9,7 @@ cpu z80 {
     }
     IX = 0000  IY = 0000  PC = 0000  SP = 0000
     I = 00  R = 00  IM = 0
+    interruptDeferred = false  nmiDeferred = false
     iff1 = false  iff2 = false  halted = false
 }
 

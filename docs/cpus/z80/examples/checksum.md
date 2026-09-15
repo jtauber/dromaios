@@ -8,6 +8,8 @@ ADC carries into the high byte through intervening loads that preserve flags.
 [Example tests](../../../../tests/machines/z80/checksum-example.test.ts) ·
 [Arithmetic and logic contract](../model.md#arithmetic-and-logic)
 
+The explicit initial state sets `interruptDeferred` and `nmiDeferred` to false.
+
 ## Initial state and memory
 
 The machine has 64 KiB of RAM. Main A/B/C/D/E/H/L are `11/22/33/44/55/66/77`,

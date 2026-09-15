@@ -12,7 +12,7 @@ cpu z80 {
     flags { S=1 Z=0 H=1 PV=0 N=1 C=0 }
   }
   IX=1234 IY=5678 PC=0000 SP=9ABC I=DE R=FF IM=2
-  iff1=true iff2=false halted=false
+  iff1=true iff2=false interruptDeferred=false nmiDeferred=false halted=false
 }`,
   "8080": `ram 10000
 cpu 8080 {
@@ -92,7 +92,7 @@ test("Z80 parsing preserves both banks, index registers, refresh state, and sepa
     alternate: { a: 0x11, b: 0x22, c: 0x33, d: 0x44, e: 0x55, h: 0x66, l: 0x77,
       flags: { s: true, z: false, h: true, pv: false, n: true, c: false } },
     ix: 0x1234, iy: 0x5678, pc: 0, sp: 0x9abc, i: 0xde, r: 0xff, im: 2,
-    iff1: true, iff2: false, halted: false,
+    interruptDeferred: false, nmiDeferred: false, iff1: true, iff2: false, halted: false,
   });
   machine.initialState.alternate.a = 0;
   machine.initialState.alternate.flags.s = false;
@@ -111,7 +111,7 @@ test("Z80 nested fields, flag bits, interrupt modes, and latches are validated i
   for (const value of ["3", "FF", "true", "-1", "1.0"]) {
     assert.throws(() => parseMachine(set(sources.z80, "IM", value)), SyntaxError);
   }
-  for (const field of ["iff1", "iff2", "halted"]) {
+  for (const field of ["iff1", "iff2", "interruptDeferred", "nmiDeferred", "halted"]) {
     for (const value of ["0", "1", "TRUE", "False"]) {
       assert.throws(() => parseMachine(set(sources.z80, field, value)), /Expected true or false/);
     }
@@ -580,5 +580,15 @@ test("6809 parses named wait modes and an explicit NMI latch from its CPU state 
   for (const field of ["waitMode=none", "nmiArmed=false"]) {
     assert.throws(() => parseMachine(sources["6809"].replace(field, "")), /Missing fields/);
     assert.throws(() => parseMachine(sources["6809"].replace(field, `${field} ${field.toUpperCase()}`)), /Duplicate field/);
+  }
+});
+
+test("Z80 parsing requires and preserves both interrupt inhibition latches", () => {
+  for (const field of ["interruptDeferred", "nmiDeferred"]) {
+    const parsed = parseMachine(set(sources.z80, field, "true"));
+    assert.equal(parsed.cpu, "z80");
+    assert.equal(parsed.initialState[field === "interruptDeferred" ? "interruptDeferred" : "nmiDeferred"], true);
+    assert.throws(() => parseMachine(sources.z80.replace(`${field}=false`, "")), new RegExp(`Missing fields in z80: ${field}`));
+    assert.throws(() => parseMachine(sources.z80.replace(`${field}=false`, `${field}=false ${field.toUpperCase()}=true`)), /Duplicate field/);
   }
 });

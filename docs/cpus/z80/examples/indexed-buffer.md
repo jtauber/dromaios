@@ -9,6 +9,8 @@ can stop and resume in the middle of either operation.
 [Model contract](../model.md) ·
 [Coverage](../../coverage.md#z80)
 
+The explicit initial state sets `interruptDeferred` and `nmiDeferred` to false.
+
 ## Initial setup
 
 The machine uses flat 64 KiB RAM. PC is `0200`, SP is `9000`, IX/IY are

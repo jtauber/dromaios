@@ -9,6 +9,8 @@ and flag semantics: load 2, add 3, store 5 at address 0080, and halt.
 [Example tests](../../../../tests/machines/z80/example.test.ts) ·
 [CPU tests](../../../../tests/components/cpus/z80.test.ts)
 
+The explicit initial state sets `interruptDeferred` and `nmiDeferred` to false.
+
 ## Initial state and program
 
 The factory creates 64 KiB RAM, initially zero, and loads these bytes at 0000:

@@ -20,7 +20,7 @@ function expectedInitialState(): CpuZ80Snapshot {
       flags: { s: false, z: true, h: false, pv: true, n: false, c: true },
     },
     ix: 0x1234, iy: 0x5678, pc: 0x0200, sp: 0xabcd, i: 0x42, r: 0xfe,
-    iff1: true, iff2: false, im: 2, halted: false,
+    interruptDeferred: false, nmiDeferred: false, iff1: true, iff2: false, im: 2, halted: false,
   };
 }
 
@@ -126,7 +126,7 @@ test("the Z80 transfer loop resumes from a snapshot and keeps its trace detached
   const before = resumed.snapshot();
   const reset = resumed.reset();
   assert.deepEqual(reset, {
-    before, after: { ...before, pc: 0, i: 0, r: 0, iff1: false, iff2: false, im: 0, halted: false }, accesses: [],
+    before, after: { ...before, pc: 0, i: 0, r: 0, interruptDeferred: false, nmiDeferred: false, iff1: false, iff2: false, im: 0, halted: false }, accesses: [],
   });
   checkMemory(ram, [0x7f, 0x80, 0x81, 0]);
   Reflect.set(rest.records[0]!.before.alternate.flags, "z", false);

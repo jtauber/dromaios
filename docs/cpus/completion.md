@@ -81,8 +81,9 @@ its recognition timing limits documented there. The 6800 now completes its
 including native frames, return, and snapshot-preserved WAI. The 6809 completes
 [its interrupt and wait behavior](6809/model.md#waiting-and-external-interrupt-delivery)
 with SYNC/CWAI, full/short frames, RTI, software vectors, and NMI arming.
-The Z80 now implements its [port families](z80/model.md#port-input-and-output),
-including native addresses, interleaved block transfers, and repeat-phase flags.
-The next slice is Z80 interrupt controls, modes, delivery, and returns.
+The Z80 now completes its [port families](z80/model.md#port-input-and-output)
+and [interrupt behavior](z80/model.md#external-interrupt-delivery), including
+all modes, native entries/returns, HALT release, and snapshot-preserved inhibition.
+The next slice is 8088 delivery and external connections.
 Timing and device scheduling remain separate from completed opcode inventories;
 8008 external interrupt delivery is also still deferred.

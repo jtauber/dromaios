@@ -1,5 +1,5 @@
 import { CpuZ80 } from "../../src/components/cpus/z80.js";
-import type { CpuZ80State, CpuZ80Snapshot, CpuZ80StepRecord, CpuZ80ResetRecord, CpuZ80Access } from "../../src/components/cpus/z80.js";
+import type { CpuZ80State, CpuZ80Snapshot, CpuZ80StepRecord, CpuZ80ResetRecord, CpuZ80Access, CpuZ80InterruptRecord, CpuZ80InterruptAccess } from "../../src/components/cpus/z80.js";
 import type { BytePorts } from "../../src/components/cpus/port-access.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { createZ80TransfersExample } from "../../src/machines/generated/z80/transfers-example.js";
@@ -22,6 +22,9 @@ export function checkZ80(ram: Ram, state: CpuZ80State, snapshot: CpuZ80Snapshot,
   new CpuZ80(ram, state);
   new CpuZ80(ram, snapshot);
   new CpuZ80(ram, snapshot, ports);
+  new CpuZ80(ram, snapshot, ports, () => {});
+  // @ts-expect-error RETI notification is a function, not a device-state value.
+  new CpuZ80(ram, snapshot, ports, true);
   const im: 0 | 1 | 2 = snapshot.im;
   const alternatePair: number = snapshot.alternate.hl;
   // @ts-expect-error Interrupt modes are a closed set.
@@ -80,8 +83,8 @@ export function checkZ80Records(record: CpuZ80StepRecord, reset: CpuZ80ResetReco
   reset.after.alternate.flags.c = false;
 }
 
-// Sharing an internal family keeps the public CPU surface limited to its three operations.
-const publicCpuMethods: Record<keyof CpuZ80, true> = { snapshot: true, reset: true, step: true };
+// Sharing an internal family keeps the public CPU surface limited to CPU operations.
+const publicCpuMethods: Record<keyof CpuZ80, true> = { snapshot: true, reset: true, step: true, interrupt: true };
 
 export function checkZ80Access(access: CpuZ80Access, reset: CpuZ80ResetRecord): void {
   if (access.kind === "input" || access.kind === "output") {
@@ -100,4 +103,42 @@ export function checkZ80Access(access: CpuZ80Access, reset: CpuZ80ResetRecord): 
     // @ts-expect-error Reset does not acquire port transfers.
     access.port;
   }
+}
+
+export function checkZ80Interrupt(cpu: CpuZ80, record: CpuZ80InterruptRecord, access: CpuZ80InterruptAccess): void {
+  cpu.interrupt("nmi");
+  cpu.interrupt("irq", () => 0xff);
+  // @ts-expect-error An IRQ requires an acknowledgement callback.
+  cpu.interrupt("irq");
+  // @ts-expect-error NMI does not acquire an acknowledgement connection.
+  cpu.interrupt("nmi", () => 0xff);
+  // @ts-expect-error Sources use the CPU's closed set.
+  cpu.interrupt("firq");
+  if (record.outcome === "ignored") {
+    const instruction: null = record.instruction;
+    const reason: "disabled" | "deferred" = record.reason;
+  } else if (record.outcome === "accepted") {
+    const instruction: null = record.instruction;
+    // @ts-expect-error Accepted vector entry has no rejection reason.
+    record.reason;
+  } else {
+    const source: "irq" = record.source;
+    const origin: "interrupt" = record.instruction.source;
+    const bytes: readonly number[] = record.instruction.bytes;
+    // @ts-expect-error Supplied bytes do not have a fabricated RAM address.
+    record.instruction.address;
+    // @ts-expect-error Supplied instruction bytes are readonly.
+    record.instruction.bytes.push(0);
+  }
+  if (access.kind === "acknowledge") {
+    const value: number = access.value;
+    // @ts-expect-error Acknowledgements are not memory reads.
+    access.address;
+    // @ts-expect-error Acknowledgements are not port reads.
+    access.port;
+  }
+  // @ts-expect-error Inhibition latches in snapshots are readonly.
+  record.after.interruptDeferred = false;
+  // @ts-expect-error Inhibition latches in snapshots are readonly.
+  record.after.nmiDeferred = false;
 }

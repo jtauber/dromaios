@@ -11,7 +11,7 @@ function expectedInitialState() {
     flags: { s: false, z: false, h: false, pv: false, n: false, c: false },
   });
   return { ...bank(), alternate: bank(), ix: 0, iy: 0, pc: 0, sp: 0, i: 0, r: 0,
-    im: 0 as const, iff1: false, iff2: false, halted: false };
+    im: 0 as const, interruptDeferred: false, nmiDeferred: false, iff1: false, iff2: false, halted: false };
 }
 
 function checkMemory(ram: Ram, result: number): void {

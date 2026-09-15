@@ -17,7 +17,7 @@ function expectedInitialState(): CpuZ80Snapshot {
       flags: { s: false, z: true, h: false, pv: true, n: false, c: true },
     },
     ix: 0x1234, iy: 0x5678, pc: 0x0200, sp: 0xabcd, i: 0x42, r: 0xfe,
-    iff1: true, iff2: false, im: 2, halted: false,
+    interruptDeferred: false, nmiDeferred: false, iff1: true, iff2: false, im: 2, halted: false,
   };
 }
 
@@ -129,7 +129,7 @@ test("Z80 checksum resumes from snapshots across carry propagation, comparisons,
     checkMemory(ram, true);
     const before = resumed.snapshot();
     assert.deepEqual(resumed.reset(), { before,
-      after: { ...before, pc: 0, i: 0, r: 0, iff1: false, iff2: false, im: 0, halted: false }, accesses: [] });
+      after: { ...before, pc: 0, i: 0, r: 0, interruptDeferred: false, nmiDeferred: false, iff1: false, iff2: false, im: 0, halted: false }, accesses: [] });
     checkMemory(ram, true);
     ram.write(0x84, 0xff);
     assert.deepEqual(first, saved);

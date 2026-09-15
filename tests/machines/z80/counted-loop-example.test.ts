@@ -19,7 +19,7 @@ function expectedInitialState(): CpuZ80Snapshot {
       flags: { s: false, z: true, h: false, pv: true, n: false, c: true },
     },
     ix: 0x1234, iy: 0x5678, pc: 0x0200, sp: 0xabcd, i: 0x42, r: 0xfe,
-    iff1: true, iff2: false, im: 2, halted: false,
+    interruptDeferred: false, nmiDeferred: false, iff1: true, iff2: false, im: 2, halted: false,
   };
 }
 
@@ -123,7 +123,7 @@ test("the Z80 counted loop resumes before DJNZ, resets to zero while preserving 
   assert.equal(rest.stopReason, "halted");
   assert.deepEqual([...first.records, ...rest.records], expectedRecords());
   const before = cpu.snapshot();
-  const afterReset = { ...before, pc: 0, i: 0, r: 0, iff1: false, iff2: false, im: 0, halted: false };
+  const afterReset = { ...before, pc: 0, i: 0, r: 0, interruptDeferred: false, nmiDeferred: false, iff1: false, iff2: false, im: 0, halted: false };
   assert.deepEqual(cpu.reset(), { before, after: afterReset, accesses: [] });
   checkMemory(ram, 0x0f);
   assert.deepEqual(cpu.step(), {

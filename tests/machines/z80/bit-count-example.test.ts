@@ -14,7 +14,7 @@ function initialState(): CpuZ80Snapshot {
     alternate: { a: 0x88, b: 0x99, c: 0xaa, d: 0xbb, e: 0xcc, h: 0xdd, l: 0xee,
       bc: 0x99aa, de: 0xbbcc, hl: 0xddee, flags: { s: false, z: true, h: false, pv: true, n: false, c: true } },
     ix: 0x1234, iy: 0x5678, pc: 0x200, sp: 0xabcd, i: 0x42, r: 0xfe,
-    iff1: true, iff2: false, im: 2, halted: false,
+    interruptDeferred: false, nmiDeferred: false, iff1: true, iff2: false, im: 2, halted: false,
   };
 }
 
@@ -148,7 +148,7 @@ test("Z80 bit-count example resumes from every instruction boundary and retains 
     assert.equal(rest.stopReason, "halted");
     const final = resumed.snapshot();
     assert.deepEqual(resumed.reset(), { before: final, after: { ...final, pc: 0, i: 0, r: 0,
-      iff1: false, iff2: false, im: 0, halted: false }, accesses: [] });
+      interruptDeferred: false, nmiDeferred: false, iff1: false, iff2: false, im: 0, halted: false }, accesses: [] });
     assert.equal(ram.read(0x84), 13);
     ram.write(0x8ffe, 0);
     assert.deepEqual(first, saved);

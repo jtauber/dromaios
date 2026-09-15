@@ -1,8 +1,9 @@
 # Z80 model contract
 
-The Z80 model implements every documented instruction form except interrupt
-controls/returns against flat 64 KiB RAM and an optional byte-port connection. It uses instruction-level
-execution records, with one iteration per step for repeating block instructions.
+The Z80 model implements every documented instruction form against flat
+64 KiB RAM and an optional byte-port connection, with explicit IRQ/NMI delivery.
+It uses instruction-level execution records, with one iteration per step for
+repeating block instructions.
 The existing RAM setup and CPU runner work with this model without adapters.
 
 [Implementation](../../../src/components/cpus/z80.ts) ·
@@ -37,6 +38,7 @@ uses uppercase register and flag names, with `PV` for the manual's P/V flag.
 | Word registers | IX, IY, PC, SP | Index registers, program counter, stack pointer |
 | Special byte registers | I, R | Interrupt vector register and memory refresh register |
 | Interrupt state | `iff1`, `iff2`, IM | Two Boolean interrupt-enable latches and mode 0, 1, or 2 |
+| Inhibition state | `interruptDeferred`, `nmiDeferred` | Boolean model latches preserving instruction-boundary inhibition across snapshots |
 | Halt state | `halted` | Whether instruction execution has halted |
 
 Flags are Boolean fields in both banks. Only the six documented flag bits are
@@ -56,7 +58,7 @@ and RST use the same memory stack.
 
 ## Construction and inspection
 
-`new CpuZ80(ram, initialState, ports?)` requires exactly 64 KiB RAM and explicit state.
+`new CpuZ80(ram, initialState, ports?, onReti?)` requires exactly 64 KiB RAM and explicit state.
 It copies declared fields from both banks and both flag objects, then validates
 byte and word ranges, Boolean flags and latches, and integer IM in 0–2. Invalid
 numeric fields throw `RangeError`; invalid Boolean fields throw `TypeError`.
@@ -65,6 +67,9 @@ The optional [`BytePorts`](../../../src/components/cpus/port-access.ts) connecti
 supplies `readPort(port)` and `writePort(port, value)` callbacks. Port addresses
 are full 16-bit numbers and transferred values are bytes. The device owns its
 state; restoring a CPU snapshot does not restore or reconnect the device.
+`onReti`, when supplied, is called after a documented RETI retires. It is an
+architectural notification, independent of port transfers, and adds no entry
+to the memory/port log. RETN does not call it.
 
 Each declared input property is read once; copying does not depend on property
 enumerability. Extra metadata and derived views are ignored, so a snapshot can
@@ -93,7 +98,8 @@ snapshot. The CPU keeps mutable private state and retains no record history.
 
 Supported instructions advance PC while fetching bytes, wrapping at 16 bits.
 Word operands, including immediate pair loads and absolute addresses, are
-fetched low byte first. NOP changes only PC and R under these ordinary rules.
+fetched low byte first. NOP changes PC/R and consumes existing inhibition
+under the [retirement rules](#interrupt-controls-and-retirement).
 Stores record the write even when the value is unchanged, and never read the
 destination to reconstruct an old value. Captured instruction bytes survive
 stores that overwrite code. Subsequent steps fetch current RAM.
@@ -122,8 +128,8 @@ HALT advances PC past its opcode, increments R once, sets `halted`, and reports
 `instruction: null`, no accesses, and unchanged state, including R.
 
 Physical HALT continues bus and refresh activity. Those cycles, clock timing,
-dummy accesses, and interrupt delivery are outside this instruction-level
-model. Neither interrupt-enable latch currently changes how a step executes.
+and dummy accesses remain outside this instruction-level model. Interrupts
+are explicitly offered between steps; `step()` does not poll devices.
 There is no synthetic lesson-completion instruction or state; caller completion
 belongs to the [runner](../../runtime/runner.md).
 
@@ -357,7 +363,7 @@ P/V clear. A match earlier sets both. Carry is preserved on every path.
 
 Runner budgets count these visible iterations, so even a zero-count block can
 be paused with a small `maxSteps`. There are no cycle-level dummy/refresh
-accesses, and interrupt delivery remains deferred. This stepping convention
+accesses. Interrupts can be offered between iterations. This stepping convention
 follows the instruction's PC-rewind/refetch behavior in the
 [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages 130–144.
 The [indexed-buffer example](examples/indexed-buffer.md) checks complete copy
@@ -410,7 +416,7 @@ When a repeating form continues, its extra repeat phase further changes H/PV:
 Even parity of the adjustment's low three bits preserves the preceding P/V;
 odd parity inverts it. S/Z/N/C do not change during this repeat phase. The final
 iteration skips these extra H/PV changes. These intermediate flags are visible
-in snapshots even while external interrupt delivery is deferred.
+in snapshots and can be preserved by an interrupt handler between iterations.
 
 The manual's block-I/O flag summaries are incomplete. This model follows the
 observed NMOS flag behavior described by
@@ -437,10 +443,10 @@ write therefore leaves the decremented B visible. HL, flags, and repeat-PC
 updates occur only after both transfers succeed. This defines host-failure
 behavior at instruction level, without claiming hardware bus-fault handling.
 
-RAM/device callbacks may inspect detached snapshots. Nested `step()` or
-`reset()` calls on the same CPU throw before changing state. The execution
-guard clears even when a callback throws. Access records retain captured values;
-subsequent execution, device changes, reset, or caller edits to other records
+RAM/device callbacks may inspect detached snapshots. Nested `step()`,
+`reset()`, or `interrupt()` calls on the same CPU throw before changing state.
+The execution guard clears even when a callback throws. Access records retain
+captured values; subsequent execution, device changes, reset, or caller edits to other records
 do not alter them.
 
 ## Stack, calls, and returns
@@ -477,7 +483,8 @@ I, and all flags; it is a subroutine call, independent of interrupt delivery.
 Instruction and data addresses may overlap. A call captures its target before
 stack writes can overwrite it; a return reads the current RAM, including when
 SP points into code. Stack writes remain in the access record even when their
-values match RAM. Interrupt returns and interrupt delivery remain deferred.
+values match RAM. Interrupt entry and returns reuse this stack, with the
+control-state effects described below.
 
 See the [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages
 115–120 and 281–287. The [bit-count example](examples/bit-count.md) combines three
@@ -510,15 +517,144 @@ RAM and inspect current registers and flags. The
 [counted-loop example](examples/counted-loop.md) specifies a full trace using
 DJNZ, derived BC, refresh-register wrapping, a final store, and HALT.
 
+## Interrupt controls and retirement
+
+DI (`F3`) clears IFF1/IFF2. EI (`FB`) sets both and sets `interruptDeferred`.
+IM 0/1/2 (`ED 46/56/5E`) select the interrupt mode without changing IFFs or flags.
+Only these documented mode encodings are supported. See the
+[Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages 17–20 and 182–186.
+
+A successful instruction consumes old `interruptDeferred` and `nmiDeferred`;
+EI renews IRQ inhibition instead. HALT and each repeating-block iteration
+count as one retirement. Repeated EI therefore continues to defer IRQ.
+Already halted steps, unsupported attempts, ignored interrupt offers, and
+instructions that throw before retirement consume neither latch. Reset clears
+both. These required Boolean fields also belong in explicit `.machine` state;
+the existing examples initialize them to false.
+
+RETN (`ED 45`) and RETI (`ED 4D`) pop PC low byte first, advance SP twice with
+wrapping, and copy IFF2 to IFF1 without changing flags or IFF2. If the two IFFs
+differed before the return, `interruptDeferred` is set through the following
+instruction. Thus EI followed by RETI permits IRQ on return, while a return
+that restores IFF1 after NMI first allows one instruction in the resumed code.
+This distinction follows the [interrupt-acceptance research](https://github.com/redcode/Z80/wiki/Interrupts).
+
+RETI additionally calls `onReti` after PC/SP, IFF1, and inhibition latches have
+committed. The callback may inspect that completed state. A callback failure
+propagates without undoing the retired return; stack-read failure prevents both
+IFF restoration and notification. No callback is required when no device needs
+the notification. The same notice is emitted for RETI supplied in mode 0;
+this is an architectural policy, not emulation of a peripheral's bus decoder.
+
+## External interrupt delivery
+
+The caller offers one selected request at a completed boundary:
+
+```ts
+cpu.interrupt("irq", acknowledge); // acknowledge(): number supplies device bytes
+cpu.interrupt("nmi");
+```
+
+The caller owns pending IRQ levels, NMI edges, and priority when both are pending.
+Ignored offers are not queued. IRQ requires a callback even in mode 1; it is
+never called for ignored requests. Invalid sources or a non-function IRQ
+callback throw before changing state.
+
+| Request | Acceptance | Entry |
+| --- | --- | --- |
+| IRQ | IFF1 set and `interruptDeferred` clear | Release HALT, clear both IFFs, increment R once, and acknowledge a byte |
+| NMI | `nmiDeferred` clear, independent of IFF1 and EI inhibition | Release HALT, clear IFF1, preserve IFF2, increment R once, push PC and jump to `0066` |
+
+NMI sets `nmiDeferred`, requiring one retired instruction before another NMI
+can be accepted. This survives reconstruction, allowing nested NMI after an
+instruction without losing the saved IFF2. IRQ inhibition is consumed by the
+next instruction, not by NMI entry itself. The two latches express recognition
+at this API's boundaries; they are not additional physical CPU registers.
+
+| IRQ mode | Meaning of supplied byte | Remaining entry accesses |
+| --- | --- | --- |
+| 0 | First opcode of an externally supplied instruction | Decode and execute through the ordinary handlers; request further instruction bytes as needed |
+| 1 | Acknowledged and ignored | Push PC high then low and jump to `0038` |
+| 2 | Low byte of a vector address whose high byte is I | Push PC high then low, then read the vector's low/high target bytes and jump |
+
+Mode 2 uses all eight supplied bits, including odd vectors and `FF`. Both the
+stack and vector's second-byte address wrap at 16 bits. Stack writes precede
+vector reads, so overlapping locations supply the newly written values. The
+[reference implementation's interrupt paths](https://github.com/mamedev/mame/blob/master/src/devices/cpu/z80/z80.lst)
+and [hardware-oriented interrupt notes](https://github.com/redcode/Z80/wiki/Interrupts)
+confirm that ordering and the use of odd vectors despite the manual's even-address requirement.
+
+### Mode 0 instruction stream
+
+All instruction bytes come from `acknowledge()`, including prefixes,
+displacements, and immediate operands. Fetching them does not advance PC.
+Ordinary data memory and ports still use the connected RAM and byte ports.
+Each actual opcode fetch advances R: once unprefixed, twice for the supported
+prefix pages; the displacement/final opcode of indexed CB do not advance R.
+This applies to consumed prefix bytes even when the supplied encoding is rejected.
+
+CALL/RST therefore save the interrupted PC, and relative branches use it as
+their base. Repeating block instructions still subtract two from PC; a later
+ordinary step fetches RAM at that address. No instruction stream is retained
+between calls. All 698 documented forms use the shared decoder and handlers;
+unsupported aliases and ignored prefixes have the same restrictions as normal
+execution. Acceptance effects remain if an encoding is unsupported.
+
+The external stream and stationary PC follow Zilog's 1978 interrupt-structure
+application note as discussed and independently checked by the
+[full mode-0 reference implementation](https://github.com/redcode/Z80/blob/master/sources/Z80.c).
+The callback abstracts the device's complete supplied stream. Operand reads
+are not claimed to be electrical interrupt-acknowledge cycles.
+
+### Interrupt records and failures
+
+`CpuZ80InterruptRecord` contains detached `before`/`after` snapshots, the selected
+`source`, and ordered `CpuZ80InterruptAccess` entries. External instruction/vector
+bytes appear as `{ kind: "acknowledge", value }`, alongside memory and port
+accesses. The record has one of these outcomes:
+
+- `ignored`: `instruction: null`, empty accesses, and reason `disabled` or
+  `deferred`. Disabled IFF1 takes precedence over IRQ deferral.
+- `accepted`: NMI or mode-1/2 entry, with `instruction: null`.
+- `executed` or `halted`: mode-0 execution, with an instruction containing
+  `source: "interrupt"` and its actual `bytes`, without a fabricated RAM address.
+- `unsupported`: rejected mode-0 encoding, the supplied instruction bytes,
+  and `reason: "opcode"`.
+
+Acknowledged values must be integers in 0–255, including the ignored mode-1
+byte. Callback errors and invalid values propagate without a returned record.
+Acceptance already cleared the appropriate IFFs, released HALT, and advanced R;
+those effects remain. A failing subsequent opcode fetch also retains its R
+increment. Successful bytes and device effects are never rolled back.
+
+A failing push retains SP's predecrement for the attempted write and any earlier
+write. Mode-2 vector-read failure leaves the saved frame intact and PC unchanged.
+A return-read failure retains only successful pop increments, without restoring
+IFF1 or notifying the device. No API resumes a partially failed entry or return.
+
+All mutating operations share the same execution guard. RAM, port,
+acknowledgement, and RETI callbacks may inspect snapshots but cannot call
+`step()`, `reset()`, or `interrupt()` recursively on the same CPU. The guard
+clears after success or failure; external device state is restored separately.
+
+### Recognition limits
+
+This is instruction-level delivery, without electrical sampling, wait states,
+bus arbitration, or refresh cycles. NMI's ignored opcode-fetch cycle is not
+recorded as a data read. The previously excluded NMOS LD A,I/R interrupt-time
+P/V quirk remains unmodeled, as do undocumented instructions, F bits 3/5, and
+hidden internal latches. Complete opcode coverage does not imply cycle accuracy
+or a complete peripheral interrupt controller.
+
 ## CPU reset
 
 `reset()` returns `CpuZ80ResetRecord` with detached `before` and `after`
 snapshots and an empty `accesses` array. Reset has no step outcome or instruction.
 
 Reset clears PC, I, and R to zero, clears both interrupt-enable latches, selects
-interrupt mode 0, and releases HALT. Both register banks and their flags, IX,
-IY, SP, and RAM are preserved. Preserving registers whose values the documented
-reset description does not specify is a deterministic model policy, not a
+interrupt mode 0, clears both inhibition latches, and releases HALT. Both register
+banks and their flags, IX, IY, SP, and RAM are preserved. Preserving registers
+whose values the documented reset description does not specify is a deterministic model policy, not a
 claim about physical power-on values. Repeated reset has the same defined
 effects and produces fresh records without memory accesses.
 
@@ -644,6 +780,20 @@ one iteration. This is an independent emulator comparison with the same
 omissions above, not hardware or cycle-accuracy testing. The external corpus
 is supplementary; repository tests remain self-contained.
 
-The remaining documented forms are DI/EI, interrupt mode selection, RETI, and RETN. Interrupt delivery, cycle timing, undocumented
-instructions, and F bits 3/5 remain outside this model. The
-[coverage inventory](../coverage.md#z80) tracks the documented-form count.
+Interrupt checks cover all IFF/flag combinations, mode selectors, enable and
+NMI inhibition, wrapped stacks/vectors, all vector bytes, mode-0 execution of
+every documented encoding, rejection, callback failures, and reentrancy.
+The [runner programs](../../../tests/runtime/run-cpu.test.ts) cover EI/HALT,
+each IRQ mode, nested NMI, port output, EI/RETI and RETN, restoring CPU, RAM,
+and device state at every instruction or entry boundary.
+
+All **7,000 independent instruction cases** for DI/EI, IM 0/1/2, RETI and RETN
+passed from [SingleStepTests Z80 at revision ebe1875](https://github.com/SingleStepTests/z80/tree/ebe1875d48f374bcfd4b505d8eb8ee751568b5f7/v1).
+They compare all modeled hardware fields, final RAM, fetched bytes, and ordered
+memory transactions. Boundary inhibition and device notifications have separate
+repository tests; these supplementary instruction vectors do not test external
+interrupt recognition or establish cycle accuracy.
+
+All documented forms are implemented. The
+[coverage inventory](../coverage.md#z80) tracks their count separately from the
+recognition and timing limits above.

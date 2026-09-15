@@ -11,6 +11,8 @@ and branch that preserves flags, plus visible refresh-register updates.
 [Example tests](../../../../tests/machines/z80/counted-loop-example.test.ts) ·
 [CPU coverage](../../coverage.md#z80)
 
+The explicit initial state sets `interruptDeferred` and `nmiDeferred` to false.
+
 ## Definition and initial state
 
 Addresses, bytes, and register values below are hexadecimal; step and iteration

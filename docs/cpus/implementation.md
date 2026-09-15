@@ -163,7 +163,7 @@ universal CPU base class, or definition language.
 base for the sibling `Cpu8080` and `CpuZ80` classes. It owns the common register
 operands, pair views, data-word accesses, stack exchanges, and 240 supported
 8080 encodings. Its bit-pattern table gives both CPUs' mnemonics. The Z80 adds
-eight unprefixed forms and its own CB, ED, DD, and FD pages.
+the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
 The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
 operations, conditions, byte increment/decrement, addition to HL, and PSW/AF
@@ -182,10 +182,9 @@ protected members form the internal TypeScript inheritance boundary.
 State descriptions, public snapshots, reset, instruction fetching, and step
 outcomes remain in the concrete CPU modules. Z80 prefix validation and R updates
 therefore keep their existing execution contract. Both expose `snapshot`,
-`reset`, and `step`; the 8080 additionally exposes its own boundary-level
-`interrupt` operation. The family adds no public controls or mutable state
-access. This shallow hierarchy expresses the 8080/Z80 relationship and
-is not a requirement for other processors.
+`reset`, `step`, and their own boundary-level `interrupt` operation. The family
+adds no public controls or mutable state access. This shallow hierarchy expresses
+the 8080/Z80 relationship and is not a requirement for other processors.
 
 ## Shared execution records
 
@@ -221,7 +220,11 @@ frames stay in each CPU; the runner preserves `waiting` as a stopping reason.
 
 The 8080's separate interrupt record uses `StateTransition` with memory, port,
 and acknowledgement accesses. Its supplied instruction has a source and bytes,
-with no invented RAM address. Ordinary step records retain their existing shape.
+with no invented RAM address. The Z80 uses the same record conventions for
+mode-0 execution and null instructions for NMI and mode-1/2 entry. It shares
+its decoder and retirement logic between normal and supplied instructions,
+while their PC/R fetch policies remain explicit. RETI notification follows
+architectural retirement. Ordinary step records retain their existing shape.
 
 These types describe records; each CPU still constructs detached snapshots and
 access lists. Existing [public type checks](../../tests/types) verify readonly
@@ -265,9 +268,10 @@ describe the callbacks available to an opcode handler:
 `RecordedMemory` extends it with an access log. Instruction contexts expose the
 callbacks without exposing that log, and all callback properties are readonly.
 
-The 6502, 6800, 6809, Z80, and shared 8080-family core import
-`WordInstructionContext` as their local `InstructionContext`. The 8008 and
-8080 extend it with `BytePorts`; the 8080 also supplies an EI deferral callback.
+The 6502, 6800, 6809, and shared 8080-family core import
+`WordInstructionContext` as their local `InstructionContext`. The 8008, 8080,
+and Z80 extend it with `BytePorts`; the 8080/Z80 add interrupt-deferral callbacks,
+and the Z80 also queues RETI notification for retirement.
 The 8088 extends it with the instruction start IP and local segment/repeat prefixes. The 8008
 fetches a full two-byte operand and masks it to a 14-bit address when jumping
 or calling. The 68000 currently

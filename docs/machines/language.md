@@ -56,7 +56,7 @@ end 0208
 - CPU state field names are case-insensitive. Uppercase is the convention for
   registers and flags: `A`, `PC`, `SP`, `N`, `CY`. Keywords such as `cpu`, `flags`,
   `alternate`, and `memory` are lowercase. Descriptive control fields retain the
-  spellings `interruptEnabled`, `interruptDeferred`, `iff1`, `iff2`, `halted`, `waiting`, `waitMode`, and `nmiArmed`; the 8008 uses
+  spellings `interruptEnabled`, `interruptDeferred`, `nmiDeferred`, `iff1`, `iff2`, `halted`, `waiting`, `waitMode`, and `nmiArmed`; the 8008 uses
   `addressStack` and `stackIndex` for its address registers and selector, and the
   68000 uses `interruptMask`. Duplicate detection ignores case, so assigning
   both `PC` and `pc` is an error. Register and flag names are resolved within
@@ -127,7 +127,7 @@ All fields listed for the selected CPU are required, including every flag.
 | 6502 | A, X, Y, SP | PC | N, V, D, I, Z, C | — |
 | 6800 | A, B | X, SP, PC | H, I, N, Z, V, C | waiting |
 | 6809 | A, B, DP | X, Y, S, U, PC | E, F, H, I, N, Z, V, C | waitMode (none/sync/cwai), nmiArmed |
-| z80 | A, B, C, D, E, H, L in both banks; I, R | IX, IY, PC, SP | S, Z, H, PV, N, C in both banks | iff1, iff2, halted |
+| z80 | A, B, C, D, E, H, L in both banks; I, R | IX, IY, PC, SP | S, Z, H, PV, N, C in both banks | iff1, iff2, interruptDeferred, nmiDeferred, halted |
 | 8088 | — | AX, BX, CX, DX, SP, BP, SI, DI, CS, DS, SS, ES, IP | CF, PF, AF, ZF, SF, TF, IF, DF, OF | `halted` |
 
 The 8008 also requires its complete address stack and selector. There is no
@@ -146,6 +146,8 @@ The [8008 example](../cpus/8008/examples/arithmetic.md) pairs this state with
 `ram 4000`. `PC` and raw `HL` are derived snapshot views and cannot be assigned.
 
 The Z80 also requires `IM`, an integer in `0`–`2`, for its interrupt mode.
+Its `interruptDeferred` and `nmiDeferred` Boolean fields preserve instruction-boundary
+inhibition; ordinary examples initialize both to false.
 `PV` names the manual's P/V flag. Its initial state includes a complete alternate
 bank using the same register and flag names in a separate scope:
 
@@ -160,6 +162,7 @@ cpu z80 {
     IX = 0000  IY = 0000  PC = 0000  SP = 0000
     I = 00  R = 00  IM = 0
     iff1 = false  iff2 = false  halted = false
+    interruptDeferred = false  nmiDeferred = false
 }
 ```
 

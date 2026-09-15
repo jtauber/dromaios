@@ -10,6 +10,8 @@ ADD HL advances the input pointer while preserving the loop condition.
 [Model contract](../model.md) ·
 [Coverage inventory](../../coverage.md#z80)
 
+The explicit initial state sets `interruptDeferred` and `nmiDeferred` to false.
+
 ## Initial state and memory
 
 The machine has 64 KiB of RAM. Main A/B/C/D/E/H/L are `11/22/33/44/55/66/77`,

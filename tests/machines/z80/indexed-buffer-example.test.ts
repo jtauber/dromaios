@@ -25,7 +25,7 @@ function initialState(): CpuZ80Snapshot {
     flags: { s: true, z: false, h: true, pv: false, n: true, c: false },
     alternate: { a: 0x88, b: 0x99, c: 0xaa, d: 0xbb, e: 0xcc, h: 0xdd, l: 0xee,
       flags: { s: false, z: true, h: false, pv: true, n: false, c: true } },
-    ix: 0x1234, iy: 0x5678, pc: 0x200, sp: 0x9000, i: 0x42, r: 0xfe, im: 2, iff1: true, iff2: false, halted: false });
+    ix: 0x1234, iy: 0x5678, pc: 0x200, sp: 0x9000, i: 0x42, r: 0xfe, im: 2, interruptDeferred: false, nmiDeferred: false, iff1: true, iff2: false, halted: false });
 }
 function memoryImage(finished = false, target = 0x13): Uint8Array {
   const bytes = new Uint8Array(65536);
@@ -134,7 +134,7 @@ test("Z80 indexed buffer reset preserves changed RAM and data; fresh factories r
   const { cpu, ram } = createZ80IndexedBufferExample();
   runCpu(cpu, { maxSteps: 24 });
   const before = cpu.snapshot();
-  assert.deepEqual(cpu.reset(), { before, after: { ...before, pc: 0, i: 0, r: 0, iff1: false, iff2: false, im: 0, halted: false }, accesses: [] });
+  assert.deepEqual(cpu.reset(), { before, after: { ...before, pc: 0, i: 0, r: 0, interruptDeferred: false, nmiDeferred: false, iff1: false, iff2: false, im: 0, halted: false }, accesses: [] });
   checkMemory(ram, true);
   const fresh = createZ80IndexedBufferExample();
   assert.notEqual(fresh.cpu, cpu); assert.notEqual(fresh.ram, ram);

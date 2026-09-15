@@ -23,7 +23,7 @@ function initialState(): CpuZ80Snapshot {
     flags: { s: true, z: false, h: true, pv: false, n: true, c: false },
     alternate: { a: 0x88, b: 0x99, c: 0xaa, d: 0xbb, e: 0xcc, h: 0xdd, l: 0xee,
       flags: { s: false, z: true, h: false, pv: true, n: false, c: true } },
-    ix: 0x1234, iy: 0x5678, pc: 0x200, sp: 0x9000, i: 0x42, r: 0xfe, im: 2, iff1: true, iff2: false, halted: false });
+    ix: 0x1234, iy: 0x5678, pc: 0x200, sp: 0x9000, i: 0x42, r: 0xfe, im: 2, interruptDeferred: false, nmiDeferred: false, iff1: true, iff2: false, halted: false });
 }
 function checkMemory(ram: Ram, finished = false, input: readonly number[] = amounts): void {
   const expected = new Uint8Array(65536);
@@ -150,7 +150,7 @@ test("Z80 decimal total observes edited inputs, bounds loops, resets without cle
   assert.equal(runCpu(changed.cpu, { maxSteps: 50 }).stopReason, "halted");
   checkMemory(changed.ram, true, [0, 0x67, 0x89, 0x72]);
   const before = changed.cpu.snapshot();
-  const after = views({ ...before, pc: 0, i: 0, r: 0, iff1: false, iff2: false, im: 0, halted: false });
+  const after = views({ ...before, pc: 0, i: 0, r: 0, interruptDeferred: false, nmiDeferred: false, iff1: false, iff2: false, im: 0, halted: false });
   assert.deepEqual(changed.cpu.reset(), { before, after, accesses: [] });
   checkMemory(changed.ram, true, [0, 0x67, 0x89, 0x72]);
   const fresh = createZ80DecimalTotalExample();
