@@ -1,0 +1,50 @@
+// Add and restore a 64-bit memory value, adjust the register sum, and compare buffers.
+ram 1000000
+
+cpu 68000 {
+  D0 = 11223344  D1 = 55667788  D2 = 99AABBCC  D3 = DDEEFF00
+  D4 = 01234567  D5 = 89ABCDEF  D6 = FEDCBA98  D7 = 76543210
+  A0 = 10000000  A1 = 20000000  A2 = 30000000  A3 = 40000000
+  A4 = 50000000  A5 = 60000000  A6 = 70000000
+  USP = 34008000  SSP = 56009000  PC = AB002000
+  interruptMask = 2
+  flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 0 }
+}
+
+memory 000000 { 56 00 90 00  AB 00 20 00 }
+
+memory 002000 {
+  41 F9 AB 00 30 08  // LEA (AB003008).L,A0: end of 64-bit addend
+  43 F9 CD 00 40 08  // LEA (CD004008).L,A1: end of 64-bit destination
+  90 80              // SUB.L D0,D0: initialize X=0, Z=1
+  D3 88              // ADDX.L -(A0),-(A1): low long, carry into X
+  D3 88              // ADDX.L -(A0),-(A1): high long, using the saved carry
+  59 C4              // SVS D4: record signed overflow in the high-long addition
+  24 19              // MOVE.L (A1)+,D2: retain high long of sum
+  26 19              // MOVE.L (A1)+,D3: retain low long of sum
+  41 F9 AB 00 30 08  // LEA (AB003008).L,A0: rewind addend to its end
+  90 80              // SUB.L D0,D0: initialize X=0, Z=1
+  93 88              // SUBX.L -(A0),-(A1): subtract low long, borrowing into X
+  93 88              // SUBX.L -(A0),-(A1): subtract high long, restoring destination
+  70 01              // MOVEQ #1,D0: low long of register adjustment
+  72 00              // MOVEQ #0,D1: high long of register adjustment
+  9A 85              // SUB.L D5,D5: initialize X=0, Z=1
+  97 80              // SUBX.L D0,D3: subtract low adjustment from register sum
+  95 81              // SUBX.L D1,D2: subtract high adjustment and borrow
+  9A 85              // SUB.L D5,D5: initialize X=0, Z=1
+  D7 80              // ADDX.L D0,D3: add the adjustment back, low long
+  D5 81              // ADDX.L D1,D2: add high long and carry, restoring register sum
+  45 F9 EF 00 50 00  // LEA (EF005000).L,A2: reference copy of original destination
+  47 F9 56 00 60 00  // LEA (56006000).L,A3: equality results
+  7E 01              // MOVEQ #1,D7: compare two longs
+  B3 8A              // loop: CMPM.L (A2)+,(A1)+: compare restored destination to reference
+  57 DB              // SEQ (A3)+: FF for an equal long, otherwise 00
+  51 CF FF FA        // DBF D7,2042: repeat comparison
+}
+
+memory 002FFE { DE AD  00 00 00 00 00 00 00 01  BE EF }
+memory 003FFE { DE AD  7F FF FF FF FF FF FF FF  BE EF }
+memory 004FFE { DE AD  7F FF FF FF FF FF FF FF  BE EF }
+memory 005FFE { DE AD  CC CC  BE EF }
+
+end AB00204A

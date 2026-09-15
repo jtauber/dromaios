@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [504](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [773](../../src/components/cpus/8088.ts) | 268 / 291 | 92.1% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [768](../../src/components/cpus/68000.ts) | 31,935 / 36,029 | 88.6% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [781](../../src/components/cpus/68000.ts) | 32,895 / 36,029 | 91.3% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -1718,7 +1718,10 @@ addresses are compared; local tests check exact instruction-level ordering.
 [Bit operations example](68000/examples/bits.md) ·
 [Bits definition](../../src/machines/68000/bits-example.machine)
 
-**31,935 of 36,029 documented forms are complete (88.6%).** MOVE and MOVEA
+[Extended arithmetic example](68000/examples/extended.md) ·
+[Extended definition](../../src/machines/68000/extended-example.machine)
+
+**32,895 of 36,029 documented forms are complete (91.3%).** MOVE and MOVEA
 support every original-68000 source/destination combination and documented
 index extension. The operation-word patterns below are binary. In MOVE,
 `ddd mmm` selects the destination register then mode, while `sss rrr` selects
@@ -1768,12 +1771,17 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `0111 rrr 0 iiiiiiii` | `MOVEQ #n,Dn` | 8 | 2 | Sign-extend the embedded byte to a long; MOVE flags |
 | `1000 rrr d ss mmm eee` | `OR.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,280 | 2–6 | 53 data sources or 42 memory destinations; set NZ, clear VC, preserve X |
 | `1001 rrr d ss mmm eee` | `SUB.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,408 | 2–6 | All legal source/memory-destination forms; set XNZVC from destination minus source |
+| `1001 ddd 1 ss 00 0 rrr` | `SUBX.B/W/L Dn,Dn` | 192 | 2 | Three sizes × 64 register pairs; destination minus source minus X; cumulative Z |
+| `1001 ddd 1 ss 00 1 rrr` | `SUBX.B/W/L -(An),-(An)` | 192 | 2 | Same arithmetic; two predecrement operands, source before destination |
 | `1001 rrr s11 mmm eee` | `SUBA.W/L <ea>,An` | 976 | 2–6 | Sign-extend word source; full 32-bit subtraction; preserve all flags |
 | `1011 rrr 0 ss mmm eee` | `CMP.B/W/L <ea>,Dn` | 1,400 | 2–6 | Set NZVC from Dn minus source; preserve X; no writeback |
 | `1011 rrr 1 ss mmm eee` | `EOR.B/W/L Dn,<ea>` | 1,200 | 2–6 | Eight sources × three sizes × 50 data-alterable destinations; logic flags |
+| `1011 ddd 1 ss 001 rrr` | `CMPM.B/W/L (An)+,(An)+` | 192 | 2 | Three sizes × 64 pointer pairs; destination minus source; replace NZVC, preserve X, no writeback |
 | `1011 rrr s11 mmm eee` | `CMPA.W/L <ea>,An` | 976 | 2–6 | Sign-extend word source; full 32-bit comparison; preserve X; no writeback |
 | `1100 rrr d ss mmm eee` | `AND.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,280 | 2–6 | Same sizes, sources, destinations, and flags as OR |
 | `1101 rrr d ss mmm eee` | `ADD.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,408 | 2–6 | All legal source/memory-destination forms; set XNZVC from addition |
+| `1101 ddd 1 ss 00 0 rrr` | `ADDX.B/W/L Dn,Dn` | 192 | 2 | Three sizes × 64 register pairs; destination plus source plus X; cumulative Z |
+| `1101 ddd 1 ss 00 1 rrr` | `ADDX.B/W/L -(An),-(An)` | 192 | 2 | Same arithmetic; two predecrement operands, source before destination |
 | `1101 rrr s11 mmm eee` | `ADDA.W/L <ea>,An` | 976 | 2–6 | Sign-extend word source; full 32-bit addition; preserve all flags |
 | `1110 ccc d ss i 00 rrr` / `1110 0 00 d 11 mmm rrr` | `ASR/ASL` | 516 | 2–6 | Byte/word/long Dn; word memory; ASL retains intermediate sign-change overflow |
 | `1110 ccc d ss i 01 rrr` / `1110 0 01 d 11 mmm rrr` | `LSR/LSL` | 516 | 2–6 | Same sizes/counts; shift zeros in, last outgoing bit to XC, clear V |
@@ -1785,6 +1793,12 @@ reads any EA except byte An; `d=1` permits only memory-alterable destinations.
 Address arithmetic uses `s=0/1` for word/long sources and accepts all 61 EAs.
 The [arithmetic contract](68000/model.md#register-and-address-arithmetic)
 defines widths, flag preservation, and source/destination pointer aliases.
+
+ADDX/SUBX each contribute `3 × 2 × 8 × 8 = 384` forms; CMPM contributes
+`3 × 8 × 8 = 192`. All use one operation word. Extended arithmetic preserves
+Z on a zero result and consumes X; CMPM replaces Z and preserves X. Their
+[paired-operand contract](68000/model.md#extended-arithmetic-and-memory-comparison)
+defines source-first auto-updates, same-register aliases, and atomic faults.
 
 AND/OR exclude An sources in every size, with the same memory destinations as
 ADD/SUB. EOR uses only direction 1 and also permits Dn destinations. All three
@@ -1852,6 +1866,7 @@ intermediate overflow, register aliases, and memory updates.
 | Immediate ALU | ADDI, SUBI, CMPI, ANDI, ORI, EORI in all three sizes and data-alterable modes; preserve upper Dn bits on byte/word writes |
 | Bit operations | BTST, BCHG, BCLR, BSET with immediate/register bit numbers; long Dn or byte operands; only Z changes, describing the original bit |
 | Register/address ALU | ADD, SUB, CMP, ADDA, SUBA, CMPA; all documented sizes and EAs, with shared destination execution and arithmetic helpers |
+| Paired ALU | ADDX/SUBX in register/predecrement forms, CMPM with two postincrement operands; all sizes and register pairs; shared operand execution and extended arithmetic with NEGX |
 | Quick/unary ALU | ADDQ/SUBQ, CLR, NEG, NEGX, NOT, TST; all sizes and legal EAs, with cumulative Z for NEGX and full-width flag-preserving An quick arithmetic |
 | Condition bytes | All Scc conditions and data-alterable EAs; FF/00 results without flag changes |
 | Shifts and rotates | ASL/ASR, LSL/LSR, ROXL/ROXR, ROL/ROR; all register sizes, immediate/register counts, and word memory forms; shared one-bit helpers with CPU-specific flags |
@@ -1863,7 +1878,7 @@ intermediate overflow, register aliases, and memory updates.
 | Alignment | Even instruction, word, and long addresses; odd byte operands allowed; read/write faults preserve state and RAM, including pending address updates |
 | Stack and addresses | A7 selects USP/SSP from S; BSR/JSR push and RTS pops a four-byte return address; LINK/UNLK frames, LEA/PEA address calculation, MOVEM saves/restores; byte auto-updates step by two |
 | Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts; preserve other registers, condition codes, and RAM under the documented policy |
-| Remaining scope | Extended/decimal arithmetic, multiply/divide, other transfers, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
+| Remaining scope | Decimal arithmetic, multiply/divide, other transfers, packed status, TAS/NOP, STOP, exceptions, interrupts, devices, timing, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
@@ -1875,8 +1890,9 @@ Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [masked-merge](../../tests/machines/68000/logic-example.test.ts),
 [stack-frame](../../tests/machines/68000/stack-frame-example.test.ts),
 [unary](../../tests/machines/68000/unary-example.test.ts),
-[shifts](../../tests/machines/68000/shifts-example.test.ts), and
-[bit operations example tests](../../tests/machines/68000/bits-example.test.ts),
+[shifts](../../tests/machines/68000/shifts-example.test.ts),
+[bit operations](../../tests/machines/68000/bits-example.test.ts), and
+[extended arithmetic example tests](../../tests/machines/68000/extended-example.test.ts),
 plus [public type checks](../../tests/types/68000.ts).
 
 The independent transfer fixtures execute all **9,726 MOVE/MOVEA encodings**
@@ -1972,6 +1988,16 @@ stacks, wrapping, unchanged writes, overlapping code/data, and excluded modes.
 The 33-step bits example builds a register bitmap, toggles byte bits, and
 classifies their previous state. Tests check complete records and RAM, live
 input, reset preservation, and snapshot resumption before a saved-Z condition.
+
+Paired ALU checks cover all **960 added forms** with every incoming flag
+pattern, every byte operand pair with all X/Z combinations, and word/long
+boundaries against independent BigInt arithmetic. Checks verify complete state,
+partial registers, source/destination access order, unchanged writes, both
+stacks, same-An updates, wrapping, overlapping code/data, and alignment faults
+at either operand with byte-instruction retries. The 29-step extended example
+adds and restores a 64-bit memory value, adjusts its register copy, and compares
+the restored buffer. Tests check complete records and RAM images in both modes,
+live input, reset, and four snapshots between low/high carry or borrow steps.
 
 ## CPUs and variants not started
 

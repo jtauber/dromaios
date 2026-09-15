@@ -201,7 +201,7 @@ export class Cpu68000 {
     // Unary ALU: 0100 oooo ss mmm rrr. ss=00 byte, 01 word, 10 long;
     // mmm rrr selects a data-alterable EA, even for TST on the original 68000.
     // ss=11 belongs to status transfers, TAS, or other instructions, not this family.
-    ...this.#unaryHandlers("0100 0000 ss mmm rrr", (cpu, size, value) => cpu.#negateExtended(size, value)), // NEGX <ea>
+    ...this.#unaryHandlers("0100 0000 ss mmm rrr", (cpu, size, value) => cpu.#subtract(size, 0, value, true)), // NEGX <ea>
     ...this.#unaryHandlers("0100 0010 ss mmm rrr", (cpu, size) => cpu.#logic(size, 0)), // CLR <ea>
     ...this.#unaryHandlers("0100 0100 ss mmm rrr", (cpu, size, value) => cpu.#subtract(size, 0, value)), // NEG <ea>
     ...this.#unaryHandlers("0100 0110 ss mmm rrr", (cpu, size, value) => cpu.#logic(size, value ^ (2 ** size - 1))), // NOT <ea>
@@ -260,7 +260,16 @@ export class Cpu68000 {
     ...this.#dataAluHandlers("1100 rrr 1 ss mmm eee", "memory-destination", (cpu, size, left, right) => cpu.#logic(size, left & right)), // AND Dn,<ea>
     ...this.#dataAluHandlers("1101 rrr 0 ss mmm eee", "source", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADD <ea>,Dn
     ...this.#dataAluHandlers("1101 rrr 1 ss mmm eee", "memory-destination", (cpu, size, left, right) => cpu.#add(size, left, right)), // ADD Dn,<ea>
-    // Excluded d=1 register modes belong to SBCD, SUBX, CMPM, ABCD/EXG, or ADDX.
+    // The d=1 register modes select the paired families below or SBCD/ABCD/EXG.
+
+    // Paired ALU: oooo ddd 1 ss 00 m rrr; ddd selects destination, rrr source.
+    // ADDX/SUBX use m=0 for Dn,Dn and m=1 for -(An),-(An); ss=00/01/10 byte/word/long.
+    // Both consume X and accumulate Z. CMPM fixes m=1 for (An)+,(An)+ and preserves X.
+    ...this.#pairedAluHandlers("1001 ddd 1 ss 00 0 rrr", 0b000, (cpu, size, left, right) => cpu.#subtract(size, left, right, true)), // SUBX Dn,Dn
+    ...this.#pairedAluHandlers("1001 ddd 1 ss 00 1 rrr", 0b100, (cpu, size, left, right) => cpu.#subtract(size, left, right, true)), // SUBX -(An),-(An)
+    ...this.#pairedAluHandlers("1011 ddd 1 ss 00 1 rrr", 0b011, (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMPM (An)+,(An)+
+    ...this.#pairedAluHandlers("1101 ddd 1 ss 00 0 rrr", 0b000, (cpu, size, left, right) => cpu.#add(size, left, right, true)), // ADDX Dn,Dn
+    ...this.#pairedAluHandlers("1101 ddd 1 ss 00 1 rrr", 0b100, (cpu, size, left, right) => cpu.#add(size, left, right, true)), // ADDX -(An),-(An)
 
     // Address ALU: oooo rrr s11 mmm eee. rrr selects An; s=0 signed word, 1 long source.
     // Every source EA is legal. The operation is always 32-bit; only CMPA changes flags.
@@ -387,22 +396,29 @@ export class Cpu68000 {
 
   static #dataAluHandlers(pattern: string, addressing: AluAddressing, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
     const source = addressing === "source" || addressing === "data-source";
-    return opcodeFamily(pattern, { r: this.#dataRegisters, s: this.#sizes, m: this.#selectors, e: this.#selectors }, ({ r: register, s: size, m, e }) => {
+    return opcodeFamily(pattern, { r: this.#selectors, s: this.#sizes, m: this.#selectors, e: this.#selectors }, ({ r, s: size, m, e }) => {
       if (size === undefined) return undefined;
       if (m === 7 && e > (source ? 4 : 1)) return undefined;
       if (m === 1 && (addressing !== "source" || size === 8)) return undefined;
       if (m === 0 && addressing === "memory-destination") return undefined;
       if (source) {
-        return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#registerAlu(size, m, e, { kind: "data", register }, apply, instruction);
+        return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#pairedAlu(size, m, e, 0, r, apply, instruction);
       }
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(size, m, e, cpu.#state[register] % 2 ** size, apply, instruction);
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(size, m, e, cpu.#state[Cpu68000.#dataRegisters[r]!] % 2 ** size, apply, instruction);
+    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
+
+  static #pairedAluHandlers(pattern: string, mode: 0 | 3 | 4, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { d: this.#selectors, s: this.#sizes, r: this.#selectors }, ({ d, s: size, r }) => {
+      if (size === undefined) return undefined;
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#pairedAlu(size, mode, r, mode, d, apply, instruction);
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
   static #addressAluHandlers(pattern: string, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { r: this.#selectors, s: [16, 32] as const, m: this.#selectors, e: this.#selectors }, ({ r, s: size, m, e }) => {
       if (m === 7 && e > 4) return undefined;
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#registerAlu(size, m, e, { kind: "address", register: cpu.#addressRegister(r) }, apply, instruction);
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#pairedAlu(size, m, e, 1, r, apply, instruction);
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
@@ -643,12 +659,15 @@ export class Cpu68000 {
     this.#applyAlu(size, destination, value, apply, updates, instruction);
   }
 
-  #registerAlu(size: OperandSize, mode: number, code: number, destination: Extract<Operand, { kind: "data" | "address" }>,
+  #pairedAlu(size: OperandSize, sourceMode: number, sourceCode: number, destinationMode: number, destinationCode: number,
     apply: AluOperation, instruction: InstructionContext): Cpu68000AlignmentFault | void {
     const updates: AddressUpdates = new Map();
-    const source = this.#resolveOperand(size, mode, code, instruction, updates);
+    const source = this.#resolveOperand(size, sourceMode, sourceCode, instruction, updates);
     if (source.kind === "memory" && size !== 8 && source.address % 2 !== 0) return { operation: "read", address: source.address };
     let value = this.#readOperand(size, source, instruction.readByte);
+    // Two auto-updates of the same An use successive addresses, source before destination.
+    const destination = this.#resolveOperand(size, destinationMode, destinationCode, instruction, updates);
+    if (destination.kind === "memory" && size !== 8 && destination.address % 2 !== 0) return { operation: "read", address: destination.address };
     if (destination.kind === "address") {
       if (size === 16) value = (value << 16 >> 16) >>> 0;
       size = 32;
@@ -680,32 +699,26 @@ export class Cpu68000 {
     return result;
   }
 
-  #add(size: OperandSize, left: number, right: number): number {
-    const { result, carry, overflow } = add(size, left, right);
+  #add(size: OperandSize, left: number, right: number, extended = false): number {
+    const zero = this.#state.flags.z;
+    const { result, carry, overflow } = add(size, left, right, extended && this.#state.flags.x ? 1 : 0);
     this.#setResultFlags(result, size);
     this.#state.flags.x = this.#state.flags.c = carry;
     this.#state.flags.v = overflow;
+    if (extended) this.#state.flags.z = zero && result === 0; // Preserve a nonzero earlier result.
     return result;
   }
 
-  #subtract(size: OperandSize, left: number, right: number): number {
-    const result = this.#compare(size, left, right);
-    this.#state.flags.x = this.#state.flags.c;
-    return result;
-  }
-
-  #negateExtended(size: OperandSize, value: number): number {
+  #subtract(size: OperandSize, left: number, right: number, extended = false): number {
     const zero = this.#state.flags.z;
-    const { result, borrow, overflow } = subtract(size, 0, value, this.#state.flags.x ? 1 : 0);
-    this.#setResultFlags(result, size);
-    this.#state.flags.x = this.#state.flags.c = borrow;
-    this.#state.flags.v = overflow;
-    this.#state.flags.z = zero && result === 0; // Accumulate zero across a multi-precision negation.
+    const result = this.#compare(size, left, right, extended && this.#state.flags.x ? 1 : 0);
+    this.#state.flags.x = this.#state.flags.c;
+    if (extended) this.#state.flags.z = zero && result === 0;
     return result;
   }
 
-  #compare(size: OperandSize, left: number, right: number): number {
-    const { result, borrow, overflow } = subtract(size, left, right);
+  #compare(size: OperandSize, left: number, right: number, borrowIn: 0 | 1 = 0): number {
+    const { result, borrow, overflow } = subtract(size, left, right, borrowIn);
     this.#setResultFlags(result, size);
     this.#state.flags.c = borrow;
     this.#state.flags.v = overflow;

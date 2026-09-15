@@ -301,3 +301,32 @@ toggling their modulo-eight positions in memory, and classifies their old
 values through Z. It also exercises all four operations in both number-source
 forms and an explicit PC-relative test. These are manual-derived local checks,
 not an external hardware or timing comparison.
+
+## Extended arithmetic and memory comparison
+
+Motorola's programmer's reference describes ADDX on pages 4-13–4-14,
+CMPM on 4-81, and SUBX on 4-183–4-184. ADDX/SUBX combine an incoming X
+with the two operands and retain Z for a zero result. CMPM preserves X,
+replaces NZVC, and advances both memory pointers without writing either operand.
+Their original-chip register, size, and addressing choices contribute the
+960 forms listed in the [opcode audit](opcode-count.md).
+
+The Mac reference reads the source before applying the destination pointer
+update, including when the two operands select the same An. Its ADDX/SUBX
+handler distinguishes register and predecrement forms; CMPM has a separate
+postincrement loop. The arithmetic formulas and cumulative-Z behavior are
+useful comparisons, while Dromaios tests use independent BigInt arithmetic.
+
+Dromaios generalizes its existing register-ALU path to resolve two operands,
+with pending source updates visible to destination resolution. ADDX/SUBX and
+CMPM then share the ordinary arithmetic operand reads, result writes, alignment
+checks, and active-stack handling. ADD/SUB accept an extended mode, allowing
+NEGX to reuse SUBX's flag logic with a zero left operand. The opcode table
+retains the complete bit patterns and explicit addressing choices.
+
+The [model contract](model.md#extended-arithmetic-and-memory-comparison)
+specifies atomic alignment rejection and instruction-level access order;
+neither exception delivery nor cycle ordering is added here. The
+[combined example](examples/extended.md) restores a 64-bit memory value and
+compares it with a reference, while retaining the sum in registers. Tests
+restore snapshots at all four low/high carry and borrow boundaries.

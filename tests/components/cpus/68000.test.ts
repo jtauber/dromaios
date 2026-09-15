@@ -336,7 +336,12 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
       }
     }
   }
-  assert.equal(supported.size, 41707); // Includes embedded MOVEQ, branch, quick, and shift counts, unlike coverage forms.
+  for (const { opcodes } of pairedFamilies) for (const base of opcodes) {
+    for (let source = 0; source < 8; source++) for (let destination = 0; destination < 8; destination++) {
+      supported.add(base + destination * 512 + source);
+    }
+  }
+  assert.equal(supported.size, 42667); // Includes embedded MOVEQ, branch, quick, and shift counts, unlike coverage forms.
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
@@ -1087,13 +1092,13 @@ test("68000 EOR memory writes, including unchanged values, cover every size, res
   }
 });
 
-test("68000 logic excludes An, PC/immediate destinations, and neighboring decimal/exchange/compare-memory opcodes", () => {
+test("68000 logic rejects invalid address forms and unsupported decimal/exchange opcodes", () => {
   const ram = new ObservedRam(0x1000000);
   const before = snapshot(initialState());
   const cpu = new Cpu68000(ram, before);
-  // OR/AND An sources; EOR An/PC/immediate destinations; SBCD, ABCD, EXG, CMPM.
-  for (const opcode of [0x8008, 0x8048, 0x8088, 0xc008, 0xc048, 0xc088, 0xb108, 0xb17a, 0xb1bb, 0xb1bc,
-    0x8100, 0x8108, 0xc100, 0xc108, 0xc140, 0xc148, 0xc188, 0xb148, 0xb188]) {
+  // OR/AND An sources; EOR PC/immediate destinations; SBCD, ABCD, EXG. Mode 001 in EOR's slot is CMPM.
+  for (const opcode of [0x8008, 0x8048, 0x8088, 0xc008, 0xc048, 0xc088, 0xb17a, 0xb1bb, 0xb1bc,
+    0x8100, 0x8108, 0xc100, 0xc108, 0xc140, 0xc148, 0xc188]) {
     const bytes = wordBytes(opcode);
     bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
     ram.accesses.length = 0;
@@ -2429,4 +2434,192 @@ test("68000 bit operations retain Z from the original bit and read changing bit-
   checkStep(ram, second, [0x72, 0x20], loaded, [], cpu); // MOVEQ #32,D1
   const cleared = { ...loaded, d0: 0x8000001e, pc: loaded.pc + 2 };
   checkStep(ram, loaded, [0x03, 0x80], cleared, [], cpu); // BCLR D1,D0 wraps to bit 0, with Z clear from the old one.
+});
+
+// Literal byte/word/long operation words; each row expands to 3 × 8 × 8 forms.
+const pairedFamilies = [
+  { name: "ADDX", mode: "register", opcodes: [0xd100, 0xd140, 0xd180] },
+  { name: "ADDX", mode: "predecrement", opcodes: [0xd108, 0xd148, 0xd188] },
+  { name: "SUBX", mode: "register", opcodes: [0x9100, 0x9140, 0x9180] },
+  { name: "SUBX", mode: "predecrement", opcodes: [0x9108, 0x9148, 0x9188] },
+  { name: "CMPM", mode: "postincrement", opcodes: [0xb108, 0xb148, 0xb188] },
+] as const;
+type PairedFamily = typeof pairedFamilies[number];
+
+function pairedResult(name: PairedFamily["name"], size: number, left: number, right: number, before: Cpu68000Flags) {
+  const width = size * 8;
+  const limit = 2n ** BigInt(width);
+  const direction = name === "ADDX" ? 1n : -1n;
+  const extend = name !== "CMPM" && before.x ? 1n : 0n;
+  const total = BigInt(left) + direction * (BigInt(right) + extend);
+  const signed = BigInt.asIntN(width, BigInt(left)) + direction * (BigInt.asIntN(width, BigInt(right)) + extend);
+  const result = Number(BigInt.asUintN(width, total));
+  const carry = total < 0n || total >= limit;
+  return { result, flags: { ...before, x: name === "CMPM" ? before.x : carry,
+    n: result >= Number(limit / 2n), z: result === 0 && (name === "CMPM" || before.z),
+    v: signed < -limit / 2n || signed >= limit / 2n, c: carry } };
+}
+
+function checkPaired(ram: ObservedRam, before: Cpu68000State, family: PairedFamily, sizeIndex: number,
+  source: number, destination: number, sourceValue = 0x81234567, destinationValue = 0x7fffffff, runningCpu?: Cpu68000): void {
+  const { name, mode, opcodes } = family;
+  const size = 2 ** sizeIndex;
+  const modulus = 2 ** (size * 8);
+  const bytes = wordBytes(opcodes[sizeIndex]! + destination * 512 + source);
+  const after = { ...before, pc: unsignedLong(before.pc + 2), flags: { ...before.flags } };
+  const memory = new Map<number, number>();
+  const dataRegisters = registerForms.map(form => form.register);
+  let sourceAddress: number | undefined;
+  let destinationAddress: number | undefined;
+  if (mode !== "register") {
+    const registers = addressNames(before);
+    const from = registers[source]!;
+    const to = registers[destination]!;
+    const fromStep = source === 7 && size === 1 ? 2 : size;
+    const toStep = destination === 7 && size === 1 ? 2 : size;
+    const direction = mode === "predecrement" ? -1 : 1;
+    after[from] = unsignedLong(before[from] + direction * fromStep);
+    sourceAddress = mode === "predecrement" ? after[from] : before[from];
+    destinationAddress = mode === "predecrement" ? unsignedLong(after[to] - toStep) : after[to];
+    after[to] = unsignedLong(after[to] + direction * toStep);
+    for (const address of [sourceAddress, destinationAddress]) {
+      memory.set(physical(address - 1), 0xde);
+      memory.set(physical(address + size), 0xad);
+    }
+    for (const [address, value] of [[sourceAddress, sourceValue], [destinationAddress, destinationValue]]) {
+      longBytes(value! % modulus).slice(4 - size).forEach((byte, offset) => memory.set(physical(address! + offset), byte));
+    }
+  }
+  bytes.forEach((byte, offset) => memory.set(physical(before.pc + offset), byte));
+  for (const [address, byte] of memory) ram.write(address, byte);
+  const accesses = memoryAccesses("read", before.pc, bytes);
+  const readValue = (address: number) => {
+    let value = 0;
+    for (let offset = 0; offset < size; offset++) {
+      const physicalAddress = physical(address + offset);
+      const byte = memory.get(physicalAddress)!;
+      accesses.push({ kind: "read", address: physicalAddress, value: byte });
+      value = value * 256 + byte;
+    }
+    return value;
+  };
+  const invalidSource = size !== 1 && sourceAddress !== undefined && sourceAddress % 2 !== 0;
+  const invalidDestination = size !== 1 && destinationAddress !== undefined && destinationAddress % 2 !== 0;
+  const right = invalidSource ? 0 : sourceAddress === undefined ? before[dataRegisters[source]!] % modulus : readValue(sourceAddress);
+  if (!invalidSource && !invalidDestination) {
+    const left = destinationAddress === undefined ? before[dataRegisters[destination]!] % modulus : readValue(destinationAddress);
+    const expected = pairedResult(name, size, left, right, before.flags);
+    after.flags = expected.flags;
+    if (name !== "CMPM") {
+      if (destinationAddress === undefined) {
+        const register = dataRegisters[destination]!;
+        after[register] = Math.floor(before[register] / modulus) * modulus + expected.result;
+      } else {
+        for (const access of memoryAccesses("write", destinationAddress, longBytes(expected.result).slice(4 - size))) {
+          accesses.push(access);
+          memory.set(access.address, access.value);
+        }
+      }
+    }
+  }
+  const cpu = runningCpu ?? new Cpu68000(ram, before);
+  ram.accesses.length = 0;
+  const expected = invalidSource || invalidDestination
+    ? { before: snapshot(before), after: snapshot(before), accesses, instruction: { address: before.pc, bytes },
+      outcome: "unsupported", reason: "unaligned-address", fault: { operation: "read", address: invalidSource ? sourceAddress : destinationAddress } }
+    : { before: snapshot(before), after: snapshot(after), accesses, instruction: { address: before.pc, bytes }, outcome: "executed" };
+  assert.deepEqual(cpu.step(), expected, `${name} ${mode} ${size} ${source},${destination}`);
+  assert.deepEqual(cpu.snapshot(), expected.after);
+  assert.deepEqual(ram.accesses, accesses);
+  for (const [address, byte] of memory) assert.equal(ram.read(address), byte);
+}
+
+for (const family of pairedFamilies) {
+  test(`68000 ${family.name} ${family.mode} covers all 192 forms and every flag pattern`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (let bits = 0; bits < 128; bits++) {
+      let completed = 0;
+      for (let size = 0; size < 3; size++) for (let source = 0; source < 8; source++) for (let destination = 0; destination < 8; destination++) {
+        checkPaired(ram, transferState(bits), family, size, source, destination);
+        completed++;
+      }
+      assert.equal(completed, 192);
+    }
+  });
+
+  test(`68000 ${family.name} ${family.mode} exhausts byte operands with every incoming X/Z combination`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (let left = 0; left < 256; left++) for (let right = 0; right < 256; right++) for (let xz = 0; xz < 4; xz++) {
+      const before = initialState({ d0: 0x89abcd00 + right, d1: 0xfedcba00 + left, a0: 0xab003003, a1: 0xcd004005,
+        flags: { ...flags((left + right) % 128), x: xz % 2 === 1, z: xz >= 2 } });
+      checkPaired(ram, before, family, 0, 0, 1, right, left);
+    }
+  });
+
+  test(`68000 ${family.name} ${family.mode} checks word and long carry, borrow, overflow, and partial registers`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (const index of [1, 2]) {
+      const modulus = 2 ** (8 * 2 ** index);
+      const values = [0, 1, 2, modulus / 2 - 1, modulus / 2, modulus / 2 + 1, modulus - 2, modulus - 1];
+      for (const left of values) for (const right of values) for (let bits = 0; bits < 128; bits++) {
+        const upper = index === 1 ? 0xabcd0000 : 0;
+        const before = { ...transferState(bits), d0: upper + right, d1: upper + left };
+        checkPaired(ram, before, family, index, 0, 1, right, left);
+      }
+    }
+  });
+}
+
+test("68000 paired memory ALU preserves state on source or destination alignment faults and can retry as bytes", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const family of pairedFamilies.filter(family => family.mode !== "register")) for (const bits of [0, 127]) {
+    for (let source = 0; source < 8; source++) for (let destination = 0; destination < 8; destination++) {
+      for (const index of [1, 2]) for (const odd of ["source", "destination", "both"]) {
+        const before = transferState(bits);
+        const registers = addressNames(before);
+        if (odd !== "destination") before[registers[source]!]++;
+        if (odd !== "source" && (source !== destination || odd === "destination")) before[registers[destination]!]++;
+        const cpu = new Cpu68000(ram, before);
+        checkPaired(ram, before, family, index, source, destination, 0x01234567, 0x89abcdef, cpu);
+        checkPaired(ram, before, family, 0, source, destination, 0x67, 0xef, cpu);
+      }
+    }
+  }
+});
+
+test("68000 paired ALU handles same-register operands, both stacks, wrapping, overlapping data and code", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const family of pairedFamilies) for (const bits of [0, 127]) for (let index = 0; index < 3; index++) {
+    for (const value of [0, 1, 0x7fffffff, 0x80000000, 0xffffffff]) for (let code = 0; code < 8; code++) {
+      const before = transferState(bits);
+      before[registerForms[code]!.register] = value;
+      checkPaired(ram, before, family, index, code, code, value, 0xffffffff - value);
+    }
+    for (const pc of [0xab001000, 0x12fffffe, 0xfffffffe]) for (const address of [0, 1, 2, 0x12fffffe, 0xffffffff, pc, pc + 2]) {
+      for (const offset of [0, 1, 2, 4, 0x1000000]) {
+        const before = { ...transferState(bits), pc, a0: unsignedLong(address), a1: unsignedLong(address + offset),
+          usp: unsignedLong(address), ssp: unsignedLong(address) };
+        checkPaired(ram, before, family, index, 0, 1, 0x81234567, 0x7fffffff);
+        checkPaired(ram, before, family, index, 7, 7, 0x81234567, 0x7fffffff);
+      }
+    }
+  }
+});
+
+test("68000 ADDX and SUBX consume live X and cumulative Z across multiword results", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const subtracting of [false, true]) {
+    const before = initialState({ d0: 1, d1: 0, d2: subtracting ? 0 : 0xffffffff, d3: 0, flags: flags(4) });
+    const cpu = new Cpu68000(ram, before);
+    const low = { ...before, pc: before.pc + 2, d2: subtracting ? 0xffffffff : 0,
+      flags: { ...before.flags, x: true, n: subtracting, z: !subtracting, c: true } };
+    checkStep(ram, before, subtracting ? [0x95, 0x80] : [0xd5, 0x80], low, [], cpu); // D0,D2
+    const high = { ...low, pc: low.pc + 2, d3: subtracting ? 0xffffffff : 1,
+      flags: { ...low.flags, x: subtracting, n: subtracting, z: false, c: subtracting } };
+    checkStep(ram, low, subtracting ? [0x97, 0x81] : [0xd7, 0x81], high, [], cpu); // D1,D3
+    // A zero result in a later instruction must retain the previous nonzero summary.
+    const cleared = { ...high, pc: high.pc + 2, d0: subtracting ? 0 : high.d0,
+      flags: { ...high.flags, x: false, n: false, v: false, c: false } };
+    checkStep(ram, high, subtracting ? [0x91, 0x81] : [0x93, 0x81], cleared, [], cpu); // SUBX.L D1,D0 or D1,D1
+  }
 });

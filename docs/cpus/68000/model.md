@@ -173,6 +173,50 @@ adds the sign-extended word to the incremented pointer. CMPA also compares
 against the updated pointer and retains that update. Active A7 selects USP/SSP.
 The [word-sum example](examples/word-sum.md) combines all six families.
 
+## Extended arithmetic and memory comparison
+
+ADDX/SUBX encode `oooo ddd 1 ss 00 m rrr`, with `oooo=1101`/`1001`,
+destination `ddd`, and source `rrr`. Size `ss=00/01/10` means byte/word/long;
+`m=0` selects Dn,Dn and `m=1` selects predecrement memory operands
+`-(An),-(An)`. Size `11` belongs to ordinary address arithmetic. Each
+instruction occupies one operation word, without extensions.
+
+ADDX computes destination + source + X; SUBX computes destination − source − X.
+Both set X/C from carry or borrow, N from the result's sign, and V from signed
+overflow. Z is **cumulative**: a nonzero result clears it, while a zero result
+preserves its previous value. Initializing X=0 and Z=1 allows a sequence of
+low-to-high parts to report whether the complete result is zero. Control fields
+are preserved. Byte/word Dn writes retain upper bits; long results stay unsigned.
+Register aliases read the original operand twice before writing the result.
+NEGX uses the same extended subtraction with a zero left operand.
+
+CMPM encodes `1011 ddd 1 ss 001 rrr` and always uses postincrement memory
+operands `(An)+,(An)+`. It compares destination minus source, replacing NZVC
+and preserving X and control state. Unlike ADDX/SUBX, its Z describes only
+the current comparison. CMPM never writes memory.
+
+Memory source resolution and reading precede destination resolution and
+reading. When both operands select the same An, its source update determines
+the destination address: ADDX/SUBX access successive lower locations, while
+CMPM accesses successive higher locations. Each operand updates its pointer
+once, even when both pointers name the same register. Active A7 selects USP/SSP
+and steps by two for bytes; other byte pointers step by one. All pointer
+arithmetic wraps at 32 bits before each byte's physical-bus mapping.
+
+Modifying forms write the resolved destination once at the selected width,
+including unchanged results. The instruction-level trace reads source bytes,
+then destination bytes, then writes destination bytes, each in increasing
+address order. Alignment failures preserve all state and RAM, including X/Z
+and pending pointer updates. A source fault records only the opcode fetch;
+a destination fault also records the completed source read. Both report a
+`read` fault because the destination must be read before any modification.
+This follows the model's atomic unsupported-attempt policy rather than
+delivering an address-error exception or modeling bus-cycle order.
+
+The [extended arithmetic example](examples/extended.md) adds and restores a
+64-bit memory value, adjusts its register copy, and compares the restored
+buffer with a reference. It resumes between low and high parts using saved X/Z.
+
 ## Register and memory logic
 
 AND/OR use `oooo rrr d ss mmm eee`, with `oooo=1100`/`1000` and the same
@@ -616,3 +660,13 @@ wrapped addresses, code overlap, live registers, and retained old-bit Z.
 The [bits example tests](../../../tests/machines/68000/bits-example.test.ts)
 check complete records and RAM images in both modes, live input, reset,
 and restoration between a modifying bit operation and a conditional write.
+
+Paired arithmetic checks enumerate all 960 forms with every incoming flag
+pattern, exhaust byte operand pairs with all four X/Z combinations, and
+check word/long boundaries against independent BigInt signed ranges. Exact
+records cover every register pair, partial-register preservation, both stacks,
+same-An updates, wrapping, overlapping code/data, unchanged writes, alignment
+rejection at either operand, and retrying a rejected instruction as bytes.
+The [extended example tests](../../../tests/machines/68000/extended-example.test.ts)
+check 29 complete records and RAM images in both modes, live addends and
+comparison data, reset preservation, and four carry/borrow snapshot boundaries.
