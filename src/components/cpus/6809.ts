@@ -11,7 +11,7 @@ import type { StateValues, ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import { motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
-import { shiftLeft, shiftRight } from "./alu.ts";
+import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu6809StateDescription = defineState({
@@ -43,7 +43,10 @@ type ByteOperation = (value: number) => number;
 type AccumulatorOperation = (register: Accumulator, value: number) => void;
 type OperandReader = (instruction: InstructionContext) => number;
 type AddressReader = (instruction: InstructionContext) => number | undefined;
-type WordRegister = "d" | "x" | "u";
+type WordRegister = "d" | "x" | "y" | "u" | "s" | "pc";
+type TransferRegister = WordRegister | Accumulator | "cc" | "dp";
+type WordOperation = { readonly bits: string; readonly apply: (value: number) => void };
+type WordTransfer = { readonly bits: string; readonly register: WordRegister };
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
@@ -145,33 +148,62 @@ export class Cpu6809 {
     { bits: "1011", apply: (r, value) => { this.#state[r] = this.#alu.add(this.#state[r], value); } }, // ADDA/B
   ];
 
-  // Word transfers append a load/store bit: 0=LD, 1=ST (no immediate stores).
-  // mm=00 immediate, 01 direct, 10 indexed, 11 extended; Y/S require prefix 10.
-  readonly #wordRegisters = [
-    { bits: "11 mm 110", register: "d" },
-    { bits: "10 mm 111", register: "x" },
-    { bits: "11 mm 111", register: "u" },
-  ] as const;
-
   readonly #directOperandAddress: OperandReader = ({ fetchByte }) => this.#directAddress(fetchByte());
   readonly #indexedOperandAddress: AddressReader = instruction => this.#indexedAddress(instruction);
   readonly #extendedOperandAddress: OperandReader = ({ fetchWord }) => fetchWord();
+  readonly #memoryModes = [
+    { bits: "01", address: this.#directOperandAddress },
+    { bits: "10", address: this.#indexedOperandAddress },
+    { bits: "11", address: this.#extendedOperandAddress },
+  ] as const;
 
-  // Base opcode page only; prefix bytes 10 and 11 remain unsupported.
+  // TFR/EXG postbyte ssss dddd: selector bit 3 chooses word=0/byte=1.
+  // 0000..0101 = D/X/Y/U/S/PC; 1000..1011 = A/B/CC/DP; other selectors are undefined.
+  readonly #transferRegisters = ["d", "x", "y", "u", "s", "pc", undefined, undefined, "a", "b", "cc", "dp"] as const;
+
+  // Prefix 10 selects page 2. Word encodings retain mm=00/01/10/11 addressing.
+  // Transfers append 0=load/1=store; immediate stores are undefined.
+  readonly #page2Handlers = opcodeTable<OpcodeHandler>([
+    ...this.#branchHandlers(({ fetchWord }) => fetchWord()).filter(([opcode]) => opcode !== 0x20), // LBRN and LBcc; LBRA has base opcode 16
+    ...this.#wordHandlers([
+      { bits: "10 mm 0011", apply: value => this.#wordArithmetic("compare", "d", value) }, // CMPD
+      { bits: "10 mm 1100", apply: value => this.#wordArithmetic("compare", "y", value) }, // CMPY
+    ], [
+      { bits: "10 mm 111", register: "y" }, // LDY / STY
+      { bits: "11 mm 111", register: "s" }, // LDS / STS
+    ]),
+  ]);
+  // Prefix 11 selects page 3: the same comparison fields select U/S rather than D/Y.
+  readonly #page3Handlers = opcodeTable<OpcodeHandler>(this.#wordHandlers([
+    { bits: "10 mm 0011", apply: value => this.#wordArithmetic("compare", "u", value) }, // CMPU
+    { bits: "10 mm 1100", apply: value => this.#wordArithmetic("compare", "s", value) }, // CMPS
+  ]));
+
+  // Base opcode page; 10/11 dispatch exactly one following opcode in their own page.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // 0000 oooo: direct unary operations; 1110 is JMP instead of a byte operation.
     ...this.#memoryUnaryHandlers("0000", this.#directOperandAddress),
 
+    ...instructionPattern("0001 0000", instruction => this.#executePage(this.#page2Handlers, instruction)),
+    ...instructionPattern("0001 0001", instruction => this.#executePage(this.#page3Handlers, instruction)),
     ...instructionPattern("0001 0010", () => {}), // NOP
     ...instructionPattern("0001 0110", ({ fetchWord }) => { this.#state.pc = this.#relativeAddress(fetchWord()); }), // LBRA rel16
     ...instructionPattern("0001 0111", ({ fetchWord, writeByte }) => this.#call(this.#relativeAddress(fetchWord()), writeByte)), // LBSR rel16
 
+    ...instructionPattern("0001 1001", () => { this.#state.a = this.#alu.decimalAdjust(this.#state.a); }), // DAA
+    ...instructionPattern("0001 1010", ({ fetchByte }) => this.#writeTransferRegister("cc", packedFlags.encode(this.#state.flags) | fetchByte())), // ORCC
+    ...instructionPattern("0001 1100", ({ fetchByte }) => this.#writeTransferRegister("cc", packedFlags.encode(this.#state.flags) & fetchByte())), // ANDCC
+    ...instructionPattern("0001 1101", () => this.#signExtend()), // SEX
+    // 0001111 t: t=0 exchanges, t=1 transfers; the postbyte selects same-width registers.
+    ...instructionPattern("0001111 0", ({ fetchByte }) => this.#transfer(fetchByte(), true)), // EXG
+    ...instructionPattern("0001111 1", ({ fetchByte }) => this.#transfer(fetchByte(), false)), // TFR
+
     // 0010 ttt p: ttt selects T/HI/CC/NE/VC/PL/GE/GT; bit 0 inverts it.
-    ...opcodeFamily("0010 ttt p", {
-      t: motorolaConditionPairs,
-      p: [false, true],
-    }, ({ t: test, p: invert }) => ({ fetchByte }: InstructionContext) =>
-      this.#branch(signed8(fetchByte()), test(this.#state.flags) !== invert)),
+    ...this.#branchHandlers(({ fetchByte }) => signed8(fetchByte())), // BRA / BRN / Bcc
+
+    // 001100 rr: rr=00/01/10/11 selects X/Y/S/U; only X/Y replace Z.
+    ...this.#addressedHandlers(this.#indexedOperandAddress, opcodeFamily("001100 rr", { r: ["x", "y", "s", "u"] },
+      ({ r }) => (address: number) => this.#loadEffectiveAddress(r, address))), // LEAX / LEAY / LEAS / LEAU
 
     // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
     ...instructionPattern("001101 0 0", ({ fetchByte, writeByte }) => this.#pushRegisters("s", fetchByte(), writeByte)), // PSHS
@@ -179,6 +211,8 @@ export class Cpu6809 {
     ...instructionPattern("001101 1 0", ({ fetchByte, writeByte }) => this.#pushRegisters("u", fetchByte(), writeByte)), // PSHU
     ...instructionPattern("001101 1 1", ({ fetchByte, readByte }) => this.#pullRegisters("u", fetchByte(), readByte)), // PULU
     ...instructionPattern("0011 1001", ({ readByte }) => { this.#state.pc = this.#pullWord("s", readByte); }), // RTS
+    ...instructionPattern("0011 1010", () => { this.#state.x = (this.#state.x + this.#state.b) & 0xffff; }), // ABX, unsigned B; preserve flags
+    ...instructionPattern("0011 1101", () => this.#multiply()), // MUL
 
     // 010 r oooo: A/B unary operations. TST updates flags without writing a result.
     ...this.#unaryOperations.flatMap(({ bits, apply }) => opcodeFamily(`010 r ${bits}`, {
@@ -190,18 +224,36 @@ export class Cpu6809 {
     ...this.#memoryUnaryHandlers("0110", this.#indexedOperandAddress),
     ...this.#memoryUnaryHandlers("0111", this.#extendedOperandAddress),
 
-    // 1 r 00 oooo: immediate A/B operations; word loads occupy the remaining slots.
+    // 1 r 00 oooo: immediate A/B operations; word families occupy the remaining slots.
     ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r 00 ${bits}`,
       { r: ["a", "b"] }, ({ r }) => ({ fetchByte }: InstructionContext) => apply(r, fetchByte()))),
-    ...this.#wordRegisters.flatMap(({ bits, register }) => instructionPattern(`${bits.replace("mm", "00")} 0`,
-      ({ fetchWord }) => this.#loadWord(register, fetchWord()))), // LDD/X/U immediate
     ...instructionPattern("1 0 00 1101", ({ fetchByte, writeByte }) => this.#call(this.#relativeAddress(signed8(fetchByte())), writeByte)), // BSR rel8
 
     // 1 r mm oooo: the same operation selectors with a resolved memory address.
-    ...this.#memoryAccumulatorHandlers("01", this.#directOperandAddress),
-    ...this.#memoryAccumulatorHandlers("10", this.#indexedOperandAddress),
-    ...this.#memoryAccumulatorHandlers("11", this.#extendedOperandAddress),
+    ...this.#memoryModes.flatMap(({ bits, address }) => this.#memoryAccumulatorHandlers(bits, address)),
+
+    // 1 r mm 0011: r=0 subtracts from D, r=1 adds to D. 10 mm 1100 compares X.
+    ...this.#wordHandlers([
+      { bits: "10 mm 0011", apply: value => this.#wordArithmetic("subtract", "d", value) }, // SUBD
+      { bits: "11 mm 0011", apply: value => this.#wordArithmetic("add", "d", value) }, // ADDD
+      { bits: "10 mm 1100", apply: value => this.#wordArithmetic("compare", "x", value) }, // CMPX
+    ], [
+      { bits: "11 mm 110", register: "d" }, // LDD / STD
+      { bits: "10 mm 111", register: "x" }, // LDX / STX
+      { bits: "11 mm 111", register: "u" }, // LDU / STU
+    ]),
+    // SYNC, CWAI, RTI, SWI/SWI2/SWI3, and undefined encodings remain unsupported.
   ]);
+
+  #executePage(table: Readonly<Partial<Record<number, OpcodeHandler>>>, instruction: InstructionContext): "unsupported" | void {
+    const handler = table[instruction.fetchByte()];
+    return handler ? handler(instruction) : "unsupported";
+  }
+
+  #branchHandlers(readOffset: OperandReader): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily("0010 ttt p", { t: motorolaConditionPairs, p: [false, true] },
+      ({ t: test, p: invert }) => instruction => this.#branch(readOffset(instruction), test(this.#state.flags) !== invert));
+  }
 
   #memoryUnaryHandlers(prefix: "0000" | "0110" | "0111", address: AddressReader): readonly OpcodeEntry<OpcodeHandler>[] {
     return this.#addressedHandlers(address, [
@@ -218,12 +270,22 @@ export class Cpu6809 {
         { r: ["a", "b"] }, ({ r }) => (address: number, { readByte }: InstructionContext) => apply(r, readByte(address)))),
       ...opcodeFamily(`1 r ${mode} 0111`, { r: ["a", "b"] }, ({ r }) =>
         (address: number, { writeByte }: InstructionContext) => this.#storeAccumulator(r, address, writeByte)), // STA/B
-      ...this.#wordRegisters.flatMap(({ bits, register }) => [
-        ...addressPattern(`${bits.replace("mm", mode)} 0`, (address, { readByte }) => this.#loadWord(register, this.#readWord(address, readByte))), // LDD/X/U
-        ...addressPattern(`${bits.replace("mm", mode)} 1`, (address, { writeByte }) => this.#storeWord(register, address, writeByte)), // STD/X/U
-      ]),
       ...addressPattern(`1 0 ${mode} 1101`, (address, { writeByte }) => this.#call(address, writeByte)), // JSR
     ]);
+  }
+
+  #wordHandlers(operations: readonly WordOperation[], transfers: readonly WordTransfer[] = []): readonly OpcodeEntry<OpcodeHandler>[] {
+    const reads: readonly WordOperation[] = [
+      ...operations,
+      ...transfers.map(({ bits, register }) => ({ bits: `${bits} 0`, apply: (value: number) => this.#loadWord(register, value) })),
+    ];
+    return [
+      ...reads.flatMap(({ bits, apply }) => instructionPattern(bits.replace("mm", "00"), ({ fetchWord }) => apply(fetchWord()))),
+      ...this.#memoryModes.flatMap(({ bits: mode, address }) => this.#addressedHandlers(address, [
+        ...reads.flatMap(({ bits, apply }) => addressPattern(bits.replace("mm", mode), (address, { readByte }) => apply(this.#readWord(address, readByte)))),
+        ...transfers.flatMap(({ bits, register }) => addressPattern(`${bits.replace("mm", mode)} 1`, (address, { writeByte }) => this.#storeWord(register, address, writeByte))),
+      ])),
+    ];
   }
 
   #addressedHandlers(resolve: AddressReader, entries: readonly OpcodeEntry<AddressedHandler>[]): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -314,6 +376,32 @@ export class Cpu6809 {
     this.#alu.test(value, 16);
   }
 
+  #loadEffectiveAddress(register: "x" | "y" | "s" | "u", address: number): void {
+    this.#state[register] = address; // Overwrite any auto-update of the destination during addressing.
+    if (register === "x" || register === "y") this.#state.flags.z = address === 0;
+  }
+
+  #readTransferRegister(register: TransferRegister): number {
+    if (register === "cc") return packedFlags.encode(this.#state.flags);
+    return register === "d" ? this.#d : this.#state[register];
+  }
+
+  #writeTransferRegister(register: TransferRegister, value: number): void {
+    if (register === "cc") this.#state.flags = packedFlags.decode(value);
+    else if (register === "d") this.#writeWordRegister("d", value);
+    else this.#state[register] = value;
+  }
+
+  #transfer(postbyte: number, exchange: boolean): "unsupported" | void {
+    const sourceCode = postbyte >>> 4, targetCode = postbyte & 0x0f;
+    const source = this.#transferRegisters[sourceCode], target = this.#transferRegisters[targetCode];
+    if (source === undefined || target === undefined || (sourceCode < 8) !== (targetCode < 8)) return "unsupported";
+    // Read both originals before writing either, including CC and the PC after the postbyte.
+    const value = this.#readTransferRegister(source), previous = this.#readTransferRegister(target);
+    this.#writeTransferRegister(target, value);
+    if (exchange) this.#writeTransferRegister(source, previous);
+  }
+
   // Control flow.
 
   #relativeAddress(offset: number): number {
@@ -381,6 +469,31 @@ export class Cpu6809 {
 
   #pullWord(stack: StackPointer, readByte: InstructionContext["readByte"]): number {
     return readWordBE(() => this.#pullByte(stack, readByte));
+  }
+
+  // Arithmetic and CPU-specific flag effects.
+
+  #wordArithmetic(operation: "add" | "subtract" | "compare", register: WordRegister, value: number): void {
+    // Read after addressing: CMPX ,X++ compares the updated X, for example.
+    const left = this.#readWordRegister(register);
+    const arithmetic = operation === "add" ? add(16, left, value) : subtract(16, left, value);
+    this.#alu.test(arithmetic.result, 16);
+    this.#state.flags.v = arithmetic.overflow;
+    this.#state.flags.c = "carry" in arithmetic ? arithmetic.carry : arithmetic.borrow;
+    if (operation !== "compare") this.#writeWordRegister(register, arithmetic.result);
+  }
+
+  #signExtend(): void {
+    this.#state.a = this.#state.b < 0x80 ? 0 : 0xff;
+    this.#state.flags.n = this.#state.b >= 0x80;
+    this.#state.flags.z = this.#state.b === 0; // SEX preserves V, unlike a word load.
+  }
+
+  #multiply(): void {
+    const product = this.#state.a * this.#state.b;
+    this.#writeWordRegister("d", product);
+    this.#state.flags.z = product === 0;
+    this.#state.flags.c = (product & 0x80) !== 0; // Bit 7 supports rounding the high byte, not overflow.
   }
 
   // The 6809 preserves V for right shifts and replaces it for left shifts.

@@ -17,10 +17,10 @@ emulators do not count toward implementation here.
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [253](../../src/components/cpus/8008.ts) | 218 / 250 | 87.2% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [364](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [342](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [332](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [398](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [508](../../src/components/cpus/z80.ts) | 496 / 698 | 71.1% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [409](../../src/components/cpus/6809.ts) | 193 / 268 | 72.0% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [522](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [493](../../src/components/cpus/8088.ts) | 205 / 291 | 70.4% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [504](../../src/components/cpus/68000.ts) | 25,699 / 36,029 | 71.3% |
 
@@ -1057,11 +1057,19 @@ between bytes, full memory images, and fresh factories.
 [Indexed-copy specification](6809/examples/indexed-copy.md) ·
 [Indexed-copy definition](../../src/machines/6809/indexed-copy-example.machine)
 
-**193 / 268 forms (72.0%).** The base-page subtotal is 86 accumulator forms,
-55 unary forms, 21 word loads/stores, 16 short branches, four register-mask
-stack transfers, six call/return forms, three JMP forms, LBRA, and NOP.
-All 41 indexed opcodes support every documented postbyte. No prefixed forms
-are counted.
+[Sum-of-squares specification](6809/examples/sum-of-squares.md) ·
+[Sum-of-squares definition](../../src/machines/6809/sum-of-squares-example.machine)
+
+**262 / 268 forms (97.8%).** All ordinary documented forms are complete:
+217 on the base page, 37 on page 2 (`10`), and eight on page 3 (`11`).
+Only SYNC, CWAI, RTI, and SWI/SWI2/SWI3 remain deferred. There are no separate
+port-I/O forms; interrupt delivery, mapped devices, and timing remain outside
+the model. All 56 indexed forms support every documented postbyte.
+
+The totals comprise 86 accumulator forms, 55 unary forms, 35 word transfers,
+28 word arithmetic/comparison forms, 16 short and 15 prefixed long branches,
+four register-mask stack transfers, six calls/returns, three JMP forms,
+LBRA, NOP, and the 12 additional inherent/status/register forms below.
 
 Accumulator opcodes use **`1 r mm oooo`**: `r=0` selects A, `r=1` selects B;
 `mm=00/01/10/11` selects immediate/direct/indexed/extended addressing.
@@ -1112,6 +1120,10 @@ and memory-access rules are in the [model contract](6809/model.md#accumulator-op
 | `12` | `NOP` | Inherent | 1 | Advance PC only |
 | `16` | `LBRA rel16` | Long relative | 3 | Add signed word to PC after the operand |
 | `17` | `LBSR rel16` | Long relative | 3 | Stack return PC on S and branch |
+| `19` | `DAA` | Inherent | 1 | Adjust A after BCD addition; N/Z/C, preserve H, clear undefined V under model policy |
+| `1A` / `1C` | `ORCC` / `ANDCC` | Immediate | 2 | Combine packed CC with the immediate byte; replace all eight flags |
+| `1D` | `SEX` | Inherent | 1 | Sign-extend B into D; replace N/Z, preserve V and other flags |
+| `1E` / `1F` | `EXG` / `TFR` | Register postbyte | 2 | Exchange/transfer any documented same-width pair; includes D, PC, and CC |
 | `20` | `BRA rel` | Short relative | 2 | Branch always |
 | `21` | `BRN rel` | Short relative | 2 | Branch never; fetch displacement and advance PC |
 | `22` | `BHI rel` | Short relative | 2 | Branch if C = 0 and Z = 0 |
@@ -1128,18 +1140,27 @@ and memory-access rules are in the [model contract](6809/model.md#accumulator-op
 | `2D` | `BLT rel` | Short relative | 2 | Branch if N ≠ V |
 | `2E` | `BGT rel` | Short relative | 2 | Branch if Z = 0 and N = V |
 | `2F` | `BLE rel` | Short relative | 2 | Branch if Z = 1 or N ≠ V |
+| `30`–`33` | `LEAX` / `LEAY` / `LEAS` / `LEAU` | Indexed | 2–4 | Load resolved address; X/Y replace only Z, S/U preserve flags |
 | `34` | `PSHS mask` | Immediate register mask | 2 | Push any selection of CC/A/B/DP/X/Y/U/PC onto S; preserve flags |
 | `35` | `PULS mask` | Immediate register mask | 2 | Pull any selection of CC/A/B/DP/X/Y/U/PC from S; flags change only if CC is selected |
 | `36` | `PSHU mask` | Immediate register mask | 2 | Push any selection of CC/A/B/DP/X/Y/S/PC onto U; preserve flags |
 | `37` | `PULU mask` | Immediate register mask | 2 | Pull any selection of CC/A/B/DP/X/Y/S/PC from U; flags change only if CC is selected |
 | `39` | `RTS` | Inherent | 1 | Pull PC from S, high byte then low; no adjustment |
+| `3A` | `ABX` | Inherent | 1 | Add unsigned B to X, wrapping; preserve flags |
+| `3D` | `MUL` | Inherent | 1 | Unsigned A × B into D; Z tests word, C copies product bit 7 |
 | `8D` | `BSR rel8` | Short relative | 2 | Stack return PC on S and branch |
 | `9D` / `AD` / `BD` | `JSR` | Direct / indexed / extended | 2 / 2–4 / 3 | Stack return PC on S and jump |
+
+Page `10` supplies long counterparts of `21`–`2F` (LBRN and fourteen
+conditional branches). These four-byte instructions fetch a high/low signed
+word displacement on both paths, relative to PC after all four bytes. There
+is no `10 20` LBRA alias. They preserve the same flags as short branches.
 
 Word transfers use the same addressing selectors. Loads set N/Z from the full
 word and clear V; stores apply the same flags to the stored value. Both preserve
 E/F/H/I/C. Immediate word loads are three bytes; memory forms have the same
-instruction lengths as the byte forms above. Word data is high byte first.
+instruction lengths as the byte forms above. A page prefix adds one byte.
+Word data is high byte first.
 
 | Operation | Immediate | Direct | Indexed | Extended |
 | --- | --- | --- | --- | --- |
@@ -1149,19 +1170,40 @@ instruction lengths as the byte forms above. Word data is high byte first.
 | STX | — | `9F` | `AF` | `BF` |
 | LDU | `CE` | `DE` | `EE` | `FE` |
 | STU | — | `DF` | `EF` | `FF` |
+| LDY | `10 8E` | `10 9E` | `10 AE` | `10 BE` |
+| STY | — | `10 9F` | `10 AF` | `10 BF` |
+| LDS | `10 CE` | `10 DE` | `10 EE` | `10 FE` |
+| STS | — | `10 DF` | `10 EF` | `10 FF` |
+
+Word arithmetic replaces N/Z/V/C and preserves E/F/H/I. ADDD/SUBD write D;
+comparisons preserve their register apart from an indexed auto-update. C is
+carry for addition and borrow for subtraction/comparison. The full-word
+comparison differs from the original 6800's bytewise CPX.
+
+| Operation | Immediate | Direct | Indexed | Extended |
+| --- | --- | --- | --- | --- |
+| SUBD | `83` | `93` | `A3` | `B3` |
+| ADDD | `C3` | `D3` | `E3` | `F3` |
+| CMPX | `8C` | `9C` | `AC` | `BC` |
+| CMPD | `10 83` | `10 93` | `10 A3` | `10 B3` |
+| CMPY | `10 8C` | `10 9C` | `10 AC` | `10 BC` |
+| CMPU | `11 83` | `11 93` | `11 A3` | `11 B3` |
+| CMPS | `11 8C` | `11 9C` | `11 AC` | `11 BC` |
 
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A, B, DP, X, Y, S, U, PC |
 | Stored flags | E/F/H/I/N/Z/V/C; CC packed/unpacked for stack transfers |
-| Register relationships | D reads derive A:B and LDD writes both bytes; snapshots retain detached numeric D |
+| Register relationships | D derives A:B; TFR/EXG support all 52 documented same-width pairs including D/PC/CC; snapshots retain detached numeric D |
 | Addressing | Immediate bytes/words, direct DP:offset, extended addresses, all documented indexed modes, and signed byte/word relative offsets; 16-bit wrapping |
-| Branches | All short conditions, BRA/BRN, and LBRA; fetch operands on every path and preserve flags |
+| Branches | All short and long conditions, BRA/BRN, LBRN, and LBRA; fetch operands on every path and preserve flags |
 | Stack | Descending S/U, all register masks, wrapping pointers; calls/RTS share S word transfers |
 | Reset | Read `FFFE` then `FFFF` for PC, clear DP, set F/I; preserve other state and RAM |
-| Prefixes | `10` and `11` rejected after one read with unchanged state; no second-byte fetch |
+| Prefixes | `10`/`11` select separate opcode pages; unsupported page entries read prefix and opcode, then restore PC without other effects |
 | Stopping | Caller-owned completion address and budget; no synthetic halt or completion outcome |
-| Remaining scope | 16-bit arithmetic, Y/S loads/stores, LEA, register transfers/exchanges, multiply, decimal adjustment, CC operations, prefixed conditional long branches, interrupts and interrupt controls |
+| Word and arithmetic operations | All D/X/Y/U/S loads/stores, ADDD/SUBD and word comparisons; LEA, ABX, SEX, MUL, and DAA with explicit original-6809 flag rules |
+| Status operations | ANDCC/ORCC and CC transfers replace all eight flags; later instructions use live flags |
+| Remaining scope | SYNC, CWAI, RTI, SWI/SWI2/SWI3, interrupt delivery, mapped devices, timing, and NMI arming |
 
 The [reset preservation policy](6809/model.md#cpu-reset) does not claim
 hardware power-on values for unspecified state. NMI arming, interrupt handling,
@@ -1178,8 +1220,8 @@ checks retain all branch conditions, stack masks, state validation, snapshots,
 reset and unsupported-attempt contracts.
 
 Indexed checks cover all 217 documented postbytes across signed offsets,
-register selectors, auto-update and PC/pointer wrapping. All 41 indexed opcodes
-reject all 39 undefined postbytes before effects. Word checks cover all 21
+register selectors, auto-update and PC/pointer wrapping. All 56 indexed forms
+reject all 39 undefined postbytes before effects. Word checks cover all 35
 load/store forms, every CC value, every LDD result, address/source aliasing,
 byte order, and loads overwriting an index auto-update. The
 [indexed-copy tests](../../tests/machines/6809/indexed-copy-example.test.ts)
@@ -1198,6 +1240,17 @@ restart, a failure path, and bounded looping. Existing
 [counted-loop](../../tests/machines/6809/counted-loop-example.test.ts) examples
 and [public type checks](../../tests/types/6809.ts) remain covered. See also the
 [independent CoCo comparison](6809/reference-notes.md#expanded-byte-instruction-comparison).
+
+The [sum-of-squares tests](../../tests/machines/6809/sum-of-squares-example.test.ts)
+check 48 complete records, word accumulation through stack locals, all RAM,
+actual reads/writes, snapshot resumption, reset, fresh factories, and bounded
+failure. New instruction tests check every word input for immediate word
+operations, all forms/flags at boundaries, all indexed postbytes and register
+auto-update interactions, every same-width TFR/EXG pair, and invalid selectors.
+ANDCC/ORCC, SEX, and DAA exhaust bytes and CC values; MUL exhausts byte pairs.
+BCD results also match base-ten addition. Long branches cover every flag
+pattern and all word displacements on taken/untaken paths. Literal opcode
+sets audit all three pages and distinguish the six deferred interrupt forms.
 
 ## Z80
 

@@ -104,7 +104,7 @@ Choose the grouping from the CPU's encoding:
 | [8080](../../src/components/cpus/8080.ts) | `xx yyy zzz`; leading `xx` blocks, then `zzz` subgroups where it selects the family; split `yyy` into `pp q` for pair operations |
 | [6502](../../src/components/cpus/6502.ts) | `aaa bbb cc`; `cc=01` groups `aaa` operations with shared `bbb` operand readers; `cc=00/10` retain `bbb` subgroups and their distinct implied/addressing forms |
 | [6800](../../src/components/cpus/6800.ts) | Accumulator forms use `1 r mm oooo`; `r` selects A/B, `mm` the addressing mode, and `oooo` the operation; unary forms use `01 tt oooo`, with `tt` selecting A/B/indexed/extended; short branches use `0010 ttt p`, keeping the unused `21` explicit |
-| [6809](../../src/components/cpus/6809.ts) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte |
+| [6809](../../src/components/cpus/6809.ts) | Base-page accumulator families use `1 r mm oooo`; unary groups use `0000 oooo`, `010r oooo`, `0110 oooo`, and `0111 oooo`; stack instructions use `001101 s p` and a separate register-mask postbyte; pages `10`/`11` share word-family builders, with long conditions on page `10` |
 | [Z80](../../src/components/cpus/z80.ts) | Unprefixed `xx yyy zzz` groups and a separate CB `xx yyy rrr` table; decode the complete supported encoding before committing state |
 | [8088](../../src/components/cpus/8088.ts) | Family-specific fields: `00 ooo 0 d w` / `00 ooo 10 w` for ALU families, `mm ggg rrr` for ModR/M operands or operation extensions, `0101 p rrr` for register stacks, `0111 ttt p` for conditional jumps, and `1010 00 d w` / `1011 w rrr` for transfers; wrap byte offsets within the selected segment before mapping to the physical bus |
 | [68000](../../src/components/cpus/68000.ts) | Sixteen-bit operation words; MOVE encodes destination register/mode before source mode/register; immediate ALU families encode operation, size, and a data-alterable effective address |
@@ -427,10 +427,12 @@ NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition tests. The opcode tables retain
 the 6800's absent BRN and the 68000 branch family's BSR exception.
 
 `motorolaByteAlu` shares the 6800/6809 byte addition, subtraction, complement,
-increment/decrement, shift-result, test-result, and clear behavior. It receives
+increment/decrement, shift-result, test-result, clear, and decimal-adjust behavior. It receives
 a flag getter and reads it only during execution, so restoring CC cannot leave
 operations attached to an old flag object. Addition replaces H; subtraction
 preserves it under the existing model contracts. Unnamed flags are preserved.
+Decimal adjustment uses the original A/H/C, preserves H, and clears undefined
+V under the shared model policy.
 The CPUs keep their differences visible: 6800 TST clears C, 6809 TST preserves
 it; every 6800 shift sets V=N XOR C, while 6809 right shifts preserve V.
 The 6800's write-only CLR and the 6809's read/modify/write CLR stay in their

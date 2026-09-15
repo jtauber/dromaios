@@ -19,8 +19,9 @@ and targeted observations, not a certification of the complete emulator.
   the proposed lesson confirmed that reset clears the registers while leaving
   the stored result intact. The new reset follows the narrower [model policy](model.md#cpu-reset).
   The old step path advances PC before reporting unsupported instructions and
-  fetches a second byte after a prefix. Here both boundaries stop without
-  changing state, using the explicit [prefix policy](model.md#unsupported-instructions-and-prefixes).
+  fetches a second byte after a prefix. Dromaios also fetches the page opcode,
+  but restores PC on rejection without changing other state, using the explicit
+  [prefix policy](model.md#unsupported-instructions-and-prefixes).
 - **Check prose against hardware.** The [CoCo architecture note][coco-architecture]
   assigns BSR/JSR to U, but those calls use S in both [Motorola's instruction
   definitions][instructions] and the reference implementation. Do not carry that statement

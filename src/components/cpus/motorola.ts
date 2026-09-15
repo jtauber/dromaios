@@ -47,6 +47,17 @@ export function motorolaByteAlu(readFlags: () => ConditionCodes & { h: boolean }
       flags.v = overflow;
       return result;
     },
+    decimalAdjust(value: number): number {
+      const flags = readFlags();
+      // Both corrections use the original byte and flags, before either nibble changes.
+      const low = (value & 0x0f) > 9 || flags.h ? 0x06 : 0;
+      const high = value > 0x99 || flags.c ? 0x60 : 0;
+      const { result, carry } = add(8, value, low + high);
+      setNZ(flags, result);
+      flags.v = false; // Explicit model policy for the hardware-undefined V; preserve H.
+      flags.c = flags.c || carry;
+      return result;
+    },
     complement(value: number): number {
       const flags = readFlags(), result = value ^ 0xff;
       setNZ(flags, result);

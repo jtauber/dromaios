@@ -11,7 +11,7 @@ import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
-import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
+import { subtract, shiftLeft, shiftRight } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
@@ -132,7 +132,7 @@ export class Cpu6800 {
     ...instructionPattern("0001011 0", () => this.#loadAccumulator("b", this.#state.a)), // TAB
     ...instructionPattern("0001011 1", () => this.#loadAccumulator("a", this.#state.b)), // TBA
 
-    ...instructionPattern("0001 1001", () => this.#decimalAdjust()), // DAA
+    ...instructionPattern("0001 1001", () => { this.#state.a = this.#alu.decimalAdjust(this.#state.a); }), // DAA
     ...instructionPattern("0001 1011", () => { this.#state.a = this.#alu.add(this.#state.a, this.#state.b); }), // ABA
 
     // 0010 ttt p: bits 3..1 select a condition; bit 0 selects it (0) or its inverse (1).
@@ -303,16 +303,6 @@ export class Cpu6800 {
     this.#state.flags.n = (result & 0x80) !== 0;
     this.#state.flags.z = this.#state.x === value;
     this.#state.flags.v = overflow;
-  }
-
-  #decimalAdjust(): void {
-    const { a, flags } = this.#state;
-    const lowCorrection = (a & 0x0f) > 9 || flags.h ? 0x06 : 0;
-    const highCorrection = a > 0x99 || flags.c ? 0x60 : 0;
-    const { result, carry } = add(8, a, lowCorrection + highCorrection);
-    this.#state.a = result;
-    this.#alu.test(result); // Preserve H/I; clear the hardware-undefined V as model policy.
-    flags.c = flags.c || carry;
   }
 
   #shiftResult(shifted: ShiftResult): number {

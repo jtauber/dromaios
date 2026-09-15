@@ -155,7 +155,7 @@ test("the runner executes decimal ADC and records its operand within the step bu
   assert.deepEqual(read.mock.calls.map(call => call.arguments), [[0x0203], [0x0204]]);
 });
 
-test("an unsupported 6809 prefix is retained as a partial attempt", (t) => {
+test("an unsupported prefixed 6809 opcode is retained as a partial attempt", (t) => {
   const { cpu, ram } = create6809Example();
   ram.write(0x0200, 0x10);
   ram.write(0x0201, 0x86);
@@ -163,8 +163,8 @@ test("an unsupported 6809 prefix is retained as a partial attempt", (t) => {
   const result = runCpu(cpu, { maxSteps: 10 });
   assert.equal(result.stopReason, "unsupported");
   assert.equal(result.records.length, 1);
-  assert.deepEqual(result.records[0]?.instruction, { address: 0x0200, bytes: [0x10] });
-  assert.deepEqual(read.mock.calls.map(call => call.arguments), [[0x0200]]);
+  assert.deepEqual(result.records[0]?.instruction, { address: 0x0200, bytes: [0x10, 0x86] });
+  assert.deepEqual(read.mock.calls.map(call => call.arguments), [[0x0200], [0x0201]]);
   assert.equal(cpu.snapshot().pc, 0x0200);
 });
 

@@ -99,7 +99,7 @@ old contents. It must not read that old value or skip an unchanged-value write.
 For ADDA, H indicates a carry out of bit 3, C indicates an unsigned sum above
 `FF`, and V indicates that the signed sum is outside -128 through 127.
 There is no carry input and no 6502-style decimal-mode flag. Decimal adjustment
-uses a separate DAA instruction, which remains unsupported here.
+uses a separate DAA instruction, which this example does not need.
 
 The CPU wraps PC and operand fetches to 16 bits. RAM itself continues to
 validate host addresses. Fetch both extended-address bytes before writing,

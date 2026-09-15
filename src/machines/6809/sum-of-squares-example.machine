@@ -1,0 +1,41 @@
+// Sum 3² + 4² + 5² using indexed input and a subroutine with a stack local.
+ram 10000
+
+cpu 6809 {
+    A = 11  B = 34  DP = 20
+    X = 2345  Y = 4567  S = 8888  U = 5555  PC = 0200
+    flags { E = 1  F = 0  H = 1  I = 0  N = 1  Z = 0  V = 1  C = 1 }
+}
+
+memory 2021 { CC  00 00 00 00 00 00  CC } // Sum, final Y, and final S.
+memory 07FB { CC  00 00 00 00  CC } // Two-byte local, two-byte return address, guards.
+memory 30FE { CC  03 04 05  CC }
+
+memory 0200 {
+    10 CE 08 00  // LDS #$0800
+    10 8E 30 FF  // LDY #$30FF: input crosses a page boundary
+    CE 00 00     // LDU #$0000: running total
+    A6 A0        // LDA ,Y+
+    1F 89        // TFR A,B
+    BD 03 00     // JSR $0300
+    10 8C 31 02  // CMPY #$3102: just past the input
+    10 26 FF F1  // LBNE $020B
+    DD 22        // STD <$22: total = 0032H (decimal 50)
+    10 9F 24     // STY <$24
+    10 DF 26     // STS <$26
+}
+
+memory 0300 {
+    32 7E        // LEAS -2,S: allocate a word local below the return address
+    3D           // MUL: D = A × B
+    1E 03        // EXG D,U: D = previous total, U = product
+    ED E4        // STD ,S: retain the previous total in the local
+    1F 30        // TFR U,D
+    E3 E4        // ADDD ,S: product + previous total
+    1F 03        // TFR D,U: keep the new total
+    32 62        // LEAS 2,S: discard the local
+    39           // RTS
+}
+
+memory FFFE { 02 00 }
+end 0222

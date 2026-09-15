@@ -20,6 +20,8 @@ This is not an HD6309 model or a complete Color Computer.
 One `step()` attempts one instruction. The caller owns any completion address
 and execution budget; the CPU has no example-specific halt latch. Interrupt
 inputs, timing, dummy bus accesses, devices, and browser controls are deferred.
+All 262 ordinary documented forms are implemented; SYNC, CWAI, RTI, and
+SWI/SWI2/SWI3 remain deferred. The 6809 has no separate port-I/O instructions.
 
 ## State and initialization
 
@@ -66,8 +68,9 @@ export type Cpu6809Snapshot = Readonly<Omit<Cpu6809State, "flags">> & {
 D is not a separate initialization input. Passing an existing snapshot is
 structurally permitted; its `d` is ignored and recomputed from the copied A
 and B. Extra properties, including a supplied `d` getter, must not be read.
-There is no public setter for D. LDD updates A and B together; STD reads the
-combined word without storing another copy.
+There is no public setter for D. Word arithmetic, LDD, MUL, and register
+transfers update A/B together; STD reads the combined word without storing
+another copy.
 
 ## Snapshots and ownership
 
@@ -116,18 +119,18 @@ TST changes only flags. Snapshots always derive D from the resulting A:B.
 ADD and ADC replace H/N/Z/V/C; only ADC includes incoming C. SUB, SBC, and CMP
 replace N/Z/V/C, with C indicating a borrow; only SBC subtracts incoming C.
 CMP leaves the accumulator unchanged. Arithmetic is binary, wraps to eight
-bits, and uses signed overflow for V. Decimal adjustment is a separate,
-unimplemented instruction.
+bits, and uses signed overflow for V. Decimal adjustment is a separate DAA
+instruction, described below.
 
 Immediate operands are fetched from the instruction stream. Direct addresses
 combine the current DP with a fetched byte; extended addresses fetch high then
 low and bypass DP. Loads and binary operations perform one data read; stores
 perform one write without reading the destination. Operand bytes are captured
-before data accesses, including when code and data overlap. Indexed addressing
-remains unsupported.
+before data accesses, including when code and data overlap. Indexed forms use
+the shared address decoder described below.
 
 Unary NEG, COM, LSR, ROR, ASR, ASL/LSL, ROL, DEC, INC, TST, and CLR operate on
-A, B, direct memory, or extended memory:
+A, B, direct, indexed, or extended memory:
 
 - NEG replaces N/Z/V/C, setting V only for `80` and C for any nonzero input.
   COM replaces N/Z, clears V, and sets C.
@@ -185,7 +188,8 @@ wrap across `FFFF` to `0000`. Indirection reads a pointer high byte then low
 before any final data access. Pointer and data reads appear only in `accesses`;
 postbytes and offset/address extension bytes also appear in `instruction.bytes`.
 
-LDD/LDX/LDU and STD/STX/STU transfer words high byte first. The second byte
+LDD/LDX/LDY/LDU/LDS and STD/STX/STY/STU/STS transfer words high byte first.
+Y/S loads and stores use opcode-page prefix `10`. The second byte
 uses the next address in the full 16-bit space, including direct-page transfers
 starting at `DP:FF`. Loads/stores set N from bit 15 and Z from the entire word,
 clear V, and preserve E/F/H/I/C. Stores do not read the destination first.
@@ -199,11 +203,71 @@ These rules also apply when operands overlap the instruction stream.
 The [indexed-copy example](examples/indexed-copy.md) copies words through a
 zero sentinel using X/U postincrement, then saves the final pointers.
 
+## Word arithmetic and comparisons
+
+ADDD and SUBD add/subtract a full word to/from D, ignoring incoming C.
+CMPD/CMPX/CMPY/CMPU/CMPS compare the named word without replacing it.
+All use immediate, direct, indexed, and extended operands, high byte first.
+CMPD/CMPY use page `10`; CMPU/CMPS use page `11`.
+
+These instructions replace N/Z/V/C and preserve E/F/H/I. N uses bit 15,
+Z tests the complete result, V reports signed overflow, and C records carry
+for addition or borrow for subtraction/comparison. Results wrap to 16 bits.
+Unlike the original 6800 CPX, these comparisons include low-byte borrowing
+and replace C. Address resolution precedes reading the compared register:
+`CMPX ,X++` compares the updated X with the word at its original address.
+
+## Effective addresses and register transfers
+
+LEAX/LEAY/LEAS/LEAU calculate any documented indexed address and copy it to
+the named register. Indirect forms read the pointer, but LEA does not read
+data at the final address. LEAX/LEAY replace only Z; LEAS/LEAU preserve all
+flags. A destination also used as the index receives the final effective
+address after auto-update: `LEAX ,X++` consequently leaves X unchanged.
+ABX adds unsigned B to X with 16-bit wrapping and preserves all flags.
+
+TFR/EXG use postbyte `ssss dddd`. Word selectors `0`–`5` name D/X/Y/U/S/PC;
+byte selectors `8`–`B` name A/B/CC/DP. Only same-width pairs are documented,
+including a register paired with itself. Reserved or mixed-width pairs are
+rejected before either register changes. TFR copies source to destination;
+EXG exchanges their original values. PC means the address after the postbyte,
+and writing PC transfers control without a target read. D reads/writes A:B;
+CC reads/writes all eight flags. Other registers and flags remain unchanged.
+
+ANDCC/ORCC combine the immediate byte with packed CC and replace all eight
+flags. These and TFR/EXG are ordinary status operations even when they change
+interrupt-mask bits; interrupt delivery remains outside the model. Later
+arithmetic reads the replaced flags, while older snapshots remain detached.
+
+## Multiply, sign extension, and decimal adjustment
+
+MUL multiplies unsigned A by unsigned B into D. Only Z and C change: Z tests
+the entire product; C copies product bit 7, allowing a subsequent ADCA #0
+to round the high byte. C does not indicate multiplication overflow.
+SEX extends signed B into D by setting A to `00` or `FF`; it replaces N/Z
+and preserves E/F/H/I/V/C, including V as specified in Appendix A.
+
+DAA corrects A after ADDA/ADCA on packed-BCD operands. Each correction is
+chosen from the original state: add `06` if the low nibble exceeds nine or
+H is set; add `60` if the high nibble exceeds nine, or if it is nine with a
+low nibble above nine, or if C is set. A wraps to a byte. N/Z describe that
+byte; C retains incoming carry or reports adjustment overflow. E/F/H/I are
+preserved. Appendix A leaves V undefined (Appendix D shows zero); this model
+clears it. The same correction rules apply deterministically to other A/H/C
+combinations, without claiming valid decimal arithmetic for invalid BCD inputs.
+The 6800 and 6809 share this adjustment helper and explicit V policy.
+
+The [sum-of-squares example](examples/sum-of-squares.md) combines word
+arithmetic, multiplication, register exchange, stack locals, and long branches.
+
 ## Jumps and subroutines
 
 LBRA and LBSR fetch a signed 16-bit displacement, high byte first; BSR uses a
 signed byte. Each displacement is relative to PC after the complete operand,
-with 16-bit wrapping. Direct JMP/JSR use DP:offset and extended JMP/JSR fetch a
+with 16-bit wrapping. Page `10` adds LBRN and fourteen long conditional
+branches (`10 21`–`10 2F`): they fetch both displacement bytes on every path
+and test the same flags as their short equivalents. There is no `10 20`
+LBRA alias; LBRA retains base opcode `16`. Direct JMP/JSR use DP:offset and extended JMP/JSR fetch a
 high/low target address. Indexed JMP/JSR use the resolved effective address,
 including indirection and auto-updates. None reads or prefetches the target
 instruction.
@@ -227,7 +291,8 @@ For an unsupported first byte, record one opcode read and unchanged state and
 RAM. A repeated attempt repeats the same read and leaves PC in place. The
 [coverage tracker](../coverage.md#6809) lists the current supported forms.
 
-For an undefined indexed postbyte, record the opcode and postbyte reads,
+For an undefined indexed or transfer/exchange postbyte, record the opcode
+(including its prefix, if present) and postbyte reads,
 return reason `opcode`, and leave all state (including PC) and RAM unchanged.
 Do not fetch offset bytes, read an indirect pointer, update an index register,
 or execute the operation. Replacing the postbyte in RAM allows the next attempt
@@ -235,11 +300,12 @@ to proceed normally. Rejection is a model boundary, not an emulation of the
 hardware's undefined behavior.
 
 **Prefix policy:** `10` and `11` select additional opcode pages in the
-[hardware opcode map][opcodes]. This subset stops after reading the prefix
-byte itself: bytes `[10]` or `[11]`, one read, reason `opcode`, unchanged PC.
-It does not fetch the next byte or dispatch it as a base-page instruction.
-These records are partial attempts, not decoded full prefixed instructions.
-Supporting either page will require a separate change to this boundary.
+[hardware opcode map][opcodes]. A step fetches the prefix and exactly one
+following opcode, then any operands of that page's supported instruction.
+Unsupported page entries record `[prefix, opcode]`, reason `opcode`, and
+unchanged state/RAM, with PC restored to the prefix. They fetch no operands.
+Repeated prefixes do not nest or fall back to the base page. Fetching can
+wrap at `FFFF`; each attempt consults current RAM and retains no prefix latch.
 
 The caller must stop on unsupported results and use a bounded instruction
 budget when running programs.
@@ -305,9 +371,25 @@ check all forms and CC values, every possible LDD result, word boundary accesses
 and load/store aliasing with updated index registers. Indexed JSR checks S
 wrapping and indirect pointer reads before return-address writes.
 
-Unsupported first bytes are checked on repeated attempts, particularly
-`10`/`11` followed by an otherwise supported byte, including a prefix at
-`FFFF`. Reset checks cover ordered vector reads and DP/F/I changes across
+All three opcode pages are audited against literal independent encoding sets:
+217 base forms, 37 page-2 forms, and eight page-3 forms. Unsupported page
+entries include the six deferred interrupt forms and repeated prefixes.
+All 56 indexed forms reject all 39 undefined postbytes; valid indexed modes
+also test auto-update, indirection, and overlap with code/data.
+
+New word forms check all CC values at word boundaries and every immediate
+word against independent signed/unsigned arithmetic. LEA checks all indexed
+postbytes, self-updates, and flag preservation. TFR/EXG check all 52 valid
+same-width pairs, every CC value, PC/D/CC interactions, and all 204 invalid
+postbytes. ANDCC/ORCC check every CC/immediate pair. MUL checks every byte
+pair; SEX and DAA check every byte/CC combination, with decimal additions
+also checked against base-ten sums. Long branches check every flag pattern,
+wrap boundaries, and every word displacement on taken and untaken paths.
+The sum-of-squares example checks 48 complete records, a complete memory
+image, actual RAM calls, resumption inside a stack frame, and bounded failure.
+
+Unsupported first bytes and prefixed opcodes are checked on repeated
+attempts, including a prefix at `FFFF`. Reset checks cover ordered vector reads and DP/F/I changes across
 mixed flags and nonzero registers, preservation of all other state and RAM,
 repeated reset, changed vectors, and resumed execution at `0000`, `3456`,
 and `FFFF`.
@@ -319,8 +401,8 @@ relationships, including the distinction between reset and step records.
 ## Implementation notes
 
 Private operation helpers compose with recorded operand/address access through
-the opcode table, keeping byte order and flag behavior explicit. The short
-branches use the shared [opcode definition experiment](../opcode-definitions.md)
+the opcode table, keeping byte order and flag behavior explicit. All three
+pages share word-operation/addressing builders. Short and long branches use the shared [opcode definition experiment](../opcode-definitions.md)
 to bind encoded conditions and polarity; their execution stays CPU-specific.
 [Focused examples](../scope.md) inform further interfaces; the
 [CoCo reference notes](reference-notes.md) record evidence from the earlier
@@ -331,7 +413,8 @@ implementation and ideas to revisit.
 - [Motorola MC6809–MC6809E programming manual, sections 1–3][model]: register
   relationships, reset, NMI arming, and vector byte order.
 - [Motorola instruction details, Appendix A][instructions]: accumulator operations,
-  branch conditions, RESTART, and calls.
+  word arithmetic, addressing, register transfers, decimal adjustment, multiply,
+  sign extension, branch conditions, RESTART, and calls.
 - [Appendix F opcode map][opcodes]: prefixes and opcode pages.
 
 These links are HTML transcriptions of the manufacturer manual. Explicit
