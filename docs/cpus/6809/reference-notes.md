@@ -12,7 +12,8 @@ and targeted observations, not a certification of the complete emulator.
   pass addressing-specific reads into operation families, and keep the extended
   store's address resolution separate from a data read. Retain that separation.
   The expanded byte families now share operand readers while retaining explicit
-  encoding groups and unsupported indexed forms.
+  encoding groups. Indexed forms now share address resolution with byte and word
+  operations.
 - **Specify reset and stopping independently.** The old CPU reset clears A/B,
   X/Y, S/U, and CC before setting F/I and reading the vector. A targeted run of
   the proposed lesson confirmed that reset clears the registers while leaving
@@ -62,6 +63,28 @@ accesses agreed, with one intentional correction:
 This comparison supplements the independently authored arithmetic, flag,
 addressing, and stack expectations in the [CPU tests](../../../tests/components/cpus/6809.test.ts).
 The old emulator remains design evidence, not the definition of correctness.
+
+## Indexed and word-transfer comparison
+
+A further 21,634 single-step cases compared stored state, D, flags, ordered RAM
+accesses, and written memory against the same pinned implementation:
+
+- 41 indexed opcodes × 217 documented postbytes × two initial CC patterns:
+  17,794 cases, with varied registers, memory contents, and instruction wrapping.
+- 15 newly supported immediate/direct/extended word-load/store forms × all
+  256 initial CC values: 3,840 cases. The six indexed word forms are included above.
+
+All cases agree after accounting for the old emulator's omitted read in the
+434 indexed CLR cases, matching the correction already documented above.
+Its indexed word stores confirm address resolution and register auto-update
+before reading the source; word loads replace any auto-updated destination.
+
+The reference decoder accepts undefined forms, including indirect increment
+or decrement by one and aliases of extended indirect. Dromaios follows
+[Motorola Table 2-1](https://www.maddes.net/m6809pm/sections.htm): PC-relative
+forms explicitly ignore rr, but extended indirect is exactly `9F`. All 39
+undefined postbytes are rejected without effects. Their rejection expectations
+come from the model boundary and independent tests, not the CoCo decoder.
 
 The pinned sources provide implementation ideas. Dromaios's
 [model contract](model.md) defines its reset, prefix rejection, and record API;

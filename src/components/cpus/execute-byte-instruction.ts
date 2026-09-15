@@ -12,11 +12,13 @@ export interface ByteInstructionExecution {
 
 /**
  * Attempt one byte opcode in a flat 16-bit address space, using the supplied word byte order.
- * Unsupported opcodes record only their fetch and preserve PC. Callers own snapshots and HALT.
+ * Unknown opcodes record only their fetch. Handlers may reject an encoding after operand fetches,
+ * but must do so before changing other state or RAM. Either rejection restores PC.
+ * Callers own snapshots and HALT.
  */
 export function executeByteInstruction(
   state: { pc: number }, ram: Ram,
-  handlers: Readonly<Partial<Record<number, (instruction: WordInstructionContext) => void>>>,
+  handlers: Readonly<Partial<Record<number, (instruction: WordInstructionContext) => "unsupported" | void>>>,
   readWord: (nextByte: () => number) => number,
 ): ByteInstructionExecution {
   const { accesses, readByte, writeByte } = recordMemory(ram);
@@ -24,6 +26,7 @@ export function executeByteInstruction(
   const opcode = readByte(address);
   const bytes = [opcode];
   const handler = handlers[opcode];
+  let executed = false;
   if (handler) {
     state.pc = (address + 1) & 0xffff;
     // Read the live PC and RAM: handlers may interleave operand fetches with state changes or writes.
@@ -34,7 +37,8 @@ export function executeByteInstruction(
       bytes.push(byte);
       return byte;
     };
-    handler({ fetchByte, fetchWord: () => readWord(fetchByte), readByte, writeByte });
+    executed = handler({ fetchByte, fetchWord: () => readWord(fetchByte), readByte, writeByte }) !== "unsupported";
+    if (!executed) state.pc = address;
   }
-  return { instruction: { address, bytes }, accesses, executed: handler !== undefined };
+  return { instruction: { address, bytes }, accesses, executed };
 }

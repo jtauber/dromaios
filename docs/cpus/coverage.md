@@ -20,7 +20,7 @@ emulators do not count toward implementation here.
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [249](../../src/components/cpus/6800.ts) | 115 / 197 | 58.4% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [423](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [455](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [396](../../src/components/cpus/6809.ts) | 137 / 268 | 51.1% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [503](../../src/components/cpus/6809.ts) | 193 / 268 | 72.0% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [428](../../src/components/cpus/8088.ts) | 155 / 291 | 53.3% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [525](../../src/components/cpus/68000.ts) | 25,699 / 36,029 | 71.3% |
 
@@ -958,47 +958,53 @@ between bytes, full memory images, and fresh factories.
 [Word-addition specification](6809/examples/word-addition.md) ·
 [Word-addition definition](../../src/machines/6809/word-addition-example.machine)
 
-**137 / 268 forms (51.1%).** The base-page subtotal is 64 accumulator forms,
-44 unary forms, 16 short branches, four register-mask stack transfers, five
-call/return forms, two JMP forms, LBRA, and NOP. No indexed or prefixed forms
+[Indexed-copy specification](6809/examples/indexed-copy.md) ·
+[Indexed-copy definition](../../src/machines/6809/indexed-copy-example.machine)
+
+**193 / 268 forms (72.0%).** The base-page subtotal is 86 accumulator forms,
+55 unary forms, 21 word loads/stores, 16 short branches, four register-mask
+stack transfers, six call/return forms, three JMP forms, LBRA, and NOP.
+All 41 indexed opcodes support every documented postbyte. No prefixed forms
 are counted.
 
 Accumulator opcodes use **`1 r mm oooo`**: `r=0` selects A, `r=1` selects B;
-`mm=00/01/11` selects immediate/direct/extended addressing. Indexed `mm=10`
-is deferred. Each cell below lists A/B opcodes; immediate/direct instructions
-are two bytes, extended instructions three. Stores have no immediate form.
+`mm=00/01/10/11` selects immediate/direct/indexed/extended addressing.
+Each cell below lists A/B opcodes; immediate/direct instructions are two bytes,
+extended instructions three, and indexed instructions two to four.
+Stores have no immediate form.
 
-| Operation | Immediate A/B | Direct A/B | Extended A/B | Flag effects |
-| --- | --- | --- | --- | --- |
-| SUB | `80` / `C0` | `90` / `D0` | `B0` / `F0` | N/Z/V/C; C records borrow |
-| CMP | `81` / `C1` | `91` / `D1` | `B1` / `F1` | Subtraction flags without changing the accumulator |
-| SBC | `82` / `C2` | `92` / `D2` | `B2` / `F2` | N/Z/V/C; subtract incoming borrow |
-| AND | `84` / `C4` | `94` / `D4` | `B4` / `F4` | N/Z from result; V cleared |
-| BIT | `85` / `C5` | `95` / `D5` | `B5` / `F5` | AND flags without changing the accumulator |
-| LD | `86` / `C6` | `96` / `D6` | `B6` / `F6` | N/Z from loaded byte; V cleared |
-| ST | — | `97` / `D7` | `B7` / `F7` | N/Z from stored byte; V cleared |
-| EOR | `88` / `C8` | `98` / `D8` | `B8` / `F8` | N/Z from result; V cleared |
-| ADC | `89` / `C9` | `99` / `D9` | `B9` / `F9` | H/N/Z/V/C; include incoming carry |
-| OR | `8A` / `CA` | `9A` / `DA` | `BA` / `FA` | N/Z from result; V cleared |
-| ADD | `8B` / `CB` | `9B` / `DB` | `BB` / `FB` | H/N/Z/V/C; ignore incoming carry |
-
-Unary encodings use **`0000 oooo`** (direct), **`010r oooo`** (A/B), or
-**`0111 oooo`** (extended). Register forms are one byte, direct two, extended
-three. The `0110` indexed group is deferred. ASL/LSL is one encoding per form.
-
-| Operation | Direct | A | B | Extended | Flag effects |
+| Operation | Immediate A/B | Direct A/B | Indexed A/B | Extended A/B | Flag effects |
 | --- | --- | --- | --- | --- | --- |
-| NEG | `00` | `40` | `50` | `70` | N/Z/V/C; negate modulo 256 |
-| COM | `03` | `43` | `53` | `73` | N/Z; V=0, C=1 |
-| LSR | `04` | `44` | `54` | `74` | N/Z/C; preserve V |
-| ROR | `06` | `46` | `56` | `76` | N/Z/C; rotate through C, preserve V |
-| ASR | `07` | `47` | `57` | `77` | N/Z/C; retain sign and preserve V |
-| ASL / LSL | `08` | `48` | `58` | `78` | N/Z/V/C |
-| ROL | `09` | `49` | `59` | `79` | N/Z/V/C; rotate through C |
-| DEC | `0A` | `4A` | `5A` | `7A` | N/Z/V; preserve C |
-| INC | `0C` | `4C` | `5C` | `7C` | N/Z/V; preserve C |
-| TST | `0D` | `4D` | `5D` | `7D` | N/Z; V=0, preserve C; no write |
-| CLR | `0F` | `4F` | `5F` | `7F` | N=0, Z=1, V=0, C=0; memory forms read then write |
+| SUB | `80` / `C0` | `90` / `D0` | `A0` / `E0` | `B0` / `F0` | N/Z/V/C; C records borrow |
+| CMP | `81` / `C1` | `91` / `D1` | `A1` / `E1` | `B1` / `F1` | Subtraction flags without changing the accumulator |
+| SBC | `82` / `C2` | `92` / `D2` | `A2` / `E2` | `B2` / `F2` | N/Z/V/C; subtract incoming borrow |
+| AND | `84` / `C4` | `94` / `D4` | `A4` / `E4` | `B4` / `F4` | N/Z from result; V cleared |
+| BIT | `85` / `C5` | `95` / `D5` | `A5` / `E5` | `B5` / `F5` | AND flags without changing the accumulator |
+| LD | `86` / `C6` | `96` / `D6` | `A6` / `E6` | `B6` / `F6` | N/Z from loaded byte; V cleared |
+| ST | — | `97` / `D7` | `A7` / `E7` | `B7` / `F7` | N/Z from stored byte; V cleared |
+| EOR | `88` / `C8` | `98` / `D8` | `A8` / `E8` | `B8` / `F8` | N/Z from result; V cleared |
+| ADC | `89` / `C9` | `99` / `D9` | `A9` / `E9` | `B9` / `F9` | H/N/Z/V/C; include incoming carry |
+| OR | `8A` / `CA` | `9A` / `DA` | `AA` / `EA` | `BA` / `FA` | N/Z from result; V cleared |
+| ADD | `8B` / `CB` | `9B` / `DB` | `AB` / `EB` | `BB` / `FB` | H/N/Z/V/C; ignore incoming carry |
+
+Unary encodings use **`0000 oooo`** (direct), **`010r oooo`** (A/B),
+**`0110 oooo`** (indexed), or **`0111 oooo`** (extended). Register forms are
+one byte, direct two, indexed two to four, and extended three. ASL/LSL is one
+encoding per form.
+
+| Operation | Direct | A | B | Indexed | Extended | Flag effects |
+| --- | --- | --- | --- | --- | --- | --- |
+| NEG | `00` | `40` | `50` | `60` | `70` | N/Z/V/C; negate modulo 256 |
+| COM | `03` | `43` | `53` | `63` | `73` | N/Z; V=0, C=1 |
+| LSR | `04` | `44` | `54` | `64` | `74` | N/Z/C; preserve V |
+| ROR | `06` | `46` | `56` | `66` | `76` | N/Z/C; rotate through C, preserve V |
+| ASR | `07` | `47` | `57` | `67` | `77` | N/Z/C; retain sign and preserve V |
+| ASL / LSL | `08` | `48` | `58` | `68` | `78` | N/Z/V/C |
+| ROL | `09` | `49` | `59` | `69` | `79` | N/Z/V/C; rotate through C |
+| DEC | `0A` | `4A` | `5A` | `6A` | `7A` | N/Z/V; preserve C |
+| INC | `0C` | `4C` | `5C` | `6C` | `7C` | N/Z/V; preserve C |
+| TST | `0D` | `4D` | `5D` | `6D` | `7D` | N/Z; V=0, preserve C; no write |
+| CLR | `0F` | `4F` | `5F` | `6F` | `7F` | N=0, Z=1, V=0, C=0; memory forms read then write |
 
 E/F/I are preserved by these byte operations. H changes only for ADD/ADC;
 where Motorola leaves H undefined, this model preserves it. Exact behavior
@@ -1006,7 +1012,7 @@ and memory-access rules are in the [model contract](6809/model.md#accumulator-op
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
-| `0E` / `7E` | `JMP` | Direct / extended | 2 / 3 | Replace PC without reading the target |
+| `0E` / `6E` / `7E` | `JMP` | Direct / indexed / extended | 2 / 2–4 / 3 | Replace PC without reading the target |
 | `12` | `NOP` | Inherent | 1 | Advance PC only |
 | `16` | `LBRA rel16` | Long relative | 3 | Add signed word to PC after the operand |
 | `17` | `LBSR rel16` | Long relative | 3 | Stack return PC on S and branch |
@@ -1032,20 +1038,34 @@ and memory-access rules are in the [model contract](6809/model.md#accumulator-op
 | `37` | `PULU mask` | Immediate register mask | 2 | Pull any selection of CC/A/B/DP/X/Y/S/PC from U; flags change only if CC is selected |
 | `39` | `RTS` | Inherent | 1 | Pull PC from S, high byte then low; no adjustment |
 | `8D` | `BSR rel8` | Short relative | 2 | Stack return PC on S and branch |
-| `9D` / `BD` | `JSR` | Direct / extended | 2 / 3 | Stack return PC on S and jump |
+| `9D` / `AD` / `BD` | `JSR` | Direct / indexed / extended | 2 / 2–4 / 3 | Stack return PC on S and jump |
+
+Word transfers use the same addressing selectors. Loads set N/Z from the full
+word and clear V; stores apply the same flags to the stored value. Both preserve
+E/F/H/I/C. Immediate word loads are three bytes; memory forms have the same
+instruction lengths as the byte forms above. Word data is high byte first.
+
+| Operation | Immediate | Direct | Indexed | Extended |
+| --- | --- | --- | --- | --- |
+| LDD | `CC` | `DC` | `EC` | `FC` |
+| STD | — | `DD` | `ED` | `FD` |
+| LDX | `8E` | `9E` | `AE` | `BE` |
+| STX | — | `9F` | `AF` | `BF` |
+| LDU | `CE` | `DE` | `EE` | `FE` |
+| STU | — | `DF` | `EF` | `FF` |
 
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A, B, DP, X, Y, S, U, PC |
 | Stored flags | E/F/H/I/N/Z/V/C; CC packed/unpacked for stack transfers |
-| Register relationships | Snapshots derive D from A:B; 16-bit data operations and register transfers remain deferred |
-| Addressing | Immediate bytes, direct DP:offset, extended high/low addresses, and signed byte/word relative offsets; 16-bit wrapping |
+| Register relationships | D reads derive A:B and LDD writes both bytes; snapshots retain detached numeric D |
+| Addressing | Immediate bytes/words, direct DP:offset, extended addresses, all documented indexed modes, and signed byte/word relative offsets; 16-bit wrapping |
 | Branches | All short conditions, BRA/BRN, and LBRA; fetch operands on every path and preserve flags |
 | Stack | Descending S/U, all register masks, wrapping pointers; calls/RTS share S word transfers |
 | Reset | Read `FFFE` then `FFFF` for PC, clear DP, set F/I; preserve other state and RAM |
 | Prefixes | `10` and `11` rejected after one read with unchanged state; no second-byte fetch |
 | Stopping | Caller-owned completion address and budget; no synthetic halt or completion outcome |
-| Remaining scope | Indexed addressing, 16-bit data arithmetic and transfers, multiply, decimal adjustment, CC operations, prefixed conditional long branches, interrupts and interrupt controls |
+| Remaining scope | 16-bit arithmetic, Y/S loads/stores, LEA, register transfers/exchanges, multiply, decimal adjustment, CC operations, prefixed conditional long branches, interrupts and interrupt controls |
 
 The [reset preservation policy](6809/model.md#cpu-reset) does not claim
 hardware power-on values for unspecified state. NMI arming, interrupt handling,
@@ -1053,13 +1073,24 @@ timing, and MC6809/MC6809E clock and pin differences remain outside this model.
 
 Verification: [CPU tests](../../tests/components/cpus/6809.test.ts) exhaust
 ADD/ADC/SUB/SBC/CMP for every byte pair and carry on both accumulators; unary
-operations and stores cover every byte and all 256 CC values in every supported
+operations and byte stores cover every byte and all 256 CC values in every supported
 form. Literal opcode rows and independent arithmetic/bit-string expectations
 check addressing, flag replacement and preservation, wrapping, real memory
 accesses, code overlap, CLR's read, and TST's absence of writes. Calls, returns,
 and jumps cover all CC values, stack/PC wrapping and operand overlap. Existing
 checks retain all branch conditions, stack masks, state validation, snapshots,
 reset and unsupported-attempt contracts.
+
+Indexed checks cover all 217 documented postbytes across signed offsets,
+register selectors, auto-update and PC/pointer wrapping. All 41 indexed opcodes
+reject all 39 undefined postbytes before effects. Word checks cover all 21
+load/store forms, every CC value, every LDD result, address/source aliasing,
+byte order, and loads overwriting an index auto-update. The
+[indexed-copy tests](../../tests/machines/6809/indexed-copy-example.test.ts)
+check sixteen exact records, complete memory images, current pointers,
+snapshot resumption between load and store, reset, and fresh factories.
+The [CoCo comparison](6809/reference-notes.md#indexed-and-word-transfer-comparison)
+adds 21,634 reference cases.
 
 The [word-addition tests](../../tests/machines/6809/word-addition-example.test.ts)
 check carry propagation through nested calls, thirteen complete records, actual

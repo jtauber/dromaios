@@ -1370,6 +1370,12 @@ test("every unsupported 6809 byte, including prefixes, repeatedly reads only its
       0x12, 0x16, 0x17, 0x34, 0x35, 0x36, 0x37, 0x39,
       0x40, 0x43, 0x44, 0x46, 0x47, 0x48, 0x49, 0x4a, 0x4c, 0x4d, 0x4f,
       0x50, 0x53, 0x54, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5c, 0x5d, 0x5f,
+      0x60, 0x63, 0x64, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6c, 0x6d, 0x6e, 0x6f,
+      0xa0, 0xa1, 0xa2, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xad,
+      0xe0, 0xe1, 0xe2, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb,
+      0x8e, 0x9e, 0x9f, 0xae, 0xaf, 0xbe, 0xbf,
+      0xcc, 0xdc, 0xdd, 0xec, 0xed, 0xfc, 0xfd,
+      0xce, 0xde, 0xdf, 0xee, 0xef, 0xfe, 0xff,
       0x70, 0x73, 0x74, 0x76, 0x77, 0x78, 0x79, 0x7a, 0x7c, 0x7d, 0x7e, 0x7f,
       0x80, 0x81, 0x82, 0x84, 0x85, 0x86, 0x88, 0x89, 0x8a, 0x8b, 0x8d,
       0x90, 0x91, 0x92, 0x94, 0x95, 0x96, 0x97, 0x98, 0x99, 0x9a, 0x9b, 0x9d,
@@ -1739,16 +1745,16 @@ for (const [operation, opcodeA, opcodeB] of [
 
 // Literal opcode rows from Motorola Appendix D, independent of the source builders.
 const accumulatorForms = [
-  ["SUB", "a", 0x80, 0x90, 0xb0], ["SUB", "b", 0xc0, 0xd0, 0xf0],
-  ["CMP", "a", 0x81, 0x91, 0xb1], ["CMP", "b", 0xc1, 0xd1, 0xf1],
-  ["SBC", "a", 0x82, 0x92, 0xb2], ["SBC", "b", 0xc2, 0xd2, 0xf2],
-  ["AND", "a", 0x84, 0x94, 0xb4], ["AND", "b", 0xc4, 0xd4, 0xf4],
-  ["BIT", "a", 0x85, 0x95, 0xb5], ["BIT", "b", 0xc5, 0xd5, 0xf5],
-  ["LD", "a", 0x86, 0x96, 0xb6], ["LD", "b", 0xc6, 0xd6, 0xf6],
-  ["EOR", "a", 0x88, 0x98, 0xb8], ["EOR", "b", 0xc8, 0xd8, 0xf8],
-  ["ADC", "a", 0x89, 0x99, 0xb9], ["ADC", "b", 0xc9, 0xd9, 0xf9],
-  ["OR", "a", 0x8a, 0x9a, 0xba], ["OR", "b", 0xca, 0xda, 0xfa],
-  ["ADD", "a", 0x8b, 0x9b, 0xbb], ["ADD", "b", 0xcb, 0xdb, 0xfb],
+  ["SUB", "a", 0x80, 0x90, 0xa0, 0xb0], ["SUB", "b", 0xc0, 0xd0, 0xe0, 0xf0],
+  ["CMP", "a", 0x81, 0x91, 0xa1, 0xb1], ["CMP", "b", 0xc1, 0xd1, 0xe1, 0xf1],
+  ["SBC", "a", 0x82, 0x92, 0xa2, 0xb2], ["SBC", "b", 0xc2, 0xd2, 0xe2, 0xf2],
+  ["AND", "a", 0x84, 0x94, 0xa4, 0xb4], ["AND", "b", 0xc4, 0xd4, 0xe4, 0xf4],
+  ["BIT", "a", 0x85, 0x95, 0xa5, 0xb5], ["BIT", "b", 0xc5, 0xd5, 0xe5, 0xf5],
+  ["LD", "a", 0x86, 0x96, 0xa6, 0xb6], ["LD", "b", 0xc6, 0xd6, 0xe6, 0xf6],
+  ["EOR", "a", 0x88, 0x98, 0xa8, 0xb8], ["EOR", "b", 0xc8, 0xd8, 0xe8, 0xf8],
+  ["ADC", "a", 0x89, 0x99, 0xa9, 0xb9], ["ADC", "b", 0xc9, 0xd9, 0xe9, 0xf9],
+  ["OR", "a", 0x8a, 0x9a, 0xaa, 0xba], ["OR", "b", 0xca, 0xda, 0xea, 0xfa],
+  ["ADD", "a", 0x8b, 0x9b, 0xab, 0xbb], ["ADD", "b", 0xcb, 0xdb, 0xeb, 0xfb],
 ] as const;
 
 function byteLogic(operation: string, left: number, right: number): number {
@@ -1762,10 +1768,11 @@ function byteLogic(operation: string, left: number, right: number): number {
   }).join(""), 2);
 }
 
-for (const [operation, register, immediate, direct, extended] of accumulatorForms) {
-  test(`6809 ${operation}${register.toUpperCase()} covers all three operand forms, flags, and wrapped fetches`, () => {
+for (const [operation, register, immediate, direct, indexed, extended] of accumulatorForms) {
+  test(`6809 ${operation}${register.toUpperCase()} covers all four operand forms, flags, and wrapped fetches`, () => {
     for (const [opcode, operands, address] of [
-      [immediate, [0], undefined], [direct, [0xff], 0x56ff], [extended, [0x12, 0xff], 0x12ff],
+      [immediate, [0], undefined], [direct, [0xff], 0x56ff],
+      [indexed, [0x84], 0x2345], [extended, [0x12, 0xff], 0x12ff],
     ] as const) {
       const ram = new ObservedRam();
       for (const [left, right] of [[0, 0], [0x7f, 1], [0x80, 1], [0xff, 0xff], [0x55, 0xaa], [0x81, 0x0f]]) {
@@ -1801,18 +1808,19 @@ for (const [operation, register, immediate, direct, extended] of accumulatorForm
   });
 }
 
-for (const [operation, direct, opcodeA, opcodeB, extended] of [
-  ["NEG", 0x00, 0x40, 0x50, 0x70], ["COM", 0x03, 0x43, 0x53, 0x73],
-  ["LSR", 0x04, 0x44, 0x54, 0x74], ["ROR", 0x06, 0x46, 0x56, 0x76],
-  ["ASR", 0x07, 0x47, 0x57, 0x77], ["ASL", 0x08, 0x48, 0x58, 0x78],
-  ["ROL", 0x09, 0x49, 0x59, 0x79], ["DEC", 0x0a, 0x4a, 0x5a, 0x7a],
-  ["INC", 0x0c, 0x4c, 0x5c, 0x7c], ["TST", 0x0d, 0x4d, 0x5d, 0x7d],
-  ["CLR", 0x0f, 0x4f, 0x5f, 0x7f],
+for (const [operation, direct, opcodeA, opcodeB, indexed, extended] of [
+  ["NEG", 0x00, 0x40, 0x50, 0x60, 0x70], ["COM", 0x03, 0x43, 0x53, 0x63, 0x73],
+  ["LSR", 0x04, 0x44, 0x54, 0x64, 0x74], ["ROR", 0x06, 0x46, 0x56, 0x66, 0x76],
+  ["ASR", 0x07, 0x47, 0x57, 0x67, 0x77], ["ASL", 0x08, 0x48, 0x58, 0x68, 0x78],
+  ["ROL", 0x09, 0x49, 0x59, 0x69, 0x79], ["DEC", 0x0a, 0x4a, 0x5a, 0x6a, 0x7a],
+  ["INC", 0x0c, 0x4c, 0x5c, 0x6c, 0x7c], ["TST", 0x0d, 0x4d, 0x5d, 0x6d, 0x7d],
+  ["CLR", 0x0f, 0x4f, 0x5f, 0x6f, 0x7f],
 ] as const) {
-  test(`6809 ${operation} covers A, B, direct, and extended for every byte and CC value`, () => {
+  test(`6809 ${operation} covers A, B, direct, indexed, and extended for every byte and CC value`, () => {
     for (const [register, opcode, operands, address] of [
       ["a", opcodeA, [], undefined], ["b", opcodeB, [], undefined],
-      [undefined, direct, [0xff], 0x56ff], [undefined, extended, [0x12, 0xff], 0x12ff],
+      [undefined, direct, [0xff], 0x56ff], [undefined, indexed, [0x84], 0x2345],
+      [undefined, extended, [0x12, 0xff], 0x12ff],
     ] as const) {
       const program = byteProgram([opcode, ...operands]);
       for (let value = 0; value < 256; value++) {
@@ -1856,6 +1864,7 @@ for (const [operation, direct, opcodeA, opcodeB, extended] of [
 
 for (const [register, opcode, operands, address] of [
   ["a", 0x97, [0xff], 0x56ff], ["b", 0xd7, [0xff], 0x56ff],
+  ["a", 0xa7, [0x84], 0x2345], ["b", 0xe7, [0x84], 0x2345],
   ["a", 0xb7, [0x12, 0xff], 0x12ff], ["b", 0xf7, [0x12, 0xff], 0x12ff],
 ] as const) {
   test(`6809 store ${opcode.toString(16)} writes every byte once and updates only N/Z/V for every CC`, () => {
@@ -1994,6 +2003,261 @@ test("6809 NOP, LBRA, and direct/extended JMP preserve all flags and read only t
         outcome: "executed",
       });
       assert.deepEqual(ram.accesses, record.accesses);
+    }
+  }
+});
+
+// Independently transcribed from Motorola Table 2-1. Only 9F is extended indirect;
+// PC-relative rows explicitly ignore the two register-selection bits.
+function indexedForms(a: number, b: number, offset8: number, offset16: number) {
+  const forms: {
+    postbyte: number; operands: number[]; register: "x" | "y" | "u" | "s";
+    offset: number; update: number; indirect: boolean; relative?: boolean; absolute?: boolean;
+  }[] = [];
+  const byte = (offset8 + 256) % 256;
+  const word = (offset16 + 65536) % 65536;
+  const wordBytes = [Math.floor(word / 256), word % 256];
+  for (const [rr, register] of (["x", "y", "u", "s"] as const).entries()) {
+    for (let offset = -16; offset <= 15; offset++) {
+      forms.push({ postbyte: rr * 32 + (offset + 32) % 32, register,
+        operands: [], offset, update: 0, indirect: false });
+    }
+    const rows = [
+      { direct: 0x80, offset: 0, update: 1 },
+      { direct: 0x81, indirect: 0x91, offset: 0, update: 2 },
+      { direct: 0x82, offset: -1, update: -1 },
+      { direct: 0x83, indirect: 0x93, offset: -2, update: -2 },
+      { direct: 0x84, indirect: 0x94, offset: 0 },
+      { direct: 0x85, indirect: 0x95, offset: b < 128 ? b : b - 256 },
+      { direct: 0x86, indirect: 0x96, offset: a < 128 ? a : a - 256 },
+      { direct: 0x88, indirect: 0x98, offset: offset8, operands: [byte] },
+      { direct: 0x89, indirect: 0x99, offset: offset16, operands: wordBytes },
+      { direct: 0x8b, indirect: 0x9b, offset: a * 256 + b },
+      { direct: 0x8c, indirect: 0x9c, offset: offset8, operands: [byte], relative: true },
+      { direct: 0x8d, indirect: 0x9d, offset: offset16, operands: wordBytes, relative: true },
+    ];
+    for (const row of rows) {
+      for (const indirect of [false, true]) {
+        const code = indirect ? row.indirect : row.direct;
+        if (code === undefined) continue;
+        forms.push({ postbyte: code + rr * 32, register, operands: row.operands ?? [],
+          offset: row.offset, update: row.update ?? 0, indirect, relative: row.relative ?? false });
+      }
+    }
+  }
+  forms.push({ postbyte: 0x9f, register: "x", operands: wordBytes,
+    offset: word, update: 0, indirect: true, absolute: true });
+  return forms;
+}
+
+const wrapAddress = (value: number) => ((value % 65536) + 65536) % 65536;
+
+test("6809 indexed JMP resolves every documented postbyte with offsets, auto-updates, indirection, and wrapping", () => {
+  for (const [a, b, offset8, offset16] of [
+    [0, 0, 0, 0], [0x7f, 1, 127, 32767], [0x80, 0xff, -128, -32768], [0xff, 0x80, -1, -1],
+  ] as const) {
+    const forms = indexedForms(a, b, offset8, offset16);
+    assert.equal(new Set(forms.map(form => form.postbyte)).size, 217);
+    for (const form of forms) {
+      for (const base of [0, 0x7fff, 0xffff]) {
+        for (const pc of [0x200, 0xfffd, 0xffff]) {
+          const bytes = [0x6e, form.postbyte, ...form.operands];
+          const state = initialState({ a, b, pc, [form.register]: base });
+          const origin = form.absolute ? 0 : form.relative ? pc + bytes.length : base;
+          const address = wrapAddress(origin + form.offset);
+          // A literal image makes pointer/instruction overlap visible in the oracle.
+          const image = new Map<number, number>();
+          if (form.indirect) {
+            image.set(address, 0x45);
+            image.set(wrapAddress(address + 1), 0x67);
+          }
+          bytes.forEach((value, offset) => image.set(wrapAddress(pc + offset), value));
+          const ram = new ObservedRam();
+          for (const [address, value] of image) ram.write(address, value);
+          ram.accesses.length = 0;
+          const cpu = new Cpu6809(ram, state);
+          const before = { ...state, d: a * 256 + b };
+          const target = form.indirect ? image.get(address)! * 256 + image.get(wrapAddress(address + 1))! : address;
+          const expected = {
+            before, after: { ...before, [form.register]: wrapAddress(base + form.update), pc: target },
+            instruction: { address: pc, bytes }, outcome: "executed",
+            accesses: [
+              ...bytes.map((value, offset) => ({ kind: "read", address: wrapAddress(pc + offset), value })),
+              ...(form.indirect ? [
+                { kind: "read", address, value: image.get(address) },
+                { kind: "read", address: wrapAddress(address + 1), value: image.get(wrapAddress(address + 1)) },
+              ] : []),
+            ],
+          };
+          assert.deepEqual(cpu.step(), expected, `postbyte=${form.postbyte}, base=${base}, PC=${pc}`);
+          assert.deepEqual(ram.accesses, expected.accesses);
+        }
+      }
+    }
+  }
+});
+
+const indexedOpcodes = [
+  0x60, 0x63, 0x64, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6c, 0x6d, 0x6e, 0x6f,
+  0xa0, 0xa1, 0xa2, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9, 0xaa, 0xab, 0xad, 0xae, 0xaf,
+  0xe0, 0xe1, 0xe2, 0xe4, 0xe5, 0xe6, 0xe7, 0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
+];
+
+test("all 41 indexed opcodes reject all 39 undefined postbytes before effects, and resume after a RAM edit", () => {
+  const legal = new Set(indexedForms(0, 0, 0, 0).map(form => form.postbyte));
+  assert.equal(indexedOpcodes.length, 41);
+  for (const opcode of indexedOpcodes) {
+    for (let postbyte = 0; postbyte < 256; postbyte++) {
+      if (legal.has(postbyte)) continue;
+      for (const pc of [0x200, 0xffff]) {
+        const ram = new ObservedRam();
+        ram.write(pc, opcode);
+        ram.write(wrapAddress(pc + 1), postbyte);
+        const cpu = new Cpu6809(ram, initialState({ pc }));
+        const before = cpu.snapshot();
+        for (let attempt = 0; attempt < 2; attempt++) {
+          ram.accesses.length = 0;
+          const record = cpu.step();
+          assert.deepEqual(record, {
+            before, after: before, instruction: { address: pc, bytes: [opcode, postbyte] },
+            outcome: "unsupported", reason: "opcode", accesses: [
+              { kind: "read", address: pc, value: opcode },
+              { kind: "read", address: wrapAddress(pc + 1), value: postbyte },
+            ],
+          });
+          assert.deepEqual(ram.accesses, record.accesses);
+        }
+        ram.write(wrapAddress(pc + 1), 0x84); // ,X
+        assert.equal(cpu.step().outcome, "executed");
+      }
+    }
+  }
+});
+
+for (const [register, immediate, directLoad, indexedLoad, extendedLoad, directStore, indexedStore, extendedStore] of [
+  ["d", 0xcc, 0xdc, 0xec, 0xfc, 0xdd, 0xed, 0xfd],
+  ["x", 0x8e, 0x9e, 0xae, 0xbe, 0x9f, 0xaf, 0xbf],
+  ["u", 0xce, 0xde, 0xee, 0xfe, 0xdf, 0xef, 0xff],
+] as const) {
+  test(`6809 LD/ST ${register.toUpperCase()} covers all seven forms, word flags, byte order, and boundary addresses`, () => {
+    for (const [opcode, operands, address, store] of [
+      [immediate, [], undefined, false],
+      [directLoad, [0xff], 0x56ff, false], [directStore, [0xff], 0x56ff, true],
+      [indexedLoad, [0xa4], 0x4567, false], [indexedStore, [0xa4], 0x4567, true],
+      [extendedLoad, [0xff, 0xff], 0xffff, false], [extendedStore, [0xff, 0xff], 0xffff, true],
+    ] as const) {
+      for (const value of [0, 1, 0x0080, 0x7fff, 0x8000, 0x8001, 0xffff]) {
+        for (let cc = 0; cc < 256; cc++) {
+          const high = Math.floor(value / 256), low = value % 256;
+          const pc = address === 0xffff ? 0x200 : 0xffff;
+          const state = initialState({ pc, flags: flagsFor(cc) });
+          if (store) {
+            if (register === "d") { state.a = high; state.b = low; }
+            else state[register] = value;
+          }
+          const bytes = [opcode, ...(address === undefined ? [high, low] : operands)];
+          const ram = new ObservedRam();
+          bytes.forEach((value, offset) => ram.write(wrapAddress(pc + offset), value));
+          if (address !== undefined) {
+            ram.write(address, high); // Stores must still write an unchanged value.
+            ram.write(wrapAddress(address + 1), low);
+          }
+          const cpu = new Cpu6809(ram, state);
+          const before = cpu.snapshot();
+          ram.accesses.length = 0;
+          const result = cpu.step();
+          const loaded = store ? {} : register === "d" ? { a: high, b: low, d: value } : { [register]: value };
+          assert.deepEqual(result, {
+            before, after: { ...before, ...loaded, pc: wrapAddress(pc + bytes.length),
+              flags: { ...state.flags, n: value >= 32768, z: value === 0, v: false } },
+            instruction: { address: pc, bytes }, outcome: "executed",
+            accesses: [
+              ...bytes.map((value, offset) => ({ kind: "read", address: wrapAddress(pc + offset), value })),
+              ...(address === undefined ? [] : [
+                { kind: store ? "write" : "read", address, value: high },
+                { kind: store ? "write" : "read", address: wrapAddress(address + 1), value: low },
+              ]),
+            ],
+          });
+          assert.deepEqual(ram.accesses, result.accesses);
+        }
+      }
+    }
+  });
+}
+
+test("6809 LDD splits every word into A/B and uses bit 15 for N", () => {
+  const program = byteProgram([0xcc, 0, 0]);
+  for (let value = 0; value < 65536; value++) {
+    program.ram.write(0x103, Math.floor(value / 256));
+    program.ram.write(0x104, value % 256);
+    for (const cc of [0, 255]) {
+      const record = program.run(0x55, 0xaa, cc);
+      assert.deepEqual(record.after, { ...record.before, pc: 0x105, a: Math.floor(value / 256), b: value % 256, d: value,
+        flags: { ...flagsFor(cc), n: value >= 32768, z: value === 0, v: false } });
+    }
+  }
+});
+
+test("6809 indexed word loads overwrite auto-updates, while stores read the updated source", () => {
+  for (const [register, load, store, selector] of [["x", 0xae, 0xaf, 0], ["u", 0xee, 0xef, 0x40]] as const) {
+    for (const [postbyte, delta, addressOffset, indirect] of [
+      [0x80, 1, 0, false], [0x81, 2, 0, false], [0x82, -1, -1, false], [0x83, -2, -2, false],
+      [0x91, 2, 0, true], [0x93, -2, -2, true],
+    ] as const) {
+      for (const base of [0, 0xffff]) {
+        for (const isStore of [false, true]) {
+          const bytes = [isStore ? store : load, postbyte + selector];
+          const ram = new ObservedRam();
+          ram.write(0x200, bytes[0]!); ram.write(0x201, bytes[1]!);
+          const pointer = wrapAddress(base + addressOffset);
+          const address = indirect ? 0x3456 : pointer;
+          if (indirect) { ram.write(pointer, 0x34); ram.write(wrapAddress(pointer + 1), 0x56); }
+          ram.write(address, 0xab); ram.write(wrapAddress(address + 1), 0xcd);
+          const cpu = new Cpu6809(ram, initialState({ pc: 0x200, [register]: base }));
+          const before = cpu.snapshot();
+          ram.accesses.length = 0;
+          const result = cpu.step();
+          const value = isStore ? wrapAddress(base + delta) : 0xabcd;
+          assert.deepEqual(result.after, { ...before, [register]: value, pc: 0x202,
+            flags: { ...before.flags, n: value >= 32768, z: value === 0, v: false } });
+          assert.deepEqual(result.accesses, [
+            { kind: "read", address: 0x200, value: bytes[0] }, { kind: "read", address: 0x201, value: bytes[1] },
+            ...(indirect ? [{ kind: "read", address: pointer, value: 0x34 },
+              { kind: "read", address: wrapAddress(pointer + 1), value: 0x56 }] : []),
+            { kind: isStore ? "write" : "read", address, value: Math.floor(value / 256) },
+            { kind: isStore ? "write" : "read", address: wrapAddress(address + 1), value: value % 256 },
+          ]);
+          assert.deepEqual(ram.accesses, result.accesses);
+        }
+      }
+    }
+  }
+});
+
+test("6809 indexed JSR resolves S and its indirect pointer before stacking the return address", () => {
+  for (let cc = 0; cc < 256; cc++) {
+    for (const [postbyte, s, target, stack, indirect] of [
+      [0xe1, 0xffff, 0xffff, 1, false], // ,S++
+      [0xe3, 1, 0xffff, 0xffff, false], // ,--S
+      [0xf1, 0xffff, 0x4567, 1, true], // [,S++]
+      [0xf3, 1, 0x4567, 0xffff, true], // [,--S]
+    ] as const) {
+      const ram = new ObservedRam();
+      ram.write(0x12fc, 0xad); ram.write(0x12fd, postbyte);
+      ram.write(0xffff, 0x45); ram.write(0, 0x67);
+      const cpu = new Cpu6809(ram, initialState({ pc: 0x12fc, s, flags: flagsFor(cc) }));
+      const before = cpu.snapshot();
+      ram.accesses.length = 0;
+      const result = cpu.step();
+      assert.deepEqual(result.after, { ...before, pc: target, s: wrapAddress(stack - 2) });
+      assert.deepEqual(result.accesses, [
+        { kind: "read", address: 0x12fc, value: 0xad }, { kind: "read", address: 0x12fd, value: postbyte },
+        ...(indirect ? [{ kind: "read", address: 0xffff, value: 0x45 }, { kind: "read", address: 0, value: 0x67 }] : []),
+        { kind: "write", address: wrapAddress(stack - 1), value: 0xfe },
+        { kind: "write", address: wrapAddress(stack - 2), value: 0x12 },
+      ]);
+      assert.deepEqual(ram.accesses, result.accesses);
     }
   }
 });

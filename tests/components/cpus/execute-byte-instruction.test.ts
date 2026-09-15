@@ -120,3 +120,27 @@ test("handler failures propagate without rolling back completed effects or readi
     { kind: "write", address: 0x1234, value: 0x56 },
   ]);
 });
+
+test("a rejected operand encoding retains its fetches, restores PC, and can be retried", () => {
+  const ram = new ObservedRam();
+  ram.write(0xffff, 0x42);
+  ram.write(0, 0xff);
+  const state = { pc: 0xffff };
+  const handlers = { 0x42: ({ fetchByte }: { fetchByte: () => number }) => {
+    if (fetchByte() === 0xff) return "unsupported" as const;
+  } };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    ram.accesses.length = 0;
+    const result = executeByteInstruction(state, ram, handlers, readWordBE);
+    assert.equal(result.executed, false);
+    assert.equal(state.pc, 0xffff);
+    assert.deepEqual(result.instruction, { address: 0xffff, bytes: [0x42, 0xff] });
+    assert.deepEqual(result.accesses, [
+      { kind: "read", address: 0xffff, value: 0x42 }, { kind: "read", address: 0, value: 0xff },
+    ]);
+    assert.deepEqual(ram.accesses, result.accesses);
+  }
+  ram.write(0, 0);
+  assert.equal(executeByteInstruction(state, ram, handlers, readWordBE).executed, true);
+  assert.equal(state.pc, 1);
+});

@@ -231,7 +231,11 @@ accesses or change PC, including the 6502's JSR operand/stack ordering.
 
 The result contains the fetched instruction, ordered accesses, and whether a
 handler executed. Each CPU's `step()` owns its before/after snapshots and
-outcome; the 8080 checks HALT before calling the helper. RAM and handler errors
+outcome; the 8080 checks HALT before calling the helper. A handler can return
+`"unsupported"` after fetching an operand selector, as the 6809 does for an
+undefined indexed postbyte. It must reject before changing other state or RAM;
+the executor restores PC and retains the actual fetches. This is not general
+rollback. RAM and handler errors
 propagate without rolling back completed effects. Each call owns its records.
 
 This contract fits those four CPUs. The 8008 retains its selected 14-bit address

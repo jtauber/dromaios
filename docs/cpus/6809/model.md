@@ -66,8 +66,8 @@ export type Cpu6809Snapshot = Readonly<Omit<Cpu6809State, "flags">> & {
 D is not a separate initialization input. Passing an existing snapshot is
 structurally permitted; its `d` is ignored and recomputed from the copied A
 and B. Extra properties, including a supplied `d` getter, must not be read.
-There is no public setter for D in this subset. Future instructions that write
-D must update A and B.
+There is no public setter for D. LDD updates A and B together; STD reads the
+combined word without storing another copy.
 
 ## Snapshots and ownership
 
@@ -162,16 +162,57 @@ current flags, including after a stack pull replaces CC; the next step fetches
 current RAM at the resulting PC. The [counted-loop example](examples/counted-loop.md)
 combines B as a counter with A as a running sum and specifies the full trace.
 
+## Indexed addressing and word transfers
+
+All supported indexed opcodes use one decoder for Motorola's
+[Table 2-1][model]. `0 rr nnnnn` adds a signed five-bit offset to the selected
+register: `rr=00/01/10/11` selects X/Y/U/S. For `1 rr i mmmm`, `i=1` requests
+indirection and `mmmm` selects:
+
+| mmmm | Address calculation | Indirect form |
+| --- | --- | --- |
+| `0000` / `0001` | Postincrement register by 1 / 2 | Only increment by 2 |
+| `0010` / `0011` | Predecrement register by 1 / 2 | Only decrement by 2 |
+| `0100` | Register without offset | Yes |
+| `0101` / `0110` / `1011` | Signed B / A / D offset | Yes |
+| `1000` / `1001` | Signed byte / word instruction operand offset | Yes |
+| `1100` / `1101` | Signed byte / word offset from PC after the operand; rr ignored | Yes |
+| `1111` | Absolute pointer address fetched from the instruction | Exactly postbyte `9F` |
+
+The remaining combinations are undefined. The decoder accepts 217 postbytes
+and rejects 39. Address arithmetic, auto-updates, pointer reads, and word data
+wrap across `FFFF` to `0000`. Indirection reads a pointer high byte then low
+before any final data access. Pointer and data reads appear only in `accesses`;
+postbytes and offset/address extension bytes also appear in `instruction.bytes`.
+
+LDD/LDX/LDU and STD/STX/STU transfer words high byte first. The second byte
+uses the next address in the full 16-bit space, including direct-page transfers
+starting at `DP:FF`. Loads/stores set N from bit 15 and Z from the entire word,
+clear V, and preserve E/F/H/I/C. Stores do not read the destination first.
+
+Address resolution completes before the operation: `STX ,X++` stores the
+updated X at its original address, while `LDX ,X++` replaces the updated X
+with the loaded word. Accumulator offsets use A/B/D before a load changes
+them. An indirect pointer is fully read before a store can overwrite it.
+These rules also apply when operands overlap the instruction stream.
+
+The [indexed-copy example](examples/indexed-copy.md) copies words through a
+zero sentinel using X/U postincrement, then saves the final pointers.
+
 ## Jumps and subroutines
 
 LBRA and LBSR fetch a signed 16-bit displacement, high byte first; BSR uses a
 signed byte. Each displacement is relative to PC after the complete operand,
 with 16-bit wrapping. Direct JMP/JSR use DP:offset and extended JMP/JSR fetch a
-high/low target address. None reads or prefetches the target instruction.
+high/low target address. Indexed JMP/JSR use the resolved effective address,
+including indirection and auto-updates. None reads or prefetches the target
+instruction.
 
 BSR, LBSR, and JSR push that following PC on **S**, low byte first, decrementing
 S before each write. RTS reads the high byte at S, increments S, reads the low
-byte, increments again, and uses the word directly as PC. U is preserved.
+byte, increments again, and uses the word directly as PC. Calls preserve U
+unless their indexed operand explicitly auto-updates it. An S-indexed JSR
+resolves its address and updates S before stacking the return PC.
 All instruction bytes are fetched before call-stack writes, even if S overlaps
 the opcode or operand. Each pointer update wraps across the full 16-bit address
 space. These word transfers share the PSH/PUL byte-order rules.
@@ -185,6 +226,13 @@ preserving carry between ADDB and ADCA, with both returns restoring S.
 For an unsupported first byte, record one opcode read and unchanged state and
 RAM. A repeated attempt repeats the same read and leaves PC in place. The
 [coverage tracker](../coverage.md#6809) lists the current supported forms.
+
+For an undefined indexed postbyte, record the opcode and postbyte reads,
+return reason `opcode`, and leave all state (including PC) and RAM unchanged.
+Do not fetch offset bytes, read an indirect pointer, update an index register,
+or execute the operation. Replacing the postbyte in RAM allows the next attempt
+to proceed normally. Rejection is a model boundary, not an emulation of the
+hardware's undefined behavior.
 
 **Prefix policy:** `10` and `11` select additional opcode pages in the
 [hardware opcode map][opcodes]. This subset stops after reading the prefix
@@ -248,6 +296,14 @@ accumulators against signed and unsigned range calculations. Literal operand
 forms check all CC values, real accesses, preserved state, and wrapping.
 Call/return and jump checks cover both byte orders, S and PC wrapping, fetched
 operand overlap, all CC values, and snapshot resumption inside nested calls.
+
+Indexed checks exhaust the documented postbyte encodings and exercise signed
+boundary offsets, all four pointer registers, auto-updates, PC-relative aliases,
+and instruction/pointer overlap. Every indexed opcode is checked against every
+undefined postbyte, including repeated rejection and resumption. Word transfers
+check all forms and CC values, every possible LDD result, word boundary accesses,
+and load/store aliasing with updated index registers. Indexed JSR checks S
+wrapping and indirect pointer reads before return-address writes.
 
 Unsupported first bytes are checked on repeated attempts, particularly
 `10`/`11` followed by an otherwise supported byte, including a prefix at

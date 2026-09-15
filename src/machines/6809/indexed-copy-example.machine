@@ -1,0 +1,25 @@
+// Copy words through a zero sentinel, using postincrementing source/destination pointers.
+ram 10000
+
+cpu 6809 {
+    A = 11  B = 34  DP = 20
+    X = 2345  Y = 4567  S = 8000  U = 5000  PC = 0200
+    flags { E = 1  F = 0  H = 1  I = 0  N = 1  Z = 1  V = 1  C = 1 }
+}
+
+memory 0200 {
+    BE 20 10    // LDX >$2010: source pointer from RAM
+    CE 40 00    // LDU #$4000: destination pointer
+    EC 81       // loop (0206): LDD ,X++
+    ED C1       // STD ,U++
+    26 FA       // BNE $0206: repeat until the copied word is zero
+    9F 10       // STX <$10: save the final source pointer at DP:10
+    DF 12       // STU <$12: save the final destination pointer at DP:12
+}
+
+memory 2010 { 30 00  00 00 }
+memory 2FFE { DE AD  12 34  80 00  FF FF  00 00  BE EF }
+memory 3FFE { DE AD  CC CC  CC CC  CC CC  CC CC  BE EF }
+memory FFFE { 02 00 }
+
+end 0210
