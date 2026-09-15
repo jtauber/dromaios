@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { add, subtract, evenParity8, shiftLeft8, shiftRight8 } from "../../../src/components/cpus/alu.js";
+import { add, subtract, evenParity8, shiftLeft, shiftRight } from "../../../src/components/cpus/alu.js";
 import type { ArithmeticWidth } from "../../../src/components/cpus/alu.js";
 
 test("eight-bit addition matches independent range calculations for every byte pair and carry input", () => {
@@ -141,16 +141,27 @@ test("evenParity8 matches a binary-string count for every byte, including zero",
 });
 
 
-test("byte shifts match bit-string movement for every byte and incoming bit", () => {
-  for (let value = 0; value < 256; value++) {
-    const bits = value.toString(2).padStart(8, "0");
+test("shifts match bit-string movement for every byte/word and representative unsigned longs", () => {
+  for (const width of [8, 16, 32] as const) for (let sample = 0; sample < (width === 8 ? 256 : 65536); sample++) {
+    const value = width === 32 ? sample * 65537 : sample;
+    const bits = value.toString(2).padStart(width, "0");
     for (const incoming of [0, 1] as const) {
-      assert.deepEqual(shiftLeft8(value, incoming), {
+      assert.deepEqual(shiftLeft(width, value, incoming), {
         result: parseInt(bits.slice(1) + incoming, 2), carry: bits[0] === "1",
       });
-      assert.deepEqual(shiftRight8(value, incoming), {
+      assert.deepEqual(shiftRight(width, value, incoming), {
         result: parseInt(incoming + bits.slice(0, -1), 2), carry: bits.at(-1) === "1",
       });
+    }
+  }
+});
+
+test("long shifts preserve unsigned results at bit 31 and every individual bit position", () => {
+  for (let bit = 0; bit < 32; bit++) for (const value of [2 ** bit, 0xffffffff - 2 ** bit]) {
+    const bits = value.toString(2).padStart(32, "0");
+    for (const incoming of [0, 1] as const) {
+      assert.deepEqual(shiftLeft(32, value, incoming), { result: parseInt(bits.slice(1) + incoming, 2), carry: bits[0] === "1" });
+      assert.deepEqual(shiftRight(32, value, incoming), { result: parseInt(incoming + bits.slice(0, -1), 2), carry: bits.at(-1) === "1" });
     }
   }
 });

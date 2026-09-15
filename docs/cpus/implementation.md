@@ -324,8 +324,8 @@ without reading CPU state or updating flags:
 - `subtract(width, left, right, borrowIn = 0)` computes `left - right - borrowIn`
   and returns an unsigned result, borrow, half borrow, and signed overflow.
   Borrow means the unsigned subtraction fell below zero.
-- `shiftLeft8(value, incomingBit)` and `shiftRight8(value, incomingBit)` move
-  an unsigned byte by one bit, returning the wrapped result and the outgoing
+- `shiftLeft(width, value, incomingBit)` and `shiftRight(width, value, incomingBit)` move
+  an unsigned operand by one bit, returning the wrapped result and the outgoing
   bit as `carry`. The required incoming bit is `0 | 1`; CPUs select zero, the
   sign bit, or current carry for their particular shift/rotate instruction.
 - `evenParity8(byte)` reports whether an unsigned byte contains an even number
@@ -348,16 +348,19 @@ subtraction's borrow to X and C, while comparison preserves X. Parity, flag
 preservation, decimal corrections, and the NMOS 6502's intermediate flag rules
 remain CPU behavior.
 
-The 6800 and 6809 use the byte-shift helpers. The 6800 sets V=N XOR C for
+The 6800, 6809, and 8088 use the shift helpers. The 6800 sets V=N XOR C for
 both directions; the 6809 sets V for left shifts and preserves it for right
-shifts. These flag rules remain visible in the CPU code.
+shifts. The 8088 selects byte or word width, repeats the operation for its full
+CL count, and distinguishes rotate flags from shift flags. These policies
+remain visible in the CPU code; the shared helper only moves one bit.
 
 [Helper tests](../../tests/components/cpus/alu.test.ts) exhaust every byte pair
 and incoming carry/borrow against unsigned and signed range calculations.
 For 16 and 32 bits, tests use independent `BigInt` ranges around every bit
 boundary and across seeded operand pairs. Every parity byte is checked against
-a binary-string count; shifts cover every byte and incoming bit against
-bit-string movement. [Type checks](../../tests/types/alu.ts) check widths,
+a binary-string count; shifts cover every byte/word and incoming bit, plus
+unsigned-long samples and every bit position, against bit-string movement.
+[Type checks](../../tests/types/alu.ts) check widths,
 incoming bits, distinct carry/borrow names, and readonly results. Existing CPU
 and example tests retain their independently authored expectations.
 

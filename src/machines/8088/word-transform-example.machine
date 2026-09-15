@@ -1,0 +1,33 @@
+// Halve and negate a signed 32-bit integer, then write it in big-endian byte order.
+ram 100000
+
+cpu 8088 {
+  AX = 1122  BX = 3344  CX = 5566  DX = 7788
+  SP = 8000  BP = 9000  SI = 0010  DI = 0020
+  CS = 1234  DS = FFFF  SS = 3000  ES = 4000  IP = 0200
+  flags { CF = 0  PF = 0  AF = 1  ZF = 1  SF = 0  TF = 0  IF = 1  DF = 1  OF = 1 }
+}
+
+memory 12540 {
+  C6 06 04 01 00 // MOV byte [0104h],0: clear the discarded-bit marker
+  A1 FD FF       // MOV AX,[FFFDh]: low input word
+  8B 16 FF FF    // MOV DX,[FFFFh]: high word wraps from DS:FFFF to DS:0000
+  D1 FA          // SAR DX,1: preserve the high word's sign
+  D1 D8          // RCR AX,1: move its outgoing bit into the low word
+  73 04          // JNC 0216h: skip the marker when the input was even
+  FE 06 04 01    // INC byte [0104h]: record the discarded low bit, preserving CF
+  F7 DA          // NEG DX
+  F7 D8          // NEG AX: sets borrow for a nonzero low word
+  83 DA 00       // SBB DX,0: complete the two-word negation
+  86 C4          // XCHG AL,AH: reverse the low word's bytes
+  86 D6          // XCHG DL,DH: reverse the high word's bytes
+  89 16 00 01    // MOV [0100h],DX: most significant word first
+  A3 02 01       // MOV [0102h],AX: least significant word second
+  F6 06 04 01 01 // TEST byte [0104h],1: report the discarded bit without changing it
+  90             // NOP
+}
+
+memory 0FFEC { DE 81 FF FF } // Guard and input low three bytes at DS:FFFD..FFFF.
+memory FFFF0 { FF AD }      // Input high byte at DS:0000 and guard; signed input = -127.
+memory 000EF { DE AA BB CC DD 7F AD } // Output at DS:0100..0104, guarded on both sides.
+end 1256E

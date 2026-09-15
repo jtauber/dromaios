@@ -21,7 +21,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [423](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [455](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [503](../../src/components/cpus/6809.ts) | 193 / 268 | 72.0% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [428](../../src/components/cpus/8088.ts) | 155 / 291 | 53.3% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [526](../../src/components/cpus/8088.ts) | 205 / 291 | 70.4% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [525](../../src/components/cpus/68000.ts) | 25,699 / 36,029 | 71.3% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
@@ -1335,6 +1335,7 @@ input buffers exercising both conditional-call paths.
 [Transfer example](8088/examples/transfers.md) ·
 [Control-flow example](8088/examples/control-flow.md) ·
 [Masked word-sum example](8088/examples/word-sum.md) ·
+[Signed word transformation](8088/examples/word-transform.md) ·
 [PC reference review](8088/reference-notes.md)
 
 | Opcode pattern / bytes | Instruction | Forms | Scope |
@@ -1347,14 +1348,21 @@ input buffers exercising both conditional-call paths.
 | `80`, `81` + `mm ooo rrr` | Immediate ALU r/m8 or r/m16 | 16 | All eight operations and every operand choice |
 | `82`, `83` + `mm ooo rrr` | Immediate ADD/ADC/SBB/SUB/CMP r/m | 10 | Byte for 82; sign-extended byte to word for 83; `/1`, `/4`, `/6` remain unused |
 | `84`, `85` | TEST r/m,r | 2 | AND flags without a destination write |
+| `86`, `87` | XCHG r/m,r | 2 | Both widths; read both original values before writes; resolve memory once |
 | `88`–`8B` | MOV r/m,r or r,r/m | 4 | Both widths and directions; no destination read; preserve every flag |
+| `90`–`97` | XCHG AX,r16 / NOP | 8 | All word registers; 90 exchanges AX with itself; preserve every flag |
 | `A0`–`A3` | MOV AL/AX,[offset] or [offset],AL/AX | 4 | Direct offset in DS; word offsets wrap within the segment |
 | `A8`, `A9` | TEST AL/AX,n | 2 | Immediate AND flags without changing AX |
 | `B0`–`BF` | MOV r8/r16,n | 16 | All byte and word registers; preserve every flag |
 | `C2`, `C3` | RET n / RET | 2 | Pop IP; optionally discard an unsigned byte count from SP |
+| `C6`, `C7` /0 | MOV r/m,n | 2 | Immediate byte/word, all operand choices, no destination read |
+| `D0`–`D3` /0–5, /7 | ROL/ROR/RCL/RCR/SHL/SHR/SAR | 28 | Both widths, count one or all eight bits of CL; /6 stays unsupported |
 | `E8` | CALL rel16 | 1 | Fetch displacement, push following IP, branch within CS |
 | `E9`, `EB` | JMP rel16 / rel8 | 2 | Relative branch with 16-bit IP wrapping |
-| **Total** | | **155** | **155 / 291 forms (53.3%)** |
+| `F6`, `F7` /0 | TEST r/m,n | 2 | Immediate AND flags without writing the operand |
+| `F6`, `F7` /2–3 | NOT / NEG r/m | 4 | Both widths and every operand; NOT preserves flags, NEG sets subtraction flags |
+| `FE`, `FF` /0–1 | INC / DEC r/m | 4 | Both widths and every operand; preserve CF |
+| **Total** | | **205** | **205 / 291 forms (70.4%)** |
 
 The ALU field `ooo` selects ADD/OR/ADC/SBB/AND/SUB/XOR/CMP in that order.
 For register/memory forms, `w=0/1` selects byte/word and `d=0/1` selects the
@@ -1366,7 +1374,7 @@ uses DS. See the [addressing contract](8088/model.md#modrm-operands).
 
 ModR/M register/address choices, immediates, displacements, and stack
 adjustments remain operands rather than additional coverage forms. These
-155 forms include every documented operand choice, without prefixes.
+205 forms include every documented operand choice, without prefixes.
 The 8088 now meets its CPU-only capability checkpoint: representative loads,
 stores, arithmetic, logic, branches, calls, returns, stack operations, and
 independently checked combined programs. Interrupts and I/O remain deferred
@@ -1382,18 +1390,22 @@ until all eight CPUs meet the checkpoint.
 | ModR/M | All unprefixed register and effective-address choices for the implemented forms; resolve addresses once before data accesses |
 | Data words | Low byte first; wrap each successive offset to 16 bits within the selected segment, then translate to the bus |
 | Arithmetic and logic | ADD/ADC/SUB/SBB/CMP and OR/AND/XOR/TEST; width-specific flags, low-byte parity, nibble carry/borrow; logic clears undefined AF as a deterministic policy |
+| Unary operations | INC/DEC/NOT/NEG on byte/word registers or memory; immediate TEST; operand reads precede writes |
+| Shifts and rotates | Seven documented operations in both widths, by one or CL=0–255; rotates preserve result flags; count zero preserves every flag; undefined OF for larger counts is preserved and undefined shift AF is cleared |
+| Exchanges | Register pairs, AX short encodings, and register/memory; preserve flags, byte aliases, and resolved addresses; 90 is NOP |
 | Control flow | All Jcc conditions, near relative CALL/JMP, short JMP, near RET with optional parameter cleanup; preserve CS and all flags |
 | Stack | General registers and return IP; descending SS:SP, offset wrapping, original PUSH SP / POP SP behavior |
 | Reset | CS=FFFF, IP=0000, other segments and flags clear; preserve general registers and RAM; no vector reads |
-| Unsupported encodings | First-byte rejection reads one byte; unused 82/83 selectors read opcode and ModR/M only; preserve all state and RAM |
+| Unsupported encodings | First-byte rejection reads one byte; unsupported group selectors read opcode and ModR/M only; preserve all state and RAM |
 | Prefixes | Rejected with unchanged state and RAM; no segment overrides, LOCK, or repetition yet |
-| Remaining scope | Other transfers, unary memory operations, shifts/rotates, multiplication/division, decimal adjustment, loop instructions, far transfers, segment/FLAGS stack operations, HALT, interrupts, I/O, and timing/prefetch |
+| Remaining scope | Other transfers, multiplication/division, decimal adjustment, loop instructions, far transfers, segment/FLAGS stack operations, HALT, interrupts, I/O, and timing/prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/8088.test.ts),
 [arithmetic](../../tests/machines/8088/example.test.ts),
 [transfer](../../tests/machines/8088/transfers-example.test.ts),
 [control-flow](../../tests/machines/8088/control-flow-example.test.ts), and
 [word-sum example tests](../../tests/machines/8088/word-sum-example.test.ts),
+[transformation example tests](../../tests/machines/8088/word-transform-example.test.ts),
 plus [public type checks](../../tests/types/8088.ts). Checks include exhaustive
 byte arithmetic/logic pairs, word sweeps and signed boundaries, incoming flag
 patterns, every register selector and alias, each effective-address mode,
@@ -1408,11 +1420,20 @@ restart. The 76-step word-sum program adds masked words into DX:AX with carry,
 restores BX through a BP frame, skips zero inputs, and conditionally marks
 an odd result in memory.
 
-The [hardware comparison](8088/reference-notes.md#arithmetic-logic-and-modrm-comparison)
-passes **1,025,342 unprefixed cases across all 155 supported forms**, including
-**550,172 cases for the 94 new forms**. It checks state, modeled flags, fetched
-bytes, final RAM, and accessed addresses. Prefetch and cycle traces are outside
-the comparison; independent local tests establish instruction-level access order.
+Unary checks exhaust every byte/word and both incoming carries. Byte shifts
+cover every operand, all 256 counts, and both carries; word shifts cover every
+value at count one and boundaries at every count. All new forms have operand,
+flag, wrapping, overlap, and rejection checks. The 16-step transformation
+program halves and negates a signed 32-bit value, records its discarded bit,
+and writes big-endian output. Tests check signed boundaries, both branch paths,
+resumption between shifts, edited RAM, reset, and fresh factories.
+
+The [hardware comparison](8088/reference-notes.md#unary-shift-and-transfer-comparison)
+passes **1,232,121 unprefixed cases across all 205 supported forms**, including
+**206,779 cases for the 50 new forms**. It checks state, defined flags, fetched
+bytes, final RAM, and accessed addresses. Undefined shift flags follow explicit
+model policies checked locally. Prefetch and cycle traces are outside the
+comparison; independent local tests establish instruction-level access order.
 
 ## 68000
 

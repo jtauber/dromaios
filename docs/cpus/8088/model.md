@@ -106,14 +106,19 @@ The supported unprefixed forms are:
 | `70`–`7F` | `Jcc rel8` | All sixteen conditions; fetch the signed byte on both paths |
 | `80`–`83` | Immediate ALU r/m | 80/81 support all operations; 82/83 support ADD/ADC/SBB/SUB/CMP; 83 sign-extends its byte immediate to a word |
 | `84`, `85`, `A8`, `A9` | TEST r/m,r or AL/AX,n | Set AND flags without changing either operand |
+| `86`, `87`, `90`–`97` | XCHG r/m,r or AX,r16 | Exchange original operand values; 90 is NOP; preserve every flag |
 | `88`–`8B` | MOV r/m,r or r,r/m | Both widths/directions; preserve every flag and the unselected byte half |
 | `A0`, `A1` | `MOV AL,[offset]`, `MOV AX,[offset]` | Fetch a word offset and read one/two bytes through DS; preserve all flags and, for AL, AH |
 | `A2`, `A3` | `MOV [offset],AL`, `MOV [offset],AX` | Fetch a word offset and write one/two bytes through DS; preserve all registers and flags except advancing IP |
 | `B0`–`B7` | `MOV r8,n` | Fetch an immediate byte and replace AL/CL/DL/BL/AH/CH/DH/BH; preserve the other half and all flags |
 | `B8`–`BF` | `MOV r16,n` | Fetch a little-endian immediate word and replace AX/CX/DX/BX/SP/BP/SI/DI; preserve all flags |
 | `C2`, `C3` | `RET n`, `RET` | Pop IP; optionally discard an unsigned word-sized byte count from SP |
+| `C6`, `C7` /0 | MOV r/m,n | Immediate byte/word to any register or memory operand; no destination read |
+| `D0`–`D3` /0–5, /7 | ROL/ROR/RCL/RCR/SHL/SHR/SAR | Byte/word, by one or the full CL count; /6 stays unsupported |
 | `E8` | `CALL rel16` | Push the following IP and take a near relative branch |
 | `E9`, `EB` | `JMP rel16`, `JMP rel8` | Near or short relative branch without a stack access |
+| `F6`, `F7` /0, /2, /3 | TEST r/m,n; NOT; NEG | Immediate AND flags, one's complement, or two's-complement negation |
+| `FE`, `FF` /0–1 | INC/DEC r/m | Adjust a byte/word register or memory operand; preserve CF |
 
 Lengths follow the encoding: opcode, optional ModR/M and displacement, then
 any immediate. **All instruction bytes are fetched before data accesses**;
@@ -126,8 +131,9 @@ later steps read current RAM while retained records keep their earlier bytes.
 
 ## ModR/M operands
 
-ModR/M has the pattern **`mm ggg rrr`**. In register/memory ALU, MOV, and TEST,
-`ggg` selects a register. In `80`–`83`, it selects the ALU operation instead.
+ModR/M has the pattern **`mm ggg rrr`**. In register/memory ALU, MOV, TEST, and
+XCHG, `ggg` selects a register. In immediate, unary, and shift groups it
+selects the operation instead.
 Register codes are AL/CL/DL/BL/AH/CH/DH/BH for bytes and
 AX/CX/DX/BX/SP/BP/SI/DI for words. Register self-operations and byte halves
 sharing a word use the operands' original values.
@@ -153,7 +159,12 @@ sharing a word use the operands' original values.
 Base and displacement are added modulo 65536 before segment translation.
 The operand retains that segment and offset for its reads and writes; changing
 a base register cannot change the already resolved address. For example,
-`MOV BX,[BX+SI]` uses the original BX to find its source.
+`MOV BX,[BX+SI]` uses the original BX to find its source. Likewise,
+`XCHG BX,[BX+SI]` reads and writes the address computed from the original BX.
+XCHG reads both operands before writing either, including AL/AH exchanges
+and self exchanges. `90` is the AX-with-AX encoding, also named NOP.
+Memory exchanges record operand reads followed by writes; bus locking and
+arbitration remain outside this instruction-level model.
 
 The immediate group uses `1000 00 s w`. `80` is byte and `81` is word;
 `82` is the documented alternate byte arithmetic encoding; `83` sign-extends
@@ -179,6 +190,53 @@ AF undefined; the model **clears AF deterministically**, matching the pinned
 hardware fixtures rather than promising portable software behavior for that bit.
 Byte operations preserve the other half of their stored word register.
 Decimal adjustment remains a separate, unsupported instruction family.
+
+NOT flips every bit within the operand width and preserves all flags. NEG
+computes zero minus the operand: CF is set for every nonzero operand, OF
+only for the most negative value (`80` or `8000`), and the other arithmetic
+flags follow subtraction. INC/DEC memory forms share the register rules,
+including preserving CF. Immediate TEST reads its operand without writing it;
+NOT, NEG, INC, and DEC read then write, even when the value is unchanged.
+
+## Shifts and rotates
+
+The first byte is **`1101 00 v w`**: `v=0` uses count one, `v=1` uses CL;
+`w=0/1` selects byte/word. ModR/M's operation field selects:
+
+| `ggg` | Instruction | Direction | Bit inserted |
+| --- | --- | --- | --- |
+| `000` | ROL | Left | Outgoing high bit |
+| `001` | ROR | Right | Outgoing low bit |
+| `010` | RCL | Left | Previous CF |
+| `011` | RCR | Right | Previous CF |
+| `100` | SHL / SAL | Left | Zero; both mnemonics name the same encoding |
+| `101` | SHR | Right | Zero |
+| `110` | Unsupported | — | Undocumented encoding |
+| `111` | SAR | Right | Sign bit |
+
+The original 8088 uses **all eight bits of CL**, permitting 0–255 movements.
+It does not apply the five-bit mask used by later x86 processors. Each movement
+sets CF to the outgoing bit; carry rotations feed that flag into the next
+movement. Counts equal to or larger than the width still execute. The count
+is captured before changing any destination, including CL, CH, or CX.
+
+For count one, OF records whether the sign bit changed. For larger counts
+Intel leaves OF undefined; this model **preserves its incoming value**.
+Rotations preserve SF/ZF/PF/AF. Nonzero shifts set SF/ZF/PF from the result
+and **clear undefined AF deterministically**, as logical operations do.
+Every form preserves TF/IF/DF. A zero count preserves all flags and the value.
+
+Memory forms fetch the complete encoding, read the operand once, perform all
+movements internally, then write it once. A zero count also records a read
+and unchanged write. Word accesses retain the segment-offset wrapping policy.
+These are explicit instruction-level access rules, without cycle counts or
+prefetch effects. Pure one-bit movement is shared with the 6800/6809; counts,
+flag updates, and operand accesses belong to the 8088.
+
+Intel's [8086 Family User's Manual](https://www.ardent-tool.com/CPU/docs/Intel/808x/manuals/9800722-03_alt.pdf),
+printed pages 2-39–2-40 and the instruction tables, defines these operations.
+The [reference comparison](reference-notes.md#unary-shift-and-transfer-comparison)
+checks documented encodings and defined flags against hardware cases.
 
 ## Control flow and stack
 
@@ -218,10 +276,13 @@ compares it before branching. IP, SP, and the physical PC stay distinct.
 ## Unsupported instructions
 
 Unsupported first bytes, including prefixes, produce `outcome: "unsupported"`
-and `reason: "opcode"` after one opcode read. Unused 82/83 selectors read the
-opcode and ModR/M, then reject without fetching a displacement or immediate
-or accessing an operand. Both paths preserve IP, all other state, and RAM.
-Repeating the attempt repeats the same reads. This atomic rejection is a model policy, not an illegal-instruction exception implemented
+and `reason: "opcode"` after one opcode read. Unsupported operation selectors
+in 82/83, C6/C7, D0–D3, F6/F7, and FE/FF read the opcode and ModR/M, then
+reject without fetching a displacement or immediate or accessing an operand.
+This includes documented operations that remain unimplemented, such as
+multiply/divide and indirect calls. Both paths preserve IP, all other state,
+and RAM. Repeating the attempt repeats the same reads. This atomic rejection
+is a model policy, not an illegal-instruction exception implemented
 by the original chip. Supported steps report `outcome: "executed"`.
 
 ## CPU reset
@@ -277,6 +338,16 @@ instruction and data accesses, unchanged-value writes, and code/data overlap.
 The [masked word-sum example](examples/word-sum.md) verifies all 76 records,
 a 32-bit carry, BP stack-frame reads, conditional logic, edited source RAM,
 bounded loops, full memory images, nested state restoration, reset, and restart.
+
+Unary tests exhaust every byte/word with both incoming carry values. Byte
+rotates/shifts exhaust every operand, all 256 CL counts, and both carry values;
+word tests cover every operand for count one and boundary operands at every
+count. All new groups cover register selectors, memory modes, flag patterns,
+wrapped instruction/data accesses, code overlap, and atomic rejection.
+XCHG checks every pair and byte alias; immediate TEST exhausts byte pairs.
+The [signed word transformation](examples/word-transform.md) checks exact
+records, carry propagation, two-word negation, both marker paths, byte swaps,
+segment-end reads, physical wrapping, and complete guarded memory images.
 
 Other instruction forms, segment overrides and other prefixes, far transfers,
 loop instructions, segment/FLAGS stack operations, interrupts, I/O, mapped

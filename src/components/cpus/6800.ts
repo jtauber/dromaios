@@ -9,7 +9,7 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { add, subtract, shiftLeft8, shiftRight8 } from "./alu.ts";
+import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
@@ -97,11 +97,11 @@ export class Cpu6800 {
   readonly #unaryOperations: readonly { bits: string; apply: ByteOperation }[] = [
     { bits: "0000", apply: value => this.#subtract(0, value) }, // NEG
     { bits: "0011", apply: value => this.#complement(value) }, // COM
-    { bits: "0100", apply: value => this.#shiftResult(shiftRight8(value, 0)) }, // LSR
-    { bits: "0110", apply: value => this.#shiftResult(shiftRight8(value, this.#state.flags.c ? 1 : 0)) }, // ROR
-    { bits: "0111", apply: value => this.#shiftResult(shiftRight8(value, value >= 0x80 ? 1 : 0)) }, // ASR
-    { bits: "1000", apply: value => this.#shiftResult(shiftLeft8(value, 0)) }, // ASL
-    { bits: "1001", apply: value => this.#shiftResult(shiftLeft8(value, this.#state.flags.c ? 1 : 0)) }, // ROL
+    { bits: "0100", apply: value => this.#shiftResult(shiftRight(8, value, 0)) }, // LSR
+    { bits: "0110", apply: value => this.#shiftResult(shiftRight(8, value, this.#state.flags.c ? 1 : 0)) }, // ROR
+    { bits: "0111", apply: value => this.#shiftResult(shiftRight(8, value, value >= 0x80 ? 1 : 0)) }, // ASR
+    { bits: "1000", apply: value => this.#shiftResult(shiftLeft(8, value, 0)) }, // ASL
+    { bits: "1001", apply: value => this.#shiftResult(shiftLeft(8, value, this.#state.flags.c ? 1 : 0)) }, // ROL
     { bits: "1010", apply: value => this.#adjust(value, -1) }, // DEC
     { bits: "1100", apply: value => this.#adjust(value, 1) }, // INC
   ];

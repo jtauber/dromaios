@@ -16,7 +16,7 @@ export interface SubtractionResult {
   readonly overflow: boolean;
 }
 
-/** Shifted byte and the bit shifted out; flag interpretation belongs to the CPU. */
+/** Shifted value and the bit shifted out; flag interpretation belongs to the CPU. */
 export interface ShiftResult {
   readonly result: number;
   readonly carry: boolean;
@@ -59,14 +59,15 @@ export function subtract(width: ArithmeticWidth, left: number, right: number, bo
   };
 }
 
-/** Shift an unsigned byte left once, inserting incomingBit into bit 0. */
-export function shiftLeft8(value: number, incomingBit: 0 | 1): ShiftResult {
-  return { result: ((value << 1) | incomingBit) & 0xff, carry: (value & 0x80) !== 0 };
+/** Shift an unsigned operand left once, inserting incomingBit into bit 0. */
+export function shiftLeft(width: ArithmeticWidth, value: number, incomingBit: 0 | 1): ShiftResult {
+  return { result: (((value << 1) | incomingBit) & (2 ** width - 1)) >>> 0,
+    carry: (value & 2 ** (width - 1)) !== 0 };
 }
 
-/** Shift an unsigned byte right once, inserting incomingBit into bit 7. */
-export function shiftRight8(value: number, incomingBit: 0 | 1): ShiftResult {
-  return { result: (value >>> 1) | (incomingBit << 7), carry: (value & 1) !== 0 };
+/** Shift an unsigned operand right once, inserting incomingBit into the high bit. */
+export function shiftRight(width: ArithmeticWidth, value: number, incomingBit: 0 | 1): ShiftResult {
+  return { result: ((value >>> 1) | (incomingBit << (width - 1))) >>> 0, carry: (value & 1) !== 0 };
 }
 
 /** Whether an unsigned byte has an even number of set bits, including zero. */

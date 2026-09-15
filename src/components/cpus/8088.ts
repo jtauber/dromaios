@@ -7,7 +7,8 @@ import type { WordInstructionContext as InstructionContext } from "./instruction
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { add, subtract, evenParity8 } from "./alu.ts";
+import { add, subtract, shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
+import type { ShiftResult } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu8088StateDescription = defineState({
@@ -53,6 +54,8 @@ type OpcodeHandler = (instruction: InstructionContext) => "unsupported" | void;
 type OperandWidth = 8 | 16;
 type WordRegister = "ax" | "cx" | "dx" | "bx" | "sp" | "bp" | "si" | "di";
 type AluOperation = (width: OperandWidth, left: number, right: number) => number | void;
+type OperandOperation = (width: OperandWidth, operand: Operand, instruction: InstructionContext) => void;
+type ShiftOperation = (width: OperandWidth, value: number) => ShiftResult;
 
 // An instruction-local operand: memory closures capture one resolved segment and offset.
 interface Operand {
@@ -173,6 +176,35 @@ export class Cpu8088 {
   ];
   readonly #test: AluOperation = (width, left, right) => { this.#logic(width, left & right); };
 
+  // F6/F7: mm ooo rrr selects TEST, unused /1, NOT, NEG, then deferred multiply/divide.
+  readonly #unaryOperations: readonly (OperandOperation | undefined)[] = [
+    (width, operand, instruction) => this.#testImmediate(width, operand, instruction), // 000: TEST r/m,n
+    undefined, // 001: undocumented TEST alias
+    (width, operand) => operand.write(operand.read() ^ (2 ** width - 1)), // 010: NOT
+    (width, operand) => operand.write(this.#subtract(width, 0, operand.read())), // 011: NEG
+  ];
+  // FE/FF: only /0 and /1 adjust an operand; FF's other documented operations wait.
+  readonly #adjustOperations: readonly OperandOperation[] = [
+    (width, operand) => operand.write(this.#adjust(width, operand.read(), false)), // 000: INC
+    (width, operand) => operand.write(this.#adjust(width, operand.read(), true)), // 001: DEC
+  ];
+  readonly #immediateMoveOperations: readonly OperandOperation[] = [
+    (width, operand, instruction) => operand.write(this.#fetchImmediate(width, instruction)), // C6/C7 /0: MOV r/m,n
+  ];
+
+  // D0–D3: mm ooo rrr selects the one-bit operation. /6 is undocumented.
+  // The inserted bit is the outgoing bit (rotate), CF (through carry), zero, or sign.
+  readonly #shiftOperations: readonly (ShiftOperation | undefined)[] = [
+    (width, value) => shiftLeft(width, value, (value & 2 ** (width - 1)) !== 0 ? 1 : 0), // 000: ROL
+    (width, value) => shiftRight(width, value, (value & 1) !== 0 ? 1 : 0), // 001: ROR
+    (width, value) => shiftLeft(width, value, this.#state.flags.cf ? 1 : 0), // 010: RCL
+    (width, value) => shiftRight(width, value, this.#state.flags.cf ? 1 : 0), // 011: RCR
+    (width, value) => shiftLeft(width, value, 0), // 100: SHL (SAL)
+    (width, value) => shiftRight(width, value, 0), // 101: SHR
+    undefined, // 110: undocumented
+    (width, value) => shiftRight(width, value, (value & 2 ** (width - 1)) !== 0 ? 1 : 0), // 111: SAR
+  ];
+
   // ModR/M mm ggg rrr: memory bases selected by rrr. BP selects SS; other bases use DS.
   // mm=00/01/10 adds no/signed-byte/word displacement; mm=11 selects a register.
   // The mm=00, rrr=110 exception is a direct word offset in DS, not [BP].
@@ -222,8 +254,13 @@ export class Cpu8088 {
     ...opcodeFamily("1000 00 s w", { s: [false, true], w: this.#operandWidths }, ({ s: shortImmediate, w: width }) => (instruction: InstructionContext) => this.#aluImmediate(width, shortImmediate, instruction)), // ALU r/m,n
     // 1000 010w + mm ggg rrr: AND flags without a write; ggg is the source register.
     ...opcodeFamily("1000 010 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#aluRegisterMemory(this.#test, width, false, instruction)), // TEST r/m,r
+    // 1000 011w + mm ggg rrr: exchange the original operands, even when registers alias.
+    ...opcodeFamily("1000 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#exchange(...this.#registerMemoryOperands(width, false, instruction))), // XCHG r/m,r
     // 1000 10 d w + mm ggg rrr: d=0 writes r/m, d=1 writes register ggg; no flags change.
     ...opcodeFamily("1000 10 d w", { d: [false, true], w: this.#operandWidths }, ({ d: toRegister, w: width }) => (instruction: InstructionContext) => this.#moveRegisterMemory(width, toRegister, instruction)), // MOV r/m,r / r,r/m
+
+    // 1001 0rrr: exchange AX with the selected word register; 90 exchanges AX with itself (NOP).
+    ...opcodeFamily("1001 0 rrr", { r: this.#wordRegisters }, ({ r: register }) => () => { [this.#state.ax, this.#state[register]] = [this.#state[register], this.#state.ax]; }), // XCHG AX,r16 / NOP
 
     // 1010 00 d w: d=0 loads, d=1 stores; w=0 AL, w=1 AX. The DS offset is always a word.
     ...opcodeFamily("1010 00 0 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#loadAccumulator(width, instruction)), // MOV AL/AX,[offset]
@@ -241,15 +278,35 @@ export class Cpu8088 {
     ...instructionPattern("1100 0010", ({ fetchWord, readByte }) => this.#return(fetchWord(), readByte)), // RET n
     ...instructionPattern("1100 0011", ({ readByte }) => this.#return(0, readByte)), // RET
 
+    // 1100 011w + mm 000 rrr: immediate MOV; every other operation selector is unused.
+    ...opcodeFamily("1100 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#operandGroup(width, this.#immediateMoveOperations, instruction)), // MOV r/m,n
+    // 1101 00vw + mm ooo rrr: v=0 shifts once, v=1 uses all eight bits of CL; w selects byte/word.
+    ...opcodeFamily("1101 00 v w", { v: [false, true], w: this.#operandWidths }, ({ v: useCL, w: width }) => (instruction: InstructionContext) => this.#shift(width, useCL, instruction)), // ROL/ROR/RCL/RCR/SHL/SHR/SAR
+
     // E8/E9 use word displacements; EB is short JMP. EA (far JMP) remains unsupported.
     ...instructionPattern("1110 1000", ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte)), // CALL rel16
     ...instructionPattern("1110 1001", ({ fetchWord }) => this.#jump(fetchWord())), // JMP rel16
     ...instructionPattern("1110 1011", ({ fetchByte }) => this.#jump(signed8(fetchByte()))), // JMP rel8
 
+    // 1111 011w / 1111 111w: ModR/M's ooo selects the supported unary/adjust operations above.
+    ...opcodeFamily("1111 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#operandGroup(width, this.#unaryOperations, instruction)), // TEST/NOT/NEG r/m
+    ...opcodeFamily("1111 111 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#operandGroup(width, this.#adjustOperations, instruction)), // INC/DEC r/m
+
     // Other opcode groups, far transfers, prefixes, interrupts, and I/O remain deferred.
   ]);
 
-  // Addressing, loads, and stores.
+  // Addressing, loads, stores, and exchanges.
+
+  #operandGroup(width: OperandWidth, operations: readonly (OperandOperation | undefined)[], instruction: InstructionContext): "unsupported" | void {
+    const modRM = instruction.fetchByte();
+    const operation = operations[(modRM >>> 3) & 7];
+    if (!operation) return "unsupported";
+    operation(width, this.#registerMemoryOperand(width, modRM, instruction), instruction);
+  }
+
+  #fetchImmediate(width: OperandWidth, instruction: InstructionContext): number {
+    return width === 8 ? instruction.fetchByte() : instruction.fetchWord();
+  }
 
   #registerOperand(width: OperandWidth, selector: number): Operand {
     if (width === 8) {
@@ -291,6 +348,13 @@ export class Cpu8088 {
   #moveRegisterMemory(width: OperandWidth, toRegister: boolean, instruction: InstructionContext): void {
     const [destination, source] = this.#registerMemoryOperands(width, toRegister, instruction);
     destination.write(source.read());
+  }
+
+  #exchange(left: Operand, right: Operand): void {
+    const leftValue = left.read();
+    const rightValue = right.read();
+    left.write(rightValue);
+    right.write(leftValue);
   }
 
   #loadAccumulator(width: OperandWidth, { fetchWord, readByte }: InstructionContext): void {
@@ -347,7 +411,7 @@ export class Cpu8088 {
   // Arithmetic and flags.
 
   #aluAccumulator(operation: AluOperation, width: OperandWidth, instruction: InstructionContext): void {
-    const value = width === 8 ? instruction.fetchByte() : instruction.fetchWord();
+    const value = this.#fetchImmediate(width, instruction);
     this.#applyAlu(operation, width, this.#registerOperand(width, 0), value);
   }
 
@@ -373,10 +437,44 @@ export class Cpu8088 {
   }
 
   #adjustRegister(register: WordRegister, decrement: boolean): void {
+    this.#state[register] = this.#adjust(16, this.#state[register], decrement);
+  }
+
+  #adjust(width: OperandWidth, value: number, decrement: boolean): number {
     const carry = this.#state.flags.cf;
-    const value = this.#state[register];
-    this.#state[register] = decrement ? this.#subtract(16, value, 1) : this.#add(16, value, 1);
+    const result = decrement ? this.#subtract(width, value, 1) : this.#add(width, value, 1);
     this.#state.flags.cf = carry;
+    return result;
+  }
+
+  #testImmediate(width: OperandWidth, operand: Operand, instruction: InstructionContext): void {
+    this.#applyAlu(this.#test, width, operand, this.#fetchImmediate(width, instruction));
+  }
+
+  #shift(width: OperandWidth, useCL: boolean, instruction: InstructionContext): "unsupported" | void {
+    const modRM = instruction.fetchByte();
+    const selector = (modRM >>> 3) & 7;
+    const operation = this.#shiftOperations[selector];
+    if (!operation) return "unsupported";
+    const operand = this.#registerMemoryOperand(width, modRM, instruction);
+    // Capture CL before writing any destination, including CL or CX itself. The 8088 does not mask it to five bits.
+    const count = useCL ? this.#state.cx & 0xff : 1;
+    const value = operand.read();
+    let result = value;
+    for (let bit = 0; bit < count; bit++) {
+      const shifted = operation(width, result);
+      result = shifted.result;
+      this.#state.flags.cf = shifted.carry;
+    }
+    // Only a one-bit operation defines OF; preserve its incoming value for larger counts.
+    if (count === 1) this.#state.flags.of = ((value ^ result) & 2 ** (width - 1)) !== 0;
+    // 000–011 are rotates; only the shift selectors 100/101/111 replace result flags.
+    if (count > 0 && selector >= 4) {
+      this.#setResultFlags(width, result);
+      this.#state.flags.af = false; // Undefined after shifts; deterministic, as for logic.
+    }
+    // At this instruction-level boundary even count zero reads and writes the unchanged operand, preserving flags.
+    operand.write(result);
   }
 
   #add(width: OperandWidth, left: number, right: number, carryIn: 0 | 1 = 0): number {

@@ -154,3 +154,46 @@ Effective addresses are fixed before an instruction changes registers, including
 operation selectors return a result for writing, or no result for CMP/TEST.
 This shares addressing and flag behavior across instruction families without
 adding a CPU base class or mutable cached ModR/M state.
+
+## Unary, shift, and transfer comparison
+
+The next expansion adds **206,779 unprefixed hardware cases across 50 forms**:
+`86`–`87`, `90`–`97`, `C6`–`C7` /0, `D0`–`D3` /0–5 and /7,
+`F6`–`F7` /0, /2, /3, and `FE`–`FF` /0–1. All pass against the same pinned
+V2 revision. Rerunning the preceding 1,025,342 cases gives **1,232,121 passing
+cases across all 205 supported forms**.
+
+The C6/C7 files mix documented `/0` with hardware aliases using other
+operation selectors. Only `/0` counts here; prefixes and undocumented
+encodings remain excluded. Local tests reject every unsupported selector
+before displacement/immediate fetches, operand accesses, or state changes.
+
+The comparison checks fetched bytes, registers, defined flags, final RAM,
+and accessed addresses. Intel leaves OF undefined for multi-bit shifts and
+rotates, and AF undefined for nonzero shifts. Those bits are normalized to
+the model's explicit policies: preserve OF for counts greater than one and
+clear AF after nonzero shifts. Local independent tests check those policies,
+zero-count preservation, all 256 CL counts, and complete access ordering.
+
+The pinned `dromaios-pc` source supplied useful encoding and operation
+comparisons, with three differences retained in the new model:
+
+- **CL is not masked to five bits.** The old D2/D3 handlers apply `& 0x1F`;
+  Intel's 1979 manual permits counts through 255 on the original 8088.
+  For example, SHL AL,CL with AL=`81`, CL=`20` produces zero, not an
+  unchanged AL. This has exhaustive local count coverage.
+- **One-bit rotates update OF when the sign changes.** The old core's ROL
+  formula compares the final two high bits, and its RCL/RCR paths omit OF.
+  ROL of `80` becomes `01` with CF=OF=1; RCL of `40` with CF=0 becomes
+  `80` with CF=0, OF=1; RCR of `01` with CF=1 becomes `80` with CF=OF=1.
+  Independent tests and the hardware comparison check the new flag behavior.
+- **Undefined AF has an explicit policy.** The old shifts preserve AF; the
+  new model clears it after nonzero shifts, consistently with logic. This
+  bit is excluded from hardware equality rather than claimed as portable
+  behavior.
+
+The [signed word transformation](examples/word-transform.md) combines carry
+propagation across two words, negation with borrow, byte-register exchanges,
+and guarded memory output. Its high-word read exercises the segment-offset
+boundary already identified above. Independent expectations check every
+instruction record, both marker paths, signed boundaries, and full RAM images.
