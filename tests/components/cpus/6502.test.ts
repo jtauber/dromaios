@@ -1402,6 +1402,33 @@ test("6502 JSR keeps captured bytes when pushes overwrite code but observes a re
   }
 });
 
+test("6502 JSR retains completed pushes when a stack write or the overlapping high-byte fetch fails", () => {
+  const failure = new Error("JSR access failed");
+  class FailingRam extends ObservedRam {
+    remaining = 0;
+    attempt(): void { if (this.remaining > 0 && --this.remaining === 0) throw failure; }
+    override read(address: number): number { this.attempt(); return super.read(address); }
+    override write(address: number, value: number): void { this.attempt(); super.write(address, value); }
+  }
+  const sequence = [
+    { kind: "read", address: 0x01fd, value: 0x20 }, { kind: "read", address: 0x01fe, value: 0x44 },
+    { kind: "write", address: 0x01ff, value: 1 }, { kind: "write", address: 0x01fe, value: 0xff },
+    { kind: "read", address: 0x01ff, value: 1 },
+  ];
+  // Failing access number, retained SP, and retained low/high operand bytes.
+  for (const [failAt, sp, low, high] of [[3, 0xff, 0x44, 0x55], [4, 0xfe, 0x44, 1], [5, 0xfd, 0xff, 1]] as const) {
+    const ram = new FailingRam();
+    [0x20, 0x44, 0x55].forEach((value, offset) => ram.write(0x01fd + offset, value));
+    const before = initialState({ pc: 0x01fd, sp: 0xff });
+    const cpu = new Cpu6502(ram, before);
+    ram.accesses.length = 0; ram.remaining = failAt;
+    assert.throws(() => cpu.step(), error => error === failure);
+    assert.deepEqual(cpu.snapshot(), { ...before, pc: 0x01ff, sp });
+    assert.deepEqual(ram.accesses, sequence.slice(0, failAt - 1));
+    assert.equal(ram.read(0x01fe), low); assert.equal(ram.read(0x01ff), high);
+  }
+});
+
 test("6502 RTS accepts every return pointer from RAM and increments it with 16-bit wrapping", () => {
   const ram = new Ram(0x10000);
   ram.write(0x2000, 0x60);

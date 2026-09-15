@@ -117,7 +117,9 @@ result calculations, and one tested memory-modification sequence with an
 explicit NMOS variation. This is a modest semantic consolidation, not evidence
 of a large code-size reduction or a general CPU framework.
 
-A next experiment can examine register views and operand capabilities using
-these boundaries, with the existing direct implementations as the comparison.
-Substantial addressing decoders, CPU lifecycle, exception behavior, and a
-structured DSL representation remain separate work.
+The subsequent [boundary probes](boundary-probes.md) test these distinctions
+against partial execution, address mapping, and future architectures. They
+assess register views and operand capabilities using the existing direct
+implementations as the comparison. Substantial addressing decoders, CPU
+lifecycle, exception behavior, and a structured DSL representation remain
+separate work.

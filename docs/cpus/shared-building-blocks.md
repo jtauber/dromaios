@@ -31,7 +31,9 @@ design target to demonstrate, not a capability established by this note.
 
 The [first bounded TypeScript experiment](shared-operation-blocks.md) records
 the implemented flag calculations and memory sequence, preserved difficult
-cases, and the limits of the resulting reuse.
+cases, and the limits of the resulting reuse. The subsequent
+[boundary probes](boundary-probes.md) add failure checks and hand-worked
+6507/4004 traces before choosing the next abstraction.
 
 The staged approach begins with a **bounded shared-building-blocks refactor in
 ordinary TypeScript**. Establish and test the meaning of those building blocks
@@ -1170,11 +1172,12 @@ shrink the scope afterward to claim that no extensions were necessary.
 
 ## Staged roadmap
 
-Each stage consists of small, separately reviewable changes. The immediate
-work is a bounded refactor in ordinary TypeScript. Language representation,
-generation, and broader migration follow only if the preceding review supports
-them. This is a proposed sequence, not an implementation schedule or a change
-to current CPU coverage.
+Each stage consists of small, separately reviewable changes. These stages
+govern shared-code and language experiments; [completing opcode coverage for
+all eight CPUs](../../ROADMAP.md#complete-opcode-coverage-for-all-eight) remains
+an independent milestone. Language representation, generation, and broader
+migration follow only if the preceding review supports them. Neither this
+sequence nor a finished DSL is a prerequisite for completing the current cores.
 
 The [project roadmap](../../ROADMAP.md#cpu-only-checkpoint) still places
 interrupts and I/O after the eight-CPU capability checkpoint. Review that

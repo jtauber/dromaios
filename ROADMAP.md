@@ -9,10 +9,11 @@ is a point to discuss the next slice. Later stages are provisional.
 Every commit requires maintainer review and an explicit go-ahead.
 
 The introductory examples were built in the order **8080 → 6502 → 6809**.
-The current priority is a **CPU-only capability checkpoint across eight CPUs**,
-expanding existing cores while introducing the remaining targets. Interrupts
-and I/O wait until all eight reach that checkpoint. Browser work can proceed
-alongside CPU development; the stages below otherwise allow overlapping work.
+The CPU milestone is **complete documented opcode coverage across all eight
+initial targets**. Interrupts and I/O wait until all eight have met the reviewed
+CPU-only capability checkpoint. Bounded shared-code and DSL
+experiments, and browser work, can proceed alongside CPU completion; none is
+a prerequisite for finishing the instruction sets.
 Implementation order is independent of the tutorial's historical teaching
 order. See [CPU scope](docs/cpus/scope.md) for the rationale,
 eventual targets, and current reference coverage.
@@ -104,8 +105,8 @@ checkpoint is met. Existing architectural flags and ordinary memory and
 status-register operations remain in scope. The 8080 can pause at **240/244
 forms (98.4%)**, with `DI`, `EI`, `IN`, and `OUT` deferred.
 
-All eight now have initial slices. Expand them in reviewable instruction-family
-batches, and revisit interrupts and I/O once all eight meet the checkpoint.
+Review the implemented models and combined examples against these criteria,
+then revisit the deferred interrupts and I/O as part of opcode completion.
 
 The introductory [8080](docs/cpus/8080/examples/arithmetic.md), [6502](docs/cpus/6502/examples/arithmetic.md),
 [6809](docs/cpus/6809/examples/arithmetic.md), [Z80](docs/cpus/z80/examples/arithmetic.md), [8008](docs/cpus/8008/examples/arithmetic.md),
@@ -115,6 +116,27 @@ define behavior and acceptance checks; the [coverage tracker](docs/cpus/coverage
 records current support. Focused examples are extending this comparison;
 the [example catalog](docs/README.md#cpu-examples) lists the completed programs.
 Further examples and comparison of the models continue within this stage.
+
+### Complete opcode coverage for all eight
+
+Finish every documented opcode form for each initial CPU, using the existing
+[coverage definitions and inventories](docs/cpus/coverage.md). The CPU-only
+checkpoint is an intermediate milestone, not the endpoint of CPU work.
+
+- Review the checkpoint against the current models and examples; identify any
+  remaining capability gaps before beginning the deferred work.
+- Define the required I/O, interrupt, exception, and external-processor
+  interfaces and delivery contracts in reviewable slices, then implement the
+  remaining instruction families with independent checks.
+- Reach 100% documented opcode coverage for each of the eight. Keep timing,
+  bus behavior, and other processor features separately tracked; a complete
+  opcode inventory does not establish a cycle-accurate or complete machine.
+
+Finish these instructions in the current TypeScript cores as needed. Neither
+a finished DSL, migration to it, nor additional CPU targets are prerequisites.
+At each shared-code or language review, choose the next bounded experiment
+alongside the remaining CPU-completion work so exploration does not defer it
+indefinitely. Current counts and specific gaps belong in the coverage tracker.
 
 ## 3. Make the examples explorable in the browser
 

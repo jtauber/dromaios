@@ -366,6 +366,40 @@ test("8088 data words wrap within their segment and at one MiB, and record uncha
   }
 });
 
+test("8088 word moves retain completed accesses and fetched IP when either segmented data access fails", () => {
+  const failure = new Error("word access failed");
+  class FailingRam extends ObservedRam {
+    failAddress = -1;
+    override read(address: number): number {
+      if (address === this.failAddress) throw failure;
+      return super.read(address);
+    }
+    override write(address: number, value: number): void {
+      if (address === this.failAddress) throw failure;
+      super.write(address, value);
+    }
+  }
+  // Both offset wrapping and physical wrapping must happen before a failing access.
+  for (const [ds, offset, low, high] of [[0x1234, 0xffff, 0x2233f, 0x12340], [0xffff, 0xf, 0xfffff, 0]] as const) {
+    for (const store of [false, true]) for (const second of [false, true]) {
+      const ram = new FailingRam(0x100000);
+      const before = initialState({ cs: 0, ds, ax: 0xa55a });
+      const bytes = [store ? 0xa3 : 0xa1, offset % 256, Math.floor(offset / 256)];
+      bytes.forEach((value, i) => ram.write(0x100 + i, value));
+      ram.write(low, 0x34); ram.write(high, 0x12);
+      const cpu = new Cpu8088(ram, before);
+      ram.accesses.length = 0; ram.failAddress = second ? high : low;
+      assert.throws(() => cpu.step(), error => error === failure);
+      assert.deepEqual(cpu.snapshot(), snapshot({ ...before, ip: 0x103 }));
+      assert.deepEqual(ram.accesses, [...bytes.map((value, i) => ({ kind: "read", address: 0x100 + i, value })),
+        ...(second ? [{ kind: store ? "write" : "read", address: low, value: store ? 0x5a : 0x34 }] : [])]);
+      ram.failAddress = -1;
+      assert.equal(ram.read(low), store && second ? 0x5a : 0x34);
+      assert.equal(ram.read(high), 0x12);
+    }
+  }
+});
+
 test("8088 stores every word value and leaves AX and every other register unchanged", () => {
   const ram = new ObservedRam(0x100000);
   for (let ax = 0; ax < 65536; ax++) {

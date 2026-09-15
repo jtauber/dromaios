@@ -769,6 +769,44 @@ test("68000 read and write alignment rejection preserves both pending address up
   }
 });
 
+test("68000 MOVE host errors retain only completed accesses and commit address updates before destination writes", () => {
+  const failure = new Error("MOVE access failed");
+  class FailingRam extends ObservedRam {
+    failAddress = -1;
+    override read(address: number): number {
+      if (address === this.failAddress) throw failure;
+      return super.read(address);
+    }
+    override write(address: number, value: number): void {
+      if (address === this.failAddress) throw failure;
+      super.write(address, value);
+    }
+  }
+  const value = [0x12, 0x34, 0x56, 0x78];
+  for (const writing of [false, true]) for (let byte = 0; byte < 4; byte++) {
+    const ram = new FailingRam(0x1000000);
+    const before = initialState({ a0: 0xab020000, a1: 0xcd030000 });
+    ram.write(0x1000, 0x22); ram.write(0x1001, 0xd8); // MOVE.L (A0)+,(A1)+
+    value.forEach((v, i) => { ram.write(0x20000 + i, v); ram.write(0x30000 + i, 0xcc); });
+    const cpu = new Cpu68000(ram, before);
+    ram.accesses.length = 0; ram.failAddress = (writing ? 0x30000 : 0x20000) + byte;
+    assert.throws(() => cpu.step(), error => error === failure);
+    const after = writing ? { ...before, a0: 0xab020004, a1: 0xcd030004 } : before;
+    // Flags wait for the full write; PC waits for a successful instruction. Neither changes here.
+    assert.deepEqual(cpu.snapshot(), snapshot(after));
+    assert.deepEqual(ram.accesses, [
+      { kind: "read", address: 0x1000, value: 0x22 }, { kind: "read", address: 0x1001, value: 0xd8 },
+      ...value.slice(0, writing ? 4 : byte).map((v, i) => ({ kind: "read", address: 0x20000 + i, value: v })),
+      ...value.slice(0, writing ? byte : 0).map((v, i) => ({ kind: "write", address: 0x30000 + i, value: v })),
+    ]);
+    ram.failAddress = -1;
+    value.forEach((v, i) => {
+      assert.equal(ram.read(0x20000 + i), v);
+      assert.equal(ram.read(0x30000 + i), writing && i < byte ? v : 0xcc);
+    });
+  }
+});
+
 test("68000 every word/long memory mode reports full odd read/write addresses with exact attempted fetches", () => {
   const ram = new ObservedRam(0x1000000);
   for (const [base, size] of [[0x3000, 2], [0x2000, 4]] as const) for (const bits of [0, 127]) {
