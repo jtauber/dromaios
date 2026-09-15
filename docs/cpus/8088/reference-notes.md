@@ -48,7 +48,8 @@ The older step loop owns tracing, callbacks, run state, cycles, and interrupt
 connections. The new core returns detached instruction records; history and
 bounded execution belong to callers. Unsupported instructions preserve state
 instead of advancing IP and stopping the CPU. BIOS/DOS traps, device wiring,
-interrupts, and display logic remain outside this initial CPU-and-RAM slice.
+and display logic remain outside this CPU model. Native interrupt delivery
+is now implemented through explicit boundary offers.
 
 ## Ideas to revisit
 
@@ -225,10 +226,9 @@ Those exclusions do not remove documented forms. Undefined flags follow the
 model's explicit policies; TF/IF preservation is covered locally because those
 flags are not exercised by the hardware generator.
 
-For divide errors, the fixtures enter interrupt type 0. The comparison instead
-checks detection, `reason: "divide-error"`, complete state preservation, and no
-writes at our deferred-interrupt boundary. It does not claim that the emulator
-reproduces the hardware exception frame or interrupt destination yet. Valid
+The initial divide-error comparison checked detection at a deferred delivery
+boundary. The [interrupt comparison](#interrupt-comparison) now checks the
+same 24,444 cases through native type-0 vectoring and frame writes. Valid
 divisions compare the complete quotient and remainder.
 
 The hardware cases establish three original-chip details.
@@ -283,3 +283,34 @@ fixture starts at port FFFF and confirms the second byte goes to 0000.
 Input fixtures supply FF; local tests separately vary input bytes and check
 all 512 modeled flag combinations, failures, and instruction-boundary resumption.
 Prefetch queues, idle cycles, and timing remain outside the comparison.
+
+## Interrupt comparison
+
+All **42,000 hardware cases** for CC/CD/CE/CF (10,000 each) and FA/FB (1,000
+each) passed at the same pinned [8088 V2 revision](https://github.com/SingleStepTests/8088/tree/aea84484abc79d09639d855b7b0ab32bc9e4dbeb/v2).
+The comparison checks registers, defined flags, final RAM, and ordered data
+transfers extracted from the bus trace. All **24,444 documented DIV/IDIV error
+cases** also pass through type-0 delivery, including frame contents and the
+following-instruction return IP. Undocumented REP-prefixed divisions are excluded.
+Undefined arithmetic flags, including their saved frame bits, are excluded from
+the hardware equality check; local tests require the model's preservation policy.
+These 66,444 cases do not test external pin sampling or IF/TF recognition timing.
+
+Intel's 1979 manual, printed pages 2-22–2-28, supplies the priority, segment-load
+inhibition, and single-step rules. Figure 2-31 specifically shows an owed trap
+before a higher-priority interrupt handler's first instruction. The new local
+tests check those boundaries, restored latches, acknowledgement validation,
+HLT release, REP continuation, and each failing vector/frame byte.
+[Shirriff's silicon analysis](https://www.righto.com/2023/02/8086-interrupt.html)
+establishes vector reads before frame writes and the initial TF sample.
+[MartyPC's interrupt routines](https://github.com/dbalsom/martypc/blob/05c0d088e84ad6bbfac9b3f0d051e7eadefd9f44/crates/lib/marty_core/src/cpu_808x/interrupt.rs),
+[flag restoration](https://github.com/dbalsom/martypc/blob/05c0d088e84ad6bbfac9b3f0d051e7eadefd9f44/crates/lib/marty_core/src/cpu_808x/stack.rs),
+and [step boundaries](https://github.com/dbalsom/martypc/blob/05c0d088e84ad6bbfac9b3f0d051e7eadefd9f44/crates/lib/marty_core/src/cpu_808x/step.rs)
+provide additional comparison points for original-chip IF transitions and traps.
+
+The older PC core's `interrupt(num)` shares the frame layout but writes the stack
+before reading the vector, and its PIC polling only checks IF. Dromaios uses the
+verified vector-first order and explicit snapshot-preserved recognition latches.
+Its instruction-level API abstracts INTA into one callback and retains the
+existing REP prefix-refetch policy; pin cycles, prefetch, and original multi-prefix
+restart quirks remain outside the declared model.

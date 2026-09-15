@@ -43,7 +43,7 @@ odd address, which is valid on the 8088.
 | SP, BP, SI, DI | `8000`, `9000`, `0010`, `0020` |
 | CS, DS, SS, ES, IP | `1234`, `2000`, `3000`, `4000`, `0200` |
 | CF, PF, AF, ZF, SF, TF, IF, DF, OF | `1`, `0`, `1`, `1`, `1`, `0`, `1`, `1`, `1` |
-| `halted` | `false` |
+| `halted`, `interruptDeferred`, `segmentDeferred`, `trapPending` | `false` |
 
 Construction neither resets nor executes. Byte-register views derive from
 their stored words; PC derives from CS:IP.

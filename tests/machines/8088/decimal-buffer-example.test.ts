@@ -19,7 +19,7 @@ function views(state: Cpu8088State): Cpu8088Snapshot {
 }
 function initialState(): Cpu8088Snapshot {
   return views({ ax: 0xa55a, bx: 0x3344, cx: 0x5566, dx: 0x7788, sp: 2, bp: 0x9000, si: 0x10, di: 0x20,
-    cs: 0x1234, ds: 0x2000, ss: 0x6000, es: 0x4000, ip: 0x100, halted: false, flags: { ...callerFlags } });
+    cs: 0x1234, ds: 0x2000, ss: 0x6000, es: 0x4000, ip: 0x100, halted: false, interruptDeferred: false, segmentDeferred: false, trapPending: false, flags: { ...callerFlags } });
 }
 function expectedMemory(finished = false, input = 12345): Uint8Array {
   const expected = new Uint8Array(0x100000);
@@ -106,7 +106,7 @@ test("8088 decimal buffer resumes within REP and the far frame, retaining detach
     checkMemory(ram, true);
     assert.equal(restored.step().instruction, null);
     const before = restored.snapshot();
-    assert.deepEqual(restored.reset(), { before, after: views({ ...before, cs: 0xffff, ip: 0, ds: 0, ss: 0, es: 0, halted: false,
+    assert.deepEqual(restored.reset(), { before, after: views({ ...before, cs: 0xffff, ip: 0, ds: 0, ss: 0, es: 0, halted: false, interruptDeferred: false, segmentDeferred: false, trapPending: false,
       flags: { cf: false, pf: false, af: false, zf: false, sf: false, tf: false, if: false, df: false, of: false } }), accesses: [] });
     checkMemory(ram, true); assert.deepEqual(first, retained);
   }

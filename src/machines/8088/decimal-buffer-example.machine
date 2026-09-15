@@ -5,7 +5,7 @@ cpu 8088 {
   AX = A55A  BX = 3344  CX = 5566  DX = 7788
   SP = 0002  BP = 9000  SI = 0010  DI = 0020
   CS = 1234  DS = 2000  SS = 6000  ES = 4000  IP = 0100
-  halted = false
+  halted = false interruptDeferred = false segmentDeferred = false trapPending = false
   flags { CF = 0  PF = 0  AF = 1  ZF = 0  SF = 0  TF = 0  IF = 1  DF = 1  OF = 1 }
 }
 

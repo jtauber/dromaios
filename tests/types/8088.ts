@@ -43,7 +43,7 @@ export function check8088(ram: Ram, state: Cpu8088State, snapshot: Cpu8088Snapsh
 
 export function check8088Records(record: Cpu8088StepRecord, reset: Cpu8088ResetRecord): void {
   if (record.outcome === "unsupported") {
-    const reason: "opcode" | "divide-error" = record.reason;
+    const reason: "opcode" = record.reason;
     const bytes: readonly number[] = record.instruction.bytes;
   } else if (record.outcome === "executed") {
     const outcome: "executed" = record.outcome;
@@ -88,4 +88,43 @@ export function check8088Ports(ram: Ram, state: Cpu8088State, ports: BytePorts, 
   new Cpu8088(ram, state, { readPort: () => "00", writePort: () => {} });
   // @ts-expect-error Connections must provide both byte transfer callbacks.
   new Cpu8088(ram, state, { readPort: () => 0 });
+}
+
+export function check8088Interrupts(cpu: Cpu8088, state: Cpu8088State, snapshot: Cpu8088Snapshot): void {
+  cpu.interrupt("nmi");
+  const record = cpu.interrupt("intr", () => 0x20);
+  // @ts-expect-error INTR must supply a vector callback.
+  cpu.interrupt("intr");
+  // @ts-expect-error NMI takes its fixed vector without a callback.
+  cpu.interrupt("nmi", () => 2);
+  // @ts-expect-error Only the native INTR/NMI source names are accepted.
+  cpu.interrupt("irq", () => 0);
+  // @ts-expect-error A supplied vector is a number.
+  cpu.interrupt("intr", () => "20");
+  if (record.outcome === "accepted") {
+    const vector: number = record.vector;
+    // @ts-expect-error Accepted interrupts have no rejection reason.
+    record.reason;
+  } else {
+    const reason: "masked" | "deferred" = record.reason;
+    // @ts-expect-error Ignored requests do not obtain a vector.
+    record.vector;
+  }
+  const access = record.accesses[0];
+  if (access?.kind === "acknowledge") {
+    const value: number = access.value;
+    // @ts-expect-error Acknowledge transfers have no memory address.
+    access.address;
+  }
+  // @ts-expect-error Snapshot trap state is readonly.
+  snapshot.trapPending = true;
+  // @ts-expect-error Inhibition is a Boolean latch.
+  state.segmentDeferred = 1;
+  // @ts-expect-error All inhibition latches are required for restoration.
+  const incomplete: Cpu8088State = { ...state, interruptDeferred: undefined };
+  const step = cpu.step();
+  if (step.instruction === null && step.outcome === "executed") {
+    const source: "trap" = step.interrupt.source;
+    const vector: 1 = step.interrupt.vector;
+  }
 }

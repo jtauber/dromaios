@@ -17,8 +17,8 @@ const byteMoves = [
 ] as const;
 
 function initialState(overrides: Partial<Cpu8088State> = {}): Cpu8088State {
-  return { halted: false, ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788, sp: 0x8000, bp: 0x9000, si: 0x10, di: 0x20,
-    cs: 0x1234, ds: 0x2000, ss: 0x3000, es: 0x4000, ip: 0x100, flags: flags(0x1ff), ...overrides };
+  return { halted: false, interruptDeferred: false, segmentDeferred: false, trapPending: false, ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788, sp: 0x8000, bp: 0x9000, si: 0x10, di: 0x20,
+    cs: 0x1234, ds: 0x2000, ss: 0x3000, es: 0x4000, ip: 0x100, flags: flags(0x1df), ...overrides };
 }
 
 // A compact test enumeration of the nine flags, independent of packed FLAGS bit positions.
@@ -52,6 +52,7 @@ function addition(before: Cpu8088State, operand: number, width: 8 | 16 = 16): Cp
 
 function checkStep(ram: ObservedRam, before: Cpu8088State, bytes: readonly number[], after: Cpu8088State,
   addresses: readonly number[] = bytes.map((_, i) => (before.cs * 16 + (before.ip + i) % 65536) % 1048576), dataAccesses: readonly Cpu8088MemoryAccess[] = []): void {
+  after = { ...after, trapPending: before.flags.tf }; // TF is sampled before the tested instruction.
   bytes.forEach((byte, index) => ram.write(addresses[index]!, byte));
   ram.accesses.length = 0;
   const cpu = new Cpu8088(ram, before);
@@ -99,7 +100,7 @@ test("8088 copies each declared getter once and ignores extra metadata and contr
     }
   }
   assert.deepEqual(new Cpu8088(new Ram(0x100000), state).snapshot(), expected);
-  assert.equal(calls.size, 24);
+  assert.equal(calls.size, 27);
   assert.ok([...calls.values()].every(count => count === 1));
 });
 
@@ -413,8 +414,8 @@ test("8088 rejects every deferred or undocumented first byte with one fetch and 
   const ram = new ObservedRam(0x100000);
   const unsupported = [
     0x0f, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
-    0x9b, 0xc0, 0xc1, 0xc8, 0xc9, 0xcc, 0xcd, 0xce, 0xcf, 0xd6, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
-    0xf1, 0xfa, 0xfb,
+    0x9b, 0xc0, 0xc1, 0xc8, 0xc9, 0xd6, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
+    0xf1,
   ];
   for (const [cs, ip, address] of [[0x1234, 0x100, 0x12440], [0xffff, 0xf, 0xfffff], [0xffff, 0x10, 0]] as const) {
     for (const opcode of unsupported) {
@@ -1345,7 +1346,7 @@ function dataWrites(segment: number, offset: number, bytes: readonly number[]): 
 function resultFlags(value: number, width: 8 | 16): Pick<Cpu8088Flags, "pf" | "sf" | "zf"> {
   return { pf: (value % 256).toString(2).replaceAll("0", "").length % 2 === 0, sf: value >= 2 ** (width - 1), zf: value === 0 };
 }
-function reject(ram: ObservedRam, before: Cpu8088State, bytes: readonly number[], reason: "opcode" | "divide-error" = "opcode",
+function reject(ram: ObservedRam, before: Cpu8088State, bytes: readonly number[], reason: "opcode" = "opcode",
   data: readonly Cpu8088MemoryAccess[] = []): void {
   put(ram, before.cs, before.ip, bytes);
   const cpu = new Cpu8088(ram, before);
@@ -1356,6 +1357,23 @@ function reject(ram: ObservedRam, before: Cpu8088State, bytes: readonly number[]
       instruction: { address: snapshot(before).pc, bytes }, accesses });
     assert.deepEqual(ram.accesses, accesses);
   }
+}
+
+function checkDivideError(ram: ObservedRam, before: Cpu8088State, bytes: readonly number[], data: readonly Cpu8088MemoryAccess[] = []): void {
+  put(ram, 0, 0, [0x78, 0x56, 0x21, 0x43]);
+  put(ram, before.cs, before.ip, bytes);
+  const packed = 0xf002 + Object.entries({ cf: 0, pf: 2, af: 4, zf: 6, sf: 7, tf: 8, if: 9, df: 10, of: 11 })
+    .reduce((sum, [flag, bit]) => sum + (before.flags[flag as keyof Cpu8088Flags] ? 2 ** bit : 0), 0);
+  const accesses = [...dataReads(before.cs, before.ip, bytes), ...data, ...dataReads(0, 0, [0x78, 0x56, 0x21, 0x43]),
+    ...dataWrites(before.ss, (before.sp + 65534) % 65536, wordBytes(packed)),
+    ...dataWrites(before.ss, (before.sp + 65532) % 65536, wordBytes(before.cs)),
+    ...dataWrites(before.ss, (before.sp + 65530) % 65536, wordBytes((before.ip + bytes.length) % 65536))];
+  ram.accesses.length = 0;
+  assert.deepEqual(new Cpu8088(ram, before).step(), { before: snapshot(before), after: snapshot({ ...before,
+    cs: 0x4321, ip: 0x5678, sp: (before.sp + 65530) % 65536, trapPending: before.flags.tf,
+    flags: { ...before.flags, if: false, tf: false } }), outcome: "executed", interrupt: { source: "divide-error", vector: 0 },
+    instruction: { address: snapshot(before).pc, bytes }, accesses });
+  assert.deepEqual(ram.accesses, accesses);
 }
 
 test("8088 completion halt is stored, validated, detached, resumable, and cleared by reset", () => {
@@ -1410,7 +1428,7 @@ test("8088 completion prefixes are local, last-of-kind wins, and LOCK permits on
   const rejected = new Cpu8088(ram, before).step();
   assert.equal(rejected.outcome, "unsupported"); assert.deepEqual(rejected.before, rejected.after);
   assert.equal(rejected.instruction?.bytes.length, 65536); assert.equal(ram.accesses.length, 65536);
-  reject(ram, before, [0x26, 0xf0, 0xcd]); // No immediate or interrupt-vector read.
+  reject(ram, before, [0x26, 0xf0, 0xd8]); // No immediate or interrupt-vector read.
   reject(ram, before, [0xf3, 0x90]);
   reject(ram, before, [0xf2, 0xa4]);
   reject(ram, before, [0xf3, 0xf7]); // Undocumented REP arithmetic is excluded before ModR/M.
@@ -1432,7 +1450,7 @@ test("8088 completion segment MOV, LEA, LES and LDS preserve resolved addresses 
   for (let selector = 0; selector < 4; selector++) for (let reg = 0; reg < 8; reg++) {
     const segment = segments[selector]![1], before = initialState(), modRM = 0xc0 + selector * 8 + reg;
     checkStep(ram, before, [0x8c, modRM], { ...before, [words[reg]!]: before[segment], ip: 0x102 });
-    if (segment !== "cs") checkStep(ram, before, [0x8e, modRM], { ...before, [segment]: before[words[reg]!], ip: 0x102 });
+    if (segment !== "cs") checkStep(ram, before, [0x8e, modRM], { ...before, [segment]: before[words[reg]!], segmentDeferred: true, ip: 0x102 });
   }
   for (let selector = 0; selector < 4; selector++) for (const form of addressingCases()) {
     const before = addressedState(), segment = segments[selector]![1];
@@ -1441,7 +1459,7 @@ test("8088 completion segment MOV, LEA, LES and LDS preserve resolved addresses 
       dataWrites(before[form.segment], form.offset, wordBytes(before[segment])));
     if (segment === "cs") continue;
     put(ram, before[form.segment], form.offset, [0x34, 0x12]);
-    checkStep(ram, before, [0x8e, ...suffix], { ...before, [segment]: 0x1234, ip: before.ip + 1 + suffix.length }, undefined,
+    checkStep(ram, before, [0x8e, ...suffix], { ...before, [segment]: 0x1234, segmentDeferred: true, ip: before.ip + 1 + suffix.length }, undefined,
       dataReads(before[form.segment], form.offset, [0x34, 0x12]));
   }
 });
@@ -1455,7 +1473,7 @@ test("8088 completion segment pushes/pops use original SS despite overrides and 
         dataWrites(before.ss, (sp + 65534) % 65536, wordBytes(before[segment])));
       if (pop === undefined) continue;
       put(ram, before.ss, sp, [0x78, 0x56]);
-      checkStep(ram, before, [0x26, pop], { ...before, [segment]: 0x5678, sp: (sp + 2) % 65536, ip: 0x102 }, undefined,
+      checkStep(ram, before, [0x26, pop], { ...before, [segment]: 0x5678, segmentDeferred: true, sp: (sp + 2) % 65536, ip: 0x102 }, undefined,
         dataReads(before.ss, sp, [0x78, 0x56]));
     }
   }
@@ -1595,7 +1613,7 @@ test("8088 completion multiply/divide read every register alias before replacing
     } else {
       const dividend = BigInt(before.ax), quotient = divisor === 0n ? 0n : dividend / divisor;
       const limit = 1n << BigInt(signed ? width - 1 : width);
-      if (divisor === 0n || quotient >= limit || signed && quotient <= -limit) reject(ram, before, bytes, "divide-error");
+      if (divisor === 0n || quotient >= limit || signed && quotient <= -limit) checkDivideError(ram, before, bytes);
       else {
         const remainder = dividend % divisor;
         checkStep(ram, before, bytes, { ...before, ip: 0x102,
@@ -1623,7 +1641,7 @@ test("8088 completion division uses full unsigned dividends and truncates signed
         const quotient = divisor === 0n ? 0n : dividend / divisor;
         // The 1979 manual gives symmetric signed ranges: -127..127 and -32767..32767.
         if (divisor === 0n || (signed ? quotient <= -sign || quotient >= sign : quotient >= limit)) {
-          reject(ram, before, bytes, "divide-error");
+          checkDivideError(ram, before, bytes);
         } else {
           const remainder = dividend % divisor;
           checkStep(ram, before, bytes, { ...before, ip: 1,
@@ -1635,7 +1653,7 @@ test("8088 completion division uses full unsigned dividends and truncates signed
   }
 });
 
-test("8088 completion multiply/divide memory forms cover all modes, overrides, and atomic error reads", () => {
+test("8088 completion multiply/divide memory forms cover all modes, overrides, and divide-error delivery", () => {
   const ram = new ObservedRam(0x100000);
   for (const form of addressingCases()) for (const width of [8, 16] as const) for (const group of [4, 5, 6, 7]) {
     const before = { ...addressedState(), ax: 127, dx: 0 };
@@ -1650,7 +1668,7 @@ test("8088 completion multiply/divide memory forms cover all modes, overrides, a
       dataReads(before.es, form.offset, data));
     if (!multiply) {
       const zero = data.map(() => 0); put(ram, before.es, form.offset, zero);
-      reject(ram, before, bytes, "divide-error", dataReads(before.es, form.offset, zero));
+      checkDivideError(ram, before, bytes, dataReads(before.es, form.offset, zero));
     }
   }
 });
@@ -1755,7 +1773,7 @@ test("8088 completion all strings use fixed ES destinations, source overrides, a
 
 test("8088 completion REP executes one element per step and restores solely from visible state", () => {
   const ram = new ObservedRam(0x100000), before = initialState({ cx: 3, si: 0xfffe, di: 0xffff,
-    flags: { ...flags(511), df: false }, ds: 0x2000, es: 0xffff });
+    flags: { ...flags(511), tf: false, df: false }, ds: 0x2000, es: 0xffff });
   const bytes = [0x3e, 0xf3, 0xa5]; put(ram, before.cs, before.ip, bytes);
   put(ram, before.ds, before.si, [1, 2, 3, 4, 5, 6]);
   const cpu = new Cpu8088(ram, before);
@@ -1782,7 +1800,7 @@ test("8088 completion repeated strings handle empty counts, termination flags, a
     const compares = operation === "compare" || operation === "scan";
     if (rep === 0xf2 && !compares) continue;
     for (const cx of [0, 1, 2, 0xffff]) for (const equal of [false, true]) for (const incomingZF of [false, true]) {
-      const before = initialState({ cx, ax: 7, flags: { ...flags(511), zf: incomingZF, df: false } });
+      const before = initialState({ cx, ax: 7, flags: { ...flags(511), tf: false, zf: incomingZF, df: false } });
       const source = width === 8 ? [7] : [7, 0], destination = width === 8 ? [equal ? 7 : 6] : [equal ? 7 : 6, 0];
       put(ram, before.ds, before.si, source); put(ram, before.es, before.di, destination);
       // The final repeat prefix wins; repeat testing uses the new ZF, irrespective of incoming ZF.
@@ -1818,12 +1836,11 @@ test("8088 completion memory-only and segment selectors reject all invalid ModR/
   }
 });
 
-test("8088 completion accounts for all 291 documented forms: 276 implemented and 15 deferred", () => {
+test("8088 completion accounts for all 291 documented forms: 282 implemented and 9 deferred", () => {
   const ram = new Ram(0x100000);
   const unused = [0x0f, ...Array.from({ length: 16 }, (_, i) => 0x60 + i), 0xc0, 0xc1, 0xc8, 0xc9, 0xd6, 0xf1];
   const prefixes = [0x26, 0x2e, 0x36, 0x3e, 0xf0, 0xf2, 0xf3];
-  const deferred = [0x9b, 0xcc, 0xcd, 0xce, 0xcf, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
-    0xfa, 0xfb];
+  const deferred = [0x9b, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf];
   // Table 4-13 expands these operation selectors; all other ModR/M fields are operands.
   const groups: Readonly<Record<number, readonly number[]>> = {
     0x80: [0, 1, 2, 3, 4, 5, 6, 7], 0x81: [0, 1, 2, 3, 4, 5, 6, 7],
@@ -1847,7 +1864,7 @@ test("8088 completion accounts for all 291 documented forms: 276 implemented and
       if (accepted) complete++;
     }
   }
-  assert.equal(documented, 291); assert.equal(complete, 276); assert.equal(deferred.length, 15);
+  assert.equal(documented, 291); assert.equal(complete, 282); assert.equal(deferred.length, 9);
 });
 
 // Intel table 4-13: immediate and DX port forms, byte and word accumulators.
@@ -1893,7 +1910,7 @@ for (const form of portForms) {
         const values = form.output ? [before.ax % 256, Math.floor(before.ax / 256)] : input;
         const expected = values.slice(0, form.word ? 2 : 1).map((value, i) => ({ kind: form.output ? "output" : "input", port: (port + i) % 65536, value }));
         const ax = form.output ? before.ax : input[0]! + (form.word ? input[1]! : Math.floor(before.ax / 256)) * 256;
-        assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot({ ...before, ax, ip: before.ip + bytes.length }),
+        assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot({ ...before, ax, trapPending: before.flags.tf, ip: before.ip + bytes.length }),
           outcome: "executed", instruction: { address: before.cs * 16 + before.ip, bytes }, accesses: [...reads, ...expected] });
         assert.deepEqual(transfers, expected);
         assert.deepEqual(ram.accesses, reads);
@@ -2004,7 +2021,7 @@ test("8088 port and RAM callbacks can inspect snapshots but cannot reenter step 
     const inspect = (): void => {
       calls++;
       const snapshot = cpu.snapshot();
-      assert.throws(() => cpu[mutation](), /8088 step and reset calls must not be reentrant/);
+      assert.throws(() => cpu[mutation](), /8088 step, reset, and interrupt calls must not be reentrant/);
       assert.deepEqual(cpu.snapshot(), snapshot);
     };
     const cpu = new Cpu8088(ram, before, {
@@ -2041,4 +2058,353 @@ test("8088 port callbacks can change later code without changing captured instru
   cpu.reset();
   assert.deepEqual(first, retained);
   assert.equal(calls, 2);
+});
+
+// Interrupt expectations come from Intel's vector/frame layout, independently of the core's helpers.
+function interruptFrame(before: Cpu8088State, ip = before.ip): Cpu8088MemoryAccess[] {
+  const status = 0xf002 + Object.entries({ cf: 0, pf: 2, af: 4, zf: 6, sf: 7, tf: 8, if: 9, df: 10, of: 11 })
+    .reduce((sum, [name, bit]) => sum + (before.flags[name as keyof Cpu8088Flags] ? 2 ** bit : 0), 0);
+  return [status, before.cs, ip].flatMap((word, i) => dataWrites(before.ss, (before.sp + 65534 - 2 * i) % 65536, wordBytes(word)));
+}
+const interruptTarget = [0x78, 0x56, 0x21, 0x43];
+function entered(before: Cpu8088State): Cpu8088State {
+  return { ...before, ip: 0x5678, cs: 0x4321, sp: (before.sp + 65530) % 65536, halted: false,
+    interruptDeferred: false, segmentDeferred: false, flags: { ...before.flags, if: false, tf: false } };
+}
+
+test("8088 INT n selects all 256 vectors and stacks the post-fetch logical address across both address wraps", () => {
+  const ram = new ObservedRam(0x100000);
+  for (let vector = 0; vector < 256; vector++) for (const [cs, ip] of [[0xffff, 0xfffe], [0xffff, 0xf]]) {
+    const before = initialState({ cs, ip, ss: 0xffff, sp: vector % 2, flags: flags(vector * 2) });
+    const bytes = [0xcd, vector];
+    put(ram, 0, vector * 4, interruptTarget);
+    put(ram, cs!, ip!, bytes);
+    // At FFFF:000F the immediate byte aliases vector 0; use the actual vector bytes fetched from RAM.
+    const target = Array.from({ length: 4 }, (_, i) => ram.read(vector * 4 + i));
+    const cpu = new Cpu8088(ram, before);
+    ram.accesses.length = 0;
+    const after = { ...entered(before), ip: target[0]! + target[1]! * 256, cs: target[2]! + target[3]! * 256, trapPending: before.flags.tf };
+    const accesses = [...dataReads(cs!, ip!, bytes), ...dataReads(0, vector * 4, target), ...interruptFrame(before, (ip! + 2) % 65536)];
+    assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), outcome: "executed",
+      instruction: { address: snapshot(before).pc, bytes }, interrupt: { source: "software", vector }, accesses });
+    assert.deepEqual(ram.accesses, accesses);
+  }
+});
+
+test("8088 INT3 and INTO obey every flag combination; untaken INTO only fetches its opcode", () => {
+  const ram = new ObservedRam(0x100000);
+  for (let bits = 0; bits < 512; bits++) for (const opcode of [0xcc, 0xce]) {
+    const before = initialState({ flags: flags(bits), interruptDeferred: true, segmentDeferred: true });
+    const vector = opcode === 0xcc ? 3 : 4, taken = opcode === 0xcc || before.flags.of;
+    put(ram, 0, vector * 4, interruptTarget); put(ram, before.cs, before.ip, [opcode]);
+    ram.accesses.length = 0;
+    const record = new Cpu8088(ram, before).step();
+    const after = taken ? entered(before) : { ...before, ip: before.ip + 1, interruptDeferred: false, segmentDeferred: false };
+    assert.deepEqual(record.after, snapshot({ ...after, trapPending: before.flags.tf }));
+    assert.equal(record.outcome, "executed");
+    assert.deepEqual(record.interrupt, taken ? { source: "software", vector } : undefined);
+    assert.deepEqual(record.accesses, [...dataReads(before.cs, before.ip, [opcode]),
+      ...(taken ? [...dataReads(0, vector * 4, interruptTarget), ...interruptFrame(before, before.ip + 1)] : [])]);
+    assert.deepEqual(ram.accesses, record.accesses);
+  }
+});
+
+test("8088 external delivery reads vectors before an overlapping stack and acknowledges only INTR", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const source of ["intr", "nmi"] as const) for (const sp of [10, 12, 14]) {
+    const before = initialState({ ss: 0, sp, halted: true, trapPending: true });
+    put(ram, 0, 8, interruptTarget); ram.accesses.length = 0;
+    const cpu = new Cpu8088(ram, before);
+    let calls = 0;
+    const record = source === "nmi" ? cpu.interrupt("nmi") : cpu.interrupt("intr", () => {
+      calls++; assert.equal(cpu.snapshot().halted, false); assert.equal(cpu.snapshot().flags.if, true);
+      assert.deepEqual(ram.accesses, []); return 2;
+    });
+    assert.equal(calls, source === "intr" ? 1 : 0);
+    const memory = [...dataReads(0, 8, interruptTarget), ...interruptFrame(before)];
+    assert.deepEqual(record, { before: snapshot(before), after: snapshot(entered(before)), source, instruction: null,
+      outcome: "accepted", vector: 2, accesses: [...(source === "intr" ? [{ kind: "acknowledge", value: 2 }] : []), ...memory] });
+    assert.deepEqual(ram.accesses, memory);
+  }
+});
+
+test("8088 masks INTR with IF, defers both sources after segment loads, and never queues ignored offers", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const source of ["intr", "nmi"] as const) for (const enabled of [false, true]) {
+    for (const interruptDeferred of [false, true]) for (const segmentDeferred of [false, true]) {
+      const before = initialState({ halted: true, interruptDeferred, segmentDeferred, flags: { ...flags(0), if: enabled } });
+      put(ram, 0, 8, interruptTarget); ram.accesses.length = 0;
+      const cpu = new Cpu8088(ram, before);
+      let calls = 0;
+      const record = source === "nmi" ? cpu.interrupt("nmi") : cpu.interrupt("intr", () => { calls++; return 2; });
+      const deferred = segmentDeferred || source === "intr" && interruptDeferred;
+      const ignored = deferred || source === "intr" && !enabled;
+      assert.equal(record.outcome, ignored ? "ignored" : "accepted");
+      assert.equal(calls, !ignored && source === "intr" ? 1 : 0);
+      if (ignored) {
+        assert.deepEqual(record, { before: snapshot(before), after: snapshot(before), source, instruction: null,
+          outcome: "ignored", reason: deferred ? "deferred" : "masked", accesses: [] });
+        assert.deepEqual(ram.accesses, []);
+      }
+    }
+  }
+});
+
+test("8088 CLI/STI preserve other flags, delay only IF transitions, and another STI consumes an existing delay", () => {
+  const ram = new ObservedRam(0x100000);
+  for (let bits = 0; bits < 512; bits++) for (const enabled of [false, true]) {
+    const before = initialState({ flags: flags(bits), interruptDeferred: true });
+    checkStep(ram, before, [enabled ? 0xfb : 0xfa], { ...before, ip: before.ip + 1,
+      interruptDeferred: enabled && !before.flags.if, flags: { ...before.flags, if: enabled } });
+  }
+  for (const second of [0x90, 0xfb, 0xfa, 0xf4]) {
+    const before = initialState({ flags: flags(0) });
+    put(ram, before.cs, before.ip, [0xfb, second]); put(ram, 0, 8, interruptTarget);
+    const cpu = new Cpu8088(ram, before);
+    cpu.step();
+    assert.equal(cpu.interrupt("intr", () => { throw new Error("deferred INTR acknowledged"); }).outcome, "ignored");
+    cpu.step();
+    assert.equal(cpu.snapshot().interruptDeferred, false);
+    assert.equal(cpu.interrupt("intr", () => 2).outcome, second === 0xfa ? "ignored" : "accepted");
+  }
+});
+
+test("8088 MOV/POP into ES, SS, or DS delays NMI and traps through the following instruction; LES/LDS do not", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const bytes of [[0x8e, 0xc0], [0x8e, 0xd0], [0x8e, 0xd8], [0x07], [0x17], [0x1f]]) {
+    const before = initialState({ flags: { ...flags(0), tf: true } });
+    put(ram, before.ss, before.sp, [0x00, 0x50]);
+    put(ram, before.cs, before.ip, [...bytes, 0x90]); put(ram, 0, 4, interruptTarget);
+    const cpu = new Cpu8088(ram, before);
+    cpu.step();
+    const delayed = cpu.snapshot();
+    assert.equal(delayed.segmentDeferred, true); assert.equal(delayed.trapPending, true);
+    assert.equal(cpu.interrupt("nmi").outcome, "ignored");
+    const restored = new Cpu8088(ram, delayed);
+    assert.deepEqual(restored.step().instruction?.bytes, [0x90]);
+    assert.equal(restored.snapshot().segmentDeferred, false);
+    assert.equal(restored.step().instruction, null);
+  }
+  for (const opcode of [0xc4, 0xc5]) {
+    const before = initialState(); put(ram, before.cs, before.ip, [opcode, 0x06, 0, 0]);
+    put(ram, before.ds, 0, interruptTarget);
+    assert.equal(new Cpu8088(ram, before).step().after.segmentDeferred, false);
+  }
+});
+
+test("8088 POPF and IRET sample old TF, restore IF with its delay, and IRET reads IP, CS, then FLAGS across wrapping stacks", () => {
+  const ram = new ObservedRam(0x100000);
+  const positions = { cf: 0, pf: 2, af: 4, zf: 6, sf: 7, tf: 8, if: 9, df: 10, of: 11 } as const;
+  for (const oldTF of [false, true]) for (const oldIF of [false, true]) for (let bits = 0; bits < 512; bits++) {
+    for (const opcode of [0x9d, 0xcf]) {
+      const before = initialState({ ss: 0xffff, sp: 0xffff, flags: { ...flags(0), tf: oldTF, if: oldIF } });
+      const nextFlags = flags(bits), packed = Object.entries(positions).reduce((sum, [name, bit]) => sum + (nextFlags[name as keyof Cpu8088Flags] ? 2 ** bit : 0), 0);
+      const frame = [...(opcode === 0xcf ? interruptTarget : []), ...wordBytes(packed)];
+      put(ram, before.ss, before.sp, frame);
+      checkStep(ram, before, [opcode], { ...before, ip: opcode === 0xcf ? 0x5678 : before.ip + 1,
+        cs: opcode === 0xcf ? 0x4321 : before.cs, sp: (before.sp + frame.length) % 65536, flags: nextFlags,
+        interruptDeferred: !oldIF && nextFlags.if }, undefined, dataReads(before.ss, before.sp, frame));
+    }
+  }
+});
+
+test("8088 single-step traps run before the next fetch, including after POPF clears TF and after a trapped HLT", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const opcode of [0x90, 0x9d, 0xf4]) {
+    const before = initialState({ flags: { ...flags(0), tf: true } });
+    put(ram, before.cs, before.ip, [opcode]); put(ram, before.ss, before.sp, [2, 0xf0]); put(ram, 0, 4, interruptTarget);
+    const cpu = new Cpu8088(ram, before);
+    const result = runCpu(cpu, { maxSteps: 2 });
+    assert.equal(result.stopReason, "step-limit");
+    const pending = result.records[0]!.after;
+    assert.equal(pending.trapPending, true);
+    assert.deepEqual(result.records[1], { before: pending, after: snapshot({ ...entered(pending), trapPending: false }),
+      instruction: null, outcome: "executed", interrupt: { source: "trap", vector: 1 },
+      accesses: [...dataReads(0, 4, interruptTarget), ...interruptFrame(pending)] });
+  }
+  const before = initialState({ flags: flags(0) });
+  put(ram, before.cs, before.ip, [0x9d, 0x90]); put(ram, before.ss, before.sp, [2, 0xf1]);
+  const cpu = new Cpu8088(ram, before);
+  assert.equal(cpu.step().after.trapPending, false, "POPF setting TF does not trap itself");
+  assert.deepEqual(cpu.step().instruction?.bytes, [0x90]);
+  assert.equal(cpu.snapshot().trapPending, true);
+});
+
+test("8088 higher-priority software, divide, INTR and NMI entry retain an owed trap before the handler's first instruction", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const source of ["software", "divide-error", "intr", "nmi"] as const) {
+    const before = initialState({ ax: 1, bx: 0, flags: { ...flags(0), tf: true, if: true } });
+    for (const vector of [0, 2, 3]) put(ram, 0, vector * 4, interruptTarget);
+    put(ram, 0, 4, [0xbc, 0x9a, 0x65, 0x87]);
+    const bytes = source === "software" ? [0xcc] : source === "divide-error" ? [0xf6, 0xf3] : [0x90];
+    put(ram, before.cs, before.ip, bytes);
+    const cpu = new Cpu8088(ram, before); cpu.step();
+    if (source === "intr") cpu.interrupt("intr", () => 2);
+    if (source === "nmi") cpu.interrupt("nmi");
+    const handler = cpu.snapshot();
+    assert.equal(handler.trapPending, true); assert.equal(handler.flags.tf, false);
+    const record = cpu.step();
+    assert.equal(record.instruction, null); assert.equal(record.interrupt?.source, "trap");
+    assert.equal(record.after.pc, 0x87650 + 0x9abc);
+    assert.deepEqual(record.accesses, [...dataReads(0, 4, [0xbc, 0x9a, 0x65, 0x87]), ...interruptFrame(handler)]);
+  }
+});
+
+test("8088 interrupt and IRET resume REP at the first prefix without repeating a completed element", () => {
+  const ram = new ObservedRam(0x100000);
+  const before = initialState({ cx: 3, flags: { ...flags(0), if: true } });
+  put(ram, before.cs, before.ip, [0x26, 0xf3, 0xa4]);
+  put(ram, before.es, before.si, [0x11, 0x22, 0x33]);
+  put(ram, 0, 8, interruptTarget); put(ram, 0x4321, 0x5678, [0xcf]);
+  const cpu = new Cpu8088(ram, before); cpu.step();
+  const interrupted = cpu.snapshot(); assert.equal(interrupted.ip, before.ip); assert.equal(interrupted.cx, 2);
+  cpu.interrupt("nmi"); cpu.step();
+  assert.deepEqual(cpu.snapshot(), { ...interrupted, interruptDeferred: true });
+  cpu.step(); cpu.step();
+  assert.equal(cpu.snapshot().cx, 0); assert.equal(cpu.snapshot().ip, before.ip + 3);
+  assert.deepEqual([0, 1, 2].map(i => ram.read(before.es * 16 + before.di + i)), [0x11, 0x22, 0x33]);
+});
+
+test("8088 snapshots validate and retain every interrupt latch; reset clears them without memory access", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const latch of ["interruptDeferred", "segmentDeferred", "trapPending"] as const) {
+    for (const value of [0, 1, undefined, "false"]) {
+      assert.throws(() => new Cpu8088(ram, { ...initialState(), [latch]: value } as Cpu8088State), TypeError);
+    }
+  }
+  const before = initialState({ halted: true, interruptDeferred: true, segmentDeferred: true, trapPending: true });
+  const cpu = new Cpu8088(ram, before), saved = cpu.snapshot();
+  const restored = new Cpu8088(ram, saved);
+  Reflect.set(saved, "trapPending", false);
+  assert.equal(cpu.snapshot().trapPending, true); assert.equal(restored.snapshot().trapPending, true);
+  const record = restored.reset();
+  assert.deepEqual(record.after, snapshot({ ...before, cs: 0xffff, ip: 0, ds: 0, es: 0, ss: 0,
+    halted: false, interruptDeferred: false, segmentDeferred: false, trapPending: false, flags: flags(0) }));
+  assert.deepEqual(ram.accesses, []);
+});
+
+test("8088 rejected and failed instructions preserve outstanding inhibition instead of consuming it", () => {
+  const ram = new ObservedRam(0x100000);
+  const before = initialState({ interruptDeferred: true, segmentDeferred: true, trapPending: true });
+  put(ram, before.cs, before.ip, [0xd8]);
+  const cpu = new Cpu8088(ram, before);
+  assert.equal(cpu.step().outcome, "unsupported"); assert.deepEqual(cpu.snapshot(), snapshot(before));
+  put(ram, before.cs, before.ip, [0xec]);
+  assert.throws(() => cpu.step(), /connected device/);
+  assert.deepEqual(cpu.snapshot(), snapshot({ ...before, ip: before.ip + 1 }));
+});
+
+test("8088 entry failures expose completed vector reads and frame writes without inventing rollback", () => {
+  const marker = new Error("memory failure");
+  for (const source of ["software", "intr", "nmi", "trap"] as const) for (let failure = 0; failure < 10; failure++) {
+    let armed = false, count = 0;
+    class FailingRam extends ObservedRam {
+      override read(address: number): number {
+        if (armed && count++ === failure) throw marker;
+        return super.read(address);
+      }
+      override write(address: number, value: number): void {
+        if (armed && count++ === failure) throw marker;
+        super.write(address, value);
+      }
+    }
+    const ram = new FailingRam(0x100000);
+    const before = initialState({ flags: { ...flags(0), if: true }, halted: source === "intr" || source === "nmi",
+      trapPending: source === "trap" });
+    const vector = source === "software" ? 3 : source === "trap" ? 1 : 2;
+    put(ram, 0, vector * 4, interruptTarget); put(ram, before.cs, before.ip, [0xcc]);
+    const cpu = new Cpu8088(ram, before);
+    ram.accesses.length = 0;
+    // Software entry includes one successful opcode fetch before the ten vector/frame transfers.
+    count = source === "software" ? -1 : 0; armed = true;
+    assert.throws(() => source === "intr" ? cpu.interrupt("intr", () => 2)
+      : source === "nmi" ? cpu.interrupt("nmi") : cpu.step(), error => error === marker);
+    const ip = before.ip + (source === "software" ? 1 : 0);
+    const completed = [...dataReads(0, vector * 4, interruptTarget), ...interruptFrame(before, ip)].slice(0, failure);
+    assert.deepEqual(ram.accesses, [...(source === "software" ? dataReads(before.cs, before.ip, [0xcc]) : []), ...completed]);
+    assert.deepEqual(cpu.snapshot(), snapshot({ ...before, ip,
+      sp: failure < 4 ? before.sp : (before.sp + 65534 - Math.floor((failure - 4) / 2) * 2) % 65536,
+      halted: false, trapPending: false, flags: { ...before.flags, if: failure < 4 } }));
+    armed = false;
+    assert.doesNotThrow(() => cpu.reset(), "boundary guard is released after failure");
+  }
+});
+
+test("8088 IRET failures retain completed pops and commit CS:IP only after both return words", () => {
+  const marker = new Error("stack failure");
+  for (let failure = 0; failure < 6; failure++) {
+    let armed = false, count = -1;
+    class FailingRam extends ObservedRam {
+      override read(address: number): number {
+        if (armed && count++ === failure) throw marker;
+        return super.read(address);
+      }
+    }
+    const ram = new FailingRam(0x100000), before = initialState({ flags: flags(0) });
+    const frame = [...interruptTarget, 0x02, 0xf3];
+    put(ram, before.ss, before.sp, frame); put(ram, before.cs, before.ip, [0xcf]);
+    ram.accesses.length = 0;
+    const cpu = new Cpu8088(ram, before); armed = true;
+    assert.throws(() => cpu.step(), error => error === marker);
+    assert.deepEqual(ram.accesses, [...dataReads(before.cs, before.ip, [0xcf]), ...dataReads(before.ss, before.sp, frame).slice(0, failure)]);
+    assert.deepEqual(cpu.snapshot(), snapshot({ ...before, sp: before.sp + Math.floor(failure / 2) * 2,
+      ip: failure >= 4 ? 0x5678 : before.ip + 1, cs: failure >= 4 ? 0x4321 : before.cs }));
+    armed = false; assert.doesNotThrow(() => cpu.reset());
+  }
+});
+
+test("8088 INTR validates a single acknowledged byte; missing, invalid, or throwing callbacks never read the vector", () => {
+  const ram = new ObservedRam(0x100000);
+  const before = initialState({ halted: true });
+  for (const value of [-1, 256, 0.5, NaN, Infinity, "02", undefined]) {
+    const cpu = new Cpu8088(ram, before); let calls = 0;
+    assert.throws(() => cpu.interrupt("intr", () => { calls++; return value as number; }), RangeError);
+    assert.equal(calls, 1); assert.deepEqual(cpu.snapshot(), snapshot({ ...before, halted: false }));
+    assert.deepEqual(ram.accesses, []);
+  }
+  const cpu = new Cpu8088(ram, before);
+  assert.throws(() => Reflect.apply(cpu.interrupt, cpu, ["intr"]), /acknowledge callback/);
+  assert.deepEqual(cpu.snapshot(), snapshot(before));
+  assert.throws(() => Reflect.apply(cpu.interrupt, cpu, ["irq"]), /source must be/);
+  const marker = new Error("acknowledge failure");
+  assert.throws(() => cpu.interrupt("intr", () => { throw marker; }), error => error === marker);
+  assert.deepEqual(cpu.snapshot(), snapshot({ ...before, halted: false }));
+  assert.deepEqual(ram.accesses, []);
+});
+
+test("8088 all entry callbacks permit inspection but reject reentrant step, reset, INTR, and NMI", () => {
+  const ram = new ObservedRam(0x100000);
+  put(ram, 0, 8, interruptTarget);
+  const cpu = new Cpu8088(ram, initialState());
+  cpu.interrupt("intr", () => {
+    const saved = cpu.snapshot();
+    for (const operation of [() => cpu.step(), () => cpu.reset(), () => cpu.interrupt("nmi"), () => cpu.interrupt("intr", () => 2)]) {
+      assert.throws(operation, /8088 step, reset, and interrupt calls must not be reentrant/);
+      assert.deepEqual(cpu.snapshot(), saved);
+    }
+    return 2;
+  });
+  assert.equal(cpu.snapshot().pc, 0x43210 + 0x5678);
+});
+
+test("8088 a halted program resumes through an INTR handler, port output, IRET, and restored inhibition", () => {
+  const ram = new ObservedRam(0x100000);
+  const before = initialState({ flags: flags(0) });
+  put(ram, before.cs, before.ip, [0xfb, 0xf4, 0x90, 0xf4]);
+  put(ram, 0, 0x80, interruptTarget);
+  put(ram, 0x4321, 0x5678, [0x50, 0xb0, 0x41, 0xe6, 0x80, 0x58, 0xcf]);
+  const outputs: number[][] = [];
+  const ports = { readPort: (): number => { throw new Error("unexpected input"); }, writePort: (port: number, value: number): void => { outputs.push([port, value]); } };
+  const cpu = new Cpu8088(ram, before, ports);
+  assert.equal(runCpu(cpu, { maxSteps: 2 }).stopReason, "halted");
+  const halted = cpu.snapshot();
+  assert.equal(cpu.interrupt("intr", () => 0x20).outcome, "accepted");
+  const handler = runCpu(cpu, { maxSteps: 5 });
+  assert.equal(handler.stopReason, "step-limit");
+  assert.deepEqual(outputs, [[0x80, 0x41]]);
+  assert.deepEqual(cpu.snapshot(), { ...halted, halted: false, interruptDeferred: true });
+  const restored = new Cpu8088(ram, cpu.snapshot(), ports);
+  assert.equal(restored.interrupt("intr", () => { throw new Error("IRET deferral"); }).outcome, "ignored");
+  assert.equal(runCpu(restored, { maxSteps: 2 }).stopReason, "halted");
+  assert.deepEqual(restored.snapshot(), snapshot({ ...before, ip: before.ip + 4, halted: true, flags: { ...before.flags, if: true } }));
 });

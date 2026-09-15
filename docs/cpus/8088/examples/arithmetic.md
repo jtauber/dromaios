@@ -30,12 +30,12 @@ The destination and completion address `12449` initially contain zero.
 | SP, BP, SI, DI | `8000`, `9000`, `0010`, `0020` |
 | CS, DS, SS, ES, IP | `1234`, `2000`, `3000`, `4000`, `0100` |
 | CF, PF, AF, ZF, SF, TF, IF, DF, OF | `1`, `0`, `1`, `1`, `1`, `0`, `1`, `1`, `1` |
-| `halted` | `false` |
+| `halted`, `interruptDeferred`, `segmentDeferred`, `trapPending` | `false` |
 
 These are explicit example choices. AL/AH initially show `22`/`11`; the other
 byte views similarly come from their word registers. Physical PC is `12440`.
 Instruction semantics follow the [model contract](../model.md#instruction-steps)
-and its Intel manual references. IF is stored but interrupt delivery is deferred.
+and its Intel manual references. No external interrupt is offered in this example.
 
 `create8088Example()` returns fresh `{ cpu, ram, endAddress }` with physical
 `endAddress = 12449`. `create8088ExampleMemory()` creates the same image without

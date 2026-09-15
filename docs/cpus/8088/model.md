@@ -2,7 +2,7 @@
 
 The Intel 8088 model implements an instruction-level subset with flat 1 MiB
 RAM, 16-bit registers, 20-bit physical addresses, and an optional byte-port
-connection. The stored instruction address is CS:IP; the physical PC is a derived view.
+connection, native interrupt delivery, and single-step traps. The stored instruction address is CS:IP; the physical PC is a derived view.
 
 [Implementation](../../../src/components/cpus/8088.ts) ·
 [CPU tests](../../../tests/components/cpus/8088.test.ts) ·
@@ -18,7 +18,7 @@ connection. The stored instruction address is CS:IP; the physical PC is a derive
 Hardware behavior follows Intel's
 [8086 Family User's Manual, October 1979](https://www.ardent-tool.com/CPU/docs/Intel/808x/manuals/9800722-03_alt.pdf):
 sections 2.2–2.3 (registers, flags, and addressing), table 2-4 (reset), section
-2.7 (data transfer, arithmetic, and control flow), and tables 4-12–4-14 (encodings). The 8086 and 8088 share
+2.4 (interrupts) and 2.7 (instructions), and tables 4-12–4-14 (encodings). The 8086 and 8088 share
 these instruction semantics; this model targets the original 8088. Later x86
 instructions and undocumented encodings are outside its scope.
 
@@ -32,14 +32,17 @@ instructions and undocumented encodings are outside its scope.
 | SP, BP, SI, DI | `0000`–`FFFF` | Stack pointer, base pointer, source and destination indices |
 | CS, DS, SS, ES | `0000`–`FFFF` | Code, data, stack, and extra segment values |
 | IP | `0000`–`FFFF` | Instruction offset within CS |
-| `halted` | Boolean | HLT latch; cleared by reset |
+| `halted` | Boolean | HLT latch; cleared by reset or accepted delivery |
+| `interruptDeferred` | Boolean | INTR inhibited through the next retired instruction/REP element |
+| `segmentDeferred` | Boolean | MOV/POP segment inhibition of INTR, NMI, and trap recognition |
+| `trapPending` | Boolean | Type-1 trap owed from the previously sampled TF |
 | CF, PF, AF, ZF, SF, TF, IF, DF, OF in `flags` | Boolean | Carry, parity, auxiliary carry, zero, sign, trap, interrupt enable, direction, overflow |
 
 TypeScript fields are lowercase, including `flags.if`. `.machine` definitions
-conventionally use uppercase register and flag names and lowercase `halted`.
+conventionally use uppercase register and flag names and camelCase control latches.
 There is no prefetch queue or public packed FLAGS view. PUSHF/POPF and
-LAHF/SAHF pack/unpack flags internally; TF and IF are stored and inspected
-while interrupt delivery is deferred.
+LAHF/SAHF pack/unpack flags internally. Snapshots include all three recognition
+latches; pending external requests and NMI edge detection belong to the caller.
 
 Snapshots add AL/AH, BL/BH, CL/CH, and DL/DH as low/high byte views of the
 corresponding word registers. They also add `pc`, the physical address of
@@ -53,7 +56,7 @@ selected half of its word, while a word write replaces both halves together.
 `new Cpu8088(ram, initialState, ports?)` requires exactly 1 MiB RAM. It copies and
 validates every declared register and flag. Each field is read once, including
 non-enumerable getters; extra metadata and derived views are ignored. Invalid
-numeric state or RAM size throws `RangeError`; non-Boolean flags or halt state throw
+numeric state or RAM size throws `RangeError`; non-Boolean flags or control latches throw
 `TypeError`. Construction performs neither reset nor RAM/device accesses.
 
 The optional [`BytePorts`](../../../src/components/cpus/port-access.ts) connection
@@ -99,12 +102,18 @@ address; it does not require a particular segment value.
 
 ## Instruction steps
 
-`step()` attempts one instruction or one REP element and returns a `Cpu8088StepRecord` with
+`step()` delivers an owed trap, or attempts one instruction/REP element.
+A fetched instruction returns a `Cpu8088StepRecord` with
 independent before/after snapshots, the instruction's physical start address
 and fetched bytes, ordered `Cpu8088Access` entries, and an outcome. Memory
 `read`/`write` entries contain physical `address` and `value`; port
 `input`/`output` entries contain `port` and `value`. Both share one log in transfer
-order. `Cpu8088MemoryAccess` remains the memory-only alias.
+order. `Cpu8088MemoryAccess` remains the memory-only alias. Software and divide-error
+entry attach `interrupt: { source, vector }` to the triggering instruction's
+executed record. An owed single-step trap instead returns `instruction: null`,
+`outcome: "executed"`, and `interrupt: { source: "trap", vector: 1 }`; its step
+contains vector/frame accesses and no instruction fetch. External offers have
+their own records, described below.
 
 The supported unprefixed forms are:
 
@@ -136,6 +145,7 @@ The supported unprefixed forms are:
 | `C6`, `C7` /0 | MOV r/m,n | Immediate byte/word to any register or memory operand; no destination read |
 | `D0`–`D3` /0–5, /7 | ROL/ROR/RCL/RCR/SHL/SHR/SAR | Byte/word, by one or the full CL count; /6 stays unsupported |
 | `CA`, `CB` | RETF n, RETF | Pop IP then CS, optionally discard parameter bytes |
+| `CC`–`CF` | INT3, INT n, INTO, IRET | Software entry or return through IP, CS, FLAGS |
 | `D4 0A`, `D5 0A` | AAM, AAD | Base-ten adjustment; other second bytes are undocumented |
 | `D7` | XLAT | Read a byte at DS:(BX+AL), with optional segment override |
 | `E0`–`E3` | LOOPNE/LOOPE/LOOP/JCXZ | Counted or zero-count branch; preserve flags |
@@ -143,9 +153,10 @@ The supported unprefixed forms are:
 | `E9`, `EB` | `JMP rel16`, `JMP rel8` | Near or short relative branch without a stack access |
 | `E4`–`E7`, `EC`–`EF` | IN / OUT | Byte/word accumulator transfers through an immediate port or DX; preserve all flags |
 | `F6`, `F7` /0, /2, /3 | TEST r/m,n; NOT; NEG | Immediate AND flags, one's complement, or two's-complement negation |
-| `F6`, `F7` /4–7 | MUL/IMUL/DIV/IDIV | Byte/word multiplication and division; divide errors stop before interrupt delivery |
+| `F6`, `F7` /4–7 | MUL/IMUL/DIV/IDIV | Byte/word multiplication and division; divide errors deliver type 0 |
 | `FF` /2, /4, /6 | Near indirect CALL/JMP, PUSH r/m16 | Read target/value before changing IP or writing the stack |
 | `F4`, `F5`, `F8`, `F9`, `FC`, `FD` | HLT/CMC/CLC/STC/CLD/STD | Set the halt latch or update only the selected flag |
+| `FA`, `FB` | CLI, STI | Clear/set IF; a 0-to-1 transition delays INTR |
 | `FE`, `FF` /0–1 | INC/DEC r/m | Adjust a byte/word register or memory operand; preserve CF |
 
 Lengths follow the encoding: opcode, optional ModR/M and displacement, then
@@ -188,7 +199,7 @@ AX unchanged; a failed second output leaves the first output delivered. These
 are host-failure policies, not hardware exceptions or resumable bus cycles.
 
 RAM and device callbacks may inspect snapshots but cannot recursively call
-`step()` or `reset()` on the same CPU. The shared execution guard clears after
+`step()`, `reset()`, or `interrupt()` on the same CPU. The shared execution guard clears after
 success or failure. Reset, inspection, and already halted steps never call the
 port connection. Reset preserves the connection and external device state.
 
@@ -310,17 +321,16 @@ are read before assigning results, including aliases such as MUL AH or IMUL DX.
 
 DIV divides unsigned AX by a byte, placing quotient/remainder in AL/AH, or
 unsigned DX:AX by a word, placing them in AX/DX. IDIV uses signed values,
-truncates toward zero, and gives the remainder the dividend's sign. All flags
-are undefined and preserved. On the original 8088 the signed quotient ranges
+truncates toward zero, and gives the remainder the dividend's sign. Arithmetic
+flags are undefined and preserved; successful division preserves control flags. On the original 8088 the signed quotient ranges
 are **−127..127 and −32767..32767**: even −128 and −32768 cause divide errors.
 These limits follow the 1979 manual and pinned hardware fixtures.
 
-A zero divisor or out-of-range quotient returns `outcome: "unsupported"`,
-`reason: "divide-error"` after fetching the complete instruction and reading
-its operand. All CPU state and RAM are preserved. Detection is implemented;
-delivery of interrupt type 0 is deferred with other interrupts. This atomic
-stop is a model boundary, not the hardware's interrupt frame or return address.
-It permits inspecting the dividend and retrying after changing divisor RAM.
+A zero divisor or out-of-range quotient delivers interrupt type 0 after fetching
+the instruction and reading the divisor, leaving AX/DX unchanged. The frame
+saves the **following IP**, as on the original 8088, rather than the faulting
+instruction's address used by later x86. Arithmetic flags remain unchanged under
+the model's undefined-flag policy; entry saves them and clears IF/TF.
 
 DAA/DAS adjust AL after packed-decimal addition/subtraction. Low-digit
 correction uses AF or a low nibble above nine; high correction uses CF or
@@ -347,10 +357,102 @@ reserved bits. LAHF writes the low status byte into AH while preserving AL;
 SAHF replaces SF/ZF/AF/PF/CF from AH and preserves OF/DF/IF/TF. CMC complements
 CF; CLC/STC clear/set CF; CLD/STD clear/set DF; other flags remain unchanged.
 
-HLT advances IP and sets `halted`, returning `outcome: "halted"` with its fetched
-instruction. Later steps return the same outcome, `instruction: null`, and no
-accesses or changes. A restored halted snapshot stays halted. Reset clears the
-latch; interrupt wake-up remains deferred. The runner stops on the HLT record.
+HLT advances IP and sets `halted`. With no owed trap it returns `outcome: "halted"`; later steps return the same outcome, `instruction: null`, and no
+accesses or changes. Reset or accepted INTR/NMI releases halt. When TF was
+sampled for HLT, the instruction instead reports `executed` with `halted` and
+`trapPending` set. The next step delivers the trap and releases halt, so a
+bounded runner can continue into the trap handler. Restored snapshots preserve
+both the halt state and any pending trap.
+
+## Interrupt entry and return
+
+All sources use the same four-byte vector in physical memory at `vector × 4`:
+little-endian IP followed by CS. Entry reads all four bytes **before any stack
+write**, so a stack overlapping the vector table cannot redirect the current
+entry. It captures FLAGS, clears IF/TF, and pushes FLAGS, CS, then return IP
+through SS:SP. Each push decrements SP by two and writes low byte first, with
+the ordinary segment-offset wrapping rule. The final stack therefore contains
+IP at SP, CS at SP+2, and FLAGS at SP+4. Entry does not fetch handler code.
+
+INT3 selects type 3; INT n fetches its type byte; INTO selects type 4 only when
+OF is set. Untaken INTO performs only its instruction fetch. These software
+entries and divide errors are not blocked by IF or recognition delays.
+IRET pops IP, CS, then FLAGS, restoring all nine flag bits and ignoring reserved
+bits. It uses the same word-pop and flag-restoration helpers as RETF and POPF.
+
+The vector-first order follows the original interrupt microcode described in
+[Ken Shirriff's silicon analysis](https://www.righto.com/2023/02/8086-interrupt.html)
+and is checked against the [hardware fixtures](reference-notes.md#interrupt-comparison).
+
+## External interrupt delivery
+
+`interrupt("intr", acknowledge)` offers a currently asserted INTR request;
+`interrupt("nmi")` offers an NMI edge selected by the caller. Neither queues a
+request. The caller retains asserted INTR and latched NMI requests, offers NMI
+first when both are pending, and reoffers a deferred request at a later boundary.
+IF masks INTR only. `interruptDeferred` delays INTR; `segmentDeferred` delays
+both sources. Ignored offers do not acknowledge, access memory, or release halt.
+
+Accepted INTR releases halt and calls `acknowledge()` once for an integer type
+byte in 0–255. This callback abstracts the whole hardware acknowledgement
+sequence, including its two INTA bus cycles; only the supplied byte is recorded.
+NMI uses type 2 without a callback. Both enter through the current CS:IP, which
+already points after HLT or back to the first prefix of an unfinished REP.
+
+`Cpu8088InterruptRecord` has detached `before`/`after` snapshots, `source`,
+`instruction: null`, and ordered `accesses`. An accepted record adds
+`outcome: "accepted"` and `vector`; an ignored record adds `outcome: "ignored"`
+and `reason: "masked" | "deferred"`. Deferral takes precedence when both apply.
+INTR's `{ kind: "acknowledge", value }` precedes vector reads and frame writes.
+The callback is required for an eligible INTR offer and its byte is validated
+before any vector access. The API does not model a PIC, pin timing, or an
+interrupt scheduler.
+
+## Recognition delays and single stepping
+
+CLI clears IF. STI sets IF and, when it changes from zero to one, inhibits INTR
+through the following retired instruction. POPF and IRET apply the same delay
+when restoring IF from zero to one. Another STI with IF already set consumes
+an existing delay without renewing it. NMI and traps do not use this IF delay.
+
+On the original chip, MOV/POP into **any** segment register delays recognition
+of INTR, NMI, and traps through the following instruction. This includes ES
+and DS, not only SS; consecutive such loads renew `segmentDeferred`. LES/LDS
+and control-flow changes to CS do not set it. Only a retired instruction or REP
+element consumes a delay. Unsupported encodings and failed ordinary instructions do
+not consume it; partially completed entry follows the failure policy below. Prefixes never form separate retirement boundaries.
+
+TF is sampled before execution. A retired instruction with that sample set
+leaves `trapPending`; the next `step()` delivers type 1 before fetching another
+instruction, unless segment inhibition requires another instruction first.
+Thus POPF/IRET setting TF begins trapping after the following instruction;
+clearing TF does not cancel the trap owed for the instruction that cleared it.
+An owed trap survives higher-priority software, divide-error, or external entry
+and is delivered before that handler's first instruction. Callers offer pending
+NMI/INTR before `step()` to preserve their priority over a pending trap.
+
+Each REP element is a boundary in this model. Interruption saves the first
+prefix's address while repetition is unfinished; IRET resumes with the remaining
+CX and advanced indices. This retains the existing complete-prefix refetch
+policy. It does not emulate the original chip's multiple-prefix restart quirks
+or prefetch-dependent self-modification.
+
+## Interrupt connection failures
+
+RAM and acknowledgement callbacks may inspect state, but reentrant mutating
+calls throw before changing it. Callback errors propagate without a record or
+rollback. A failing acknowledgement leaves an accepted INTR's halt release in
+place, with no vector read. A failing vector read preserves CS:IP and SP;
+IF/TF clear only after the entire vector is read. A failing frame write leaves
+that flag clearing, each attempted push's SP decrement, and completed writes
+in place; the target CS:IP commits after all three pushes succeed.
+
+IRET commits each completed pop's SP increment, changes CS:IP after both return
+words, then restores FLAGS after its complete word is read. A pending trap is
+consumed when its delivery begins, including on failure. These rules expose
+host failures; they do not model bus faults, cycle-level register timing, or
+resumption halfway through an instruction. Reset always clears all recognition
+latches without reading RAM or calling a device.
 
 ## Shifts and rotates
 
@@ -450,10 +552,9 @@ immediates, or operand accesses. AAM/AAD reject after their second byte when it
 is not `0A`. Invalid repetition combinations reject at the opcode.
 All preserve complete state and RAM; repeating an attempt repeats its reads.
 This atomic rejection is a model policy, not an illegal-instruction exception
-implemented by the original chip. Divide-error rejection is described above.
+implemented by the original chip. Divide errors use native delivery as described above.
 
-Deferred documented instructions are INT/INTO/IRET (`CC`–`CF`),
-CLI/STI (`FA`/`FB`), and external-processor ESC
+Deferred documented instructions are external-processor ESC
 (`D8`–`DF`) and WAIT (`9B`). ESC communicates with a coprocessor; WAIT observes
 the external TEST input. Both stay with external I/O until those interfaces
 exist. Undocumented aliases and later-x86 additions remain outside scope.
@@ -461,7 +562,7 @@ exist. Undocumented aliases and later-x86 additions remain outside scope.
 ## CPU reset
 
 `reset()` sets CS to `FFFF`, IP to `0000`, DS/SS/ES to `0000`, and clears all
-nine flags, including IF, and clears `halted`. It performs **no RAM access**: `FFFF0` is the first
+nine flags, including IF, `halted`, and all three recognition latches. It performs **no RAM access**: `FFFF0` is the first
 instruction address, not a pointer read from a reset-vector table.
 
 AX/BX/CX/DX/SP/BP/SI/DI and RAM are preserved. Intel's reset table does not
@@ -528,8 +629,8 @@ BCD and signed-division boundaries, every byte multiplication pair, full-word
 sign extension/AAD/POPF sweeps, and invalid encodings. Prefix and string tests
 check both directions and widths, empty repetition, flag-based termination,
 segment and bus wrapping, exact accesses, bounded running, and snapshot-only
-resumption. A separate encoding inventory audits 276 supported forms and the
-15 deferred documented forms.
+resumption. A separate encoding inventory audits 282 supported forms and the
+9 deferred documented forms.
 
 Port checks cover all eight forms, every immediate port and modeled flag
 combination, distinct byte halves, odd and wrapped word ports, instruction-fetch
@@ -541,13 +642,21 @@ CPU, full RAM, and device state at every boundary. The supplementary
 check modeled state and actual port bus transfers without adding network access
 to the repository tests.
 
+Interrupt checks cover all 256 vectors, all flag combinations for software
+entry and restoration, IF transitions, segment inhibition, higher-priority entry
+with an owed trap, wrapped/overlapping frames, and failures at each vector or
+frame byte. A halted program enters a port-writing handler through INTR, returns
+with IRET, and resumes from a snapshot during its restored recognition delay.
+The [66,444 interrupt hardware cases](reference-notes.md#interrupt-comparison)
+check native control instructions and divide-error delivery.
+
 The [decimal buffer example](examples/decimal-buffer.md) combines a wrapped
 three-word copy, a far decimal-formatting routine, unsigned division, reverse
 string stores, saved FLAGS, and HLT. Its tests specify all 52 records, guarded
 full RAM images, decimal output at unsigned boundaries, and restoration inside
 both REP and a far-call frame.
 
-Interrupt delivery, coprocessor/TEST interfaces, mapped devices, timing,
+Coprocessor/TEST interfaces, mapped devices, pin sampling and scheduling, timing,
 bus arbitration, and prefetching remain deferred. The instruction-level records
 are not a cycle trace; self-modifying code observes current RAM without the
 original chip's prefetch-queue effects.

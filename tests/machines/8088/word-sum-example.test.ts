@@ -17,7 +17,7 @@ function views(state: Cpu8088State): Cpu8088Snapshot {
     cl: state.cx % 256, ch: Math.floor(state.cx / 256), dl: state.dx % 256, dh: Math.floor(state.dx / 256) };
 }
 function initialState(): Cpu8088Snapshot {
-  return views({ halted: false, ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788,
+  return views({ halted: false, interruptDeferred: false, segmentDeferred: false, trapPending: false, ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788,
     sp: 0x8000, bp: 0x9000, si: 0x10, di: 0x20, cs: 0x1234, ds: 0x2000, ss: 0x3000, es: 0x4000, ip: 0x200,
     flags: { cf: true, pf: false, af: true, zf: true, sf: true, tf: false, if: true, df: true, of: true } });
 }

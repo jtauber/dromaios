@@ -3,7 +3,7 @@ import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep }
 import { signed8, readWordLE } from "./binary.ts";
 import { flagRegister } from "./flags.ts";
 import { recordMemory } from "./memory-access.ts";
-import type { MemoryAccess } from "./memory-access.ts";
+import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import { recordPorts } from "./port-access.ts";
 import type { BytePorts, PortAccess } from "./port-access.ts";
 import { executionBoundary } from "./execution-boundary.ts";
@@ -14,13 +14,14 @@ import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { add, subtract, shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
+import { checkUnsigned } from "../validation.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu8088StateDescription = defineState({
   ax: unsigned(16), bx: unsigned(16), cx: unsigned(16), dx: unsigned(16),
   sp: unsigned(16), bp: unsigned(16), si: unsigned(16), di: unsigned(16),
   cs: unsigned(16), ds: unsigned(16), ss: unsigned(16), es: unsigned(16), ip: unsigned(16),
-  halted: boolean,
+  halted: boolean, interruptDeferred: boolean, segmentDeferred: boolean, trapPending: boolean,
   flags: group({ cf: flag, pf: flag, af: flag, zf: flag, sf: flag, tf: flag, if: flag, df: flag, of: flag }),
 });
 
@@ -47,12 +48,30 @@ export type Cpu8088Access = MemoryAccess | PortAccess;
 /** Instruction address is physical; before.cs and before.ip retain its logical address. */
 export type Cpu8088Instruction = FetchedInstruction;
 
-export type Cpu8088StepRecord = InstructionStep<Cpu8088Snapshot, Cpu8088Access> | HaltedStep<Cpu8088Snapshot, Cpu8088Access> | (
-  StateTransition<Cpu8088Snapshot, Cpu8088Access> & {
-    readonly instruction: FetchedInstruction;
-    readonly outcome: "unsupported";
-    readonly reason: "divide-error";
+/** Interrupt delivery uses a type byte to select a four-byte vector at physical address type * 4. */
+export interface Cpu8088Delivery {
+  readonly source: "software" | "divide-error" | "trap";
+  readonly vector: number;
+}
+
+export type Cpu8088StepRecord = (
+  (InstructionStep<Cpu8088Snapshot, Cpu8088Access> | HaltedStep<Cpu8088Snapshot, Cpu8088Access>) & {
+    readonly interrupt?: Cpu8088Delivery;
   }
+) | (StateTransition<Cpu8088Snapshot> & {
+  readonly instruction: null;
+  readonly outcome: "executed";
+  readonly interrupt: { readonly source: "trap"; readonly vector: 1 };
+});
+
+export type Cpu8088InterruptSource = "intr" | "nmi";
+export type Cpu8088InterruptAccess = MemoryAccess | { readonly kind: "acknowledge"; readonly value: number };
+export type Cpu8088InterruptRecord = StateTransition<Cpu8088Snapshot, Cpu8088InterruptAccess> & {
+  readonly source: Cpu8088InterruptSource;
+  readonly instruction: null;
+} & (
+  | { readonly outcome: "accepted"; readonly vector: number }
+  | { readonly outcome: "ignored"; readonly reason: "masked" | "deferred" }
 );
 
 export type Cpu8088ResetRecord = StateTransition<Cpu8088Snapshot>;
@@ -62,6 +81,8 @@ interface InstructionContext extends WordInstructionContext, BytePorts {
   readonly segment: number | undefined;
   // F3 repeats while equal, F2 while unequal; only CMPS/SCAS test the condition.
   readonly repeat: boolean | undefined;
+  readonly deferInterrupt: (scope: "intr" | "all") => void;
+  readonly interrupt: (vector: number) => void;
 }
 type Rejection = "opcode" | "divide-error";
 type OpcodeHandler = (instruction: InstructionContext) => Rejection | void;
@@ -101,7 +122,7 @@ export class Cpu8088 {
   readonly #ram: Ram;
   readonly #state: Cpu8088State;
   readonly #ports: BytePorts | undefined;
-  readonly #atBoundary = executionBoundary("8088 step and reset calls must not be reentrant.");
+  readonly #atBoundary = executionBoundary("8088 step, reset, and interrupt calls must not be reentrant.");
 
   constructor(ram: Ram, initialState: Cpu8088State, ports?: BytePorts) {
     if (ram.size !== 0x100000) throw new RangeError("The 8088 model requires exactly 1 MiB of RAM.");
@@ -130,6 +151,7 @@ export class Cpu8088 {
       this.#state.cs = 0xffff;
       this.#state.ip = 0;
       this.#state.halted = false;
+      this.#state.interruptDeferred = this.#state.segmentDeferred = this.#state.trapPending = false;
       this.#state.ds = this.#state.ss = this.#state.es = 0;
       this.#state.flags = { cf: false, pf: false, af: false, zf: false, sf: false,
         tf: false, if: false, df: false, of: false };
@@ -137,10 +159,17 @@ export class Cpu8088 {
     });
   }
 
-  /** Attempt one instruction or REP iteration; rejected attempts preserve state and RAM. */
+  /** Deliver an owed trap, or attempt one instruction/REP iteration; rejected encodings preserve state. */
   step(): Cpu8088StepRecord {
     return this.#atBoundary<Cpu8088StepRecord>(() => {
       const before = this.snapshot();
+      if (this.#state.trapPending && !this.#state.segmentDeferred) {
+        const memory = recordMemory(this.#ram);
+        this.#state.trapPending = false;
+        this.#enterInterrupt(1, memory);
+        return { before, after: this.snapshot(), instruction: null, accesses: memory.accesses,
+          outcome: "executed", interrupt: { source: "trap", vector: 1 } };
+      }
       if (this.#state.halted) return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
       const accesses: Cpu8088Access[] = [];
       const recordAccess = (access: Cpu8088Access): void => { accesses.push(access); };
@@ -157,6 +186,19 @@ export class Cpu8088 {
       let segment: number | undefined;
       let repeat: boolean | undefined;
       let reason: Rejection | void = "opcode";
+      let interruptDeferred = false, segmentDeferred = false;
+      let interrupt: Cpu8088Delivery | undefined;
+      const context = {
+        startIp: before.ip, fetchByte, fetchWord: () => readWordLE(fetchByte), readByte, writeByte, readPort, writePort,
+        deferInterrupt: (scope: "intr" | "all"): void => {
+          if (scope === "all") segmentDeferred = true;
+          else interruptDeferred = true;
+        },
+        interrupt: (vector: number): void => {
+          this.#enterInterrupt(vector, { readByte, writeByte });
+          interrupt = { source: "software", vector };
+        },
+      };
       // A full code segment of prefixes cannot reach an opcode; bound the attempt without a later-x86 length limit.
       while (bytes.length < 0x10000) {
         const opcode = fetchByte();
@@ -166,15 +208,83 @@ export class Cpu8088 {
         if (opcode === 0xf2 || opcode === 0xf3) { repeat = opcode === 0xf3; continue; }
         const handler = this.#opcodeHandlers[opcode];
         if (handler && (repeat === undefined || this.#stringHandlers.some(([code]) => code === opcode))) {
-          reason = handler({ startIp: before.ip, segment, repeat, fetchByte, fetchWord: () => readWordLE(fetchByte), readByte, writeByte, readPort, writePort });
+          reason = handler({ ...context, segment, repeat });
         }
         break;
       }
-      if (reason) this.#state.ip = before.ip;
+      if (reason === "divide-error") {
+        // Original 8088 type 0 returns AFTER DIV/IDIV, unlike later x86 fault restart.
+        this.#enterInterrupt(0, { readByte, writeByte });
+        interrupt = { source: "divide-error", vector: 0 };
+      }
+      if (reason === "opcode") this.#state.ip = before.ip;
+      else {
+        this.#state.interruptDeferred = interruptDeferred;
+        this.#state.segmentDeferred = segmentDeferred;
+        // TF is sampled before execution: POPF/IRET cannot retroactively change the owed trap.
+        this.#state.trapPending = before.trapPending || before.flags.tf;
+      }
       const record = { before, after: this.snapshot(), instruction: { address: before.pc, bytes }, accesses };
-      return reason ? { ...record, outcome: "unsupported", reason }
-        : { ...record, outcome: this.#state.halted ? "halted" : "executed" };
+      if (reason === "opcode") return { ...record, outcome: "unsupported", reason };
+      if (interrupt) return { ...record, outcome: "executed", interrupt };
+      // A trapped HLT still allows the runner to reach its pending type-1 entry.
+      return { ...record, outcome: this.#state.halted && !this.#state.trapPending ? "halted" : "executed" };
     });
+  }
+
+  /** Offer INTR or a selected NMI edge. Ignored requests remain the caller's responsibility. */
+  interrupt(source: "nmi"): Cpu8088InterruptRecord;
+  interrupt(source: "intr", acknowledge: () => number): Cpu8088InterruptRecord;
+  interrupt(source: Cpu8088InterruptSource, acknowledge?: () => number): Cpu8088InterruptRecord {
+    return this.#atBoundary<Cpu8088InterruptRecord>(() => {
+      if (source !== "intr" && source !== "nmi") throw new TypeError("8088 interrupt source must be intr or nmi.");
+      const before = this.snapshot();
+      const deferred = this.#state.segmentDeferred || (source === "intr" && this.#state.interruptDeferred);
+      if (deferred || (source === "intr" && !this.#state.flags.if)) {
+        return { before, after: this.snapshot(), source, instruction: null, accesses: [], outcome: "ignored",
+          reason: deferred ? "deferred" : "masked" };
+      }
+      if (source === "intr" && typeof acknowledge !== "function") throw new TypeError("INTR requires an acknowledge callback.");
+      this.#state.halted = false;
+      const accesses: Cpu8088InterruptAccess[] = [];
+      const memory = recordMemory(this.#ram, access => { accesses.push(access); });
+      let vector = 2;
+      if (source === "intr") {
+        vector = acknowledge!();
+        checkUnsigned("Interrupt vector", vector, 0xff);
+        accesses.push({ kind: "acknowledge", value: vector });
+      }
+      this.#enterInterrupt(vector, memory);
+      return { before, after: this.snapshot(), source, instruction: null, accesses, outcome: "accepted", vector };
+    });
+  }
+
+  // Interrupt entry and flag restoration share the ordinary segmented stack operations.
+
+  #enterInterrupt(vector: number, { readByte, writeByte }: ByteMemory): void {
+    // Read the complete vector BEFORE writing the frame, including when the stack overlaps the IVT.
+    const target = this.#readPointer({ segment: 0, offset: vector * 4 }, readByte);
+    const flags = packedFlags.encode(this.#state.flags);
+    this.#state.flags.if = this.#state.flags.tf = false;
+    this.#state.halted = this.#state.interruptDeferred = this.#state.segmentDeferred = false;
+    this.#pushWord(flags, writeByte);
+    this.#pushWord(this.#state.cs, writeByte);
+    this.#pushWord(this.#state.ip, writeByte);
+    this.#state.cs = target.segment;
+    this.#state.ip = target.offset;
+    // Higher-priority delivery must not discard a single-step trap already owed at this boundary.
+  }
+
+  #restoreFlags(instruction: InstructionContext): void {
+    const flags = packedFlags.decode(this.#popWord(instruction.readByte));
+    if (!this.#state.flags.if && flags.if) instruction.deferInterrupt("intr");
+    this.#state.flags = flags;
+  }
+
+  #loadSegment(segment: SegmentRegister, value: number, instruction: InstructionContext): void {
+    this.#state[segment] = value;
+    // Original 8088 MOV/POP inhibits all interrupt recognition for EVERY segment, not only SS.
+    instruction.deferInterrupt("all");
   }
 
   // Register views. Byte writes replace only the selected half of the stored word.
@@ -284,9 +394,9 @@ export class Cpu8088 {
 
     // 000 ss 11p: ss selects ES/CS/SS/DS; p=0 PUSH, p=1 POP. POP CS is undocumented.
     ...opcodeFamily("000 ss 110", { s: this.#segmentRegisters }, ({ s }) => ({ writeByte }: InstructionContext) => this.#pushWord(this.#state[s], writeByte)),
-    ...instructionPattern("000 00 111", ({ readByte }) => { this.#state.es = this.#popWord(readByte); }), // POP ES
-    ...instructionPattern("000 10 111", ({ readByte }) => { this.#state.ss = this.#popWord(readByte); }), // POP SS
-    ...instructionPattern("000 11 111", ({ readByte }) => { this.#state.ds = this.#popWord(readByte); }), // POP DS
+    ...instructionPattern("000 00 111", instruction => this.#loadSegment("es", this.#popWord(instruction.readByte), instruction)), // POP ES
+    ...instructionPattern("000 10 111", instruction => this.#loadSegment("ss", this.#popWord(instruction.readByte), instruction)), // POP SS
+    ...instructionPattern("000 11 111", instruction => this.#loadSegment("ds", this.#popWord(instruction.readByte), instruction)), // POP DS
 
     // 001 u s 111: u=0 packed decimal (DAA/DAS), u=1 unpacked (AAA/AAS); s=0 add/1 subtract.
     ...opcodeFamily("001 0 s 111", { s: [false, true] }, ({ s: subtracting }) => () => this.#decimalAdjust(subtracting)),
@@ -326,7 +436,7 @@ export class Cpu8088 {
     ...instructionPattern("1001 1001", () => { this.#state.dx = this.#state.ax >= 0x8000 ? 0xffff : 0; }), // CWD
     ...instructionPattern("1001 1010", instruction => this.#farImmediate(true, instruction)), // CALL ptr16:16
     ...instructionPattern("1001 1100", ({ writeByte }) => this.#pushWord(packedFlags.encode(this.#state.flags), writeByte)), // PUSHF
-    ...instructionPattern("1001 1101", ({ readByte }) => { this.#state.flags = packedFlags.decode(this.#popWord(readByte)); }), // POPF
+    ...instructionPattern("1001 1101", instruction => this.#restoreFlags(instruction)), // POPF
     ...instructionPattern("1001 1110", () => { Object.assign(this.#state.flags, statusByte.decode(this.#state.ax >>> 8)); }), // SAHF
     ...instructionPattern("1001 1111", () => { this.#state.ax = (statusByte.encode(this.#state.flags) << 8) | (this.#state.ax & 0xff); }), // LAHF
 
@@ -352,6 +462,15 @@ export class Cpu8088 {
     ...opcodeFamily("1100 010 s", { s: ["es", "ds"] }, ({ s: segment }) => (instruction: InstructionContext) => this.#loadAddress(segment, instruction)), // LES / LDS
     ...instructionPattern("1100 1010", ({ fetchWord, readByte }) => this.#returnFar(fetchWord(), readByte)), // RETF n
     ...instructionPattern("1100 1011", ({ readByte }) => this.#returnFar(0, readByte)), // RETF
+
+    // 1100 11tt: tt=00 breakpoint, 01 immediate type, 10 overflow, 11 interrupt return.
+    ...instructionPattern("1100 1100", ({ interrupt }) => interrupt(3)), // INT3
+    ...instructionPattern("1100 1101", ({ fetchByte, interrupt }) => interrupt(fetchByte())), // INT n
+    ...instructionPattern("1100 1110", ({ interrupt }) => { if (this.#state.flags.of) interrupt(4); }), // INTO
+    ...instructionPattern("1100 1111", instruction => {
+      this.#returnFar(0, instruction.readByte);
+      this.#restoreFlags(instruction);
+    }), // IRET
 
     // 1100 011w + mm 000 rrr: immediate MOV; every other operation selector is unused.
     ...opcodeFamily("1100 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#operandGroup(width, this.#immediateMoveOperations, instruction)), // MOV r/m,n
@@ -386,7 +505,13 @@ export class Cpu8088 {
     ...instructionPattern("1111 0101", () => { this.#state.flags.cf = !this.#state.flags.cf; }), // CMC
     ...opcodeFamily("1111 1 f 0 v", { f: ["cf", "df"], v: [false, true] }, ({ f: flag, v: value }) => () => { this.#state.flags[flag] = value; }), // CLC/STC, CLD/STD
 
-    // INT/INTO/IRET, CLI/STI, and external ESC/WAIT remain deferred.
+    // 1111 101v: v writes IF; only a 0-to-1 transition defers INTR through the next instruction.
+    ...opcodeFamily("1111 101 v", { v: [false, true] }, ({ v: enabled }) => (instruction: InstructionContext) => {
+      if (enabled && !this.#state.flags.if) instruction.deferInterrupt("intr");
+      this.#state.flags.if = enabled;
+    }), // CLI/STI
+
+    // External ESC/WAIT remain deferred.
   ]);
 
   // Addressing, loads, stores, and exchanges.
@@ -485,7 +610,7 @@ export class Cpu8088 {
     const segment = this.#segmentRegisters[selector];
     if (!segment || (toSegment && segment === "cs")) return "opcode";
     const operand = this.#registerMemoryOperand(16, modRM, instruction);
-    if (toSegment) this.#state[segment] = operand.read();
+    if (toSegment) this.#loadSegment(segment, operand.read(), instruction);
     else operand.write(this.#state[segment]);
   }
 

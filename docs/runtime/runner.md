@@ -53,6 +53,13 @@ state separately; port callbacks belong to the caller's connection.
 An [8088 IN/OUT](../cpus/8088/model.md#port-input-and-output) counts as one step,
 including both byte transfers of a word. CPU/RAM/device restoration occurs
 between instructions; the runner does not pause inside a port transfer.
+An [8088 pending trap](../cpus/8088/model.md#recognition-delays-and-single-stepping)
+uses a separate executed step with no instruction fetch. Software interrupts
+and divide errors deliver within their triggering instruction's step. An HLT
+with an owed trap reports `executed`, allowing the following step to enter the
+trap handler. Explicit INTR/NMI offers occur between runs; the caller offers
+pending external requests before stepping to preserve their priority. An explicit
+endpoint still takes precedence over a pending trap.
 
 Z80 IRQ/NMI offers also occur between runs through
 [`interrupt()`](../cpus/z80/model.md#external-interrupt-delivery). Accepted entry

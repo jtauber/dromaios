@@ -204,10 +204,12 @@ provide the common fields used by all eight CPUs:
 
 CPU modules keep their public names as aliases, such as `Cpu6502Instruction`
 and `Cpu6502ResetRecord`. `InstructionStep`, `HaltedStep`, and `WaitingStep` accept the same
-optional access type. The 8008, 8080, and Z80 supply a union of memory and port accesses;
+optional access type. The 8008, 8080, Z80, and 8088 supply a union of memory and port accesses;
 other CPUs retain the memory-only default. Each step type selects its supported outcomes; the
 68000 adds its alignment-fault branch, including a possible null instruction
-on an unaligned opcode fetch. Address conventions are still
+on an unaligned opcode fetch. The 8088 adds an executed no-fetch trap-entry
+branch, while software interrupts retain their triggering fetched instruction.
+Address conventions are still
 documented beside the aliases, including the 8088's physical instruction
 address and the 68000's full logical instruction address.
 
@@ -272,7 +274,8 @@ The 6502, 6800, 6809, and shared 8080-family core import
 `WordInstructionContext` as their local `InstructionContext`. The 8008, 8080,
 and Z80 extend it with `BytePorts`; the 8080/Z80 add interrupt-deferral callbacks,
 and the Z80 also queues RETI notification for retirement.
-The 8088 extends it with `BytePorts`, the instruction start IP, and local segment/repeat prefixes. The 8008
+The 8088 extends it with `BytePorts`, the instruction start IP, local segment/repeat
+prefixes, and callbacks for instruction-local recognition delays and software entry. The 8008
 fetches a full two-byte operand and masks it to a 14-bit address when jumping
 or calling. The 68000 currently
 extends `ByteMemory` with `fetchWord`, `fetchLong`, `nextAddress`, and `jump`.
@@ -348,8 +351,8 @@ The four CPUs with a stored PC pass their state directly. The 8008 uses
 `programCounter(read, write)` to expose its live address-stack slot and mask
 writes to 14 bits without adding stored state. Its circular call stack stays
 in the CPU file. The Z80 retains complete-prefix decoding and R updates; the
-8088 retains segment/repeat prefixes, one-element REP steps, and divide-error
-rejection; the 68000 retains word opcodes and alignment faults. Those contracts
+8088 retains segment/repeat prefixes, one-element REP steps, trap boundaries,
+and native interrupt delivery; the 68000 retains word opcodes and alignment faults. Those contracts
 do not fit this executor. All still share instruction contexts and recorded
 byte memory; specialized step loops do not require a broader executor API.
 

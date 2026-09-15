@@ -17,7 +17,7 @@ function views(state: Cpu8088State): Cpu8088Snapshot {
 }
 
 function initialState(): Cpu8088Snapshot {
-  return views({ halted: false, ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788,
+  return views({ halted: false, interruptDeferred: false, segmentDeferred: false, trapPending: false, ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788,
     sp: 0x8000, bp: 0x9000, si: 0x10, di: 0x20, cs: 0x1234, ds: 0xffff, ss: 0x3000, es: 0x4000, ip: 0x200,
     flags: { cf: false, pf: false, af: true, zf: true, sf: false, tf: false, if: true, df: true, of: true } });
 }
