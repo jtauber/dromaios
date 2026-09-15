@@ -91,22 +91,19 @@ test("the complete 6502 lesson stores 5 and stops before fetching at its complet
   ]);
   assert.deepEqual(write.mock.calls.map((call) => call.arguments), [[0x0080, 5]]);
 
-  // Completion belongs to the caller; a direct CPU step still attempts BRK.
-  read.mock.resetCalls();
-  write.mock.resetCalls();
-  assert.deepEqual(cpu.step(), {
-    instruction: { address: 0x0208, bytes: [0x00] },
-    before: afterStore,
-    after: afterStore,
-    accesses: [{ kind: "read", address: 0x0208, value: 0x00 }],
-    outcome: "unsupported",
-    reason: "opcode",
-  });
-  assert.deepEqual(cpu.snapshot(), afterStore);
-  assert.deepEqual(read.mock.calls.map((call) => call.arguments), [[0x0208]]);
-  assert.deepEqual(write.mock.calls, []);
   t.mock.restoreAll();
   checkExampleMemory(ram, 5);
+  // Completion belongs to the caller; a direct CPU step executes BRK.
+  const brk = cpu.step();
+  assert.equal(brk.outcome, "executed");
+  assert.deepEqual(brk.instruction, { address: 0x0208, bytes: [0, 0] });
+  assert.deepEqual(brk.after, { ...afterStore, pc: 0, sp: 0xfc, flags: { ...afterStore.flags, i: true } });
+  assert.deepEqual(brk.accesses, [
+    { kind: "read", address: 0x0208, value: 0 }, { kind: "read", address: 0x0209, value: 0 },
+    { kind: "write", address: 0x01ff, value: 2 }, { kind: "write", address: 0x01fe, value: 0x0a },
+    { kind: "write", address: 0x01fd, value: 0x34 },
+    { kind: "read", address: 0xfffe, value: 0 }, { kind: "read", address: 0xffff, value: 0 },
+  ]);
 });
 
 test("reset after the complete 6502 lesson preserves the result and decrements SP on each call", () => {

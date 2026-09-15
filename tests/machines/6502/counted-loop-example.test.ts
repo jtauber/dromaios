@@ -114,10 +114,10 @@ test("the 6502 counted loop adds five three times and stores fifteen with exact 
   };
   assert.deepEqual(cpu.snapshot(), final);
   assert.deepEqual(runCpu(cpu, { maxSteps: 0, endAddress }), { records: [], stopReason: "completed" });
-  assert.deepEqual(cpu.step(), {
-    instruction: { address: 0x0210, bytes: [0] }, before: final, after: final,
-    accesses: [{ kind: "read", address: 0x0210, value: 0 }], outcome: "unsupported", reason: "opcode",
-  });
+  const brk = cpu.step();
+  assert.equal(brk.outcome, "executed");
+  assert.deepEqual(brk.instruction, { address: 0x0210, bytes: [0, 0] });
+  assert.equal(brk.after.pc, 0); // The unused IRQ/BRK vector contains zero.
 });
 
 test("the 6502 counted loop resumes before BNE, preserves RAM on reset, and restarts with fresh components", () => {

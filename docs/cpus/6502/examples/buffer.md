@@ -95,8 +95,9 @@ N/V/D/I/Z/C = `1/0/0/0/0/1`.
 RAM changes only at `0080:03`, `0081:04`, `0100:08`, `0101:02`, and
 `40FE:A3`, `40FF:A2`, `4100:A1`, `4101:A8`.
 
-The caller stops before fetching `0250`. A direct CPU step there attempts
-unsupported BRK (`00`); the CPU has no synthetic completion or halt latch.
+The caller stops before fetching `0250`. A direct CPU step there executes
+BRK (`00`) and follows the unused IRQ/BRK vector to `0000`; the CPU has no
+synthetic completion or halt latch.
 
 ## Access records and acceptance checks
 

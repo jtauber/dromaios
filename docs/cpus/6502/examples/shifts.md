@@ -79,7 +79,7 @@ flags; A stays `11` until step 14.
 
 Final RAM differs only at `0080:FE`, `0081:01`, `0082:00`, `0083:02`, and
 `0090:7E`. The caller stops before fetching `0220`; stepping directly there
-attempts unsupported BRK without changing state.
+executes BRK and follows the unused IRQ/BRK vector to `0000`.
 
 ## Records and acceptance checks
 

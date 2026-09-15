@@ -2,10 +2,11 @@ import type { Ram } from "../memory/ram.js";
 import { flagRegister, negativeZero } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
+import { executionBoundary } from "./execution-boundary.ts";
 import { signed8, readWordLE } from "./binary.ts";
 import { modifyByte } from "./memory-operations.ts";
 import { recordMemory } from "./memory-access.ts";
-import type { MemoryAccess } from "./memory-access.ts";
+import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateValues, ReadonlyState } from "./state.js";
@@ -33,6 +34,14 @@ export type Cpu6502StepRecord = InstructionStep<Cpu6502Snapshot>;
 
 export type Cpu6502ResetRecord = StateTransition<Cpu6502Snapshot>;
 
+export type Cpu6502InterruptSource = "irq" | "nmi";
+
+/** External entry performs stack/vector accesses without fetching an instruction. */
+export type Cpu6502InterruptRecord = StateTransition<Cpu6502Snapshot> & { readonly instruction: null } & (
+  | { readonly source: Cpu6502InterruptSource; readonly outcome: "accepted" }
+  | { readonly source: "irq"; readonly outcome: "ignored"; readonly reason: "masked" }
+);
+
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type OperandReader = (instruction: InstructionContext) => number;
 type AddressResolver = (instruction: InstructionContext) => number;
@@ -42,13 +51,14 @@ type ByteRegister = "a" | "x" | "y";
 // Fix the handler type once so pattern callbacks infer their instruction context.
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
-// PHP writes NV11DIZC; PLP ignores the two unstored bits.
-const packedFlags = flagRegister({ n: 7, v: 6, d: 3, i: 2, z: 1, c: 0 }, 0x30);
+// Status bit 5 is fixed; PHP/BRK add the stacked B marker in bit 4. Neither is stored.
+const packedFlags = flagRegister({ n: 7, v: 6, d: 3, i: 2, z: 1, c: 0 }, 0x20);
 
-/** Instruction-level NMOS 6502 subset for the 6502 examples. */
+/** Instruction-level NMOS 6502 with explicit boundary IRQ/NMI delivery. */
 export class Cpu6502 {
   readonly #ram: Ram;
   readonly #state: Cpu6502State;
+  readonly #atBoundary = executionBoundary("6502 step, reset, and interrupt calls must not be reentrant.");
 
   constructor(ram: Ram, initialState: Cpu6502Snapshot) {
     if (ram.size !== 0x10000) {
@@ -65,24 +75,43 @@ export class Cpu6502 {
 
   /** Reset PC, I, and SP with only the vector reads; preserve other state and RAM. */
   reset(): Cpu6502ResetRecord {
-    const before = this.snapshot();
-    const { accesses, readByte } = recordMemory(this.#ram);
-    const low = readByte(0xfffc);
-    const high = readByte(0xfffd);
-    this.#state.pc = low | (high << 8);
-    this.#state.flags.i = true;
-    this.#state.sp = (this.#state.sp - 3) & 0xff;
-    return { before, after: this.snapshot(), accesses };
+    return this.#atBoundary(() => {
+      const before = this.snapshot();
+      const { accesses, readByte } = recordMemory(this.#ram);
+      const low = readByte(0xfffc);
+      const high = readByte(0xfffd);
+      this.#state.pc = low | (high << 8);
+      this.#state.flags.i = true;
+      this.#state.sp = (this.#state.sp - 3) & 0xff;
+      return { before, after: this.snapshot(), accesses };
+    });
   }
 
   /** Attempt one instruction; unsupported opcodes leave all state unchanged. */
   step(): Cpu6502StepRecord {
-    const before = this.snapshot();
-    const { instruction, accesses, executed } = executeByteInstruction(this.#state, this.#ram, this.#opcodeHandlers, readWordLE);
-    const record = { before, after: this.snapshot(), instruction, accesses };
-    return executed
-      ? { ...record, outcome: "executed" }
-      : { ...record, outcome: "unsupported", reason: "opcode" };
+    return this.#atBoundary<Cpu6502StepRecord>(() => {
+      const before = this.snapshot();
+      const { instruction, accesses, executed } = executeByteInstruction(this.#state, this.#ram, this.#opcodeHandlers, readWordLE);
+      const record = { before, after: this.snapshot(), instruction, accesses };
+      return executed
+        ? { ...record, outcome: "executed" }
+        : { ...record, outcome: "unsupported", reason: "opcode" };
+    });
+  }
+
+  /** Offer a selected request at this boundary; the caller owns pending signals and NMI edges. */
+  interrupt(source: Cpu6502InterruptSource): Cpu6502InterruptRecord {
+    return this.#atBoundary<Cpu6502InterruptRecord>(() => {
+      if (source !== "irq" && source !== "nmi") throw new RangeError("6502 interrupt source must be irq or nmi.");
+      const before = this.snapshot();
+      // Boundary offers consult current I; cycle-level IRQ polling delays are unmodeled.
+      if (source === "irq" && this.#state.flags.i) {
+        return { before, after: this.snapshot(), instruction: null, accesses: [], source, outcome: "ignored", reason: "masked" };
+      }
+      const memory = recordMemory(this.#ram);
+      this.#enterInterrupt(source, memory);
+      return { before, after: this.snapshot(), instruction: null, accesses: memory.accesses, source, outcome: "accepted" };
+    });
   }
 
   // Opcode selectors and construction.
@@ -113,9 +142,11 @@ export class Cpu6502 {
   // The cc=00 and cc=10 instructions below have their own patterns.
   // Only implemented encodings enter the table; this is not a decoder for every combination.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // cc=00, bbb=000: aaa=001/011 select JSR absolute/RTS implied; 101 selects LDY immediate.
+    // cc=00, bbb=000: aaa=000/010 select BRK/RTI; 001/011 select JSR/RTS; 101 selects LDY immediate.
     // In 11r bbb 00, r (bit 5) selects CPY (0)/CPX (1); bbb=000/001/011 select #n/zp/absolute.
+    ...instructionPattern("000 000 00", instruction => this.#break(instruction)), // BRK
     ...instructionPattern("001 000 00", instruction => this.#call(instruction)), // JSR addr
+    ...instructionPattern("010 000 00", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
     ...instructionPattern("011 000 00", ({ readByte }) => this.#return(readByte)), // RTS
     ...instructionPattern("101 000 00", ({ fetchByte }) => this.#loadRegister("y", fetchByte())), // LDY #n
     ...opcodeFamily("11r 000 00", { r: ["y", "x"] }, ({ r }) => ({ fetchByte }: InstructionContext) => this.#compare(r, fetchByte())), // CPY/CPX #n
@@ -127,7 +158,7 @@ export class Cpu6502 {
     ...opcodeFamily("11r 001 00", { r: ["y", "x"] }, ({ r }) => ({ fetchByte, readByte }: InstructionContext) => this.#compare(r, readByte(fetchByte()))), // CPY/CPX zp
 
     // cc=00, bbb=010: 0rp 010 00. r (bit 6) selects status (0)/A (1); p (bit 5) selects push (0)/pull (1).
-    ...instructionPattern("00 0 010 00", ({ writeByte }) => this.#pushByte(packedFlags.encode(this.#state.flags), writeByte)), // PHP
+    ...instructionPattern("00 0 010 00", ({ writeByte }) => this.#pushByte(packedFlags.encode(this.#state.flags) | 0x10, writeByte)), // PHP
     ...instructionPattern("00 1 010 00", ({ readByte }) => { this.#state.flags = packedFlags.decode(this.#pullByte(readByte)); }), // PLP
     ...instructionPattern("01 0 010 00", ({ writeByte }) => this.#pushByte(this.#state.a, writeByte)), // PHA
     ...instructionPattern("01 1 010 00", ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte))), // PLA
@@ -158,9 +189,10 @@ export class Cpu6502 {
     ...instructionPattern("100 101 00", instruction => instruction.writeByte(this.#zeroPageIndexed("x", instruction), this.#state.y)), // STY zp,X
     ...instructionPattern("101 101 00", instruction => this.#loadRegister("y", instruction.readByte(this.#zeroPageIndexed("x", instruction)))), // LDY zp,X
 
-    // cc=00, bbb=110: 00v selects CLC/SEC and 11v selects CLD/SED; v (bit 5) is the new flag value.
-    // aaa=100/101 select TYA/CLV. aaa=010/011 (CLI/SEI) remain deferred with interrupts.
+    // cc=00, bbb=110: 00v/01v/11v select CLC/SEC, CLI/SEI, CLD/SED; v (bit 5) is the new flag value.
+    // aaa=100/101 select TYA/CLV.
     ...opcodeFamily("00v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.c = v; }), // CLC/SEC
+    ...opcodeFamily("01v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.i = v; }), // CLI/SEI
     ...instructionPattern("100 110 00", () => this.#loadRegister("a", this.#state.y)), // TYA
     ...instructionPattern("101 110 00", () => { this.#state.flags.v = false; }), // CLV
     ...opcodeFamily("11v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.d = v; }), // CLD/SED
@@ -305,6 +337,29 @@ export class Cpu6502 {
     const low = this.#pullByte(readByte);
     const high = this.#pullByte(readByte);
     this.#jump(((low | (high << 8)) + 1) & 0xffff);
+  }
+
+  #break(instruction: InstructionContext): void {
+    instruction.fetchByte(); // Consume the padding byte: BRK saves the address after both bytes.
+    this.#enterInterrupt("brk", instruction);
+  }
+
+  #enterInterrupt(source: Cpu6502InterruptSource | "brk", { readByte, writeByte }: ByteMemory): void {
+    this.#pushByte(this.#state.pc >>> 8, writeByte);
+    this.#pushByte(this.#state.pc & 0xff, writeByte);
+    this.#pushByte(packedFlags.encode(this.#state.flags) | (source === "brk" ? 0x10 : 0), writeByte);
+    this.#state.flags.i = true; // Stack the old I first. NMOS entry preserves D and all other flags.
+    const vector = source === "nmi" ? 0xfffa : 0xfffe;
+    const low = readByte(vector);
+    const high = readByte(vector + 1);
+    this.#jump(low | (high << 8));
+  }
+
+  #returnFromInterrupt(readByte: InstructionContext["readByte"]): void {
+    this.#state.flags = packedFlags.decode(this.#pullByte(readByte));
+    const low = this.#pullByte(readByte);
+    const high = this.#pullByte(readByte);
+    this.#jump(low | (high << 8)); // Unlike RTS, RTI restores the saved PC without incrementing it.
   }
 
   #branch(displacement: number, take: boolean): void {

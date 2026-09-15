@@ -92,8 +92,9 @@ retain their values; I remains set throughout.
 Final A/X/Y = `03/7F/02`, SP/PC = `80/0240`, and N/V/D/I/Z/C = 0/0/1/1/0/0.
 Only RAM `0180` and `0090` differ from their initial values. The pull retains
 the saved byte. Completion stops before fetching `0240`. Failure paths target
-`0230`, where the zero-filled BRK opcode is unsupported, so the runner stops
-with `unsupported` rather than reporting completion.
+`0230`, where BRK follows the unused IRQ/BRK vector to `0000`. The failure
+path test stops after that entry using its instruction budget and reports
+`step-limit`; the success endpoint remains `0240`.
 
 ## Records and acceptance checks
 

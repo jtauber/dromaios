@@ -89,8 +89,8 @@ The complete ordered accesses follow; `R` means read and `W` means write.
 | 5 | `R 0206:8D`, `R 0207:80`, `R 0208:00`, `W 0080:80` |
 
 Only `01FF` and `0080` change, both to `80`. The caller stops at `0209` before
-another fetch. A further direct CPU step attempts the zero byte there and
-reports unsupported BRK with unchanged state, as in the arithmetic example.
+another fetch. A further direct CPU step executes BRK there and follows the
+unused IRQ/BRK vector to `0000`, as in the arithmetic example.
 
 ## Reset and restart
 

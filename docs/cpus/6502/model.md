@@ -17,15 +17,17 @@ a 65C02 or the NES's Ricoh 2A03 variant.
 
 One `step()` attempts one instruction. The CPU has no example-completion
 address or synthetic halted latch; the caller decides when to stop stepping.
-Records are instruction-level. Timing, dummy bus reads, interrupt inputs,
-undocumented opcodes, devices, and browser controls remain outside this model.
+All documented opcode forms are implemented. Records remain instruction-level:
+cycle timing, dummy bus reads, electrical interrupt lines, undocumented opcodes,
+devices, and browser controls are unmodeled. External entry uses the explicit
+[boundary offer](#external-interrupt-delivery) below.
 
 ## State and initialization
 
 `Cpu6502State` contains `a`, `x`, `y`, `sp`, `pc`, and `flags`.
 `Cpu6502Flags` contains booleans `n`, `v`, `d`, `i`, `z`, and `c`.
-I is the interrupt-disable flag, with the opposite sense to the 8080's
-interrupt-enable latch. The six flags are stored individually; the
+I masks explicit IRQ offers, with the opposite sense to the 8080's
+interrupt-enable latch. It does not mask NMI or BRK. The six flags are stored individually; the
 [status stack](#status-stack) encodes and restores them as a byte. B and the
 unused status bit are not stored fields or new snapshot properties.
 
@@ -68,12 +70,14 @@ The CPU-specific `Cpu6502StepRecord` has these fields:
 
 The outcome/reason relationship is a discriminated union. All public record
 fields, nested snapshots, byte arrays, and access entries are readonly. There
-is no `halted` or `complete` CPU outcome in this subset, and no null instruction.
+is no `halted` or `complete` CPU outcome in this subset, and no null instruction. External interrupt records are a separate type.
 
 Instruction bytes come from the actual opcode and operand reads. Data reads
 and writes appear only in `accesses`. Record the actual accesses during execution,
 without rereading an instruction or the old contents of a write destination.
-These records omit dummy reads and carry no cycle-count claim.
+These records omit dummy reads and carry no cycle-count claim. BRK consumes
+and records its following padding byte, so its instruction bytes contain two
+bytes even though the documented opcode length is one.
 
 ## Register operations and relative branches
 
@@ -143,7 +147,7 @@ CLC/SEC clear/set C, CLV clears V, and CLD/SED clear/set D. Each preserves
 every other flag and register except PC. NOP (`EA`) changes only PC. These
 one-byte instructions read only their opcode at this instruction boundary;
 undocumented NOP encodings remain unsupported. See [manual][1], chapter 3
-and Appendix B. Interrupt-specific CLI/SEI remain deferred.
+and Appendix B. CLI/SEI likewise replace only I, controlling subsequent explicit IRQ offers.
 
 CLD selects binary ADC/SBC; SED selects
 [NMOS decimal arithmetic](#arithmetic-and-decimal-mode). D does not change
@@ -235,8 +239,8 @@ are omitted. Code/stack overlap follows that access order, with fetched
 opcode bytes retained in records. See [manual][1], sections 8.10–8.12.
 
 PLP restores D and I in the after-state. D immediately selects the
-arithmetic mode for ADC/SBC; I remains stored state without interrupt delivery or polling
-timing. BRK/RTI/CLI/SEI remain deferred with interrupts.
+arithmetic mode for ADC/SBC; I immediately selects whether an explicit IRQ
+offer is accepted under the boundary policy below.
 
 All 10,000 independent cases for each of [PHP][4], [PLP][5], and
 [indirect JMP][6] were checked against modeled state, final RAM, and ordered
@@ -303,6 +307,89 @@ Opcodes outside the [coverage inventory](../coverage.md#6502) return
 and RAM unchanged. Repeating the call repeats that read; it does not advance
 past the limitation. The caller must stop on unsupported results and use a
 bounded instruction budget when running programs.
+
+## Interrupt entry and return
+
+BRK (`00`) consumes its following padding byte and saves PC after both bytes,
+with 16-bit wrapping. It enters even when I is set. RTI (`40`) restores status,
+PC low, then PC high from the page-one stack, without adding one to PC.
+CLI (`58`) clears I; SEI (`78`) sets I. Both preserve all other state except
+the normal opcode-fetch PC increment.
+
+Entry shares one path with three explicit sources:
+
+| Source | Saved PC | Stacked status | Vector low/high |
+| --- | --- | --- | --- |
+| BRK | Address after opcode and padding | `NV11DIZC` | `FFFE` / `FFFF` |
+| IRQ | Current PC | `NV10DIZC` | `FFFE` / `FFFF` |
+| NMI | Current PC | `NV10DIZC` | `FFFA` / `FFFB` |
+
+Entry pushes PC high, PC low, and the old status in that order, decrementing
+SP after each write with eight-bit wrapping. It then sets I, reads vector
+low/high, and installs the destination PC. A/X/Y and the other flags,
+including NMOS decimal mode D, remain unchanged. B is a stacked marker,
+not a stored flag. RTI restores N/V/D/I/Z/C and ignores stacked bits 5/4,
+retaining the raw stack bytes. A/X/Y are preserved by RTI; handlers save any
+registers they use themselves.
+
+BRK records opcode and padding reads, three stack writes, and two vector
+reads. Its captured bytes survive overlapping stack writes. RTI records its
+opcode read followed by three stack reads. Neither prefetches the destination.
+Vector bytes and stack values come from current RAM. The
+[manufacturer manual][1], sections 3.2, 9.5–9.6, 9.10–9.11 and Appendix B,
+defines these operations; Appendix B correctly shows BRK setting I despite
+section 9.11's overly broad statement that it changes no flags.
+
+## External interrupt delivery
+
+`interrupt(source: "irq" | "nmi")` offers one selected request between CPU
+operations. An IRQ is ignored when the current I flag is set. NMI always
+enters. An accepted request completes the stack/vector transition above;
+it neither executes an opcode nor fetches any instruction bytes.
+
+This API models explicit boundary offers, not electrical lines or automatic
+polling. The caller owns pending requests, edge detection, and choosing NMI
+first when both sources are pending. Each NMI call represents a new selected
+edge, so another call can nest inside a handler. Ignored IRQ offers are not
+queued: a caller with a continuing request must offer it again. `step()` only
+executes its instruction; it does not schedule external entry.
+
+The recognition policy deliberately consults current I. CLI, SEI, PLP, RTI,
+and reset therefore affect the next explicit offer immediately. Cycle-level
+polling latency, late IRQ recognition, branch-specific sampling, and an NMI
+redirecting an entry already in progress are unmodeled. This does not reproduce
+the NMOS pipeline's interrupt timing. No hidden pending-request or sampled-mask
+state is added to snapshots; reconstructing a CPU from a snapshot and the same
+RAM reproduces future behavior when given the same boundary offers.
+
+`Cpu6502InterruptRecord` contains detached `before`/`after` snapshots,
+`source`, `instruction: null`, ordered memory `accesses`, and either:
+
+- `outcome: "accepted"` after a completed entry, with no reason field; or
+- `outcome: "ignored", reason: "masked"` for IRQ, with unchanged state and
+  no accesses. NMI cannot produce this branch.
+
+There is no fabricated BRK fetch or acknowledgement callback for external
+entry. Invalid source values throw `RangeError` before accessing RAM or
+changing state. Ordinary step/reset records retain their existing shapes.
+All three mutating methods share the execution-boundary guard: a RAM callback
+may inspect a snapshot, but nested `step()`, `reset()`, or `interrupt()` calls
+throw before mutating the CPU. Each guard clears after success or error.
+
+### Host errors during entry or return
+
+A failing RAM access throws without returning a record or rolling back
+completed effects. BRK's successful opcode/padding fetches have already
+advanced PC. Each successful push has written a byte and decremented SP;
+I changes only after all three pushes complete. PC receives a vector only
+after both vector reads succeed. External entry leaves the interrupted PC
+unchanged until that point.
+
+RTI increments SP before each stack read, just like PLP. A failed pull retains
+that increment; a successfully pulled status has already restored the flags
+if a later PC read fails. PC changes to the return target only after both
+address bytes arrive. These are host-error continuation rules, not modeled
+6502 memory faults. Reset retains its existing two-read commit policy.
 
 ## CPU reset
 
@@ -377,6 +464,14 @@ Further checks cover ignored bits, PHP after PLP, code/stack overlap, and
 restored D/C affecting ADC/SBC. The status/dispatch example checks complete
 records, RAM images, current pointers, snapshot resumption, and reset.
 
+Interrupt checks cover every SP and flag pattern for entry, every stacked
+status byte and every saved return PC for RTI, and explicit recognition after
+I changes. They verify wrapped/overlapping fetches and stacks, B markers,
+NMOS D preservation, ignored offers, repeated NMI, record ownership, invalid
+sources, reentrancy, and retained effects at every failing entry/return access.
+A combined program nests NMI inside IRQ, later executes BRK, restores decimal
+arithmetic, and reproduces its records and final RAM after snapshot restoration.
+
 Unsupported opcodes are checked on repeated attempts, with no
 operand read or state changes. Reset checks cover ordered reads of the current
 vector, SP wrapping and repeated decrements, preservation of RAM and unrelated
@@ -399,8 +494,8 @@ previews, opcode metadata, lesson annotations, addressing, and timing.
 ## References
 
 - [Synertek/MOS MCS6500 Programming Manual][1], sections 2.1–2.2, 3, 4, 6.1–6.5, 7,
-  8.1–8.3, 8.8–8.12, 9.1–9.4, 9.8.1, 10.1–10.8, and Appendix B: registers, flags, control flow,
-  stack access order, memory addressing/modification, shifts, reset, and encodings.
+  8.1–8.3, 8.8–8.12, 9.1–9.6, 9.8.1, 9.10–9.11, 10.1–10.8, and Appendix B: registers, flags, control flow,
+  stack access order, memory addressing/modification, shifts, interrupt entry/return, reset, and encodings.
   Its startup discussion is supplemented by the transistor-level analysis below.
 - [Michael Steil's Visual6502 analysis of BRK/IRQ/NMI/RESET][2]: reset vector
   order, discarded stack reads, and the three stack-pointer decrements.
@@ -408,6 +503,10 @@ previews, opcode metadata, lesson annotations, addressing, and timing.
   and bus expectations used to cross-check the intermediate write.
 - SingleStepTests [PHP][4], [PLP][5], and [indirect JMP][6] cases: stacked status
   bits, page wrapping, and state/access expectations.
+- SingleStepTests [BRK][9], [RTI][10], [CLI][11], and [SEI][12]: 10,000 cases
+  per opcode checked against final state, RAM, fetched bytes, and modeled
+  access order. BRK retains all seven accesses; the other comparisons omit
+  their discarded bus reads. These cases do not test external recognition timing.
 - [Arithmetic example](examples/arithmetic.md#references): instruction
   semantics and encodings.
 
@@ -424,3 +523,8 @@ omitted bus accesses are deliberate choices for this model.
 
 [7]: https://github.com/Klaus2m5/6502_65C02_functional_tests/blob/master/6502_decimal_test.a65
 [8]: https://github.com/SingleStepTests/65x02/tree/main/6502/v1
+
+[9]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/00.json
+[10]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/40.json
+[11]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/58.json
+[12]: https://github.com/SingleStepTests/65x02/blob/main/6502/v1/78.json

@@ -125,11 +125,11 @@ stop on an unsupported result and use a bounded instruction budget if it runs
 modified programs. Reaching the endpoint alone does not prove that modified
 code produced the intended result; acceptance tests check state and RAM too.
 
-Calling the CPU directly at `0208` still attempts an instruction. In the fresh
-fixture this is `00` (BRK), which is unsupported: reason `opcode`, one read
-`R 0208:00`, and equal before/after snapshots. BRK is a software interrupt
-operation, as described in the [manufacturer manual][1]; it is not being
-assigned a lesson-stop meaning.
+Calling the CPU directly at `0208` executes BRK and consumes the zero padding
+byte at `0209`. It pushes return PC `020A` and status `34`, reducing SP to
+`FC`, then follows the unused IRQ/BRK vector to `0000`. BRK is a
+[software interrupt](../model.md#interrupt-entry-and-return); the caller
+owns the lesson boundary.
 
 ## Reset and restart
 
@@ -153,7 +153,7 @@ The tests cover:
    calls. Constructor and snapshot validation/ownership follow the
    [model contract](../model.md).
 2. All four exact records and the full final RAM image; caller completion with
-   no extra access; a direct fifth CPU call reporting unsupported BRK.
+   no extra access; a direct fifth CPU call executing BRK and recording its stack/vector accesses.
 3. CLC changes only C and PC; LDA tests `00`, `80`, and `FF`, replacing N/Z and
    preserving other flags. Use nonzero registers and mixed flags throughout.
 4. Binary ADC exhaustively checks all 65,536 accumulator/operand pairs with

@@ -13,7 +13,7 @@ memory 0200 {
     20 40 02    // JSR $0240: return address sits below the saved status
     28          // PLP: restore the caller's flags, including D and Z
     F0 02       // BEQ $0209: restored Z is set even though A is now 80
-    00 00       // Failure path: unsupported BRK; padding
+    00 00       // Failure path: BRK; padding
     8D 80 00    // STA $0080
     6C 00 31    // JMP ($3100): caller's completion address
 }

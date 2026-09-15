@@ -22,7 +22,7 @@ zero-filled 64 KiB RAM with:
 | `0201` | `20 40 02` | `JSR $0240` |
 | `0204` | `28` | `PLP` |
 | `0205` | `F0 02` | `BEQ $0209` |
-| `0207` | `00 00` | Failure path: unsupported BRK and padding |
+| `0207` | `00 00` | Failure path: BRK and padding |
 | `0209` | `8D 80 00` | `STA $0080` |
 | `020C` | `6C 00 31` | `JMP ($3100)` to completion |
 | `0240` | `6C FF 30` | Dispatch: `JMP ($30FF)` |
@@ -69,8 +69,8 @@ page-one RAM; RTS removes the return frame before PLP removes the status frame.
 Pulling leaves all three bytes in RAM.
 
 The dispatch pointer intentionally ends a page. On this NMOS 6502, its high
-byte comes from `3000`; reading `3100` instead would jump to unsupported code
-at `0460`. The completion pointer demonstrates ordinary adjacent pointer reads.
+byte comes from `3000`; reading `3100` instead would jump to zero-filled RAM
+at `0460`, where BRK follows the unused IRQ/BRK vector to `0000`. The completion pointer demonstrates ordinary adjacent pointer reads.
 
 Final A/X/Y = `80/22/33`, PC/SP = `0304/00`, and flags match the initial state.
 Only RAM `0080:80`, `0100:BB`, `01FE:03`, and `01FF:02` differ from the initial

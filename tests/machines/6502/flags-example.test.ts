@@ -129,10 +129,10 @@ test("6502 BIT observes a changed status byte and follows the failure path witho
   const { cpu, ram, endAddress } = create6502FlagsExample();
   runCpu(cpu, { maxSteps: 15, endAddress });
   ram.write(0x80, 0xc1); // A=1 now matches bit 0; N and V remain set, Z becomes clear.
-  const result = runCpu(cpu, { maxSteps: 10, endAddress });
-  assert.equal(result.stopReason, "unsupported");
+  const result = runCpu(cpu, { maxSteps: 4, endAddress });
+  assert.equal(result.stopReason, "step-limit");
   assert.deepEqual(result.records.map(record => record.instruction.address), [0x0213, 0x0215, 0x0217, 0x0230]);
-  assert.deepEqual(cpu.snapshot(), { a: 1, x: 0x7f, y: 2, sp: 0x7f, pc: 0x0230,
+  assert.deepEqual(cpu.snapshot(), { a: 1, x: 0x7f, y: 2, sp: 0x7c, pc: 0,
     flags: { n: true, v: true, d: false, i: true, z: false, c: true } });
   assert.equal(ram.read(0x90), 0xcc);
   assert.equal(ram.read(0x0180), 1);

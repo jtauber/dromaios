@@ -81,13 +81,11 @@ test("the 6502 addressing lesson copies A5 from 00FF to 0000 and stops before fe
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [[0x0000, 0xa5]]);
   t.mock.restoreAll();
   checkExampleMemory(ram, [[0x0000, 0xa5]]);
-  // Completion belongs to the caller; a direct step still attempts BRK.
-  assert.deepEqual(cpu.step(), {
-    instruction: { address: 0x0204, bytes: [0x00] },
-    before: afterStore, after: afterStore,
-    accesses: [{ kind: "read", address: 0x0204, value: 0x00 }],
-    outcome: "unsupported", reason: "opcode",
-  });
+  // Completion belongs to the caller; a direct step executes BRK.
+  const brk = cpu.step();
+  assert.equal(brk.outcome, "executed");
+  assert.deepEqual(brk.instruction, { address: 0x0204, bytes: [0, 0] });
+  assert.equal(brk.after.pc, 0); // The unused IRQ/BRK vector contains zero.
 });
 
 test("6502 addressing records retain loaded data, reset preserves RAM, and restart creates fresh components", () => {

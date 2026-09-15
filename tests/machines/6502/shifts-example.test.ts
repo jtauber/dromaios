@@ -101,8 +101,10 @@ test("6502 shifts a two-byte word, counts in memory, and records both writes wit
     flags: { n: false, v: true, d: true, i: true, z: false, c: false } };
   assert.deepEqual(cpu.snapshot(), final);
   assert.deepEqual(runCpu(cpu, { maxSteps: 0, endAddress }), { records: [], stopReason: "completed" });
-  assert.deepEqual(cpu.step(), { before: final, after: final, instruction: { address: 0x0220, bytes: [0] },
-    accesses: [{ kind: "read", address: 0x0220, value: 0 }], outcome: "unsupported", reason: "opcode" });
+  const brk = cpu.step();
+  assert.equal(brk.outcome, "executed");
+  assert.deepEqual(brk.instruction, { address: 0x0220, bytes: [0, 0] });
+  assert.equal(brk.after.pc, 0); // The unused IRQ/BRK vector contains zero.
 });
 
 test("6502 shifts resume with carry between bytes and retain records across reset and host edits", () => {

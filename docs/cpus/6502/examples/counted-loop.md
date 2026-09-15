@@ -80,8 +80,8 @@ These are the model's instruction-level accesses, without dummy reads or timing.
 
 Only `0080` changes. Run with `runCpu(cpu, { maxSteps: 19, endAddress })` to
 finish with `stopReason: "completed"` before fetching at `0210`. The CPU itself
-has no completion outcome: a direct step there attempts unsupported BRK (`00`)
-and preserves state.
+has no completion outcome: a direct step there executes BRK (`00`) and follows
+the unused IRQ/BRK vector to `0000`.
 
 ## Pause, reset, and restart
 

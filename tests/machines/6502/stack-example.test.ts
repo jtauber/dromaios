@@ -108,13 +108,11 @@ test("the 6502 stack lesson restores A, stores 80, and stops before its completi
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [[0x01ff, 0x80], [0x0080, 0x80]]);
   t.mock.restoreAll();
   checkExampleMemory(ram, [[0x01ff, 0x80], [0x0080, 0x80]]);
-  // The endpoint belongs to the caller; a further CPU step still attempts BRK.
-  assert.deepEqual(cpu.step(), {
-    instruction: { address: 0x0209, bytes: [0x00] },
-    before: afterStore, after: afterStore,
-    accesses: [{ kind: "read", address: 0x0209, value: 0x00 }],
-    outcome: "unsupported", reason: "opcode",
-  });
+  // The endpoint belongs to the caller; a further CPU step executes BRK.
+  const brk = cpu.step();
+  assert.equal(brk.outcome, "executed");
+  assert.deepEqual(brk.instruction, { address: 0x0209, bytes: [0, 0] });
+  assert.equal(brk.after.pc, 0); // The unused IRQ/BRK vector contains zero.
 });
 
 test("reset with an occupied 6502 stack preserves its byte, while lesson restart restores fresh state", t => {

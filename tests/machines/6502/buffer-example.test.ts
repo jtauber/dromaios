@@ -124,8 +124,10 @@ test("6502 transforms a buffer across pages, compares results, calls and returns
     flags: { n: true, v: false, d: false, i: false, z: false, c: true } };
   assert.deepEqual(cpu.snapshot(), final);
   assert.deepEqual(runCpu(cpu, { maxSteps: 0, endAddress }), { records: [], stopReason: "completed" });
-  assert.deepEqual(cpu.step(), { before: final, after: final, instruction: { address: 0x0250, bytes: [0] },
-    accesses: [{ kind: "read", address: 0x0250, value: 0 }], outcome: "unsupported", reason: "opcode" });
+  const brk = cpu.step();
+  assert.equal(brk.outcome, "executed");
+  assert.deepEqual(brk.instruction, { address: 0x0250, bytes: [0, 0] });
+  assert.equal(brk.after.pc, 0); // The unused IRQ/BRK vector contains zero.
 });
 
 test("6502 buffer processing resumes inside the subroutine and loop without changing earlier records", () => {

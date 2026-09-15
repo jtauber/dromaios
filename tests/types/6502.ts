@@ -1,4 +1,4 @@
-import type { Cpu6502, Cpu6502ResetRecord, Cpu6502StepRecord } from "../../src/components/cpus/6502.js";
+import type { Cpu6502, Cpu6502ResetRecord, Cpu6502StepRecord, Cpu6502InterruptRecord } from "../../src/components/cpus/6502.js";
 
 // Compiled by npm test; never called. Each expected error guards the public API.
 export function checkPublicTypes(cpu: Cpu6502, record: Cpu6502StepRecord): void {
@@ -105,4 +105,38 @@ export function checkResetTypes(cpu: Cpu6502): Cpu6502ResetRecord {
   // @ts-expect-error A reset record cannot serve as an instruction step record.
   const step: Cpu6502StepRecord = record;
   return record;
+}
+
+export function checkInterruptTypes(cpu: Cpu6502, record: Cpu6502InterruptRecord): void {
+  const irq: Cpu6502InterruptRecord = cpu.interrupt("irq");
+  const nmi: Cpu6502InterruptRecord = cpu.interrupt("nmi");
+  // @ts-expect-error BRK is an instruction, not an external interrupt source.
+  cpu.interrupt("brk");
+  // @ts-expect-error The request source is explicit.
+  cpu.interrupt();
+  const instruction: null = record.instruction;
+  if (record.outcome === "ignored") {
+    const source: "irq" = record.source;
+    const reason: "masked" = record.reason;
+  } else {
+    const source: "irq" | "nmi" = record.source;
+    // @ts-expect-error Accepted entries have no rejection reason.
+    record.reason;
+  }
+  // @ts-expect-error External entry does not execute an opcode.
+  const step: Cpu6502StepRecord = record;
+  // @ts-expect-error Record fields and snapshots are readonly.
+  record.after.pc = 0;
+  // @ts-expect-error Nested flags remain readonly.
+  record.before.flags.i = false;
+  // @ts-expect-error Interrupt accesses remain readonly.
+  record.accesses.push({ kind: "write", address: 0x100, value: 0 });
+  // @ts-expect-error Source and outcome are readonly.
+  record.source = "irq";
+  if (record.accesses[0]) {
+    // @ts-expect-error Access entries remain readonly.
+    record.accesses[0].address = 0;
+  }
+  // @ts-expect-error An ignored record can only name IRQ.
+  const ignoredNmi: Cpu6502InterruptRecord = { ...record, source: "nmi", outcome: "ignored", reason: "masked" };
 }

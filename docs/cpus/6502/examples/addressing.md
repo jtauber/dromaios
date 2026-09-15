@@ -78,7 +78,7 @@ The complete ordered accesses follow; `R` means read and `W` means write.
 
 Only `0000` changes, from `00` to `A5`; the source remains unchanged. The
 caller stops at `0204` before fetching again. A further direct CPU step
-attempts the zero byte there and reports unsupported BRK with unchanged state.
+executes BRK there and follows the unused IRQ/BRK vector to `0000`.
 
 ## Reset and restart
 

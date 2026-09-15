@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [279](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [281](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [317](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [394](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [449](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [498](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [773](../../src/components/cpus/8088.ts) | 268 / 291 | 92.1% |
@@ -49,9 +49,10 @@ in the [example catalog](../README.md#cpu-examples).
 
 All eight initial CPU models meet the [CPU-only capability checkpoint](completion.md#cpu-only-checkpoint-review).
 The next milestone is complete documented opcode coverage across all eight,
-following the [completion sequence](completion.md#completion-sequence). The 8008
-and 8080 have reached full opcode coverage. The 8080 also supports external
-interrupt delivery at instruction boundaries; the 8008 does not yet.
+following the [completion sequence](completion.md#completion-sequence). The 8008,
+8080, and 6502 have reached full opcode coverage. The 8080 and 6502 also
+support explicit external interrupt delivery at instruction boundaries; their
+model contracts define recognition policies. The 8008 has no external delivery yet.
 Cycle timing remains unmodeled. Instructions still awaiting implementation on
 other CPUs remain in their documented-form totals.
 
@@ -175,12 +176,12 @@ forms accept 4,096 words. Embedded literal values do not add coverage forms.
 | Stepping | At most one instruction attempt; before/after snapshots, fetched instruction bytes, ordered accesses, and outcome |
 | Reset records | Separate before/after snapshots and access list; CPU-specific reset effects |
 | Arithmetic and addresses | Results wrap at their modeled widths; 14-bit addresses for the 8008, 16-bit addresses for the other 8-bit cores; the 8088 forms 20-bit physical addresses from segments/offsets; the 68000 preserves 32-bit registers and masks bus addresses to 24 bits |
-| Unsupported attempts | `reason: "opcode"`, one opcode byte fetched (two for the 68000), unchanged CPU state and RAM; additional 6502 mode, 8088 divide-error, and 68000 alignment/synchronous-exception boundaries below |
+| Unsupported attempts | `reason: "opcode"`, one opcode byte fetched (two for the 68000), unchanged CPU state and RAM; additional 8088 divide-error and 68000 alignment/synchronous-exception boundaries below |
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
 All eight currently omit cycle counts, dummy bus accesses, electrical signals,
 memory-mapped devices, disassembly, and an execution UI. External interrupt
-delivery is implemented on the 8080. Other CPUs can store and inspect their
+delivery is implemented on the 8080 and 6502. Other CPUs can store and inspect their
 existing interrupt flags before delivery is implemented; the 8008 has no
 interrupt-enable flag.
 
@@ -855,11 +856,11 @@ factory types.
 [Decimal specification](6502/examples/decimal.md) ·
 [Decimal definition](../../src/machines/6502/decimal-example.machine)
 
-**147 of 151 documented forms are complete (97.4%).** The accumulator families
+**All 151 documented forms are complete (100%).** The accumulator families
 below contribute 63 forms; X/Y loads and stores contribute 16; shifts, rotates,
-and memory INC/DEC contribute 28; CPX/CPY/BIT contribute 8. The remaining 32
-complete forms appear in the final instruction table. Only BRK/RTI/CLI/SEI
-remain deferred with interrupts.
+and memory INC/DEC contribute 28; CPX/CPY/BIT contribute 8. The remaining 36
+complete forms appear in the final instruction table. BRK/RTI/CLI/SEI now
+complete that inventory; IRQ/NMI delivery uses an explicit boundary-offer policy.
 
 All documented addressing forms of ORA, AND, EOR, ADC, SBC, CMP, LDA, STA, LDX, LDY,
 STX, STY, ASL, LSR, ROL, ROR, INC, DEC, CPX, CPY, and BIT are implemented.
@@ -905,6 +906,7 @@ gap. Length includes the opcode; absolute operands are low byte first.
 
 | Opcode | Instruction | Addressing form | Length | Scope |
 | --- | --- | --- | --- | --- |
+| `00` | `BRK` | Implied / stack | 1 | Consume padding; push PC after both bytes and NV11DIZC; set I and read the IRQ/BRK vector |
 | `08` | `PHP` | Implied / stack | 1 | Push NV11DIZC at 0100 + SP, then decrement SP; preserve flags |
 | `10` | `BPL rel` | Relative | 2 | Branch if N = 0 |
 | `18` | `CLC` | Implied | 1 | Clear carry |
@@ -912,13 +914,16 @@ gap. Length includes the opcode; absolute operands are low byte first.
 | `28` | `PLP` | Implied / stack | 1 | Increment SP, then restore N/V/D/I/Z/C from the stacked byte; ignore bits 5/4 |
 | `30` | `BMI rel` | Relative | 2 | Branch if N = 1 |
 | `38` | `SEC` | Implied | 1 | Set carry; preserve other flags |
+| `40` | `RTI` | Implied / stack | 1 | Pull status, PC low, PC high; ignore status bits 5/4; return without incrementing PC |
 | `48` | `PHA` | Implied | 1 | Write A at 0100 + SP, then decrement 8-bit SP; preserve flags |
 | `4C` | `JMP addr` | Absolute | 3 | Set PC from a low/high target; preserve flags |
 | `50` | `BVC rel` | Relative | 2 | Branch if V = 0 |
+| `58` | `CLI` | Implied | 1 | Clear I; preserve other flags |
 | `60` | `RTS` | Implied / stack | 1 | Pull PC low then high and add one with 16-bit wrapping; preserve flags |
 | `68` | `PLA` | Implied | 1 | Increment 8-bit SP, then read A at 0100 + SP; update N/Z |
 | `6C` | `JMP (addr)` | Absolute indirect | 3 | Read target low/high from a pointer whose high-byte read stays on the same page; preserve flags |
 | `70` | `BVS rel` | Relative | 2 | Branch if V = 1 |
+| `78` | `SEI` | Implied | 1 | Set I; preserve other flags |
 | `88` | `DEY` | Implied | 1 | Decrement Y; update N/Z |
 | `8A` | `TXA` | Implied | 1 | Copy X to A; update N/Z |
 | `90` | `BCC rel` | Relative | 2 | Branch if C = 0 |
@@ -938,6 +943,9 @@ gap. Length includes the opcode; absolute operands are low byte first.
 | `F0` | `BEQ rel` | Relative | 2 | Branch if Z = 1 |
 | `F8` | `SED` | Implied | 1 | Set decimal mode; preserve other flags |
 
+BRK has a one-byte opcode and consumes a following padding byte. Its
+instruction record contains both fetched bytes; the saved PC advances by two.
+
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A, X, Y, SP, PC |
@@ -949,15 +957,23 @@ gap. Length includes the opcode; absolute operands are low byte first.
 | Branches | All eight conditions; signed displacement relative to PC after the operand, with 16-bit wrapping; fetch the operand on both paths and preserve flags |
 | Jumps and subroutines | Absolute/indirect JMP, absolute JSR, and RTS; JSR's final operand fetch follows its stack writes; RTS adds one to the saved pointer; preserve flags |
 | Stack | PHA/PLA, PHP/PLP, and subroutine return pointers in page 01 with wrapping 8-bit SP; pulls retain stored bytes; TSX copies SP to X and updates N/Z; TXS copies X to SP without changing flags |
-| Flag controls | CLC/SEC, CLV, and CLD/SED affect only their named flag; NOP changes only PC |
+| Flag controls | CLC/SEC, CLI/SEI, CLV, and CLD/SED affect only their named flag; NOP changes only PC |
 | Arithmetic | All ADC/SBC forms, binary and NMOS decimal, with carry/borrow propagation; replace N/V/Z/C and preserve D/I |
 | Decimal mode | CLD/SED and PLP select the live mode; ADC uses NMOS intermediate N/V and binary Z, SBC uses binary N/V/Z/C; invalid BCD nibbles follow NMOS correction |
 | Reset | Read `FFFC` then `FFFD` for PC, set I, subtract 3 from the 8-bit SP with wrapping; preserve other registers, flags (including D), and RAM |
 | Stopping | The example caller stops at its completion address; the CPU has no synthetic halt or completion outcome |
-| Remaining instruction scope | Deferred BRK/RTI/CLI/SEI: 4 forms |
+| Interrupt entry/return | BRK plus explicit IRQ/NMI offers share page-one PC/status frames and native vectors; entry sets I and preserves NMOS D; RTI restores status and PC; ignored IRQs make no accesses |
+| Recognition policy | Explicit boundary offers use current I; caller owns pending IRQs, NMI edges, and priority; cycle polling delays and in-progress entry redirection are unmodeled |
+| Remaining instruction scope | None; all documented opcode forms are implemented |
 | Remaining addressing scope | None; all documented addressing modes are implemented |
 
 All supported forms work with either D value. Reset preserves D.
+Interrupt tests check every entry SP/flag pattern, every RTI status byte and
+return address, wrapping and code/stack overlap, exact access order, callback
+failures, reentrancy, and nested IRQ/NMI with decimal continuation and snapshot
+restoration. All 40,000 independent SingleStepTests cases for BRK/RTI/CLI/SEI
+passed state, RAM, and modeled access comparisons; external recognition timing
+is outside those vectors.
 The model targets the original NMOS 6502; variant-specific behavior has not
 been implemented.
 

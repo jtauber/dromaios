@@ -123,10 +123,10 @@ test("6502 nested calls wrap the page-one stack, store 10, restore A/SP, and jum
     flags: { n: true, v: false, d: false, i: false, z: false, c: false } };
   assert.deepEqual(cpu.snapshot(), final);
   assert.deepEqual(runCpu(cpu, { maxSteps: 0, endAddress }), { records: [], stopReason: "completed" });
-  assert.deepEqual(cpu.step(), {
-    instruction: { address: 0x0240, bytes: [0] }, before: final, after: final,
-    accesses: [{ kind: "read", address: 0x0240, value: 0 }], outcome: "unsupported", reason: "opcode",
-  });
+  const brk = cpu.step();
+  assert.equal(brk.outcome, "executed");
+  assert.deepEqual(brk.instruction, { address: 0x0240, bytes: [0, 0] });
+  assert.equal(brk.after.pc, 0); // The unused IRQ/BRK vector contains zero.
 });
 
 test("6502 subroutines resume from snapshots and RAM at either call depth and after returns", () => {

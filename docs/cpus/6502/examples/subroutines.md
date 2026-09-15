@@ -99,8 +99,8 @@ The two JSR records interleave stack writes with instruction reads.
 Final RAM differs only at `0080:10`, `0100:02`, `0101:80`, `01FD:25`,
 `01FE:02`, and `01FF:05`. Pulls leave stack bytes intact. A and SP return to
 `80` and `01`; the flags reflect the arithmetic and final PLA.
-The caller stops before fetching `0240`. A direct step there attempts the
-zero byte and reports unsupported BRK without changing state.
+The caller stops before fetching `0240`. A direct step there executes BRK
+and follows the unused IRQ/BRK vector to `0000`.
 
 ## Reset, resumption, and acceptance checks
 

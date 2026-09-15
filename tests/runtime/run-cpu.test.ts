@@ -127,14 +127,15 @@ test("unsupported opcodes stop immediately, preserve their record, and beat the 
 });
 
 test("a completed run is distinct from an unsupported attempt at the same PC", () => {
-  const { cpu, endAddress } = create6502Example();
+  const { cpu, ram, endAddress } = create6502Example();
+  ram.write(endAddress, 0x02); // Use an undefined encoding at the caller endpoint.
   const first = runCpu(cpu, { maxSteps: 4, endAddress });
   assert.equal(first.stopReason, "completed");
   assert.equal(first.records.length, 4);
   assert.deepEqual(runCpu(cpu, { maxSteps: 4, endAddress }), { records: [], stopReason: "completed" });
   const direct = runCpu(cpu, { maxSteps: 4 });
   assert.equal(direct.stopReason, "unsupported");
-  assert.deepEqual(direct.records[0]?.instruction, { address: endAddress, bytes: [0] });
+  assert.deepEqual(direct.records[0]?.instruction, { address: endAddress, bytes: [0x02] });
 });
 
 test("the runner executes decimal ADC and records its operand within the step budget", (t) => {
