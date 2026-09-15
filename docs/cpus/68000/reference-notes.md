@@ -344,8 +344,8 @@ before writing it. MOVE to CCR reads a word, then retains five bits.
 
 The Mac reference's multiply/divide handlers offer a useful comparison for
 packed remainder/quotient layout, but its divide-by-zero path sets V instead
-of delivering the processor exception. Dromaios explicitly reports the
-missing delivery with an atomic `divide-by-zero` rejection. Quotient overflow
+of delivering the processor exception. Dromaios now delivers vector 5 with
+the following PC; C clears, while undefined N/Z/V are preserved. Quotient overflow
 is distinct: V sets, C clears, Dn is preserved, and source auto-updates commit.
 Undefined N/Z remain unchanged by model policy.
 
@@ -365,5 +365,59 @@ adding the CCR word without changing supervisor state. These checks use
 manual-derived expectations, not a claim of external hardware conformance.
 
 The [decimal pipeline](examples/decimal-pipeline.md) exercises the families
-together. Software exception delivery remains deferred alongside interrupts
-and devices; RESET, RTE, TRAP, TRAPV, and ILLEGAL remain unsupported.
+together, including a divide-by-zero handler and RTE. Synchronous exception
+delivery is described below; external interrupts and devices remain deferred.
+
+
+## Synchronous exception delivery
+
+The [MC68000 User's Manual](https://www.nxp.com/docs/en/reference-manual/MC68000UM.pdf)
+§6.2.4 specifies the original chip's six-byte SR/PC frame; the format/vector
+word belongs to the 68010 and later. Sections 6.3.5–6.3.7 distinguish the
+following PC for TRAP/TRAPV/CHK/divide-by-zero from the faulting instruction
+PC for illegal instructions and privilege violations. Entry saves the previous
+SR, selects supervisor mode, and clears trace. RTE restores the six-byte frame
+through SSP before exposing the bank selected by the returned S bit.
+
+The [programmer's reference](https://www.nxp.com/docs/en/reference-manual/M68000PRM.pdf)
+CHK entry defines N on failed checks and leaves Z/V/C undefined; DIVU/DIVS
+clear C even on division by zero, with N/Z/V undefined. Dromaios preserves
+undefined flags while applying defined changes before stacking SR. Operand
+auto-updates survive these completed reads; privileged instructions check S
+before fetching any extensions or operands.
+
+Pinned [Musashi exception helpers](https://github.com/kstenerud/Musashi/blob/313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd/m68kcpu.h)
+and [instruction handlers](https://github.com/kstenerud/Musashi/blob/313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd/m68k_in.c)
+provide an independent implementation comparison for frame size, saved PCs,
+and RTE's stack-bank switch. Its divide-by-zero path does not clear C;
+Dromaios follows the manual's condition-code rule.
+
+An external comparison against pinned [SingleStepTests/680x0 68000 V1 cases](https://github.com/SingleStepTests/680x0/tree/e0d5ece9670205cc84a0101081837deb446f86a3/68000/v1)
+passed **25,089 cases**: 8,065 TRAP, 8,065 TRAPV, 4,011 RTE, and 4,948 CHK.
+These are **emulator-generated tests, not hardware traces**. The comparison
+checked full registers, defined SR bits, final RAM, and ordered data accesses.
+It materialized the fixture's two prefetched words for this core's direct
+instruction fetch, excluded instruction-prefetch transactions, and masked
+undefined CHK flags both in SR and its stacked copy. The corpus supplies the
+word order used here: entry writes PC low, SR, PC high; RTE reads PC high, SR,
+PC low. Timing, function codes, and instruction prefetch are not modeled.
+
+The RTE file's 4,054 and CHK file's 3,117 address-error cases were excluded
+because their longer frame and fault sequencing remain outside this model.
+The DIVU/DIVS files were also inspected: after excluding address errors and
+ordinary division, they supply only one zero-divisor case (DIVU
+`80ef [DIVU (d16, A7), D0] 5745`). It stacks the instruction start PC, unlike
+the following PC specified by the user's manual §6.3.5 and used by Musashi.
+All other defined state, frame, and data-access checks matched after masking
+undefined flags. This case is recorded as a discrepancy, not counted as a
+pass; Dromaios retains the manual's following-PC rule. In-repo tests cover
+zero divisors for both signed and unsigned division across every source form.
+
+Manual-derived tests additionally cover user/supervisor banks, all trap vectors,
+all RTE status words, nested entries/returns and snapshot restoration, address
+wrapping, stack/vector overlap, privilege rejection before operand reads,
+and host RAM failures during frame/vector transfers. The
+[model contract](model.md#synchronous-exception-entry-and-return) describes
+alignment boundaries and callback-visible partial state. Only explicit
+ILLEGAL (`4AFC`) enters vector 4; decoding other illegal opwords, line-A/line-F,
+external interrupts, trace, address/bus errors, and RESET remain later work.

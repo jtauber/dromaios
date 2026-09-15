@@ -93,21 +93,32 @@ test("68000 decimal pipeline resumes snapshots at every boundary and retains ear
   }
 });
 
-test("68000 decimal pipeline retries a live zero divisor without repeating earlier arithmetic", () => {
+test("68000 decimal pipeline handles a live zero divisor through vector 5 and returns after DIVS", () => {
   const machine = create68000DecimalPipelineExample();
   const expected = expectedRecords();
   assert.deepEqual(runCpu(machine.cpu, { maxSteps: 10 }).records, expected.slice(0, 10));
   const before = machine.cpu.snapshot();
-  const divisorByte = before.physicalPc + 3;
-  machine.ram.write(divisorByte, 0);
-  const failure = runCpu(machine.cpu, { maxSteps: 20 });
-  assert.deepEqual(failure, { stopReason: "unsupported", records: [{ before, after: before,
-    instruction: { address: before.pc, bytes: [0x83, 0xfc, 0, 0] }, accesses: reads(before.physicalPc, [0x83, 0xfc, 0, 0]),
-    outcome: "unsupported", reason: "divide-by-zero" }] });
-  machine.ram.write(divisorByte, 7);
-  assert.deepEqual(runCpu(machine.cpu, { maxSteps: 20 }).records, expected.slice(10));
-  checkResult(machine);
-  assert.deepEqual(failure.records[0]!.after, before);
+  machine.ram.write(before.physicalPc + 3, 0);
+  // Handler substitutes the normal result, then returns to SWAP after the failed DIVS.
+  for (const [address, bytes] of [[20, [0xcd, 0, 0x60, 0]], [0x6000, [0x22, 0x3c, 0xff, 0xff, 0xff, 0xd4, 0x4e, 0x73]]] as const) {
+    bytes.forEach((b, i) => machine.ram.write(address + i, b));
+  }
+  const handled = runCpu(machine.cpu, { maxSteps: 3 });
+  assert.equal(handled.stopReason, "step-limit");
+  const entry = handled.records[0]!;
+  assert.deepEqual(entry.exception, { source: "divide-by-zero", vector: 5, returnPc: before.pc + 4 });
+  assert.equal(entry.outcome, "executed");
+  assert.deepEqual(entry.after, { ...before, ssp: before.ssp - 6, a7: before.ssp - 6, pc: 0xcd006000, physicalPc: 0x6000 });
+  assert.deepEqual(entry.accesses, [...reads(before.physicalPc, [0x83, 0xfc, 0, 0]),
+    ...writes(0x8ffe, [0x20, 0x1c]), ...writes(0x8ffa, [0x22, 0x18]), ...writes(0x8ffc, [0xab, 0]),
+    ...reads(20, [0xcd, 0, 0x60, 0])]);
+  assert.deepEqual(handled.records[2]!.after, expected[10]!.after);
+  const saved = structuredClone(handled);
+  assert.deepEqual(runCpu(machine.cpu, { maxSteps: 20 }).records, expected.slice(11));
+  // The original RTR frame still begins at $9000; exception bytes lie below it.
+  assert.equal(machine.cpu.snapshot().d2, 0xffd4ffff);
+  assert.equal(machine.cpu.snapshot().halted, true);
+  assert.deepEqual(handled, saved);
 });
 
 test("68000 decimal pipeline reset wakes STOP without restoring RAM; a new factory restores its image", () => {

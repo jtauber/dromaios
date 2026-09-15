@@ -86,11 +86,13 @@ export function check68000Records(record: Cpu68000StepRecord, reset: Cpu68000Res
     record.instruction.bytes;
     // @ts-expect-error Fault details are readonly.
     record.fault.address = 0;
-  } else {
-    const reason: "divide-by-zero" | "bounds-check" | "privilege-violation" = record.reason;
-    const bytes: readonly number[] = record.instruction.bytes;
-    // @ts-expect-error Deferred synchronous exceptions have no alignment metadata.
-    record.fault;
+  }
+  if (record.exception) {
+    const source: "trap" | "overflow-trap" | "illegal-instruction" | "divide-by-zero" | "bounds-check" | "privilege-violation" = record.exception.source;
+    const vector: number = record.exception.vector;
+    const returnPc: number = record.exception.returnPc;
+    // @ts-expect-error Exception metadata is readonly.
+    record.exception.returnPc = 0;
   }
   // @ts-expect-error Access lists are readonly.
   record.accesses.push({ kind: "read", address: 0, value: 0 });

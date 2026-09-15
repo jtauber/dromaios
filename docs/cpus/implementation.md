@@ -207,7 +207,8 @@ and `Cpu6502ResetRecord`. `InstructionStep`, `HaltedStep`, and `WaitingStep` acc
 optional access type. The 8008, 8080, Z80, and 8088 supply a union of memory and port accesses;
 other CPUs retain the memory-only default. Each step type selects its supported outcomes; the
 68000 adds its alignment-fault branch, including a possible null instruction
-on an unaligned opcode fetch. The 8088 adds an executed no-fetch trap-entry
+on an unaligned opcode fetch, and optional synchronous-exception metadata
+with the source, vector, and return PC. The 8088 adds an executed no-fetch trap-entry
 branch, while software interrupts retain their triggering fetched instruction.
 Address conventions are still
 documented beside the aliases, including the 8088's physical instruction
@@ -280,7 +281,8 @@ fetches a full two-byte operand and masks it to a 14-bit address when jumping
 or calling. The 68000 currently
 extends `ByteMemory` with `fetchWord`, `fetchLong`, `nextAddress`, and `jump`.
 Fetching and jumps update a local cursor; a successful instruction commits it
-to PC. Its word-based instruction stream, explicit extension-word PC bases,
+to PC. A synchronous exception instead stacks its selected return PC and
+loads the handler PC. Its word-based instruction stream, explicit extension-word PC bases,
 and atomic alignment rejection differ from the byte-fetch contexts.
 Contexts require the operations they advertise; unavailable operations are
 absent rather than optional.
@@ -340,7 +342,7 @@ acknowledgement supplying instruction bytes while PC stays unchanged by fetches.
 It records data-memory and port transfers as they complete. Acceptance and HALT
 release stay in the CPU; the shared RAM-fetch executor does not need an interrupt mode.
 
-The 8008, 8080, 6502, 6800, 6809, Z80, and 8088 wrap their mutating public operations with a per-instance
+All eight CPUs wrap their mutating public operations with a per-instance
 [`executionBoundary`](../../src/components/cpus/execution-boundary.ts) guard.
 External callbacks may inspect snapshots, but nested mutations throw before
 changing CPU state. The guard clears even when an operation throws; it neither
@@ -352,7 +354,8 @@ The four CPUs with a stored PC pass their state directly. The 8008 uses
 writes to 14 bits without adding stored state. Its circular call stack stays
 in the CPU file. The Z80 retains complete-prefix decoding and R updates; the
 8088 retains segment/repeat prefixes, one-element REP steps, trap boundaries,
-and native interrupt delivery; the 68000 retains word opcodes and alignment faults. Those contracts
+and native interrupt delivery; the 68000 retains word opcodes, alignment faults,
+and native synchronous-exception frames. Those contracts
 do not fit this executor. All still share instruction contexts and recorded
 byte memory; specialized step loops do not require a broader executor API.
 

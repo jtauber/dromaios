@@ -82,11 +82,13 @@ endpoint. A new run with that endpoint returns `completed` immediately;
 a run without an endpoint returns an already-halted record. Snapshot
 resumption at every boundary produces the same remaining records and result.
 
-The live-operand check pauses before DIVS and replaces its divisor with zero.
-The next attempt reports `divide-by-zero`, with unchanged CPU state and no
-writes. Restoring the divisor to seven retries that instruction successfully
-and reproduces the remaining records without repeating prior arithmetic.
-Earlier failure records remain detached.
+The live-operand check pauses before DIVS, replaces its divisor with zero,
+and installs a vector-5 handler at logical `CD006000`. Entry stacks SR and the
+following PC `AB00201C` below the existing RTR frame. The handler substitutes
+the expected D1 result with `MOVE.L #FFFFFFD4,D1`, then RTE restores SR and
+resumes at SWAP. The shared runner continues through entry and return, and
+the rest of the original program produces the same records. The exception
+frame remains below the original RTR frame, and earlier records stay detached.
 
 External reset wakes STOP, reads the vectors, selects SSP, clears T, and
 masks interrupts, while preserving the changed RAM. A new example factory
