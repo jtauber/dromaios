@@ -132,9 +132,8 @@ for (const example of examples) {
     for (const [index, record] of result.records.entries()) {
       assert.strictEqual(record, step.mock.calls[index]?.result);
     }
-    const accesses = result.records.flatMap(record => record.accesses);
-    assert.deepEqual(read.mock.calls.map(call => call.arguments),
-      accesses.flatMap(access => access.kind === "read" ? [[access.address]] : []));
+    const reads = result.records.flatMap(record => record.accesses.flatMap(access => access.kind === "read" ? [[access.address]] : []));
+    assert.deepEqual(read.mock.calls.map(call => call.arguments), reads);
     assert.deepEqual(write.mock.calls.map(call => call.arguments), example.writes);
     // Repeated writes remain in the access log; the last value is left in RAM.
     for (const [address, value] of new Map(example.writes)) assert.equal(ram.read(address), value);

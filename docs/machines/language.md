@@ -56,7 +56,7 @@ end 0208
 - CPU state field names are case-insensitive. Uppercase is the convention for
   registers and flags: `A`, `PC`, `SP`, `N`, `CY`. Keywords such as `cpu`, `flags`,
   `alternate`, and `memory` are lowercase. Descriptive control fields retain the
-  spellings `interruptEnabled`, `interruptDeferred`, `segmentDeferred`, `trapPending`, `nmiDeferred`, `iff1`, `iff2`, `halted`, `waiting`, `waitMode`, and `nmiArmed`; the 8008 uses
+  spellings `interruptEnabled`, `interruptDeferred`, `segmentDeferred`, `trapPending`, `tracePending`, `nmiDeferred`, `iff1`, `iff2`, `halted`, `waiting`, `waitMode`, and `nmiArmed`; the 8008 uses
   `addressStack` and `stackIndex` for its address registers and selector, and the
   68000 uses `interruptMask`. Duplicate detection ignores case, so assigning
   both `PC` and `pc` is an error. Register and flag names are resolved within
@@ -185,8 +185,9 @@ for a complete definition using different code and data segments.
 
 The 68000 stores `D0`–`D7`, `A0`–`A6`, `USP`, `SSP`, and `PC` as unsigned
 32-bit values, plus `interruptMask` in `0`–`7`, flags `X/N/Z/V/C/T/S`, and
-the Boolean `halted` latch. All are required, including `halted = false` for
-a running CPU.
+the Boolean `halted` and `tracePending` latches. All are required: ordinary
+running examples use `halted = false` and `tracePending = false`. T enables
+tracing of an instruction; `tracePending` represents a trace already owed.
 `A7` and `physicalPc` are derived and cannot be assigned. The original processor
 has one trace bit and no master-mode bit. See the
 [68000 example](../cpus/68000/examples/arithmetic.md) for a complete definition.

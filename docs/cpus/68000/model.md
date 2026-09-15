@@ -16,7 +16,7 @@ byte accesses. Later 680x0 instructions and status bits are outside its scope.
 
 ## Stored state and inspection
 
-`new Cpu68000(ram, initialState)` requires exactly 16 MiB of RAM and all these
+`new Cpu68000(ram, initialState, connections?)` requires exactly 16 MiB of RAM and all these
 stored fields:
 
 | Fields | Constraint |
@@ -27,15 +27,17 @@ stored fields:
 | `pc` | Unsigned 32-bit program counter |
 | `interruptMask` | Integer from 0 through 7 |
 | `halted` | Boolean STOP latch; required in initial state |
+| `tracePending` | Boolean owed-trace latch; required independently of T and STOP |
 | `flags.x/n/z/v/c` | Boolean extend, negative, zero, overflow, and carry |
 | `flags.t/s` | Boolean trace and supervisor bits |
 
 The original status register has X/N/Z/V/C at bits 4–0, interrupt mask at
 10–8, S at 13, and T at 15. There is no master-mode bit or second trace bit.
 Instructions pack and unpack SR/CCR from these fields; snapshots keep no duplicate
-packed register. STOP sets the stored `halted` latch. External interrupts and
-trace delivery are deferred. Synchronous exceptions are delivered independently
-of the stored interrupt mask; entry clears T and selects SSP.
+packed register. STOP sets `halted`; completed instructions that began with T
+set owe a trace through `tracePending`. Both latches are stored in snapshots.
+Synchronous exceptions and trace ignore the interrupt mask; external requests
+use the level rules below. Entry clears T and selects SSP.
 
 The exported `cpu68000StateDescription` owns field names and constraints.
 Construction reads each declared field once, validates it, and owns a copy.
@@ -134,7 +136,7 @@ The destination uses the effective-address vocabulary above, restricted to
 **data-alterable** operands: Dn, `(An)`, `(An)+`, `-(An)`, displacement/index,
 or absolute word/long. An direct, PC-relative, and immediate destinations are
 excluded. Later chips add CMPI modes; this model follows the original 68000.
-The separate ORI/ANDI/EORI-to-CCR/SR forms remain unsupported.
+The separate ORI/ANDI/EORI-to-CCR/SR forms use the status-control rules below.
 
 Byte/word register results preserve the upper portion of Dn; long results
 replace all 32 bits. Arithmetic wraps to the selected width. Incoming X and C
@@ -255,7 +257,7 @@ register results stay unsigned even when bit 31 is set. BTST does no writeback.
 BCHG/BCLR/BSET permit the 50 data-alterable EAs. BTST also permits both
 PC-relative modes; its dynamic form additionally accepts an immediate tested
 byte. Static BTST does not accept an immediate tested operand. An direct is
-excluded throughout; dynamic mode `001` belongs to MOVEP, still unsupported.
+excluded throughout; dynamic mode `001` instead selects MOVEP.
 
 The static form fetches a complete bit-number word before any EA extensions.
 Its low byte holds the bit number; the model ignores the upper byte. A
@@ -543,8 +545,8 @@ operations preserve all system fields. MOVE from SR writes a word with unused
 bits clear, preserving flags; the original 68000 permits it in user mode and
 reads memory destinations before writing them.
 
-MOVE to SR, immediate SR logic, MOVE An/USP in either direction, STOP, and
-RTE are privileged. In user mode they enter vector 8 immediately after the
+MOVE to SR, immediate SR logic, MOVE An/USP in either direction, STOP, RESET,
+and RTE are privileged. In user mode they enter vector 8 immediately after the
 opcode fetch, before reading any extension or operand. The saved PC points
 to the privileged instruction, allowing a handler to correct or skip it.
 USP transfers preserve all flags; An=7 selects SSP because execution requires
@@ -556,20 +558,20 @@ bits, sets the full 32-bit PC, and advances that stack by six. It preserves
 S/T/interrupt mask, is unprivileged, and validates stack/target alignment
 before committing either flags or stack updates. NOP advances PC by two.
 
-STOP loads its immediate SR, advances PC by four, sets `halted`, and returns
-`outcome: "halted"` with the fetched instruction. Its new S may select the
-user stack. Later steps return `halted`, `instruction: null`, unchanged state,
-and no accesses, even if stored PC is odd. Snapshots retain the latch;
-external `reset()` clears it. Trace and interrupt wakeup are deferred, so
-storing T does not override this instruction-level STOP policy.
+STOP loads its immediate SR, advances PC by four, and sets `halted`. If it
+began with T clear, it returns `outcome: "halted"`. Later stopped steps return
+`halted`, `instruction: null`, unchanged state, and no accesses, even with an
+odd PC. If it began with T set, it instead reports `executed` with both
+`halted` and `tracePending` set, allowing the runner to deliver trace on its
+next step. Accepted interrupt entry, trace entry, and external reset clear STOP.
+A masked interrupt leaves it stopped. The immediate SR's new mask controls
+which ordinary interrupt levels may wake it; its new S can select USP.
 
-RESET remains an opcode rejection pending its external-device connection.
-All other documented original-68000 instruction forms are implemented within
-this instruction-level contract. External interrupts, trace delivery, address
-and bus error delivery, devices, timing, and prefetch remain outside it.
-Unrecognized opwords still report unsupported opcodes, including reserved
-encodings and line-A/line-F emulator traps; only the explicit ILLEGAL instruction
-uses vector 4 in this slice.
+All documented original-68000 instruction forms are implemented within this
+instruction-level contract. Address/bus-error delivery, memory-mapped devices,
+timing, and prefetch remain outside it. Unrecognized opwords still report
+unsupported opcodes, including reserved encodings and line-A/line-F emulator
+traps; only explicit ILLEGAL uses vector 4.
 
 ## Synchronous exception entry and return
 
@@ -595,7 +597,7 @@ Entry uses SSP even when the instruction ran in user mode:
 
 1. Validate the current SSP's word alignment, after completed operand updates.
 2. Capture SR, set S, clear T, and reserve six bytes by subtracting six from SSP.
-   The interrupt mask is unchanged.
+   Clear STOP and the pending-trace latch. The interrupt mask is unchanged.
 3. Write the return PC's low word at old SSP−2, SR at old SSP−6, and PC's high
    word at old SSP−4. Each word writes its high byte first.
 4. Read a full 32-bit handler PC from `vector × 4`, high byte first, and commit it.
@@ -604,15 +606,17 @@ The resulting frame contains SR at new SSP and the full return PC at SSP+2.
 The original 68000 has no extra format/vector word. SSP arithmetic wraps at
 32 bits; every bus access masks to 24 bits. Writes precede vector reads, so an
 overlapping frame can overwrite the vector. An odd handler PC is retained;
-the next step reaches the deferred address-error boundary without undoing entry.
+the next opcode fetch reaches the deferred address-error boundary without
+undoing entry. An owed trace may be delivered before that fetch.
 
 RTE requires supervisor mode. It reads PC high at SSP+2, SR at SSP, then PC low
 at SSP+4, all through the original supervisor stack. It validates the restored
 PC, advances SSP by six, and restores PC plus the defined SR bits (`A71F`).
 An S=0 return then exposes USP as A7; it cannot redirect the frame reads.
 Nested exceptions consume separate frames, and snapshots taken inside handlers
-can initialize another CPU. Restoring T stores the flag; trace delivery remains
-deferred.
+can initialize another CPU. RTE samples incoming T like other executed
+instructions; restoring T=1 enables tracing of the following instruction,
+without retroactively tracing an RTE that began with T=0.
 
 ### Delivery failures and callbacks
 
@@ -629,8 +633,9 @@ PC produces a fetch fault after all six reads. Both preserve CPU state and RAM;
 neither synthesizes an address-error frame. These are explicit boundaries of
 this model, not hardware address-error sequencing.
 
-`step()` and `reset()` share a per-instance execution guard. RAM callbacks may
-inspect `snapshot()`; nested step/reset calls throw before any nested mutation.
+`step()`, `reset()`, and `interrupt()` share a per-instance execution guard.
+RAM and device callbacks may inspect `snapshot()`; nested mutations throw
+before any nested CPU changes.
 The guard clears on success or failure. A host RAM exception propagates without
 a record or fabricated bus-error delivery. Completed writes are not rolled back.
 During entry S/T and reserved SSP are visible before the first frame write;
@@ -638,9 +643,105 @@ PC changes only after all vector bytes arrive. During RTE the stored CPU state
 changes only after all frame reads and target validation. During reset, SSP
 commits after four vector bytes; PC and reset flags follow the remaining four.
 
+## Trace recognition
+
+T is sampled at the beginning of each instruction. Successful completion
+sets `tracePending` to that sample, even if the instruction changed T. A pending
+trace takes precedence over stopped state and opcode alignment at the next
+`step()`: it performs a separate six-byte entry to vector 9 with
+`instruction: null`, `outcome: "executed"`, and
+`exception: { source: "trace", vector: 9, returnPc }`. The saved PC and SR
+are the current post-instruction state, including a taken branch target.
+No instruction is fetched. Trace entry clears STOP, T, and `tracePending`.
+
+TRAP, taken TRAPV, CHK failure, and division by zero complete their own exception
+entry first, then retain any trace owed by the original instruction. That trace
+stacks the resulting handler PC/SR before any handler opcode executes. Illegal
+instructions and privilege violations do not complete an instruction, so they
+suppress tracing. Unsupported opcode/alignment attempts create no owed trace.
+Host callback failures have no completed retirement; their effects follow the
+failure boundaries above.
+
+An odd trace stack reports the existing alignment boundary with no accesses,
+preserving the owed trace and STOP latch. Once entry begins, callback failures
+retain cleared latches and reserved SSP, as for other entries. External reset
+clears an owed trace after reading both reset vectors. T and `tracePending`
+are intentionally independent: setting T during an instruction or restoring a
+snapshot with T=1 does not itself request an immediate trace entry.
+
+## External interrupt delivery
+
+`interrupt(level, acknowledge)` offers one selected request at an instruction
+boundary. `level` is 1..7. The caller owns pending requests, priority selection,
+and physical level transitions; there is no internal signal queue or scheduler.
+Levels 1..6 are accepted only when greater than `interruptMask`. A level-7
+offer represents a newly detected transition from a lower level to 7, or a
+held level 7 when the current mask is below 7. It is accepted even at mask 7.
+**Do not repeatedly offer a held level 7 at mask 7**; each such call would
+represent another selected edge. Ignored requests remain caller-owned.
+
+An owed trace returns `outcome: "ignored", reason: "trace-pending"` before
+masking or acknowledgement. Deliver that trace with `step()` and reoffer the
+selected interrupt before executing handler code. Otherwise a masked request
+returns `outcome: "ignored", reason: "masked"`. Neither calls the device,
+reads RAM, changes state, nor wakes STOP. Invalid levels throw before mutation;
+an acknowledgement callback is required only for an eligible request.
+
+After checking SSP alignment, accepted delivery captures the old SR, selects
+supervisor mode, clears T/STOP, reserves six frame bytes, and sets the mask to
+the selected level. It then calls `acknowledge()` once:
+
+| Result | Vector |
+| --- | --- |
+| Integer byte 0..255 | The supplied vector number |
+| `"autovector"` | 24 + level (25..31) |
+| `"spurious"` | 24 |
+
+An uninitialized peripheral may supply vector 15. A zero handler address is
+valid and is not implicitly redirected to vector 15. A host exception is not a
+spurious hardware acknowledgement; use the explicit `"spurious"` response.
+Invalid results throw after entry preparation, without frame/vector accesses.
+The reserved SSP, changed mask, cleared T, and released STOP remain visible;
+completed host/device effects are not rolled back.
+
+Following acknowledgement, the common entry path writes PC low, the saved
+pre-interrupt SR, and PC high, then reads the vector. The return PC is the
+full address of the instruction that would otherwise execute. Frame/vector
+overlap and address wrapping follow the synchronous entry contract. An odd
+SSP reports `unsupported`/`unaligned-address` before acknowledgement or changes.
+This is a declared model boundary, not address-error bus sequencing.
+
+The separate interrupt record contains `level`, a null instruction, detached
+snapshots, and ordered accesses. Accepted records add `vector` and `returnPc`.
+Their first access is `{ kind: "acknowledge", level, value }`, followed by six
+frame writes and four vector reads. RTE restores the previous mask, flags,
+stack selection, and return PC; the caller can then reoffer an eligible held
+request. Snapshots preserve all CPU-owned recognition state; device state and
+pending external requests stay with the caller.
+
+These are instruction-boundary offers, not sampled IPL pins. Mid-instruction
+sampling, prefetch-related recognition delays, acknowledge bus/function codes,
+cycle timing, and electrical edge detection are not emulated.
+
+## RESET device connection
+
+The optional third constructor argument is a `Cpu68000Connections` object with
+`resetDevices(): void`. The privileged RESET instruction (`4E70`) calls that
+method once after fetching its opcode, then records `{ kind: "reset" }` and
+advances PC by two. It preserves registers, flags, and the interrupt mask;
+normal trace retirement still applies. The connection owns device state and
+is supplied again when constructing a CPU from a snapshot.
+
+An absent connection throws only when a supervisor-mode RESET uses it. A
+user-mode attempt enters the privilege vector without calling the device.
+A throwing callback leaves CPU state and PC at the instruction boundary,
+returns no record, and does not undo device effects. The execution guard still
+clears. No synthetic memory transfer or cycle count represents RESET's output.
+The physical chip's 124-clock reset pulse is not timed here.
+
 ## Stepping and records
 
-`step()` attempts one instruction using current RAM. The
+`step()` delivers an owed trace or attempts one instruction using current RAM. The
 [coverage tracker](../coverage.md#68000) lists the exact supported operation
 words. An ordinary successful instruction returns:
 
@@ -648,7 +749,8 @@ words. An ordinary successful instruction returns:
 - `instruction.address`: the full 32-bit starting PC;
 - `instruction.bytes`: the fetched operation word and extension bytes, in order;
 - detached `before` and `after` snapshots;
-- `accesses`: ordered byte reads and writes with **physical** addresses and values.
+- `accesses`: ordered byte reads/writes with **physical** addresses and values,
+  plus a completed device-reset event for RESET.
 
 MOVE fetches the operation word and source extensions, then reads the source.
 It next fetches destination extensions and writes the destination. All
@@ -711,7 +813,8 @@ do not deliver illegal-instruction or line-A/line-F exceptions.
 
 Records own their snapshots, bytes, accesses, fault details, and exception
 metadata; the CPU retains no history. They describe instruction-level activity, without cycles, word bus
-transactions, function codes, prefetch, speculative reads, or device activity.
+transactions, function codes, prefetch, or speculative reads. Device-reset
+events and interrupt acknowledgements represent the explicit connections above.
 
 ## External reset
 
@@ -719,7 +822,7 @@ transactions, function codes, prefetch, speculative reads, or device activity.
 
 1. Read bytes `000000`–`000003` into SSP, high byte first.
 2. Read bytes `000004`–`000007` into PC, high byte first.
-3. Set S, clear T, set `interruptMask` to 7, and clear `halted`.
+3. Set S, clear T, set `interruptMask` to 7, and clear `halted` and `tracePending`.
 
 Both vectors retain all 32 bits. A7 now exposes the new SSP. D0–D7, A0–A6,
 USP, X/N/Z/V/C, and RAM are preserved. Preserving registers and condition codes
@@ -733,7 +836,8 @@ reset fault sequencing is deferred. Reset differs from restarting an example,
 which creates fresh CPU state and RAM.
 
 The **RESET instruction** resets external devices without reinitializing the
-CPU; it remains unsupported. `reset()` is not its implementation.
+CPU; it invokes the connection above. `reset()` neither implements that
+instruction nor calls the device connection.
 
 ## References and checks
 
@@ -856,3 +960,9 @@ privilege checks before operand reads, nesting, restored snapshots, wrapping,
 overlapping vectors, alignment boundaries, and RAM-callback failures. The
 [decimal pipeline](examples/decimal-pipeline.md) also runs a divide-by-zero
 handler and RTE through the shared runner.
+
+The [interrupt/control review](reference-notes.md#interrupts-trace-and-reset)
+checks priority, trace sampling, level-7 edges, vector responses, RESET, and
+independent-corpus limits. [Combined program tests](../../../tests/machines/68000/interrupts.test.ts)
+exercise trap → trace → interrupt → RESET → three RTEs, restoring snapshots
+between entries/returns, plus STOP wakeup through an interrupt and RTE.

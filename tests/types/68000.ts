@@ -71,7 +71,9 @@ export function check68000(ram: Ram, state: Cpu68000State, snapshot: Cpu68000Sna
 
 export function check68000Records(record: Cpu68000StepRecord, reset: Cpu68000ResetRecord): void {
   if (record.outcome === "executed") {
-    const address: number = record.instruction.address;
+    const address: number | undefined = record.instruction?.address;
+    // @ts-expect-error A trace entry fetches no instruction.
+    record.instruction.address;
     // @ts-expect-error Executed records have no rejection reason.
     record.reason;
   } else if (record.outcome === "halted") {
@@ -88,7 +90,7 @@ export function check68000Records(record: Cpu68000StepRecord, reset: Cpu68000Res
     record.fault.address = 0;
   }
   if (record.exception) {
-    const source: "trap" | "overflow-trap" | "illegal-instruction" | "divide-by-zero" | "bounds-check" | "privilege-violation" = record.exception.source;
+    const source: "trace" | "trap" | "overflow-trap" | "illegal-instruction" | "divide-by-zero" | "bounds-check" | "privilege-violation" = record.exception.source;
     const vector: number = record.exception.vector;
     const returnPc: number = record.exception.returnPc;
     // @ts-expect-error Exception metadata is readonly.
@@ -102,4 +104,46 @@ export function check68000Records(record: Cpu68000StepRecord, reset: Cpu68000Res
   reset.instruction;
   // @ts-expect-error Reset records have no outcome.
   reset.outcome;
+}
+
+export function check68000Controls(cpu: Cpu68000, state: Cpu68000State, ram: Ram): void {
+  new Cpu68000(ram, { ...state, tracePending: true }, { resetDevices: () => {} });
+  // @ts-expect-error The owed trace is a Boolean, independent of the stored T flag.
+  new Cpu68000(ram, { ...state, tracePending: 1 });
+  // @ts-expect-error A reset connection is a callback.
+  new Cpu68000(ram, state, { resetDevices: true });
+  // @ts-expect-error No-request IPL=0 is not an interrupt offer.
+  cpu.interrupt(0, () => "autovector");
+  // @ts-expect-error Acknowledgement is required.
+  cpu.interrupt(7);
+  // @ts-expect-error Only vector bytes and the two named hardware responses are accepted.
+  cpu.interrupt(4, () => "uninitialized");
+  const record = cpu.interrupt(4, () => "spurious");
+  if (record.outcome === "accepted") {
+    const vector: number = record.vector;
+    const pc: number = record.returnPc;
+  } else if (record.outcome === "ignored") {
+    const reason: "masked" | "trace-pending" = record.reason;
+    // @ts-expect-error An ignored request has no delivered vector.
+    record.vector;
+  } else {
+    const address: number = record.fault.address;
+  }
+  // @ts-expect-error Interrupt entry fetches no instruction.
+  record.instruction.bytes;
+  // @ts-expect-error Interrupt records are readonly.
+  record.level = 7;
+  for (const access of record.accesses) {
+    if (access.kind === "acknowledge") {
+      const value: number | "autovector" | "spurious" = access.value;
+      // @ts-expect-error Acknowledgement has no RAM address.
+      access.address;
+    }
+  }
+  for (const access of cpu.step().accesses) {
+    if (access.kind === "reset") {
+      // @ts-expect-error Device reset is not a byte transfer.
+      access.value;
+    }
+  }
 }

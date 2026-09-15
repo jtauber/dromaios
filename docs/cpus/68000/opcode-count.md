@@ -31,7 +31,7 @@ from CCR, MOVEC, MOVES, RTD, BKPT, and later effective-address extensions.
   receiving completion credit.
 - Mnemonic aliases count once. Reserved words, line-A/line-F emulator traps,
   and undocumented encodings are excluded. The explicit ILLEGAL instruction
-  counts once. Privileged and other deferred instructions remain in the total.
+  counts once. Privileged instructions remain in the total.
 
 ## Effective-address sets
 
@@ -113,14 +113,13 @@ counts, 1,344 immediate-shift counts, and 15 TRAP vectors: 9,787 fewer forms.
 The manual-derived family audit above owns the denominator; emulator output
 alone does not define documented support.
 
-## Synchronous-exception checkpoint
+## Documented-instruction completion
 
-The implementation covers **36,028 forms** (45,815 expanded operation words).
-RESET is the one remaining form and operation word, pending its external-device
-connection. Thus 36,028 + 1 = 36,029 forms and 45,815 + 1 = 45,816 opwords.
-RTE, TRAP (all sixteen embedded vectors), TRAPV, and explicit ILLEGAL are
-implemented, including native delivery for detected ordinary-instruction
-exceptions. External interrupts, trace, address/bus errors, other illegal
-opwords, and device behavior remain outside the declared model.
-The [coverage tracker](../coverage.md#68000) lists implemented families and
-shows >99.9% rather than rounding this incomplete total to 100%.
+The implementation covers **all 36,029 forms** (45,816 expanded operation words).
+RESET completes the final form through its explicit device-reset connection.
+Native synchronous exceptions, trace, external interrupt offers, STOP wakeup,
+and RTE are implemented within the [model contract](model.md).
+Address/bus-error delivery, other illegal opwords, timing, prefetch, and complete
+machine/device models remain separate accuracy work. Documented opcode coverage
+does not measure those capabilities. The [coverage tracker](../coverage.md#68000)
+lists the implemented families and remaining model limits.

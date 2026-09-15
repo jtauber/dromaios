@@ -20,7 +20,7 @@ addresses in the program table are physical. PC retains its high byte `AB`.
 | A4, A5, A6 | `50000000`, `60000000`, `70000000` |
 | USP, SSP, PC | `34008000`, `56009000`, `AB002000` |
 | interruptMask | `2` |
-| halted | `false` |
+| halted, tracePending | `false`, `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `0` |
 
 A7 initially exposes USP. The 16 MiB image starts zero-filled, with these

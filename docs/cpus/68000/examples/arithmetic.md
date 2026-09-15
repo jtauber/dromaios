@@ -32,7 +32,7 @@ alignment. No bytes change except those four destination bytes.
 | A4, A5, A6 | `50000000`, `60000000`, `70000000` |
 | USP, SSP, PC | `34FFE000`, `56FFD000`, `AB001000` |
 | interruptMask | `2` |
-| halted | `false` |
+| halted, tracePending | `false`, `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `0` |
 
 A7 initially exposes USP (`34FFE000`), because S is clear. Physical PC is

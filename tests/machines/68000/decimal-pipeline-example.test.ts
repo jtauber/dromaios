@@ -10,7 +10,7 @@ function initialState(): Cpu68000Snapshot {
     d4: 0x01234567, d5: 0x89abcdef, d6: 0xfedcba98, d7: 0x76543210,
     a0: 0xab003000, a1: 0xcd004000, a2: 0xef005000, a3: 0x40000000,
     a4: 0x50000000, a5: 0x60000000, a6: 0x70000000, usp: 0x34008000, ssp: 0x56009000,
-    pc: 0xab002000, physicalPc: 0x2000, a7: 0x56009000, interruptMask: 2, halted: false,
+    pc: 0xab002000, physicalPc: 0x2000, a7: 0x56009000, interruptMask: 2, halted: false, tracePending: false,
     flags: { x: true, n: false, z: true, v: true, c: true, t: false, s: true } };
 }
 const reads = (address: number, bytes: number[]): Cpu68000MemoryAccess[] => bytes.map((value, i) => ({ kind: "read", address: address + i, value }));
@@ -49,7 +49,7 @@ function expectedRecords(): Cpu68000StepRecord[] {
   step([0x44, 0xfc, 5, 4], {}, "00100");
   step([0x4e, 0x62], { usp: 0xef005000 });
   step([0x4e, 0x6b], { a3: 0xef005000 });
-  step([0x46, 0xfc, 0xa3, 4], { interruptMask: 3, flags: { ...before.flags, t: true } });
+  step([0x46, 0xfc, 0x23, 4], { interruptMask: 3, flags: { ...before.flags, t: false } });
   step([0x41, 0xbc, 0x7f, 0xff]);
   step([0x4e, 0x71]);
   step([0x4e, 0x77], { pc: 0xab002046, ssp: 0x56009006 }, "00101", reads(0x9000, [0, 5, 0xab, 0, 0x20, 0x46]));

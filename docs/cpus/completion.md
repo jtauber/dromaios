@@ -89,10 +89,12 @@ including byte/word device transfers and snapshot-based program resumption.
 It also implements [native interrupt entry/return](8088/model.md#interrupt-entry-and-return),
 INTR/NMI offers, divide-error delivery, and single stepping. Its remaining forms
 are ESC and WAIT, which need coprocessor/TEST connections.
-The 68000 now implements [synchronous exception entry and RTE](68000/model.md#synchronous-exception-entry-and-return),
-including traps, privilege violations, CHK, and division by zero. Next are its
-external interrupt offers, trace recognition, STOP wakeup, and RESET-device
-connection. Address/bus errors and other illegal-opword delivery still need
-separate fault-sequencing work.
+The 68000 now completes its documented opcode inventory, including
+[synchronous entry/RTE](68000/model.md#synchronous-exception-entry-and-return),
+[interrupt offers and trace](68000/model.md#external-interrupt-delivery), STOP
+wakeup, and the [RESET device connection](68000/model.md#reset-device-connection).
+Next are the 8088's ESC and WAIT connections, the remaining documented forms
+across the initial eight. Address/bus errors and other illegal-opword delivery
+on the 68000 still need separate fault-sequencing work.
 Timing and device scheduling remain separate from completed opcode inventories;
 8008 external interrupt delivery is also still deferred.

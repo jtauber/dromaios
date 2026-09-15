@@ -7,7 +7,7 @@ cpu 68000 {
   A0 = AB003000  A1 = CD004000  A2 = EF005000  A3 = 40000000
   A4 = 50000000  A5 = 60000000  A6 = 70000000
   USP = 34008000  SSP = 56009000  PC = AB002000
-  halted = false
+  halted = false  tracePending = false
   interruptMask = 2
   flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 1 }
 }
@@ -36,7 +36,7 @@ memory 002000 {
   44 FC 05 04        // 2030: MOVE #0504,CCR: only low five bits survive
   4E 62              // 2034: MOVE A2,USP: prepare the user stack
   4E 6B              // 2036: MOVE USP,A3: inspect it
-  46 FC A3 04        // 2038: MOVE #A304,SR: supervisor, trace stored, interrupt mask 3
+  46 FC 23 04        // 2038: MOVE #2304,SR: supervisor, trace stored, interrupt mask 3
   41 BC 7F FF        // 203C: CHK #7FFF,D0: accepted signed bounds
   4E 71              // 2040: NOP
   4E 77              // 2042: RTR: restore CCR and skip the following NOP

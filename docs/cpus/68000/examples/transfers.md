@@ -44,7 +44,7 @@ The 16 MiB RAM image starts zero-filled, with three blocks:
 | A4, A5, A6 | `50000000`, `60000000`, `70000000` |
 | USP, SSP, PC | `34FFE000`, `56FFD000`, `AB002000` |
 | interruptMask | `2` |
-| halted | `false` |
+| halted, tracePending | `false`, `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `0` |
 
 A7 exposes USP because S is clear. Construction does not reset or execute.

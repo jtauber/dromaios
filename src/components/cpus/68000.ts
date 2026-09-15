@@ -1,5 +1,6 @@
 import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
+import { checkUnsigned } from "../validation.ts";
 import { signed8 } from "./binary.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import { recordMemory } from "./memory-access.ts";
@@ -18,7 +19,7 @@ export const cpu68000StateDescription = defineState({
   d4: unsigned(32), d5: unsigned(32), d6: unsigned(32), d7: unsigned(32),
   a0: unsigned(32), a1: unsigned(32), a2: unsigned(32), a3: unsigned(32),
   a4: unsigned(32), a5: unsigned(32), a6: unsigned(32),
-  usp: unsigned(32), ssp: unsigned(32), pc: unsigned(32), interruptMask: unsigned(3), halted: boolean,
+  usp: unsigned(32), ssp: unsigned(32), pc: unsigned(32), interruptMask: unsigned(3), halted: boolean, tracePending: boolean,
   flags: group({ x: flag, n: flag, z: flag, v: flag, c: flag, t: flag, s: flag }),
 });
 
@@ -34,6 +35,28 @@ export type Cpu68000Snapshot = ReadonlyState<Cpu68000State> & {
 
 /** Physical byte access on the 24-bit memory bus. */
 export type Cpu68000MemoryAccess = MemoryAccess;
+export type Cpu68000Access = MemoryAccess | { readonly kind: "reset" };
+
+/** Host-owned devices; RESET invokes this connection without reinitializing the CPU. */
+export interface Cpu68000Connections {
+  readonly resetDevices: () => void;
+}
+
+export type Cpu68000InterruptLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type Cpu68000InterruptVector = number | "autovector" | "spurious";
+export type Cpu68000InterruptAccess = MemoryAccess | {
+  readonly kind: "acknowledge";
+  readonly level: Cpu68000InterruptLevel;
+  readonly value: Cpu68000InterruptVector;
+};
+export type Cpu68000InterruptRecord = StateTransition<Cpu68000Snapshot, Cpu68000InterruptAccess> & {
+  readonly instruction: null;
+  readonly level: Cpu68000InterruptLevel;
+} & (
+  | { readonly outcome: "accepted"; readonly vector: number; readonly returnPc: number }
+  | { readonly outcome: "ignored"; readonly reason: "masked" | "trace-pending" }
+  | { readonly outcome: "unsupported"; readonly reason: "unaligned-address"; readonly fault: Cpu68000AlignmentFault }
+);
 
 /** Instruction address is the full 32-bit PC; accesses contain physical addresses. */
 export type Cpu68000Instruction = FetchedInstruction;
@@ -49,20 +72,28 @@ export type Cpu68000Exception = "divide-by-zero" | "bounds-check" | "privilege-v
   | "trap" | "overflow-trap" | "illegal-instruction";
 
 export interface Cpu68000ExceptionDelivery {
-  readonly source: Cpu68000Exception;
+  readonly source: Cpu68000Exception | "trace";
   readonly vector: number;
   readonly returnPc: number;
 }
 type InstructionFault = Cpu68000AlignmentFault | Cpu68000Exception;
 
-export type Cpu68000StepRecord = (InstructionStep<Cpu68000Snapshot> | HaltedStep<Cpu68000Snapshot> | (StateTransition<Cpu68000Snapshot> & {
-  readonly outcome: "unsupported"; readonly reason: "unaligned-address";
-  readonly instruction: Cpu68000Instruction | null; readonly fault: Cpu68000AlignmentFault;
-})) & { readonly exception?: Cpu68000ExceptionDelivery };
+export type Cpu68000StepRecord = (
+  InstructionStep<Cpu68000Snapshot, Cpu68000Access> | HaltedStep<Cpu68000Snapshot, Cpu68000Access>
+  | (StateTransition<Cpu68000Snapshot> & {
+    readonly instruction: null; readonly outcome: "executed";
+    readonly exception: Cpu68000ExceptionDelivery & { readonly source: "trace" };
+  })
+  | (StateTransition<Cpu68000Snapshot, Cpu68000Access> & {
+    readonly outcome: "unsupported"; readonly reason: "unaligned-address";
+    readonly instruction: Cpu68000Instruction | null; readonly fault: Cpu68000AlignmentFault;
+  })
+) & { readonly exception?: Cpu68000ExceptionDelivery };
 
 export type Cpu68000ResetRecord = StateTransition<Cpu68000Snapshot>;
 
 interface InstructionContext extends ByteMemory {
+  readonly resetDevices: () => void;
   readonly nextAddress: () => number;
   readonly jump: (address: number) => void;
   readonly fetchWord: () => number;
@@ -89,17 +120,20 @@ type Operand =
 
 // Pending auto-updates are visible to the destination but commit only after alignment checks.
 type AddressUpdates = Map<AddressRegister, number>;
+interface ExceptionFrame { readonly stack: number; readonly status: number }
 
-/** Instruction-level Motorola 68000 subset with 32-bit registers and flat 16 MiB RAM. */
+/** Instruction-level Motorola 68000 with 32-bit registers and flat 16 MiB RAM. */
 export class Cpu68000 {
   readonly #ram: Ram;
   readonly #state: Cpu68000State;
-  readonly #atBoundary = executionBoundary("68000 step and reset calls must not be reentrant.");
+  readonly #connections: Cpu68000Connections | undefined;
+  readonly #atBoundary = executionBoundary("68000 step, reset, and interrupt calls must not be reentrant.");
 
-  constructor(ram: Ram, initialState: Cpu68000State) {
+  constructor(ram: Ram, initialState: Cpu68000State, connections?: Cpu68000Connections) {
     if (ram.size !== 0x1000000) throw new RangeError("The 68000 model requires exactly 16 MiB of RAM.");
     this.#ram = ram;
     this.#state = readState(cpu68000StateDescription, initialState);
+    this.#connections = connections;
   }
 
   /** Inspect detached state, the active stack pointer, and the physical PC without RAM access. */
@@ -118,17 +152,26 @@ export class Cpu68000 {
       this.#state.flags.s = true;
       this.#state.flags.t = false;
       this.#state.interruptMask = 7;
-      this.#state.halted = false;
+      this.#state.halted = this.#state.tracePending = false;
       // Registers and condition codes not specified by reset retain their supplied values.
       return { before, after: this.snapshot(), accesses };
     });
   }
 
-  /** Attempt one instruction, including synchronous exception delivery; stopped CPUs do not fetch. */
+  /** Deliver an owed trace, or attempt one instruction with its synchronous exception. */
   step(): Cpu68000StepRecord {
     return this.#atBoundary((): Cpu68000StepRecord => {
       const before = this.snapshot();
-      const { accesses, readByte, writeByte } = this.#recordMemory();
+      const accesses: Cpu68000Access[] = [];
+      const memory = this.#recordMemory(access => { accesses.push(access); });
+      const { readByte, writeByte } = memory;
+      if (before.tracePending) {
+        const exception = { source: "trace", vector: 9, returnPc: before.pc } as const;
+        const fault = this.#enterException(exception, memory);
+        const record = { before, after: this.snapshot(), accesses: memory.accesses, instruction: null, exception };
+        return fault ? { ...record, outcome: "unsupported", reason: "unaligned-address", fault }
+          : { ...record, outcome: "executed" };
+      }
       if (before.halted) return { before, after: this.snapshot(), accesses, instruction: null, outcome: "halted" };
       const address = before.pc;
       if (address % 2 !== 0) {
@@ -153,6 +196,11 @@ export class Cpu68000 {
       }
       const fault = handler(this, {
         nextAddress: () => cursor, fetchWord, readByte, writeByte,
+        resetDevices: () => {
+          if (!this.#connections) throw new Error("RESET requires a connected device reset callback.");
+          this.#connections.resetDevices();
+          accesses.push({ kind: "reset" });
+        },
         jump: target => { cursor = target; },
         fetchLong: () => {
           const high = fetchWord();
@@ -167,6 +215,8 @@ export class Cpu68000 {
           returnPc: fault === "privilege-violation" || fault === "illegal-instruction" ? address : cursor,
         };
         const entryFault = this.#enterException(exception, { readByte, writeByte });
+        // Group-2 traps complete their instruction before an owed trace; illegal/privileged attempts do not.
+        if (!entryFault) this.#state.tracePending = before.flags.t && fault !== "illegal-instruction" && fault !== "privilege-violation";
         const record = { before, after: this.snapshot(), accesses, instruction, exception };
         return entryFault ? { ...record, outcome: "unsupported", reason: "unaligned-address", fault: entryFault }
           : { ...record, outcome: "executed" };
@@ -176,7 +226,31 @@ export class Cpu68000 {
           outcome: "unsupported", reason: "unaligned-address" };
       }
       this.#state.pc = cursor;
-      return { before, after: this.snapshot(), accesses, instruction, outcome: this.#state.halted ? "halted" : "executed" };
+      this.#state.tracePending = before.flags.t; // Sample T before execution, including SR loads and RTE.
+      return { before, after: this.snapshot(), accesses, instruction, outcome: this.#state.halted && !this.#state.tracePending ? "halted" : "executed" };
+    });
+  }
+
+  /** Offer one selected level; a level-7 offer represents a new edge or an eligible held request. */
+  interrupt(level: Cpu68000InterruptLevel, acknowledge: () => Cpu68000InterruptVector): Cpu68000InterruptRecord {
+    return this.#atBoundary((): Cpu68000InterruptRecord => {
+      checkUnsigned("Interrupt level", level, 7);
+      if (level < 1) throw new RangeError("Interrupt level must be in 1..7.");
+      const before = this.snapshot();
+      const idle = { before, after: this.snapshot(), instruction: null, accesses: [], level } as const;
+      if (before.tracePending) return { ...idle, outcome: "ignored", reason: "trace-pending" };
+      if (level !== 7 && level <= before.interruptMask) return { ...idle, outcome: "ignored", reason: "masked" };
+      if (typeof acknowledge !== "function") throw new TypeError("Interrupt delivery requires an acknowledge callback.");
+      const frame = this.#beginException();
+      if ("operation" in frame) return { ...idle, outcome: "unsupported", reason: "unaligned-address", fault: frame };
+      this.#state.interruptMask = level;
+      const value = acknowledge();
+      if (value !== "autovector" && value !== "spurious") checkUnsigned("Interrupt vector", value, 255);
+      const vector = value === "autovector" ? 24 + level : value === "spurious" ? 24 : value;
+      const accesses: Cpu68000InterruptAccess[] = [{ kind: "acknowledge", level, value }];
+      const memory = this.#recordMemory(access => { accesses.push(access); });
+      this.#finishException(vector, before.pc, frame, memory);
+      return { before, after: this.snapshot(), instruction: null, accesses, level, outcome: "accepted", vector, returnPc: before.pc };
     });
   }
 
@@ -307,7 +381,11 @@ export class Cpu68000 {
     ...opcodeFamily("0100 1110 0101 1 rrr", { r: this.#selectors }, ({ r }) => (cpu: Cpu68000, instruction: InstructionContext) => cpu.#unlink(r, instruction)), // UNLK An
     // USP transfers: 0100 1110 0110 d rrr; d=0 An to USP, d=1 USP to An. Both are privileged.
     ...opcodeFamily("0100 1110 0110 d rrr", { d: [false, true], r: this.#selectors }, ({ d, r }) => (cpu: Cpu68000) => cpu.#moveUserStack(r, d)), // MOVE An,USP / USP,An
-    // Fixed system words: RESET (0000) awaits its external-device connection; 0100 is reserved.
+    // Fixed system words; 0100 is reserved on the original chip.
+    ...opcodePattern("0100 1110 0111 0000", (cpu: Cpu68000, instruction: InstructionContext): Cpu68000Exception | void => {
+      if (!cpu.#state.flags.s) return "privilege-violation";
+      instruction.resetDevices();
+    }), // RESET: assert the device reset connection; CPU registers are preserved.
     ...opcodePattern("0100 1110 0111 0001", () => {}), // NOP
     ...opcodePattern("0100 1110 0111 0010", (cpu: Cpu68000, instruction: InstructionContext) => cpu.#stop(instruction)), // STOP #SR
     ...opcodePattern("0100 1110 0111 0011", (cpu: Cpu68000, instruction: InstructionContext) => cpu.#returnFromException(instruction)), // RTE
@@ -597,20 +675,31 @@ export class Cpu68000 {
 
   // Exception entry and return. Six-byte frames use word order checked against the reference corpus.
 
-  #enterException({ vector, returnPc }: Cpu68000ExceptionDelivery, { readByte, writeByte }: ByteMemory): Cpu68000AlignmentFault | void {
+  #beginException(): ExceptionFrame | Cpu68000AlignmentFault {
     const stack = this.#state.ssp;
-    // Address-error frames are deferred. The completed instruction's operand effects remain visible.
+    // Address-error frames are deferred. Completed operand effects and any owed trace remain visible.
     if (stack % 2 !== 0) return { operation: "write", address: (stack - 2) >>> 0 };
     const status = this.#status;
     this.#state.flags.s = true;
     this.#state.flags.t = false;
+    this.#state.halted = this.#state.tracePending = false;
     this.#state.ssp = (stack - 6) >>> 0;
+    return { stack, status };
+  }
+
+  #finishException(vector: number, returnPc: number, { stack, status }: ExceptionFrame, { readByte, writeByte }: ByteMemory): void {
     // PC low, SR, PC high; the final frame is SR at SSP and the full PC at SSP+2.
     this.#writeMemory(16, (stack - 2) >>> 0, returnPc & 0xffff, writeByte);
-    this.#writeMemory(16, this.#state.ssp, status, writeByte);
+    this.#writeMemory(16, (stack - 6) >>> 0, status, writeByte);
     this.#writeMemory(16, (stack - 4) >>> 0, returnPc >>> 16, writeByte);
     // Stacking precedes vector reads: an overlapping frame changes the vector we actually load.
     this.#state.pc = this.#readMemory(32, vector * 4, readByte);
+  }
+
+  #enterException({ vector, returnPc }: Cpu68000ExceptionDelivery, memory: ByteMemory): Cpu68000AlignmentFault | void {
+    const frame = this.#beginException();
+    if ("operation" in frame) return frame;
+    this.#finishException(vector, returnPc, frame, memory);
   }
 
   #returnFromException(instruction: InstructionContext): InstructionFault | void {
@@ -1031,8 +1120,8 @@ export class Cpu68000 {
 
   // Memory access. Only bus addresses discard the high eight bits.
 
-  #recordMemory(): RecordedMemory {
-    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
+  #recordMemory(onAccess?: (access: MemoryAccess) => void): RecordedMemory {
+    const { accesses, readByte, writeByte } = recordMemory(this.#ram, onAccess);
     return {
       accesses,
       readByte: address => readByte(address & 0xffffff),

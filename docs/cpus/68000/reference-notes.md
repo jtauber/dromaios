@@ -366,7 +366,7 @@ manual-derived expectations, not a claim of external hardware conformance.
 
 The [decimal pipeline](examples/decimal-pipeline.md) exercises the families
 together, including a divide-by-zero handler and RTE. Synchronous exception
-delivery is described below; external interrupts and devices remain deferred.
+delivery and interrupt/device controls are described below.
 
 
 ## Synchronous exception delivery
@@ -420,4 +420,61 @@ and host RAM failures during frame/vector transfers. The
 [model contract](model.md#synchronous-exception-entry-and-return) describes
 alignment boundaries and callback-visible partial state. Only explicit
 ILLEGAL (`4AFC`) enters vector 4; decoding other illegal opwords, line-A/line-F,
-external interrupts, trace, address/bus errors, and RESET remain later work.
+address/bus errors remain later work; interrupts, trace, and RESET follow below.
+
+
+## Interrupts, trace, and RESET
+
+The [MC68000 User's Manual](https://www.nxp.com/docs/en/reference-manual/MC68000UM.pdf)
+§6.2.3 and §6.3.8 establish the original single-T trace sequence: sample T
+before execution; complete an instruction trap before its owed trace; suppress
+tracing for illegal/privilege and aborted instructions; and deliver trace before
+an external interrupt. Thus a traced TRAP followed by an interrupt nests three
+frames and starts executing in the interrupt handler. Dromaios represents the
+owed trace explicitly in `tracePending`, allowing snapshot restoration and
+separate no-fetch trace records. RTE/SR writes cannot change the sample for
+the instruction already executing.
+
+Sections 6.3.2–6.3.4 specify mask comparison, the level-7 transition exception,
+autovectors, device vector bytes, vector 15 for an uninitialized peripheral,
+and vector 24 for spurious acknowledgement. The caller owns selected requests
+and level-7 edges under the [boundary API](model.md#external-interrupt-delivery).
+The [programmer's reference](https://www.nxp.com/docs/en/reference-manual/M68000PRM.pdf)
+RESET and STOP entries supply device-output preservation and stop/wake rules.
+Only the original chip's single T bit applies; later-family T0/T1 wording in
+the STOP entry must not be copied into this model.
+
+Pinned [dromaios-mac CPU code](https://github.com/jtauber/dromaios-mac/blob/9fa206830687b3ccdec4943d7ea5e318d6ba05ee/js/cpu.js)
+provides a useful machine-level comparison: `takeInterrupt` saves SR before
+raising the mask, enters supervisor mode, writes a six-byte frame, loads an
+autovector, and wakes STOP. Its pending-IPL polling and machine-specific address
+masks stay outside this core. Dromaios keeps full logical addresses, its 24-bit
+bus, caller-owned edge selection, all acknowledgement responses, and explicit
+records. It shares frame preparation/writing across synchronous, trace, and
+external entries without generalizing other CPUs' native interrupt sequences.
+
+The pinned [Musashi helpers](https://github.com/kstenerud/Musashi/blob/313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd/m68kcpu.h)
+confirm trace sampling, STOP release, mask handling, and six-byte frames, but
+are not copied as the contract. Their interrupt path fetches a vector before
+stacking and redirects a zero handler address to vector 15. The manual instead
+describes stacking before the handler-vector fetch and identifies vector 15
+as a peripheral-supplied response. Dromaios follows those rules, with its
+existing instruction-level frame word order. No hardware interrupt bus trace
+is claimed by this comparison.
+
+All **8,065 RESET cases** in the pinned
+[SingleStepTests/680x0 corpus](https://github.com/SingleStepTests/680x0/tree/e0d5ece9670205cc84a0101081837deb446f86a3/68000/v1)
+match full registers, defined SR, PC, and RAM with a connected device callback.
+The comparison also requires exactly one callback per RESET. These cases are
+emulator-generated and do not validate the reset pin's pulse duration.
+The previous 25,089 in-scope TRAP/TRAPV/RTE/CHK cases still match; the previously
+recorded DIVU saved-PC discrepancy remains explicit. There are no external-IRQ
+or traced-instruction cases in this comparison.
+
+Manual-derived local tests cover all seven levels, every mask and status
+combination, STOP, all 256 supplied vectors, autovectors, spurious responses,
+zero targets, frame/vector overlap, trace sampling/suppression, pending-trace
+priority, missing/invalid/failing connections, and every failing frame/vector
+byte. Existing instruction-family sweeps keep tracing disabled; dedicated trace
+tests cover T transitions and recognition. The combined runner tests exercise
+nested entries/returns and snapshot restoration with the device connection.

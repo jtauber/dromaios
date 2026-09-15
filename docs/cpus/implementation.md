@@ -205,14 +205,19 @@ provide the common fields used by all eight CPUs:
 CPU modules keep their public names as aliases, such as `Cpu6502Instruction`
 and `Cpu6502ResetRecord`. `InstructionStep`, `HaltedStep`, and `WaitingStep` accept the same
 optional access type. The 8008, 8080, Z80, and 8088 supply a union of memory and port accesses;
-other CPUs retain the memory-only default. Each step type selects its supported outcomes; the
+the 68000 includes a device-reset event; other CPUs retain the memory-only default. Each step type selects its supported outcomes; the
 68000 adds its alignment-fault branch, including a possible null instruction
-on an unaligned opcode fetch, and optional synchronous-exception metadata
-with the source, vector, and return PC. The 8088 adds an executed no-fetch trap-entry
+on an unaligned opcode fetch, optional exception metadata with source/vector/PC,
+and a no-fetch trace-entry branch. The 8088 adds an executed no-fetch trap-entry
 branch, while software interrupts retain their triggering fetched instruction.
 Address conventions are still
 documented beside the aliases, including the 8088's physical instruction
 address and the 68000's full logical instruction address.
+
+The 68000's separate interrupt record contains a level, null instruction,
+acknowledgement and frame/vector accesses, and acceptance, masking, trace-priority,
+or alignment outcomes. Trace retirement and external entry share its native
+frame helpers; `tracePending` survives snapshots independently of T.
 
 The separate interrupt records for the 6502, 6800, and 6809 use `StateTransition` with
 memory accesses,
@@ -279,7 +284,8 @@ The 8088 extends it with `BytePorts`, the instruction start IP, local segment/re
 prefixes, and callbacks for instruction-local recognition delays and software entry. The 8008
 fetches a full two-byte operand and masks it to a 14-bit address when jumping
 or calling. The 68000 currently
-extends `ByteMemory` with `fetchWord`, `fetchLong`, `nextAddress`, and `jump`.
+extends `ByteMemory` with `fetchWord`, `fetchLong`, `nextAddress`, `jump`, and
+a recorded device-reset callback.
 Fetching and jumps update a local cursor; a successful instruction commits it
 to PC. A synchronous exception instead stacks its selected return PC and
 loads the handler PC. Its word-based instruction stream, explicit extension-word PC bases,
@@ -355,7 +361,7 @@ writes to 14 bits without adding stored state. Its circular call stack stays
 in the CPU file. The Z80 retains complete-prefix decoding and R updates; the
 8088 retains segment/repeat prefixes, one-element REP steps, trap boundaries,
 and native interrupt delivery; the 68000 retains word opcodes, alignment faults,
-and native synchronous-exception frames. Those contracts
+native exception frames, trace retirement, and interrupt offers. Those contracts
 do not fit this executor. All still share instruction contexts and recorded
 byte memory; specialized step loops do not require a broader executor API.
 

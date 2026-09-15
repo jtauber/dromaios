@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [669](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [598](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [930](../../src/components/cpus/8088.ts) | 282 / 291 | 96.9% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1054](../../src/components/cpus/68000.ts) | 36,028 / 36,029 | >99.9% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1143](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -1837,12 +1837,12 @@ addresses are compared; local tests check exact instruction-level ordering.
 [Decimal pipeline example](68000/examples/decimal-pipeline.md) ·
 [Pipeline definition](../../src/machines/68000/decimal-pipeline-example.machine)
 
-**36,028 of 36,029 documented forms are complete (>99.9%).** All ordinary
-instructions are covered within the [model contract](68000/model.md).
-RESET remains deferred pending its external-device connection. The instruction-word
-inventory contains 45,815 supported opwords; the coverage count collapses
-embedded literals. Synchronous exception delivery is included; external
-interrupts, trace, address/bus errors, and device behavior remain deferred.
+**All 36,029 documented forms are complete (100%)** within the
+[model contract](68000/model.md). The instruction-word inventory contains
+45,816 supported opwords; the coverage count collapses embedded literals.
+RESET uses an explicit device connection; synchronous exceptions, trace,
+external interrupt offers, STOP wakeup, and RTE are included. Address/bus errors,
+other illegal opwords, timing, prefetch, and complete devices remain separate.
 
 MOVE and MOVEA
 support every original-68000 source/destination combination and documented
@@ -1895,8 +1895,9 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `0100 1110 11 mmm rrr` | `JMP <ea>` | 28 | 2–6 | All control EAs; validate target without a target read; preserve flags |
 | `0100 1110 0111 0101` | `RTS` | 1 | 2 | Pop the full return address through active A7; preserve flags |
 | `0100 1110 0110 d rrr` | MOVE An,USP / USP,An | 16 | 2 | Privileged full-long transfer; A7 selects SSP |
+| `0100 1110 0111 0000` | RESET | 1 | 2 | Privileged device-reset callback; preserve CPU registers and flags |
 | `0100 1110 0111 0001` | NOP | 1 | 2 | Advance PC only |
-| `0100 1110 0111 0010` | STOP #SR | 1 | 4 | Privileged status load and stop; external reset wakes the stored latch |
+| `0100 1110 0111 0010` | STOP #SR | 1 | 4 | Privileged status load and stop; trace, accepted interrupt, or external reset wakes it |
 | `0100 1110 0100 vvvv` | TRAP #n | 1 | 2 | All sixteen vectors 32..47; stack following PC and SR through SSP |
 | `0100 1010 1111 1100` | ILLEGAL | 1 | 2 | Vector 4; stack the instruction start PC |
 | `0100 1110 0111 0011` | RTE | 1 | 2 | Privileged six-byte SR/PC return through SSP; restore the selected stack bank |
@@ -2006,7 +2007,7 @@ intermediate overflow, register aliases, and memory updates.
 
 | Area | Implemented scope |
 | --- | --- |
-| Stored state | D0–D7, A0–A6, USP/SSP, and PC as unsigned 32-bit values; X/N/Z/V/C/T/S and three-bit interrupt mask; Boolean `halted` latch |
+| Stored state | D0–D7, A0–A6, USP/SSP, and PC as unsigned 32-bit values; X/N/Z/V/C/T/S and three-bit interrupt mask; Boolean `halted` and `tracePending` latches |
 | Views | A7 derived from S and USP/SSP; physical PC derived from the low 24 bits of PC |
 | Transfers | Complete MOVE.B/W/L, MOVEA.W/L, and MOVEM.W/L families; MOVEQ; partial Dn writes and sign-extended address-register word writes |
 | Immediate ALU | ADDI, SUBI, CMPI, ANDI, ORI, EORI in all three sizes and data-alterable modes; preserve upper Dn bits on byte/word writes |
@@ -2023,13 +2024,14 @@ intermediate overflow, register aliases, and memory updates.
 | Control flow | BRA/Bcc, DBcc, BSR/RTS, JMP/JSR; complete conditions, displacement forms, and counter registers |
 | Alignment | Even instruction, word, and long addresses; odd byte operands allowed; ordinary read/write faults preserve state and RAM; failed exception entry retains completed instruction effects |
 | Stack and addresses | A7 selects USP/SSP from S; BSR/JSR push and RTS pops a four-byte return address; LINK/UNLK frames, LEA/PEA address calculation, MOVEM saves/restores; byte auto-updates step by two |
-| Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts, clear halt; preserve other registers, condition codes, and RAM under the documented policy |
+| Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts, clear halt and pending trace; preserve other registers, condition codes, and RAM under the documented policy |
 | Decimal and multiply/divide | ABCD/SBCD/NBCD, MULU/MULS/DIVU/DIVS; cumulative decimal Z, packed remainder/quotient, explicit undefined-flag policies |
 | Further transfers | MOVEP alternate-byte RAM transfers, EXG, EXT, and SWAP; every documented form |
 | Status and control | Packed CCR/SR moves and immediate logic, USP moves, RTR, CHK, TAS, NOP, and STOP; native privilege/bounds/divide-zero delivery |
-| Stopping | STOP loads SR and sets `halted`; later steps do not fetch; snapshots retain it and external reset clears it |
-| Exceptions | Six-byte supervisor frames, vectors 4–8 and 32–47, saved faulting/following PC, and RTE; [entry and failure contract](68000/model.md#synchronous-exception-entry-and-return) |
-| Remaining scope | RESET; external interrupt/trace delivery, other illegal opwords, address/bus errors, devices, timing, and prefetch |
+| Stopping | STOP loads SR and sets `halted`; traced STOP permits the next trace step; accepted interrupt/trace/reset wakes it |
+| Exceptions | Six-byte supervisor frames, synchronous and trace vectors, external interrupt acknowledgement, saved PC/SR, and RTE; [entry and failure contract](68000/model.md#synchronous-exception-entry-and-return) |
+| External controls | [Selected level offers](68000/model.md#external-interrupt-delivery), all vector bytes, autovectors/spurious response, trace priority, STOP wakeup, and [RESET callback](68000/model.md#reset-device-connection) |
+| Remaining scope | Other illegal opwords, address/bus errors, complete devices, signal sampling, timing, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
@@ -2045,7 +2047,8 @@ Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [bit operations](../../tests/machines/68000/bits-example.test.ts), and
 [extended arithmetic example tests](../../tests/machines/68000/extended-example.test.ts),
 [decimal pipeline tests](../../tests/machines/68000/decimal-pipeline-example.test.ts),
-plus [public type checks](../../tests/types/68000.ts).
+plus [interrupt/trace/RESET programs](../../tests/machines/68000/interrupts.test.ts)
+and [public type checks](../../tests/types/68000.ts).
 
 Completion checks execute all new register/EA forms. Decimal expectations use
 integer arithmetic on all valid packed operands and incoming X/Z; multiply

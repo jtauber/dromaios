@@ -7,7 +7,7 @@
 This 26-step program follows a packed decimal calculation into signed binary
 arithmetic, transfers its result through alternate memory bytes, and exercises
 status and stack control before STOP. It runs entirely against RAM; MOVEP
-does not require a device. Trace is stored but never delivered.
+does not require a device. Tracing stays disabled throughout this program.
 
 ## Initial state and memory
 
@@ -18,7 +18,7 @@ does not require a device. Trace is stored but never delivered.
 | A0, A1, A2, A3 | `AB003000`, `CD004000`, `EF005000`, `40000000` |
 | A4, A5, A6 | `50000000`, `60000000`, `70000000` |
 | USP, SSP, PC | `34008000`, `56009000`, `AB002000` |
-| interruptMask, halted | `2`, `false` |
+| interruptMask, halted, tracePending | `2`, `false`, `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `1` |
 
 Zero-filled 16 MiB RAM contains the reset vectors
@@ -55,7 +55,7 @@ hexadecimal; signed arithmetic explanations use decimal integers.
 | `202C` | ORI #1,CCR | Set C |
 | `2030` | MOVE #0504,CCR | Only low five bits survive: Z=1, X/N/V/C=0 |
 | `2034`, `2036` | MOVE A2,USP; MOVE USP,A3 | USP and A3 become `EF005000` |
-| `2038` | MOVE #A304,SR | S=T=1, interrupt mask 3; condition codes unchanged |
+| `2038` | MOVE #2304,SR | S=1, T=0, interrupt mask 3; condition codes unchanged |
 | `203C` | CHK #7FFF,D0 | Signed value 69 lies within the bound |
 | `2040` | NOP | Advance only PC |
 | `2042` | RTR | Read CCR/PC through SSP; SSP=`56009006`, CCR=`05` |
