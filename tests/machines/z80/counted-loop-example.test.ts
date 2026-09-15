@@ -127,8 +127,8 @@ test("the Z80 counted loop resumes before DJNZ, resets to zero while preserving 
   assert.deepEqual(cpu.reset(), { before, after: afterReset, accesses: [] });
   checkMemory(ram, 0x0f);
   assert.deepEqual(cpu.step(), {
-    before: afterReset, after: afterReset, instruction: { address: 0, bytes: [0] },
-    accesses: [{ kind: "read", address: 0, value: 0 }], outcome: "unsupported", reason: "opcode",
+    before: afterReset, after: { ...afterReset, pc: 1, r: 1 }, instruction: { address: 0, bytes: [0] },
+    accesses: [{ kind: "read", address: 0, value: 0 }], outcome: "executed",
   });
   const fresh = createZ80CountedLoopExample();
   assert.notStrictEqual(fresh.cpu, cpu);

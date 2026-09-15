@@ -348,10 +348,12 @@ subtraction's borrow to X and C, while comparison preserves X. Parity, flag
 preservation, decimal corrections, and the NMOS 6502's intermediate flag rules
 remain CPU behavior.
 
-The 6800, 6809, and 8088 use the shift helpers. The 6800 sets V=N XOR C for
+The 6800, 6809, Z80, and 8088 use the shift helpers. The 6800 sets V=N XOR C for
 both directions; the 6809 sets V for left shifts and preserves it for right
-shifts. The 8088 selects byte or word width, repeats the operation for its full
-CL count, and distinguishes rotate flags from shift flags. These policies
+shifts. The Z80's unprefixed accumulator rotates preserve S/Z/PV, while CB
+rotates and shifts derive sign, zero, and parity from the result. The 8088
+selects byte or word width, repeats the operation for its full CL count,
+and distinguishes rotate flags from shift flags. These policies
 remain visible in the CPU code; the shared helper only moves one bit.
 
 [Helper tests](../../tests/components/cpus/alu.test.ts) exhaust every byte pair

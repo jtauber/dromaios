@@ -8,7 +8,8 @@ import { defineState, copyState, readState, unsigned, flag, boolean, choices, gr
 import type { StateValues } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.js";
-import { add, subtract, evenParity8 } from "./alu.ts";
+import { add, subtract, shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
+import type { ShiftResult } from "./alu.ts";
 
 const bankFields = defineState({
   a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
@@ -142,6 +143,11 @@ export class CpuZ80 {
     return (this.#state.h << 8) | this.#state.l;
   }
 
+  set #hl(value: number) {
+    this.#state.h = value >>> 8;
+    this.#state.l = value & 0xff;
+  }
+
   get #af(): number {
     const { a, flags } = this.#state;
     // F = S Z 0 H 0 PV N C. Unmodeled bits 5/3 pack as zero, not hardware constants.
@@ -165,7 +171,7 @@ export class CpuZ80 {
   // pp selects BC/DE/HL/SP. Pairs name their high and low stored bytes.
   readonly #registerPairs = [["b", "c"], ["d", "e"], ["h", "l"], "sp"] as const;
 
-  // qq selects BC/DE/HL/AF for the stack families; AF replaces dd's SP slot.
+  // qq selects BC/DE/HL/AF for the stack families; AF replaces pp's SP slot.
   readonly #stackPairs = [["b", "c"], ["d", "e"], ["h", "l"], "af"] as const;
 
   // bbb selects a bit number; bind its mask once when constructing the CB page.
@@ -200,23 +206,43 @@ export class CpuZ80 {
   // xx selects a block; the other fields select its operation and operands.
   // Pair families split yyy into pp q. CB has its own second-byte table below.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // xx=00, zzz=000: yyy=010 selects DJNZ, 011 JR, and 1cc conditional JR.
-    // yyy=000 (NOP) and 001 (EX AF,AF') remain unsupported.
+    // xx=00, zzz=000: yyy selects NOP, EX AF,AF', DJNZ, JR, then 1cc conditional JR.
+    ...instructionPattern("00 000 000", () => {}), // NOP
+    ...instructionPattern("00 001 000", () => this.#exchangeAf()), // EX AF,AF'
     ...instructionPattern("00 010 000", ({ fetchByte }) => this.#decrementAndJump(fetchByte())), // DJNZ e
     ...instructionPattern("00 011 000", ({ fetchByte }) => this.#jumpRelative(fetchByte(), true)), // JR e
     ...opcodeFamily("00 1cc 000", { c: this.#conditions.slice(0, 4) }, ({ c: condition }) => ({ fetchByte }: InstructionContext) => this.#jumpRelative(fetchByte(), condition())), // JR NZ/Z/NC/C,e
 
-    // 00 pp q 001: pp (bits 5..4) selects the pair; q=0 loads nn (low byte first).
+    // 00 pp q 001: pp selects BC/DE/HL/SP; q=0 loads nn, q=1 adds the pair to HL.
     ...opcodeFamily("00 pp 0 001", { p: this.#registerPairs }, ({ p: pair }) => ({ fetchWord }: InstructionContext) => this.#writePair(pair, fetchWord())), // LD dd,nn
+    ...opcodeFamily("00 pp 1 001", { p: this.#registerPairs }, ({ p: pair }) => () => this.#addHl(this.#readPair(pair))), // ADD HL,ss
 
-    // xx=00, zzz=010: pp=11 selects A at address nn; q=0 stores (q=1 would load).
+    // 00 pp q 010: q=0 stores, q=1 loads. pp=00/01 uses A and (BC)/(DE);
+    // pp=10 uses HL and (nn), pp=11 uses A and (nn). Word operands are low byte first.
+    ...opcodeFamily("00 0p 0 010", { p: this.#registerPairs.slice(0, 2) }, ({ p: pair }) => ({ writeByte }: InstructionContext) => writeByte(this.#readPair(pair), this.#state.a)), // LD (BC)/(DE),A
+    ...opcodeFamily("00 0p 1 010", { p: this.#registerPairs.slice(0, 2) }, ({ p: pair }) => ({ readByte }: InstructionContext) => { this.#state.a = readByte(this.#readPair(pair)); }), // LD A,(BC)/(DE)
+    ...instructionPattern("00 10 0 010", ({ fetchWord, writeByte }) => this.#writeMemoryWord(fetchWord(), this.#hl, writeByte)), // LD (nn),HL
+    ...instructionPattern("00 10 1 010", ({ fetchWord, readByte }) => { this.#hl = this.#readMemoryWord(fetchWord(), readByte); }), // LD HL,(nn)
     ...instructionPattern("00 11 0 010", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a)), // LD (nn),A
+    ...instructionPattern("00 11 1 010", ({ fetchWord, readByte }) => { this.#state.a = readByte(fetchWord()); }), // LD A,(nn)
 
-    // 00 rrr zzz: rrr (bits 5..3) selects the byte register; zzz selects the operation.
-    // rrr=110 selects (HL); INC/DEC omit that slot, while LD includes it.
-    ...this.#byteRegisterHandlers(0b00_000_100, register => this.#adjustRegister(register, 1)), // 00 rrr 100: INC r
-    ...this.#byteRegisterHandlers(0b00_000_101, register => this.#adjustRegister(register, -1)), // 00 rrr 101: DEC r
+    // 00 pp q 011: q=0 increments, q=1 decrements the selected word pair; preserve every flag.
+    ...opcodeFamily("00 pp q 011", { p: this.#registerPairs, q: [1, -1] }, ({ p: pair, q: delta }) => () => this.#writePair(pair, (this.#readPair(pair) + delta) & 0xffff)), // INC/DEC ss
+
+    // 00 rrr zzz: rrr selects B/C/D/E/H/L/(HL)/A; zzz selects INC, DEC, or immediate LD.
+    ...this.#modifyHandlers("00 rrr 100", value => this.#adjustByte(value, 1)), // INC r / (HL)
+    ...this.#modifyHandlers("00 rrr 101", value => this.#adjustByte(value, -1)), // DEC r / (HL)
     ...opcodeFamily("00 rrr 110", { r: this.#byteOperands }, ({ r: operand }) => (instruction: InstructionContext) => this.#writeOperand(operand, instruction.fetchByte(), instruction)), // LD r,n / LD (HL),n
+
+    // 00 yyy 111: yyy=000–011 rotates A while preserving S/Z/PV; 100–111 adjusts A or carry.
+    ...instructionPattern("00 000 111", () => this.#rotateAccumulator(shiftLeft(8, this.#state.a, (this.#state.a & 0x80) !== 0 ? 1 : 0))), // RLCA
+    ...instructionPattern("00 001 111", () => this.#rotateAccumulator(shiftRight(8, this.#state.a, (this.#state.a & 1) !== 0 ? 1 : 0))), // RRCA
+    ...instructionPattern("00 010 111", () => this.#rotateAccumulator(shiftLeft(8, this.#state.a, this.#state.flags.c ? 1 : 0))), // RLA
+    ...instructionPattern("00 011 111", () => this.#rotateAccumulator(shiftRight(8, this.#state.a, this.#state.flags.c ? 1 : 0))), // RRA
+    ...instructionPattern("00 100 111", () => this.#decimalAdjust()), // DAA
+    ...instructionPattern("00 101 111", () => this.#complementAccumulator()), // CPL
+    ...instructionPattern("00 110 111", () => this.#setCarry()), // SCF
+    ...instructionPattern("00 111 111", () => this.#complementCarry()), // CCF
 
     // 01 ddd sss: ddd (bits 5..3) selects destination; sss (bits 2..0) selects source.
     // 01 110 110 is HALT, not LD (HL),(HL); the binding handles this exception.
@@ -229,9 +255,21 @@ export class CpuZ80 {
     // 11 ccc 000: conditional returns read the stack only when the condition is true.
     ...opcodeFamily("11 ccc 000", { c: this.#conditions }, ({ c: condition }) => ({ readByte }: InstructionContext) => this.#return(readByte, condition())), // RET cc
 
-    // 11 qq 0 001: POP uses BC/DE/HL/AF. Bit 3=1 includes unconditional RET.
+    // 11 pp q 001: q=0 pops BC/DE/HL/AF; q=1 selects RET, EXX, JP (HL), or LD SP,HL.
     ...opcodeFamily("11 qq 0 001", { q: this.#stackPairs }, ({ q: pair }) => ({ readByte }: InstructionContext) => this.#writePair(pair, this.#popWord(readByte))), // POP qq
     ...instructionPattern("11 00 1 001", ({ readByte }) => this.#return(readByte)), // RET
+    ...instructionPattern("11 01 1 001", () => this.#exchangeGeneralBanks()), // EXX
+    ...instructionPattern("11 10 1 001", () => this.#jump(this.#hl)), // JP (HL)
+    ...instructionPattern("11 11 1 001", () => { this.#state.sp = this.#hl; }), // LD SP,HL
+
+    // 11 ccc 010: all eight absolute jump conditions fetch nn on both paths.
+    ...opcodeFamily("11 ccc 010", { c: this.#conditions }, ({ c: condition }) => ({ fetchWord }: InstructionContext) => this.#jump(fetchWord(), condition())), // JP cc,nn
+
+    // 11 yyy 011: JP nn, CB prefix, OUT/IN, EX (SP),HL, EX DE,HL, DI/EI.
+    // CB dispatches in step(); port I/O and interrupt controls stay deferred.
+    ...instructionPattern("11 000 011", ({ fetchWord }) => this.#jump(fetchWord())), // JP nn
+    ...instructionPattern("11 100 011", instruction => this.#exchangeStack(instruction)), // EX (SP),HL
+    ...instructionPattern("11 101 011", () => this.#exchangeDeHl()), // EX DE,HL
 
     // 11 ccc 100: conditional calls always fetch nn, then push only on a taken path.
     ...opcodeFamily("11 ccc 100", { c: this.#conditions }, ({ c: condition }) => ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte, condition())), // CALL cc,nn
@@ -243,44 +281,34 @@ export class CpuZ80 {
     // 11 ooo 110: the same ooo operations with an immediate byte instead of a register/memory selector.
     ...opcodeFamily("11 ooo 110", { o: this.#aluOperations }, ({ o: operate }) =>
       ({ fetchByte }: InstructionContext) => { this.#state.a = operate(fetchByte()); }), // ALU n
+
+    // 11 ttt 111: ttt selects the restart address 00,08,10,18,20,28,30,38; it is an ordinary call.
+    ...opcodeFamily("11 ttt 111", { t: [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] }, ({ t: address }) => ({ writeByte }: InstructionContext) => this.#call(address, writeByte)), // RST p
   ]);
 
   // After CB (11001011), xx yyy rrr selects the operation and B/C/D/E/H/L/(HL)/A.
   // xx=00 uses yyy as the rotate/shift selector; xx=01/10/11 uses it as bit number bbb.
   readonly #cbOpcodeHandlers = opcodeTable<OpcodeHandler>([
-    ...this.#shiftRotateHandlers("00 000 rrr", value => this.#shiftLeft(value, (value & 0x80) !== 0 ? 1 : 0)), // RLC r / (HL)
-    ...this.#shiftRotateHandlers("00 001 rrr", value => this.#shiftRight(value, (value & 1) !== 0 ? 1 : 0)), // RRC r / (HL)
-    ...this.#shiftRotateHandlers("00 010 rrr", value => this.#shiftLeft(value, this.#state.flags.c ? 1 : 0)), // RL r / (HL)
-    ...this.#shiftRotateHandlers("00 011 rrr", value => this.#shiftRight(value, this.#state.flags.c ? 1 : 0)), // RR r / (HL)
-    ...this.#shiftRotateHandlers("00 100 rrr", value => this.#shiftLeft(value, 0)), // SLA r / (HL)
-    ...this.#shiftRotateHandlers("00 101 rrr", value => this.#shiftRight(value, (value & 0x80) !== 0 ? 1 : 0)), // SRA r / (HL)
+    ...this.#modifyHandlers("00 000 rrr", value => this.#shiftLeft(value, (value & 0x80) !== 0 ? 1 : 0)), // RLC r / (HL)
+    ...this.#modifyHandlers("00 001 rrr", value => this.#shiftRight(value, (value & 1) !== 0 ? 1 : 0)), // RRC r / (HL)
+    ...this.#modifyHandlers("00 010 rrr", value => this.#shiftLeft(value, this.#state.flags.c ? 1 : 0)), // RL r / (HL)
+    ...this.#modifyHandlers("00 011 rrr", value => this.#shiftRight(value, this.#state.flags.c ? 1 : 0)), // RR r / (HL)
+    ...this.#modifyHandlers("00 100 rrr", value => this.#shiftLeft(value, 0)), // SLA r / (HL)
+    ...this.#modifyHandlers("00 101 rrr", value => this.#shiftRight(value, (value & 0x80) !== 0 ? 1 : 0)), // SRA r / (HL)
     // 00 110 rrr is undocumented SLL and remains unsupported.
-    ...this.#shiftRotateHandlers("00 111 rrr", value => this.#shiftRight(value, 0)), // SRL r / (HL)
+    ...this.#modifyHandlers("00 111 rrr", value => this.#shiftRight(value, 0)), // SRL r / (HL)
 
     ...this.#bitTestHandlers("01 bbb rrr"), // BIT b,r / (HL)
     ...this.#bitModifyHandlers("10 bbb rrr", (value, mask) => value & ~mask), // RES b,r / (HL)
     ...this.#bitModifyHandlers("11 bbb rrr", (value, mask) => value | mask), // SET b,r / (HL)
   ]);
 
-  #byteRegisterHandlers(
-    base: number,
-    operation: (register: ByteRegister) => void,
-  ): readonly OpcodeEntry<OpcodeHandler>[] {
-    const handlers: OpcodeEntry<OpcodeHandler>[] = [];
-    for (const [registerCode, register] of this.#byteOperands.entries()) {
-      if (register === "(hl)") continue;
-      // 00 rrr zzz: rrr occupies bits 5..3; the base supplies the operation's zzz.
-      handlers.push([base | (registerCode << 3), () => operation(register)]);
-    }
-    return handlers;
-  }
-
   #transferHandler(destination: ByteOperand, source: ByteOperand): OpcodeHandler {
     if (destination === "(hl)" && source === "(hl)") return () => this.#halt();
     return instruction => this.#writeOperand(destination, this.#readOperand(source, instruction), instruction);
   }
 
-  #shiftRotateHandlers(pattern: string, operation: ByteOperation): readonly OpcodeEntry<OpcodeHandler>[] {
+  #modifyHandlers(pattern: string, operation: ByteOperation): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { r: this.#byteOperands }, ({ r: operand }) =>
       instruction => this.#modifyOperand(operand, operation, instruction));
   }
@@ -297,7 +325,7 @@ export class CpuZ80 {
     });
   }
 
-  // Addressing and loads.
+  // Addressing, loads, and exchanges.
 
   #readOperand(operand: ByteOperand, { readByte }: InstructionContext): number {
     return operand === "(hl)" ? readByte(this.#hl) : this.#state[operand];
@@ -327,11 +355,42 @@ export class CpuZ80 {
     }
   }
 
+  #exchangeAf(): void {
+    const { alternate } = this.#state;
+    [this.#state.a, alternate.a] = [alternate.a, this.#state.a];
+    [this.#state.flags, alternate.flags] = [alternate.flags, this.#state.flags];
+  }
+
+  #exchangeGeneralBanks(): void {
+    const { alternate } = this.#state;
+    for (const register of ["b", "c", "d", "e", "h", "l"] as const) {
+      [this.#state[register], alternate[register]] = [alternate[register], this.#state[register]];
+    }
+  }
+
+  #exchangeDeHl(): void {
+    [this.#state.d, this.#state.h] = [this.#state.h, this.#state.d];
+    [this.#state.e, this.#state.l] = [this.#state.l, this.#state.e];
+  }
+
+  #exchangeStack({ readByte, writeByte }: InstructionContext): void {
+    const { sp } = this.#state;
+    const value = this.#readMemoryWord(sp, readByte);
+    // EX reads low/high, then writes high/low, leaving SP fixed. Capture both bytes before changing HL.
+    writeByte((sp + 1) & 0xffff, this.#state.h);
+    writeByte(sp, this.#state.l);
+    this.#hl = value;
+  }
+
   // Control flow and stack.
+
+  #jump(address: number, take = true): void {
+    if (take) this.#state.pc = address;
+  }
 
   #call(address: number, writeByte: InstructionContext["writeByte"], take = true): void {
     if (!take) return;
-    // Both address bytes have been fetched; PC is the return address even if the stack overlaps code.
+    // PC already holds the return address before stack writes, even when the stack overlaps code.
     this.#pushWord(this.#state.pc, writeByte);
     this.#state.pc = address;
   }
@@ -376,13 +435,57 @@ export class CpuZ80 {
   // Arithmetic, logic, and flags.
 
   #shiftLeft(value: number, incomingBit: 0 | 1): number {
-    const result = ((value << 1) | incomingBit) & 0xff;
-    return this.#parityResult(result, { h: false, c: (value & 0x80) !== 0 });
+    const { result, carry } = shiftLeft(8, value, incomingBit);
+    return this.#parityResult(result, { h: false, c: carry });
   }
 
   #shiftRight(value: number, incomingBit: 0 | 1): number {
-    const result = (value >>> 1) | (incomingBit << 7);
-    return this.#parityResult(result, { h: false, c: (value & 1) !== 0 });
+    const { result, carry } = shiftRight(8, value, incomingBit);
+    return this.#parityResult(result, { h: false, c: carry });
+  }
+
+  #rotateAccumulator({ result, carry }: ShiftResult): void {
+    this.#state.a = result;
+    this.#state.flags.c = carry;
+    this.#state.flags.h = this.#state.flags.n = false;
+    // Unlike CB rotates, these four instructions preserve S/Z/PV.
+  }
+
+  #decimalAdjust(): void {
+    const { a, flags } = this.#state;
+    const carry = flags.c || a > 0x99;
+    const correction = ((flags.h || (a & 0x0f) > 9) ? 0x06 : 0) | (carry ? 0x60 : 0);
+    // The digit thresholds apply for every input state; N selects addition or subtraction of the correction.
+    const result = (a + (flags.n ? -correction : correction)) & 0xff;
+    this.#state.a = this.#parityResult(result, { h: ((a ^ result) & 0x10) !== 0, c: carry });
+    this.#state.flags.n = flags.n;
+  }
+
+  #complementAccumulator(): void {
+    this.#state.a ^= 0xff;
+    this.#state.flags.h = this.#state.flags.n = true;
+  }
+
+  #setCarry(): void {
+    this.#state.flags.c = true;
+    this.#state.flags.h = this.#state.flags.n = false;
+  }
+
+  #complementCarry(): void {
+    this.#state.flags.h = this.#state.flags.c;
+    this.#state.flags.c = !this.#state.flags.c;
+    this.#state.flags.n = false;
+  }
+
+  #addHl(value: number): void {
+    const hl = this.#hl;
+    const { result, carry } = add(16, hl, value);
+    this.#hl = result;
+    // For this word operation H reports bit 11 to bit 12, not the shared adder's low-nibble carry.
+    this.#state.flags.h = (hl & 0x0fff) + (value & 0x0fff) > 0x0fff;
+    this.#state.flags.c = carry;
+    this.#state.flags.n = false;
+    // S/Z/PV are preserved, including when the result is zero or changes sign.
   }
 
   #testBit(mask: number, value: number): void {
@@ -396,16 +499,15 @@ export class CpuZ80 {
     // BIT preserves C; RES and SET preserve every flag.
   }
 
-  #adjustRegister(register: ByteRegister, delta: -1 | 1): void {
-    const value = this.#state[register];
+  #adjustByte(value: number, delta: -1 | 1): number {
     const result = (value + delta) & 0xff;
-    this.#state[register] = result;
     this.#state.flags.s = (result & 0x80) !== 0;
     this.#state.flags.z = result === 0;
     // INC carries out of bit 3; DEC borrows from bit 4. Both preserve C.
     this.#state.flags.h = delta === 1 ? (value & 0x0f) === 0x0f : (value & 0x0f) === 0;
     this.#state.flags.pv = value === (delta === 1 ? 0x7f : 0x80);
     this.#state.flags.n = delta === -1;
+    return result;
   }
 
   #add(value: number, carryIn: 0 | 1 = 0): number {
@@ -435,7 +537,7 @@ export class CpuZ80 {
     return result;
   }
 
-  // Logic and CB shifts use parity; callers supply H/C, and all these operations clear N.
+  // Set S/Z/parity and the supplied H/C; clear N, which DAA then restores from its input.
   #parityResult(result: number, { h, c }: Pick<CpuZ80Flags, "h" | "c">): number {
     this.#state.flags = {
       s: (result & 0x80) !== 0,
@@ -451,5 +553,17 @@ export class CpuZ80 {
   #compare(value: number): number {
     this.#subtract(value);
     return this.#state.a;
+  }
+
+  // Data words are little-endian and wrap independently of the instruction stream.
+
+  #readMemoryWord(address: number, readByte: InstructionContext["readByte"]): number {
+    const low = readByte(address);
+    return low | (readByte((address + 1) & 0xffff) << 8);
+  }
+
+  #writeMemoryWord(address: number, value: number, writeByte: InstructionContext["writeByte"]): void {
+    writeByte(address, value & 0xff);
+    writeByte((address + 1) & 0xffff, value >>> 8);
   }
 }

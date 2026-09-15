@@ -1,0 +1,51 @@
+// Sum four packed-BCD amounts using the alternate bank, preserving the caller's main registers and flags.
+ram 10000
+
+cpu z80 {
+    A = 11  B = 22  C = 33  D = 44  E = 55  H = 66  L = 77
+    flags { S = 1  Z = 0  H = 1  PV = 0  N = 1  C = 0 }
+    alternate {
+        A = 88  B = 99  C = AA  D = BB  E = CC  H = DD  L = EE
+        flags { S = 0  Z = 1  H = 0  PV = 1  N = 0  C = 1 }
+    }
+    IX = 1234  IY = 5678  PC = 0200  SP = 9000
+    I = 42  R = FE  IM = 2
+    iff1 = true  iff2 = false  halted = false
+}
+
+memory 00FF { DE 45 AA 67 BB 89 CC 72 DD AD } // Four amounts, interleaved with untouched tag bytes.
+memory 03FF { DE AA BB AD } // Low two decimal digits at 0400, hundreds at 0401; expected 73 02.
+memory 8FFB { DE } // Guard below the deepest return address.
+memory 9000 { AD } // Guard above the stack.
+
+memory 0200 {
+    CD 20 02    // CALL 0220H
+    76          // HALT after the original main registers and flags are restored
+}
+
+memory 0220 {
+    08          // EX AF,AF': save the caller's A and flags
+    D9          // EXX: save the caller's BC, DE, and HL
+    21 00 01    // LD HL,0100H: first amount
+    01 02 00    // LD BC,0002H: stride over each tag byte
+    11 00 04    // LD DE,0400H: D counts four amounts; E counts hundreds
+    3E 00       // LD A,00H: low decimal total
+    EF          // RST 28H: ordinary subroutine call to accumulate one amount
+    15          // DEC D: determine whether another amount remains
+    09          // ADD HL,BC: advance the pointer while preserving DEC's Z flag
+    C2 2D 02    // JP NZ,022DH
+    32 00 04    // LD (0400H),A: low packed-BCD byte
+    7B          // LD A,E
+    32 01 04    // LD (0401H),A: hundreds (0–3 is also valid packed BCD)
+    D9          // EXX: restore the caller's general registers
+    08          // EX AF,AF': restore the caller's A and flags
+    C9          // RET
+}
+
+memory 0028 {
+    86          // ADD A,(HL)
+    27          // DAA: turn the binary sum into packed BCD and decimal carry
+    D0          // RET NC: no new hundred
+    1C          // INC E: count decimal carry, preserving C
+    C9          // RET
+}
