@@ -4,6 +4,7 @@ cpu 8088 {
     AX = 1122  BX = 3344  CX = 5566  DX = 7788
     SP = 8000  BP = 9000  SI = 0010  DI = 0020
     CS = 1234  DS = 2000  SS = 3000  ES = 4000  IP = 0100
+    halted = false
     flags { CF = 1  PF = 0  AF = 1  ZF = 1  SF = 1  TF = 0  IF = 1  DF = 1  OF = 1 }
 }
 

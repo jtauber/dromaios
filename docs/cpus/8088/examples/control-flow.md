@@ -45,6 +45,7 @@ sentinels. Initial state is:
 | SP, BP, SI, DI | `8000`, `9000`, `0010`, `0020` |
 | CS, DS, SS, ES, IP | `1234`, `2000`, `3000`, `4000`, `0200` |
 | CF, PF, AF, ZF, SF, TF, IF, DF, OF | `1`, `0`, `1`, `1`, `1`, `0`, `1`, `1`, `1` |
+| `halted` | `false` |
 
 `create8088ControlFlowExample()` returns independent `{ cpu, ram, endAddress }`.
 `create8088ControlFlowExampleMemory()` creates the same image without a CPU.

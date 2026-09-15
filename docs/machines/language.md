@@ -128,7 +128,7 @@ All fields listed for the selected CPU are required, including every flag.
 | 6800 | A, B | X, SP, PC | H, I, N, Z, V, C | — |
 | 6809 | A, B, DP | X, Y, S, U, PC | E, F, H, I, N, Z, V, C | — |
 | z80 | A, B, C, D, E, H, L in both banks; I, R | IX, IY, PC, SP | S, Z, H, PV, N, C in both banks | iff1, iff2, halted |
-| 8088 | — | AX, BX, CX, DX, SP, BP, SI, DI, CS, DS, SS, ES, IP | CF, PF, AF, ZF, SF, TF, IF, DF, OF | — |
+| 8088 | — | AX, BX, CX, DX, SP, BP, SI, DI, CS, DS, SS, ES, IP | CF, PF, AF, ZF, SF, TF, IF, DF, OF | `halted` |
 
 The 8008 also requires its complete address stack and selector. There is no
 separate PC assignment or RAM stack pointer:

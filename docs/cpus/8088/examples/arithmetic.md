@@ -30,6 +30,7 @@ The destination and completion address `12449` initially contain zero.
 | SP, BP, SI, DI | `8000`, `9000`, `0010`, `0020` |
 | CS, DS, SS, ES, IP | `1234`, `2000`, `3000`, `4000`, `0100` |
 | CF, PF, AF, ZF, SF, TF, IF, DF, OF | `1`, `0`, `1`, `1`, `1`, `0`, `1`, `1`, `1` |
+| `halted` | `false` |
 
 These are explicit example choices. AL/AH initially show `22`/`11`; the other
 byte views similarly come from their word registers. Physical PC is `12440`.

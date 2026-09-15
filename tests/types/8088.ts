@@ -16,8 +16,9 @@ export function check8088(ram: Ram, state: Cpu8088State, snapshot: Cpu8088Snapsh
   state.pc;
   // @ts-expect-error All nine flags are Boolean.
   new Cpu8088(ram, { ...state, flags: { ...state.flags, if: 1 } });
-  // @ts-expect-error No halt latch is modeled yet.
-  state.halted;
+  const halted: boolean = state.halted;
+  // @ts-expect-error Snapshot halt latches are readonly.
+  snapshot.halted = true;
   // @ts-expect-error Stored registers in snapshots are readonly.
   snapshot.ip = 0;
   // @ts-expect-error Derived registers in snapshots are readonly.
@@ -32,7 +33,7 @@ export function check8088(ram: Ram, state: Cpu8088State, snapshot: Cpu8088Snapsh
   const result: CpuRunResult<Cpu8088StepRecord> = runCpu(cpu, { maxSteps: 3, endAddress: machine.endAddress });
   if (result.records[0]) {
     const ip: number = result.records[0].before.ip;
-    const pc: number = result.records[0].instruction.address;
+    const pc: number | undefined = result.records[0].instruction?.address;
     const al: number = result.records[0].after.al;
     // @ts-expect-error The runner preserves CPU-specific flags.
     result.records[0].after.flags.cy;
@@ -41,14 +42,20 @@ export function check8088(ram: Ram, state: Cpu8088State, snapshot: Cpu8088Snapsh
 
 export function check8088Records(record: Cpu8088StepRecord, reset: Cpu8088ResetRecord): void {
   if (record.outcome === "unsupported") {
-    const reason: "opcode" = record.reason;
-  } else {
+    const reason: "opcode" | "divide-error" = record.reason;
+    const bytes: readonly number[] = record.instruction.bytes;
+  } else if (record.outcome === "executed") {
     const outcome: "executed" = record.outcome;
     // @ts-expect-error Executed records have no rejection reason.
     record.reason;
+  } else {
+    const halted: "halted" = record.outcome;
+    const instruction: Cpu8088StepRecord["instruction"] = record.instruction;
   }
-  // @ts-expect-error Instruction bytes are readonly.
-  record.instruction.bytes.push(0);
+  if (record.instruction) {
+    // @ts-expect-error Instruction bytes are readonly.
+    record.instruction.bytes.push(0);
+  }
   // @ts-expect-error Access lists are readonly.
   record.accesses.push({ kind: "read", address: 0, value: 0 });
   if (record.accesses[0]) {

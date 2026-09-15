@@ -12,6 +12,7 @@ address is CS:IP; the physical PC is a derived view.
 [Transfer example](examples/transfers.md) ·
 [Control-flow example](examples/control-flow.md) ·
 [Masked word-sum example](examples/word-sum.md) ·
+[Decimal buffer example](examples/decimal-buffer.md) ·
 [dromaios-pc comparison](reference-notes.md)
 
 Hardware behavior follows Intel's
@@ -31,12 +32,14 @@ instructions and undocumented encodings are outside its scope.
 | SP, BP, SI, DI | `0000`–`FFFF` | Stack pointer, base pointer, source and destination indices |
 | CS, DS, SS, ES | `0000`–`FFFF` | Code, data, stack, and extra segment values |
 | IP | `0000`–`FFFF` | Instruction offset within CS |
+| `halted` | Boolean | HLT latch; cleared by reset |
 | CF, PF, AF, ZF, SF, TF, IF, DF, OF in `flags` | Boolean | Carry, parity, auxiliary carry, zero, sign, trap, interrupt enable, direction, overflow |
 
 TypeScript fields are lowercase, including `flags.if`. `.machine` definitions
-conventionally use uppercase register and flag names. There is no halt latch,
-prefetch queue, or packed FLAGS view in this slice. TF and IF can be stored and
-inspected while interrupt delivery is deferred.
+conventionally use uppercase register and flag names and lowercase `halted`.
+There is no prefetch queue or public packed FLAGS view. PUSHF/POPF and
+LAHF/SAHF pack/unpack flags internally; TF and IF are stored and inspected
+while interrupt delivery is deferred.
 
 Snapshots add AL/AH, BL/BH, CL/CH, and DL/DH as low/high byte views of the
 corresponding word registers. They also add `pc`, the physical address of
@@ -50,7 +53,7 @@ selected half of its word, while a word write replaces both halves together.
 `new Cpu8088(ram, initialState)` requires exactly 1 MiB RAM. It copies and
 validates every declared register and flag. Each field is read once, including
 non-enumerable getters; extra metadata and derived views are ignored. Invalid
-numeric state or RAM size throws `RangeError`; non-Boolean flags throw
+numeric state or RAM size throws `RangeError`; non-Boolean flags or halt state throw
 `TypeError`. Construction performs neither reset nor RAM accesses.
 
 `snapshot()` returns detached state and views without accessing RAM. Its
@@ -72,7 +75,7 @@ translated separately. For example, a fetch at `1234:FFFF` reads `2233F`, then
 the next fetch reads `12340`. At `FFFF:000F`, consecutive fetches read `FFFFF`
 and `00000` because the physical address itself wraps.
 
-Direct memory MOV forms use DS:offset; stack operations use SS:SP. ModR/M
+Direct memory MOV forms default to DS:offset; stack operations always use SS:SP. ModR/M
 operands select DS or SS as described below. Words are low byte first. Each
 byte's **offset wraps within its segment before translation** to a 20-bit
 physical address. A word at `1234:FFFF` uses physical `2233F` and `12340`;
@@ -91,7 +94,7 @@ address; it does not require a particular segment value.
 
 ## Instruction steps
 
-`step()` attempts one instruction and returns a `Cpu8088StepRecord` with
+`step()` attempts one instruction or one REP element and returns a `Cpu8088StepRecord` with
 independent before/after snapshots, the instruction's physical start address
 and fetched bytes, ordered memory accesses, and an outcome.
 
@@ -100,6 +103,8 @@ The supported unprefixed forms are:
 | Opcode | Form | Effects |
 | --- | --- | --- |
 | `00`–`05`, `08`–`0D`, `10`–`15`, `18`–`1D`, `20`–`25`, `28`–`2D`, `30`–`35`, `38`–`3D` | ADD/OR/ADC/SBB/AND/SUB/XOR/CMP | Register/memory in both directions and widths, plus AL/AX immediate; CMP preserves its operands |
+| `06`, `0E`, `16`, `1E`; `07`, `17`, `1F` | PUSH ES/CS/SS/DS; POP ES/SS/DS | Transfer a segment through the original SS:SP; preserve flags |
+| `27`, `2F`, `37`, `3F` | DAA/DAS/AAA/AAS | Packed/unpacked decimal adjustment with original-8088 flag and byte rules |
 | `40`–`4F` | INC/DEC r16 | Adjust any word register by one; update arithmetic flags except CF |
 | `50`–`57` | `PUSH r16` | Push AX/CX/DX/BX/SP/BP/SI/DI through SS; preserve flags |
 | `58`–`5F` | `POP r16` | Pop AX/CX/DX/BX/SP/BP/SI/DI through SS; preserve flags |
@@ -108,6 +113,13 @@ The supported unprefixed forms are:
 | `84`, `85`, `A8`, `A9` | TEST r/m,r or AL/AX,n | Set AND flags without changing either operand |
 | `86`, `87`, `90`–`97` | XCHG r/m,r or AX,r16 | Exchange original operand values; 90 is NOP; preserve every flag |
 | `88`–`8B` | MOV r/m,r or r,r/m | Both widths/directions; preserve every flag and the unselected byte half |
+| `8C`, `8E` | MOV r/m16,Sreg or Sreg,r/m16 | All four segment sources; ES/SS/DS destinations; selectors 4–7 and loading CS are excluded |
+| `8D`, `C4`, `C5` | LEA, LES, LDS | Compute an offset or load a four-byte far pointer; memory addressing only |
+| `8F` /0 | POP r/m16 | Resolve the destination before popping; preserve flags |
+| `98`, `99` | CBW, CWD | Sign-extend AL into AX or AX into DX:AX; preserve flags |
+| `9A`, `EA`, `FF` /3, /5 | Far CALL/JMP | Immediate or memory far pointer; change CS:IP; CALL saves CS and the following IP |
+| `9C`–`9F` | PUSHF/POPF/SAHF/LAHF | Packed word or low-status-byte transfers, with reserved-bit policy below |
+| `A4`–`A7`, `AA`–`AF` | MOVS/CMPS/STOS/LODS/SCAS | Byte/word strings, optional repetition, source overrides and fixed ES destinations |
 | `A0`, `A1` | `MOV AL,[offset]`, `MOV AX,[offset]` | Fetch a word offset and read one/two bytes through DS; preserve all flags and, for AL, AH |
 | `A2`, `A3` | `MOV [offset],AL`, `MOV [offset],AX` | Fetch a word offset and write one/two bytes through DS; preserve all registers and flags except advancing IP |
 | `B0`–`B7` | `MOV r8,n` | Fetch an immediate byte and replace AL/CL/DL/BL/AH/CH/DH/BH; preserve the other half and all flags |
@@ -115,9 +127,16 @@ The supported unprefixed forms are:
 | `C2`, `C3` | `RET n`, `RET` | Pop IP; optionally discard an unsigned word-sized byte count from SP |
 | `C6`, `C7` /0 | MOV r/m,n | Immediate byte/word to any register or memory operand; no destination read |
 | `D0`–`D3` /0–5, /7 | ROL/ROR/RCL/RCR/SHL/SHR/SAR | Byte/word, by one or the full CL count; /6 stays unsupported |
+| `CA`, `CB` | RETF n, RETF | Pop IP then CS, optionally discard parameter bytes |
+| `D4 0A`, `D5 0A` | AAM, AAD | Base-ten adjustment; other second bytes are undocumented |
+| `D7` | XLAT | Read a byte at DS:(BX+AL), with optional segment override |
+| `E0`–`E3` | LOOPNE/LOOPE/LOOP/JCXZ | Counted or zero-count branch; preserve flags |
 | `E8` | `CALL rel16` | Push the following IP and take a near relative branch |
 | `E9`, `EB` | `JMP rel16`, `JMP rel8` | Near or short relative branch without a stack access |
 | `F6`, `F7` /0, /2, /3 | TEST r/m,n; NOT; NEG | Immediate AND flags, one's complement, or two's-complement negation |
+| `F6`, `F7` /4–7 | MUL/IMUL/DIV/IDIV | Byte/word multiplication and division; divide errors stop before interrupt delivery |
+| `FF` /2, /4, /6 | Near indirect CALL/JMP, PUSH r/m16 | Read target/value before changing IP or writing the stack |
+| `F4`, `F5`, `F8`, `F9`, `FC`, `FD` | HLT/CMC/CLC/STC/CLD/STD | Set the halt latch or update only the selected flag |
 | `FE`, `FF` /0–1 | INC/DEC r/m | Adjust a byte/word register or memory operand; preserve CF |
 
 Lengths follow the encoding: opcode, optional ModR/M and displacement, then
@@ -172,7 +191,47 @@ a byte to a word. `ggg=000/010/011/101/111` selects ADD/ADC/SBB/SUB/CMP
 for every group byte. OR/AND/XOR (`001/100/110`) are documented only for
 80/81; the 1979 manual marks those selectors unused for 82/83.
 All documented register and memory choices are supported. Segment overrides
-remain unsupported rather than silently ignored.
+replace the default DS/SS choice for explicit memory operands.
+
+LEA computes the effective offset without a data read. LES/LDS read the offset
+word and segment word from the original resolved address before assigning either
+destination; loading DS cannot redirect the second word. All four pointer-byte
+offsets wrap inside that original segment. XLAT captures BX+AL modulo 65536,
+reads one byte through DS or the override, and replaces only AL.
+
+## Prefixes and strings
+
+`26/2E/36/3E` override the data segment with ES/CS/SS/DS. They apply to explicit
+memory operands, absolute MOV, XLAT, and string sources. They never redirect
+instruction fetches, implicit stack accesses, or string destinations in ES.
+`F0` (LOCK) is consumed with its instruction; bus arbitration has no modeled
+state or effect with one CPU and flat RAM. Memory XCHG has the same limitation.
+
+Prefix state belongs to the current attempt and is included in fetched bytes.
+The last segment prefix and last repeat prefix win independently. A prefix-only
+64 KiB code segment rejects after one full scan, preserving state and RAM;
+there is no later-x86 fifteen-byte instruction limit.
+
+MOVS copies DS:SI to ES:DI; CMPS subtracts ES:DI from DS:SI; STOS stores AL/AX
+at ES:DI; LODS loads AL/AX from DS:SI; SCAS subtracts ES:DI from AL/AX. CMPS/SCAS
+set subtraction flags without writing either operand. The other string operations
+preserve flags. Used indices advance by one/two bytes with DF clear or retreat
+with DF set, wrapping to 16 bits; unprefixed strings preserve CX.
+
+`F3` repeats MOVS/STOS/LODS while CX is nonzero and repeats CMPS/SCAS while
+CX is nonzero and the new ZF is set. `F2` repeats CMPS/SCAS while CX is nonzero
+and the new ZF is clear. REPNE on other strings and REP on non-string instructions
+are undocumented and rejected. Incoming ZF does not prevent the first comparison.
+A zero starting CX completes after instruction fetches, without data accesses,
+index changes, or flag changes.
+
+**One repeated element is one step.** After an element, decrement CX; if another
+is required, restore IP to the first prefix. The next step refetches the complete
+encoding. The final element leaves IP after the instruction. This makes the
+runner's step budget meaningful and allows snapshot restoration without hidden
+iteration state. RAM edits between steps affect the next fetch and operand;
+self-modifying REP therefore follows this explicit instruction-level policy,
+without hardware prefetch-queue behavior.
 
 ## Arithmetic and logic
 
@@ -189,7 +248,7 @@ the result. Logic clears CF/OF and sets SF/ZF/PF from the result. Intel leaves
 AF undefined; the model **clears AF deterministically**, matching the pinned
 hardware fixtures rather than promising portable software behavior for that bit.
 Byte operations preserve the other half of their stored word register.
-Decimal adjustment remains a separate, unsupported instruction family.
+
 
 NOT flips every bit within the operand width and preserves all flags. NEG
 computes zero minus the operand: CF is set for every nonzero operand, OF
@@ -197,6 +256,57 @@ only for the most negative value (`80` or `8000`), and the other arithmetic
 flags follow subtraction. INC/DEC memory forms share the register rules,
 including preserving CF. Immediate TEST reads its operand without writing it;
 NOT, NEG, INC, and DEC read then write, even when the value is unchanged.
+
+## Multiply, divide, and decimal adjustment
+
+MUL/IMUL multiply AL by a byte into AX, or AX by a word into DX:AX. MUL sets
+CF/OF when the upper half is nonzero; IMUL sets them when the result does not
+fit the signed input width. SF/ZF/PF/AF are undefined and preserved. Operands
+are read before assigning results, including aliases such as MUL AH or IMUL DX.
+
+DIV divides unsigned AX by a byte, placing quotient/remainder in AL/AH, or
+unsigned DX:AX by a word, placing them in AX/DX. IDIV uses signed values,
+truncates toward zero, and gives the remainder the dividend's sign. All flags
+are undefined and preserved. On the original 8088 the signed quotient ranges
+are **−127..127 and −32767..32767**: even −128 and −32768 cause divide errors.
+These limits follow the 1979 manual and pinned hardware fixtures.
+
+A zero divisor or out-of-range quotient returns `outcome: "unsupported"`,
+`reason: "divide-error"` after fetching the complete instruction and reading
+its operand. All CPU state and RAM are preserved. Detection is implemented;
+delivery of interrupt type 0 is deferred with other interrupts. This atomic
+stop is a model boundary, not the hardware's interrupt frame or return address.
+It permits inspecting the dividend and retrying after changing divisor RAM.
+
+DAA/DAS adjust AL after packed-decimal addition/subtraction. Low-digit
+correction uses AF or a low nibble above nine; high correction uses CF or
+original AL above `99` when incoming AF is clear, **`9F` when it is set**.
+CF records that high correction; DAS does not add a separate low-digit borrow.
+AF records low correction, SF/ZF/PF describe adjusted AL, and undefined OF is
+preserved. AH is unchanged. These original-chip details differ from later x86:
+DAA with AL=`9E`, AF=1, CF=0 gives `A4`, CF=0; DAS with AL=0, AF=1, CF=0 gives
+`FA`, CF=0. Valid packed-BCD arithmetic is checked independently in decimal.
+
+AAA/AAS adjust unpacked AL and AH independently, then mask AL to its low nibble.
+A carry/borrow from AL's byte adjustment does not adjust AH a second time.
+AF/CF report adjustment; undefined OF/SF/ZF/PF are preserved. AAM splits AL into
+decimal quotient AH and remainder AL; AAD combines AH×10+AL into AL modulo 256
+and clears AH. Only the documented fixed second byte `0A` is supported.
+AAM/AAD set SF/ZF/PF from AL and preserve undefined CF/AF/OF. CBW and CWD
+sign-extend the accumulator without changing flags.
+
+## Packed flags and halt
+
+PUSHF packs the nine flags at their original bit positions, with bits 15–12
+and 1 set and bits 5/3 clear. POPF replaces the nine stored flags and ignores
+reserved bits. LAHF writes the low status byte into AH while preserving AL;
+SAHF replaces SF/ZF/AF/PF/CF from AH and preserves OF/DF/IF/TF. CMC complements
+CF; CLC/STC clear/set CF; CLD/STD clear/set DF; other flags remain unchanged.
+
+HLT advances IP and sets `halted`, returning `outcome: "halted"` with its fetched
+instruction. Later steps return the same outcome, `instruction: null`, and no
+accesses or changes. A restored halted snapshot stays halted. Reset clears the
+latch; interrupt wake-up remains deferred. The runner stops on the HLT record.
 
 ## Shifts and rotates
 
@@ -240,7 +350,7 @@ checks documented encodings and defined flags against hardware cases.
 
 ## Control flow and stack
 
-All supported jumps and calls are near: CS remains unchanged. Short JMP and
+Near jumps and calls preserve CS. Short JMP and
 Jcc add a signed byte to IP after the operand; near JMP/CALL add a signed word.
 The resulting IP wraps to 16 bits. Jcc always fetches its displacement,
 including when untaken. No transfer reads or prefetches its target.
@@ -260,14 +370,28 @@ PUSH decrements SP by two, wrapping to 16 bits, then writes the selected word
 low byte first at SS:SP and SS:(SP+1). **PUSH SP stores the decremented SP** on
 the original 8088. POP reads those bytes, increments SP by two, then assigns
 the word to its destination. **POP SP ends with the popped value**, replacing
-the increment. All register stack forms preserve every flag.
+the increment. All register stack forms preserve every flag. Segment PUSH/POP use the original
+SS for the entire access, including POP SS. POP r/m resolves its destination
+before the pop; an SP register destination receives the popped word after
+the increment. FF /6 PUSH SP has the same decremented-value rule as opcode 54.
 
 CALL fetches the complete displacement before pushing the following IP,
 including when the stack overlaps the fetched encoding. It then branches from
 that following IP. RET reads IP from the stack without further adjustment to
 that returned address; `RET n` subsequently adds its unsigned immediate byte
 count to SP, with 16-bit wrapping. The count may be odd or zero. Discarded
-parameters cause no reads. All calls and returns preserve CS and every flag.
+parameters cause no reads. Near calls and returns preserve CS; every call and return preserves flags.
+Indirect near CALL/JMP read a register or memory target before writing the
+stack or changing IP. Far immediate and memory forms capture a complete
+segment:offset pointer; memory forms require a memory ModR/M choice. A far
+CALL pushes the old CS then the following IP before replacing CS:IP, even
+when stack writes overlap the pointer or instruction. RETF pops IP then CS,
+then optionally adds its unsigned parameter byte count to SP.
+
+LOOPNE/LOOPE/LOOP decrement CX modulo 65536 before testing for nonzero. The
+first two also require ZF clear/set; JCXZ tests original CX for zero and
+preserves it. Each fetches its signed displacement on either path. All preserve
+flags and CS; no branch fetches its target as part of the same step.
 
 The [control-flow example](examples/control-flow.md) saves an AX loop counter
 while two nested calls accumulate a sum in RAM, then restores the counter and
@@ -275,20 +399,25 @@ compares it before branching. IP, SP, and the physical PC stay distinct.
 
 ## Unsupported instructions
 
-Unsupported first bytes, including prefixes, produce `outcome: "unsupported"`
-and `reason: "opcode"` after one opcode read. Unsupported operation selectors
-in 82/83, C6/C7, D0–D3, F6/F7, and FE/FF read the opcode and ModR/M, then
-reject without fetching a displacement or immediate or accessing an operand.
-This includes documented operations that remain unimplemented, such as
-multiply/divide and indirect calls. Both paths preserve IP, all other state,
-and RAM. Repeating the attempt repeats the same reads. This atomic rejection
-is a model policy, not an illegal-instruction exception implemented
-by the original chip. Supported steps report `outcome: "executed"`.
+Unsupported first bytes produce `outcome: "unsupported"`, `reason: "opcode"`
+after their opcode fetch (and any preceding prefixes). Invalid ModR/M operation
+or register selections reject immediately after ModR/M, before displacements,
+immediates, or operand accesses. AAM/AAD reject after their second byte when it
+is not `0A`. Invalid repetition combinations reject at the opcode.
+All preserve complete state and RAM; repeating an attempt repeats its reads.
+This atomic rejection is a model policy, not an illegal-instruction exception
+implemented by the original chip. Divide-error rejection is described above.
+
+Deferred documented instructions are IN/OUT (`E4`–`E7`, `EC`–`EF`),
+INT/INTO/IRET (`CC`–`CF`), CLI/STI (`FA`/`FB`), and external-processor ESC
+(`D8`–`DF`) and WAIT (`9B`). ESC communicates with a coprocessor; WAIT observes
+the external TEST input. Both stay with external I/O until those interfaces
+exist. Undocumented aliases and later-x86 additions remain outside scope.
 
 ## CPU reset
 
 `reset()` sets CS to `FFFF`, IP to `0000`, DS/SS/ES to `0000`, and clears all
-nine flags, including IF. It performs **no RAM access**: `FFFF0` is the first
+nine flags, including IF, and clears `halted`. It performs **no RAM access**: `FFFF0` is the first
 instruction address, not a pointer read from a reset-vector table.
 
 AX/BX/CX/DX/SP/BP/SI/DI and RAM are preserved. Intel's reset table does not
@@ -349,8 +478,22 @@ The [signed word transformation](examples/word-transform.md) checks exact
 records, carry propagation, two-word negation, both marker paths, byte swaps,
 segment-end reads, physical wrapping, and complete guarded memory images.
 
-Other instruction forms, segment overrides and other prefixes, far transfers,
-loop instructions, segment/FLAGS stack operations, interrupts, I/O, mapped
-devices, timing, bus arbitration, and prefetching remain deferred. The instruction-level
-records are not a cycle trace; self-modifying code observes current RAM without
-the original chip's prefetch-queue effects.
+Completion checks additionally cover all new register and memory selectors,
+segment/FLAGS stack transfers, far pointers and overlapping frames, original
+BCD and signed-division boundaries, every byte multiplication pair, full-word
+sign extension/AAD/POPF sweeps, and invalid encodings. Prefix and string tests
+check both directions and widths, empty repetition, flag-based termination,
+segment and bus wrapping, exact accesses, bounded running, and snapshot-only
+resumption. A separate encoding inventory audits 268 supported forms and the
+23 deferred documented forms.
+
+The [decimal buffer example](examples/decimal-buffer.md) combines a wrapped
+three-word copy, a far decimal-formatting routine, unsigned division, reverse
+string stores, saved FLAGS, and HLT. Its tests specify all 52 records, guarded
+full RAM images, decimal output at unsigned boundaries, and restoration inside
+both REP and a far-call frame.
+
+Interrupt delivery, external I/O/coprocessor interfaces, mapped devices, timing,
+bus arbitration, and prefetching remain deferred. The instruction-level records
+are not a cycle trace; self-modifying code observes current RAM without the
+original chip's prefetch-queue effects.

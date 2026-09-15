@@ -1,0 +1,47 @@
+// Copy three words between segments, then format the first as five decimal digits in a far subroutine.
+ram 100000
+
+cpu 8088 {
+  AX = A55A  BX = 3344  CX = 5566  DX = 7788
+  SP = 0002  BP = 9000  SI = 0010  DI = 0020
+  CS = 1234  DS = 2000  SS = 6000  ES = 4000  IP = 0100
+  halted = false
+  flags { CF = 0  PF = 0  AF = 1  ZF = 0  SF = 0  TF = 0  IF = 1  DF = 1  OF = 1 }
+}
+
+memory 12440 {
+  9C             // PUSHF: preserve the caller's flags, including DF
+  FC             // CLD: copy forward
+  C4 3E 04 00    // LES DI,[0004h]: destination 4000:0100
+  C5 36 00 00    // LDS SI,[0000h]: source 3000:FFFE
+  B9 03 00       // MOV CX,3
+  F3 A5          // REP MOVSW: one word per step, wrapping SI within DS
+  26 A1 00 01    // MOV AX,ES:[0100h]: read the copied first word
+  9A 00 02 00 50 // CALL 5000:0200: format AX as decimal
+  9D             // POPF: restore the caller's flags
+  F4             // HLT
+}
+
+memory 50200 {
+  BB 0A 00       // MOV BX,10: decimal divisor
+  B9 05 00       // MOV CX,5: fixed five-digit output
+  BF 14 01       // MOV DI,0114h: final output position
+  FD             // STD: write digits from right to left
+  31 D2          // XOR DX,DX: zero-extend AX into DX:AX
+  F7 F3          // DIV BX: AX = quotient, DX = remainder
+  92             // XCHG AX,DX: expose the remainder in AL
+  04 30          // ADD AL,30h: encode the decimal digit as ASCII
+  AA             // STOSB: write through ES, decrement DI
+  92             // XCHG AX,DX: recover the quotient for the next iteration
+  E2 F5          // LOOP 020Ah
+  CB             // RETF
+}
+
+memory 20000 { FE FF 00 30 00 01 00 40 } // Source and destination far pointers.
+memory 3FFFD { DE 39 30 } // Guard and first input word: 12345, at DS:FFFE.
+memory 30000 { FF FF 00 00 AD } // Remaining two input words and guard after SI wraps.
+memory 400FF { DE AA BB CC DD EE FF AD } // Guarded six-byte copy destination.
+memory 4010F { DE CC CC CC CC CC AD } // Guarded five-byte text destination.
+memory 60000 { 77 88 } // Stack bytes replaced by saved FLAGS.
+memory 6FFFB { DE AA BB CC DD AD } // Guarded far-return frame across SP wrapping.
+end 1245A

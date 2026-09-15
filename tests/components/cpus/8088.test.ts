@@ -4,6 +4,7 @@ import { Cpu8088 } from "../../../src/components/cpus/8088.js";
 import type { Cpu8088Flags, Cpu8088State, Cpu8088Snapshot, Cpu8088MemoryAccess } from "../../../src/components/cpus/8088.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
+import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 // Literal encodings from Intel's instruction table, independent of the core's selector arrays.
 const wordMoves = [
@@ -16,7 +17,7 @@ const byteMoves = [
 ] as const;
 
 function initialState(overrides: Partial<Cpu8088State> = {}): Cpu8088State {
-  return { ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788, sp: 0x8000, bp: 0x9000, si: 0x10, di: 0x20,
+  return { halted: false, ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788, sp: 0x8000, bp: 0x9000, si: 0x10, di: 0x20,
     cs: 0x1234, ds: 0x2000, ss: 0x3000, es: 0x4000, ip: 0x100, flags: flags(0x1ff), ...overrides };
 }
 
@@ -98,7 +99,7 @@ test("8088 copies each declared getter once and ignores extra metadata and contr
     }
   }
   assert.deepEqual(new Cpu8088(new Ram(0x100000), state).snapshot(), expected);
-  assert.equal(calls.size, 23);
+  assert.equal(calls.size, 24);
   assert.ok([...calls.values()].every(count => count === 1));
 });
 
@@ -374,16 +375,15 @@ test("8088 stores every word value and leaves AX and every other register unchan
   }
 });
 
-test("8088 rejects every other opcode and prefix with one fetch and no state change", () => {
+test("8088 rejects every deferred or undocumented first byte with one fetch and no state change", () => {
   const ram = new ObservedRam(0x100000);
+  const unsupported = [
+    0x0f, 0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67, 0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
+    0x9b, 0xc0, 0xc1, 0xc8, 0xc9, 0xcc, 0xcd, 0xce, 0xcf, 0xd6, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
+    0xe4, 0xe5, 0xe6, 0xe7, 0xec, 0xed, 0xee, 0xef, 0xf1, 0xfa, 0xfb,
+  ];
   for (const [cs, ip, address] of [[0x1234, 0x100, 0x12440], [0xffff, 0xf, 0xfffff], [0xffff, 0x10, 0]] as const) {
-    for (let opcode = 0; opcode < 256; opcode++) {
-      if ([...Array.from({ length: 8 }, (_, i) => Array.from({ length: 6 }, (_, j) => i * 8 + j)).flat(),
-        ...Array.from({ length: 16 }, (_, i) => 0x40 + i), 0x80, 0x81, 0x82, 0x83, 0x84, 0x85,
-        0x86, 0x87, 0x88, 0x89, 0x8a, 0x8b, ...Array.from({ length: 8 }, (_, i) => 0x90 + i),
-        0xc6, 0xc7, 0xd0, 0xd1, 0xd2, 0xd3, 0xf6, 0xf7, 0xfe, 0xff, 0xa8, 0xa9, 0xc2, 0xc3, 0xe8, 0xe9, 0xeb,
-        ...wordStacks.flatMap(([push, pop]) => [push, pop]), ...conditionalJumps.map(([opcode]) => opcode),
-        0xa0, 0xa1, 0xa2, 0xa3, ...wordMoves.map(([code]) => code), ...byteMoves.map(([code]) => code)].includes(opcode)) continue;
+    for (const opcode of unsupported) {
       ram.write(address, opcode);
       const before = snapshot(initialState({ cs, ip }));
       const cpu = new Cpu8088(ram, before);
@@ -982,7 +982,7 @@ test("8088 immediate memory ALU fetches overlapping operands before reading or w
       { kind: "write", address: 0x12444, value: 2 }, { kind: "write", address: 0x12445, value: 0 }]);
   const cpu = new Cpu8088(ram, before);
   const record = cpu.step();
-  assert.deepEqual(record.instruction.bytes, [0x81, 6, 4, 1, 2, 0]);
+  assert.deepEqual(record.instruction!.bytes, [0x81, 6, 4, 1, 2, 0]);
   assert.equal(ram.read(0x12444), 4);
   const saved = structuredClone(record);
   ram.write(0x12444, 9);
@@ -1210,7 +1210,7 @@ test("8088 new groups reject every unsupported selector before displacement/data
   for (const [opcode, supported] of [
     [0xc6, [0]], [0xc7, [0]], [0xd0, [0, 1, 2, 3, 4, 5, 7]], [0xd1, [0, 1, 2, 3, 4, 5, 7]],
     [0xd2, [0, 1, 2, 3, 4, 5, 7]], [0xd3, [0, 1, 2, 3, 4, 5, 7]],
-    [0xf6, [0, 2, 3]], [0xf7, [0, 2, 3]], [0xfe, [0, 1]], [0xff, [0, 1]],
+    [0xf6, [0, 2, 3, 4, 5, 6, 7]], [0xf7, [0, 2, 3, 4, 5, 6, 7]], [0xfe, [0, 1]], [0xff, [0, 1, 2, 3, 4, 5, 6]], [0x8f, [0]],
   ] as const) for (let group = 0; group < 8; group++) {
     if ((supported as readonly number[]).includes(group)) continue;
     for (let mode = 0; mode < 4; mode++) for (let rm = 0; rm < 8; rm++) {
@@ -1292,4 +1292,526 @@ test("8088 transfers and unary/shift operations preserve retained records throug
   assert.deepEqual(first, saved);
   assert.deepEqual(exchange, savedExchange);
   assert.equal(cpu.snapshot().ip, 0x102);
+});
+
+// Completion tranche: literal encodings and arithmetic/program oracles, independent of decoder construction.
+const segments = [[0x26, "es"], [0x2e, "cs"], [0x36, "ss"], [0x3e, "ds"]] as const;
+const words = ["ax", "cx", "dx", "bx", "sp", "bp", "si", "di"] as const;
+function address(segment: number, offset: number): number { return (segment * 16 + offset % 65536) % 1048576; }
+function put(ram: Ram, segment: number, offset: number, bytes: readonly number[]): void {
+  bytes.forEach((value, i) => ram.write(address(segment, offset + i), value));
+}
+function wordBytes(value: number): number[] { return [value % 256, Math.floor(value / 256)]; }
+function dataReads(segment: number, offset: number, bytes: readonly number[]): Cpu8088MemoryAccess[] {
+  return bytes.map((value, i) => ({ kind: "read", address: address(segment, offset + i), value }));
+}
+function dataWrites(segment: number, offset: number, bytes: readonly number[]): Cpu8088MemoryAccess[] {
+  return bytes.map((value, i) => ({ kind: "write", address: address(segment, offset + i), value }));
+}
+function resultFlags(value: number, width: 8 | 16): Pick<Cpu8088Flags, "pf" | "sf" | "zf"> {
+  return { pf: (value % 256).toString(2).replaceAll("0", "").length % 2 === 0, sf: value >= 2 ** (width - 1), zf: value === 0 };
+}
+function reject(ram: ObservedRam, before: Cpu8088State, bytes: readonly number[], reason: "opcode" | "divide-error" = "opcode",
+  data: readonly Cpu8088MemoryAccess[] = []): void {
+  put(ram, before.cs, before.ip, bytes);
+  const cpu = new Cpu8088(ram, before);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    ram.accesses.length = 0;
+    const accesses = [...dataReads(before.cs, before.ip, bytes), ...data];
+    assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(before), outcome: "unsupported", reason,
+      instruction: { address: snapshot(before).pc, bytes }, accesses });
+    assert.deepEqual(ram.accesses, accesses);
+  }
+}
+
+test("8088 completion halt is stored, validated, detached, resumable, and cleared by reset", () => {
+  const ram = new ObservedRam(0x100000), before = initialState({ ip: 0xffff });
+  put(ram, before.cs, before.ip, [0xf4]);
+  const cpu = new Cpu8088(ram, before);
+  const after = snapshot({ ...before, ip: 0, halted: true });
+  ram.accesses.length = 0;
+  assert.deepEqual(runCpu(cpu, { maxSteps: 10 }), { stopReason: "halted", records: [{
+    before: snapshot(before), after, outcome: "halted", instruction: { address: snapshot(before).pc, bytes: [0xf4] },
+    accesses: dataReads(before.cs, before.ip, [0xf4]),
+  }] });
+  for (const stopped of [cpu, new Cpu8088(ram, after)]) {
+    ram.accesses.length = 0;
+    assert.deepEqual(stopped.step(), { before: after, after, instruction: null, outcome: "halted", accesses: [] });
+    assert.deepEqual(ram.accesses, []);
+    assert.equal(stopped.reset().after.halted, false);
+  }
+  for (const value of [0, 1, undefined, "false", null]) {
+    const state = initialState(); Reflect.set(state, "halted", value);
+    assert.throws(() => new Cpu8088(ram, state), TypeError);
+  }
+});
+
+test("8088 completion prefixes select all segments across every memory mode and both widths", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [prefix, segment] of segments) for (const form of addressingCases()) for (const width of [8, 16] as const) {
+    const before = addressedState(), value = width === 8 ? 0x5a : 0xa55a;
+    const data = width === 8 ? [value] : wordBytes(value);
+    put(ram, before[segment], form.offset, data);
+    const bytes = [prefix, width === 8 ? 0x8a : 0x8b, form.mod * 64 + form.rm, ...form.displacement];
+    checkStep(ram, before, bytes, { ...before, ax: width === 8 ? 0x115a : value, ip: before.ip + bytes.length }, undefined,
+      dataReads(before[segment], form.offset, data));
+    const absolute = [prefix, width === 8 ? 0xa2 : 0xa3, ...wordBytes(form.offset)];
+    checkStep(ram, before, absolute, { ...before, ip: before.ip + 4 }, undefined,
+      dataWrites(before[segment], form.offset, width === 8 ? [0x22] : [0x22, 0x11]));
+  }
+});
+
+test("8088 completion prefixes are local, last-of-kind wins, and LOCK permits one ordinary instruction", () => {
+  const ram = new ObservedRam(0x100000), before = initialState({ ip: 0xfffc });
+  put(ram, before.cs, before.ip, [0xf0, 0x3e, 0x26, 0xa1, 0xff, 0xff, 0xa1, 0xff, 0xff]);
+  put(ram, before.es, 0xffff, [0x34, 0x12]); put(ram, before.ds, 0xffff, [0x78, 0x56]);
+  const cpu = new Cpu8088(ram, before), first = cpu.step();
+  assert.equal(first.after.ax, 0x1234); assert.equal(first.after.ip, 2);
+  assert.deepEqual(first.instruction?.bytes, [0xf0, 0x3e, 0x26, 0xa1, 0xff, 0xff]);
+  assert.equal(cpu.step().after.ax, 0x5678);
+  const many = [...Array<number>(20).fill(0xf0), 0x90];
+  checkStep(ram, initialState(), many, initialState({ ip: 0x115 })); // No later-x86 15-byte limit.
+  for (let offset = 0; offset < 65536; offset++) ram.write(address(before.cs, offset), 0x26);
+  ram.accesses.length = 0;
+  const rejected = new Cpu8088(ram, before).step();
+  assert.equal(rejected.outcome, "unsupported"); assert.deepEqual(rejected.before, rejected.after);
+  assert.equal(rejected.instruction?.bytes.length, 65536); assert.equal(ram.accesses.length, 65536);
+  reject(ram, before, [0x26, 0xf0, 0xcd]); // No immediate or interrupt-vector read.
+  reject(ram, before, [0xf3, 0x90]);
+  reject(ram, before, [0xf2, 0xa4]);
+  reject(ram, before, [0xf3, 0xf7]); // Undocumented REP arithmetic is excluded before ModR/M.
+});
+
+test("8088 completion segment MOV, LEA, LES and LDS preserve resolved addresses and exact access widths", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const form of addressingCases()) for (let reg = 0; reg < 8; reg++) {
+    const before = addressedState(), modRM = form.mod * 64 + reg * 8 + form.rm;
+    const suffix = [modRM, ...form.displacement];
+    checkStep(ram, before, [0x8d, ...suffix], { ...before, [words[reg]!]: form.offset, ip: before.ip + 1 + suffix.length });
+    for (const [opcode, segment] of [[0xc4, "es"], [0xc5, "ds"]] as const) {
+      const pointer = [0x78, 0x56, 0x34, 0x12];
+      put(ram, before[form.segment], form.offset, pointer);
+      checkStep(ram, before, [opcode, ...suffix], { ...before, [words[reg]!]: 0x5678, [segment]: 0x1234,
+        ip: before.ip + 1 + suffix.length }, undefined, dataReads(before[form.segment], form.offset, pointer));
+    }
+  }
+  for (let selector = 0; selector < 4; selector++) for (let reg = 0; reg < 8; reg++) {
+    const segment = segments[selector]![1], before = initialState(), modRM = 0xc0 + selector * 8 + reg;
+    checkStep(ram, before, [0x8c, modRM], { ...before, [words[reg]!]: before[segment], ip: 0x102 });
+    if (segment !== "cs") checkStep(ram, before, [0x8e, modRM], { ...before, [segment]: before[words[reg]!], ip: 0x102 });
+  }
+  for (let selector = 0; selector < 4; selector++) for (const form of addressingCases()) {
+    const before = addressedState(), segment = segments[selector]![1];
+    const suffix = [form.mod * 64 + selector * 8 + form.rm, ...form.displacement];
+    checkStep(ram, before, [0x8c, ...suffix], { ...before, ip: before.ip + 1 + suffix.length }, undefined,
+      dataWrites(before[form.segment], form.offset, wordBytes(before[segment])));
+    if (segment === "cs") continue;
+    put(ram, before[form.segment], form.offset, [0x34, 0x12]);
+    checkStep(ram, before, [0x8e, ...suffix], { ...before, [segment]: 0x1234, ip: before.ip + 1 + suffix.length }, undefined,
+      dataReads(before[form.segment], form.offset, [0x34, 0x12]));
+  }
+});
+
+test("8088 completion segment pushes/pops use original SS despite overrides and segment replacement", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [push, pop, segment] of [[0x06, 0x07, "es"], [0x0e, undefined, "cs"], [0x16, 0x17, "ss"], [0x1e, 0x1f, "ds"]] as const) {
+    for (const sp of [0, 1, 2, 0xffff]) {
+      const before = initialState({ ss: 0xffff, sp });
+      checkStep(ram, before, [0x26, push], { ...before, sp: (sp + 65534) % 65536, ip: 0x102 }, undefined,
+        dataWrites(before.ss, (sp + 65534) % 65536, wordBytes(before[segment])));
+      if (pop === undefined) continue;
+      put(ram, before.ss, sp, [0x78, 0x56]);
+      checkStep(ram, before, [0x26, pop], { ...before, [segment]: 0x5678, sp: (sp + 2) % 65536, ip: 0x102 }, undefined,
+        dataReads(before.ss, sp, [0x78, 0x56]));
+    }
+  }
+});
+
+test("8088 completion indirect near transfers, PUSH and POP select every register and memory mode", () => {
+  const ram = new ObservedRam(0x100000);
+  for (let reg = 0; reg < 8; reg++) for (const group of [2, 4, 6]) {
+    const before = initialState(), value = before[words[reg]!], sp = (before.sp + 65534) % 65536;
+    const push = group !== 4;
+    checkStep(ram, before, [0xff, 0xc0 + group * 8 + reg], { ...before, sp: push ? sp : before.sp,
+      ip: group === 6 ? 0x102 : value }, undefined, push ? dataWrites(before.ss, sp,
+      wordBytes(group === 2 ? 0x102 : reg === 4 ? sp : value)) : []);
+    put(ram, before.ss, before.sp, [0x78, 0x56]);
+    checkStep(ram, before, [0x8f, 0xc0 + reg], { ...before, sp: before.sp + 2, [words[reg]!]: 0x5678, ip: 0x102 }, undefined,
+      dataReads(before.ss, before.sp, [0x78, 0x56]));
+  }
+  for (const form of addressingCases()) for (const group of [2, 4, 6]) {
+    const before = addressedState(), bytes = [0xff, form.mod * 64 + group * 8 + form.rm, ...form.displacement];
+    const push = group !== 4;
+    put(ram, before[form.segment], form.offset, [0x78, 0x56]);
+    checkStep(ram, before, bytes, { ...before, sp: push ? before.sp - 2 : before.sp,
+      ip: group === 6 ? before.ip + bytes.length : 0x5678 }, undefined,
+      [...dataReads(before[form.segment], form.offset, [0x78, 0x56]), ...(push ? dataWrites(before.ss, before.sp - 2,
+        wordBytes(group === 2 ? before.ip + bytes.length : 0x5678)) : [])]);
+    put(ram, before.ss, before.sp, [0x34, 0x12]);
+    const pop = [0x8f, form.mod * 64 + form.rm, ...form.displacement];
+    checkStep(ram, before, pop, { ...before, sp: before.sp + 2, ip: before.ip + pop.length }, undefined,
+      [...dataReads(before.ss, before.sp, [0x34, 0x12]), ...dataWrites(before[form.segment], form.offset, [0x34, 0x12])]);
+  }
+});
+
+test("8088 completion far transfers capture pointers before overlapping stack writes and wrap each word", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const call of [false, true]) for (const indirect of [false, true]) {
+    for (const sp of [0, 1, 3, 0xffff]) {
+      const before = initialState({ ds: 0xffff, ss: 0xffff, sp });
+      const pointer = [0xff, 0xff, 0xfe, 0xff], offset = (sp + 65532) % 65536;
+      put(ram, before.ds, offset, pointer);
+      const bytes = indirect ? [0xff, call ? 0x1e : 0x2e, ...wordBytes(offset)] : [call ? 0x9a : 0xea, ...pointer];
+      checkStep(ram, before, bytes, { ...before, cs: 0xfffe, ip: 0xffff, sp: call ? offset : sp }, undefined,
+        [...(indirect ? dataReads(before.ds, offset, pointer) : []), ...(call ? [
+          ...dataWrites(before.ss, (sp + 65534) % 65536, wordBytes(before.cs)),
+          ...dataWrites(before.ss, offset, wordBytes(before.ip + bytes.length)),
+        ] : [])]);
+    }
+  }
+  for (const form of addressingCases()) for (const group of [3, 5]) {
+    const before = addressedState(), bytes = [0xff, form.mod * 64 + group * 8 + form.rm, ...form.displacement];
+    put(ram, before[form.segment], form.offset, [0x45, 0x23, 0x89, 0x67]);
+    checkStep(ram, before, bytes, { ...before, cs: 0x6789, ip: 0x2345, sp: group === 3 ? before.sp - 4 : before.sp }, undefined,
+      [...dataReads(before[form.segment], form.offset, [0x45, 0x23, 0x89, 0x67]), ...(group === 3 ? [
+        ...dataWrites(before.ss, before.sp - 2, wordBytes(before.cs)),
+        ...dataWrites(before.ss, before.sp - 4, wordBytes(before.ip + bytes.length)),
+      ] : [])]);
+  }
+  for (const discard of [undefined, 0, 1, 0x7fff, 0xffff]) for (const sp of [0, 0xfffd, 0xffff]) {
+    const before = initialState({ ss: 0xffff, sp });
+    put(ram, before.ss, sp, [0x78, 0x56, 0x34, 0x12]);
+    const bytes = discard === undefined ? [0xcb] : [0xca, ...wordBytes(discard)];
+    checkStep(ram, before, bytes, { ...before, cs: 0x1234, ip: 0x5678, sp: (sp + 4 + (discard ?? 0)) % 65536 }, undefined,
+      dataReads(before.ss, sp, [0x78, 0x56, 0x34, 0x12]));
+  }
+});
+
+test("8088 completion LOOP conditions use post-decrement CX, JCXZ preserves it, and all flags survive", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const opcode of [0xe0, 0xe1, 0xe2, 0xe3]) for (const cx of [0, 1, 2, 0x8000, 0xffff]) {
+    for (let bits = 0; bits < 512; bits++) for (const displacement of [0, 0x7f, 0x80, 0xff]) {
+      const before = initialState({ cx, ip: 0xffff, flags: flags(bits) });
+      const count = opcode === 0xe3 ? cx : (cx + 65535) % 65536;
+      const take = opcode === 0xe3 ? count === 0 : count !== 0 && (opcode === 0xe2 || before.flags.zf === (opcode === 0xe1));
+      checkStep(ram, before, [opcode, displacement], { ...before, cx: count,
+        ip: take ? (1 + (displacement < 128 ? displacement : displacement - 256) + 65536) % 65536 : 1 });
+    }
+  }
+});
+
+test("8088 completion flag transfers define reserved bits and preserve unselected flags", () => {
+  const ram = new ObservedRam(0x100000);
+  const positions = { cf: 0, pf: 2, af: 4, zf: 6, sf: 7, tf: 8, if: 9, df: 10, of: 11 } as const;
+  for (let bits = 0; bits < 512; bits++) {
+    const before = initialState({ flags: flags(bits), ss: 0xffff, sp: 1 });
+    const packed = 0xf002 + Object.entries(positions).reduce((n, [flag, bit]) => n + (before.flags[flag as keyof Cpu8088Flags] ? 2 ** bit : 0), 0);
+    checkStep(ram, before, [0x9c], { ...before, sp: 0xffff, ip: 0x101 }, undefined, dataWrites(before.ss, 0xffff, wordBytes(packed)));
+    checkStep(ram, before, [0x9f], { ...before, ax: (packed % 256) * 256 + 0x22, ip: 0x101 });
+    for (const [opcode, flag, value] of [[0xf5, "cf", !before.flags.cf], [0xf8, "cf", false], [0xf9, "cf", true],
+      [0xfc, "df", false], [0xfd, "df", true]] as const) {
+      checkStep(ram, before, [opcode], { ...before, ip: 0x101, flags: { ...before.flags, [flag]: value } });
+    }
+  }
+  for (let packed = 0; packed < 65536; packed++) {
+    const before = initialState();
+    const decoded = Object.fromEntries(Object.entries(positions).map(([flag, bit]) => [flag, Math.floor(packed / 2 ** bit) % 2 === 1])) as Cpu8088Flags;
+    put(ram, before.ss, before.sp, wordBytes(packed));
+    checkStep(ram, before, [0x9d], { ...before, flags: decoded, sp: before.sp + 2, ip: 0x101 }, undefined,
+      dataReads(before.ss, before.sp, wordBytes(packed)));
+  }
+  for (let ah = 0; ah < 256; ah++) for (const bits of [0, 511]) {
+    const before = initialState({ ax: ah * 256 + 0x55, flags: flags(bits) });
+    const selected = { cf: ah % 2 === 1, pf: Math.floor(ah / 4) % 2 === 1, af: Math.floor(ah / 16) % 2 === 1,
+      zf: Math.floor(ah / 64) % 2 === 1, sf: ah >= 128 };
+    checkStep(ram, before, [0x9e], { ...before, ip: 0x101, flags: { ...before.flags, ...selected } });
+  }
+});
+
+test("8088 completion multiply exhausts byte operands and checks signed/unsigned word boundaries", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const signed of [false, true]) for (const width of [8, 16] as const) {
+    const values = width === 8 ? Array.from({ length: 256 }, (_, i) => i) : [0, 1, 2, 0x7f, 0xff, 0x100, 0x7fff, 0x8000, 0x8001, 0xfffe, 0xffff];
+    for (const left of values) for (const right of values) {
+      const a = signed ? BigInt.asIntN(width, BigInt(left)) : BigInt(left);
+      const b = signed ? BigInt.asIntN(width, BigInt(right)) : BigInt(right);
+      const product = a * b, encoded = BigInt.asUintN(width * 2, product);
+      const overflow = product !== (signed ? BigInt.asIntN(width, product) : BigInt.asUintN(width, product));
+      const before = initialState({ ax: width === 8 ? 0xa500 + left : left, bx: right, flags: flags((left + right) % 512) });
+      checkStep(ram, before, [width === 8 ? 0xf6 : 0xf7, signed ? 0xeb : 0xe3], { ...before,
+        ax: Number(encoded % 65536n), dx: width === 16 ? Number(encoded / 65536n) : before.dx, ip: 0x102,
+        flags: { ...before.flags, cf: overflow, of: overflow } });
+    }
+  }
+});
+
+test("8088 completion multiply/divide read every register alias before replacing AX or DX", () => {
+  const ram = new ObservedRam(0x100000);
+  for (let reg = 0; reg < 8; reg++) for (const width of [8, 16] as const) for (const group of [4, 5, 6, 7]) {
+    const before = initialState({ ax: 0x017f, bx: 0x0102, cx: 0x0304, dx: 0, sp: 0x100, bp: 0x80, si: 2, di: 3 });
+    const operand = BigInt(registerValue(before, width, reg)), signed = group % 2 === 1;
+    const divisor = signed ? BigInt.asIntN(width, operand) : operand;
+    const bytes = [width === 8 ? 0xf6 : 0xf7, 0xc0 + group * 8 + reg];
+    if (group < 6) {
+      const accumulator = signed ? BigInt.asIntN(width, BigInt(before.ax)) : BigInt.asUintN(width, BigInt(before.ax));
+      const product = accumulator * divisor, encoded = BigInt.asUintN(2 * width, product);
+      const overflow = product !== (signed ? BigInt.asIntN(width, product) : BigInt.asUintN(width, product));
+      checkStep(ram, before, bytes, { ...before, ax: Number(encoded % 65536n),
+        dx: width === 16 ? Number(encoded / 65536n) : before.dx, ip: 0x102, flags: { ...before.flags, cf: overflow, of: overflow } });
+    } else {
+      const dividend = BigInt(before.ax), quotient = divisor === 0n ? 0n : dividend / divisor;
+      const limit = 1n << BigInt(signed ? width - 1 : width);
+      if (divisor === 0n || quotient >= limit || signed && quotient <= -limit) reject(ram, before, bytes, "divide-error");
+      else {
+        const remainder = dividend % divisor;
+        checkStep(ram, before, bytes, { ...before, ip: 0x102,
+          ax: width === 8 ? Number(BigInt.asUintN(8, quotient) + BigInt.asUintN(8, remainder) * 256n) : Number(BigInt.asUintN(16, quotient)),
+          dx: width === 16 ? Number(BigInt.asUintN(16, remainder)) : before.dx });
+      }
+    }
+  }
+});
+
+test("8088 completion division uses full unsigned dividends and truncates signed results toward zero", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const width of [8, 16] as const) for (const signed of [false, true]) {
+    const limit = 1n << BigInt(width), sign = limit / 2n;
+    const divisors = signed ? [-sign, -sign + 1n, -127n, -3n, -1n, 0n, 1n, 3n, 127n, sign - 1n] : [0n, 1n, 2n, 3n, sign, limit - 1n];
+    for (const divisor of divisors) {
+      const quotients = [-sign - 1n, -sign, -sign + 1n, -1n, 0n, 1n, sign - 1n, sign, limit - 1n, limit];
+      const dividends = [...quotients.flatMap(q => [q * divisor - 1n, q * divisor, q * divisor + 1n]),
+        -(limit * limit / 2n), limit * limit / 2n, limit * limit - 1n];
+      for (const input of dividends) {
+        const raw = BigInt.asUintN(width * 2, input), dividend = signed ? BigInt.asIntN(width * 2, raw) : raw;
+        const before = initialState({ cs: 0xffff, ip: 0xffff, ax: Number(raw % 65536n),
+          dx: width === 16 ? Number(raw / 65536n) : 0xa55a, bx: Number(BigInt.asUintN(width, divisor)) });
+        const bytes = [width === 8 ? 0xf6 : 0xf7, signed ? 0xfb : 0xf3];
+        const quotient = divisor === 0n ? 0n : dividend / divisor;
+        // The 1979 manual gives symmetric signed ranges: -127..127 and -32767..32767.
+        if (divisor === 0n || (signed ? quotient <= -sign || quotient >= sign : quotient >= limit)) {
+          reject(ram, before, bytes, "divide-error");
+        } else {
+          const remainder = dividend % divisor;
+          checkStep(ram, before, bytes, { ...before, ip: 1,
+            ax: width === 8 ? Number(BigInt.asUintN(8, quotient) + BigInt.asUintN(8, remainder) * 256n) : Number(BigInt.asUintN(16, quotient)),
+            dx: width === 16 ? Number(BigInt.asUintN(16, remainder)) : before.dx });
+        }
+      }
+    }
+  }
+});
+
+test("8088 completion multiply/divide memory forms cover all modes, overrides, and atomic error reads", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const form of addressingCases()) for (const width of [8, 16] as const) for (const group of [4, 5, 6, 7]) {
+    const before = { ...addressedState(), ax: 127, dx: 0 };
+    const data = width === 8 ? [3] : [3, 0];
+    put(ram, before.es, form.offset, data);
+    const bytes = [0x26, width === 8 ? 0xf6 : 0xf7, form.mod * 64 + group * 8 + form.rm, ...form.displacement];
+    const multiply = group < 6;
+    const overflow = width === 8 && multiply;
+    checkStep(ram, before, bytes, { ...before, ip: before.ip + bytes.length,
+      ax: multiply ? 381 : width === 8 ? 0x012a : 42, dx: width === 16 ? multiply ? 0 : 1 : before.dx,
+      flags: multiply ? { ...before.flags, cf: overflow, of: overflow } : before.flags }, undefined,
+      dataReads(before.es, form.offset, data));
+    if (!multiply) {
+      const zero = data.map(() => 0); put(ram, before.es, form.offset, zero);
+      reject(ram, before, bytes, "divide-error", dataReads(before.es, form.offset, zero));
+    }
+  }
+});
+
+test("8088 completion decimal adjustment follows decimal arithmetic for every valid BCD operand pair", () => {
+  const ram = new ObservedRam(0x100000), bcd = (n: number): number => Math.floor(n / 10) * 16 + n % 10;
+  for (const subtracting of [false, true]) for (let left = 0; left < 100; left++) for (let right = 0; right < 100; right++) {
+    for (const carry of [0, 1]) {
+      const a = bcd(left), b = bcd(right), binary = subtracting ? a - b - carry : a + b + carry;
+      const decimal = subtracting ? left - right - carry : left + right + carry;
+      const before = initialState({ ax: 0xa500 + (binary + 256) % 256, flags: { ...flags(511),
+        cf: subtracting ? binary < 0 : binary > 255,
+        af: subtracting ? a % 16 < b % 16 + carry : a % 16 + b % 16 + carry >= 16 } });
+      const result = bcd((decimal + 100) % 100);
+      checkStep(ram, before, [subtracting ? 0x2f : 0x27], { ...before, ax: 0xa500 + result, ip: 0x101,
+        flags: { ...before.flags, ...resultFlags(result, 8), cf: decimal < 0 || decimal >= 100,
+          af: subtracting ? left % 10 < right % 10 + carry : left % 10 + right % 10 + carry >= 10 } });
+    }
+  }
+});
+
+test("8088 completion original-chip decimal edge cases differ from later x86 and preserve undefined flags", () => {
+  const ram = new ObservedRam(0x100000);
+  // Hardware-checked AL/AF/CF inputs with explicit outputs: DAA and DAS both use the AF-dependent threshold.
+  for (const [opcode, al, af, cf, result, carry] of [
+    [0x27, 0x9e, true, false, 0xa4, false], [0x27, 0x9e, false, false, 0x04, true],
+    [0x27, 0xfa, true, false, 0x60, true], [0x27, 0x00, true, true, 0x66, true],
+    [0x2f, 0x9e, true, false, 0x98, false], [0x2f, 0x9e, false, false, 0x38, true],
+    [0x2f, 0x00, true, false, 0xfa, false], [0x2f, 0x00, true, true, 0x9a, true],
+  ] as const) for (const old of [0, 511]) {
+    const before = initialState({ ax: 0x3600 + al, flags: { ...flags(old), af, cf } });
+    checkStep(ram, before, [opcode], { ...before, ax: 0x3600 + result, ip: 0x101,
+      flags: { ...before.flags, ...resultFlags(result, 8), af: true, cf: carry } });
+  }
+  for (const subtracting of [false, true]) for (let al = 0; al < 256; al++) for (const af of [false, true]) {
+    for (const ah of [0, 1, 0xff]) {
+      const before = initialState({ ax: ah * 256 + al, flags: { ...flags(511), af } });
+      const adjusts = al % 16 > 9 || af, delta = adjusts ? subtracting ? -1 : 1 : 0;
+      const result = (ah + delta + 256) % 256 * 256 + (al + 6 * delta + 256) % 16;
+      checkStep(ram, before, [subtracting ? 0x3f : 0x37], { ...before, ax: result, ip: 0x101,
+        flags: { ...before.flags, cf: adjusts, af: adjusts } });
+    }
+  }
+});
+
+test("8088 completion CBW/CWD and AAM/AAD exhaust word values and fixed-radix rejection", () => {
+  const ram = new ObservedRam(0x100000);
+  for (let ax = 0; ax < 65536; ax++) {
+    const before = initialState({ ax, flags: flags(ax % 512) }), al = ax % 256, ah = Math.floor(ax / 256);
+    checkStep(ram, before, [0x98], { ...before, ax: al < 128 ? al : 0xff00 + al, ip: 0x101 });
+    checkStep(ram, before, [0x99], { ...before, dx: ax < 32768 ? 0 : 0xffff, ip: 0x101 });
+    const result = (ah * 10 + al) % 256;
+    checkStep(ram, before, [0xd5, 0x0a], { ...before, ax: result, ip: 0x102, flags: { ...before.flags, ...resultFlags(result, 8) } });
+    if (ax < 256) checkStep(ram, before, [0xd4, 0x0a], { ...before, ax: Math.floor(al / 10) * 256 + al % 10, ip: 0x102,
+      flags: { ...before.flags, ...resultFlags(al % 10, 8) } });
+  }
+  for (const opcode of [0xd4, 0xd5]) for (let radix = 0; radix < 256; radix++) {
+    if (radix !== 10) reject(ram, initialState(), [opcode, radix]);
+  }
+});
+
+test("8088 completion XLAT wraps BX+AL, honors each segment override, and reads exactly one byte", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [prefix, segment] of segments) for (let al = 0; al < 256; al++) {
+    const before = initialState({ ax: 0xa500 + al, bx: 0xff80 }), offset = (before.bx + al) % 65536;
+    put(ram, before[segment], offset, [255 - al]);
+    checkStep(ram, before, [prefix, 0xd7], { ...before, ax: 0xa500 + 255 - al, ip: 0x102 }, undefined,
+      dataReads(before[segment], offset, [255 - al]));
+  }
+});
+
+const strings = [
+  [0xa4, "move", 8], [0xa5, "move", 16], [0xa6, "compare", 8], [0xa7, "compare", 16],
+  [0xaa, "store", 8], [0xab, "store", 16], [0xac, "load", 8], [0xad, "load", 16],
+  [0xae, "scan", 8], [0xaf, "scan", 16],
+] as const;
+
+test("8088 completion all strings use fixed ES destinations, source overrides, and DF-controlled wrapping", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [opcode, operation, width] of strings) for (const df of [false, true]) {
+    for (const offset of [0, 0xf, 0xffff]) for (const override of [false, true]) {
+      const before = initialState({ ds: 0xffff, ss: 0x5555, es: 0x6789, si: offset, di: offset,
+        flags: { ...flags(511), df }, ax: 0x0100 });
+      const sourceSegment = override ? before.ss : before.ds, source = width === 8 ? [0xff] : [0xff, 0x7f];
+      const destination = width === 8 ? [1] : [1, 0x80], accumulator = width === 8 ? [0] : [0, 1];
+      put(ram, sourceSegment, offset, source); put(ram, before.es, offset, destination);
+      const bytes = [...(override ? [0x36] : []), opcode];
+      const readsSource = ["move", "compare", "load"].includes(operation), readsDestination = ["compare", "scan"].includes(operation);
+      const writesDestination = ["move", "store"].includes(operation);
+      const left = operation === "scan" ? width === 8 ? 0 : 0x100 : width === 8 ? 0xff : 0x7fff;
+      const right = width === 8 ? 1 : 0x8001;
+      const next = (offset + (df ? -1 : 1) * width / 8 + 65536) % 65536;
+      checkStep(ram, before, bytes, { ...before, ip: before.ip + bytes.length,
+        ax: operation === "load" ? width === 8 ? 0x01ff : 0x7fff : before.ax,
+        si: readsSource ? next : offset, di: operation === "load" ? offset : next,
+        flags: readsDestination ? aluResult("SUB", width, left, right, before.flags).flags : before.flags }, undefined,
+      [...(readsSource ? dataReads(sourceSegment, offset, source) : []), ...(readsDestination ? dataReads(before.es, offset, destination) : []),
+        ...(writesDestination ? dataWrites(before.es, offset, operation === "move" ? source : accumulator) : [])]);
+    }
+  }
+});
+
+test("8088 completion REP executes one element per step and restores solely from visible state", () => {
+  const ram = new ObservedRam(0x100000), before = initialState({ cx: 3, si: 0xfffe, di: 0xffff,
+    flags: { ...flags(511), df: false }, ds: 0x2000, es: 0xffff });
+  const bytes = [0x3e, 0xf3, 0xa5]; put(ram, before.cs, before.ip, bytes);
+  put(ram, before.ds, before.si, [1, 2, 3, 4, 5, 6]);
+  const cpu = new Cpu8088(ram, before);
+  const first = runCpu(cpu, { maxSteps: 1 }), retained = structuredClone(first);
+  assert.equal(first.stopReason, "step-limit");
+  assert.deepEqual(first.records[0]?.after, snapshot({ ...before, cx: 2, si: 0, di: 1 }));
+  const resumed = new Cpu8088(ram, cpu.snapshot());
+  put(ram, before.ds, 0, [0x33, 0x44]); // Each element reads current RAM.
+  const rest = runCpu(resumed, { maxSteps: 2, endAddress: address(before.cs, before.ip + 3) });
+  assert.equal(rest.stopReason, "completed");
+  assert.deepEqual(rest.records.map(record => [record.after.cx, record.after.si, record.after.di, record.after.ip]),
+    [[1, 2, 3, before.ip], [0, 4, 5, before.ip + 3]]);
+  assert.deepEqual([...first.records, ...rest.records].map(record => record.instruction?.bytes), [bytes, bytes, bytes]);
+  assert.deepEqual(Array.from({ length: 6 }, (_, i) => ram.read(address(before.es, 0xffff + i))), [1, 2, 0x33, 0x44, 5, 6]);
+  assert.deepEqual(first, retained);
+  // Refetching is explicit: replace the pending REP with HLT and no hidden iteration continues.
+  put(ram, before.cs, before.ip, [0xf4]);
+  assert.equal(cpu.step().outcome, "halted"); assert.equal(cpu.snapshot().cx, 2);
+});
+
+test("8088 completion repeated strings handle empty counts, termination flags, and prefix precedence", () => {
+  const ram = new ObservedRam(0x100000);
+  for (const [opcode, operation, width] of strings) for (const rep of [0xf2, 0xf3]) {
+    const compares = operation === "compare" || operation === "scan";
+    if (rep === 0xf2 && !compares) continue;
+    for (const cx of [0, 1, 2, 0xffff]) for (const equal of [false, true]) for (const incomingZF of [false, true]) {
+      const before = initialState({ cx, ax: 7, flags: { ...flags(511), zf: incomingZF, df: false } });
+      const source = width === 8 ? [7] : [7, 0], destination = width === 8 ? [equal ? 7 : 6] : [equal ? 7 : 6, 0];
+      put(ram, before.ds, before.si, source); put(ram, before.es, before.di, destination);
+      // The final repeat prefix wins; repeat testing uses the new ZF, irrespective of incoming ZF.
+      const bytes = [rep === 0xf2 ? 0xf3 : 0xf2, rep, opcode];
+      put(ram, before.cs, before.ip, bytes); ram.accesses.length = 0;
+      const record = new Cpu8088(ram, before).step(), actual = record.after;
+      assert.equal(record.outcome, "executed");
+      assert.equal(actual.cx, cx === 0 ? 0 : cx - 1);
+      const again = cx > 1 && (!compares || equal === (rep === 0xf3));
+      assert.equal(actual.ip, again ? before.ip : before.ip + bytes.length);
+      if (cx === 0) {
+        assert.deepEqual(actual, snapshot({ ...before, ip: before.ip + bytes.length }));
+        assert.deepEqual(record.accesses, dataReads(before.cs, before.ip, bytes));
+      } else {
+        assert.equal(actual.flags.zf, compares ? equal : incomingZF);
+        assert.equal(actual.si, before.si + (["move", "compare", "load"].includes(operation) ? width / 8 : 0));
+        assert.equal(actual.di, before.di + (operation === "load" ? 0 : width / 8));
+      }
+    }
+  }
+});
+
+test("8088 completion memory-only and segment selectors reject all invalid ModR/M forms atomically", () => {
+  const ram = new ObservedRam(0x100000), before = initialState({ ip: 0xffff, cs: 0xffff });
+  for (let modRM = 0; modRM < 256; modRM++) {
+    const selector = Math.floor(modRM / 8) % 8;
+    for (const opcode of [0x8c, 0x8e]) {
+      if (selector > 3 || opcode === 0x8e && selector === 1) reject(ram, before, [0x26, opcode, modRM]);
+    }
+    if (modRM < 0xc0) continue;
+    for (const opcode of [0x8d, 0xc4, 0xc5]) reject(ram, before, [0x26, opcode, modRM]);
+    if (selector === 3 || selector === 5) reject(ram, before, [0x26, 0xff, modRM]);
+  }
+});
+
+test("8088 completion accounts for all 291 documented forms: 268 implemented and 23 deferred", () => {
+  const ram = new Ram(0x100000);
+  const unused = [0x0f, ...Array.from({ length: 16 }, (_, i) => 0x60 + i), 0xc0, 0xc1, 0xc8, 0xc9, 0xd6, 0xf1];
+  const prefixes = [0x26, 0x2e, 0x36, 0x3e, 0xf0, 0xf2, 0xf3];
+  const deferred = [0x9b, 0xcc, 0xcd, 0xce, 0xcf, 0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
+    0xe4, 0xe5, 0xe6, 0xe7, 0xec, 0xed, 0xee, 0xef, 0xfa, 0xfb];
+  // Table 4-13 expands these operation selectors; all other ModR/M fields are operands.
+  const groups: Readonly<Record<number, readonly number[]>> = {
+    0x80: [0, 1, 2, 3, 4, 5, 6, 7], 0x81: [0, 1, 2, 3, 4, 5, 6, 7],
+    0x82: [0, 2, 3, 5, 7], 0x83: [0, 2, 3, 5, 7],
+    0xd0: [0, 1, 2, 3, 4, 5, 7], 0xd1: [0, 1, 2, 3, 4, 5, 7],
+    0xd2: [0, 1, 2, 3, 4, 5, 7], 0xd3: [0, 1, 2, 3, 4, 5, 7],
+    0xf6: [0, 2, 3, 4, 5, 6, 7], 0xf7: [0, 2, 3, 4, 5, 6, 7], 0xfe: [0, 1], 0xff: [0, 1, 2, 3, 4, 5, 6],
+  };
+  let documented = 0, complete = 0;
+  for (let opcode = 0; opcode < 256; opcode++) {
+    if (unused.includes(opcode) || prefixes.includes(opcode)) continue;
+    for (const group of groups[opcode] ?? [0]) {
+      documented++;
+      const before = initialState({ ax: 12, dx: 0, cx: 1 });
+      put(ram, before.ds, 0, [3, 0, 0x34, 0x12]);
+      const bytes = [opcode, opcode === 0xd4 || opcode === 0xd5 ? 10 : group * 8 + 6, 0, 0, 0, 0];
+      put(ram, before.cs, before.ip, bytes);
+      const record = new Cpu8088(ram, before).step();
+      const accepted = record.outcome !== "unsupported";
+      assert.equal(accepted, !deferred.includes(opcode), `Opcode ${opcode.toString(16)} /${group}`);
+      if (accepted) complete++;
+    }
+  }
+  assert.equal(documented, 291); assert.equal(complete, 268); assert.equal(deferred.length, 23);
 });

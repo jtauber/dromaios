@@ -248,9 +248,11 @@ describe the callbacks available to an opcode handler:
 `RecordedMemory` extends it with an access log. Instruction contexts expose the
 callbacks without exposing that log, and all callback properties are readonly.
 
-The 8008, 6502, 6800, 6809, Z80, 8088, and shared 8080-family core import
-`WordInstructionContext` as their local `InstructionContext`. The 8008 fetches a full two-byte operand
-and masks it to a 14-bit address when jumping or calling. The 68000 currently
+The 8008, 6502, 6800, 6809, Z80, and shared 8080-family core import
+`WordInstructionContext` as their local `InstructionContext`. The 8088 extends
+it with the instruction start IP and local segment/repeat prefixes. The 8008
+fetches a full two-byte operand and masks it to a 14-bit address when jumping
+or calling. The 68000 currently
 extends `ByteMemory` with `fetchWord`, `fetchLong`, `nextAddress`, and `jump`.
 Fetching and jumps update a local cursor; a successful instruction commits it
 to PC. Its word-based instruction stream, explicit extension-word PC bases,
@@ -260,7 +262,7 @@ absent rather than optional.
 
 Instruction fetches track fetched bytes and advance PC according to the CPU's
 execution policy, while data accesses leave the instruction stream alone.
-The shared executor below constructs these callbacks for six CPUs; the others
+The shared executor below constructs these callbacks for five CPUs; the others
 construct them in `step()`. Each CPU selects byte order and keeps any special
 address mapping, alignment, and rejection rules. Handler return types also
 remain local, including the 68000's alignment fault.
@@ -272,7 +274,7 @@ expectations.
 ## Shared byte-instruction execution
 
 The [byte-instruction executor](../../src/components/cpus/execute-byte-instruction.ts)
-shares the fetch/dispatch loop used by the 8008, 8080, 6502, 6800, 6809, and 8088:
+shares the fetch/dispatch loop used by the 8008, 8080, 6502, 6800, and 6809:
 
 ```ts
 executeByteInstruction(state, ram, handlers, readWordLE)
@@ -298,15 +300,14 @@ the executor restores PC and retains the actual fetches. This is not general
 rollback. RAM and handler errors
 propagate without rolling back completed effects. Each call owns its records.
 
-The four CPUs with a stored PC pass their state directly. The 8008 and 8088
-use `programCounter(read, write)` to expose a live view without adding stored
-state: the 8008 selects an address-stack slot and masks writes to 14 bits;
-the 8088 exposes IP and maps fetches through the current CS. Rejection restores
-the logical PC, while the instruction record retains its mapped start address.
-The 8008's circular call stack and the 8088's segmented data/stack access remain
-in their CPU files. The Z80 retains complete-prefix decoding and R updates;
-the 68000 retains word opcodes and alignment faults. Those contracts do not
-fit this executor.
+The four CPUs with a stored PC pass their state directly. The 8008 uses
+`programCounter(read, write)` to expose its live address-stack slot and mask
+writes to 14 bits without adding stored state. Its circular call stack stays
+in the CPU file. The Z80 retains complete-prefix decoding and R updates; the
+8088 retains segment/repeat prefixes, one-element REP steps, and divide-error
+rejection; the 68000 retains word opcodes and alignment faults. Those contracts
+do not fit this executor. All still share instruction contexts and recorded
+byte memory; specialized step loops do not require a broader executor API.
 
 [Helper tests](../../tests/components/cpus/execute-byte-instruction.test.ts)
 check unsupported attempts, byte order, wraparound, live register selection,

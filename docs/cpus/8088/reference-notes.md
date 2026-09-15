@@ -52,8 +52,9 @@ interrupts, and display logic remain outside this initial CPU-and-RAM slice.
 
 ## Ideas to revisit
 
-- Treat prefixes as instruction-local context. Segment overrides, repeat
-  behavior, and invalid combinations need their own contracts and tests.
+- Instruction-local prefixes and original stack/flag behavior are now covered
+  in the [completion review](#ordinary-instruction-completion); retain those
+  distinctions when adding external devices and interrupt resumption.
 - Preserve original-8088 behavior when extending stack and flag families;
   PUSH SP already demonstrates why later x86 behavior is not automatically suitable.
 
@@ -197,3 +198,69 @@ propagation across two words, negation with borrow, byte-register exchanges,
 and guarded memory output. Its high-word read exercises the segment-offset
 boundary already identified above. Independent expectations check every
 instruction record, both marker paths, signed boundaries, and full RAM images.
+
+## Ordinary-instruction completion
+
+The 15 September 2026 expansion adds 63 documented forms and all seven prefix
+modifiers. It keeps interrupt-specific instructions, port I/O, ESC, and WAIT
+deferred. The opcode inventory now accounts for 268 of 291 forms; HLT and its
+stored latch are included. The [model contract](model.md) defines the limits.
+
+The same pinned
+[SingleStepTests/8088 V2 suite](https://github.com/SingleStepTests/8088/tree/aea84484abc79d09639d855b7b0ab32bc9e4dbeb)
+provides **460,629 passing hardware cases across 62 added forms**, including
+**24,444 divide-error boundaries**. That suite has no HLT file; permanent tests
+check its fetched record, stopped latch, restoration, and reset behavior.
+Rerunning the earlier families with their segment-prefixed cases included gives
+**2,423,129 passing cases across 267 forms**. These are instruction-level checks
+against the suite's AMD D8088 hardware, not cycle-accuracy claims.
+
+The comparison includes all stored registers, defined flags, fetched instruction
+bytes, final fixture RAM, and accessed addresses. For REP it joins the bounded
+one-element steps before comparing hardware's final state. It excludes **51,871
+cases** across the full set: undocumented selectors/aliases, non-`0A` AAM/AAD
+radices, undocumented repeat combinations, and REP writes overlapping fetched
+code where the model's refetch policy differs from hardware prefetching.
+Those exclusions do not remove documented forms. Undefined flags follow the
+model's explicit policies; TF/IF preservation is covered locally because those
+flags are not exercised by the hardware generator.
+
+For divide errors, the fixtures enter interrupt type 0. The comparison instead
+checks detection, `reason: "divide-error"`, complete state preservation, and no
+writes at our deferred-interrupt boundary. It does not claim that the emulator
+reproduces the hardware exception frame or interrupt destination yet. Valid
+divisions compare the complete quotient and remainder.
+
+The hardware cases establish three original-chip details.
+[MartyPC's decimal routines](https://github.com/dbalsom/martypc/blob/05c0d088e84ad6bbfac9b3f0d051e7eadefd9f44/crates/lib/marty_core/src/cpu_808x/bcd.rs)
+also corroborate the two decimal-adjustment distinctions:
+
+- DAA/DAS use a high-digit threshold of `9F` when incoming AF is set, `99`
+  otherwise. DAS does not set CF solely for low-digit borrow. Later x86
+  pseudocode differs for some non-BCD inputs. Permanent regressions include
+  AL=`9E`, AF=1, CF=0 and subtraction from AL=0 with AF=1.
+- AAA/AAS adjust AL and AH independently, so overflow/underflow in the AL
+  adjustment does not enter AH again. The old PC core agrees with this rule.
+- IDIV accepts signed quotients only in −127..127 or −32767..32767 on the
+  original chip. Intel's 1979 manual states these ranges; hardware fixture
+  `F6.7`, case 1828 (`AX=C4CC`, `CH=76`) confirms that a quotient of −128
+  triggers a divide error. Independent BigInt boundary cases check both widths.
+
+The old PC core helped review ModR/M groups, far pointer capture, segment
+selection, and string index updates. Its word DIV combines DX:AX with signed
+JavaScript bitwise arithmetic; the new core uses exact unsigned multiplication
+and addition before dividing. It also packs original FLAGS reserved bits
+15–12 as ones, where the old core leaves them clear. Hardware PUSHF/POPF cases
+and exhaustive local packing/unpacking tests establish the new behavior.
+
+Prefixes are local to an attempt, while source/destination and stack addresses
+are captured before register writes. REP uses visible CX/SI/DI/IP plus RAM,
+with one element per step and no hidden continuation object. This requires an
+8088-owned step loop; the common instruction context, state validation,
+recorded byte memory, flag packing, and ALU helpers are still shared.
+
+The [decimal buffer example](examples/decimal-buffer.md) combines wrapped source
+words, REP MOVSW, an ES override, a far call/return frame, DIV, backward STOSB,
+LOOP, saved FLAGS, and HLT. Independent expectations cover all 52 records,
+full guarded memory images, unsigned input boundaries, and snapshot restoration
+inside both REP and the subroutine.

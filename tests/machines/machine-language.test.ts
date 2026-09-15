@@ -416,6 +416,7 @@ const source8088 = `ram 100000
 cpu 8088 {
   AX=1122 BX=3344 CX=5566 DX=7788 SP=8000 BP=9000 SI=0010 DI=0020
   CS=1234 DS=2000 SS=3000 ES=4000 IP=0100
+  halted=false
   flags { CF=1 PF=0 AF=1 ZF=1 SF=1 TF=0 IF=1 DF=1 OF=1 }
 }`;
 
@@ -423,7 +424,7 @@ test("8088 parsing preserves logical word registers and validates twenty-bit phy
   const suffix = "memory FFFFE { 12 AB } end FFFFF";
   const expected = { cpu: "8088", ramSize: 0x100000,
     initialState: { ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788, sp: 0x8000, bp: 0x9000, si: 0x10, di: 0x20,
-      cs: 0x1234, ds: 0x2000, ss: 0x3000, es: 0x4000, ip: 0x100,
+      cs: 0x1234, ds: 0x2000, ss: 0x3000, es: 0x4000, ip: 0x100, halted: false,
       flags: { cf: true, pf: false, af: true, zf: true, sf: true, tf: false, if: true, df: true, of: true } },
     memory: [{ address: 0xffffe, bytes: [0x12, 0xab] }], endAddress: 0xfffff };
   for (const source of [`${source8088} ${suffix}`, `${suffix} ${source8088}`]) {
@@ -452,9 +453,16 @@ test("8088 parsing checks every word and flag and rejects assignments to byte vi
     for (const value of ["2", "true", "false"]) assert.throws(() => parseMachine(set(source8088, name, value)), SyntaxError);
     assert.throws(() => parseMachine(source8088.replace(new RegExp(`\\b${name}=\\w+`), "")), /Missing fields/);
   }
-  for (const name of ["AL", "AH", "BL", "BH", "CL", "CH", "DL", "DH", "PC", "A", "halted"]) {
+  for (const name of ["AL", "AH", "BL", "BH", "CL", "CH", "DL", "DH", "PC", "A"]) {
     assert.throws(() => parseMachine(source8088.replace("AX=1122", `AX=1122 ${name}=0`)), /Unknown field/);
   }
+  for (const value of ["0", "1", "FALSE"]) {
+    assert.throws(() => parseMachine(set(source8088, "halted", value)), /Expected true or false/);
+  }
+  const stopped = parseMachine(set(source8088, "halted", "true"));
+  assert.equal(stopped.cpu, "8088");
+  assert.equal(stopped.initialState.halted, true);
+  assert.throws(() => parseMachine(source8088.replace("halted=false", "")), /Missing fields/);
 });
 
 test("larger 8088 images do not relax the smaller CPUs' bounds and memory blocks never wrap", () => {

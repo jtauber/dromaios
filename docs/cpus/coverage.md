@@ -21,7 +21,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [398](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [504](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [493](../../src/components/cpus/8088.ts) | 205 / 291 | 70.4% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [773](../../src/components/cpus/8088.ts) | 268 / 291 | 92.1% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [504](../../src/components/cpus/68000.ts) | 25,699 / 36,029 | 71.3% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
@@ -141,7 +141,8 @@ The 8088 count measures unprefixed forms. Segment overrides, LOCK, and repetitio
 are modifiers; their support is tracked separately rather than multiplying the
 denominator by prefix combinations. Mnemonic aliases count once. Undocumented
 encodings and later x86 instructions are excluded, while deferred interrupts
-and I/O remain in the total.
+and I/O remain in the total. DIV/IDIV count their arithmetic and divide-error
+detection; interrupt delivery remains a separate deferred processor feature.
 
 For the 68000, the operation word contains both register and effective-address
 selectors, so they contribute separate forms. Literal operands do not: MOVEQ
@@ -172,7 +173,7 @@ forms accept 4,096 words. Embedded literal values do not add coverage forms.
 | Stepping | At most one instruction attempt; before/after snapshots, fetched instruction bytes, ordered accesses, and outcome |
 | Reset records | Separate before/after snapshots and access list; CPU-specific reset effects |
 | Arithmetic and addresses | Results wrap at their modeled widths; 14-bit addresses for the 8008, 16-bit addresses for the other 8-bit cores; the 8088 forms 20-bit physical addresses from segments/offsets; the 68000 preserves 32-bit registers and masks bus addresses to 24 bits |
-| Unsupported attempts | `reason: "opcode"`, one opcode byte fetched (two for the 68000), unchanged CPU state and RAM; additional 6502 mode and 68000 alignment restrictions below |
+| Unsupported attempts | `reason: "opcode"`, one opcode byte fetched (two for the 68000), unchanged CPU state and RAM; additional 6502 mode, 8088 divide-error, and 68000 alignment boundaries below |
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
 All eight currently omit cycle counts, dummy bus accesses, electrical signals,
@@ -1542,12 +1543,15 @@ at every step. See [checks and limits](z80/model.md#checks-and-limits).
 [Control-flow example](8088/examples/control-flow.md) ·
 [Masked word-sum example](8088/examples/word-sum.md) ·
 [Signed word transformation](8088/examples/word-transform.md) ·
+[Decimal buffer example](8088/examples/decimal-buffer.md) ·
 [PC reference review](8088/reference-notes.md)
 
 | Opcode pattern / bytes | Instruction | Forms | Scope |
 | --- | --- | ---: | --- |
 | `00 ooo 0 d w` | ADD/OR/ADC/SBB/AND/SUB/XOR/CMP r/m,r or r,r/m | 32 | Both widths and directions; every register and memory operand choice |
 | `00 ooo 10 w` | ADD/OR/ADC/SBB/AND/SUB/XOR/CMP AL/AX,n | 16 | Immediate byte/word; byte writes preserve AH |
+| `000 ss 11p` (`06/0E/16/1E`, `07/17/1F`) | PUSH/POP segment | 7 | ES/CS/SS/DS pushes and ES/SS/DS pops; original SS for the entire access |
+| `001 u s 111` (`27/2F/37/3F`) | DAA/DAS/AAA/AAS | 4 | Packed/unpacked decimal adjustment with original-chip AF/CF and byte behavior |
 | `0100 s rrr` (`40`–`4F`) | INC/DEC r16 | 16 | All eight word registers; preserve CF, update PF/AF/ZF/SF/OF |
 | `0101 p rrr` (`50`–`5F`) | PUSH/POP r16 | 16 | Descending SS:SP; original-8088 PUSH SP and POP SP behavior |
 | `0111 ttt p` (`70`–`7F`) | Jcc rel8 | 16 | All sixteen conditions; fetch displacement on both paths |
@@ -1556,19 +1560,34 @@ at every step. See [checks and limits](z80/model.md#checks-and-limits).
 | `84`, `85` | TEST r/m,r | 2 | AND flags without a destination write |
 | `86`, `87` | XCHG r/m,r | 2 | Both widths; read both original values before writes; resolve memory once |
 | `88`–`8B` | MOV r/m,r or r,r/m | 4 | Both widths and directions; no destination read; preserve every flag |
+| `8C`, `8E` | MOV r/m16,Sreg or Sreg,r/m16 | 2 | Four source segments; ES/SS/DS destinations; all legal operands |
+| `8D` | LEA r16,m | 1 | Compute the effective offset without reading data |
+| `8F` /0 | POP r/m16 | 1 | Resolve destination before popping; SP aliases and offset wrapping |
 | `90`–`97` | XCHG AX,r16 / NOP | 8 | All word registers; 90 exchanges AX with itself; preserve every flag |
+| `98`, `99` | CBW / CWD | 2 | Sign-extend AL to AX or AX to DX:AX; preserve flags |
+| `9A` | Far CALL ptr16:16 | 1 | Push CS then following IP; change both CS and IP |
+| `9C`–`9F` | PUSHF/POPF/SAHF/LAHF | 4 | Word and low-byte flag transfers with original reserved-bit policy |
+| `A4`–`A7`, `AA`–`AF` | MOVS/CMPS/STOS/LODS/SCAS | 10 | Byte/word strings; DF controls direction; comparisons set subtraction flags |
 | `A0`–`A3` | MOV AL/AX,[offset] or [offset],AL/AX | 4 | Direct offset in DS; word offsets wrap within the segment |
 | `A8`, `A9` | TEST AL/AX,n | 2 | Immediate AND flags without changing AX |
 | `B0`–`BF` | MOV r8/r16,n | 16 | All byte and word registers; preserve every flag |
 | `C2`, `C3` | RET n / RET | 2 | Pop IP; optionally discard an unsigned byte count from SP |
+| `C4`, `C5` | LES / LDS r16,m | 2 | Read a complete far pointer before changing either destination |
+| `CA`, `CB` | RETF n / RETF | 2 | Pop IP then CS; optional unsigned parameter-byte discard |
 | `C6`, `C7` /0 | MOV r/m,n | 2 | Immediate byte/word, all operand choices, no destination read |
 | `D0`–`D3` /0–5, /7 | ROL/ROR/RCL/RCR/SHL/SHR/SAR | 28 | Both widths, count one or all eight bits of CL; /6 stays unsupported |
+| `D4 0A`, `D5 0A`, `D7` | AAM / AAD / XLAT | 3 | Decimal radix adjustment or byte table lookup; AH and flag rules in the contract |
+| `E0`–`E3` | LOOPNE/LOOPE/LOOP/JCXZ | 4 | Test post-decrement CX or original zero count; preserve flags |
+| `EA` | Far JMP ptr16:16 | 1 | Replace CS:IP from the complete immediate pointer |
 | `E8` | CALL rel16 | 1 | Fetch displacement, push following IP, branch within CS |
 | `E9`, `EB` | JMP rel16 / rel8 | 2 | Relative branch with 16-bit IP wrapping |
+| `F4`, `F5`, `F8`, `F9`, `FC`, `FD` | HLT/CMC/CLC/STC/CLD/STD | 6 | Stored halt latch or one-flag update |
 | `F6`, `F7` /0 | TEST r/m,n | 2 | Immediate AND flags without writing the operand |
 | `F6`, `F7` /2–3 | NOT / NEG r/m | 4 | Both widths and every operand; NOT preserves flags, NEG sets subtraction flags |
+| `F6`, `F7` /4–7 | MUL/IMUL/DIV/IDIV | 8 | Both widths and every operand; signed/unsigned results and divide-error detection |
+| `FF` /2–6 | Indirect near/far CALL/JMP, PUSH r/m16 | 5 | Capture targets/values before stack writes; far pointers require memory |
 | `FE`, `FF` /0–1 | INC / DEC r/m | 4 | Both widths and every operand; preserve CF |
-| **Total** | | **205** | **205 / 291 forms (70.4%)** |
+| **Total** | | **268** | **268 / 291 forms (92.1%)** |
 
 The ALU field `ooo` selects ADD/OR/ADC/SBB/AND/SUB/XOR/CMP in that order.
 For register/memory forms, `w=0/1` selects byte/word and `d=0/1` selects the
@@ -1580,31 +1599,41 @@ uses DS. See the [addressing contract](8088/model.md#modrm-operands).
 
 ModR/M register/address choices, immediates, displacements, and stack
 adjustments remain operands rather than additional coverage forms. These
-205 forms include every documented operand choice, without prefixes.
-The 8088 now meets its CPU-only capability checkpoint: representative loads,
-stores, arithmetic, logic, branches, calls, returns, stack operations, and
-independently checked combined programs. Interrupts and I/O remain deferred
-until all eight CPUs meet the checkpoint.
+268 forms include every documented operand choice. All seven prefixes are
+implemented as modifiers: segment overrides, LOCK without bus arbitration,
+and REP/REPE/REPNE on their documented strings. Repetition executes one element
+per step; its snapshot and refetch policy is in the [model contract](8088/model.md#prefixes-and-strings).
+
+The remaining **23 documented forms** are 8 IN/OUT forms (`E4`–`E7`, `EC`–`EF`),
+6 interrupt instructions (`CC`–`CF`, `FA`/`FB`), and 9 external-processor forms
+(ESC `D8`–`DF` and WAIT `9B`). ESC and WAIT require a coprocessor/TEST interface,
+so they stay with deferred external I/O. DIV/IDIV detect divide errors and stop
+atomically before deferred type-0 interrupt delivery. No other documented
+ordinary instruction forms remain unimplemented.
 
 | Area | Implemented scope |
 | --- | --- |
 | Stored registers | AX/BX/CX/DX, SP/BP/SI/DI, CS/DS/SS/ES, IP; all 16-bit |
-| Stored flags | CF/PF/AF/ZF/SF/TF/IF/DF/OF; no packed FLAGS or reserved-bit policy yet |
+| Stored flags | CF/PF/AF/ZF/SF/TF/IF/DF/OF; packed transfers set reserved bits 15–12 and 1, clear bits 5/3 |
 | Register views | Byte halves derived from word registers; byte writes preserve the other half; physical PC derives from CS:IP |
 | Memory | Exactly 1 MiB RAM; segment × 16 + offset wraps at 20 bits; unaligned words are valid |
 | Instruction fetching | CS:IP with IP wrapping at 16 bits between bytes; little-endian words and offsets |
-| ModR/M | All unprefixed register and effective-address choices for the implemented forms; resolve addresses once before data accesses |
+| ModR/M | All documented register and effective-address choices, including segment overrides; resolve addresses once before data accesses |
 | Data words | Low byte first; wrap each successive offset to 16 bits within the selected segment, then translate to the bus |
 | Arithmetic and logic | ADD/ADC/SUB/SBB/CMP and OR/AND/XOR/TEST; width-specific flags, low-byte parity, nibble carry/borrow; logic clears undefined AF as a deterministic policy |
+| Multiplication/division | Full byte/word signed and unsigned arithmetic; original signed quotient limits; divide-error detection before deferred vectoring |
+| Decimal and address transfers | DAA/DAS/AAA/AAS/AAM/AAD, CBW/CWD, LEA/LES/LDS, XLAT, and segment moves |
+| Strings | All five byte/word families, both directions, source overrides, fixed ES destinations, zero-count and comparison termination |
 | Unary operations | INC/DEC/NOT/NEG on byte/word registers or memory; immediate TEST; operand reads precede writes |
 | Shifts and rotates | Seven documented operations in both widths, by one or CL=0–255; rotates preserve result flags; count zero preserves every flag; undefined OF for larger counts is preserved and undefined shift AF is cleared |
 | Exchanges | Register pairs, AX short encodings, and register/memory; preserve flags, byte aliases, and resolved addresses; 90 is NOP |
-| Control flow | All Jcc conditions, near relative CALL/JMP, short JMP, near RET with optional parameter cleanup; preserve CS and all flags |
-| Stack | General registers and return IP; descending SS:SP, offset wrapping, original PUSH SP / POP SP behavior |
-| Reset | CS=FFFF, IP=0000, other segments and flags clear; preserve general registers and RAM; no vector reads |
-| Unsupported encodings | First-byte rejection reads one byte; unsupported group selectors read opcode and ModR/M only; preserve all state and RAM |
-| Prefixes | Rejected with unchanged state and RAM; no segment overrides, LOCK, or repetition yet |
-| Remaining scope | Other transfers, multiplication/division, decimal adjustment, loop instructions, far transfers, segment/FLAGS stack operations, HALT, interrupts, I/O, and timing/prefetch |
+| Control flow | Jcc, counted loops, JCXZ, relative/indirect near and immediate/indirect far CALL/JMP, near/far RET with optional cleanup; preserve flags |
+| Stack | General/segment registers, FLAGS, and near/far return addresses; descending SS:SP, offset wrapping, original PUSH SP / POP SP behavior |
+| Halt | HLT advances IP and sets a stored latch; later halted steps have no instruction or accesses |
+| Reset | CS=FFFF, IP=0000, other segments, flags, and halt clear; preserve general registers and RAM; no vector reads |
+| Unsupported encodings | Retain prefixes and bytes actually fetched, reject invalid selectors before data; preserve all state and RAM; divide errors read their operand before the same atomic stop |
+| Prefixes | Four local segment overrides, LOCK with no bus effect, and bounded one-element repetition; last prefix of each kind wins |
+| Remaining scope | Interrupt delivery/control, port and coprocessor I/O, TEST/WAIT, timing, bus arbitration, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/8088.test.ts),
 [arithmetic](../../tests/machines/8088/example.test.ts),
@@ -1612,6 +1641,7 @@ Verification: [CPU tests](../../tests/components/cpus/8088.test.ts),
 [control-flow](../../tests/machines/8088/control-flow-example.test.ts), and
 [word-sum example tests](../../tests/machines/8088/word-sum-example.test.ts),
 [transformation example tests](../../tests/machines/8088/word-transform-example.test.ts),
+[decimal buffer tests](../../tests/machines/8088/decimal-buffer-example.test.ts),
 plus [public type checks](../../tests/types/8088.ts). Checks include exhaustive
 byte arithmetic/logic pairs, word sweeps and signed boundaries, incoming flag
 patterns, every register selector and alias, each effective-address mode,
@@ -1634,12 +1664,20 @@ program halves and negates a signed 32-bit value, records its discarded bit,
 and writes big-endian output. Tests check signed boundaries, both branch paths,
 resumption between shifts, edited RAM, reset, and fresh factories.
 
-The [hardware comparison](8088/reference-notes.md#unary-shift-and-transfer-comparison)
-passes **1,232,121 unprefixed cases across all 205 supported forms**, including
-**206,779 cases for the 50 new forms**. It checks state, defined flags, fetched
-bytes, final RAM, and accessed addresses. Undefined shift flags follow explicit
-model policies checked locally. Prefetch and cycle traces are outside the
-comparison; independent local tests establish instruction-level access order.
+Completion checks add exhaustive byte multiplication and valid BCD arithmetic,
+word-boundary division with independent BigInt expectations, every AAD/POPF
+input word, segment and flag transfers, far-frame overlap, string directions,
+prefixes, halt/reset, and atomic rejection. The decimal buffer example checks
+52 exact records, full guarded RAM, snapshot resumption within REP and far calls,
+unsigned input boundaries, edited source data, and restored FLAGS.
+
+The expanded [hardware comparison](8088/reference-notes.md#ordinary-instruction-completion)
+passes **2,423,129 cases across 267 forms**, including **460,629 cases across
+62 added forms** and **24,444 divide-error boundaries**. HLT has no fixture
+in that suite and is checked locally. Segment-prefixed cases now participate
+for both old and new families; undocumented forms and prefetch-dependent REP
+code overlap are excluded. Defined flags, state, bytes, final RAM, and accessed
+addresses are compared; local tests check exact instruction-level ordering.
 
 ## 68000
 
