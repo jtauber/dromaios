@@ -23,6 +23,11 @@ see the [development instructions](../README.md#development).
   layout, and the separation of handler construction from instruction behavior.
 - [Opcode definition experiment](cpus/opcode-definitions.md): typed encoding
   patterns for explicit opcodes, aliases, and instruction families.
+- [CPUs assembled from shared building blocks](cpus/shared-building-blocks.md):
+  exploratory design for shared CPU semantics and an eventual specification
+  DSL. The staged roadmap begins with ordinary TypeScript building blocks,
+  reviews their clarity and limits, and tests later language support against
+  existing models and future CPUs.
 
 ## CPU models
 
