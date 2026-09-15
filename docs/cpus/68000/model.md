@@ -236,6 +236,41 @@ including TST's updates without a write; byte A7 steps by two. Odd word/long
 operands are rejected before data access or state changes. The
 [unary example](examples/unary.md) combines all eight families.
 
+## Shifts and rotates
+
+ASL/ASR, LSL/LSR, ROXL/ROXR, and ROL/ROR support byte, word, and long
+register operands and word memory operands. Register encoding
+`1110 ccc d ss i tt rrr` selects direction (`d=0` right, `1` left), size
+(`ss=00/01/10` byte/word/long), kind (`tt=00` arithmetic, `01` logical,
+`10` rotate through X, `11` rotate), and destination Dn (`rrr`). When
+`i=0`, `ccc` gives an immediate count of 1–8, with zero encoding eight.
+When `i=1`, Dccc's low six bits give a count of 0–63. The count is read
+before writeback, including when source and destination are the same register.
+Byte/word writes preserve the rest of Dn.
+
+Memory encoding `1110 0 tt d 11 mmm rrr` permits only the 42 memory-alterable
+EAs and always shifts a word once. Extensions are fetched before reading and
+writing the resolved operand. Auto-updates occur once; unchanged results are
+still written. Odd addresses reject the attempt before data access or state
+changes. Later-chip bit-field encodings with bit 11 set remain unsupported.
+
+| Family | Incoming bit | X | V | C with zero count |
+| --- | --- | --- | --- | --- |
+| ASL/ASR | Zero left; sign bit right | Last bit shifted out; unchanged at zero count | Any sign change during ASL; cleared for ASR | Clear |
+| LSL/LSR | Zero | Last bit shifted out; unchanged at zero count | Clear | Clear |
+| ROXL/ROXR | Previous X | Last bit rotated out; unchanged at zero count | Clear | Copy X |
+| ROL/ROR | Bit leaving the opposite end | Preserved | Clear | Clear |
+
+Every operation replaces N/Z from the selected-width result, even at count
+zero. At nonzero counts C is the last outgoing bit. ASL's overflow remains
+set if an intermediate sign changed, even when the final sign matches the
+original. Counts at or beyond the operand width retain the documented carry
+and extend behavior; they are not reduced modulo the operand width. Control
+state is preserved.
+
+The [shifts example](examples/shifts.md) unpacks signed samples and chains
+memory shifts through X across two words.
+
 ## Address calculations and register lists
 
 LEA (`0100 aaa 111 mmm rrr`) writes the computed 32-bit address into An,
@@ -526,3 +561,13 @@ unchanged writes, both stacks, wrapping, code overlap, and atomic faults.
 The [unary example tests](../../../tests/machines/68000/unary-example.test.ts)
 check complete records and RAM images for a signed-word loop and two-long
 negation, including snapshot resumption between NEGX instructions.
+
+Shift checks enumerate all 2,064 forms, all eight immediate counts, every
+count/destination register pair, and every byte with counts 0–63 and both X
+inputs. Independent BigInt arithmetic and bit-string rotations check word/long
+boundaries, all count values, all incoming flag patterns, full rotations,
+and ASL's intermediate overflow. Memory checks include all legal EAs, both
+stacks, unchanged writes, wrapping, code overlap, and atomic rejection.
+The [shifts example tests](../../../tests/machines/68000/shifts-example.test.ts)
+check all eight operations together, complete records and RAM images, live
+inputs, reset preservation, and restoration between carry-dependent words.

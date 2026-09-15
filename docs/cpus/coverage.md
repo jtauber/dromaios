@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [504](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [773](../../src/components/cpus/8088.ts) | 268 / 291 | 92.1% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [670](../../src/components/cpus/68000.ts) | 28,045 / 36,029 | 77.8% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [725](../../src/components/cpus/68000.ts) | 30,109 / 36,029 | 83.6% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -1712,7 +1712,10 @@ addresses are compared; local tests check exact instruction-level ordering.
 [Unary and quick example](68000/examples/unary.md) ·
 [Unary definition](../../src/machines/68000/unary-example.machine)
 
-**28,045 of 36,029 documented forms are complete (77.8%).** MOVE and MOVEA
+[Shifts and rotates example](68000/examples/shifts.md) ·
+[Shifts definition](../../src/machines/68000/shifts-example.machine)
+
+**30,109 of 36,029 documented forms are complete (83.6%).** MOVE and MOVEA
 support every original-68000 source/destination combination and documented
 index extension. The operation-word patterns below are binary. In MOVE,
 `ddd mmm` selects the destination register then mode, while `sss rrr` selects
@@ -1761,6 +1764,10 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `1100 rrr d ss mmm eee` | `AND.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,280 | 2–6 | Same sizes, sources, destinations, and flags as OR |
 | `1101 rrr d ss mmm eee` | `ADD.B/W/L <ea>,Dn` / `Dn,<ea>` | 2,408 | 2–6 | All legal source/memory-destination forms; set XNZVC from addition |
 | `1101 rrr s11 mmm eee` | `ADDA.W/L <ea>,An` | 976 | 2–6 | Sign-extend word source; full 32-bit addition; preserve all flags |
+| `1110 ccc d ss i 00 rrr` / `1110 0 00 d 11 mmm rrr` | `ASR/ASL` | 516 | 2–6 | Byte/word/long Dn; word memory; ASL retains intermediate sign-change overflow |
+| `1110 ccc d ss i 01 rrr` / `1110 0 01 d 11 mmm rrr` | `LSR/LSL` | 516 | 2–6 | Same sizes/counts; shift zeros in, last outgoing bit to XC, clear V |
+| `1110 ccc d ss i 10 rrr` / `1110 0 10 d 11 mmm rrr` | `ROXR/ROXL` | 516 | 2–6 | Rotate through X; copy X into C even at count zero; clear V |
+| `1110 ccc d ss i 11 rrr` / `1110 0 11 d 11 mmm rrr` | `ROR/ROL` | 516 | 2–6 | Rotate within operand width; preserve X, clear V, last outgoing bit to C |
 
 ADD/SUB/CMP use `ss=00/01/10` for byte/word/long. Direction `d=0`
 reads any EA except byte An; `d=1` permits only memory-alterable destinations.
@@ -1810,6 +1817,15 @@ read memory before writing on the original 68000, while TST reads without
 writing. The [quick/unary contract](68000/model.md#quick-arithmetic-unary-operations-and-condition-bytes)
 defines flag preservation, full-width An arithmetic, and NEGX's cumulative Z.
 
+Shift direction `d=0/1` means right/left. Register sizes `ss=00/01/10` mean
+byte/word/long; `i=0` uses an immediate 1–8 count (`ccc=000` means eight),
+while `i=1` reads the low six bits of Dccc. Memory forms always shift a word
+once and permit only the 42 memory-alterable EAs. Each pair contributes
+`2 × (3 × (8 + 64) + 42) = 516` forms; immediate count values do not multiply
+the total. All operations set NZ, including at zero count. The
+[shift contract](68000/model.md#shifts-and-rotates) defines zero-count XC,
+intermediate overflow, register aliases, and memory updates.
+
 | Area | Implemented scope |
 | --- | --- |
 | Stored state | D0–D7, A0–A6, USP/SSP, and PC as unsigned 32-bit values; X/N/Z/V/C/T/S and three-bit interrupt mask |
@@ -1819,6 +1835,7 @@ defines flag preservation, full-width An arithmetic, and NEGX's cumulative Z.
 | Register/address ALU | ADD, SUB, CMP, ADDA, SUBA, CMPA; all documented sizes and EAs, with shared destination execution and arithmetic helpers |
 | Quick/unary ALU | ADDQ/SUBQ, CLR, NEG, NEGX, NOT, TST; all sizes and legal EAs, with cumulative Z for NEGX and full-width flag-preserving An quick arithmetic |
 | Condition bytes | All Scc conditions and data-alterable EAs; FF/00 results without flag changes |
+| Shifts and rotates | ASL/ASR, LSL/LSR, ROXL/ROXR, ROL/ROR; all register sizes, immediate/register counts, and word memory forms; shared one-bit helpers with CPU-specific flags |
 | Register/memory logic | AND, OR, EOR in all three sizes and legal directions/address sets; shared ALU execution and width-aware flag handling |
 | Effective addresses | Dn, An, indirect, postincrement, predecrement, signed displacement/index, absolute word/long, PC displacement/index, immediate; restrictions above |
 | Memory | Exactly 16 MiB; mask each address at RAM access, preserving full register values; big-endian bytes, words, and longs |
@@ -1827,7 +1844,7 @@ defines flag preservation, full-width An arithmetic, and NEGX's cumulative Z.
 | Alignment | Even instruction, word, and long addresses; odd byte operands allowed; read/write faults preserve state and RAM, including pending address updates |
 | Stack and addresses | A7 selects USP/SSP from S; BSR/JSR push and RTS pops a four-byte return address; LINK/UNLK frames, LEA/PEA address calculation, MOVEM saves/restores; byte auto-updates step by two |
 | Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts; preserve other registers, condition codes, and RAM under the documented policy |
-| Remaining scope | Other transfers and arithmetic/logic families, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
+| Remaining scope | Bit operations, extended/decimal arithmetic, multiply/divide, other transfers, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
@@ -1837,8 +1854,9 @@ Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [control-flow](../../tests/machines/68000/control-flow-example.test.ts),
 [word-sum](../../tests/machines/68000/word-sum-example.test.ts),
 [masked-merge](../../tests/machines/68000/logic-example.test.ts),
-[stack-frame](../../tests/machines/68000/stack-frame-example.test.ts), and
-[unary example tests](../../tests/machines/68000/unary-example.test.ts),
+[stack-frame](../../tests/machines/68000/stack-frame-example.test.ts),
+[unary](../../tests/machines/68000/unary-example.test.ts), and
+[shifts example tests](../../tests/machines/68000/shifts-example.test.ts),
 plus [public type checks](../../tests/types/68000.ts).
 
 The independent transfer fixtures execute all **9,726 MOVE/MOVEA encodings**
@@ -1913,6 +1931,17 @@ TST without writes, both stacks, wrapping, code overlap, and atomic rejection.
 The 56-step unary example classifies signed words and negates a two-long value,
 checking complete traces and RAM, live inputs, reset, and restoration between
 NEGX instructions with preserved extend and cumulative-zero state.
+
+Shift checks cover all **2,064 added forms** (3,408 operation words with
+embedded counts expanded), every byte with counts 0–63 and both X inputs,
+all immediate counts and register aliases, word/long bit boundaries, and
+all incoming flag patterns. Independent BigInt shifts and bit-string rotations
+check results and flags, including zero/large counts and ASL's intermediate
+overflow. Memory checks cover all EAs, actual read/write calls, both stacks,
+wrapping, unchanged results, code overlap, and atomic alignment rejection.
+The 32-step shifts example combines all eight operations in packed-sample
+processing and two-word shifts, with complete traces and RAM images, live
+inputs, reset preservation, and restoration between carry-dependent words.
 
 ## CPUs and variants not started
 

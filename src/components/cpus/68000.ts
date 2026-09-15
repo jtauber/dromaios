@@ -8,7 +8,7 @@ import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { motorolaConditions } from "./motorola.ts";
-import { add, subtract } from "./alu.ts";
+import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
 export const cpu68000StateDescription = defineState({
@@ -61,6 +61,7 @@ type ControlOperation = (cpu: Cpu68000, address: number, instruction: Instructio
 type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
 type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
 type OperandSize = 8 | 16 | 32;
+type ShiftKind = "arithmetic" | "logical" | "extend" | "rotate";
 // A result requests writeback; comparisons and tests update flags and return nothing.
 type AluOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
 // The EA field's role and permitted set; only plain sources allow An (word/long).
@@ -157,6 +158,7 @@ export class Cpu68000 {
   static readonly #addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
   static readonly #selectors = [0, 1, 2, 3, 4, 5, 6, 7] as const;
   static readonly #sizes = [8, 16, 32, undefined] as const;
+  static readonly #shiftKinds: readonly ShiftKind[] = ["arithmetic", "logical", "extend", "rotate"];
   static readonly #immediateBytes = Array.from({ length: 0x100 }, (_, value) => value);
 
   // cccc condition encodings. BRA uses T; BSR replaces F in the branch family.
@@ -250,6 +252,14 @@ export class Cpu68000 {
     ...this.#addressAluHandlers("1001 rrr s11 mmm eee", (_cpu, _size, left, right) => (left - right) >>> 0), // SUBA <ea>,An
     ...this.#addressAluHandlers("1011 rrr s11 mmm eee", (cpu, size, left, right) => { cpu.#compare(size, left, right); }), // CMPA <ea>,An
     ...this.#addressAluHandlers("1101 rrr s11 mmm eee", (_cpu, _size, left, right) => (left + right) >>> 0), // ADDA <ea>,An
+
+    // Register shifts: 1110 ccc d ss i tt rrr. d=0 right, 1 left; ss=00 byte, 01 word, 10 long.
+    // i=0: ccc is an immediate count (000 means 8); i=1: Dccc supplies its low six bits (0..63).
+    // tt=00 arithmetic, 01 logical, 10 rotate through X, 11 rotate; rrr selects the destination Dn.
+    ...this.#registerShiftHandlers("1110 ccc d ss i tt rrr"), // ASR/ASL, LSR/LSL, ROXR/ROXL, ROR/ROL
+    // ss=11 moves tt to bits 10..9: 1110 0 tt d 11 mmm rrr shifts a memory word once.
+    // Only memory-alterable EAs are legal; bit 11=1 belongs to later chips' bit-field instructions.
+    ...this.#memoryShiftHandlers("1110 0 tt d 11 mmm rrr"), // ASR/ASL, LSR/LSL, ROXR/ROXL, ROR/ROL <ea>
 
     // Other ALU families, status operations, and exceptions are deferred.
   ], 16);
@@ -359,6 +369,26 @@ export class Cpu68000 {
     return opcodeFamily(pattern, { r: this.#selectors, s: [16, 32] as const, m: this.#selectors, e: this.#selectors }, ({ r, s: size, m, e }) => {
       if (m === 7 && e > 4) return undefined;
       return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#registerAlu(size, m, e, { kind: "address", register: cpu.#addressRegister(r) }, apply, instruction);
+    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
+
+  static #registerShiftHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { c: this.#selectors, d: [false, true], s: this.#sizes, i: [false, true], t: this.#shiftKinds, r: this.#selectors }, ({ c, d: left, s: size, i: fromRegister, t: kind, r }) => {
+      if (size === undefined) return undefined;
+      const apply: AluOperation = (cpu, width, value, count) => cpu.#shift(kind, left, width, value, count);
+      return (cpu: Cpu68000, instruction: InstructionContext) => {
+        // Capture the count before writing the destination, including Dn,Dn aliases.
+        const count = fromRegister ? cpu.#state[Cpu68000.#dataRegisters[c]!] & 63 : c || 8;
+        return cpu.#effectiveAddressAlu(size, 0, r, count, apply, instruction);
+      };
+    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
+
+  static #memoryShiftHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily(pattern, { t: this.#shiftKinds, d: [false, true], m: this.#selectors, r: this.#selectors }, ({ t: kind, d: left, m, r }) => {
+      if (m < 2 || (m === 7 && r > 1)) return undefined;
+      const apply: AluOperation = (cpu, size, value, count) => cpu.#shift(kind, left, size, value, count);
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#effectiveAddressAlu(16, m, r, 1, apply, instruction);
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
@@ -637,6 +667,31 @@ export class Cpu68000 {
     this.#state.flags.c = borrow;
     this.#state.flags.v = overflow;
     return result;
+  }
+
+  #shift(kind: ShiftKind, left: boolean, size: OperandSize, value: number, count: number): number {
+    const move = left ? shiftLeft : shiftRight;
+    const sign = 2 ** (size - 1);
+    let extend = this.#state.flags.x;
+    let carry = kind === "extend" && extend; // A zero-count ROX copies X to C; other families clear C.
+    let overflow = false;
+    for (let bit = 0; bit < count; bit++) {
+      let incoming = false;
+      if (kind === "extend") incoming = extend;
+      else if (kind === "rotate") incoming = left ? value >= sign : (value & 1) !== 0;
+      else if (kind === "arithmetic" && !left) incoming = value >= sign;
+      const shifted = move(size, value, incoming ? 1 : 0);
+      // ASL remembers any sign change, even if later shifts restore the original sign.
+      if (kind === "arithmetic" && left && (value >= sign) !== (shifted.result >= sign)) overflow = true;
+      value = shifted.result;
+      carry = shifted.carry;
+      if (kind !== "rotate") extend = carry;
+    }
+    this.#setResultFlags(value, size); // Even a zero count replaces N/Z and clears V.
+    this.#state.flags.x = extend;
+    this.#state.flags.c = carry;
+    this.#state.flags.v = overflow;
+    return value;
   }
 
   #setResultFlags(value: number, size: OperandSize = 32): void {

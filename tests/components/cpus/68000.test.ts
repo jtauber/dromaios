@@ -322,7 +322,13 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
     }
   }
   for (const { opcode } of setConditions) for (const ea of dataDestinations) supported.add(opcode + ea);
-  assert.equal(supported.size, 36473); // Includes embedded MOVEQ, branch, and quick operands, unlike coverage forms.
+  for (const { immediate, register, memory } of shiftFamilies) {
+    for (const base of [...immediate, ...register]) for (const { field } of quickAmounts) {
+      for (let destination = 0; destination < 8; destination++) supported.add(base + field + destination);
+    }
+    for (const ea of dataDestinations.filter(code => code >= 16)) supported.add(memory + ea);
+  }
+  assert.equal(supported.size, 39881); // Includes embedded MOVEQ, branch, quick, and shift counts, unlike coverage forms.
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
@@ -2031,4 +2037,212 @@ test("68000 unary alignment faults retry from live RAM without changing retained
   cpu.reset();
   assert.deepEqual(record, saved);
   assert.deepEqual(fault, savedFault);
+});
+
+// Manual operation words for D0, with immediate count 8 or register count D0.
+// Columns are byte/word/long; the memory encoding always shifts a word once.
+const shiftFamilies = [
+  { name: "ASR", immediate: [0xe000, 0xe040, 0xe080], register: [0xe020, 0xe060, 0xe0a0], memory: 0xe0c0 },
+  { name: "ASL", immediate: [0xe100, 0xe140, 0xe180], register: [0xe120, 0xe160, 0xe1a0], memory: 0xe1c0 },
+  { name: "LSR", immediate: [0xe008, 0xe048, 0xe088], register: [0xe028, 0xe068, 0xe0a8], memory: 0xe2c0 },
+  { name: "LSL", immediate: [0xe108, 0xe148, 0xe188], register: [0xe128, 0xe168, 0xe1a8], memory: 0xe3c0 },
+  { name: "ROXR", immediate: [0xe010, 0xe050, 0xe090], register: [0xe030, 0xe070, 0xe0b0], memory: 0xe4c0 },
+  { name: "ROXL", immediate: [0xe110, 0xe150, 0xe190], register: [0xe130, 0xe170, 0xe1b0], memory: 0xe5c0 },
+  { name: "ROR", immediate: [0xe018, 0xe058, 0xe098], register: [0xe038, 0xe078, 0xe0b8], memory: 0xe6c0 },
+  { name: "ROL", immediate: [0xe118, 0xe158, 0xe198], register: [0xe138, 0xe178, 0xe1b8], memory: 0xe7c0 },
+] as const;
+type ShiftName = typeof shiftFamilies[number]["name"];
+
+// Whole-value BigInt shifts and bit-string rotations are independent of the core's one-bit loop.
+function shifted(name: ShiftName, width: number, value: number, count: number, before: Cpu68000Flags) {
+  let result = value;
+  let x = before.x;
+  let c = false;
+  let v = false;
+  if (name.startsWith("RO")) {
+    const throughX = name === "ROXL" || name === "ROXR";
+    const ring = value.toString(2).padStart(width, "0") + (throughX ? (x ? "1" : "0") : "");
+    const offset = (name.endsWith("L") ? count : ring.length - count % ring.length) % ring.length;
+    const rotated = ring.slice(offset) + ring.slice(0, offset);
+    result = parseInt(rotated.slice(0, width), 2);
+    if (throughX) c = x = rotated[width] === "1";
+    else if (count) c = name === "ROL" ? rotated[width - 1] === "1" : rotated[0] === "1";
+  } else if (count) {
+    const original = BigInt(value);
+    const distance = BigInt(count);
+    const signed = BigInt.asIntN(width, original);
+    let total: bigint;
+    if (name.endsWith("L")) {
+      total = original * 2n ** distance;
+      c = (total / 2n ** BigInt(width)) % 2n === 1n;
+      const signedTotal = signed * 2n ** distance;
+      v = name === "ASL" && (signedTotal < -(2n ** BigInt(width - 1)) || signedTotal >= 2n ** BigInt(width - 1));
+    } else {
+      const operand = name === "ASR" ? signed : original;
+      total = operand >> distance;
+      c = ((operand >> (distance - 1n)) & 1n) !== 0n;
+    }
+    result = Number(BigInt.asUintN(width, total));
+    x = c;
+  }
+  return { result, flags: { ...before, x, n: result >= 2 ** (width - 1), z: result === 0, v, c } };
+}
+
+function checkRegisterShift(ram: ObservedRam, before: Cpu68000State, name: ShiftName, opcode: number,
+  width: number, register: DataRegister, count: number): void {
+  const modulus = 2 ** width;
+  const expected = shifted(name, width, before[register] % modulus, count, before.flags);
+  checkStep(ram, before, wordBytes(opcode), { ...before, flags: expected.flags,
+    [register]: Math.floor(before[register] / modulus) * modulus + expected.result, pc: unsignedLong(before.pc + 2) });
+}
+
+function checkMemoryShift(ram: ObservedRam, before: Cpu68000State, name: ShiftName, opcode: number,
+  ea: TransferFixture, value: number): void {
+  const address = ea.address!;
+  const bytes = [...wordBytes(opcode), ...ea.extension];
+  const memory = new Map<number, number>([[physical(address - 1), 0xde], [physical(address + 2), 0xad]]);
+  wordBytes(value).forEach((byte, offset) => memory.set(physical(address + offset), byte));
+  bytes.forEach((byte, offset) => memory.set(physical(before.pc + offset), byte));
+  for (const [location, byte] of memory) ram.write(location, byte);
+  const data = [memory.get(physical(address))!, memory.get(physical(address + 1))!];
+  const expected = shifted(name, 16, data[0]! * 256 + data[1]!, 1, before.flags);
+  const after = { ...before, pc: unsignedLong(before.pc + bytes.length), flags: expected.flags };
+  if (ea.update) after[ea.update[0]] = ea.update[1];
+  const accesses = [...memoryAccesses("read", before.pc, bytes), ...memoryAccesses("read", address, data),
+    ...memoryAccesses("write", address, wordBytes(expected.result))];
+  const cpu = new Cpu68000(ram, before);
+  ram.accesses.length = 0;
+  assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), accesses,
+    instruction: { address: before.pc, bytes }, outcome: "executed" });
+  assert.deepEqual(cpu.snapshot(), snapshot(after));
+  assert.deepEqual(ram.accesses, accesses);
+  wordBytes(expected.result).forEach((byte, offset) => memory.set(physical(address + offset), byte));
+  for (const [location, byte] of memory) assert.equal(ram.read(location), byte);
+}
+
+for (const { name, immediate, register, memory } of shiftFamilies) {
+  test(`68000 ${name} covers all 258 forms, all immediate counts, and count/destination register aliases`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (const bits of [0, 127]) {
+      let forms = 0;
+      for (const [index, base] of immediate.entries()) {
+        const width = 8 * 2 ** index;
+        for (const [destination, { register: target }] of registerForms.entries()) {
+          for (const { field, amount } of quickAmounts) {
+            checkRegisterShift(ram, initialState({ flags: flags(bits) }), name, base + field + destination, width, target, amount);
+          }
+          forms++; // Immediate counts are operand values, so each destination/size counts once.
+          for (const [source, { register: counter }] of registerForms.entries()) {
+            for (const count of [0, 1, 8, 31, 32, 33, 63, 64, 65, 255, 0xffffffff]) {
+              const before = initialState({ [counter]: count, flags: flags(bits) });
+              checkRegisterShift(ram, before, name, register[index]! + source * 512 + destination, width, target, count % 64);
+            }
+            forms++;
+          }
+        }
+      }
+      const before = transferState(bits);
+      for (const ea of transferFixtures(before, 2, before.pc + 2).filter(ea => ea.code >= 16 && ea.code <= 57)) {
+        for (const value of [0, 1, 0x4000, 0x7fff, 0x8000, 0x8001, 0xffff]) checkMemoryShift(ram, before, name, memory + ea.code, ea, value);
+        forms++;
+      }
+      assert.equal(forms, 258);
+    }
+  });
+
+  test(`68000 ${name} checks every byte and count 0..63 with both incoming X values`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (let value = 0; value < 256; value++) for (let count = 0; count < 64; count++) for (const bits of [0, 127]) {
+      const before = initialState({ d0: 0xabcdef00 + value, d1: 0xffff0000 + count, flags: flags(bits) });
+      checkRegisterShift(ram, before, name, register[0] + 0x200, 8, "d0", count);
+    }
+  });
+}
+
+test("68000 shifts check word/long bit boundaries, all counts, and all flag patterns independently", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const width of [16, 32]) {
+    const modulus = 2 ** width;
+    const values = new Set([0, modulus - 1]);
+    for (let bit = 0; bit < width; bit++) for (const value of [2 ** bit - 1, 2 ** bit, 2 ** bit + 1, modulus - 2 ** bit]) values.add(value);
+    for (const { name, register } of shiftFamilies) {
+      const opcode = register[width === 16 ? 1 : 2] + 0x200;
+      for (const value of values) for (let count = 0; count < 64; count++) for (const bits of [0, 127]) {
+        const before = initialState({ d0: width === 16 ? 0xabcd0000 + value : value, d1: 0xffff0000 + count, flags: flags(bits) });
+        checkRegisterShift(ram, before, name, opcode, width, "d0", count);
+      }
+    }
+  }
+  for (const { name, register } of shiftFamilies) for (const [index, base] of register.entries()) {
+    const width = 8 * 2 ** index;
+    for (let bits = 0; bits < 128; bits++) for (const value of [0, 1, 2 ** (width - 1), 2 ** width - 1]) {
+      for (const count of [0, 1, width - 1, width, width + 1, 63]) {
+        checkRegisterShift(ram, initialState({ d0: value, d1: count, flags: flags(bits), interruptMask: bits % 8 }), name, base + 0x200, width, "d0", count);
+      }
+    }
+  }
+});
+
+test("68000 shift flags distinguish zero counts, full rotations, and ASL sign changes that cancel", () => {
+  const ram = new ObservedRam(0x1000000);
+  // Literal outcomes anchor the independent oracle at cases that simple JavaScript shifts lose.
+  for (const row of [
+    { opcode: 0xe360, value: 0, count: 0, result: 0, x: true, n: false, z: true, v: false, c: false }, // ASL.W D1,D0
+    { opcode: 0xe3b0, value: 0x80000000, count: 64, result: 0x80000000, x: true, n: true, z: false, v: false, c: true }, // ROXL.L D1,D0
+    { opcode: 0xe328, value: 1, count: 32, result: 0, x: false, n: false, z: true, v: false, c: false }, // LSL.B D1,D0
+    { opcode: 0xe338, value: 0x81, count: 8, result: 0x81, x: true, n: true, z: false, v: false, c: true }, // ROL.B D1,D0
+    { opcode: 0xe230, value: 0x80, count: 9, result: 0x80, x: true, n: true, z: false, v: false, c: true }, // ROXR.B D1,D0
+    { opcode: 0xe320, value: 0x40, count: 2, result: 0, x: true, n: false, z: true, v: true, c: true }, // ASL.B D1,D0
+    { opcode: 0xe2a0, value: 0x80000000, count: 63, result: 0xffffffff, x: true, n: true, z: false, v: false, c: true }, // ASR.L D1,D0
+  ]) {
+    const before = initialState({ d0: row.value, d1: row.count });
+    const { x, n, z, v, c } = row;
+    checkStep(ram, before, wordBytes(row.opcode), { ...before, d0: row.result, pc: before.pc + 2,
+      flags: { ...before.flags, x, n, z, v, c } });
+  }
+});
+
+test("68000 memory shifts wrap, update either stack once, and fetch extensions before overlapping writes", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const { name, memory } of shiftFamilies) {
+    for (const bits of [0, 127]) for (const address of [0, 0x12fffffe, 0xfffffffe]) {
+      const before = { ...transferState(bits), usp: address, ssp: address };
+      for (const ea of transferFixtures(before, 2, before.pc + 2).filter(ea => [31, 39].includes(ea.code))) {
+        checkMemoryShift(ram, before, name, memory + ea.code, ea, 0);
+      }
+    }
+    for (const pc of [0xab001000, 0x12fffffe, 0xfffffffe]) for (const offset of [0, 2, 4]) {
+      const before = initialState({ pc });
+      const address = unsignedLong(pc + offset);
+      checkMemoryShift(ram, before, name, memory + 57, { code: 57, address, extension: longBytes(address) }, 0x8001);
+    }
+  }
+});
+
+test("68000 memory shifts reject odd addresses in every memory mode without reads, writes, or state changes", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const { memory } of shiftFamilies) for (const bits of [0, 127]) {
+    const before = transferState(bits);
+    for (const register of addressNames(before)) before[register]++;
+    const addresses = transferFixtures(before, 2, before.pc + 2);
+    addresses.push({ code: 56, extension: [0xff, 0xff], address: 0xffffffff },
+      { code: 57, extension: [0xab, 0xff, 0xff, 0xff], address: 0xabffffff });
+    for (const ea of addresses) {
+      if (ea.code > 57 || ea.address === undefined || ea.address % 2 === 0) continue;
+      checkControlRejection(ram, before, [...wordBytes(memory + ea.code), ...ea.extension], "read", ea.address);
+    }
+  }
+});
+
+test("68000 register shifts use counts written by earlier instructions and wrap the full PC", () => {
+  const ram = new ObservedRam(0x1000000);
+  const before = initialState({ d0: 0x80000001, d1: 1, pc: 0xfffffffe });
+  const cpu = new Cpu68000(ram, before);
+  const count = { ...before, d1: 32, pc: 0, flags: { ...before.flags, x: false, n: false, z: false, v: false, c: false } };
+  checkStep(ram, before, [0xeb, 0x89], count, [], cpu); // LSL.L #5,D1
+  const shifted = { ...count, d0: 0, pc: 2, flags: { ...count.flags, x: true, z: true, c: true } };
+  checkStep(ram, count, [0xe2, 0xa8], shifted, [], cpu); // LSR.L D1,D0
+  const zeroCount = { ...shifted, d1: 0, pc: 4, flags: { ...shifted.flags, c: false } };
+  checkStep(ram, shifted, [0x72, 0], zeroCount, [], cpu); // MOVEQ #0,D1
+  checkStep(ram, zeroCount, [0xe3, 0xb0], { ...zeroCount, pc: 6, flags: { ...zeroCount.flags, c: true } }, [], cpu); // ROXL.L D1,D0
 });

@@ -248,3 +248,26 @@ magnitudes, and negates a two-long value. Its final high long becomes zero
 while the complete result is nonzero, checking cumulative Z across a restored
 snapshot. All checks here use manual expectations, local tests, and source
 comparisons; no external hardware corpus or cycle comparison is claimed.
+
+## Shifts and rotates
+
+Motorola's programmer's reference defines the register and memory variants
+on pages 4-21–4-24 (ASL/ASR), 4-113–4-115 (LSL/LSR), 4-160–4-162 (ROL/ROR),
+and 4-163–4-165 (ROXL/ROXR). Memory forms shift one word once, while register
+counts come from an embedded 1–8 operand or the low six bits of a data register.
+The two formats place their kind selectors in different fields; both layouts
+are shown explicitly in the Dromaios table.
+
+The [Mac reference](https://github.com/jtauber/dromaios-mac/blob/9fa206830687b3ccdec4943d7ea5e318d6ba05ee/js/instructions.js)
+uses separate register loops for the four families. It preserves X for ordinary
+rotates and copies X into C for a zero-count ROX, but its ASL path always clears
+V. Motorola requires V to record any intermediate sign change. For example,
+ASL.B by two turns `40` into `00` with V set, despite both endpoint signs being
+positive. Dromaios shares one repetition loop using the existing one-bit shift
+helpers and applies those flag rules locally, including unsigned long results.
+
+Tests use whole-value BigInt arithmetic and bit-string rotation independently
+of that loop, plus literal flag cases and every legal encoding. The
+[combined program](examples/shifts.md) exercises all eight operations and
+restores execution between shifts of a multi-word operand. This is manual-
+and test-based verification; no external hardware or timing comparison is claimed.
