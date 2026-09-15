@@ -2684,3 +2684,29 @@ test("6502 JMP indirect keeps repeated reads when its pointer overlaps instructi
     assert.deepEqual(ram.accesses, record.accesses);
   }
 });
+
+test("6502 memory ASL preserves the split flag updates when either write fails", () => {
+  const failure = new Error("write failed");
+  class FailingRam extends ObservedRam {
+    failOnWrite = 0;
+    override write(address: number, value: number): void {
+      if (address === 0x4000 && this.failOnWrite > 0 && --this.failOnWrite === 0) throw failure;
+      super.write(address, value);
+    }
+  }
+  for (const failOnWrite of [1, 2]) {
+    const ram = new FailingRam();
+    const before = initialState({ flags: { n: true, z: false, c: false, v: true, d: true, i: true } });
+    const bytes = [0x0e, 0, 0x40]; // ASL $4000, with 80 becoming 00.
+    bytes.forEach((byte, offset) => ram.write(before.pc + offset, byte));
+    ram.write(0x4000, 0x80);
+    ram.accesses.length = 0;
+    ram.failOnWrite = failOnWrite;
+    const cpu = new Cpu6502(ram, before);
+    assert.throws(() => cpu.step(), error => error === failure);
+    assert.deepEqual(cpu.snapshot(), { ...before, pc: before.pc + 3, flags: { ...before.flags, c: failOnWrite === 2 } });
+    assert.deepEqual(ram.accesses, [...bytes.map((value, offset) => ({ kind: "read", address: before.pc + offset, value })),
+      { kind: "read", address: 0x4000, value: 0x80 }, ...(failOnWrite === 2 ? [{ kind: "write", address: 0x4000, value: 0x80 }] : [])]);
+    assert.equal(ram.read(0x4000), 0x80);
+  }
+});

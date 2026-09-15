@@ -3,6 +3,7 @@ import type { FetchedInstruction, StateTransition, InstructionStep } from "./exe
 import { flagRegister } from "./flags.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { signed8, readWordBE } from "./binary.ts";
+import { modifyByte } from "./memory-operations.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -203,7 +204,7 @@ export class Cpu6800 {
   #memoryUnaryHandlers(prefix: "0110" | "0111", address: AddressReader): readonly OpcodeEntry<OpcodeHandler>[] {
     return [
       ...this.#unaryOperations.flatMap(({ bits, apply }) => instructionPattern(`${prefix} ${bits}`,
-        instruction => this.#modifyMemory(address(instruction), apply, instruction))),
+        instruction => modifyByte(address(instruction), apply, instruction))),
       ...instructionPattern(`${prefix} 1101`, instruction => this.#test(instruction.readByte(address(instruction)))), // TST
       ...instructionPattern(`${prefix} 1110`, instruction => { this.#state.pc = address(instruction); }), // JMP
       ...instructionPattern(`${prefix} 1111`, instruction => instruction.writeByte(address(instruction), this.#alu.clear())), // CLR
@@ -312,10 +313,5 @@ export class Cpu6800 {
     const high = readByte(address);
     const low = readByte((address + 1) & 0xffff);
     return (high << 8) | low;
-  }
-
-  #modifyMemory(address: number, operation: ByteOperation, { readByte, writeByte }: InstructionContext): void {
-    const value = readByte(address);
-    writeByte(address, operation(value));
   }
 }

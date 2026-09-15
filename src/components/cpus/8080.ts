@@ -2,7 +2,7 @@ import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
 import type { OpcodeHandler, ByteOperation } from "./8080-family.ts";
-import { flagRegister } from "./flags.ts";
+import { flagRegister, signZeroParity8 } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { readWordLE } from "./binary.ts";
@@ -10,7 +10,7 @@ import type { MemoryAccess } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, group } from "./state.ts";
 import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeTable } from "./opcodes.ts";
-import { add, subtract, shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
+import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
@@ -181,13 +181,7 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
 
   #aluResult(value: number, ac: boolean, cy: boolean): number {
     const result = value & 0xff;
-    this.state.flags = {
-      s: (result & 0x80) !== 0,
-      z: result === 0,
-      ac,
-      p: evenParity8(result),
-      cy,
-    };
+    this.state.flags = { ...signZeroParity8(result), ac, cy };
     return result;
   }
 }

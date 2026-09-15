@@ -2680,3 +2680,55 @@ test("6809 implements 262 documented ordinary forms and rejects all other encodi
     }
   }
 });
+
+test("6809 CMPX reads the updated indexed register only after both source bytes succeed", () => {
+  const failure = new Error("source read failed");
+  class FailingRam extends ObservedRam {
+    fail = false;
+    override read(address: number): number {
+      if (this.fail && address === 0x4001) throw failure;
+      return super.read(address);
+    }
+  }
+  for (const fail of [false, true]) {
+    const ram = new FailingRam();
+    const before = initialState({ x: 0x4000 });
+    const bytes = [0xac, 0x81]; // CMPX ,X++ compares 4002 with the word at old X=4000.
+    bytes.forEach((byte, offset) => ram.write(before.pc + offset, byte));
+    ram.write(0x4000, 0x40); ram.write(0x4001, 2);
+    ram.accesses.length = 0; ram.fail = fail;
+    const cpu = new Cpu6809(ram, before);
+    const accesses = [...bytes.map((value, offset) => ({ kind: "read", address: before.pc + offset, value })),
+      { kind: "read", address: 0x4000, value: 0x40 }, ...(fail ? [] : [{ kind: "read", address: 0x4001, value: 2 }])];
+    const after = { ...before, x: 0x4002, pc: before.pc + 2,
+      flags: fail ? before.flags : { ...before.flags, n: false, z: true, v: false, c: false } };
+    if (fail) assert.throws(() => cpu.step(), error => error === failure);
+    else assert.deepEqual(cpu.step(), { before: snapshotOf(before), after: snapshotOf(after), outcome: "executed",
+      instruction: { address: before.pc, bytes }, accesses });
+    assert.deepEqual(cpu.snapshot(), snapshotOf(after));
+    assert.deepEqual(ram.accesses, accesses);
+  }
+});
+
+test("6809 indexed STX retains its address update and first write but delays flags if the second write fails", () => {
+  const failure = new Error("second write failed");
+  class FailingRam extends ObservedRam {
+    fail = false;
+    override write(address: number, value: number): void {
+      if (this.fail && address === 0x4001) throw failure;
+      super.write(address, value);
+    }
+  }
+  const ram = new FailingRam();
+  const before = initialState({ x: 0x4000, flags: { ...initialState().flags, n: true, z: true, v: true } });
+  const bytes = [0xaf, 0x81]; // STX ,X++ stores updated X to the resolved old address.
+  bytes.forEach((byte, offset) => ram.write(before.pc + offset, byte));
+  ram.write(0x4000, 0xcc); ram.write(0x4001, 0xcc);
+  ram.accesses.length = 0; ram.fail = true;
+  const cpu = new Cpu6809(ram, before);
+  assert.throws(() => cpu.step(), error => error === failure);
+  assert.deepEqual(cpu.snapshot(), snapshotOf({ ...before, x: 0x4002, pc: before.pc + 2 }));
+  assert.deepEqual(ram.accesses, [...bytes.map((value, offset) => ({ kind: "read", address: before.pc + offset, value })),
+    { kind: "write", address: 0x4000, value: 0x40 }]);
+  assert.equal(ram.read(0x4000), 0x40); assert.equal(ram.read(0x4001), 0xcc);
+});

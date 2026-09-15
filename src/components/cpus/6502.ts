@@ -1,8 +1,9 @@
 import type { Ram } from "../memory/ram.js";
-import { flagRegister } from "./flags.ts";
+import { flagRegister, negativeZero } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { signed8, readWordLE } from "./binary.ts";
+import { modifyByte } from "./memory-operations.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -279,13 +280,9 @@ export class Cpu6502 {
     this.#loadRegister(register, (this.#state[register] + delta) & 0xff);
   }
 
-  #modifyMemory(address: number, modify: ByteOperation, { readByte, writeByte }: InstructionContext): void {
-    const value = readByte(address);
-    // NMOS read/modify/write instructions write the original byte before the result.
-    writeByte(address, value);
-    const result = modify(value);
-    writeByte(address, result);
-    this.#setNegativeZero(result);
+  #modifyMemory(address: number, modify: ByteOperation, instruction: InstructionContext): void {
+    // A shift updates C during modify; N/Z change only after the final write succeeds.
+    this.#setNegativeZero(modifyByte(address, modify, instruction, "original-and-result"));
   }
 
   // Control flow.
@@ -338,8 +335,7 @@ export class Cpu6502 {
   }
 
   #setNegativeZero(value: number): void {
-    this.#state.flags.n = (value & 0x80) !== 0;
-    this.#state.flags.z = value === 0;
+    Object.assign(this.#state.flags, negativeZero(8, value));
   }
 
   #compare(register: ByteRegister, value: number): void {

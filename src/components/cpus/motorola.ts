@@ -1,5 +1,6 @@
 import { add, subtract } from "./alu.ts";
-import type { ShiftResult } from "./alu.ts";
+import { negativeZero } from "./flags.ts";
+import type { ArithmeticWidth, AdditionResult, SubtractionResult, ShiftResult } from "./alu.ts";
 
 interface ConditionCodes { n: boolean; z: boolean; v: boolean; c: boolean }
 type Condition = (flags: Readonly<ConditionCodes>) => boolean;
@@ -18,9 +19,10 @@ export const motorolaConditionPairs: readonly Condition[] = [
 ];
 export const motorolaConditions: readonly Condition[] = motorolaConditionPairs.flatMap(test => [test, flags => !test(flags)]);
 
-function setNZ(flags: ConditionCodes, value: number, width: 8 | 16 = 8): void {
-  flags.n = value >= 2 ** (width - 1);
-  flags.z = value === 0;
+/** Ordinary Motorola arithmetic changes NZVC; callers separately schedule H, X, and writeback. */
+export function motorolaArithmeticFlags(width: ArithmeticWidth, facts: AdditionResult | SubtractionResult) {
+  return { ...negativeZero(width, facts.result), v: facts.overflow,
+    c: "carry" in facts ? facts.carry : facts.borrow };
 }
 
 /**
@@ -32,20 +34,15 @@ export function motorolaByteAlu(readFlags: () => ConditionCodes & { h: boolean }
   return {
     add(left: number, right: number, carryIn: 0 | 1 = 0): number {
       const flags = readFlags();
-      const { result, carry, halfCarry, overflow } = add(8, left, right, carryIn);
-      setNZ(flags, result);
-      flags.h = halfCarry;
-      flags.c = carry;
-      flags.v = overflow;
-      return result;
+      const facts = add(8, left, right, carryIn);
+      Object.assign(flags, motorolaArithmeticFlags(8, facts), { h: facts.halfCarry });
+      return facts.result;
     },
     subtract(left: number, right: number, borrowIn: 0 | 1 = 0): number {
       const flags = readFlags();
-      const { result, borrow, overflow } = subtract(8, left, right, borrowIn);
-      setNZ(flags, result);
-      flags.c = borrow;
-      flags.v = overflow;
-      return result;
+      const facts = subtract(8, left, right, borrowIn);
+      Object.assign(flags, motorolaArithmeticFlags(8, facts));
+      return facts.result;
     },
     decimalAdjust(value: number): number {
       const flags = readFlags();
@@ -53,38 +50,38 @@ export function motorolaByteAlu(readFlags: () => ConditionCodes & { h: boolean }
       const low = (value & 0x0f) > 9 || flags.h ? 0x06 : 0;
       const high = value > 0x99 || flags.c ? 0x60 : 0;
       const { result, carry } = add(8, value, low + high);
-      setNZ(flags, result);
+      Object.assign(flags, negativeZero(8, result));
       flags.v = false; // Explicit model policy for the hardware-undefined V; preserve H.
       flags.c = flags.c || carry;
       return result;
     },
     complement(value: number): number {
       const flags = readFlags(), result = value ^ 0xff;
-      setNZ(flags, result);
+      Object.assign(flags, negativeZero(8, result));
       flags.v = false;
       flags.c = true;
       return result;
     },
     adjust(value: number, delta: -1 | 1): number {
       const flags = readFlags(), result = (value + delta) & 0xff;
-      setNZ(flags, result);
+      Object.assign(flags, negativeZero(8, result));
       flags.v = value === (delta === 1 ? 0x7f : 0x80);
       return result;
     },
     shift({ result, carry }: ShiftResult): number {
       const flags = readFlags();
-      setNZ(flags, result);
+      Object.assign(flags, negativeZero(8, result));
       flags.c = carry;
       return result; // V is preserved here; each CPU selects the instructions that replace it.
     },
     test(value: number, width: 8 | 16 = 8): void {
       const flags = readFlags();
-      setNZ(flags, value, width);
+      Object.assign(flags, negativeZero(width, value));
       flags.v = false; // 6800 TST additionally clears C; 6809 TST preserves it.
     },
     clear(): number {
       const flags = readFlags();
-      setNZ(flags, 0);
+      Object.assign(flags, negativeZero(8, 0));
       flags.v = flags.c = false;
       return 0;
     },

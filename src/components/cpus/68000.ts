@@ -7,8 +7,8 @@ import { defineState, copyState, readState, unsigned, flag, boolean, group } fro
 import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { flagRegister } from "./flags.ts";
-import { motorolaConditions } from "./motorola.ts";
+import { flagRegister, negativeZero } from "./flags.ts";
+import { motorolaConditions, motorolaArithmeticFlags } from "./motorola.ts";
 import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
@@ -927,11 +927,9 @@ export class Cpu68000 {
   }
 
   #compare(size: OperandSize, left: number, right: number, borrowIn: 0 | 1 = 0): number {
-    const { result, borrow, overflow } = subtract(size, left, right, borrowIn);
-    this.#setResultFlags(result, size);
-    this.#state.flags.c = borrow;
-    this.#state.flags.v = overflow;
-    return result;
+    const facts = subtract(size, left, right, borrowIn);
+    Object.assign(this.#state.flags, motorolaArithmeticFlags(size, facts));
+    return facts.result;
   }
 
   #shift(kind: ShiftKind, left: boolean, size: OperandSize, value: number, count: number): number {
@@ -960,9 +958,7 @@ export class Cpu68000 {
   }
 
   #setResultFlags(value: number, size: OperandSize = 32): void {
-    this.#state.flags.n = value >= 2 ** (size - 1);
-    this.#state.flags.z = value === 0;
-    this.#state.flags.v = this.#state.flags.c = false;
+    Object.assign(this.#state.flags, negativeZero(size, value), { v: false, c: false });
   }
 
   // Memory access. Only bus addresses discard the high eight bits.

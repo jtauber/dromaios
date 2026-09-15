@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { flagRegister } from "../../../src/components/cpus/flags.js";
+import { flagRegister, negativeZero, signZeroParity8 } from "../../../src/components/cpus/flags.js";
 
 test("packed flags round trip named bits, normalize constant bits, and ignore unused input bits", () => {
   const register = flagRegister({ negative: 7, zero: 6, carry: 0 }, 0x02);
@@ -34,4 +34,22 @@ test("invalid flag layouts fail before encoding", () => {
   for (const fixed of [-1, 0x100000000, NaN, 0.5]) assert.throws(() => flagRegister({}, fixed), RangeError);
   assert.throws(() => flagRegister({ a: 1, b: 1 }), /distinct/);
   assert.throws(() => flagRegister({ a: 1 }, 2), /overlap/);
+});
+
+test("result flag calculations cover bytes, words, and unsigned long sign boundaries without storing state", () => {
+  for (const width of [8, 16, 32] as const) {
+    const values = width === 32 ? [0, 1, 0x7fffffff, 0x80000000, 0xffffffff]
+      : Array.from({ length: 2 ** width }, (_, value) => value);
+    for (const value of values) {
+      const signed = BigInt.asIntN(width, BigInt(value));
+      assert.deepEqual(negativeZero(width, value), { n: signed < 0n, z: signed === 0n });
+    }
+  }
+  for (let value = 0; value < 256; value++) {
+    const ones = [...value.toString(2)].filter(bit => bit === "1").length;
+    assert.deepEqual(signZeroParity8(value), { s: value >= 128, z: value === 0, p: ones % 2 === 0 });
+  }
+  const old = negativeZero(8, 0);
+  negativeZero(8, 128).n = false;
+  assert.deepEqual(old, { n: false, z: true });
 });

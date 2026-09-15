@@ -16,13 +16,13 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [253](../../src/components/cpus/8008.ts) | 218 / 250 | 87.2% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [193](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [321](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [398](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [187](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [317](../../src/components/cpus/6800.ts) | 192 / 197 | 97.5% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [394](../../src/components/cpus/6502.ts) | 147 / 151 | 97.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [504](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [498](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [773](../../src/components/cpus/8088.ts) | 268 / 291 | 92.1% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [990](../../src/components/cpus/68000.ts) | 36,024 / 36,029 | >99.9% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [986](../../src/components/cpus/68000.ts) | 36,024 / 36,029 | >99.9% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"

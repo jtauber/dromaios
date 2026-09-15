@@ -3,6 +3,7 @@ import { flagRegister } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { signed8, readWordBE } from "./binary.ts";
+import { modifyByte } from "./memory-operations.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -10,7 +11,7 @@ import { defineState, copyState, readState, unsigned, flag, group } from "./stat
 import type { StateValues, ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
+import { motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
 import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 
 /** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
@@ -242,10 +243,11 @@ export class Cpu6809 {
       ({ t: test, p: invert }) => instruction => this.#branch(readOffset(instruction), test(this.#state.flags) !== invert));
   }
 
+  // CLR also reads its operand here; the 6800 binds CLR to a write-only instruction.
   #memoryUnaryHandlers(prefix: "0000" | "0110" | "0111", address: AddressReader): readonly OpcodeEntry<OpcodeHandler>[] {
     return this.#addressedHandlers(address, [
       ...this.#unaryOperations.flatMap(({ bits, apply }) => addressPattern(`${prefix} ${bits}`,
-        (address, instruction) => this.#modifyMemory(address, apply, instruction))),
+        (address, instruction) => modifyByte(address, apply, instruction))),
       ...addressPattern(`${prefix} 1101`, (address, { readByte }) => this.#alu.test(readByte(address))), // TST
       ...addressPattern(`${prefix} 1110`, address => { this.#state.pc = address; }), // JMP
     ]);
@@ -459,9 +461,7 @@ export class Cpu6809 {
     // Read after addressing: CMPX ,X++ compares the updated X, for example.
     const left = this.#readWordRegister(register);
     const arithmetic = operation === "add" ? add(16, left, value) : subtract(16, left, value);
-    this.#alu.test(arithmetic.result, 16);
-    this.#state.flags.v = arithmetic.overflow;
-    this.#state.flags.c = "carry" in arithmetic ? arithmetic.carry : arithmetic.borrow;
+    Object.assign(this.#state.flags, motorolaArithmeticFlags(16, arithmetic));
     if (operation !== "compare") this.#writeWordRegister(register, arithmetic.result);
   }
 
@@ -494,11 +494,5 @@ export class Cpu6809 {
       address = (address + 1) & 0xffff;
       return byte;
     });
-  }
-
-  #modifyMemory(address: number, operation: ByteOperation, { readByte, writeByte }: InstructionContext): void {
-    // CLR also reads the addressed byte. TST is bound separately because it never writes.
-    const value = readByte(address);
-    writeByte(address, operation(value));
   }
 }

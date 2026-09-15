@@ -450,6 +450,20 @@ unsigned-long samples and every bit position, against bit-string movement.
 incoming bits, distinct carry/borrow names, and readonly results. Existing CPU
 and example tests retain their independently authored expectations.
 
+## Shared result flags and memory modification
+
+Pure result-flag helpers calculate named updates; the instruction schedules
+when to apply them. The shared `modifyByte` body takes an already resolved
+address and supports either a result write or an original-value write before
+transformation followed by the result write. Keep flag updates that follow a
+successful write outside that body, as the 6502 does for memory N/Z.
+
+The [first operation-block experiment](shared-operation-blocks.md) defines
+these contracts, comparison and transfer boundaries, and failure checks.
+It also explains why the existing small comparison and transfer bodies remain
+local. Use the narrow shared operations where their complete effect order
+matches; retain the CPU's explicit sequence where it differs.
+
 ## Shared Motorola behavior
 
 [Motorola helpers](../../src/components/cpus/motorola.ts) capture specific
@@ -474,8 +488,9 @@ in `1 r mm oooo`, including their accumulator writeback and flag effects.
 Its state getter and ALU callbacks are bound during construction and read only
 when an instruction executes. Each CPU supplies its own immediate and memory
 readers: in particular, the 6809 still rejects undefined indexed postbytes before
-running an operation. Stores, word operations, and unary operations remain local,
-where their address, flag, and memory-access differences stay visible.
+running an operation. Stores, word execution, and unary dispatch remain local, while matching
+arithmetic flag policies and memory modification use the shared operations
+described above. Address and effect-order differences stay visible.
 
 [Tests](../../tests/components/cpus/motorola.test.ts) compare encoded conditions
 with unsigned and signed arithmetic and verify preserved flags and replaced

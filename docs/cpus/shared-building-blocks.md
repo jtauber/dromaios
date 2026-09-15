@@ -29,7 +29,11 @@ including processor-specific instruction bodies and lifecycle rules, without
 CPU-specific handwritten TypeScript in the compiler or runtime. This is a
 design target to demonstrate, not a capability established by this note.
 
-The recommended next step is a **bounded shared-building-blocks refactor in
+The [first bounded TypeScript experiment](shared-operation-blocks.md) records
+the implemented flag calculations and memory sequence, preserved difficult
+cases, and the limits of the resulting reuse.
+
+The staged approach begins with a **bounded shared-building-blocks refactor in
 ordinary TypeScript**. Establish and test the meaning of those building blocks
 before designing an executable DSL representation. Keep lightweight language
 requirements and illustrative examples in view during that work; use the
@@ -1503,7 +1507,7 @@ Particularly useful regression cases are:
 | --- | --- | --- |
 | 6502 JSR stack writes overlap target bytes | Demand-driven fetching and captured bytes | [6502 tests](../../tests/components/cpus/6502.test.ts) |
 | 6502 modification writes original and final values | Actual accesses, including same-value writes | [6502 tests](../../tests/components/cpus/6502.test.ts) |
-| 6502 memory shift fails at its final write | Separate C and N/Z update stages | [Current implementation](../../src/components/cpus/6502.ts); isolated check during exploration, requiring an explicit regression test in the experiment |
+| 6502 memory shift fails at either write | Separate C and N/Z update stages | [6502 regression tests](../../tests/components/cpus/6502.test.ts); also checked against the pre-refactor source |
 | 6809 indexed load/store/compare aliases its index | Resolution order, live values, single updates | [6809 tests](../../tests/components/cpus/6809.test.ts) |
 | 8080 and Z80 comparisons produce different auxiliary flags | Explicit operation policies | [8080 tests](../../tests/components/cpus/8080.test.ts), [Z80 tests](../../tests/components/cpus/z80.test.ts) |
 | 8088 word accesses cross a segment boundary | Logical progression before physical mapping | [8088 tests](../../tests/components/cpus/8088.test.ts) |
@@ -1563,9 +1567,9 @@ stages should answer these questions in that order:
     would provide independent evidence that authors can add specifications
     without changing the compiler or runtime?
 
-The next implementation task is a small shared-building-blocks refactor in
-ordinary TypeScript, with explicit contracts and independent checks. Review
-that work before choosing an executable DSL representation. The later language
+The [first TypeScript experiment](shared-operation-blocks.md) supplies narrow
+shared contracts and independent checks. Review those boundaries and complete
+the staged probes before choosing an executable DSL representation. The later language
 experiment must demonstrate its own benefit through clear execution and a
 useful second output. The eventual target remains all declared CPU behavior
 expressible without CPU-specific host-code extensions, tested through complete
