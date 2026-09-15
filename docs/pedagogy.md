@@ -17,6 +17,9 @@ learner following an instruction in a running machine should be able to open
 the same arithmetic or addressing instrument used in an introductory lesson.
 This develops the browser and lesson work already described in the
 [roadmap](../ROADMAP.md#3-make-the-examples-explorable-in-the-browser).
+The [web design plan](web-design.md) describes site navigation, page roles,
+and workspace layouts through which learners reach these instruments and
+lessons. Its delivery steps coordinate with the learning priorities below.
 
 ## Levels of exploration
 

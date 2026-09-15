@@ -3,6 +3,8 @@
 This records the working CPU scope and implementation priorities.
 The [project roadmap](../../ROADMAP.md) describes the implementation stages;
 [architecture.md](../architecture.md) describes component responsibilities.
+The [web design plan](../web-design.md) describes how these CPUs and machines
+will be organized for learning, exploration, and reference as support develops.
 
 ## Working decisions
 

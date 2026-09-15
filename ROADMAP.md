@@ -124,6 +124,10 @@ opcode expansion and the introduction of further CPUs.
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer
 connected to a real CPU instruction and extending into later device work.
+The [web design plan](docs/web-design.md) proposes the sitemap and shared
+workspace, with delivery steps from page sketches and one working example to
+learning paths and machine exploration. Its browser checkpoints develop
+alongside the learning milestones and retain the device dependencies below.
 
 - Add a small interface for stepping, resetting, and inspecting state.
 - Introduce register, memory, and instruction views that serve the

@@ -97,6 +97,12 @@ software knowledge through the inspection interface.
 content. A lesson can expose only the parts needed for its concept while using
 the same underlying models as a complete machine.
 
+The [web design plan](web-design.md) proposes Learn, Explore, Reference, and
+About as the site's main navigation. Lessons, examples, and machine pages
+arrange shared workspace views around those same models and inspection tools.
+It describes page roles, visual direction, and delivery steps; concrete UI
+interfaces and route names remain open to review through the first examples.
+
 ## Proposed repository layout
 
 The implementation has RAM, CPU subsets, example setup, and tests. The other

@@ -112,6 +112,8 @@ Released under the [MIT license](LICENSE).
 ## Repository guide
 
 - [ROADMAP.md](ROADMAP.md) describes the stages and review points.
+- [Web design and site structure](docs/web-design.md) proposes the sitemap,
+  exploration workspace, visual direction, and steps toward the website.
 - [Documentation](docs/README.md) is the entry point for architecture, CPU
   scope, model contracts and coverage, example specifications, machine
   definitions, and reference notes.
