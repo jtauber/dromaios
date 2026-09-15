@@ -123,7 +123,8 @@ opcode expansion and the introduction of further CPUs.
 
 The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) defines the
 learning milestones and review points, beginning with an arithmetic explorer
-connected to a real CPU instruction and extending into later device work.
+connected to a real CPU instruction and extending into device work and
+guided analysis of substantial software.
 The [web design plan](docs/web-design.md) proposes the sitemap and shared
 workspace, with delivery steps from page sketches and one working example to
 learning paths and machine exploration. Its browser checkpoints develop
@@ -172,6 +173,10 @@ users can inspect the relevant internal activity.
   to guide each machine's milestones.
 - Grow reusable device models, teaching views, and specialist instruments.
 - Bring tutorial examples onto the same components used by complete machines.
+- Develop [detailed software guides](docs/pedagogy.md#7-understand-substantial-software-through-guided-execution)
+  that connect program and subsystem analysis, line-by-line commentary, and
+  interactive demonstrations to execution. Individual routine studies can
+  begin earlier as their requirements become available.
 
 **Review point for each addition:** The new case works, existing cases still
 work, and shared abstractions remain understandable.

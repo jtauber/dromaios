@@ -12,6 +12,12 @@ instructions, and small programs before complete machines are available.
 Existing arithmetic operations, CPU snapshots, execution records, and RAM-based
 examples provide foundations for this work.
 
+The eventual goal also includes understanding how substantial real software is
+constructed, through detailed guides and interactive demonstrations. Studies of
+programs such as Ultima IV or Elite should connect whole-program design,
+algorithms, and data structures to individual instructions and bits. Running a
+program and explaining its implementation are separate deliverables.
+
 These explorations should also remain useful as full emulators develop. A
 learner following an instruction in a running machine should be able to open
 the same arithmetic or addressing instrument used in an introductory lesson.
@@ -32,6 +38,7 @@ Learners should be able to move between levels as their questions require.
 | Operations | Addition, subtraction, masks, shifts, and rotates, with editable inputs | Why are carry and signed overflow different? Where does a shifted-out bit go? |
 | Individual instructions | Instruction bytes, operand selection, effective addresses, register and flag effects, and memory accesses | How do these bytes determine an operation and its operands? Where did this address come from? |
 | Small programs | Loops, multi-byte arithmetic, buffer copies, and subroutine calls | How does carry connect two additions into a wider sum? How does a return find the next instruction? |
+| Software systems | Program architecture, subsystems, algorithms, data structures, and line-by-line analysis connected to execution | How does this visible behavior arise from the program's routines and data? What would change if this part worked differently? |
 
 Representation views should make their interpretation explicit. A byte's bits
 do not change when the learner switches between signed and unsigned readings.
@@ -81,6 +88,11 @@ that question, then reveal more detail as the learner progresses. Labels such
 as `result` or `buffer` belong with the lesson or instrument that knows their
 meaning; the CPU continues to work with addresses and values.
 
+A software guide arranges analyses and lessons around a particular program and
+version. It can connect an overview to subsystem chapters, annotated routines,
+and experiments, reusing the same instruments at each level. Symbols, data
+interpretations, and code annotations belong with the guide or its instruments.
+
 Execution continues to belong to the existing component models. Instruments
 present and explain their behavior, and lessons arrange the experience. The
 first examples should help us discover useful shared views and descriptions;
@@ -92,6 +104,8 @@ Each milestone should produce a useful exploration and a short guided lesson.
 The first five can develop alongside CPU support using the relevant implemented
 behavior. Device work follows the project roadmap's
 [CPU-only checkpoint](../ROADMAP.md#cpu-only-checkpoint).
+Software studies in milestone 7 can begin with isolated routines as their
+execution requirements become available, then grow into comprehensive guides.
 
 The immediate priority is milestones 1 and 2 together: make one addition
 understandable from its bits through a real CPU instruction. This forms the
@@ -196,9 +210,53 @@ must make its model's supported behavior and granularity clear.
 **Review point:** The learner can follow a causal chain from a program
 instruction, through a device, to an observable result.
 
+### 7. Understand substantial software through guided execution
+
+Produce detailed analyses of particular programs, such as Ultima IV or Elite,
+combining:
+
+- **Program overviews:** explain how major subsystems fit together.
+- **Algorithm and data-structure guides:** explain what the program represents
+  and how it operates on that representation.
+- **Line-by-line commentary:** connect source or annotated disassembly to
+  explanations of individual instructions, routine behavior, and design choices.
+- **Connected execution:** let the reader step through the discussed routine
+  while seeing relevant variables, memory, and visible effects.
+- **Interactive demonstrations:** isolate an algorithm, change its inputs, and
+  connect the demonstration back to the original implementation.
+
+Readers should be able to move in both directions through:
+
+**Visible behavior → subsystem → routine → instruction → arithmetic or hardware
+operation.**
+
+The arithmetic, addressing, and other instruments introduced earlier become
+explanatory tools embedded in these larger guides. A reader should retain the
+surrounding software context when opening an instrument or returning to the
+program's execution.
+
+Each guide should identify the program's platform and version, and the source
+or disassembly used. Code locations, symbols, and explanations must refer to
+that version. Demonstrations should make clear whether they execute an original
+routine or illustrate its algorithm with a separate conceptual model. Both
+should explain how the demonstrated behavior relates to the original program.
+
+Develop these studies incrementally. A selected routine can be explored with
+explicit inputs and a small execution environment before the entire program
+runs. Specify its initial state, required memory and services, and expected
+results. Those studies can later become chapters in a comprehensive guide,
+connected to the complete emulator. Support for a full program and completion
+of its explanatory guide should each be reviewed on their own criteria.
+
+**Review point:** The learner can explain how a substantial subsystem works
+and predict the effect of a change, connecting the written analysis to code
+and observed execution.
+
 ## Developing and reviewing each milestone
 
-Keep each milestone focused on:
+Develop each milestone through small, reviewable explorations. A substantial
+software guide can grow one routine or subsystem study at a time. Each
+exploration should have:
 
 - One clear learning question.
 - One working exploration and a short guided path through it.
@@ -234,6 +292,8 @@ produces the explanation.
   many unfamiliar details at once?
 - How should a learner move between an isolated experiment, a recorded
   instruction, and its surrounding program while keeping that context clear?
+- Which routine or subsystem should begin the first substantial software guide,
+  and which platform and version should anchor its analysis?
 
 These questions should guide review of the first exploration and remain open
 to revision as we observe how it teaches.

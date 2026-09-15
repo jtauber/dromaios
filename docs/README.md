@@ -12,7 +12,7 @@ see the [development instructions](../README.md#development).
 - [Web design and site structure](web-design.md): proposed sitemap, shared
   exploration workspace, visual direction, and website delivery steps.
 - [Pedagogical explorations](pedagogy.md): teaching principles, reusable
-  instruments, and learning milestones from arithmetic to machine interactions.
+  instruments, and learning milestones from arithmetic to detailed software guides.
 - [CPU scope](cpus/scope.md): intended CPU targets, existing reference work,
   and the reasons for testing generalizations across three architectures.
 - [CPU implementation coverage](cpus/coverage.md): current opcode percentages,

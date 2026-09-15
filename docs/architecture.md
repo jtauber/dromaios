@@ -97,6 +97,15 @@ software knowledge through the inspection interface.
 content. A lesson can expose only the parts needed for its concept while using
 the same underlying models as a complete machine.
 
+**Software guides** connect program architecture and line-by-line source or
+disassembly analysis to lessons, instruments, and execution. Guides own their
+program-version associations, symbols, data interpretations, and annotations;
+CPU and device models retain their hardware responsibilities. Isolated routine
+studies use explicit starting states and execution requirements, while
+explanations of completed steps use captured records. The
+[pedagogical roadmap](pedagogy.md#7-understand-substantial-software-through-guided-execution)
+describes how these studies can grow into comprehensive guides.
+
 The [web design plan](web-design.md) proposes Learn, Explore, Reference, and
 About as the site's main navigation. Lessons, examples, and machine pages
 arrange shared workspace views around those same models and inspection tools.

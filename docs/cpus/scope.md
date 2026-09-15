@@ -74,6 +74,13 @@ they are selected.
 
 The BBC Micro's chosen software target is **Elite**.
 
+The [pedagogical roadmap](../pedagogy.md#7-understand-substantial-software-through-guided-execution)
+also includes detailed software studies, with Ultima IV and Elite as examples
+of the intended ambition. Each study will select its platform and version.
+Running a software target and completing a guide to its implementation have
+separate acceptance criteria; isolated routine studies can precede full-program
+support when their execution requirements are met.
+
 The 80386 target comes from the existing PC project's longer-term goal of
 running Ultima VII and its DOS extender requirements. See the
 [PC architecture and roadmap](https://github.com/jtauber/dromaios-pc/blob/main/ARCHITECTURE.md).

@@ -18,6 +18,11 @@ instruction, inspect registers and memory, understand a device, and explore how
 the parts of a machine interact. Running software gives those explorations a
 concrete setting.
 
+An eventual goal is detailed software guides that connect program architecture
+and line-by-line analysis to interactive demonstrations and live execution.
+The [pedagogical roadmap](docs/pedagogy.md#pedagogical-roadmap) develops this
+path from individual calculations to understanding substantial programs.
+
 ## The name
 
 **emulator → emu → Dromaius → Greek δρομαῖος (dromaios)**

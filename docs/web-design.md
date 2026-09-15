@@ -21,7 +21,7 @@ The main navigation is **Learn · Explore · Reference · About**.
 
 | Area | Purpose |
 | --- | --- |
-| Learn | Guided explanations and interactive activities, organized into learning paths and topics. |
+| Learn | Guided explanations and interactive activities, organized into learning paths, topics, and detailed software studies. |
 | Explore | CPUs, program examples, complete machines, and architecture comparisons that people can investigate directly. |
 | Reference | Definitions, hardware descriptions, instruction behavior, and the model's implemented behavior and limitations. |
 | About | The project's purpose, background, development approach, roadmap, and source. |
@@ -47,6 +47,11 @@ Home
 │   │   ├── Branches, loops, and stacks
 │   │   ├── Devices and interrupts
 │   │   └── How complete computers fit together
+│   ├── Software studies
+│   │   └── [Software and version]
+│   │       ├── Program overview and subsystem guides
+│   │       ├── Annotated source or disassembly
+│   │       └── Interactive routine demonstrations
 │   └── Individual interactive lessons
 │
 ├── Explore
@@ -90,6 +95,11 @@ Current support continues to be tracked in [CPU coverage](cpus/coverage.md).
 
 - A **lesson** explains a concept and guides an activity. Tutorial chapters and
   topic pages arrange and link lessons into different paths.
+- A **software guide** connects a particular program version's architecture,
+  subsystem analyses, and line-by-line commentary to interactive demonstrations
+  and execution. Its chapters arrange lessons, annotated code, and instruments
+  around that software, following the
+  [pedagogical roadmap](pedagogy.md#7-understand-substantial-software-through-guided-execution).
 - An **example** supplies a particular program and starting state, with its
   behavior and acceptance checks defined in the relevant example specification.
 - A **workspace** supplies execution controls and inspection. Lessons and
@@ -110,11 +120,19 @@ A lesson about stacks could likewise open a CPU example, and a register in
 that example could link to its explanation. The same example can participate
 in several learning paths without acquiring separately maintained versions.
 
-Lessons, examples, and reference entries should have stable URLs. Panel
-selection and other workspace settings can remain within those pages; exact
-route names and state encoding remain to be chosen. Moving from a lesson into
-fuller exploration should retain the current experiment. Sharing an edited
-setup is a later capability, beyond linking to an example's initial state.
+Machine software entries should link to relevant guides. A reader can follow
+a visible program behavior into a subsystem chapter, an annotated routine,
+and a lower-level instrument, then return with the program context intact.
+The guide should keep its selected version, code locations, inspected data,
+and execution aligned. Routine studies can be available before a complete
+machine workspace supports the whole program.
+
+Lessons, guide chapters, examples, and reference entries should have stable
+URLs. Panel selection and other workspace settings can remain within those
+pages; exact route names and state encoding remain to be chosen. Moving from
+a lesson into fuller exploration should retain the current experiment.
+Sharing an edited setup is a later capability, beyond linking to an example's
+initial state.
 
 Website explanations should stay grounded in the existing model contracts and
 example specifications. CPU state, execution records, and reset contracts
@@ -246,6 +264,11 @@ specialist inspectors as the individual experiences mature. Useful individual
 comparisons and editable instruments can develop earlier with the relevant
 lessons, following the pedagogical plan. Expand the tutorial and machine
 collection incrementally.
+
+Add software-guide pages and instruments that connect program explanations,
+annotated code, and execution as those studies develop. Reuse the lesson and
+workspace views for individual routine studies, then connect chapters to
+complete program execution when supported.
 
 **Review point:** These capabilities reuse the established examples and views
 coherently, helping learners transfer an idea to a different context.
