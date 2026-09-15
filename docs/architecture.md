@@ -106,8 +106,18 @@ explanations of completed steps use captured records. The
 [pedagogical roadmap](pedagogy.md#7-understand-substantial-software-through-guided-execution)
 describes how these studies can grow into comprehensive guides.
 
+Software inspectors interpret state as program structures such as maps,
+objects, and variables, with links to their underlying memory representation.
+Their interpretations and prepared execution scenarios belong to the selected
+software version. Navigation between prose, annotated code, and instruments
+should preserve reading and experiment context; loading or restarting a
+scenario is an explicit execution action. The
+[software-guide design](web-design.md#detailed-software-guides) describes these
+interactions and their layout requirements.
+
 The [web design plan](web-design.md) proposes Learn, Explore, Reference, and
-About as the site's main navigation. Lessons, examples, and machine pages
+About as the site's main navigation, with CPUs, Machines, and Software as
+peers under Explore. Lessons, examples, machine pages, and software guides
 arrange shared workspace views around those same models and inspection tools.
 It describes page roles, visual direction, and delivery steps; concrete UI
 interfaces and route names remain open to review through the first examples.

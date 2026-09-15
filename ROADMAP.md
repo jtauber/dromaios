@@ -130,6 +130,9 @@ workspace, with delivery steps from page sketches and one working example to
 learning paths and machine exploration. Its browser checkpoints develop
 alongside the learning milestones and retain the device dependencies below.
 
+- Review page sketches for an introductory instruction lesson and a substantial
+  software-analysis chapter alongside the CPU overview and example workspace.
+  Exercise both short explanations and sustained reading connected to execution.
 - Add a small interface for stepping, resetting, and inspecting state.
 - Introduce register, memory, and instruction views that serve the
   examples while preserving each CPU's distinctions.

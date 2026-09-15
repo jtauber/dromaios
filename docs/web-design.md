@@ -22,7 +22,7 @@ The main navigation is **Learn · Explore · Reference · About**.
 | Area | Purpose |
 | --- | --- |
 | Learn | Guided explanations and interactive activities, organized into learning paths, topics, and detailed software studies. |
-| Explore | CPUs, program examples, complete machines, and architecture comparisons that people can investigate directly. |
+| Explore | CPUs, program examples, complete machines, software, and architecture comparisons that people can investigate directly. |
 | Reference | Definitions, hardware descriptions, instruction behavior, and the model's implemented behavior and limitations. |
 | About | The project's purpose, background, development approach, roadmap, and source. |
 
@@ -48,10 +48,7 @@ Home
 │   │   ├── Devices and interrupts
 │   │   └── How complete computers fit together
 │   ├── Software studies
-│   │   └── [Software and version]
-│   │       ├── Program overview and subsystem guides
-│   │       ├── Annotated source or disassembly
-│   │       └── Interactive routine demonstrations
+│   │   └── Guided paths into software chapters
 │   └── Individual interactive lessons
 │
 ├── Explore
@@ -66,6 +63,14 @@ Home
 │   │       ├── Overview
 │   │       ├── Run and inspect
 │   │       └── Software and demonstrations
+│   ├── Software
+│   │   └── [Title and platform/version]
+│   │       ├── Overview and how to run it
+│   │       ├── Program architecture
+│   │       ├── Guided chapters and subsystem analyses
+│   │       ├── Annotated source or disassembly
+│   │       ├── Algorithms and interactive demonstrations
+│   │       └── Data structures, file formats, and memory maps
 │   └── Comparisons
 │       └── The same concept across different architectures
 │
@@ -127,6 +132,12 @@ The guide should keep its selected version, code locations, inspected data,
 and execution aligned. Routine studies can be available before a complete
 machine workspace supports the whole program.
 
+Software is a peer of CPUs and Machines under Explore. Each entry identifies
+a title, platform, and version, connecting its guide, code, demonstrations, and
+reference material. Learn curates paths through those chapters, and machine
+pages link to the same canonical software entries. This keeps one study
+available from several starting points without duplicating its content.
+
 Lessons, guide chapters, examples, and reference entries should have stable
 URLs. Panel selection and other workspace settings can remain within those
 pages; exact route names and state encoding remain to be chosen. Moving from
@@ -170,6 +181,53 @@ machine's display can occupy the main area, with inspectors alongside it.
 These are arrangements of shared views; they should preserve hardware-specific
 register relationships, stacks, addressing, and device behavior.
 
+## Detailed software guides
+
+An eventual goal is sustained analysis of substantial software such as
+Ultima IV or Elite, including line-by-line explanation alongside interactive
+demonstrations. The [software learning milestone](pedagogy.md#7-understand-substantial-software-through-guided-execution)
+defines the learning goals and the relationship between original code and
+conceptual demonstrations. The website should support four connected levels:
+
+| Level | Guide content |
+| --- | --- |
+| Whole program | How major systems fit together and produce the visible experience. |
+| Subsystem or algorithm | How one behavior works and which data structures support it. |
+| Routine | Inputs, outputs, assumptions, and relationships to other routines. |
+| Line by line | What each instruction does, linked to registers, memory, and visible results. |
+
+A chapter could introduce a rendering routine, show its annotated instructions,
+and offer a prepared experiment where the reader changes inputs and follows
+execution. An isolated demonstration could introduce the algorithm before the
+reader examines it inside the complete program. Each actual study will select
+its title, platform, version, and source or disassembly before making claims
+about particular routines.
+
+### Reading and interaction
+
+- Support long chapters with persistent chapter and section navigation, with
+  interactive views alongside the text. Readers should be able to resume their
+  reading position after investigating a detail.
+- Link explanations, named routines, code locations, and execution. Selecting
+  a passage or routine should expose the corresponding code and relevant state.
+  Provide an explicit action to load or restart a prepared execution scenario.
+- Let the reader step through a discussed routine and connect changes to the
+  explanation. Show which instruction just executed and which will execute next.
+- Add software inspectors for meaningful structures such as maps, objects, and
+  variables, with a way to inspect their underlying memory representation.
+- Keep the selected platform/version visible and bind annotations, symbols,
+  addresses, data interpretations, and prepared scenarios to that version.
+- Identify whether a demonstration executes original instructions or uses a
+  conceptual model. Explain how its inputs and results correspond to the
+  original implementation, including any simplifications.
+- Retain the chapter, selected code location, and experiment context when
+  opening an arithmetic or addressing instrument or consulting reference
+  material. Inspecting a recorded event should preserve its captured facts.
+
+These requirements should inform the first layout sketches. A guide can grow
+one routine or subsystem at a time, with execution scenarios introduced when
+the required CPU, memory, and device behavior is supported.
+
 ## Visual direction
 
 The initial direction is a **quiet, precise technical notebook**:
@@ -198,19 +256,35 @@ workspace; it does not replace that teaching priority.
 
 ### 1. Establish the page designs
 
-Sketch three representative pages:
+Sketch four representative pages:
 
 1. A CPU overview: what it is, its distinctive features, and what to try.
 2. An example workspace: program, registers, memory, controls, and explanation.
 3. A lesson: readable narrative with an embedded workspace.
+4. A substantial software-analysis chapter: sustained prose, chapter
+   navigation, annotated code, and a connected interactive demonstration.
+
+Use the addition explorer connected to a real instruction for the introductory
+lesson sketch. The existing 6502 load-add-store example is a candidate, as
+described in the pedagogical plan. Show the transition from guided reading to
+the expanded workspace while keeping the current experiment.
 
 Use the existing [6502 counted loop](cpus/6502/examples/counted-loop.md) to
 exercise the workspace layout. It tests whether someone can see why the
 branch stops when X reaches zero even though A still holds a nonzero sum.
 Then try the layout with the 8080 and 6809 before settling shared conventions.
 
+For the software chapter, choose one routine from a specific version of
+Ultima IV or Elite and establish the source or disassembly reference before
+writing its detailed analysis. The sketch should exercise the path from prose
+to annotated code to a prepared demonstration and back to reading. It can
+describe planned interactions before full-program execution is available.
+
 **Review point:** The layout makes a complete instruction step understandable,
-and the three CPUs expose which arrangements can be shared.
+the three CPUs expose which arrangements can be shared, and the software
+chapter keeps reading and execution understandable together. Review a small
+set of linked wireframes, a proposed visual style, and a short interaction
+specification before implementing the first browser experience.
 
 ### 2. Make one example usable in the browser
 
@@ -265,10 +339,11 @@ comparisons and editable instruments can develop earlier with the relevant
 lessons, following the pedagogical plan. Expand the tutorial and machine
 collection incrementally.
 
-Add software-guide pages and instruments that connect program explanations,
-annotated code, and execution as those studies develop. Reuse the lesson and
-workspace views for individual routine studies, then connect chapters to
-complete program execution when supported.
+Add the Software collection, guide pages, and instruments that connect program
+explanations, annotated code, and execution as those studies develop. Link
+guides from Learn and the relevant machine pages. Reuse the lesson and workspace
+views for individual routine studies, then connect chapters to complete program
+execution when supported.
 
 **Review point:** These capabilities reuse the established examples and views
 coherently, helping learners transfer an idea to a different context.
@@ -280,7 +355,10 @@ coherently, helping learners transfer an idea to a different context.
   a lesson and in free exploration?
 - How should the workspace retain context when moving between a lesson, an
   example, an instrument, and reference material?
+- Which title, platform/version, and routine should anchor the first software
+  chapter sketch, and how should long-form reading and execution share space?
 
 The example workspace is the first substantial design decision because it
-informs lessons, CPU pages, comparisons, and machine inspectors. Review the
-concrete page sketches before expanding the design system.
+informs lessons, CPU pages, comparisons, machine inspectors, and software
+guides. Review it alongside an introductory lesson and a substantial software
+chapter before expanding the design system.

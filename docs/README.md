@@ -10,7 +10,8 @@ see the [development instructions](../README.md#development).
 - [Architecture](architecture.md): component responsibilities, execution and
   inspection boundaries, and the implementation language.
 - [Web design and site structure](web-design.md): proposed sitemap, shared
-  exploration workspace, visual direction, and website delivery steps.
+  exploration workspace, detailed software-guide layouts, visual direction,
+  and website delivery steps.
 - [Pedagogical explorations](pedagogy.md): teaching principles, reusable
   instruments, and learning milestones from arithmetic to detailed software guides.
 - [CPU scope](cpus/scope.md): intended CPU targets, existing reference work,
