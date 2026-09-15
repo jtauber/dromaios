@@ -1,13 +1,16 @@
 import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
-import type { OpcodeHandler, ByteOperation, WordOperand } from "./8080-family.ts";
+import type { ByteOperation, WordOperand } from "./8080-family.ts";
 import { flagRegister } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { signed8, readWordLE } from "./binary.ts";
+import { executionBoundary } from "./execution-boundary.ts";
+import { recordPorts } from "./port-access.ts";
+import type { BytePorts, PortAccess } from "./port-access.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
-import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
+import type { WordInstructionContext } from "./instruction-context.ts";
 import { defineState, copyState, readState, unsigned, flag, boolean, choices, group } from "./state.ts";
 import type { StateValues, ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
@@ -45,13 +48,16 @@ export type CpuZ80Snapshot = CpuZ80BankSnapshot &
   };
 
 export type CpuZ80MemoryAccess = MemoryAccess;
+export type CpuZ80Access = MemoryAccess | PortAccess;
 
 export type CpuZ80Instruction = FetchedInstruction;
 
-export type CpuZ80StepRecord = InstructionStep<CpuZ80Snapshot> | HaltedStep<CpuZ80Snapshot>;
+export type CpuZ80StepRecord = InstructionStep<CpuZ80Snapshot, CpuZ80Access> | HaltedStep<CpuZ80Snapshot, CpuZ80Access>;
 
 export type CpuZ80ResetRecord = StateTransition<CpuZ80Snapshot>;
 
+interface InstructionContext extends WordInstructionContext, BytePorts {}
+type OpcodeHandler = (instruction: InstructionContext) => void;
 type IndexRegister = "ix" | "iy";
 type RegisterPair = WordOperand | IndexRegister;
 type AddressedHandler = (address: number, instruction: InstructionContext) => void;
@@ -66,11 +72,14 @@ const packedFlags = flagRegister({ s: 7, z: 6, h: 4, pv: 2, n: 1, c: 0 });
 /** Instruction-level Zilog Z80 subset with documented flags and opcode-fetch R updates. */
 export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   readonly #ram: Ram;
+  readonly #ports: BytePorts | undefined;
+  readonly #atBoundary = executionBoundary("Z80 step and reset calls must not be reentrant.");
 
-  constructor(ram: Ram, initialState: CpuZ80State) {
+  constructor(ram: Ram, initialState: CpuZ80State, ports?: BytePorts) {
     if (ram.size !== 0x10000) throw new RangeError("The Z80 model requires exactly 64 KiB of RAM.");
     super(readState(cpuZ80StateDescription, initialState));
     this.#ram = ram;
+    this.#ports = ports;
   }
 
   /** Inspect detached register banks and their derived pair views without reading RAM. */
@@ -81,71 +90,80 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   /** Apply documented reset effects, release HALT, and preserve other stored state and RAM. */
   reset(): CpuZ80ResetRecord {
-    const before = this.snapshot();
-    this.state.pc = 0;
-    this.state.i = 0;
-    this.state.r = 0;
-    this.state.iff1 = false;
-    this.state.iff2 = false;
-    this.state.im = 0;
-    this.state.halted = false;
-    return { before, after: this.snapshot(), accesses: [] };
+    return this.#atBoundary(() => {
+      const before = this.snapshot();
+      this.state.pc = 0;
+      this.state.i = 0;
+      this.state.r = 0;
+      this.state.iff1 = false;
+      this.state.iff2 = false;
+      this.state.im = 0;
+      this.state.halted = false;
+      return { before, after: this.snapshot(), accesses: [] };
+    });
   }
 
   /** Attempt one instruction or block iteration; unsupported or already halted attempts preserve all state. */
   step(): CpuZ80StepRecord {
-    const before = this.snapshot();
-    if (this.state.halted) {
-      return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
-    }
-    const { accesses, readByte, writeByte } = recordMemory(this.#ram);
-    const address = this.state.pc;
-    const opcode = readByte(address);
-    const bytes = [opcode];
-    // Decode the complete opcode before changing PC/R. Prefixes select only documented pages.
-    const nextEncodingByte = (): number => {
-      const byte = readByte((address + bytes.length) & 0xffff);
-      bytes.push(byte);
-      return byte;
-    };
-    let handler: OpcodeHandler | undefined;
-    let opcodeFetches = 1;
-    if (opcode === 0xcb || opcode === 0xed) {
-      const operation = nextEncodingByte();
-      handler = (opcode === 0xcb ? this.#cbOpcodeHandlers : this.#edOpcodeHandlers)[operation];
-      opcodeFetches = 2;
-    } else if (opcode === 0xdd || opcode === 0xfd) {
-      const index = opcode === 0xdd ? "ix" : "iy";
-      const operation = nextEncodingByte();
-      opcodeFetches = 2;
-      if (operation === 0xcb) {
-        const displacement = nextEncodingByte(), bitOpcode = nextEncodingByte();
-        const execute = this.#indexedCbHandlers[bitOpcode];
-        // Only DD/FD and CB are M1 fetches; displacement and final opcode do not advance R.
-        if (execute) handler = instruction => execute(this.#indexedAddress(index, displacement), instruction);
-      } else handler = (index === "ix" ? this.#ixOpcodeHandlers : this.#iyOpcodeHandlers)[operation];
-    } else handler = this.#opcodeHandlers[opcode];
-    if (handler) {
-      this.state.pc = (address + bytes.length) & 0xffff;
-      // Operand fetches below are ordinary reads and do not increment R.
-      this.state.r = (this.state.r & 0x80) | ((this.state.r + opcodeFetches) & 0x7f);
-      const fetchByte = (): number => {
-        const byte = readByte(this.state.pc);
-        this.state.pc = (this.state.pc + 1) & 0xffff;
+    return this.#atBoundary(() => {
+      const before = this.snapshot();
+      if (this.state.halted) {
+        return { before, after: this.snapshot(), instruction: null, accesses: [], outcome: "halted" };
+      }
+      const accesses: CpuZ80Access[] = [];
+      const recordAccess = (access: CpuZ80Access): void => { accesses.push(access); };
+      const { readByte, writeByte } = recordMemory(this.#ram, recordAccess);
+      const { readPort, writePort } = recordPorts(this.#ports, recordAccess);
+      const address = this.state.pc;
+      const opcode = readByte(address);
+      const bytes = [opcode];
+      // Decode the complete opcode before changing PC/R. Prefixes select only documented pages.
+      const nextEncodingByte = (): number => {
+        const byte = readByte((address + bytes.length) & 0xffff);
         bytes.push(byte);
         return byte;
       };
-      handler({
-        fetchByte,
-        fetchWord: () => readWordLE(fetchByte),
-        readByte,
-        writeByte,
-      });
-    }
-    const record = { instruction: { address, bytes }, before, after: this.snapshot(), accesses };
-    return handler
-      ? { ...record, outcome: this.state.halted ? "halted" : "executed" }
-      : { ...record, outcome: "unsupported", reason: "opcode" };
+      let handler: OpcodeHandler | undefined;
+      let opcodeFetches = 1;
+      if (opcode === 0xcb || opcode === 0xed) {
+        const operation = nextEncodingByte();
+        handler = (opcode === 0xcb ? this.#cbOpcodeHandlers : this.#edOpcodeHandlers)[operation];
+        opcodeFetches = 2;
+      } else if (opcode === 0xdd || opcode === 0xfd) {
+        const index = opcode === 0xdd ? "ix" : "iy";
+        const operation = nextEncodingByte();
+        opcodeFetches = 2;
+        if (operation === 0xcb) {
+          const displacement = nextEncodingByte(), bitOpcode = nextEncodingByte();
+          const execute = this.#indexedCbHandlers[bitOpcode];
+          // Only DD/FD and CB are M1 fetches; displacement and final opcode do not advance R.
+          if (execute) handler = instruction => execute(this.#indexedAddress(index, displacement), instruction);
+        } else handler = (index === "ix" ? this.#ixOpcodeHandlers : this.#iyOpcodeHandlers)[operation];
+      } else handler = this.#opcodeHandlers[opcode];
+      if (handler) {
+        this.state.pc = (address + bytes.length) & 0xffff;
+        // Operand fetches below are ordinary reads and do not increment R.
+        this.state.r = (this.state.r & 0x80) | ((this.state.r + opcodeFetches) & 0x7f);
+        const fetchByte = (): number => {
+          const byte = readByte(this.state.pc);
+          this.state.pc = (this.state.pc + 1) & 0xffff;
+          bytes.push(byte);
+          return byte;
+        };
+        handler({
+          fetchByte,
+          fetchWord: () => readWordLE(fetchByte),
+          readByte,
+          writeByte,
+          readPort,
+          writePort,
+        });
+      }
+      const record = { instruction: { address, bytes }, before, after: this.snapshot(), accesses };
+      return handler
+        ? { ...record, outcome: this.state.halted ? "halted" : "executed" }
+        : { ...record, outcome: "unsupported", reason: "opcode" };
+    });
   }
 
   // Register views.
@@ -160,6 +178,10 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   }
 
   // Opcode selectors and construction.
+
+  // rrr selects B/C/D/E/H/L/(HL)/A; port and indexed-register forms omit rrr=110.
+  readonly #byteRegisters = this.byteOperands.flatMap((register, code) => register === "(hl)" ? []
+    : [{ register, bits: code.toString(2).padStart(3, "0") }]);
 
   // bbb selects a bit number; bind its mask once when constructing the CB page.
   readonly #bitMasks = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80] as const;
@@ -202,6 +224,9 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     ...instructionPattern("00 010 000", ({ fetchByte }) => this.#decrementAndJump(fetchByte())), // DJNZ e
     ...instructionPattern("00 011 000", ({ fetchByte }) => this.#jumpRelative(fetchByte(), true)), // JR e
     ...opcodeFamily("00 1cc 000", { c: this.conditions.slice(0, 4) }, ({ c: condition }) => ({ fetchByte }: InstructionContext) => this.#jumpRelative(fetchByte(), condition())), // JR NZ/Z/NC/C,e
+    // 11 01 d 011: d=0 outputs, d=1 inputs; old A supplies address bits 15..8.
+    ...instructionPattern("11 01 0 011", ({ fetchByte, writePort }) => writePort((this.state.a << 8) | fetchByte(), this.state.a)), // OUT (n),A
+    ...instructionPattern("11 01 1 011", ({ fetchByte, readPort }) => { this.state.a = readPort((this.state.a << 8) | fetchByte()); }), // IN A,(n); preserve all flags
     ...instructionPattern("11 01 1 001", () => this.#exchangeGeneralBanks()), // EXX
   ]);
 
@@ -232,8 +257,17 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   readonly #ixOpcodeHandlers = opcodeTable<OpcodeHandler>(this.#indexHandlers("ix"));
   readonly #iyOpcodeHandlers = opcodeTable<OpcodeHandler>(this.#indexHandlers("iy"));
 
-  // ED's 01 pp q zzz: pp=BC/DE/HL/SP; q selects subtraction/addition or store/load.
+  // ED's 01 yyy zzz: zzz selects the family; each family below explains yyy.
   readonly #edOpcodeHandlers = opcodeTable<OpcodeHandler>([
+    // 01 rrr 00 d: rrr selects a register; d=0 inputs, d=1 outputs through old BC.
+    // rrr=110 is undocumented IN (C)/OUT (C),0 and is deliberately omitted.
+    ...this.#byteRegisters.flatMap(({ register, bits }) => [
+      ...instructionPattern(`01 ${bits} 00 0`, ({ readPort }) => {
+        this.state[register] = this.#parityResult(readPort(this.readPair("bc")), { h: false, c: this.state.flags.c });
+      }), // IN r,(C); update S/Z/H/PV/N and preserve C
+      ...instructionPattern(`01 ${bits} 00 1`, ({ writePort }) => writePort(this.readPair("bc"), this.state[register])), // OUT (C),r; preserve flags
+    ]),
+    // 01 pp q 010/011: pp=BC/DE/HL/SP; q selects SBC/ADC or store/load.
     ...opcodeFamily("01 pp q 010", { p: this.registerPairs, q: [true, false] },
       ({ p: pair, q: subtracting }) => () => this.#wordCarry(this.readPair(pair), subtracting)), // SBC / ADC HL,ss
     ...opcodeFamily("01 pp 0 011", { p: this.registerPairs }, ({ p: pair }) =>
@@ -249,14 +283,15 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     // 101 r d 00 c: r repeats, d=0 increments/1 decrements, c=0 copies/1 compares.
     ...opcodeFamily("101 r d 00 c", { r: [false, true], d: [1, -1], c: [false, true] },
       ({ r: repeat, d: delta, c: compare }) => (instruction: InstructionContext) => this.#block(delta, compare, repeat, instruction)), // LDI/R, LDD/R, CPI/R, CPD/R
-    // Port I/O, block I/O, IM, RETI, and RETN remain deferred.
+    // 101 r d 01 o: r repeats, d=0 increments/1 decrements HL, o=0 inputs/1 outputs.
+    ...opcodeFamily("101 r d 01 o", { r: [false, true], d: [1, -1], o: [false, true] },
+      ({ r: repeat, d: delta, o: output }) => (instruction: InstructionContext) => this.#blockIo(delta, output, repeat, instruction)), // INI/R, IND/R, OUTI/OTIR, OUTD/OTDR
+    // Interrupt controls, IM, RETI, and RETN remain deferred.
   ]);
 
   #indexHandlers(index: IndexRegister): readonly OpcodeEntry<OpcodeHandler>[] {
     // 00 pp 1 001 replaces HL with the index in both destination and pp=10 source.
     const pairs = ["bc", "de", index, "sp"] as const;
-    const registers = this.byteOperands.flatMap((register, code) => register === "(hl)" ? []
-      : [{ register, bits: code.toString(2).padStart(3, "0") }]);
     const address = ({ fetchByte }: InstructionContext): number => this.#indexedAddress(index, fetchByte());
     return [
       ...opcodeFamily("00 pp 1 001", { p: pairs }, ({ p: pair }) => () => this.#addWord(index, this.readPair(pair))), // ADD IX/IY,pp
@@ -268,7 +303,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
       ...instructionPattern("00 110 101", instruction => this.#modifyMemory(address(instruction), value => this.adjustByte(value, -1), instruction)), // DEC (IX/IY+d)
       ...instructionPattern("00 110 110", instruction => { const target = address(instruction); instruction.writeByte(target, instruction.fetchByte()); }), // LD (IX/IY+d),n; fetch d before n
       // 01 rrr 110 / 01 110 rrr transfer to/from the seven byte registers, including real H/L.
-      ...registers.flatMap(({ register, bits }) => [
+      ...this.#byteRegisters.flatMap(({ register, bits }) => [
         ...instructionPattern(`01 ${bits} 110`, instruction => { this.state[register] = instruction.readByte(address(instruction)); }), // LD r,(IX/IY+d)
         ...instructionPattern(`01 110 ${bits}`, instruction => instruction.writeByte(address(instruction), this.state[register])), // LD (IX/IY+d),r
       ]),
@@ -429,6 +464,37 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     this.writePair("bc", count);
     // One iteration per step; repeating refetches both opcode bytes and advances R twice again.
     if (repeat && count !== 0 && (!compare || !this.state.flags.z)) this.state.pc = (this.state.pc - 2) & 0xffff;
+  }
+
+  // Block I/O: inputs use BC before decrementing B; outputs use BC afterward.
+
+  #blockIo(delta: -1 | 1, output: boolean, repeat: boolean, { readByte, writeByte, readPort, writePort }: InstructionContext): void {
+    const address = this.hl;
+    const value = output ? readByte(address) : readPort(this.readPair("bc"));
+    this.state.b = (this.state.b - 1) & 0xff;
+    if (output) writePort(this.readPair("bc"), value);
+    else writeByte(address, value);
+    this.hl = (address + delta) & 0xffff;
+    // NMOS block flags: input adds adjusted C; output adds L after HL changes.
+    const sum = value + (output ? this.state.l : (this.state.c + delta) & 0xff);
+    const carry = sum > 0xff;
+    this.#aluResult(this.state.b, { h: carry, pv: evenParity8((sum & 7) ^ this.state.b), n: value >= 0x80, c: carry });
+    if (repeat && this.state.b !== 0) {
+      this.state.pc = (this.state.pc - 2) & 0xffff;
+      this.#blockIoRepeatFlags();
+    }
+  }
+
+  #blockIoRepeatFlags(): void {
+    // The repeat phase also changes H/PV; snapshots expose this between iterations.
+    const { b, flags } = this.state;
+    let parityOperand = b;
+    if (flags.c) {
+      parityOperand += flags.n ? -1 : 1;
+      flags.h = (b & 0x0f) === (flags.n ? 0 : 0x0f);
+    }
+    // Even adjustment parity preserves P/V; odd parity inverts it.
+    flags.pv = flags.pv === evenParity8(parityOperand & 7);
   }
 
   #testBit(mask: number, value: number): void {

@@ -100,7 +100,7 @@ test("the Z80 transfer example fills and reads back a buffer with exact records 
   assert.deepEqual(result.records, records);
   assert.deepEqual(cpu.snapshot(), records.at(-1)!.after);
   const accesses = records.flatMap(record => record.accesses);
-  assert.deepEqual(read.mock.calls.map(call => call.arguments), accesses.filter(access => access.kind === "read").map(access => [access.address]));
+  assert.deepEqual(read.mock.calls.map(call => call.arguments), accesses.flatMap(access => access.kind === "read" ? [[access.address]] : []));
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [[0x80, 0x7f], [0x81, 0x80], [0x82, 0x81], [0x83, 0]]);
   const reads = read.mock.callCount();
   const final = cpu.snapshot();

@@ -1,7 +1,7 @@
 # Z80 model contract
 
-The Z80 model implements every documented instruction form except I/O and
-interrupt controls/returns against flat 64 KiB RAM. It uses instruction-level
+The Z80 model implements every documented instruction form except interrupt
+controls/returns against flat 64 KiB RAM and an optional byte-port connection. It uses instruction-level
 execution records, with one iteration per step for repeating block instructions.
 The existing RAM setup and CPU runner work with this model without adapters.
 
@@ -56,11 +56,15 @@ and RST use the same memory stack.
 
 ## Construction and inspection
 
-`new CpuZ80(ram, initialState)` requires exactly 64 KiB RAM and explicit state.
+`new CpuZ80(ram, initialState, ports?)` requires exactly 64 KiB RAM and explicit state.
 It copies declared fields from both banks and both flag objects, then validates
 byte and word ranges, Boolean flags and latches, and integer IM in 0–2. Invalid
 numeric fields throw `RangeError`; invalid Boolean fields throw `TypeError`.
-Construction performs no reset, execution, or RAM accesses.
+Construction performs no reset, execution, or RAM/device accesses.
+The optional [`BytePorts`](../../../src/components/cpus/port-access.ts) connection
+supplies `readPort(port)` and `writePort(port, value)` callbacks. Port addresses
+are full 16-bit numbers and transferred values are bytes. The device owns its
+state; restoring a CPU snapshot does not restore or reconnect the device.
 
 Each declared input property is read once; copying does not depend on property
 enumerability. Extra metadata and derived views are ignored, so a snapshot can
@@ -80,8 +84,10 @@ snapshot. The CPU keeps mutable private state and retains no record history.
 - `before` and `after`: independent complete snapshots.
 - `instruction`: its starting address and the bytes actually fetched, in order;
   `null` only when already halted on entry.
-- `accesses`: ordered byte reads and writes, each with `kind`, `address`, and
-  the value read or written.
+- `accesses`: ordered `CpuZ80Access` entries. Memory `read`/`write` entries
+  carry `address` and `value`; port `input`/`output` entries carry `port` and
+  `value`. Both kinds share one log in their actual transfer order.
+  `CpuZ80MemoryAccess` remains the memory-only type alias.
 - `outcome`: `executed`, `halted`, or `unsupported`. Only `unsupported` carries
   `reason: "opcode"`.
 
@@ -357,6 +363,86 @@ follows the instruction's PC-rewind/refetch behavior in the
 The [indexed-buffer example](examples/indexed-buffer.md) checks complete copy
 and search traces with resumption at every boundary.
 
+## Port input and output
+
+The Z80 places a full 16-bit address on the bus during I/O. Devices may decode
+only the low byte, but that choice belongs to the connection. The CPU records
+and passes the entire address, including the high byte's instruction-specific
+source. IN/OUT perform one transfer after fetching both instruction bytes:
+
+| Forms | Port address | Transfer and flags |
+| --- | --- | --- |
+| IN A,(n) / OUT (n),A | Old A as the high byte, immediate n as the low byte | Load/output A; preserve all six flags |
+| IN r,(C) | Old BC, even when B or C is the destination | Load B/C/D/E/H/L/A; S/Z and even-parity P/V describe the input, H/N clear, C is preserved |
+| OUT (C),r | BC | Output B/C/D/E/H/L/A; preserve all flags |
+
+The undocumented register selector `110` (IN (C) / OUT (C),0) remains unsupported.
+See the [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages 295–300 and 306–309.
+
+### Block transfers and flags
+
+INI/IND input from **old BC**, decrement B with byte wrapping, write to old HL,
+then increment/decrement HL with word wrapping. OUTI/OUTD read old HL, decrement
+B, output through **new BC**, then increment/decrement HL. Input therefore uses
+the original count in the port's high byte; output uses the remaining count.
+C is preserved. Each transfer is performed once, including unchanged memory writes.
+
+INIR/INDR/OTIR/OTDR perform **one iteration per step**. If the decremented B is
+nonzero, PC rewinds two bytes and the next step refetches the current instruction.
+R advances twice per iteration. An initial B of zero permits 256 transfers;
+a final iteration leaves B zero and PC after the instruction. Rewritten code,
+edited RAM, and changed device state affect the next step. CPU snapshots need
+no hidden repetition state; resumption also requires the caller's RAM and
+device state. Runner budgets count iterations, including those that repeat.
+
+All six flags change on each block-I/O iteration. S/Z describe the decremented
+B; N copies the transferred byte's bit 7. Let `t` be the transferred byte plus
+`(C + direction) & FF` for input, or plus L **after** HL changes for output.
+H and C indicate `t > FF`; P/V is even parity of `(t & 7) XOR B`.
+When a repeating form continues, its extra repeat phase further changes H/PV:
+
+| C | N | Parity adjustment | H after the repeat phase |
+| --- | --- | --- | --- |
+| 0 | Either | B | 0 |
+| 1 | 0 | B + 1 | 1 exactly when B's low nibble is F |
+| 1 | 1 | B − 1 | 1 exactly when B's low nibble is 0 |
+
+Even parity of the adjustment's low three bits preserves the preceding P/V;
+odd parity inverts it. S/Z/N/C do not change during this repeat phase. The final
+iteration skips these extra H/PV changes. These intermediate flags are visible
+in snapshots even while external interrupt delivery is deferred.
+
+The manual's block-I/O flag summaries are incomplete. This model follows the
+observed NMOS flag behavior described by
+[David Banks's hardware investigation](https://github.com/hoglet67/Z80Decoder/wiki/Undocumented-Flags),
+including the repeat phase, and checked against an independent emulator below.
+It continues to omit F bits 3/5, hidden internal latches, and cycle timing.
+The [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages 301–305 and 310–315,
+provides the documented transfers and repetition rules.
+
+### Connections, failures, and inspection
+
+An absent connection throws only when an instruction attempts port I/O.
+Ordinary instructions, unsupported attempts, halted steps, and reset do not
+call devices. Inputs must return integers in 0–255; invalid values throw before
+changing their destination or recording a completed input. Device and RAM
+exceptions propagate without returning a step record or rolling back earlier
+effects. Device-side effects, including consuming input before returning an
+invalid byte or throwing, remain the device's responsibility.
+
+PC/R commit after a complete supported opcode is decoded. An immediate operand
+fetch advances PC only on success. Block I/O decrements B after its first
+transfer succeeds and before its second transfer: a failed output or memory
+write therefore leaves the decremented B visible. HL, flags, and repeat-PC
+updates occur only after both transfers succeed. This defines host-failure
+behavior at instruction level, without claiming hardware bus-fault handling.
+
+RAM/device callbacks may inspect detached snapshots. Nested `step()` or
+`reset()` calls on the same CPU throw before changing state. The execution
+guard clears even when a callback throws. Access records retain captured values;
+subsequent execution, device changes, reset, or caller edits to other records
+do not alter them.
+
 ## Stack, calls, and returns
 
 The memory stack grows downward with 16-bit wrapping. PUSH first decrements SP
@@ -391,7 +477,7 @@ I, and all flags; it is a subroutine call, independent of interrupt delivery.
 Instruction and data addresses may overlap. A call captures its target before
 stack writes can overwrite it; a return reads the current RAM, including when
 SP points into code. Stack writes remain in the access record even when their
-values match RAM. Interrupt returns, interrupt delivery, and I/O remain deferred.
+values match RAM. Interrupt returns and interrupt delivery remain deferred.
 
 See the [Zilog manual](https://www.zilog.com/docs/z80/um0080.pdf), printed pages
 115–120 and 281–287. The [bit-count example](examples/bit-count.md) combines three
@@ -540,7 +626,24 @@ refresh activity as above. Repeating block cases describe one iteration.
 These supplementary emulator comparisons do not establish cycle accuracy;
 repository tests remain self-contained.
 
-The remaining documented forms are DI/EI, all port and block I/O, interrupt
-mode selection, RETI, and RETN. Interrupt delivery, cycle timing, undocumented
+I/O checks cover every register input/output byte and all incoming flag patterns,
+all immediate low-address bytes, old-A/BC address selection, and every block
+count/data byte. They verify actual interleaving, H/PV repeat-phase boundaries,
+PC/HL/R wrapping, zero-count 256-iteration blocks, code overlap, live code/data,
+missing or failing connections, invalid input, and non-reentrant execution.
+The [runner test](../../../tests/runtime/run-cpu.test.ts) reads a device buffer
+with INIR and writes it back in reverse with OTDR, comparing records, full RAM,
+and separately restored device state at every step boundary.
+
+All **24,000 independent cases** for the 24 I/O forms also passed, from
+[SingleStepTests Z80 at revision ebe1875](https://github.com/SingleStepTests/z80/tree/ebe1875d48f374bcfd4b505d8eb8ee751568b5f7/v1).
+They compare every modeled state field, final RAM, instruction bytes, full port
+addresses/values, and interleaved memory/port transactions. Bus samples are
+reduced to transfers, excluding idle/refresh clocks; repeating cases describe
+one iteration. This is an independent emulator comparison with the same
+omissions above, not hardware or cycle-accuracy testing. The external corpus
+is supplementary; repository tests remain self-contained.
+
+The remaining documented forms are DI/EI, interrupt mode selection, RETI, and RETN. Interrupt delivery, cycle timing, undocumented
 instructions, and F bits 3/5 remain outside this model. The
 [coverage inventory](../coverage.md#z80) tracks the documented-form count.

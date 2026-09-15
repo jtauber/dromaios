@@ -89,8 +89,8 @@ test("Z80 indexed buffer has 24 exact records, guarded memory, and two visible f
   assert.equal(records.length, 24);
   assert.deepEqual(runCpu(cpu, { maxSteps: 24 }), { records, stopReason: "halted" });
   const accesses = records.flatMap(record => record.accesses);
-  assert.deepEqual(reads.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "read").map(a => [a.address]));
-  assert.deepEqual(writes.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "write").map(a => [a.address, a.value]));
+  assert.deepEqual(reads.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "read" ? [[a.address]] : []));
+  assert.deepEqual(writes.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "write" ? [[a.address, a.value]] : []));
   t.mock.restoreAll();
   checkMemory(ram, true);
   assert.equal(cpu.snapshot().r, 0xa6);

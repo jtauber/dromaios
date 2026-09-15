@@ -105,7 +105,7 @@ export abstract class Cpu8080Family<State extends Registers> {
       ...opcodeFamily("11 ccc 010", { c: this.conditions }, ({ c: condition }) => ({ fetchWord }: InstructionContext) => this.jump(fetchWord(), condition())), // JMP cc / JP cc,nn
 
       // 11 yyy 011: absolute jump, extensions/I/O, stack exchange, DE/HL exchange, DI/EI.
-      // Each CPU owns extension decoding; port I/O and interrupt controls stay deferred.
+      // Each CPU owns extension decoding, port I/O, and interrupt controls.
       ...instructionPattern("11 000 011", ({ fetchWord }) => this.jump(fetchWord())), // JMP / JP nn
       ...instructionPattern("11 100 011", instruction => { this.hl = this.exchangeStack(this.hl, instruction); }), // XTHL / EX (SP),HL
       ...instructionPattern("11 101 011", () => this.#exchangeDeHl()), // XCHG / EX DE,HL

@@ -1,6 +1,7 @@
-import { Cpu6809 } from "../../src/components/cpus/6809.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { CpuZ80 } from "../../src/components/cpus/z80.js";
+import { Cpu6809 } from "../../src/components/cpus/6809.js";
 import { Cpu6800 } from "../../src/components/cpus/6800.js";
 import { Ram } from "../../src/components/memory/ram.js";
 import { Cpu6502 } from "../../src/components/cpus/6502.js";
@@ -106,7 +107,7 @@ test("unsupported opcodes stop immediately, preserve their record, and beat the 
   // Unsupported encodings differ by CPU: 08 is PHP on the 6502; its undocumented 02 remains excluded.
   for (const [create, opcode] of [
     [create8080Example, 0x08], [create6502Example, 0x02],
-    [create6809Example, 0x01], [createZ80Example, 0xd3],
+    [create6809Example, 0x01], [createZ80Example, 0xf3],
   ] as const) {
     const { cpu, ram } = create();
     const before = cpu.snapshot();
@@ -339,4 +340,69 @@ test("6809 runner resumes SYNC and CWAI across snapshots, nested interrupts, and
   assert.deepEqual(first, saved);
   assert.equal(ram.read(0x80), 9);
   for (let address = 0; address < ram.size; address++) assert.equal(copiedRam.read(address), ram.read(address), `RAM ${address}`);
+});
+
+test("Z80 block I/O budgets one iteration per step and resumes with independently restored CPU, RAM, and device state", () => {
+  const program = [
+    0x01, 0x34, 0x03, // LD BC,0334
+    0x21, 0x00, 0x40, // LD HL,4000
+    0xed, 0xb2,       // INIR: read three bytes into ascending memory
+    0x06, 0x03,       // LD B,03
+    0x2b,             // DEC HL: point at the final input byte
+    0xed, 0xbb,       // OTDR: write the buffer in reverse order
+    0x76,            // HALT
+  ];
+  const input = [0x00, 0x7f, 0x80];
+  const initial = { ...createZ80Example().cpu.snapshot(), r: 0xfe };
+  function machine(state = initial, image?: readonly number[], consumed = 0, written: readonly number[] = []) {
+    const ram = new Ram(65536);
+    (image ?? program).forEach((value, address) => ram.write(address, value));
+    const device = { consumed, written: [...written] };
+    const cpu = new CpuZ80(ram, state, {
+      readPort: port => {
+        assert.equal(port, (3 - device.consumed) * 256 + 0x34);
+        const value = input[device.consumed++];
+        assert.notEqual(value, undefined, "no extra device reads");
+        return value!;
+      },
+      writePort: (port, value) => {
+        assert.equal(port, (2 - device.written.length) * 256 + 0x34);
+        device.written.push(value);
+      },
+    });
+    return { ram, cpu, device };
+  }
+  const full = machine();
+  const expected = runCpu(full.cpu, { maxSteps: 11 });
+  assert.equal(expected.stopReason, "halted");
+  assert.deepEqual(expected.records.map(record => record.after.pc), [3, 6, 6, 6, 8, 10, 11, 11, 11, 13, 14]);
+  assert.deepEqual(expected.records.map(record => record.after.b), [3, 3, 2, 1, 0, 3, 3, 2, 1, 0, 0]);
+  assert.deepEqual(expected.records.map(record => record.after.r), [0xff, 0x80, 0x82, 0x84, 0x86, 0x87, 0x88, 0x8a, 0x8c, 0x8e, 0x8f]);
+  assert.deepEqual(expected.records.flatMap(record => record.accesses.filter(access => access.kind === "input" || access.kind === "output")), [
+    { kind: "input", port: 0x0334, value: 0 }, { kind: "input", port: 0x0234, value: 0x7f },
+    { kind: "input", port: 0x0134, value: 0x80 }, { kind: "output", port: 0x0234, value: 0x80 },
+    { kind: "output", port: 0x0134, value: 0x7f }, { kind: "output", port: 0x0034, value: 0 },
+  ]);
+  assert.deepEqual(full.device, { consumed: 3, written: [0x80, 0x7f, 0] });
+  assert.equal(full.cpu.snapshot().hl, 0x3fff);
+  const expectedMemory = Array<number>(65536).fill(0);
+  program.forEach((value, i) => { expectedMemory[i] = value; });
+  input.forEach((value, i) => { expectedMemory[0x4000 + i] = value; });
+  assert.deepEqual(expectedMemory.map((_, i) => full.ram.read(i)), expectedMemory);
+
+  for (let boundary = 0; boundary <= 11; boundary++) {
+    const paused = machine();
+    const prefix = runCpu(paused.cpu, { maxSteps: boundary });
+    assert.deepEqual(prefix.records, expected.records.slice(0, boundary));
+    assert.equal(prefix.stopReason, boundary === 11 ? "halted" : "step-limit");
+    const image = expectedMemory.map((_, i) => paused.ram.read(i));
+    const resumed = machine(paused.cpu.snapshot(), image, paused.device.consumed, paused.device.written);
+    const suffix = runCpu(resumed.cpu, { maxSteps: 11 - boundary });
+    assert.deepEqual(suffix.records, expected.records.slice(boundary));
+    assert.deepEqual(resumed.cpu.snapshot(), full.cpu.snapshot());
+    assert.deepEqual(resumed.device, full.device);
+    assert.deepEqual(expectedMemory.map((_, i) => resumed.ram.read(i)), expectedMemory);
+    assert.deepEqual(resumed.cpu.step().accesses, []);
+    assert.deepEqual(resumed.device, full.device);
+  }
 });

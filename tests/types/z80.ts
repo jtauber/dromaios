@@ -1,5 +1,6 @@
 import { CpuZ80 } from "../../src/components/cpus/z80.js";
-import type { CpuZ80State, CpuZ80Snapshot, CpuZ80StepRecord, CpuZ80ResetRecord } from "../../src/components/cpus/z80.js";
+import type { CpuZ80State, CpuZ80Snapshot, CpuZ80StepRecord, CpuZ80ResetRecord, CpuZ80Access } from "../../src/components/cpus/z80.js";
+import type { BytePorts } from "../../src/components/cpus/port-access.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { createZ80TransfersExample } from "../../src/machines/generated/z80/transfers-example.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
@@ -17,9 +18,10 @@ export function checkZ80TransfersExample(): void {
 }
 
 // Compiled, never called: keep the public state and record contracts precise.
-export function checkZ80(ram: Ram, state: CpuZ80State, snapshot: CpuZ80Snapshot): void {
+export function checkZ80(ram: Ram, state: CpuZ80State, snapshot: CpuZ80Snapshot, ports: BytePorts): void {
   new CpuZ80(ram, state);
   new CpuZ80(ram, snapshot);
+  new CpuZ80(ram, snapshot, ports);
   const im: 0 | 1 | 2 = snapshot.im;
   const alternatePair: number = snapshot.alternate.hl;
   // @ts-expect-error Interrupt modes are a closed set.
@@ -80,3 +82,22 @@ export function checkZ80Records(record: CpuZ80StepRecord, reset: CpuZ80ResetReco
 
 // Sharing an internal family keeps the public CPU surface limited to its three operations.
 const publicCpuMethods: Record<keyof CpuZ80, true> = { snapshot: true, reset: true, step: true };
+
+export function checkZ80Access(access: CpuZ80Access, reset: CpuZ80ResetRecord): void {
+  if (access.kind === "input" || access.kind === "output") {
+    const port: number = access.port;
+    // @ts-expect-error Ports are distinct from memory addresses.
+    access.address;
+    // @ts-expect-error Completed transfers are readonly.
+    access.port = 0;
+  } else if (access.kind === "read" || access.kind === "write") {
+    const address: number = access.address;
+    // @ts-expect-error Memory transfers have no port address.
+    access.port;
+  }
+  for (const access of reset.accesses) {
+    const address: number = access.address;
+    // @ts-expect-error Reset does not acquire port transfers.
+    access.port;
+  }
+}

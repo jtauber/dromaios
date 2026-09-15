@@ -19,7 +19,7 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [281](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [385](../../src/components/cpus/6800.ts) | 197 / 197 | 100% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [449](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [488](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [554](../../src/components/cpus/z80.ts) | 691 / 698 | 99.0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [598](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [773](../../src/components/cpus/8088.ts) | 268 / 291 | 92.1% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [986](../../src/components/cpus/68000.ts) | 36,024 / 36,029 | >99.9% |
@@ -95,11 +95,11 @@ and RET each have eight encodings, and HLT has three (`00`, `01`, `FF`).
 Counting all these documented encodings follows the same rule as the other
 CPUs; different mnemonic names for one encoding still count once. Immediate
 values and address bytes, including their ignored high bits, do not add forms.
-The full count includes 32 I/O forms even while I/O is deferred.
+The full count includes all 32 I/O forms.
 
 For the 6800, count each instruction/addressing encoding in tables 3–6 on
 printed pages 18–21, expanding A/B choices. The total includes interrupt
-instructions even while they are deferred. Undocumented encodings and
+instructions. Undocumented encodings and
 later-family additions are excluded; operand and address bytes do not add forms.
 
 For the 6809, a prefix and following opcode byte identify one form; prefixes
@@ -1335,10 +1335,10 @@ sets audit all 268 documented forms across all three pages and reject undefined 
 [Indexed-buffer specification](z80/examples/indexed-buffer.md) ·
 [Indexed-buffer definition](../../src/machines/z80/indexed-buffer-example.machine)
 
-**667 of 698 documented forms are complete (95.6%): 248 unprefixed, 248 CB,
-31 ED, 39 DD, 39 FD, 31 DD CB, and 31 FD CB forms.** Every documented form
-except I/O and interrupt controls/returns is implemented. The remaining 31
-forms comprise DI/EI, 24 port/block I/O forms, three IM forms, RETI, and RETN.
+**691 of 698 documented forms are complete (99.0%): 250 unprefixed, 248 CB,
+53 ED, 39 DD, 39 FD, 31 DD CB, and 31 FD CB forms.** Every documented form
+except interrupt controls/returns is implemented. The remaining seven forms
+comprise DI/EI, three IM forms, RETI, and RETN.
 Stack operations, calls/returns, and the bit-count example complete the Z80
 [CPU-only checkpoint](../../ROADMAP.md#cpu-only-checkpoint).
 
@@ -1482,6 +1482,21 @@ two bytes while repetition continues. An initial BC of zero permits 65,536
 iterations; searches stop earlier on a match. Snapshots contain all state
 needed to resume. See [block stepping](z80/model.md#block-copies-and-comparisons).
 
+The port families add **24 forms**, all two bytes long:
+
+| Opcode | Forms | Count | Address selection |
+| --- | --- | ---: | --- |
+| `DB/D3` | IN A,(n) / OUT (n),A | 2 | Old A supplies the high byte; n supplies the low byte |
+| `ED 40/48/50/58/60/68/78` | IN B/C/D/E/H/L/A,(C) | 7 | Old BC, including when B/C is the destination |
+| `ED 41/49/51/59/61/69/79` | OUT (C),B/C/D/E/H/L/A | 7 | BC |
+| `ED A2/AA/B2/BA` | INI / IND / INIR / INDR | 4 | Old BC; decrement B after input |
+| `ED A3/AB/B3/BB` | OUTI / OUTD / OTIR / OTDR | 4 | New BC after decrementing B |
+
+All pass full 16-bit port addresses through the shared byte-port connection.
+Repeating block I/O exposes one transfer per step; zero B allows 256 iterations.
+Memory and device accesses share one ordered log. Flag rules, including H/PV
+between repeat iterations, are in the [port contract](z80/model.md#port-input-and-output).
+
 | Area | Current coverage |
 | --- | --- |
 | Stored registers | A/B/C/D/E/H/L in main and alternate banks; IX, IY, PC, SP, I, R |
@@ -1501,8 +1516,9 @@ needed to resume. See [block stepping](z80/model.md#block-copies-and-comparisons
 | Reset | Clear PC/I/R, IFF1/IFF2, and IM; release HALT; preserve banks, flags, IX/IY/SP, and RAM under the documented model policy |
 | Prefixes | CB/ED/DD/FD decode the second byte; indexed CB decodes four bytes; unsupported forms reject atomically after the encoding, without further operand/data accesses |
 | Stopping | HALT reports its instruction once; already halted steps perform no accesses or refresh updates |
-| Remaining instruction scope | DI/EI, port and block I/O, IM, RETI/RETN; interrupt delivery and cycle activity remain deferred |
-| Remaining addressing scope | None for documented non-I/O, non-interrupt forms |
+| Port I/O | IN/OUT immediate and all seven registers; eight block forms with native address/count order, wrapped HL, all six flags, and one iteration per step |
+| Remaining instruction scope | DI/EI, IM, RETI/RETN; interrupt delivery and cycle activity remain deferred |
+| Remaining addressing scope | None for documented non-interrupt forms |
 
 The model covers documented instruction semantics for the listed forms, not
 undocumented flag bits or cycle activity. In particular, a physical Z80 keeps
@@ -1591,6 +1607,13 @@ rewritten code, early matches, zero-count wrapping, a full 65,536-byte copy,
 and snapshot resumption. The indexed-buffer example verifies 24 complete records,
 all match positions and failure, guarded full memory, and bounded resumption
 at every step. See [checks and limits](z80/model.md#checks-and-limits).
+
+Port tests check all byte/flag inputs, native 16-bit addresses, block count/data
+combinations, repeat-phase flags, real transfer order, wrapping, code overlap,
+and device/RAM failures. Runner checks pause and reconstruct CPU, RAM, and
+device state independently at every boundary of an INIR/OTDR buffer program.
+A supplementary comparison passed **24,000 independent emulator cases** across
+all 24 I/O forms; see [checks and limits](z80/model.md#checks-and-limits).
 
 ## 8088
 

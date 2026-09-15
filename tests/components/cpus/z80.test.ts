@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { BytePorts } from "../../../src/components/cpus/port-access.js";
 import { CpuZ80 } from "../../../src/components/cpus/z80.js";
-import type { CpuZ80Flags, CpuZ80RegisterBank, CpuZ80State, CpuZ80MemoryAccess } from "../../../src/components/cpus/z80.js";
+import type { CpuZ80Flags, CpuZ80RegisterBank, CpuZ80State, CpuZ80MemoryAccess, CpuZ80Access } from "../../../src/components/cpus/z80.js";
 import { Cpu8080 } from "../../../src/components/cpus/8080.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
@@ -828,11 +829,11 @@ test("Z80 relative jumps and loads fetch current operands and retain independent
   assert.deepEqual(second, savedSecond);
 });
 
-test("Z80 rejects deferred unprefixed I/O and interrupt controls atomically", () => {
+test("Z80 rejects deferred unprefixed interrupt controls atomically", () => {
   const ram = new ObservedRam();
   const before = initialState({ pc: 0xffff, r: 0xff });
   for (let opcode = 0; opcode < 256; opcode++) {
-    if (![0xd3, 0xdb, 0xf3, 0xfb].includes(opcode)) continue;
+    if (![0xf3, 0xfb].includes(opcode)) continue;
     ram.write(0xffff, opcode);
     ram.write(0, 0x3e);
     const cpu = new CpuZ80(ram, before);
@@ -1254,16 +1255,16 @@ function checkBaseStep(ram: ObservedRam, before: CpuZ80State, bytes: readonly nu
   assert.deepEqual(ram.accesses, accesses);
 }
 
-test("Z80 has 248 ordinary unprefixed forms, and every new form increments only R bits 0–6 once", () => {
+test("Z80 has 250 implemented unprefixed forms, and every new form increments only R bits 0–6 once", () => {
   const ram = new ObservedRam();
   assert.equal(new Set(baseAdditions).size, 53);
   let unprefixed = 0;
   for (let opcode = 0; opcode < 256; opcode++) {
     ram.write(0x2000, opcode); ram.write(0x2001, 0); ram.write(0x2002, 0);
-    const record = new CpuZ80(ram, initialState()).step();
+    const record = new CpuZ80(ram, initialState(), { readPort: () => 0, writePort: () => {} }).step();
     if (![0xcb, 0xdd, 0xed, 0xfd].includes(opcode) && record.outcome !== "unsupported") unprefixed++;
   }
-  assert.equal(unprefixed, 248);
+  assert.equal(unprefixed, 250);
   for (const opcode of baseAdditions) for (let r = 0; r < 256; r++) {
     const before = initialState({ pc: 0xffff, r });
     ram.write(0xffff, opcode); ram.write(0, 0x80); ram.write(1, 0);
@@ -1574,7 +1575,10 @@ test("Z80 word loads and stack exchanges observe edited RAM and leave earlier re
 const indexOpcodes = [0x09, 0x19, 0x21, 0x22, 0x23, 0x29, 0x2a, 0x2b, 0x34, 0x35, 0x36, 0x39,
   0x46, 0x4e, 0x56, 0x5e, 0x66, 0x6e, 0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x77, 0x7e,
   0x86, 0x8e, 0x96, 0x9e, 0xa6, 0xae, 0xb6, 0xbe, 0xe1, 0xe3, 0xe5, 0xe9, 0xf9];
-const edOpcodes = [0x42, 0x43, 0x44, 0x47, 0x4a, 0x4b, 0x4f, 0x52, 0x53, 0x57, 0x5a, 0x5b, 0x5f,
+const edOpcodes = [
+  0x40, 0x48, 0x50, 0x58, 0x60, 0x68, 0x78, 0x41, 0x49, 0x51, 0x59, 0x61, 0x69, 0x79,
+  0xa2, 0xa3, 0xaa, 0xab, 0xb2, 0xb3, 0xba, 0xbb,
+  0x42, 0x43, 0x44, 0x47, 0x4a, 0x4b, 0x4f, 0x52, 0x53, 0x57, 0x5a, 0x5b, 0x5f,
   0x62, 0x63, 0x67, 0x6a, 0x6b, 0x6f, 0x72, 0x73, 0x7a, 0x7b, 0xa0, 0xa1, 0xa8, 0xa9, 0xb0, 0xb1, 0xb8, 0xb9];
 const indexes = [{ prefix: 0xdd, index: "ix" }, { prefix: 0xfd, index: "iy" }] as const;
 const readAccess = (address: number, value: number): CpuZ80MemoryAccess => ({ kind: "read", address, value });
@@ -1585,21 +1589,21 @@ function checkPrefixedStep(ram: ObservedRam, before: CpuZ80State, bytes: readonl
   checkBaseStep(ram, before, bytes, { r: refreshTwice(before.r), ...changes }, data);
 }
 
-test("Z80 completes 667 documented forms; every other prefix encoding rejects atomically", () => {
+test("Z80 completes 691 documented forms; every other prefix encoding rejects atomically", () => {
   const ram = new ObservedRam();
   const pages = [
     { prefix: [0xed], codes: edOpcodes },
     ...indexes.flatMap(({ prefix }) => [{ prefix: [prefix], codes: indexOpcodes },
       { prefix: [prefix, 0xcb, 0x80], codes: cbRows.map(row => row.base + 6) }]),
   ];
-  assert.equal(248 + 248 + pages.reduce((sum, page) => sum + new Set(page.codes).size, 0), 667);
+  assert.equal(250 + 248 + pages.reduce((sum, page) => sum + new Set(page.codes).size, 0), 691);
   for (const { prefix, codes } of pages) for (let opcode = 0; opcode < 256; opcode++) {
     // CB on DD/FD is a further page selector, checked separately with all final bytes.
     if (prefix.length === 1 && prefix[0] !== 0xed && opcode === 0xcb) continue;
     const bytes = [...prefix, opcode];
     const before = initialState({ pc: 0xffff, r: 0xff });
     [...bytes, 0, 0].forEach((byte, i) => ram.write((before.pc + i) % 65536, byte));
-    const cpu = new CpuZ80(ram, before);
+    const cpu = new CpuZ80(ram, before, { readPort: () => 0, writePort: () => {} });
     ram.accesses.length = 0;
     if (codes.includes(opcode)) {
       const record = cpu.step();
@@ -1617,7 +1621,7 @@ test("Z80 completes 667 documented forms; every other prefix encoding rejects at
   for (const { prefix, codes } of pages) for (const opcode of codes) for (let r = 0; r < 256; r++) {
     const before = initialState({ r });
     [...prefix, opcode, 0, 0].forEach((byte, i) => ram.write(before.pc + i, byte));
-    const record = new CpuZ80(ram, before).step();
+    const record = new CpuZ80(ram, before, { readPort: () => 0, writePort: () => {} }).step();
     assert.equal(record.outcome, "executed");
     assert.equal(record.after.r, prefix[0] === 0xed && opcode === 0x4f ? before.a : refreshTwice(r));
     assert.equal(record.after.iff1, before.iff1); assert.equal(record.after.iff2, before.iff2);
@@ -1931,6 +1935,319 @@ test("Z80 initial BC=0 repeats a full 65536 iterations, while CPIR/CPDR stop on 
       assert.equal(record.after.pc, i === match ? 0x2002 : 0x2000);
       assert.equal(record.after.flags.z, i === match);
       assert.equal(record.after.bc, (count - i - 1 + 65536) % 65536);
+    }
+  }
+});
+
+// Observe the real RAM/device calls in one order, independently of the CPU's recorders.
+class IoRam extends Ram {
+  readonly accesses: CpuZ80Access[] = [];
+  input = 0;
+  observe?: (kind: CpuZ80Access["kind"], address: number, value?: number) => void;
+  constructor() { super(0x10000); }
+  override read(address: number): number {
+    this.observe?.("read", address);
+    const value = super.read(address);
+    this.accesses.push({ kind: "read", address, value });
+    return value;
+  }
+  override write(address: number, value: number): void {
+    this.observe?.("write", address, value);
+    super.write(address, value);
+    this.accesses.push({ kind: "write", address, value });
+  }
+  readonly ports: BytePorts = {
+    readPort: port => {
+      this.observe?.("input", port);
+      this.accesses.push({ kind: "input", port, value: this.input });
+      return this.input;
+    },
+    writePort: (port, value) => {
+      this.observe?.("output", port, value);
+      this.accesses.push({ kind: "output", port, value });
+    },
+  };
+}
+
+const ioRegisters = [
+  { register: "b", input: 0x40, output: 0x41 }, { register: "c", input: 0x48, output: 0x49 },
+  { register: "d", input: 0x50, output: 0x51 }, { register: "e", input: 0x58, output: 0x59 },
+  { register: "h", input: 0x60, output: 0x61 }, { register: "l", input: 0x68, output: 0x69 },
+  { register: "a", input: 0x78, output: 0x79 },
+] as const;
+const blockIoForms = [
+  { name: "INI", opcode: 0xa2, output: false, delta: 1, repeat: false },
+  { name: "IND", opcode: 0xaa, output: false, delta: -1, repeat: false },
+  { name: "INIR", opcode: 0xb2, output: false, delta: 1, repeat: true },
+  { name: "INDR", opcode: 0xba, output: false, delta: -1, repeat: true },
+  { name: "OUTI", opcode: 0xa3, output: true, delta: 1, repeat: false },
+  { name: "OUTD", opcode: 0xab, output: true, delta: -1, repeat: false },
+  { name: "OTIR", opcode: 0xb3, output: true, delta: 1, repeat: true },
+  { name: "OTDR", opcode: 0xbb, output: true, delta: -1, repeat: true },
+] as const;
+
+function parityByDigits(value: number): boolean {
+  return [...value.toString(2)].filter(bit => bit === "1").length % 2 === 0;
+}
+
+for (const output of [false, true]) {
+  test(`Z80 immediate ${output ? "OUT" : "IN"} uses old A and every low address byte, preserving all flags`, () => {
+    const ram = new IoRam();
+    const opcode = output ? 0xd3 : 0xdb;
+    for (const a of [0, 0x7f, 0x80, 0xff]) for (let low = 0; low < 256; low++) for (let f = 0; f < 64; f++) {
+      const state = initialState({ a, pc: 0xffff, r: f * 4 + low % 4, flags: flagPattern(f) });
+      ram.write(0xffff, opcode); ram.write(0, low); ram.input = 255 - low;
+      const cpu = new CpuZ80(ram, state, ram.ports);
+      ram.accesses.length = 0;
+      const record = cpu.step();
+      const accesses = [readAccess(0xffff, opcode), readAccess(0, low),
+        { kind: output ? "output" : "input", port: a * 256 + low, value: output ? a : ram.input }];
+      assert.deepEqual(record, { before: snapshot(state), after: snapshot({ ...state, pc: 1,
+        r: Math.floor(state.r / 128) * 128 + (state.r + 1) % 128, a: output ? a : ram.input }),
+        instruction: { address: 0xffff, bytes: [opcode, low] }, accesses, outcome: "executed" });
+      assert.deepEqual(ram.accesses, accesses);
+    }
+  });
+}
+
+for (const { register, input, output } of ioRegisters) {
+  test(`Z80 IN/OUT ${register.toUpperCase()} through BC covers every byte and flag pattern, including address-register aliases`, () => {
+    const ram = new IoRam();
+    for (let value = 0; value < 256; value++) for (let f = 0; f < 64; f++) {
+      for (const isOutput of [false, true]) {
+        const opcode = isOutput ? output : input;
+        const state = initialState({ pc: 0xffff, flags: flagPattern(f), [register]: isOutput ? value : 255 - value });
+        ram.write(0xffff, 0xed); ram.write(0, opcode); ram.input = value;
+        const cpu = new CpuZ80(ram, state, ram.ports);
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record.after, snapshot({ ...state, pc: 1, r: 0x80, [register]: value,
+          flags: isOutput ? state.flags : { s: value >= 128, z: value === 0, h: false, pv: parityByDigits(value), n: false, c: state.flags.c } }));
+        assert.deepEqual(record.before, snapshot(state));
+        assert.equal(record.outcome, "executed");
+        assert.deepEqual(record.instruction, { address: 0xffff, bytes: [0xed, opcode] });
+        assert.deepEqual(record.accesses, [readAccess(0xffff, 0xed), readAccess(0, opcode),
+          { kind: isOutput ? "output" : "input", port: state.b * 256 + state.c, value }]);
+        assert.deepEqual(record.accesses, ram.accesses);
+      }
+    }
+  });
+}
+
+// Range/parity expectations are independent of the CPU's bitwise ALU helpers.
+function blockIoFlags(b: number, value: number, added: number, repeating: boolean): CpuZ80Flags {
+  const sum = value + added;
+  const carry = sum >= 256;
+  let half = carry;
+  let parity = parityByDigits(sum % 8) === parityByDigits(b);
+  if (repeating) {
+    let adjustment = b;
+    if (carry && value >= 128) { adjustment = b + 255; half = b % 16 === 0; }
+    if (carry && value < 128) { adjustment = b + 1; half = b % 16 === 15; }
+    const oddAdjustment = !parityByDigits(adjustment % 8);
+    if (oddAdjustment) parity = !parity;
+  }
+  return { s: b >= 128, z: b === 0, h: half, pv: parity, n: value >= 128, c: carry };
+}
+
+for (const { name, opcode, delta, repeat, output } of blockIoForms) {
+  test(`Z80 ${name} checks every count/data byte, native port order, wrapping, and intermediate flags`, () => {
+    const ram = new IoRam();
+    for (let originalB = 0; originalB < 256; originalB++) for (let value = 0; value < 256; value++) {
+      // Spread C and L across every value; explicitly exercise address-space edges too.
+      const c = (value + originalB) % 256;
+      const address = originalB === 0 ? 0xffff : originalB === 1 ? 0 : 0x4000 + (255 - c);
+      const state = initialState({ b: originalB, c, h: Math.floor(address / 256), l: address % 256,
+        flags: flagPattern(value % 64), r: value, pc: 0x2000 });
+      ram.write(0x2000, 0xed); ram.write(0x2001, opcode); ram.write(address, value); ram.input = value;
+      const cpu = new CpuZ80(ram, state, ram.ports);
+      const b = (originalB + 255) % 256, hl = (address + delta + 65536) % 65536;
+      const repeats = repeat && b !== 0;
+      const flags = blockIoFlags(b, value, output ? hl % 256 : (c + delta + 256) % 256, repeats);
+      ram.accesses.length = 0;
+      const record = cpu.step();
+      assert.deepEqual(record.after, snapshot({ ...state, b, h: Math.floor(hl / 256), l: hl % 256,
+        pc: repeats ? 0x2000 : 0x2002, r: refreshTwice(value), flags }));
+      const transfers: CpuZ80Access[] = output
+        ? [readAccess(address, value), { kind: "output", port: b * 256 + c, value }]
+        : [{ kind: "input", port: originalB * 256 + c, value }, writeAccess(address, value)];
+      assert.deepEqual(record.accesses, [readAccess(0x2000, 0xed), readAccess(0x2001, opcode), ...transfers]);
+      assert.deepEqual(record.accesses, ram.accesses);
+      assert.deepEqual(record.before, snapshot(state));
+      assert.deepEqual(record.instruction, { address: 0x2000, bytes: [0xed, opcode] });
+      assert.equal(record.outcome, "executed");
+    }
+  });
+}
+
+const ioEncodings = [
+  { bytes: [0xdb, 0x20], output: false, block: false }, { bytes: [0xd3, 0x20], output: true, block: false },
+  ...ioRegisters.flatMap(({ input, output }) => [
+    { bytes: [0xed, input], output: false, block: false }, { bytes: [0xed, output], output: true, block: false },
+  ]),
+  ...blockIoForms.map(({ opcode, output }) => ({ bytes: [0xed, opcode], output, block: true })),
+];
+
+test("Z80 I/O failures preserve completed work, expose transfer order, and release the execution guard", () => {
+  for (const { bytes, output, block } of ioEncodings) for (let failAt = 0; failAt < (block ? 4 : 3); failAt++) {
+    const ram = new IoRam();
+    bytes.forEach((value, i) => ram.write(0x2000 + i, value));
+    ram.write(0x4000, 0x81); ram.input = 0x81;
+    const state = initialState({ b: 2, c: 0x20, h: 0x40, l: 0 });
+    const cpu = new CpuZ80(ram, state, ram.ports);
+    const failure = new Error(`transfer ${failAt} in ${bytes}`);
+    let calls = 0;
+    const prefixed = bytes[0] === 0xed;
+    // Unprefixed operand fetches advance PC/R after the opcode; ED decoding commits both together.
+    const decoded = failAt >= (prefixed ? 2 : 1);
+    const expected = snapshot({ ...state, pc: decoded ? 0x2000 + (failAt === 1 ? 1 : 2) : state.pc,
+      r: decoded ? (prefixed ? 0x80 : 0xff) : state.r, b: block && failAt === 3 ? 1 : 2 });
+    ram.accesses.length = 0;
+    ram.observe = () => {
+      if (calls++ === failAt) {
+        assert.deepEqual(cpu.snapshot(), expected);
+        throw failure;
+      }
+    };
+    assert.throws(() => cpu.step(), error => error === failure);
+    assert.deepEqual(cpu.snapshot(), expected);
+    assert.equal(calls, failAt + 1);
+    assert.equal(ram.accesses.length, failAt);
+    if (block && failAt === 3) {
+      assert.deepEqual(ram.accesses[2], output ? readAccess(0x4000, 0x81) : { kind: "input", port: 0x0220, value: 0x81 });
+    }
+    ram.observe = undefined;
+    ram.write(expected.pc, 0x00);
+    assert.equal(cpu.step().outcome, "executed");
+    assert.equal(cpu.reset().after.pc, 0);
+  }
+});
+
+test("Z80 ports are optional until an I/O transfer, and malformed input never changes its destination", () => {
+  for (const { bytes, output, block } of ioEncodings) {
+    const ram = new IoRam();
+    bytes.forEach((value, i) => ram.write(0x2000 + i, value));
+    const state = initialState({ b: 2, h: 0x40, l: 0 });
+    const cpu = new CpuZ80(ram, state);
+    assert.throws(() => cpu.step(), /Port I\/O requires a connected device/);
+    assert.deepEqual(cpu.snapshot(), snapshot({ ...state, pc: 0x2002, r: bytes[0] === 0xed ? 0x80 : 0xff,
+      b: block && output ? 1 : 2 }));
+    assert.deepEqual(cpu.reset().accesses, []);
+    ram.write(0, 0); ram.write(1, 0x76);
+    assert.equal(cpu.step().outcome, "executed");
+    assert.equal(cpu.step().outcome, "halted");
+    assert.deepEqual(cpu.step().accesses, []);
+  }
+  for (const bytes of [[0xdb, 0x20], [0xed, 0x40], [0xed, 0xb2]]) {
+    for (const value of [-1, 256, 0.5, NaN, Infinity, "7", null, undefined]) {
+      const ram = new Ram(65536);
+      bytes.forEach((byte, i) => ram.write(0x2000 + i, byte));
+      ram.write(0x4000, 0x55);
+      const state = initialState({ b: 2, h: 0x40, l: 0 });
+      let inputs = 0;
+      const cpu = new CpuZ80(ram, state, {
+        // @ts-expect-error Invalid JavaScript device returns must not be coerced to bytes.
+        readPort: () => { inputs++; return value; }, writePort: () => assert.fail("unexpected output"),
+      });
+      assert.throws(() => cpu.step(), /Port input byte/);
+      assert.equal(inputs, 1);
+      assert.deepEqual(cpu.snapshot(), snapshot({ ...state, pc: 0x2002, r: bytes[0] === 0xed ? 0x80 : 0xff }));
+      assert.equal(ram.read(0x4000), 0x55);
+    }
+  }
+});
+
+test("Z80 RAM and port callbacks may inspect state but cannot reenter step or reset", () => {
+  for (const opcode of [0xb2, 0xb3]) for (const nested of ["step", "reset"] as const) {
+    const ram = new IoRam();
+    ram.write(0x2000, 0xed); ram.write(0x2001, opcode);
+    const cpu = new CpuZ80(ram, initialState({ b: 2, h: 0x40, l: 0 }), ram.ports);
+    let calls = 0;
+    ram.observe = () => {
+      const before = cpu.snapshot();
+      assert.throws(() => cpu[nested](), /Z80 step and reset calls must not be reentrant/);
+      assert.deepEqual(cpu.snapshot(), before);
+      calls++;
+    };
+    assert.equal(cpu.step().outcome, "executed");
+    assert.equal(calls, 4);
+    ram.observe = undefined;
+    assert.equal(cpu.step().after.b, 0);
+  }
+});
+
+test("Z80 repeating I/O refetches current code after wrap and preserves captured bytes when input overwrites code", () => {
+  for (const opcode of [0xb2, 0xba]) {
+    const ram = new IoRam();
+    ram.write(0xffff, 0xed); ram.write(0, opcode); ram.input = 0xf3;
+    const cpu = new CpuZ80(ram, initialState({ pc: 0xffff, b: 2, h: 0xff, l: 0xff }), ram.ports);
+    const record = cpu.step();
+    assert.deepEqual(record.instruction, { address: 0xffff, bytes: [0xed, opcode] });
+    assert.equal(record.after.pc, 0xffff);
+    const next = cpu.step();
+    assert.equal(next.outcome, "unsupported");
+    assert.deepEqual(next.before, next.after);
+    assert.deepEqual(next.accesses, [readAccess(0xffff, 0xf3)]);
+    assert.deepEqual(record.accesses, [readAccess(0xffff, 0xed), readAccess(0, opcode),
+      { kind: "input", port: 0x0233, value: 0xf3 }, writeAccess(0xffff, 0xf3)]);
+  }
+  const ram = new IoRam();
+  ram.write(0xffff, 0xed); ram.write(0, 0xb3); ram.write(0x4000, 0x12); ram.write(0x4001, 0x34);
+  const cpu = new CpuZ80(ram, initialState({ pc: 0xffff, b: 2, h: 0x40, l: 0 }), ram.ports);
+  ram.observe = kind => { if (kind === "output") ram.write(0, 0xab); }; // Next iteration becomes OUTD.
+  const first = cpu.step();
+  assert.deepEqual(first.instruction?.bytes, [0xed, 0xb3]);
+  assert.equal(first.after.pc, 0xffff);
+  ram.observe = undefined;
+  const next = cpu.step();
+  assert.deepEqual(next.instruction?.bytes, [0xed, 0xab]);
+  assert.equal(next.after.hl, 0x4000);
+  assert.equal(next.after.pc, 1);
+  assert.deepEqual(next.accesses.at(-1), { kind: "output", port: 0x0033, value: 0x34 });
+  const saved = structuredClone(first);
+  cpu.reset(); cpu.step();
+  assert.deepEqual(first, saved);
+  // @ts-expect-error Deliberately bypass readonly typing to check detached record entries.
+  first.accesses[2]!.value = 0;
+  assert.deepEqual(next.accesses[2], readAccess(0x4001, 0x34));
+});
+
+for (const { name, opcode, output, delta } of blockIoForms.filter(form => form.repeat)) {
+  test(`Z80 ${name} with B=0 performs exactly 256 iterations, including native port and refresh wrapping`, () => {
+    const ram = new IoRam();
+    ram.write(0x2000, 0xed); ram.write(0x2001, opcode); ram.input = 0x55;
+    const cpu = new CpuZ80(ram, initialState({ b: 0, h: 0x40, l: 0 }), ram.ports);
+    for (let i = 0; i < 256; i++) {
+      const record = cpu.step();
+      const b = 255 - i;
+      assert.equal(record.after.b, b);
+      assert.equal(record.after.pc, i === 255 ? 0x2002 : 0x2000);
+      assert.equal(record.after.hl, 0x4000 + delta * (i + 1));
+      assert.deepEqual(record.accesses[output ? 3 : 2], {
+        kind: output ? "output" : "input", port: (output ? b : (256 - i) % 256) * 256 + 0x33, value: output ? 0 : 0x55,
+      });
+    }
+    assert.equal(cpu.snapshot().r, 0xfe);
+    assert.equal(cpu.snapshot().flags.z, true);
+  });
+}
+
+test("Z80 block-I/O repeat phase has distinct H/PV results before its final iteration", () => {
+  // Literal flag bytes for selected carry/sign/nibble boundaries; F bits 5/3 are omitted.
+  for (const { b, c, value, single, repeat } of [
+    { b: 0x11, c: 0x7f, value: 0x80, single: 0x13, repeat: 0x17 },
+    { b: 0x12, c: 0x7f, value: 0x80, single: 0x17, repeat: 0x07 },
+    { b: 0x10, c: 0xfe, value: 0x01, single: 0x15, repeat: 0x15 },
+    { b: 0x0f, c: 0xfe, value: 0x01, single: 0x11, repeat: 0x05 },
+    { b: 0x03, c: 0x00, value: 0x01, single: 0x04, repeat: 0x00 },
+    { b: 0x04, c: 0x00, value: 0x01, single: 0x00, repeat: 0x00 },
+    { b: 0x01, c: 0x7f, value: 0x80, single: 0x57, repeat: 0x57 },
+  ]) {
+    for (const opcode of [0xa2, 0xb2]) {
+      const ram = new IoRam();
+      ram.write(0x2000, 0xed); ram.write(0x2001, opcode); ram.input = value;
+      const record = new CpuZ80(ram, initialState({ b, c }), ram.ports).step();
+      assert.deepEqual(record.after.flags, unpackFlags(opcode === 0xa2 ? single : repeat));
     }
   }
 });

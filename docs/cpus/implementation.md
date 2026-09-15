@@ -205,7 +205,7 @@ provide the common fields used by all eight CPUs:
 
 CPU modules keep their public names as aliases, such as `Cpu6502Instruction`
 and `Cpu6502ResetRecord`. `InstructionStep`, `HaltedStep`, and `WaitingStep` accept the same
-optional access type. The 8008 and 8080 supply a union of memory and port accesses;
+optional access type. The 8008, 8080, and Z80 supply a union of memory and port accesses;
 other CPUs retain the memory-only default. Each step type selects its supported outcomes; the
 68000 adds its alignment-fault branch, including a possible null instruction
 on an unaligned opcode fetch. Address conventions are still
@@ -325,14 +325,15 @@ EI deferral callback. Their prebuilt handler tables still expose the opcode
 patterns; the bound callbacks and logs belong to one execution. Both append
 their port logs after the memory log because their input/output instructions
 transfer once, after all memory fetches.
-A future block-I/O implementation must record actual interleaving explicitly.
+The Z80 binds the same port callbacks in its own prefix-aware step loop and
+records actual memory/port interleaving, including block I/O.
 
 8080 interrupt delivery uses the same table and handler-context binding, with
 acknowledgement supplying instruction bytes while PC stays unchanged by fetches.
 It records data-memory and port transfers as they complete. Acceptance and HALT
 release stay in the CPU; the shared RAM-fetch executor does not need an interrupt mode.
 
-The 8008, 8080, 6502, 6800, and 6809 wrap their mutating public operations with a per-instance
+The 8008, 8080, 6502, 6800, 6809, and Z80 wrap their mutating public operations with a per-instance
 [`executionBoundary`](../../src/components/cpus/execution-boundary.ts) guard.
 External callbacks may inspect snapshots, but nested mutations throw before
 changing CPU state. The guard clears even when an operation throws; it neither
@@ -422,9 +423,9 @@ do not alter earlier records.
 `recordMemory(ram, onAccess)` and `recordPorts(ports, onAccess)` can also report
 each completed transfer to a caller's combined log. This preserves actual order
 when memory, ports, and acknowledgement bytes share one execution record. A
-failed transfer does not notify the combined log. The 8080 interrupt path uses
-these callbacks to capture its distinct access kinds without duplicating the
-recorders' memory and port behavior.
+failed transfer does not notify the combined log. The 8080 interrupt path and
+Z80 steps use these callbacks to capture their distinct access kinds without
+duplicating the recorders' memory and port behavior.
 
 All eight CPUs use this helper. Their existing `Cpu…MemoryAccess` type names
 alias the common readonly `MemoryAccess` shape. The helper owns recording only:

@@ -103,8 +103,8 @@ test("Z80 decimal total has 46 exact records, both carry paths, preserved caller
   assert.equal(records.length, 46);
   assert.deepEqual(runCpu(cpu, { maxSteps: 46 }), { records, stopReason: "halted" });
   const accesses = records.flatMap(record => record.accesses);
-  assert.deepEqual(reads.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "read").map(a => [a.address]));
-  assert.deepEqual(writes.mock.calls.map(call => call.arguments), accesses.filter(a => a.kind === "write").map(a => [a.address, a.value]));
+  assert.deepEqual(reads.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "read" ? [[a.address]] : []));
+  assert.deepEqual(writes.mock.calls.map(call => call.arguments), accesses.flatMap(a => a.kind === "write" ? [[a.address, a.value]] : []));
   t.mock.restoreAll();
   checkMemory(ram, true);
   assert.equal(cpu.snapshot().r, 0xac);

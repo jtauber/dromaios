@@ -93,7 +93,7 @@ test("the Z80 counted loop adds five three times, preserves DJNZ flags, stores f
   assert.deepEqual(result, { records: expected, stopReason: "halted" });
   const accesses = expected.flatMap(record => record.accesses);
   assert.deepEqual(read.mock.calls.map(call => call.arguments),
-    accesses.filter(access => access.kind === "read").map(access => [access.address]));
+    accesses.flatMap(access => access.kind === "read" ? [[access.address]] : []));
   assert.deepEqual(write.mock.calls.map(call => call.arguments), [[0x0080, 0x0f]]);
   const final = {
     ...expectedInitialState(), a: 0x0f, b: 0, bc: 0x0033, pc: 0x020c, r: 0x88, halted: true,
