@@ -194,9 +194,10 @@ callbacks without exposing that log, and all callback properties are readonly.
 The 8008, 8080, 6502, 6800, 6809, Z80, and 8088 import `WordInstructionContext`
 as their local `InstructionContext`. The 8008 fetches a full two-byte operand
 and masks it to a 14-bit address when jumping or calling. The 68000 currently
-extends `ByteMemory` with `fetchWord`, `fetchLong`, and `nextAddress`. Its
-word-based instruction stream and explicit extension-word PC bases differ from
-the byte-fetch contexts.
+extends `ByteMemory` with `fetchWord`, `fetchLong`, `nextAddress`, and `jump`.
+Fetching and jumps update a local cursor; a successful instruction commits it
+to PC. Its word-based instruction stream, explicit extension-word PC bases,
+and atomic alignment rejection differ from the byte-fetch contexts.
 Contexts require the operations they advertise; unavailable operations are
 absent rather than optional.
 

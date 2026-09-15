@@ -5,7 +5,7 @@ import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess, RecordedMemory } from "./memory-access.ts";
 import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
 import type { StateValues } from "./state.js";
-import { opcodeFamily, opcodeTable } from "./opcodes.ts";
+import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { add, subtract } from "./alu.ts";
 
@@ -53,6 +53,7 @@ export type Cpu68000ResetRecord = StateTransition<Cpu68000Snapshot>;
 
 interface InstructionContext extends ByteMemory {
   readonly nextAddress: () => number;
+  readonly jump: (address: number) => void;
   readonly fetchWord: () => number;
   readonly fetchLong: () => number;
 }
@@ -61,6 +62,7 @@ type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => Cpu6800
 type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
 type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
 type OperandSize = 8 | 16 | 32;
+type Condition = (flags: Readonly<Cpu68000Flags>) => boolean;
 // A result requests writeback; a comparison updates flags and returns nothing.
 type ImmediateOperation = (cpu: Cpu68000, size: OperandSize, left: number, right: number) => number | void;
 type Operand =
@@ -112,7 +114,7 @@ export class Cpu68000 {
         outcome: "unsupported", reason: "unaligned-address", fault: { operation: "fetch", address } };
     }
     const bytes: number[] = [];
-    // Keep a local cursor so a rejected operand leaves the architectural PC unchanged.
+    // Fetching and jumps share a local cursor; only a successful instruction commits PC.
     let cursor = address;
     const fetchWord = (): number => {
       const high = readByte(cursor);
@@ -129,6 +131,7 @@ export class Cpu68000 {
     }
     const fault = handler(this, {
       nextAddress: () => cursor, fetchWord, readByte, writeByte,
+      jump: target => { cursor = target; },
       fetchLong: () => {
         const high = fetchWord();
         return ((high << 16) | fetchWord()) >>> 0;
@@ -155,6 +158,27 @@ export class Cpu68000 {
   static readonly #selectors = [0, 1, 2, 3, 4, 5, 6, 7] as const;
   static readonly #immediateBytes = Array.from({ length: 0x100 }, (_, value) => value);
 
+  // cccc condition encodings. BRA uses T; BSR replaces F in the branch family.
+  // DBcc uses all sixteen tests directly, including DBT and DBF (also called DBRA).
+  static readonly #conditions: readonly Condition[] = [
+    () => true,                     // 0000 T
+    () => false,                    // 0001 F
+    ({ c, z }) => !c && !z,         // 0010 HI
+    ({ c, z }) => c || z,           // 0011 LS
+    ({ c }) => !c,                  // 0100 CC (HS)
+    ({ c }) => c,                   // 0101 CS (LO)
+    ({ z }) => !z,                  // 0110 NE
+    ({ z }) => z,                   // 0111 EQ
+    ({ v }) => !v,                  // 1000 VC
+    ({ v }) => v,                   // 1001 VS
+    ({ n }) => !n,                  // 1010 PL
+    ({ n }) => n,                   // 1011 MI
+    ({ n, v }) => n === v,          // 1100 GE
+    ({ n, v }) => n !== v,          // 1101 LT
+    ({ n, v, z }) => !z && n === v, // 1110 GT
+    ({ n, v, z }) => z || n !== v,  // 1111 LE
+  ];
+
   // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
   static readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     // Immediate ALU: 0000 ooo 0 ss mmm rrr. ooo selects the operation below;
@@ -174,11 +198,22 @@ export class Cpu68000 {
     ...this.#moveHandlers("00 10 ddd mmm sss rrr", 32), // MOVE.L / MOVEA.L <ea>,<ea>
     ...this.#moveHandlers("00 11 ddd mmm sss rrr", 16), // MOVE.W / MOVEA.W <ea>,<ea>
 
+    // 0100 1110 0111 xxxx: system/return group; only xxxx=0101 is implemented here.
+    ...opcodePattern("0100 1110 0111 0101", (cpu: Cpu68000, instruction: InstructionContext) => cpu.#returnFromSubroutine(instruction)), // RTS
+
+    // 0101 cccc 11001 rrr: cccc is the termination condition; rrr selects Dn.W.
+    // The following signed word is relative to the extension word's address.
+    ...opcodeFamily("0101 cccc 11001 rrr", { c: this.#conditions, r: this.#dataRegisters }, ({ c: test, r: register }) => (cpu: Cpu68000, instruction: InstructionContext) => cpu.#decrementBranch(register, test(cpu.#state.flags), instruction)), // DBcc Dn,<label>
+
+    // 0110 cccc dddddddd: cccc=0000 BRA, 0001 BSR, otherwise Bcc using the tests above.
+    // d is a signed byte; 00 fetches a signed word. FF remains -1 on the original 68000.
+    ...this.#branchHandlers("0110 cccc dddddddd"), // BRA / BSR / Bcc <label>
+
     // 0111 rrr 0 iiiiiiii: rrr selects Dn; i is the signed immediate byte, extended to a long.
     // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
     ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => (cpu: Cpu68000) => cpu.#loadQuickRegister(register, value)), // MOVEQ #n,Dn
 
-    // Other transfer and ALU families, control flow, and exceptions are deferred.
+    // Other transfer/ALU families, JMP/JSR, stack frames, and exceptions are deferred.
   ], 16);
 
   static #immediateHandlers(pattern: string, apply: ImmediateOperation): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -197,6 +232,15 @@ export class Cpu68000 {
       if ((s === 7 && r > 4) || (m === 7 && d > 1) || (size === 8 && (s === 1 || m === 1))) return undefined;
       return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#move(size, s, r, m, d, instruction);
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
+  }
+
+  static #branchHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
+    const conditions = this.#conditions.map((test, code) => ({ test, code }));
+    return opcodeFamily(pattern, { c: conditions, d: this.#immediateBytes }, ({ c: { test, code }, d: byte }) => {
+      // The F encoding is a subroutine call, selected while building the table.
+      if (code === 0b0001) return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#branchToSubroutine(byte, instruction);
+      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#branch(byte, test(cpu.#state.flags), instruction);
+    });
   }
 
   // Effective addresses. Resolve each operand once, source before destination.
@@ -283,6 +327,58 @@ export class Cpu68000 {
     const value = signed8(byte) >>> 0;
     this.#state[register] = value;
     this.#setResultFlags(value);
+  }
+
+  // Control flow and stack. Validate taken targets before committing counter or stack changes.
+
+  #branchTarget(byte: number, instruction: InstructionContext): number {
+    const base = instruction.nextAddress();
+    const displacement = byte === 0 ? (instruction.fetchWord() << 16 >> 16) : signed8(byte);
+    return (base + displacement) >>> 0;
+  }
+
+  #jump(target: number, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    if (target % 2 !== 0) return { operation: "fetch", address: target };
+    instruction.jump(target);
+  }
+
+  #branch(byte: number, take: boolean, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    const target = this.#branchTarget(byte, instruction);
+    if (take) return this.#jump(target, instruction);
+  }
+
+  #decrementBranch(register: DataRegister, condition: boolean, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    const target = this.#branchTarget(0, instruction);
+    if (condition) return;
+    const counter = (this.#state[register] - 1) & 0xffff;
+    if (counter !== 0xffff) {
+      const fault = this.#jump(target, instruction);
+      if (fault) return fault;
+    }
+    // DBcc changes only the low word, without arithmetic flag updates.
+    this.#writeOperand(16, { kind: "data", register }, counter, instruction.writeByte);
+  }
+
+  #branchToSubroutine(byte: number, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    const target = this.#branchTarget(byte, instruction);
+    const returnAddress = instruction.nextAddress();
+    const stack = this.#addressRegister(7);
+    const address = (this.#state[stack] - 4) >>> 0;
+    if (address % 2 !== 0) return { operation: "write", address };
+    const fault = this.#jump(target, instruction);
+    if (fault) return fault;
+    this.#writeMemory(32, address, returnAddress, instruction.writeByte);
+    this.#state[stack] = address;
+  }
+
+  #returnFromSubroutine(instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    const stack = this.#addressRegister(7);
+    const address = this.#state[stack];
+    if (address % 2 !== 0) return { operation: "read", address };
+    const target = this.#readMemory(32, address, instruction.readByte);
+    const fault = this.#jump(target, instruction);
+    if (fault) return fault;
+    this.#state[stack] = (address + 4) >>> 0;
   }
 
   // Arithmetic and flags.

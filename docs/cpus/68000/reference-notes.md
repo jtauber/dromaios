@@ -108,3 +108,27 @@ Shared binary arithmetic supplies carry, borrow, and signed overflow. The
 X; logical operations preserve X and clear V/C. Independent tests cover every
 byte pair, all 900 legal forms, partial Dn writes, and read/modify/write traces.
 No external hardware corpus or cycle comparison is claimed for this slice.
+
+## Branches, counted loops, and returns
+
+The Mac reference uses the same condition vocabulary for Bcc and DBcc, with
+BSR occupying the branch family's false-condition encoding. Dromaios retains
+that relationship, binding the BSR handler during table construction. Its
+condition predicates receive the executing CPU's flags, so the shared table
+captures no instance state.
+
+The reference computes word branch targets by subtracting two after fetching
+the extension and masks branch PCs to 24 bits. Dromaios captures the base before
+the extension fetch and preserves all 32 bits in targets and return addresses.
+Both retain the original chip's signed-byte interpretation of `FF`.
+
+DBcc preserves the high word and flags; a false condition decrements only the
+low word. The reference recombines words with a signed bitwise result; Dromaios
+uses its existing partial-register writer, retaining an unsigned stored long.
+Calls and returns reuse big-endian long access while selecting USP/SSP through
+A7. Explicit target and stack validation preserves the model's atomic rejection
+contract, without copying exception sequencing or timing from the reference.
+
+Independent condition truth tables, displacement/counter sweeps, and the
+[buffer example](examples/control-flow.md) check these decisions, including
+nested calls, both stacks, wrapping, and resuming after corrected faults.

@@ -5,6 +5,7 @@
 [Arithmetic example](examples/arithmetic.md) ·
 [Addressing example](examples/addressing.md) ·
 [Immediate ALU example](examples/alu.md) ·
+[Control-flow example](examples/control-flow.md) ·
 [Reference review](reference-notes.md)
 
 This is an instruction-level model of the original Motorola 68000. It uses
@@ -148,6 +149,58 @@ same address. Postincrement/predecrement is committed once, including for
 CMPI. Logic identity operations still write memory; comparison never does.
 The [ALU example](examples/alu.md) demonstrates these rules in a RAM transformation.
 
+## Control flow and subroutines
+
+BRA, BSR, and Bcc encode `0110 cccc dddddddd`. Condition `cccc=0000`
+selects BRA, `0001` selects BSR, and the other values select conditional
+branches. All preserve X/N/Z/V/C and control state.
+
+| `cccc` | Condition | Test |
+| --- | --- | --- |
+| `0000` | T | Always true; BRA in the branch family |
+| `0001` | F | Always false; replaced by BSR in the branch family |
+| `0010` / `0011` | HI / LS | Neither C nor Z / C or Z |
+| `0100` / `0101` | CC (HS) / CS (LO) | C clear / C set |
+| `0110` / `0111` | NE / EQ | Z clear / Z set |
+| `1000` / `1001` | VC / VS | V clear / V set |
+| `1010` / `1011` | PL / MI | N clear / N set |
+| `1100` / `1101` | GE / LT | N equals V / N differs from V |
+| `1110` / `1111` | GT / LE | Z clear and N equals V / Z set or N differs from V |
+
+The displacement is a signed byte unless `dddddddd=00`, which fetches a
+signed word. On the original 68000, `FF` is −1, not a long-displacement
+prefix. The target base is the opcode address plus two, even when an extension
+word follows. Untaken branches fetch that extension and fall through past it.
+Targets and sequential addresses wrap at 32 bits; only RAM accesses mask to 24.
+
+DBcc encodes `0101 cccc 11001 rrr`, followed by a signed word displacement
+using the same opcode-plus-two base. A true condition ends the loop without
+changing Dn. A false condition decrements its low word, preserving its upper
+word, then branches unless the result is `FFFF`. Flags are unchanged even when
+the counter wraps. DBF (also called DBRA) tests only the counter; DBT never
+decrements or branches. Entering at the loop body with a counter of three
+therefore permits four iterations.
+
+BSR decrements active A7 by four and writes the full 32-bit return address;
+this is the address after the complete two- or four-byte instruction. RTS
+(`0100 1110 0111 0101`) reads that long word into PC and increments A7 by four.
+Both use USP in user mode and SSP in supervisor mode, preserve the inactive
+stack, and leave condition/control flags unchanged. Stack addresses need only
+two-byte alignment; arithmetic wraps at 32 bits and individual accesses wrap
+on the 24-bit bus. Stack reads/writes are high-byte-first and ascending, as for
+other long operands in this instruction-level model.
+
+Taken targets are checked before committing PC, a DBcc counter, or stack
+changes. An odd target produces an unsupported `fetch` alignment fault in the
+current instruction's record, with its instruction bytes present and no target
+read. Untaken and expired-counter paths do not validate the unused target.
+BSR checks stack alignment before target alignment and writes nothing on either
+failure. RTS checks stack alignment before reading the return address; an odd
+return target retains those four reads but leaves A7 and PC unchanged. These
+atomic rejection rules are model policies, not exception/bus sequencing for
+physical hardware. The [control-flow example](examples/control-flow.md)
+exercises nested calls and both active stacks.
+
 ## Stepping and records
 
 `step()` attempts one instruction using current RAM. The
@@ -176,15 +229,22 @@ Opcode `0000` is valid `ORI.B #n,D0`; four zero bytes execute `ORI.B #0,D0`.
 Zero-filled memory does not signal completion. The runner's endpoint or step
 budget determines when to stop.
 
+Control-flow records fetch only the current instruction's bytes, followed by
+BSR's four writes or RTS's four reads where applicable. They contain no fetch
+from the target. DBcc's decrement produces no RAM access.
+
 Unsupported attempts preserve all CPU state and RAM:
 
 | Case | Outcome details | Accesses |
 | --- | --- | --- |
 | Unimplemented operation word | `reason: "opcode"`; two instruction bytes | Two fetch reads |
 | Odd PC | `reason: "unaligned-address"`; `instruction: null`; `fault.operation: "fetch"` | None |
-| Odd word/long source | `reason: "unaligned-address"`; `fault.operation: "read"` | Opcode and source extension fetches; no source data read or destination fetch |
+| Odd word/long MOVE source | `reason: "unaligned-address"`; `fault.operation: "read"` | Opcode and source extension fetches; no source data read or destination fetch |
 | Odd word/long immediate-ALU operand | `reason: "unaligned-address"`; `fault.operation: "read"` | All instruction fetches; no operand reads or writes |
 | Odd word/long MOVE destination | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches and any source data reads; no writes |
+| Odd BSR stack address | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches; no writes |
+| Odd RTS stack address | `reason: "unaligned-address"`; `fault.operation: "read"` | Two opcode fetches; no stack reads |
+| Odd taken branch/return target | `reason: "unaligned-address"`; `fault.operation: "fetch"`; instruction present | Instruction fetches; RTS also reads four stack bytes; no writes or target reads |
 
 Alignment faults include the full rejected address in `fault.address`. A local
 fetch cursor and pending address updates allow rejection without changing PC,
@@ -232,6 +292,8 @@ reset in §6.3.1, and address errors in §6.3.10. The
 supplies ADDI (4-9–4-10), ANDI (4-18–4-19), CMPI (4-79–4-80),
 EORI (4-102–4-103), ORI (4-153–4-154), SUBI (4-179–4-180),
 MOVE (4-116–4-118), and MOVEA (4-119–4-120) encodings and flags.
+Control-flow references are Bcc (4-25–4-26), BRA (4-55), BSR (4-59–4-60),
+DBcc (4-90–4-91), RTS (4-169), and condition table 3-19.
 Addressing is defined in §§2.2.1–2.2.7 and §§2.2.11–2.2.18; §2.4 distinguishes
 the original brief extension from later chips. Later-family additions are excluded.
 
@@ -250,5 +312,10 @@ pattern, exhaust byte operand pairs, and check word/long boundaries, flags,
 read/modify/write order, comparison auto-updates, and atomic alignment rejection.
 The [ALU example tests](../../../tests/machines/68000/alu-example.test.ts)
 check all six families together, including complete traces and RAM images.
+Control-flow checks cover the full condition truth tables, displacement and
+counter sweeps, both stacks, full return addresses, overlapping code/stack,
+atomic alignment rejection, and retries. The
+[control-flow example tests](../../../tests/machines/68000/control-flow-example.test.ts)
+verify nested calls, loops, complete traces and RAM images, and snapshot resumption.
 [Public type checks](../../../tests/types/68000.ts) establish
 readonly records, outcome narrowing, and concrete runner results.

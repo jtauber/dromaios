@@ -5,6 +5,7 @@ import { create68000Example } from "../../src/machines/generated/68000/example.j
 import { create68000TransfersExample } from "../../src/machines/generated/68000/transfers-example.js";
 import { create68000AddressingExample } from "../../src/machines/generated/68000/addressing-example.js";
 import { create68000AluExample } from "../../src/machines/generated/68000/alu-example.js";
+import { create68000ControlFlowExample } from "../../src/machines/generated/68000/control-flow-example.js";
 import { runCpu } from "../../src/runtime/run-cpu.js";
 import type { CpuRunResult } from "../../src/runtime/run-cpu.js";
 
@@ -31,6 +32,8 @@ export function check68000(ram: Ram, state: Cpu68000State, snapshot: Cpu68000Sna
   const addressingResult: CpuRunResult<Cpu68000StepRecord> = runCpu(addressing.cpu, { maxSteps: 18, endAddress: addressing.endAddress });
   const alu: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000AluExample();
   const aluResult: CpuRunResult<Cpu68000StepRecord> = runCpu(alu.cpu, { maxSteps: 16, endAddress: alu.endAddress });
+  const control: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000ControlFlowExample();
+  const controlResult: CpuRunResult<Cpu68000StepRecord> = runCpu(control.cpu, { maxSteps: 36, endAddress: control.endAddress });
   const result: CpuRunResult<Cpu68000StepRecord> = runCpu(cpu, { maxSteps: 3, endAddress: machine.endAddress });
   if (result.records[0]) {
     const d0: number = result.records[0].after.d0;

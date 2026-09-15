@@ -288,7 +288,13 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
       supported.add(base + size + destination);
     }
   }
-  assert.equal(supported.size, 12674); // 9,726 MOVE/MOVEA + 900 immediate ALU + 8 × 256 MOVEQ words.
+  for (let opcode = 0x6000; opcode < 0x7000; opcode++) supported.add(opcode);
+  for (const base of [0x50c8, 0x51c8, 0x52c8, 0x53c8, 0x54c8, 0x55c8, 0x56c8, 0x57c8,
+    0x58c8, 0x59c8, 0x5ac8, 0x5bc8, 0x5cc8, 0x5dc8, 0x5ec8, 0x5fc8]) {
+    for (let register = 0; register < 8; register++) supported.add(base + register);
+  }
+  supported.add(0x4e75);
+  assert.equal(supported.size, 16899); // Includes embedded MOVEQ/branch operands, unlike coverage forms.
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
@@ -944,4 +950,230 @@ test("68000 immediate alignment rejection can be retried with changed RAM and re
     { kind: "write", address: 0xfffffe, value: 0xff }, { kind: "write", address: 0xffffff, value: 0xff },
   ]);
   assert.deepEqual(rejected, saved);
+});
+
+// Literal manual encodings and sixteen-row truth tables, indexed by NZVC (N is bit 3).
+// These expected tests do not reuse the core's predicates or a branch decoder.
+const conditionForms = [
+  { name: "T", branch: 0x6000, db: 0x50c8, truth: 0xffff },
+  { name: "F", branch: 0x6100, db: 0x51c8, truth: 0x0000 },
+  { name: "HI", branch: 0x6200, db: 0x52c8, truth: 0x0505 },
+  { name: "LS", branch: 0x6300, db: 0x53c8, truth: 0xfafa },
+  { name: "CC", branch: 0x6400, db: 0x54c8, truth: 0x5555 },
+  { name: "CS", branch: 0x6500, db: 0x55c8, truth: 0xaaaa },
+  { name: "NE", branch: 0x6600, db: 0x56c8, truth: 0x0f0f },
+  { name: "EQ", branch: 0x6700, db: 0x57c8, truth: 0xf0f0 },
+  { name: "VC", branch: 0x6800, db: 0x58c8, truth: 0x3333 },
+  { name: "VS", branch: 0x6900, db: 0x59c8, truth: 0xcccc },
+  { name: "PL", branch: 0x6a00, db: 0x5ac8, truth: 0x00ff },
+  { name: "MI", branch: 0x6b00, db: 0x5bc8, truth: 0xff00 },
+  { name: "GE", branch: 0x6c00, db: 0x5cc8, truth: 0xcc33 },
+  { name: "LT", branch: 0x6d00, db: 0x5dc8, truth: 0x33cc },
+  { name: "GT", branch: 0x6e00, db: 0x5ec8, truth: 0x0c03 },
+  { name: "LE", branch: 0x6f00, db: 0x5fc8, truth: 0xf3fc },
+] as const;
+
+function conditionResult(truth: number, { n, z, v, c }: Cpu68000Flags): boolean {
+  const row = Number(n) * 8 + Number(z) * 4 + Number(v) * 2 + Number(c);
+  return Math.floor(truth / 2 ** row) % 2 === 1;
+}
+
+function checkControlRejection(ram: ObservedRam, before: Cpu68000State, bytes: readonly number[],
+  operation: "fetch" | "read" | "write", address: number, data: readonly Cpu68000MemoryAccess[] = []): void {
+  const fetches = bytes.map((value, offset) => ({ kind: "read" as const, address: physical(before.pc + offset), value }));
+  for (const { address, value } of fetches) ram.write(address, value);
+  ram.accesses.length = 0;
+  const cpu = new Cpu68000(ram, before);
+  assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(before), outcome: "unsupported",
+    reason: "unaligned-address", instruction: { address: before.pc, bytes }, fault: { operation, address },
+    accesses: [...fetches, ...data] });
+  assert.deepEqual(cpu.snapshot(), snapshot(before));
+  assert.deepEqual(ram.accesses, [...fetches, ...data]);
+}
+
+function checkBranch(ram: ObservedRam, before: Cpu68000State, branch: number, byte: number, word: number, take: boolean): void {
+  const bytes = [...wordBytes(branch + byte), ...(byte === 0 ? wordBytes(word) : [])];
+  const displacement = byte === 0 ? (word < 32768 ? word : word - 65536) : (byte < 128 ? byte : byte - 256);
+  const target = unsignedLong(before.pc + 2 + displacement);
+  const returnAddress = unsignedLong(before.pc + bytes.length);
+  const after = { ...before, flags: { ...before.flags }, pc: take ? target : returnAddress };
+  if (take && target % 2 !== 0) {
+    checkControlRejection(ram, before, bytes, "fetch", target);
+    return;
+  }
+  const writes: Cpu68000MemoryAccess[] = [];
+  if (branch === 0x6100) {
+    const stack = before.flags.s ? "ssp" : "usp";
+    after[stack] = unsignedLong(before[stack] - 4);
+    longBytes(returnAddress).forEach((value, offset) => writes.push({ kind: "write", address: physical(after[stack] + offset), value }));
+  }
+  checkStep(ram, before, bytes, after, writes);
+}
+
+for (const { name, branch, truth } of conditionForms) {
+  test(`68000 ${name === "T" ? "BRA" : name === "F" ? "BSR" : `B${name}`} checks every embedded displacement and all incoming flags`, () => {
+    const ram = new ObservedRam(0x1000000);
+    for (let bits = 0; bits < 128; bits++) {
+      const before = initialState({ flags: flags(bits), interruptMask: bits % 8 });
+      const take = branch === 0x6100 || conditionResult(truth, before.flags);
+      for (let byte = 0; byte < 256; byte++) checkBranch(ram, before, branch, byte, 0xff80, take);
+      for (const word of [0, 1, 2, 3, 0x7ffe, 0x7fff, 0x8000, 0x8001, 0xfffc, 0xfffe, 0xffff]) {
+        checkBranch(ram, before, branch, 0, word, take);
+      }
+    }
+  });
+}
+
+test("68000 BRA and BSR exhaust every word displacement and preserve full logical branch/return addresses", () => {
+  const ram = new ObservedRam(0x1000000);
+  const addresses = [0, 0x12fffffe, 0x80000000, 0xfffffffe];
+  for (let word = 0; word < 65536; word++) {
+    const before = initialState({ pc: addresses[word % addresses.length]!, flags: flags(word % 128) });
+    checkBranch(ram, before, 0x6000, 0, word, true);
+    checkBranch(ram, before, 0x6100, 0, word, true);
+  }
+});
+
+function checkDecrementBranch(ram: ObservedRam, before: Cpu68000State, opcode: number, register: DataRegister,
+  word: number, condition: boolean): void {
+  const bytes = [...wordBytes(opcode), ...wordBytes(word)];
+  const counter = condition ? before[register] % 65536 : (before[register] % 65536 + 65535) % 65536;
+  const take = !condition && counter !== 65535;
+  const target = unsignedLong(before.pc + 2 + (word < 32768 ? word : word - 65536));
+  if (take && target % 2 !== 0) {
+    checkControlRejection(ram, before, bytes, "fetch", target);
+    return;
+  }
+  checkStep(ram, before, bytes, { ...before, pc: take ? target : unsignedLong(before.pc + 4),
+    [register]: Math.floor(before[register] / 65536) * 65536 + counter });
+}
+
+test("68000 DBcc checks all conditions and registers against every flag pattern, preserving upper words and flags", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const { db, truth } of conditionForms) for (const [code, { register }] of registerForms.entries()) {
+    for (let bits = 0; bits < 128; bits++) for (const low of [0, 1, 2, 0x7fff, 0x8000, 0xffff]) {
+      const before = initialState({ [register]: 0xabcd0000 + low, flags: flags(bits), interruptMask: bits % 8 });
+      for (const word of [0xfffc, 0xffff]) {
+        checkDecrementBranch(ram, before, db + code, register, word, conditionResult(truth, before.flags));
+      }
+    }
+  }
+});
+
+test("68000 DBT and DBF exhaust low-word counters, including zero and FFFF, without arithmetic flags", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let low = 0; low < 65536; low++) {
+    const before = initialState({ d7: 0xffff0000 + low, flags: flags(low % 128) });
+    checkDecrementBranch(ram, before, 0x50cf, "d7", 0xfffe, true);
+    checkDecrementBranch(ram, before, 0x51cf, "d7", 0xfffe, false);
+  }
+});
+
+test("68000 DBF exhausts word displacements while fetching across the physical bus and logical PC boundaries", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let word = 0; word < 65536; word++) {
+    const before = initialState({ pc: word % 2 ? 0x12fffffe : 0xfffffffe, d3: 0x80000002, flags: flags(word % 128) });
+    checkDecrementBranch(ram, before, 0x51cb, "d3", word, false);
+  }
+});
+
+test("68000 calls and returns use the active stack, two-byte alignment, and physical/32-bit wrapping", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (let bits = 0; bits < 128; bits++) {
+    for (const stackAddress of [0, 2, 0x12000002, 0x34fffffe, 0xfffffffe]) {
+      const stack = bits & 64 ? "ssp" : "usp";
+      const before = initialState({ [stack]: stackAddress, flags: flags(bits), interruptMask: bits % 8 });
+      const pushed = unsignedLong(stackAddress - 4);
+      for (const [byte, word] of [[0x7e, 0], [0x80, 0], [0, 0x100], [0, 0x8000]] as const) {
+        const cpu = new Cpu68000(ram, before);
+        const bytes = [0x61, byte, ...(byte === 0 ? wordBytes(word) : [])];
+        const returnAddress = before.pc + bytes.length;
+        const target = unsignedLong(before.pc + 2 + (byte === 0 ? signedWord(word) : (byte < 128 ? byte : byte - 256)));
+        const entered = { ...before, pc: target, [stack]: pushed };
+        const writes = longBytes(returnAddress).map((value, offset) => ({ kind: "write" as const, address: physical(pushed + offset), value }));
+        checkStep(ram, before, bytes, entered, writes, cpu);
+        const reads = writes.map(access => ({ ...access, kind: "read" as const }));
+        checkStep(ram, entered, [0x4e, 0x75], { ...before, pc: returnAddress }, reads, cpu);
+      }
+    }
+  }
+});
+
+test("68000 RTS reads current big-endian return addresses, including zero, high bits, and odd targets", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const s of [false, true]) for (const target of [0, 2, 0x80000000, 0xabcdef02, 0xfffffffe, 1, 0xffffffff]) {
+    const before = initialState({ flags: { ...flags(127), s } });
+    const stack = s ? "ssp" : "usp";
+    const reads = longBytes(target).map((value, offset) => ({ kind: "read" as const, address: physical(before[stack] + offset), value }));
+    for (const { address, value } of reads) ram.write(address, value);
+    if (target % 2) checkControlRejection(ram, before, [0x4e, 0x75], "fetch", target, reads);
+    else checkStep(ram, before, [0x4e, 0x75], { ...before, pc: target, [stack]: unsignedLong(before[stack] + 4) }, reads);
+  }
+});
+
+test("68000 odd stack addresses reject calls before writes and returns before reads, preserving all state", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const s of [false, true]) for (const address of [1, 3, 0x12ffffff, 0xffffffff]) {
+    const stack = s ? "ssp" : "usp";
+    const before = initialState({ [stack]: address, flags: { ...flags(127), s } });
+    for (const bytes of [[0x61, 2], [0x61, 0, 0x80, 0], [0x61, 1]]) {
+      // Stack alignment takes priority when both the stack and taken target are odd.
+      checkControlRejection(ram, before, bytes, "write", unsignedLong(address - 4));
+    }
+    checkControlRejection(ram, before, [0x4e, 0x75], "read", address);
+  }
+});
+
+test("68000 call fetches finish before overlapping stack writes, and return reads can overlap its opcode", () => {
+  const ram = new ObservedRam(0x1000000);
+  const before = initialState({ usp: 0xab001006, flags: flags(0) });
+  checkStep(ram, before, [0x61, 0, 0, 0xfe], { ...before, pc: 0xab001100, usp: 0xab001002 }, [
+    { kind: "write", address: 0x1002, value: 0xab }, { kind: "write", address: 0x1003, value: 0 },
+    { kind: "write", address: 0x1004, value: 0x10 }, { kind: "write", address: 0x1005, value: 4 },
+  ]);
+  ram.write(0x1002, 0x10);
+  ram.write(0x1003, 0);
+  const returning = { ...before, usp: 0xab001000 };
+  checkStep(ram, returning, [0x4e, 0x75], { ...returning, pc: 0x4e751000, usp: 0xab001004 }, [
+    { kind: "read", address: 0x1000, value: 0x4e }, { kind: "read", address: 0x1001, value: 0x75 },
+    { kind: "read", address: 0x1002, value: 0x10 }, { kind: "read", address: 0x1003, value: 0 },
+  ]);
+});
+
+test("68000 retries rejected control transfers using current RAM, retaining detached fault records", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const kind of ["call", "counter", "return"] as const) {
+    const before = initialState({ d0: 0xabcd0002, flags: flags(0) });
+    const cpu = new Cpu68000(ram, before);
+    const bytes = kind === "call" ? [0x61, 0, 0, 1] : kind === "counter" ? [0x51, 0xc8, 0, 1] : [0x4e, 0x75];
+    bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
+    longBytes(0xab001001).forEach((value, offset) => ram.write(physical(before.usp + offset), value));
+    const fault = cpu.step();
+    assert.equal(fault.outcome, "unsupported");
+    const saved = structuredClone(fault);
+    assert.deepEqual(cpu.step(), fault);
+    ram.write(kind === "return" ? physical(before.usp + 3) : 0x1003, kind === "return" ? 4 : 2);
+    const executed = cpu.step();
+    assert.equal(executed.outcome, "executed");
+    assert.equal(executed.after.pc, 0xab001004);
+    assert.equal(executed.after.d0, kind === "counter" ? 0xabcd0001 : before.d0);
+    assert.equal(executed.after.usp, before.usp + (kind === "return" ? 4 : kind === "call" ? -4 : 0));
+    assert.deepEqual(executed.after.flags, before.flags);
+    assert.deepEqual(fault, saved);
+    Reflect.set(fault.after.flags, "x", true);
+    assert.deepEqual(cpu.snapshot().flags, before.flags);
+  }
+});
+
+test("68000 branches wrap from the last instruction word on taken and untaken paths, including a zero return address", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const pc of [0x12fffffc, 0x12fffffe, 0xfffffffc, 0xfffffffe]) for (const bits of [0, 127]) {
+    const before = initialState({ pc, flags: flags(bits) });
+    for (const { branch, truth } of conditionForms) {
+      const take = branch === 0x6100 || conditionResult(truth, before.flags);
+      for (const [byte, word] of [[2, 0], [0xfe, 0], [0, 0], [0, 2], [0, 0xfffe]] as const) {
+        checkBranch(ram, before, branch, byte, word, take);
+      }
+    }
+  }
 });

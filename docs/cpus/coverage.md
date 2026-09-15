@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [455](../../src/components/cpus/z80.ts) | 443 / 698 | 63.5% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [396](../../src/components/cpus/6809.ts) | 137 / 268 | 51.1% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [428](../../src/components/cpus/8088.ts) | 155 / 291 | 53.3% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [359](../../src/components/cpus/68000.ts) | 10,634 / 36,029 | 29.5% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [455](../../src/components/cpus/68000.ts) | 10,795 / 36,029 | 30.0% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -148,8 +148,10 @@ forms, but each form must support all its documented choices to be complete.
 The [count audit](68000/opcode-count.md) gives the permitted address sets and
 family arithmetic. MOVE and MOVEA supply 9,726 forms; the six immediate ALU
 families supply 900 (six × three sizes × 50 destinations), and MOVEQ supplies
-eight. Those eight MOVEQ forms accept 2,048 operation words because
-the low byte is an immediate operand, not an additional form.
+eight. BRA/BSR/Bcc supply 32 (sixteen operations × byte/word displacement),
+DBcc supplies 128 (sixteen conditions × eight registers), and RTS supplies one.
+The eight MOVEQ forms accept 2,048 operation words; the 32 relative-branch
+forms accept 4,096 words. Embedded literal values do not add coverage forms.
 
 ## Support shared by the current models
 
@@ -1361,7 +1363,10 @@ the comparison; independent local tests establish instruction-level access order
 [Immediate ALU example](68000/examples/alu.md) ·
 [ALU definition](../../src/machines/68000/alu-example.machine)
 
-**10,634 of 36,029 documented forms are complete (29.5%).** MOVE and MOVEA
+[Control-flow example](68000/examples/control-flow.md) ·
+[Control-flow definition](../../src/machines/68000/control-flow-example.machine)
+
+**10,795 of 36,029 documented forms are complete (30.0%).** MOVE and MOVEA
 support every original-68000 source/destination combination and documented
 index extension. The operation-word patterns below are binary. In MOVE,
 `ddd mmm` selects the destination register then mode, while `sss rrr` selects
@@ -1380,6 +1385,11 @@ the source mode then register. Mode `001` in the destination selects MOVEA.
 | `00 10 ddd 001 sss rrr` | `MOVEA.L <ea>,An` | 488 | 2–6 | 61 sources × 8 address registers; no flag changes |
 | `00 11 ddd mmm sss rrr` (`mmm ≠ 001`) | `MOVE.W <ea>,<ea>` | 3,050 | 2–10 | 61 sources × 50 data-alterable destinations |
 | `00 11 ddd 001 sss rrr` | `MOVEA.W <ea>,An` | 488 | 2–6 | Sign-extend the word into An; no flag changes |
+| `0100 1110 0111 0101` | `RTS` | 1 | 2 | Pop the full return address through active A7; preserve flags |
+| `0101 cccc 11001 rrr` | `DBcc Dn,<label>` | 128 | 4 | All conditions/registers; decrement only Dn.W when false; preserve flags |
+| `0110 0000 dddddddd` | `BRA <label>` | 2 | 2/4 | Signed byte/word displacement; preserve flags |
+| `0110 0001 dddddddd` | `BSR <label>` | 2 | 2/4 | Push the full address after the instruction, then branch; preserve flags |
+| `0110 cccc dddddddd` (`cccc=0010`–`1111`) | `Bcc <label>` | 28 | 2/4 | All fourteen conditions and both displacement forms; preserve flags |
 | `0111 rrr 0 iiiiiiii` | `MOVEQ #n,Dn` | 8 | 2 | Sign-extend the embedded byte to a long; MOVE flags |
 
 Immediate ALU size `ss` is `00` byte, `01` word, `10` long; `11` is reserved.
@@ -1395,6 +1405,14 @@ control state. Byte/word writes to Dn preserve the upper register bits.
 See the [effective-address contract](68000/model.md#effective-addresses) for
 mode encodings, extension words, and auto-update sequencing.
 
+BRA/BSR/Bcc use the signed embedded byte unless it is `00`, which fetches one
+signed extension word. `FF` remains byte displacement −1 on the original chip.
+Branch and DBcc targets use the opcode address plus two as their base. DBcc
+falls through without decrementing if its condition is true; otherwise it
+decrements Dn.W and branches unless the result is `FFFF`. The
+[control-flow contract](68000/model.md#control-flow-and-subroutines) defines
+stack behavior and atomic rejection of unaligned taken targets.
+
 | Area | Implemented scope |
 | --- | --- |
 | Stored state | D0–D7, A0–A6, USP/SSP, and PC as unsigned 32-bit values; X/N/Z/V/C/T/S and three-bit interrupt mask |
@@ -1403,17 +1421,19 @@ mode encodings, extension words, and auto-update sequencing.
 | Immediate ALU | ADDI, SUBI, CMPI, ANDI, ORI, EORI in all three sizes and data-alterable modes; preserve upper Dn bits on byte/word writes |
 | Effective addresses | Dn, An, indirect, postincrement, predecrement, signed displacement/index, absolute word/long, PC displacement/index, immediate; restrictions above |
 | Memory | Exactly 16 MiB; mask each address at RAM access, preserving full register values; big-endian bytes, words, and longs |
-| Instruction fetching | Even PC; 16-bit operation word; word/long extensions; sequential PC wraps at 32 bits |
+| Instruction fetching | Even PC; 16-bit operation word; word/long extensions; sequential and branch PC wrap at 32 bits; no target prefetch |
+| Control flow | BRA/Bcc, DBcc, BSR/RTS; complete conditions, displacement forms, and counter registers |
 | Alignment | Even instruction, word, and long addresses; odd byte operands allowed; read/write faults preserve state and RAM, including pending address updates |
-| Stack | MOVE and immediate ALU through A7 use USP or SSP according to S; byte auto-updates still step by two |
+| Stack | A7 selects USP/SSP from S; BSR pushes and RTS pops a four-byte return address; MOVE/immediate byte auto-updates step by two |
 | Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts; preserve other registers, condition codes, and RAM under the documented policy |
-| Remaining scope | Other transfers and address operations, other arithmetic/logic families, branches, calls/returns, stack frames, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
+| Remaining scope | Other transfers and address operations, other arithmetic/logic families, JMP/JSR, Scc, stack frames, packed status, STOP, exceptions, interrupts, devices, timing, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
 [register-transfer](../../tests/machines/68000/transfers-example.test.ts),
-[addressing](../../tests/machines/68000/addressing-example.test.ts), and
-[immediate ALU example tests](../../tests/machines/68000/alu-example.test.ts),
+[addressing](../../tests/machines/68000/addressing-example.test.ts),
+[immediate ALU](../../tests/machines/68000/alu-example.test.ts), and
+[control-flow example tests](../../tests/machines/68000/control-flow-example.test.ts),
 plus [public type checks](../../tests/types/68000.ts).
 
 The independent transfer fixtures execute all **9,726 MOVE/MOVEA encodings**
@@ -1440,6 +1460,16 @@ restores a word through A7, and distinguishes partial Dn writes from MOVEA's
 sign extension. Tests specify literal complete traces, full memory images,
 logical completion, bounded resumption, snapshot restoration, and execution
 through SSP after reset without altering the inactive user stack.
+
+Control-flow tests cover all condition codes and incoming flags, every embedded
+branch byte, every word displacement for BRA/BSR/DBF, all DBcc registers, and
+every low-word counter for DBT/DBF. Checks preserve upper words and flags,
+exercise both stacks and wrapping, compare actual RAM accesses, and reject
+unaligned targets/stack operands without partial changes. The 36-step
+control-flow example processes a buffer through nested calls, takes both sides
+of a conditional branch, completes a counted loop, and resumes from snapshots
+with two live return addresses. Tests also check full RAM images, supervisor
+execution after reset, corrected faults, and bounded infinite loops.
 
 ## CPUs and variants not started
 
