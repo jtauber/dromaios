@@ -13,7 +13,7 @@ and HLT without devices or interrupt delivery.
 
 Execution starts at `1234:0100` (physical `12440`). DS initially selects `2000`,
 which holds the source and destination far pointers. SS is `6000`, SP is `0002`,
-and `halted`, `interruptDeferred`, `segmentDeferred`, and `trapPending` are false. AF/IF/DF/OF are set; other flags are clear. The machine
+and `halted`, `waiting`, `interruptDeferred`, `recognitionDeferred`, and `trapPending` are false. AF/IF/DF/OF are set; other flags are clear. The machine
 definition supplies every initial register explicitly.
 
 All addresses and bytes below are hexadecimal; input values and step counts

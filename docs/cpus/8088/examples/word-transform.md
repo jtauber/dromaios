@@ -24,7 +24,7 @@ decimal. RAM is one MiB, zero-filled outside the declared regions.
 
 Initial AX=`1122`, BX=`3344`, CX=`5566`, DX=`7788`, SP=`8000`, BP=`9000`,
 SI=`0010`, DI=`0020`, CS=`1234`, DS=`FFFF`, SS=`3000`, ES=`4000`, IP=`0200`.
-AF/ZF/IF/DF/OF are 1; CF/PF/SF/TF are 0. `halted`, `interruptDeferred`, `segmentDeferred`, and `trapPending` are false.
+AF/ZF/IF/DF/OF are 1; CF/PF/SF/TF are 0. `halted`, `waiting`, `interruptDeferred`, `recognitionDeferred`, and `trapPending` are false.
 
 The input begins at DS:FFFD. Its high word straddles DS:FFFF and DS:0000,
 at physical addresses `0FFEF` and `FFFF0`. Output DS:0100 maps to physical

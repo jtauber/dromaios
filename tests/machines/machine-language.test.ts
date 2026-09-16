@@ -426,7 +426,7 @@ const source8088 = `ram 100000
 cpu 8088 {
   AX=1122 BX=3344 CX=5566 DX=7788 SP=8000 BP=9000 SI=0010 DI=0020
   CS=1234 DS=2000 SS=3000 ES=4000 IP=0100
-  halted=false interruptDeferred=false segmentDeferred=false trapPending=false
+  halted=false waiting=false interruptDeferred=false recognitionDeferred=false trapPending=false
   flags { CF=1 PF=0 AF=1 ZF=1 SF=1 TF=0 IF=1 DF=1 OF=1 }
 }`;
 
@@ -434,7 +434,7 @@ test("8088 parsing preserves logical word registers and validates twenty-bit phy
   const suffix = "memory FFFFE { 12 AB } end FFFFF";
   const expected = { cpu: "8088", ramSize: 0x100000,
     initialState: { ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788, sp: 0x8000, bp: 0x9000, si: 0x10, di: 0x20,
-      cs: 0x1234, ds: 0x2000, ss: 0x3000, es: 0x4000, ip: 0x100, halted: false, interruptDeferred: false, segmentDeferred: false, trapPending: false,
+      cs: 0x1234, ds: 0x2000, ss: 0x3000, es: 0x4000, ip: 0x100, halted: false, waiting: false, interruptDeferred: false, recognitionDeferred: false, trapPending: false,
       flags: { cf: true, pf: false, af: true, zf: true, sf: true, tf: false, if: true, df: true, of: true } },
     memory: [{ address: 0xffffe, bytes: [0x12, 0xab] }], endAddress: 0xfffff };
   for (const source of [`${source8088} ${suffix}`, `${suffix} ${source8088}`]) {
@@ -594,7 +594,7 @@ test("Z80 parsing requires and preserves both interrupt inhibition latches", () 
 });
 
 test("8088 parsing requires and preserves pending traps and both interrupt delays", () => {
-  for (const latch of ["interruptDeferred", "segmentDeferred", "trapPending"] as const) {
+  for (const latch of ["waiting", "interruptDeferred", "recognitionDeferred", "trapPending"] as const) {
     const machine = parseMachine(set(source8088, latch, "true"));
     assert.equal(machine.cpu, "8088");
     assert.equal(machine.initialState[latch], true);

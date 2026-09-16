@@ -1,8 +1,9 @@
 # 8088 model contract
 
-The Intel 8088 model implements an instruction-level subset with flat 1 MiB
-RAM, 16-bit registers, 20-bit physical addresses, and an optional byte-port
-connection, native interrupt delivery, and single-step traps. The stored instruction address is CS:IP; the physical PC is a derived view.
+The Intel 8088 model implements all documented opcode forms with flat 1 MiB
+RAM, 16-bit registers, 20-bit physical addresses, native interrupt delivery,
+single-step traps, and optional port, ESC, and TEST connections. The stored
+instruction address is CS:IP; the physical PC is a derived view.
 
 [Implementation](../../../src/components/cpus/8088.ts) ·
 [CPU tests](../../../tests/components/cpus/8088.test.ts) ·
@@ -33,15 +34,16 @@ instructions and undocumented encodings are outside its scope.
 | CS, DS, SS, ES | `0000`–`FFFF` | Code, data, stack, and extra segment values |
 | IP | `0000`–`FFFF` | Instruction offset within CS |
 | `halted` | Boolean | HLT latch; cleared by reset or accepted delivery |
-| `interruptDeferred` | Boolean | INTR inhibited through the next retired instruction/REP element |
-| `segmentDeferred` | Boolean | MOV/POP segment inhibition of INTR, NMI, and trap recognition |
+| `waiting` | Boolean | WAIT in progress; IP identifies its opcode; cleared by TEST release, reset, or accepted delivery |
+| `interruptDeferred` | Boolean | INTR inhibited through the next instruction/REP element/WAIT sample |
+| `recognitionDeferred` | Boolean | INTR, NMI, and trap inhibition after MOV/POP segment or TEST release |
 | `trapPending` | Boolean | Type-1 trap owed from the previously sampled TF |
 | CF, PF, AF, ZF, SF, TF, IF, DF, OF in `flags` | Boolean | Carry, parity, auxiliary carry, zero, sign, trap, interrupt enable, direction, overflow |
 
 TypeScript fields are lowercase, including `flags.if`. `.machine` definitions
 conventionally use uppercase register and flag names and camelCase control latches.
 There is no prefetch queue or public packed FLAGS view. PUSHF/POPF and
-LAHF/SAHF pack/unpack flags internally. Snapshots include all three recognition
+LAHF/SAHF pack/unpack flags internally. Snapshots include the waiting and recognition
 latches; pending external requests and NMI edge detection belong to the caller.
 
 Snapshots add AL/AH, BL/BH, CL/CH, and DL/DH as low/high byte views of the
@@ -53,16 +55,21 @@ selected half of its word, while a word write replaces both halves together.
 
 ## Construction and inspection
 
-`new Cpu8088(ram, initialState, ports?)` requires exactly 1 MiB RAM. It copies and
+`new Cpu8088(ram, initialState, connections?)` requires exactly 1 MiB RAM. It copies and
 validates every declared register and flag. Each field is read once, including
 non-enumerable getters; extra metadata and derived views are ignored. Invalid
 numeric state or RAM size throws `RangeError`; non-Boolean flags or control latches throw
 `TypeError`. Construction performs neither reset nor RAM/device accesses.
 
-The optional [`BytePorts`](../../../src/components/cpus/port-access.ts) connection
-provides `readPort(port)` and `writePort(port, value)`. Ports are 16-bit addresses;
-each callback transfers one byte. The device owns its state. A reconstructed CPU
-must be reconnected to the separately restored device.
+The optional `Cpu8088Connections` object provides `ports`, `escape`, and `test`.
+`ports` is a [`BytePorts`](../../../src/components/cpus/port-access.ts) connection
+with `readPort(port)` and `writePort(port, value)`: 16-bit addresses and one byte
+per callback. `escape(request)` receives decoded external instructions;
+`test()` samples the physical TEST level. Each connection is independent.
+Devices own their state; a reconstructed CPU must reconnect separately restored
+devices. Existing port callers now pass `{ ports }` as the third argument.
+Snapshots require `waiting`; `recognitionDeferred` replaces `segmentDeferred`
+because both segment loads and WAIT release inhibit recognition.
 
 `snapshot()` returns detached state and views without accessing RAM. Its
 TypeScript type is recursively readonly. Bypassing that typing cannot change
@@ -102,13 +109,15 @@ address; it does not require a particular segment value.
 
 ## Instruction steps
 
-`step()` delivers an owed trap, or attempts one instruction/REP element.
+`step()` delivers an owed trap, samples an already waiting TEST input, or
+attempts one instruction/REP element.
 A fetched instruction returns a `Cpu8088StepRecord` with
 independent before/after snapshots, the instruction's physical start address
 and fetched bytes, ordered `Cpu8088Access` entries, and an outcome. Memory
 `read`/`write` entries contain physical `address` and `value`; port
-`input`/`output` entries contain `port` and `value`. Both share one log in transfer
-order. `Cpu8088MemoryAccess` remains the memory-only alias. Software and divide-error
+`input`/`output` entries contain `port` and `value`. ESC adds a decoded
+`escape` event; WAIT adds a `test` sample. All share one log in transfer order.
+`Cpu8088MemoryAccess` remains the memory-only alias. Software and divide-error
 entry attach `interrupt: { source, vector }` to the triggering instruction's
 executed record. An owed single-step trap instead returns `instruction: null`,
 `outcome: "executed"`, and `interrupt: { source: "trap", vector: 1 }`; its step
@@ -135,6 +144,7 @@ The supported unprefixed forms are:
 | `8F` /0 | POP r/m16 | Resolve the destination before popping; preserve flags |
 | `98`, `99` | CBW, CWD | Sign-extend AL into AX or AX into DX:AX; preserve flags |
 | `9A`, `EA`, `FF` /3, /5 | Far CALL/JMP | Immediate or memory far pointer; change CS:IP; CALL saves CS and the following IP |
+| `9B` | WAIT | Sample TEST; high waits, low continues with a recognition delay |
 | `9C`–`9F` | PUSHF/POPF/SAHF/LAHF | Packed word or low-status-byte transfers, with reserved-bit policy below |
 | `A4`–`A7`, `AA`–`AF` | MOVS/CMPS/STOS/LODS/SCAS | Byte/word strings, optional repetition, source overrides and fixed ES destinations |
 | `A0`, `A1` | `MOV AL,[offset]`, `MOV AX,[offset]` | Fetch a word offset and read one/two bytes through DS; preserve all flags and, for AL, AH |
@@ -148,6 +158,7 @@ The supported unprefixed forms are:
 | `CC`–`CF` | INT3, INT n, INTO, IRET | Software entry or return through IP, CS, FLAGS |
 | `D4 0A`, `D5 0A` | AAM, AAD | Base-ten adjustment; other second bytes are undocumented |
 | `D7` | XLAT | Read a byte at DS:(BX+AL), with optional segment override |
+| `D8`–`DF` | ESC | Decode an external instruction; memory forms read and discard a word |
 | `E0`–`E3` | LOOPNE/LOOPE/LOOP/JCXZ | Counted or zero-count branch; preserve flags |
 | `E8` | `CALL rel16` | Push the following IP and take a near relative branch |
 | `E9`, `EB` | `JMP rel16`, `JMP rel8` | Near or short relative branch without a stack access |
@@ -202,6 +213,75 @@ RAM and device callbacks may inspect snapshots but cannot recursively call
 `step()`, `reset()`, or `interrupt()` on the same CPU. The shared execution guard clears after
 success or failure. Reset, inspection, and already halted steps never call the
 port connection. Reset preserves the connection and external device state.
+
+## ESC and TEST/WAIT connections
+
+ESC has the pattern **`1101 1ooo` + `mm ppp rrr`**. Concatenate `ooo:ppp` to
+obtain the external opcode (0–63). The remaining ModR/M bits select a source
+using ordinary segment defaults, overrides, displacements, and offset wrapping.
+Register forms make no data access and expose no CPU register value. Memory
+forms always read a word, low byte first, including external operations that
+will eventually write memory. The CPU itself discards that word and changes no
+registers or flags except advancing IP and the ordinary recognition latches.
+
+After the read, an attached `escape(request)` receives a `Cpu8088Escape`:
+
+- `opcode`: the decoded six-bit external opcode.
+- `modRM`: the complete second byte, preserving the external processor's selectors.
+- `memory`: `null` for a register form, or `{ segment, offset, address, value }`
+  for a memory form. `address` is the first byte's physical address and `value`
+  is the word read by the CPU.
+
+The callback receives a detached request. The step then records
+`{ kind: "escape", ...request }` with its own copy, after instruction and data
+reads. With no callback, ESC still performs the dummy word read and records
+the event. An external processor owns any further reads, writes, computation,
+and busy state; those operations are not invented CPU accesses. This interface
+represents execution of ESC, not instruction-queue snooping or bus arbitration.
+A complete 8087 implementation is not required.
+
+WAIT calls `test()` once per step and records `{ kind: "test", high }`.
+The Boolean represents the physical pin: **high waits, low continues**.
+A machine without a busy device can explicitly connect `test: () => false`.
+There is no default pin level; a missing TEST connection throws when WAIT is
+actually sampled. The arithmetic TEST instruction is unrelated.
+
+On a high sample, `waiting` becomes true and IP identifies the WAIT opcode,
+including after segment/LOCK prefixes and across IP wrapping. The first step
+retains the fetched bytes and reports `waiting`. Later steps sample TEST without
+fetching RAM; they report `instruction: null`. A low sample clears `waiting`,
+advances IP past WAIT, and reports `executed`; a continuation also carries
+`continuation: "wait"`. No following instruction is executed in that same step.
+The shared runner stops on `waiting` and can resume when the machine changes TEST.
+A saved waiting snapshot needs no hidden prefix or continuation object. RAM
+edits do not replace an in-progress WAIT; interrupt return refetches current RAM.
+
+Each busy sample consumes prior recognition delays and permits INTR/NMI or a
+single-step trap at the next boundary. IF still masks INTR. An accepted entry
+clears `waiting` and saves the WAIT opcode's IP, so IRET refetches it. Prefixes
+are not restored: they have no operand effect on WAIT. An ignored request leaves
+waiting state untouched. As with REP, a sample with incoming TF set owes a trap;
+a busy WAIT with an owed trap reports `executed` so the runner can reach that
+entry instead of stopping. An already owed eligible trap is delivered before
+sampling TEST again.
+
+A **low TEST sample inhibits all recognition through the following instruction**,
+including when WAIT never had to pause. It sets `recognitionDeferred`, the same
+latch used by segment loads. TF can still owe a trap; delivery waits until the
+following instruction (normally ESC) retires. Consecutive ready WAIT instructions
+renew the delay. These rules follow the [manual and microcode comparison](reference-notes.md#esc-and-wait-comparison).
+The step boundary abstracts wait-test cycles; pin synchronization, clock counts,
+the interrupted WAIT's hardware refetch before vectoring, and prefetch are not modeled.
+
+Missing/malformed TEST callbacks and thrown device errors propagate without a
+record. TEST must return a Boolean without coercion. Initial instruction fetches
+remain reflected in IP; a failed continuation leaves its waiting state and IP
+unchanged. No recognition latch changes until the sample succeeds. If an ESC
+operand read fails, no external request is issued. If the ESC callback fails,
+completed reads, fetched IP, and device effects remain; no rollback is attempted.
+Callbacks preserve their receiver and may inspect snapshots but cannot reenter
+`step`, `reset`, or `interrupt`. Reset clears waiting and recognition state while
+preserving connections and devices; it neither samples TEST nor issues ESC.
 
 ## ModR/M operands
 
@@ -390,14 +470,15 @@ and is checked against the [hardware fixtures](reference-notes.md#interrupt-comp
 `interrupt("nmi")` offers an NMI edge selected by the caller. Neither queues a
 request. The caller retains asserted INTR and latched NMI requests, offers NMI
 first when both are pending, and reoffers a deferred request at a later boundary.
-IF masks INTR only. `interruptDeferred` delays INTR; `segmentDeferred` delays
-both sources. Ignored offers do not acknowledge, access memory, or release halt.
+IF masks INTR only. `interruptDeferred` delays INTR; `recognitionDeferred` delays
+both sources. Ignored offers do not acknowledge, access memory, or release halt/wait.
 
-Accepted INTR releases halt and calls `acknowledge()` once for an integer type
+Accepted INTR releases halt/wait and calls `acknowledge()` once for an integer type
 byte in 0–255. This callback abstracts the whole hardware acknowledgement
 sequence, including its two INTA bus cycles; only the supplied byte is recorded.
 NMI uses type 2 without a callback. Both enter through the current CS:IP, which
-already points after HLT or back to the first prefix of an unfinished REP.
+already points after HLT, to the first prefix of an unfinished REP, or to an
+in-progress WAIT opcode.
 
 `Cpu8088InterruptRecord` has detached `before`/`after` snapshots, `source`,
 `instruction: null`, and ordered `accesses`. An accepted record adds
@@ -417,12 +498,12 @@ an existing delay without renewing it. NMI and traps do not use this IF delay.
 
 On the original chip, MOV/POP into **any** segment register delays recognition
 of INTR, NMI, and traps through the following instruction. This includes ES
-and DS, not only SS; consecutive such loads renew `segmentDeferred`. LES/LDS
-and control-flow changes to CS do not set it. Only a retired instruction or REP
-element consumes a delay. Unsupported encodings and failed ordinary instructions do
+and DS, not only SS; consecutive such loads renew `recognitionDeferred`. LES/LDS
+and control-flow changes to CS do not set it. A retired instruction, REP element, or successful WAIT
+sample consumes a delay. TEST release renews the delay for all sources. Unsupported encodings and failed ordinary instructions do
 not consume it; partially completed entry follows the failure policy below. Prefixes never form separate retirement boundaries.
 
-TF is sampled before execution. A retired instruction with that sample set
+TF is sampled before execution. An instruction/REP element or WAIT sample with it set
 leaves `trapPending`; the next `step()` delivers type 1 before fetching another
 instruction, unless segment inhibition requires another instruction first.
 Thus POPF/IRET setting TF begins trapping after the following instruction;
@@ -441,7 +522,7 @@ or prefetch-dependent self-modification.
 
 RAM and acknowledgement callbacks may inspect state, but reentrant mutating
 calls throw before changing it. Callback errors propagate without a record or
-rollback. A failing acknowledgement leaves an accepted INTR's halt release in
+rollback. A failing acknowledgement leaves an accepted INTR's halt/wait release in
 place, with no vector read. A failing vector read preserves CS:IP and SP;
 IF/TF clear only after the entire vector is read. A failing frame write leaves
 that flag clearing, each attempted push's SP decrement, and completed writes
@@ -554,15 +635,15 @@ All preserve complete state and RAM; repeating an attempt repeats its reads.
 This atomic rejection is a model policy, not an illegal-instruction exception
 implemented by the original chip. Divide errors use native delivery as described above.
 
-Deferred documented instructions are external-processor ESC
-(`D8`–`DF`) and WAIT (`9B`). ESC communicates with a coprocessor; WAIT observes
-the external TEST input. Both stay with external I/O until those interfaces
-exist. Undocumented aliases and later-x86 additions remain outside scope.
+All documented opcode forms are implemented. External computation and TEST
+levels use the connections above; unsupported encodings remain outside the
+documented instruction inventory.
 
 ## CPU reset
 
 `reset()` sets CS to `FFFF`, IP to `0000`, DS/SS/ES to `0000`, and clears all
-nine flags, including IF, `halted`, and all three recognition latches. It performs **no RAM access**: `FFFF0` is the first
+nine flags, including IF, `halted`, `waiting`, and all three recognition latches.
+It performs **no RAM access**: `FFFF0` is the first
 instruction address, not a pointer read from a reset-vector table.
 
 AX/BX/CX/DX/SP/BP/SI/DI and RAM are preserved. Intel's reset table does not
@@ -629,8 +710,7 @@ BCD and signed-division boundaries, every byte multiplication pair, full-word
 sign extension/AAD/POPF sweeps, and invalid encodings. Prefix and string tests
 check both directions and widths, empty repetition, flag-based termination,
 segment and bus wrapping, exact accesses, bounded running, and snapshot-only
-resumption. A separate encoding inventory audits 282 supported forms and the
-9 deferred documented forms.
+resumption. A separate encoding inventory audits all 291 documented forms.
 
 Port checks cover all eight forms, every immediate port and modeled flag
 combination, distinct byte halves, odd and wrapped word ports, instruction-fetch
@@ -656,7 +736,17 @@ string stores, saved FLAGS, and HLT. Its tests specify all 52 records, guarded
 full RAM images, decimal output at unsigned boundaries, and restoration inside
 both REP and a far-call frame.
 
-Coprocessor/TEST interfaces, mapped devices, pin sampling and scheduling, timing,
+ESC checks cover all 64 external opcodes and every ModR/M source, default and
+overridden segments, dummy word reads, address wrapping, disconnected execution,
+request ownership, and failures. WAIT checks cover every flag pattern, both TEST
+levels, interrupt/trap entry, recognition delays, snapshot restoration, reset,
+invalid inputs, and reentrancy. The [combined program](../../../tests/machines/8088/external-connections.test.ts)
+restores CPU/device state, interrupts WAIT, returns to it, then continues through
+word output. The [80,000 ESC hardware cases](reference-notes.md#esc-and-wait-comparison)
+verify every modeled register/flag, fetched bytes, fixture RAM, and operand bus accesses.
+WAIT pin transitions have manual/microcode evidence and local tests, not a hardware-fixture comparison.
+
+A complete coprocessor, mapped devices, pin sampling and scheduling, timing,
 bus arbitration, and prefetching remain deferred. The instruction-level records
 are not a cycle trace; self-modifying code observes current RAM without the
 original chip's prefetch-queue effects.

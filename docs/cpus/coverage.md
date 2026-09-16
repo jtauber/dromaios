@@ -21,7 +21,7 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [449](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [669](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [598](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [930](../../src/components/cpus/8088.ts) | 282 / 291 | 96.9% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1143](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
@@ -1663,6 +1663,7 @@ distinguish those vectors from delivery and timing verification.
 | `90`–`97` | XCHG AX,r16 / NOP | 8 | All word registers; 90 exchanges AX with itself; preserve every flag |
 | `98`, `99` | CBW / CWD | 2 | Sign-extend AL to AX or AX to DX:AX; preserve flags |
 | `9A` | Far CALL ptr16:16 | 1 | Push CS then following IP; change both CS and IP |
+| `9B` | WAIT | 1 | Resumable TEST sampling, interrupt/trap restart, and recognition delay on release |
 | `9C`–`9F` | PUSHF/POPF/SAHF/LAHF | 4 | Word and low-byte flag transfers with original reserved-bit policy |
 | `A4`–`A7`, `AA`–`AF` | MOVS/CMPS/STOS/LODS/SCAS | 10 | Byte/word strings; DF controls direction; comparisons set subtraction flags |
 | `A0`–`A3` | MOV AL/AX,[offset] or [offset],AL/AX | 4 | Direct offset in DS; word offsets wrap within the segment |
@@ -1675,6 +1676,7 @@ distinguish those vectors from delivery and timing verification.
 | `C6`, `C7` /0 | MOV r/m,n | 2 | Immediate byte/word, all operand choices, no destination read |
 | `D0`–`D3` /0–5, /7 | ROL/ROR/RCL/RCR/SHL/SHR/SAR | 28 | Both widths, count one or all eight bits of CL; /6 stays unsupported |
 | `D4 0A`, `D5 0A`, `D7` | AAM / AAD / XLAT | 3 | Decimal radix adjustment or byte table lookup; AH and flag rules in the contract |
+| `1101 1ooo` (`D8`–`DF`) + `mm ppp rrr` | ESC | 8 | Six-bit external opcode, every source, dummy word reads, and optional external delivery |
 | `E0`–`E3` | LOOPNE/LOOPE/LOOP/JCXZ | 4 | Test post-decrement CX or original zero count; preserve flags |
 | `1110 r 1 d w` (`E4`–`E7`, `EC`–`EF`) | IN / OUT | 8 | Immediate-byte or DX port; AL/AX; word transfers use two ordered bytes in wrapping 16-bit port space |
 | `EA` | Far JMP ptr16:16 | 1 | Replace CS:IP from the complete immediate pointer |
@@ -1687,7 +1689,7 @@ distinguish those vectors from delivery and timing verification.
 | `F6`, `F7` /4–7 | MUL/IMUL/DIV/IDIV | 8 | Both widths and every operand; signed/unsigned results and type-0 divide-error delivery |
 | `FF` /2–6 | Indirect near/far CALL/JMP, PUSH r/m16 | 5 | Capture targets/values before stack writes; far pointers require memory |
 | `FE`, `FF` /0–1 | INC / DEC r/m | 4 | Both widths and every operand; preserve CF |
-| **Total** | | **282** | **282 / 291 forms (96.9%)** |
+| **Total** | | **291** | **291 / 291 forms (100%)** |
 
 The ALU field `ooo` selects ADD/OR/ADC/SBB/AND/SUB/XOR/CMP in that order.
 For register/memory forms, `w=0/1` selects byte/word and `d=0/1` selects the
@@ -1699,14 +1701,15 @@ uses DS. See the [addressing contract](8088/model.md#modrm-operands).
 
 ModR/M register/address choices, immediates, displacements, and stack
 adjustments remain operands rather than additional coverage forms. These
-282 forms include every documented operand choice. All seven prefixes are
+291 forms include every documented operand choice. All seven prefixes are
 implemented as modifiers: segment overrides, LOCK without bus arbitration,
 and REP/REPE/REPNE on their documented strings. Repetition executes one element
 per step; its snapshot and refetch policy is in the [model contract](8088/model.md#prefixes-and-strings).
 
-The remaining **9 documented forms** are ESC `D8`–`DF` and WAIT `9B`.
-They need coprocessor/TEST connections. Software interrupts, divide errors,
-external INTR/NMI, single-step traps, and IRET now use native entry/return.
+All documented forms are implemented, including the
+[ESC and TEST/WAIT connections](8088/model.md#esc-and-testwait-connections).
+Software interrupts, divide errors, external INTR/NMI, single-step traps, and
+IRET now use native entry/return.
 The [delivery contract](8088/model.md#external-interrupt-delivery) keeps external
 requests with the caller and preserves recognition state in snapshots.
 
@@ -1719,7 +1722,7 @@ requests with the caller and preserves recognition state in snapshots.
 | Instruction fetching | CS:IP with IP wrapping at 16 bits between bytes; little-endian words and offsets |
 | ModR/M | All documented register and effective-address choices, including segment overrides; resolve addresses once before data accesses |
 | Data words | Low byte first; wrap each successive offset to 16 bits within the selected segment, then translate to the bus |
-| Port transfers | All eight IN/OUT forms through optional BytePorts; AL/AX, immediate or DX selection, low-first words, wrapping ports, and one ordered memory/port log |
+| Port transfers | All eight IN/OUT forms through `connections.ports` (BytePorts); AL/AX, immediate or DX selection, low-first words, wrapping ports, and one ordered memory/port log |
 | Arithmetic and logic | ADD/ADC/SUB/SBB/CMP and OR/AND/XOR/TEST; width-specific flags, low-byte parity, nibble carry/borrow; logic clears undefined AF as a deterministic policy |
 | Multiplication/division | Full byte/word signed and unsigned arithmetic; original signed quotient limits; type-0 divide-error delivery with native vectoring |
 | Decimal and address transfers | DAA/DAS/AAA/AAS/AAM/AAD, CBW/CWD, LEA/LES/LDS, XLAT, and segment moves |
@@ -1729,12 +1732,13 @@ requests with the caller and preserves recognition state in snapshots.
 | Exchanges | Register pairs, AX short encodings, and register/memory; preserve flags, byte aliases, and resolved addresses; 90 is NOP |
 | Control flow | Jcc, counted loops, JCXZ, relative/indirect near and immediate/indirect far CALL/JMP, near/far RET with optional cleanup; preserve flags |
 | Stack | General/segment registers, FLAGS, and near/far return addresses; descending SS:SP, offset wrapping, original PUSH SP / POP SP behavior |
-| Interrupts | Software entry, divide errors, INTR/NMI offers, sampled-TF traps, IRET, and snapshot-preserved IF/segment delays |
+| Interrupts | Software entry, divide errors, INTR/NMI offers, sampled-TF traps, IRET, and snapshot-preserved IF/recognition delays |
+| External synchronization | ESC decodes and reads an operand before optional device delivery; WAIT polls TEST, preserves waiting snapshots, admits interrupt/trap restart, and inhibits recognition on release |
 | Halt | HLT advances IP and sets a stored latch; accepted entry releases it; an owed trap can continue through the runner |
-| Reset | CS=FFFF, IP=0000, other segments, flags, halt, and recognition latches clear; preserve general registers and RAM; no vector reads |
+| Reset | CS=FFFF, IP=0000, other segments, flags, halt/wait, and recognition latches clear; preserve general registers and RAM; no vector reads |
 | Unsupported encodings | Retain prefixes and bytes actually fetched, reject invalid selectors before data; preserve all state and RAM |
 | Prefixes | Four local segment overrides, LOCK with no bus effect, and bounded one-element repetition; last prefix of each kind wins |
-| Remaining scope | Coprocessor I/O, TEST/WAIT, pin sampling/scheduling, timing, bus arbitration, and prefetch |
+| Remaining scope | A complete coprocessor, pin sampling/scheduling, timing, bus arbitration, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/8088.test.ts),
 [arithmetic](../../tests/machines/8088/example.test.ts),
@@ -1753,6 +1757,14 @@ conditional truth tables, every PUSH SP/POP SP value, and nested calls.
 
 Port tests cover all eight forms, every immediate address and flag combination,
 word-byte order and wrapping, rejected repetition, device failures, and reentrancy.
+The [ESC comparison](8088/reference-notes.md#esc-and-wait-comparison) passes all
+80,000 hardware-generated D8–DF cases, checking registers/flags, fetched bytes,
+fixture RAM, and ordered operand reads. Local tests cover TEST waiting/release,
+interrupt/trap restart, every flag pattern, ownership, and callback failures.
+A [combined program](../../tests/machines/8088/external-connections.test.ts) restores
+CPU/device state, interrupts and resumes WAIT, and continues through word output.
+WAIT has manual/microcode evidence; no hardware pin-transition corpus was available.
+
 The [port comparison](8088/reference-notes.md#port-input-and-output-comparison)
 passes 80,000 hardware cases with exact I/O bus transfers. A runner program
 uses all eight forms and restores CPU, full RAM, and device state at every boundary.

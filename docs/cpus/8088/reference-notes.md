@@ -314,3 +314,39 @@ verified vector-first order and explicit snapshot-preserved recognition latches.
 Its instruction-level API abstracts INTA into one callback and retains the
 existing REP prefix-refetch policy; pin cycles, prefetch, and original multi-prefix
 restart quirks remain outside the declared model.
+
+
+## ESC and WAIT comparison
+
+Intel's [1979 manual](https://www.ardent-tool.com/CPU/docs/Intel/808x/manuals/9800722-03_alt.pdf),
+sections 2.5 and 2.7 and table 4-13, establishes the six-bit external opcode,
+register-versus-memory behavior, and TEST-controlled waiting. The
+[ASM86 Language Reference Manual, November 1983](https://community.intel.com/cipcp26785/attachments/cipcp26785/c-compiler/31103/1/121703-003_ASM86_Language_Reference_Manual_Nov83.pdf),
+printed page 6-14, specifies WAIT restart after an interrupt and external
+interrupt inhibition after TEST releases it.
+
+[Andrew Jenner's microcode disassembly](https://www.reenigne.org/blog/8086-microcode-disassembled/)
+includes the original 8088 ROM. Its WAIT sequence (0F8–0FF and the continuation
+at 1EC) tests TEST, checks pending interrupts while busy, and decrements the
+corrected IP by one for interruption. It shares the `INT` condition used by
+repeated strings. [Ken Shirriff's silicon analysis](https://www.righto.com/2023/02/8086-interrupt.html)
+identifies WAIT's special interrupt-delay operation and shows that it gates
+NMI, INTR, and traps. Together these support the model's busy-sample boundaries,
+WAIT-opcode restart address, and all-source delay on TEST release. There is no
+clock/prefetch simulation or extra WAIT refetch before entry in this model.
+
+All **80,000 hardware-generated ESC cases**, 10,000 for each of D8–DF, pass at
+the pinned [8088 V2 revision](https://github.com/SingleStepTests/8088/tree/aea84484abc79d09639d855b7b0ab32bc9e4dbeb/v2).
+The comparison checks modeled registers and flags, fetched instruction bytes,
+fixture RAM, and ordered operand addresses/values extracted from ALE/T3 bus
+activity. Memory forms read a full word regardless of the ESC first byte;
+register forms make no data access. No cases were excluded. The corpus contains
+no 9B file, so it supplies no independent WAIT pin-transition or recognition-timing
+validation. Those paths have separately authored local tests and the manual/
+microcode evidence above. Device callback records are model interfaces, not
+hardware-trace events.
+
+The older [PC instruction table](https://github.com/jtauber/dromaios-pc/blob/a6fb9d10f4274dbd8ba40400e0b6761aec1d4b54/js/instructions_86.js)
+treats WAIT as a no-op and ESC as ModR/M decoding without operand reads. Neither
+is sufficient for the new connections. [MartyPC's ESC handler](https://github.com/dbalsom/martypc/blob/05c0d088e84ad6bbfac9b3f0d051e7eadefd9f44/crates/lib/marty_core/src/cpu_808x/execute_fn.rs)
+provides a word-read comparison; its WAIT handler at that revision is empty.

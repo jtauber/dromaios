@@ -1,6 +1,6 @@
 # Completing the initial eight CPUs
 
-The destination is complete documented opcode coverage for each initial CPU.
+All eight initial CPUs now have complete documented opcode coverage.
 The [coverage inventory](coverage.md) owns the counts and remaining forms;
 this document records the capability review and implementation sequence.
 Neither a finished DSL nor another CPU target is a prerequisite.
@@ -87,14 +87,15 @@ all modes, native entries/returns, HALT release, and snapshot-preserved inhibiti
 The 8088 now implements all eight [IN/OUT forms](8088/model.md#port-input-and-output),
 including byte/word device transfers and snapshot-based program resumption.
 It also implements [native interrupt entry/return](8088/model.md#interrupt-entry-and-return),
-INTR/NMI offers, divide-error delivery, and single stepping. Its remaining forms
-are ESC and WAIT, which need coprocessor/TEST connections.
+INTR/NMI offers, divide-error delivery, and single stepping. It completes its inventory with
+[ESC and TEST/WAIT connections](8088/model.md#esc-and-testwait-connections), including
+resumable waiting and interrupt/trap restart.
 The 68000 now completes its documented opcode inventory, including
 [synchronous entry/RTE](68000/model.md#synchronous-exception-entry-and-return),
 [interrupt offers and trace](68000/model.md#external-interrupt-delivery), STOP
 wakeup, and the [RESET device connection](68000/model.md#reset-device-connection).
-Next are the 8088's ESC and WAIT connections, the remaining documented forms
-across the initial eight. Address/bus errors and other illegal-opword delivery
-on the 68000 still need separate fault-sequencing work.
+The documented opcode milestone is complete for all eight. Further accuracy
+and machine integration work can now use that baseline. Address/bus errors
+and other illegal-opword delivery on the 68000 still need separate fault-sequencing work.
 Timing and device scheduling remain separate from completed opcode inventories;
 8008 external interrupt delivery is also still deferred.

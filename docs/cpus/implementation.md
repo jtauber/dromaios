@@ -200,18 +200,20 @@ provide the common fields used by all eight CPUs:
 - `HaltedStep<Snapshot>` describes HALT, with a null instruction only for an
   already halted CPU.
 - `WaitingStep<Snapshot>` describes a wait instruction or an already waiting
-  CPU, with a null instruction in the latter case. The 6800 and 6809 share it.
+  CPU, with a null instruction in the latter case. The 6800, 6809, and 8088 share it.
 
 CPU modules keep their public names as aliases, such as `Cpu6502Instruction`
 and `Cpu6502ResetRecord`. `InstructionStep`, `HaltedStep`, and `WaitingStep` accept the same
-optional access type. The 8008, 8080, Z80, and 8088 supply a union of memory and port accesses;
-the 68000 includes a device-reset event; other CPUs retain the memory-only default. Each step type selects its supported outcomes; the
-68000 adds its alignment-fault branch, including a possible null instruction
+optional access type. The 8008, 8080, Z80, and 8088 supply a union of memory and
+port accesses. The 8088 additionally records ESC delivery and TEST samples; the
+68000 includes a device-reset event. Other CPUs retain the memory-only default.
+Each step type selects its supported outcomes. The 68000 adds its alignment-fault branch, including a possible null instruction
 on an unaligned opcode fetch, optional exception metadata with source/vector/PC,
 and a no-fetch trace-entry branch. The 8088 adds an executed no-fetch trap-entry
 branch, while software interrupts retain their triggering fetched instruction.
-Address conventions are still
-documented beside the aliases, including the 8088's physical instruction
+An executed WAIT continuation instead has `instruction: null` and
+`continuation: "wait"`: it samples TEST without fetching another instruction.
+Address conventions are documented beside the aliases, including the 8088's physical instruction
 address and the 68000's full logical instruction address.
 
 The 68000's separate interrupt record contains a level, null instruction,

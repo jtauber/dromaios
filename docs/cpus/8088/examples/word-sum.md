@@ -22,7 +22,7 @@ The program completes in **76 instructions**, at CS:IP=`1234:022A`, physical
 | SP, BP, SI, DI | `8000`, `9000`, `0010`, `0020` |
 | CS, DS, SS, ES, IP | `1234`, `2000`, `3000`, `4000`, `0200` |
 | CF, PF, AF, ZF, SF, TF, IF, DF, OF | `1`, `0`, `1`, `1`, `1`, `0`, `1`, `1`, `1` |
-| `halted`, `interruptDeferred`, `segmentDeferred`, `trapPending` | `false` |
+| `halted`, `waiting`, `interruptDeferred`, `recognitionDeferred`, `trapPending` | `false` |
 
 Begin with zero-filled 1 MiB RAM and the program blocks below. The input
 block at physical `200FF` is `DE FF FF 01 80 FF 00 00 00 AD`: four words

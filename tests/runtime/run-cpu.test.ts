@@ -471,7 +471,7 @@ for (const im of [0, 1, 2] as const) {
 
 test("8088 port program uses all eight forms and restores CPU, RAM, and device state at every boundary", () => {
   const initial: Cpu8088State = { ax: 0x1122, bx: 0x3344, cx: 0x5566, dx: 0x7788, sp: 0x8000, bp: 0x9000,
-    si: 0x10, di: 0x20, cs: 0x1234, ds: 0x2000, es: 0x4000, ss: 0x3000, ip: 0x100, halted: false, interruptDeferred: false, segmentDeferred: false, trapPending: false,
+    si: 0x10, di: 0x20, cs: 0x1234, ds: 0x2000, es: 0x4000, ss: 0x3000, ip: 0x100, halted: false, waiting: false, interruptDeferred: false, recognitionDeferred: false, trapPending: false,
     flags: { cf: true, pf: false, af: true, zf: false, sf: true, tf: false, if: true, df: true, of: false } };
   const instructions = [
     [0xba, 0xff, 0xff], // MOV DX,FFFF
@@ -496,10 +496,10 @@ test("8088 port program uses all eight forms and restores CPU, RAM, and device s
     if (image) image.forEach((value, address) => ram.write(address, value));
     else instructions.flat().forEach((value, i) => ram.write(0x12440 + i, value));
     const device = structuredClone(saved);
-    const cpu = new Cpu8088(ram, state, {
+    const cpu = new Cpu8088(ram, state, { ports: {
       readPort: port => { const input = inputs[device.cursor++]!; assert.equal(port, input.port); return input.value; },
       writePort: (port, value) => { device.outputs.push({ port, value }); },
-    });
+    } });
     return { cpu, ram, device };
   }
   const full = machine();

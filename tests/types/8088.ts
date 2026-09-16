@@ -1,5 +1,5 @@
 import { Cpu8088 } from "../../src/components/cpus/8088.js";
-import type { Cpu8088State, Cpu8088Snapshot, Cpu8088StepRecord, Cpu8088ResetRecord, Cpu8088Access, Cpu8088MemoryAccess } from "../../src/components/cpus/8088.js";
+import type { Cpu8088State, Cpu8088Snapshot, Cpu8088StepRecord, Cpu8088ResetRecord, Cpu8088Access, Cpu8088MemoryAccess, Cpu8088Connections } from "../../src/components/cpus/8088.js";
 import type { BytePorts } from "../../src/components/cpus/port-access.ts";
 import type { Ram } from "../../src/components/memory/ram.js";
 import { create8088Example } from "../../src/machines/generated/8088/example.js";
@@ -50,7 +50,7 @@ export function check8088Records(record: Cpu8088StepRecord, reset: Cpu8088ResetR
     // @ts-expect-error Executed records have no rejection reason.
     record.reason;
   } else {
-    const halted: "halted" = record.outcome;
+    const idle: "halted" | "waiting" = record.outcome;
     const instruction: Cpu8088StepRecord["instruction"] = record.instruction;
   }
   if (record.instruction) {
@@ -73,7 +73,7 @@ export function check8088Records(record: Cpu8088StepRecord, reset: Cpu8088ResetR
 }
 
 export function check8088Ports(ram: Ram, state: Cpu8088State, ports: BytePorts, access: Cpu8088Access): void {
-  const cpu = new Cpu8088(ram, state, ports);
+  const cpu = new Cpu8088(ram, state, { ports: ports });
   const result: CpuRunResult<Cpu8088StepRecord> = runCpu(cpu, { maxSteps: 1 });
   const memory: Cpu8088MemoryAccess = { kind: "read", address: 0xfffff, value: 0x34 };
   if (access.kind === "input" || access.kind === "output") {
@@ -85,9 +85,9 @@ export function check8088Ports(ram: Ram, state: Cpu8088State, ports: BytePorts, 
     access.port = 0;
   }
   // @ts-expect-error Connected inputs return numbers.
-  new Cpu8088(ram, state, { readPort: () => "00", writePort: () => {} });
+  new Cpu8088(ram, state, { ports: { readPort: () => "00", writePort: () => {} } });
   // @ts-expect-error Connections must provide both byte transfer callbacks.
-  new Cpu8088(ram, state, { readPort: () => 0 });
+  new Cpu8088(ram, state, { ports: { readPort: () => 0 } });
 }
 
 export function check8088Interrupts(cpu: Cpu8088, state: Cpu8088State, snapshot: Cpu8088Snapshot): void {
@@ -119,12 +119,53 @@ export function check8088Interrupts(cpu: Cpu8088, state: Cpu8088State, snapshot:
   // @ts-expect-error Snapshot trap state is readonly.
   snapshot.trapPending = true;
   // @ts-expect-error Inhibition is a Boolean latch.
-  state.segmentDeferred = 1;
+  state.recognitionDeferred = 1;
   // @ts-expect-error All inhibition latches are required for restoration.
   const incomplete: Cpu8088State = { ...state, interruptDeferred: undefined };
   const step = cpu.step();
-  if (step.instruction === null && step.outcome === "executed") {
+  if (step.instruction === null && step.outcome === "executed" && step.interrupt) {
     const source: "trap" = step.interrupt.source;
     const vector: 1 = step.interrupt.vector;
   }
+}
+
+export function check8088ExternalConnections(ram: Ram, state: Cpu8088State, snapshot: Cpu8088Snapshot,
+  connections: Cpu8088Connections, record: Cpu8088StepRecord): void {
+  const cpu = new Cpu8088(ram, state, connections);
+  new Cpu8088(ram, snapshot, { test: () => false });
+  new Cpu8088(ram, state, { escape: request => {
+    const opcode: number = request.opcode;
+    const modRM: number = request.modRM;
+    if (request.memory) {
+      const value: number = request.memory.value;
+      // @ts-expect-error ESC operands are readonly.
+      request.memory.offset = 0;
+    }
+  } });
+  // @ts-expect-error TEST is a Boolean pin level, not a numeric value.
+  new Cpu8088(ram, state, { test: () => 1 });
+  // @ts-expect-error A waiting snapshot must retain its latch.
+  const incomplete: Cpu8088State = { ...state, waiting: undefined };
+  // @ts-expect-error Snapshots cannot change the waiting latch.
+  snapshot.waiting = false;
+  if (record.outcome === "waiting") {
+    const instruction: Cpu8088StepRecord["instruction"] = record.instruction;
+  }
+  if (record.outcome === "executed" && record.instruction === null && "continuation" in record) {
+    const continuation: "wait" = record.continuation;
+    // @ts-expect-error A WAIT continuation is not an interrupt delivery.
+    const delivery: { vector: number } = record.interrupt;
+  }
+  const access = record.accesses[0];
+  if (access?.kind === "test") {
+    const high: boolean = access.high;
+    // @ts-expect-error A TEST sample has no memory address.
+    access.address;
+  }
+  if (access?.kind === "escape" && access.memory) {
+    const address: number = access.memory.address;
+    // @ts-expect-error Retained operands are readonly.
+    access.memory.value = 0;
+  }
+  const result: CpuRunResult<Cpu8088StepRecord> = runCpu(cpu, { maxSteps: 1 });
 }

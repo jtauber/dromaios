@@ -102,9 +102,10 @@ interrupt delivery remain separate measures.
 
 The [checkpoint audit](docs/cpus/completion.md#cpu-only-checkpoint-review)
 records passing evidence for all eight. The earlier deferral of interrupt
-controls, delivery, and I/O has served its purpose. These capabilities now
-proceed through the [CPU completion sequence](docs/cpus/completion.md#completion-sequence),
-starting with 8080 port and control instructions, then external interrupt delivery.
+controls, delivery, and I/O has served its purpose. The
+[CPU completion sequence](docs/cpus/completion.md#completion-sequence)
+now records complete documented opcode coverage across all eight, with timing
+and remaining processor features tracked separately.
 
 The introductory [8080](docs/cpus/8080/examples/arithmetic.md), [6502](docs/cpus/6502/examples/arithmetic.md),
 [6809](docs/cpus/6809/examples/arithmetic.md), [Z80](docs/cpus/z80/examples/arithmetic.md), [8008](docs/cpus/8008/examples/arithmetic.md),
@@ -116,6 +117,10 @@ the [example catalog](docs/README.md#cpu-examples) lists the completed programs.
 Further examples and comparison of the models continue within this stage.
 
 ### Complete opcode coverage for all eight
+
+This milestone is complete; the criteria below governed the implementation.
+Current evidence and remaining processor features are in the
+[coverage inventory](docs/cpus/coverage.md).
 
 Finish every documented opcode form for each initial CPU, using the existing
 [coverage definitions and inventories](docs/cpus/coverage.md). The CPU-only
@@ -132,8 +137,8 @@ checkpoint is an intermediate milestone, not the endpoint of CPU work.
 Finish these instructions in the current TypeScript cores as needed. Neither
 a finished DSL, migration to it, nor additional CPU targets are prerequisites.
 At each shared-code or language review, choose the next bounded experiment
-alongside the remaining CPU-completion work so exploration does not defer it
-indefinitely. Current counts and specific gaps belong in the coverage tracker.
+alongside accuracy and machine integration work. Current counts and specific
+gaps belong in the coverage tracker.
 
 ## 3. Make the examples explorable in the browser
 
