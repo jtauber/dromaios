@@ -45,14 +45,28 @@ The authoring layers have separate homes:
 | Location | Responsibility |
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
-| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared construction recipes: immediate/register sources, comparison, transfer, and N/Z policies |
+| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer recipes, N/Z policies, and checked opcode inventories |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
 Each CPU definition module follows sources, policies, instruction construction,
-then named definitions. Shared recipes return data built from the existing
+then instruction definitions and their selectors. Shared recipes return data built from the existing
 vocabulary; they add no runtime callbacks or new language primitives. The
 compiler and reporter expand their results just like directly authored bodies.
+
+Statement constructors such as `fetchByte("low")`, `readRegister("index", X)`,
+and `writeMemory(address, byte)` return the corresponding data nodes. They do
+not execute effects or reorder statements. Their arguments retain the explicit
+capture names, registers, addresses, and values used by validation and reporting.
+
+The 6502 uses the existing `opcodeFamily` and `opcodePattern` helpers to construct
+definitions in place of runtime callbacks. `instructionSet` rejects duplicate or
+out-of-range opcodes before constructing the inventory. LDA and CMP share one
+`bbb` operand selector; CPX/CPY and LDX/LDY share Y/X register selectors. The load
+patterns explicitly select the other register for indexing. The definition's
+opcode is also its generated method key, so there is no second list of method
+names or handwritten per-instruction bindings. These are construction-time
+families; the resulting definitions still contain only data.
 
 `cpuSymbols(name, stateDescription)` imports the CPU's existing authority for
 stored fields. It offers typed register and flag names and records register
@@ -84,7 +98,7 @@ MOV B,A sample uses it too. The 6502 selects its N/Z policy except for TXS,
 which supplies no policy and preserves every flag. A source that fails never
 reaches the destination write or flag update.
 
-The 6502 comparison and load definitions share a named source inventory.
+The 6502 comparison and load definitions share source constructors and selectors.
 Zero-page indexing wraps the byte address before widening; absolute indexing
 wraps the word address. LDX uses Y for indexed modes, whereas LDY uses X.
 The sole additional addressing source for loads is zero page indexed by Y;
@@ -250,9 +264,18 @@ The machine parser imports those schemas directly too, so machine generation
 works independently of generated CPU output. There is still one authority for
 each CPU's stored fields.
 
-Opcode selection remains in the CPU tables. The 6502 binds the complete
-comparison and load families, all six register transfers, and zero-page ASL.
-The 8080 binds all nine CMP/CPI forms.
+Opcode selection remains in the CPU tables. For the 6502,
+`generateInstructions(..., { bindOpcodes: true })` also generates
+`opcodeEntries(state)`, connecting every defined opcode to its body. The CPU
+constructs its combined table after initializing state, and the ordinary
+`opcodeTable` rejects any collision with its remaining handwritten entries.
+Each instance binds its own state; no register or memory read occurs during
+binding. Generated methods retain their precise callback types, while the
+bound handlers accept the shared byte instruction context.
+
+This covers the complete 6502 comparison and load families, all six register
+transfers, and zero-page ASL. The 8080 retains named bodies for its nine CMP/CPI
+bindings in the shared 8080/Z80 family.
 The 6809 binds immediate CMPA/B, three ordinary CMPX modes, and one indexed body:
 it fetches the postbyte once, selects generated `,X++` for `81`, and delegates
 other forms to its existing indexed decoder. Unsupported postbytes retain the
@@ -261,26 +284,24 @@ of that decoder.
 
 ## Decision and next review
 
-This slice demonstrates one meaning producing both executable code and an
-explanation. It **adds authored machinery overall**, including the generator,
-more explicit addressing sources, and integration bindings. Moving state
-schemas and producing ignored output is not source reduction. The 6502 and
-8080 handwritten comparison wrappers are removed, while shared arithmetic and
-addressing helpers still serve instructions outside the migration. Review the
-whole change, including definitions and generated output, rather than the CPU
-module line counts alone.
+The experiment demonstrates one meaning producing executable code and an
+explanation. Its initial representation and compiler added authored machinery;
+migration percentages alone do not establish a reduction in code or complexity.
+The family cleanup removes the 6502's duplicate load/comparison binding arrays
+and individual bindings. All 55 expanded bodies retain their previous meanings;
+the independent encoding and CPU tests check their execution connections.
 
-The next decision is whether this extra structure earns its inspection benefit
-before expanding the vocabulary. Keep the comparison and failure probes as
-regressions. Loads and transfers now demonstrate reuse of operand sources and
-policies with no vocabulary extension. The existing result-writing and addressing
-helpers in the 6502 core still serve arithmetic, shifts, stores, and stack
-instructions outside this migration. They are not alternate handlers for the
-migrated loads or transfers.
+Measure the complete [source footprint](coverage.md#source-footprint), including
+definitions and shared machinery, with generated output counted separately.
+Moving code into a definition file does not count as source reduction. Review
+whether family authoring and explicit ordered statements improve understanding
+before expanding the vocabulary further.
 
-A subsequent JSR slice can challenge instruction fetching and stack-write
-ordering. Keep that review bounded before adding a general CPU grammar or
-attempting a whole-model rewrite.
+Subsequent migrations should also identify the handwritten helpers they can
+retire. The 6502's result-writing and addressing helpers still serve arithmetic,
+shifts, stores, and stack instructions, so they cannot yet be removed. A later
+JSR slice remains a test of interleaved fetching and stack writes, but adding
+that vocabulary alone would not establish a source-reduction benefit.
 
 General addressing decoders, register views, flag reads, branches, loops, stack
 bodies, instruction rejection, pending commits, and exception delivery are not

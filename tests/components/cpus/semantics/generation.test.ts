@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
-import { instructions as mos } from "../../../../src/components/cpus/generated/6502.js";
+import { instructions as mos, opcodeEntries } from "../../../../src/components/cpus/generated/6502.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions6502, instructions8080, instructions6809 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
+import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { cpuSymbols, addWrap, literal, value, zero } from "../../../../src/components/cpus/semantics/model.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
@@ -29,12 +30,57 @@ function motorolaState(): Cpu6809State {
 test("all generated modules reproduce from definitions without changing them", () => {
   for (const [cpu, definitions] of [["6502", instructions6502], ["8080", instructions8080], ["6809", instructions6809]] as const) {
     const before = JSON.stringify(definitions);
-    const source = generateInstructions(cpu, definitions);
+    const source = generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502" });
     assert.equal(source, readFileSync(`src/components/cpus/generated/${cpu}.ts`, "utf8"));
-    assert.equal(generateInstructions(cpu, definitions), source);
+    assert.equal(generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502" }), source);
     assert.equal(JSON.stringify(definitions), before);
   }
   assert.throws(() => generateInstructions("8080", instructions6502), /expected a 8080 definition/);
+});
+
+test("6502 families generate exactly the migrated encodings, including the opposite-index loads", () => {
+  // Explicit opcode expectations are independent of the authored bit-pattern expansion.
+  const expected = {
+    0x06: "ASL zero page", 0x8a: "TXA", 0x98: "TYA", 0x9a: "TXS", 0xa8: "TAY", 0xaa: "TAX", 0xba: "TSX",
+    0xa1: "LDA (zero page,X)", 0xa5: "LDA zero page", 0xa9: "LDA #byte", 0xad: "LDA absolute",
+    0xb1: "LDA (zero page),Y", 0xb5: "LDA zero page,X", 0xb9: "LDA absolute,Y", 0xbd: "LDA absolute,X",
+    0xa2: "LDX #byte", 0xa6: "LDX zero page", 0xae: "LDX absolute", 0xb6: "LDX zero page,Y", 0xbe: "LDX absolute,Y",
+    0xa0: "LDY #byte", 0xa4: "LDY zero page", 0xac: "LDY absolute", 0xb4: "LDY zero page,X", 0xbc: "LDY absolute,X",
+    0xc1: "CMP (zero page,X)", 0xc5: "CMP zero page", 0xc9: "CMP #byte", 0xcd: "CMP absolute",
+    0xd1: "CMP (zero page),Y", 0xd5: "CMP zero page,X", 0xd9: "CMP absolute,Y", 0xdd: "CMP absolute,X",
+    0xe0: "CPX #byte", 0xe4: "CPX zero page", 0xec: "CPX absolute",
+    0xc0: "CPY #byte", 0xc4: "CPY zero page", 0xcc: "CPY absolute",
+  };
+  assert.deepEqual(Object.fromEntries(Object.entries(instructions6502).map(([opcode, definition]) => [opcode, definition.name])), expected);
+  assert.deepEqual(opcodeEntries(mosState()).map(([opcode]) => opcode), Object.keys(expected).map(Number));
+});
+
+test("opcode inventories reject collisions and invalid encodings before generation", () => {
+  const definition = instructions6502[0xaa]!;
+  assert.throws(() => instructionSet([[0xaa, definition], [0xaa, definition]]), /Duplicate opcode/);
+  for (const opcode of [-1, 256, 1.5, NaN]) {
+    assert.throws(() => instructionSet([[opcode, definition]]), /opcode/);
+    assert.throws(() => generateInstructions("6502", { [opcode]: definition }, { bindOpcodes: true }), /opcode/);
+  }
+  assert.throws(() => generateInstructions("6502", { tax: definition }, { bindOpcodes: true }), /opcode/);
+  assert.throws(() => generateInstructions("6502", { "170": definition, "0xAA": definition }, { bindOpcodes: true }), /Duplicate opcode/);
+});
+
+test("generated opcode bindings capture their own CPU instance and read live state only on execution", () => {
+  const first = mosState(), second = mosState();
+  let a = 0x12, reads = 0;
+  Object.defineProperty(first, "a", { get() { reads++; return a; } });
+  const firstHandlers = Object.fromEntries(opcodeEntries(first)), secondHandlers = Object.fromEntries(opcodeEntries(second));
+  assert.equal(reads, 0);
+  a = 0x80;
+  const unusedContext = { fetchByte: () => assert.fail("unexpected fetch"), readByte: () => assert.fail("unexpected read"), writeByte: () => assert.fail("unexpected write") };
+  firstHandlers[0xaa]!(unusedContext);
+  assert.equal(reads, 1);
+  assert.equal(first.x, 0x80); assert.equal(first.flags.n, true);
+  assert.equal(second.x, 0); assert.equal(second.flags.n, false);
+  second.a = 0x44;
+  secondHandlers[0xaa]!(unusedContext);
+  assert.equal(second.x, 0x44); assert.equal(first.x, 0x80);
 });
 
 test("generated byte comparisons match independent arithmetic for every operand pair", () => {
@@ -43,7 +89,7 @@ test("generated byte comparisons match independent arithmetic for every operand 
   for (let left = 0; left < 256; left++) for (let right = 0; right < 256; right++) {
     m.a = i.a = b.a = left;
     const context = { fetchByte: () => right };
-    mos.cmpImmediate(m, context); intel.cpi(i, context); motorola.cmpaImmediate(b, context);
+    mos[0xc9](m, context); intel.cpi(i, context); motorola.cmpaImmediate(b, context);
     const result = (left - right + 256) % 256;
     const signedResult = signed(left) - signed(right);
     assert.deepEqual(m.flags, { n: result >= 128, z: result === 0, c: left >= right, v: true, d: true, i: true });
@@ -76,14 +122,14 @@ test("generated comparison never writes its destination, and captures it after s
   intel.cpi(state, { fetchByte: () => 0x20 });
   assert.equal(state.flags.z, true);
   const changed = mosState();
-  mos.cmpAbsolute(changed, { fetchByte: () => 0, readByte: () => { changed.a = 0x44; return 0x44; } });
+  mos[0xcd](changed, { fetchByte: () => 0, readByte: () => { changed.a = 0x44; return 0x44; } });
   assert.equal(changed.flags.z, true);
 });
 
 test("generated transfers capture their source and differ only in the declared flag effects", () => {
   const m = mosState(), i = intelState();
   m.a = i.a = 0x80;
-  mos.tax(m); intel.movBA(i);
+  mos[0xaa](m); intel.movBA(i);
   assert.equal(m.x, 0x80); assert.equal(i.b, 0x80);
   assert.deepEqual(m.flags, { n: true, z: false, c: true, v: true, d: true, i: true });
   assert.deepEqual(i.flags, intelState().flags);

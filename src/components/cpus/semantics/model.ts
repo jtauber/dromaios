@@ -80,3 +80,13 @@ export const not = (value: FlagExpression): FlagExpression => ({ kind: "not", va
 export const borrow = (left: NumberExpression, right: NumberExpression): FlagExpression => ({ kind: "borrow", left, right });
 export const halfBorrow = (left: NumberExpression, right: NumberExpression): FlagExpression => ({ kind: "half-borrow", left, right });
 export const overflow = (left: NumberExpression, right: NumberExpression): FlagExpression => ({ kind: "subtract-overflow", left, right });
+
+// Statement constructors describe effects; they never perform them. Array order is execution order.
+export const capture = (name: string, value: NumberExpression): Statement => ({ kind: "capture", name, value });
+export const fetchByte = (name: string): Statement => ({ kind: "fetch-byte", name });
+export const readRegister = (name: string, register: Register): Statement => ({ kind: "read-register", name, register });
+export const readMemory = (name: string, address: NumberExpression): Statement => ({ kind: "read-memory", name, address });
+export const readSource = (name: string, source: ValueSource): Statement => ({ kind: "read-source", name, source });
+export const writeRegister = (register: Register, value: NumberExpression): Statement => ({ kind: "write-register", register, value });
+export const writeMemory = (address: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-memory", address, value });
+export const updateFlags = (policy: FlagPolicy, args: Readonly<Record<string, NumberExpression>>): Statement => ({ kind: "update-flags", policy, arguments: args });

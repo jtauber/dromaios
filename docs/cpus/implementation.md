@@ -135,6 +135,13 @@ is documented or implemented. Never fill unsupported slots just to complete a
 pattern. Distinguish opcode bytes from prefixes and operand postbytes, and
 explain postbyte fields separately.
 
+For migrated 6502 instructions, keep patterns and selectors beside their bodies
+in [the authored definitions](../../src/components/cpus/semantics/definitions/6502.ts).
+Generate the execution bindings from those same patterns; the CPU combines them
+with its remaining handwritten entries after initializing state. Preserve the
+duplicate-opcode check across both sets. Avoid maintaining a second list of
+generated method names or repeating migrated patterns in the CPU class.
+
 The complete support inventory belongs in [CPU implementation coverage](coverage.md).
 This guide describes organization and does not replace the model contracts or
 manufacturer references for instruction behavior.

@@ -1,6 +1,6 @@
 import { cpu6809StateDescription } from "../../state/6809.ts";
-import { addWrap, borrow, concat, cpuSymbols, literal, overflow, value } from "../model.ts";
-import type { FlagPolicy, InstructionDefinition, Statement, ValueSource, Width } from "../model.ts";
+import { addWrap, borrow, capture, concat, cpuSymbols, fetchByte, literal, overflow, readMemory, readRegister, value, writeRegister } from "../model.ts";
+import type { FlagPolicy, InstructionDefinition, ValueSource, Width } from "../model.ts";
 import { compare, immediateByte, negativeZeroPolicy } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
 
@@ -9,30 +9,30 @@ const cpu = cpuSymbols("6809", cpu6809StateDescription);
 const xPostincrement: ValueSource = {
   name: "word at old X, advance X by two", width: 16,
   steps: [
-    { kind: "read-register", name: "address", register: cpu.register("x") },
-    { kind: "write-register", register: cpu.register("x"), value: addWrap(value("address"), literal(16, 2)) },
-    { kind: "read-memory", name: "high", address: value("address") },
-    { kind: "read-memory", name: "low", address: addWrap(value("address"), literal(16, 1)) },
+    readRegister("address", cpu.register("x")),
+    writeRegister(cpu.register("x"), addWrap(value("address"), literal(16, 2))),
+    readMemory("high", value("address")),
+    readMemory("low", addWrap(value("address"), literal(16, 1))),
   ], result: concat(value("high"), value("low")),
 };
 
 const immediateWord: ValueSource = {
   name: "immediate word, high byte first", width: 16, steps: [
-    { kind: "fetch-byte", name: "high" }, { kind: "fetch-byte", name: "low" },
+    fetchByte("high"), fetchByte("low"),
   ], result: concat(value("high"), value("low")),
 };
 function memoryWord(mode: "direct" | "extended"): ValueSource {
   const direct = mode === "direct";
   return { name: direct ? "direct word through DP" : "extended word", width: 16, steps: [
     ...(direct ? [
-      { kind: "fetch-byte", name: "addressLow" },
-      { kind: "read-register", name: "addressHigh", register: cpu.register("dp") },
-    ] satisfies Statement[] : [
-      { kind: "fetch-byte", name: "addressHigh" }, { kind: "fetch-byte", name: "addressLow" },
-    ] satisfies Statement[]),
-    { kind: "capture", name: "address", value: concat(value("addressHigh"), value("addressLow")) },
-    { kind: "read-memory", name: "high", address: value("address") },
-    { kind: "read-memory", name: "low", address: addWrap(value("address"), literal(16, 1)) },
+      fetchByte("addressLow"),
+      readRegister("addressHigh", cpu.register("dp")),
+    ] : [
+      fetchByte("addressHigh"), fetchByte("addressLow"),
+    ]),
+    capture("address", concat(value("addressHigh"), value("addressLow"))),
+    readMemory("high", value("address")),
+    readMemory("low", addWrap(value("address"), literal(16, 1))),
   ], result: concat(value("high"), value("low")) };
 }
 

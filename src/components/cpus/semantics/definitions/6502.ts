@@ -1,60 +1,53 @@
 import { cpu6502StateDescription } from "../../state/6502.ts";
-import { addWrap, borrow, concat, cpuSymbols, extend, literal, negative, not, value } from "../model.ts";
-import type { FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
-import { compare, immediateByte, negativeZeroPolicy, registerSource, transfer } from "../builders.ts";
+import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
+import { addWrap, borrow, capture, concat, cpuSymbols, extend, fetchByte, literal, negative, not,
+  readMemory, readRegister, updateFlags, value, writeMemory } from "../model.ts";
+import type { FlagPolicy, InstructionDefinition, ValueSource } from "../model.ts";
+import { compare, immediateByte, instructionSet, negativeZeroPolicy, registerSource, transfer } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("6502", cpu6502StateDescription);
+type Operand = readonly [name: string, source: ValueSource];
 
 // Operand sources include every read in order; comparison and load bodies share them.
 const absolute: ValueSource = {
-  name: "absolute byte, low address byte first", width: 8,
-  steps: [
-    { kind: "fetch-byte", name: "low" },
-    { kind: "fetch-byte", name: "high" },
-    { kind: "read-memory", name: "byte", address: concat(value("high"), value("low")) },
+  name: "absolute byte, low address byte first", width: 8, steps: [
+    fetchByte("low"), fetchByte("high"),
+    readMemory("byte", concat(value("high"), value("low"))),
   ], result: value("byte"),
 };
-
 function zeroPage(index?: "x" | "y"): ValueSource {
   return { name: index ? `zero page indexed by ${index.toUpperCase()}` : "zero page", width: 8, steps: [
-    { kind: "fetch-byte", name: "offset" },
+    fetchByte("offset"),
     ...(index ? [
-      { kind: "read-register", name: "index", register: cpu.register(index) },
-      { kind: "capture", name: "address", value: extend(addWrap(value("offset"), value("index")), 16) },
-    ] satisfies Statement[] : [{ kind: "capture", name: "address", value: extend(value("offset"), 16) }] satisfies Statement[]),
-    { kind: "read-memory", name: "byte", address: value("address") },
+      readRegister("index", cpu.register(index)),
+      capture("address", extend(addWrap(value("offset"), value("index")), 16)),
+    ] : [capture("address", extend(value("offset"), 16))]),
+    readMemory("byte", value("address")),
   ], result: value("byte") };
 }
 function absoluteIndexed(register: "x" | "y"): ValueSource {
   return { name: `absolute indexed by ${register.toUpperCase()}`, width: 8, steps: [
-    { kind: "fetch-byte", name: "low" }, { kind: "fetch-byte", name: "high" },
-    { kind: "read-register", name: "index", register: cpu.register(register) },
-    { kind: "read-memory", name: "byte", address: addWrap(concat(value("high"), value("low")), extend(value("index"), 16)) },
+    fetchByte("low"), fetchByte("high"),
+    readRegister("index", cpu.register(register)),
+    readMemory("byte", addWrap(concat(value("high"), value("low")), extend(value("index"), 16))),
   ], result: value("byte") };
 }
 function indirect(mode: "indexed-indirect" | "indirect-indexed"): ValueSource {
   const indexFirst = mode === "indexed-indirect";
   return { name: indexFirst ? "indexed indirect (zero page,X)" : "indirect indexed (zero page),Y", width: 8, steps: [
-    { kind: "fetch-byte", name: "offset" },
+    fetchByte("offset"),
     ...(indexFirst ? [
-      { kind: "read-register", name: "index", register: cpu.register("x") },
-      { kind: "capture", name: "pointer", value: addWrap(value("offset"), value("index")) },
-    ] satisfies Statement[] : [{ kind: "capture", name: "pointer", value: value("offset") }] satisfies Statement[]),
-    { kind: "read-memory", name: "low", address: extend(value("pointer"), 16) },
-    { kind: "read-memory", name: "high", address: extend(addWrap(value("pointer"), literal(8, 1)), 16) },
-    { kind: "capture", name: "base", value: concat(value("high"), value("low")) },
-    ...(!indexFirst ? [{ kind: "read-register", name: "index", register: cpu.register("y") }] satisfies Statement[] : []),
-    { kind: "read-memory", name: "byte", address: indexFirst ? value("base") : addWrap(value("base"), extend(value("index"), 16)) },
+      readRegister("index", cpu.register("x")),
+      capture("pointer", addWrap(value("offset"), value("index"))),
+    ] : [capture("pointer", value("offset"))]),
+    readMemory("low", extend(value("pointer"), 16)),
+    readMemory("high", extend(addWrap(value("pointer"), literal(8, 1)), 16)),
+    capture("base", concat(value("high"), value("low"))),
+    ...(!indexFirst ? [readRegister("index", cpu.register("y"))] : []),
+    readMemory("byte", indexFirst ? value("base") : addWrap(value("base"), extend(value("index"), 16))),
   ], result: value("byte") };
 }
-
-const sources = {
-  immediate: immediateByte,
-  zeroPage: zeroPage(), zeroPageX: zeroPage("x"), zeroPageY: zeroPage("y"),
-  absolute, absoluteX: absoluteIndexed("x"), absoluteY: absoluteIndexed("y"),
-  indexedIndirect: indirect("indexed-indirect"), indirectIndexed: indirect("indirect-indexed"),
-};
 
 const resultNZ = negativeZeroPolicy("6502 result N/Z", cpu.flag("n"), cpu.flag("z"), 8);
 const comparisonFlags: FlagPolicy = {
@@ -62,7 +55,7 @@ const comparisonFlags: FlagPolicy = {
   updates: [...resultNZ.updates, { flag: cpu.flag("c"), value: not(borrow(value("left"), value("right"))) }],
 };
 
-function comparison(register: "a" | "x" | "y", source: ValueSource, operand: string): InstructionDefinition {
+function comparison(register: "a" | "x" | "y", [operand, source]: Operand): InstructionDefinition {
   return defineInstruction({
     cpu: cpu.declaration, name: `${{ a: "CMP", x: "CPX", y: "CPY" }[register]} ${operand}`,
     explanation: "Read the source before the comparison register. Subtract without writing a destination. C "
@@ -70,8 +63,7 @@ function comparison(register: "a" | "x" | "y", source: ValueSource, operand: str
     steps: compare(cpu.register(register), source, comparisonFlags),
   });
 }
-
-function load(register: "a" | "x" | "y", source: ValueSource, operand: string): InstructionDefinition {
+function load(register: "a" | "x" | "y", [operand, source]: Operand): InstructionDefinition {
   return defineInstruction({
     cpu: cpu.declaration, name: `LD${register.toUpperCase()} ${operand}`,
     explanation: "Finish the source reads before writing the destination, then set N/Z from the captured byte. "
@@ -89,50 +81,40 @@ function registerTransfer(name: string, from: "a" | "x" | "y" | "sp", to: "a" | 
   });
 }
 
-// Stable names bind generated methods to opcode tables; these descriptions contain no callbacks.
-export const instructions6502 = {
-  cmpImmediate: comparison("a", sources.immediate, "#byte"),
-  cmpAbsolute: comparison("a", sources.absolute, "absolute"),
-  cpxImmediate: comparison("x", sources.immediate, "#byte"),
-  cpxAbsolute: comparison("x", sources.absolute, "absolute"),
-  cpyImmediate: comparison("y", sources.immediate, "#byte"),
-  cpyAbsolute: comparison("y", sources.absolute, "absolute"),
-  cmpZeroPage: comparison("a", sources.zeroPage, "zero page"),
-  cpxZeroPage: comparison("x", sources.zeroPage, "zero page"),
-  cpyZeroPage: comparison("y", sources.zeroPage, "zero page"),
-  cmpZeroPageX: comparison("a", sources.zeroPageX, "zero page,X"),
-  cmpAbsoluteX: comparison("a", sources.absoluteX, "absolute,X"),
-  cmpAbsoluteY: comparison("a", sources.absoluteY, "absolute,Y"),
-  cmpIndexedIndirect: comparison("a", sources.indexedIndirect, "(zero page,X)"),
-  cmpIndirectIndexed: comparison("a", sources.indirectIndexed, "(zero page),Y"),
+// aaa bbb cc: cc=01 selects accumulator operations; aaa=101/110 selects LDA/CMP.
+// bbb selects the source below, in numeric order. Both families use this same list.
+const accumulatorOperands: readonly Operand[] = [
+  ["(zero page,X)", indirect("indexed-indirect")], ["zero page", zeroPage()],
+  ["#byte", immediateByte], ["absolute", absolute],
+  ["(zero page),Y", indirect("indirect-indexed")], ["zero page,X", zeroPage("x")],
+  ["absolute,Y", absoluteIndexed("y")], ["absolute,X", absoluteIndexed("x")],
+];
+const indexRegisters = ["y", "x"] as const;
+const otherIndex = { x: "y", y: "x" } as const;
 
-  ldaImmediate: load("a", sources.immediate, "#byte"),
-  ldaZeroPage: load("a", sources.zeroPage, "zero page"),
-  ldaZeroPageX: load("a", sources.zeroPageX, "zero page,X"),
-  ldaAbsolute: load("a", sources.absolute, "absolute"),
-  ldaAbsoluteX: load("a", sources.absoluteX, "absolute,X"),
-  ldaAbsoluteY: load("a", sources.absoluteY, "absolute,Y"),
-  ldaIndexedIndirect: load("a", sources.indexedIndirect, "(zero page,X)"),
-  ldaIndirectIndexed: load("a", sources.indirectIndexed, "(zero page),Y"),
-  ldxImmediate: load("x", sources.immediate, "#byte"),
-  ldxZeroPage: load("x", sources.zeroPage, "zero page"),
-  ldxZeroPageY: load("x", sources.zeroPageY, "zero page,Y"),
-  ldxAbsolute: load("x", sources.absolute, "absolute"),
-  ldxAbsoluteY: load("x", sources.absoluteY, "absolute,Y"),
-  ldyImmediate: load("y", sources.immediate, "#byte"),
-  ldyZeroPage: load("y", sources.zeroPage, "zero page"),
-  ldyZeroPageX: load("y", sources.zeroPageX, "zero page,X"),
-  ldyAbsolute: load("y", sources.absolute, "absolute"),
-  ldyAbsoluteX: load("y", sources.absoluteX, "absolute,X"),
-
-  tax: registerTransfer("TAX", "a", "x", resultNZ),
-  tay: registerTransfer("TAY", "a", "y", resultNZ),
-  txa: registerTransfer("TXA", "x", "a", resultNZ),
-  tya: registerTransfer("TYA", "y", "a", resultNZ),
-  tsx: registerTransfer("TSX", "sp", "x", resultNZ),
-  txs: registerTransfer("TXS", "x", "sp"), // No flag policy: preserve every flag.
-
-  aslZeroPage: defineInstruction({
+// These patterns generate both instruction bodies and their execution bindings.
+export const instructions6502 = instructionSet([
+  ...opcodeFamily("101 bbb 01", { b: accumulatorOperands }, ({ b }) => load("a", b)),
+  ...opcodeFamily("110 bbb 01", { b: accumulatorOperands }, ({ b }) => comparison("a", b)),
+  // 11r bbb 00: r selects Y/X; bbb=000/001/011 selects immediate/zero page/absolute.
+  ...opcodeFamily("11r 000 00", { r: indexRegisters }, ({ r }) => comparison(r, ["#byte", immediateByte])),
+  ...opcodeFamily("11r 001 00", { r: indexRegisters }, ({ r }) => comparison(r, ["zero page", zeroPage()])),
+  ...opcodeFamily("11r 011 00", { r: indexRegisters }, ({ r }) => comparison(r, ["absolute", absolute])),
+  // 101 bbb r0: r selects Y/X; indexed loads use the OTHER register as the index.
+  ...opcodeFamily("101 000 r0", { r: indexRegisters }, ({ r }) => load(r, ["#byte", immediateByte])),
+  ...opcodeFamily("101 001 r0", { r: indexRegisters }, ({ r }) => load(r, ["zero page", zeroPage()])),
+  ...opcodeFamily("101 011 r0", { r: indexRegisters }, ({ r }) => load(r, ["absolute", absolute])),
+  ...opcodeFamily("101 101 r0", { r: indexRegisters }, ({ r }) => load(r, [`zero page,${otherIndex[r].toUpperCase()}`, zeroPage(otherIndex[r])])),
+  ...opcodeFamily("101 111 r0", { r: indexRegisters }, ({ r }) => load(r, [`absolute,${otherIndex[r].toUpperCase()}`, absoluteIndexed(otherIndex[r])])),
+  // Register transfers occupy bbb=010/110; TXS alone preserves every flag.
+  ...opcodePattern("101 010 00", registerTransfer("TAY", "a", "y", resultNZ)),
+  ...opcodePattern("100 110 00", registerTransfer("TYA", "y", "a", resultNZ)),
+  ...opcodePattern("100 010 10", registerTransfer("TXA", "x", "a", resultNZ)),
+  ...opcodePattern("101 010 10", registerTransfer("TAX", "a", "x", resultNZ)),
+  ...opcodePattern("100 110 10", registerTransfer("TXS", "x", "sp")),
+  ...opcodePattern("101 110 10", registerTransfer("TSX", "sp", "x", resultNZ)),
+  // 0ss bbb 10: ss=00 selects ASL; bbb=001 selects zero page.
+  ...opcodePattern("000 001 10", defineInstruction({
     cpu: cpu.declaration, name: "ASL zero page",
     explanation: "Resolve the address once. Read the original byte and write it back unchanged. Then compute "
       + "the shifted byte and apply C before the final write; N/Z follow only after that write "
@@ -140,17 +122,16 @@ export const instructions6502 = {
       + "new C and old N/Z. These are the existing model's host-error boundaries, not a cycle-level "
       + "hardware claim.",
     steps: [
-      { kind: "fetch-byte", name: "offset" },
-      { kind: "capture", name: "address", value: extend(value("offset"), 16) },
-      { kind: "read-memory", name: "original", address: value("address") },
-      { kind: "write-memory", address: value("address"), value: value("original") },
-      { kind: "capture", name: "result", value: addWrap(value("original"), value("original")) },
-      { kind: "update-flags", policy: {
-        name: "6502 ASL carry", parameters: { original: 8 }, unlisted: "preserve",
+      fetchByte("offset"),
+      capture("address", extend(value("offset"), 16)),
+      readMemory("original", value("address")),
+      writeMemory(value("address"), value("original")),
+      capture("result", addWrap(value("original"), value("original"))),
+      updateFlags({ name: "6502 ASL carry", parameters: { original: 8 }, unlisted: "preserve",
         updates: [{ flag: cpu.flag("c"), value: negative(value("original")) }],
-      }, arguments: { original: value("original") } },
-      { kind: "write-memory", address: value("address"), value: value("result") },
-      { kind: "update-flags", policy: resultNZ, arguments: { result: value("result") } },
+      }, { original: value("original") }),
+      writeMemory(value("address"), value("result")),
+      updateFlags(resultNZ, { result: value("result") }),
     ],
-  }),
-};
+  })),
+]);

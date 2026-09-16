@@ -1321,6 +1321,11 @@ JSR and 68000 probes below remain requirements for later vocabulary; they are
 not yet represented by this byte/word slice. Whole-model migration remains a
 separate decision.
 
+The 6502 now authors these migrated instructions as encoding families and
+generates their execution bindings too. Assess this cleanup against the complete
+[authored-source footprint](coverage.md#source-footprint), including shared
+machinery, before treating migration percentages as evidence of simpler code.
+
 Implement the representation on the bounded comparison slice across the three
 CPUs. Include at least one complete typed path from opcode mapping through
 register binding, operand resolution, calculation, flag application, and

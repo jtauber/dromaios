@@ -1,5 +1,5 @@
 import { cpu8080StateDescription } from "../../state/8080.ts";
-import { borrow, concat, cpuSymbols, evenParity, halfBorrow, negative, not, value, zero } from "../model.ts";
+import { borrow, concat, cpuSymbols, evenParity, halfBorrow, negative, not, readMemory, readRegister, value, zero } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, ValueSource } from "../model.ts";
 import { compare, immediateByte, registerSource, transfer } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
@@ -9,9 +9,9 @@ const cpu = cpuSymbols("8080", cpu8080StateDescription);
 const throughHL: ValueSource = {
   name: "memory through HL", width: 8,
   steps: [
-    { kind: "read-register", name: "high", register: cpu.register("h") },
-    { kind: "read-register", name: "low", register: cpu.register("l") },
-    { kind: "read-memory", name: "byte", address: concat(value("high"), value("low")) },
+    readRegister("high", cpu.register("h")),
+    readRegister("low", cpu.register("l")),
+    readMemory("byte", concat(value("high"), value("low"))),
   ], result: value("byte"),
 };
 
