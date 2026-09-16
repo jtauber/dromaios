@@ -1,6 +1,6 @@
 # Machine definitions
 
-The examples use the same [machine language](language.md) and setup
+The flat-RAM examples use the same [machine language](language.md) and setup
 code. Their `.machine` files supply the CPU model, all initial state, addressed
 byte images, and an optional caller completion address. The
 [example catalog](../README.md#cpu-examples) links to specifications, each with
@@ -31,6 +31,16 @@ addresses must be integers within the allocated memory, and byte values must
 be integers from `00` through `FF`. Invalid arguments throw `RangeError`.
 RAM rejects invalid host values instead of wrapping them to hardware widths.
 The [RAM tests](../../tests/components/memory/ram.test.ts) check these bounds.
+
+## Mapped compositions
+
+The [68000 ROM-boot example](../cpus/68000/examples/rom-boot.md) uses ordinary
+TypeScript to connect separate ROM and RAM through a fixed memory map. Its
+factory exposes those components without resetting or executing the CPU.
+It is not generated from a flat-RAM definition. The
+[memory-map contract](memory-map.md) defines region bounds, ownership, ROM
+protection, and unmapped-access behavior. More elaborate machine syntax can
+follow when concrete compositions establish what it needs to express.
 
 ## Directory organization
 

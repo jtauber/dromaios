@@ -74,6 +74,13 @@ checks generated calls against the selected CPU's state type. The
 generated factories are ordinary ES modules, so loading a machine requires no
 parser, file access, or asynchronous initialization.
 
+The [first mapped composition](cpus/68000/examples/rom-boot.md) connects
+owned ROM and RAM through a [fixed memory map](machines/memory-map.md). Regions
+translate physical addresses into local component addresses; holes and ROM
+writes report bus errors. The map owns routing and components own storage.
+This example uses TypeScript wiring while the current definition language
+continues to describe flat RAM.
+
 **Execution support** coordinates stepping, running, pausing, and eventually
 emulated time. Browser display updates should not define the machine's timing.
 The execution granularity and fidelity of each model need to be explicit.
@@ -124,7 +131,7 @@ interfaces and route names remain open to review through the first examples.
 
 ## Proposed repository layout
 
-The implementation has RAM, CPU subsets, example setup, and tests. The other
+The implementation has CPU models, RAM, ROM, memory maps, example setup, and tests. The other
 source paths show where code and content could go as we introduce them; their names can change with experience. No package or framework
 boundaries are implied by this tree. Build and test commands are in the
 [development instructions](../README.md#development).

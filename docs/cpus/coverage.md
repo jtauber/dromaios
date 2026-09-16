@@ -2056,6 +2056,7 @@ intermediate overflow, register aliases, and memory updates.
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [bus-error tests](../../tests/components/cpus/68000/bus-errors.test.ts),
+[ROM boot and mapped memory](../../tests/machines/68000/rom-boot-example.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
 [register-transfer](../../tests/machines/68000/transfers-example.test.ts),
 [addressing](../../tests/machines/68000/addressing-example.test.ts),
@@ -2072,6 +2073,12 @@ Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 plus [interrupt/trace/RESET programs](../../tests/machines/68000/interrupts.test.ts),
 [illegal/emulator-line handlers](../../tests/machines/68000/emulator-lines.test.ts),
 and [public type checks](../../tests/types/68000.ts).
+
+The [ROM-boot example](68000/examples/rom-boot.md) connects separate ROM and
+RAM through a fixed memory map, takes an unmapped-access bus error, records
+the fault address, and resumes through RTE. Tests check all ten steps and local
+component accesses, immutable ROM, full RAM contents, reset, and restoration
+at every boundary.
 
 Completion checks execute all new register/EA forms. Decimal expectations use
 integer arithmetic on all valid packed operands and incoming X/Z; multiply
