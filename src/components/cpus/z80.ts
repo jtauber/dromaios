@@ -285,7 +285,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   // ooo selects the ALU operation in both 10 ooo rrr and 11 ooo 110.
   // Operations read live state and return the next A; CP returns A unchanged.
-  protected override readonly aluOperations: readonly ByteOperation[] = [
+  readonly #aluOperations: readonly ByteOperation[] = [
     value => this.#add(value), // 000 ADD
     value => this.#add(value, this.state.flags.c ? 1 : 0), // 001 ADC
     value => this.#subtract(value), // 010 SUB
@@ -295,6 +295,8 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     value => this.#parityResult(this.state.a | value, { h: false, c: false }), // 110 OR
     value => this.#compare(value), // 111 CP
   ];
+
+  protected override readonly aluInstructions = this.#aluOperations.map(operate => this.accumulatorInstruction(operate));
 
   // ccc=ffv: ff selects Z/C/PV/S; v is the required value, giving NZ/Z/NC/C/PO/PE/P/M.
   // Conditional JR uses just the first four tests.
@@ -412,7 +414,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
         ...instructionPattern(`01 ${bits} 110`, instruction => { this.state[register] = instruction.readByte(address(instruction)); }), // LD r,(IX/IY+d)
         ...instructionPattern(`01 110 ${bits}`, instruction => instruction.writeByte(address(instruction), this.state[register])), // LD (IX/IY+d),r
       ]),
-      ...opcodeFamily("10 ooo 110", { o: this.aluOperations }, ({ o: apply }) => (instruction: InstructionContext) => {
+      ...opcodeFamily("10 ooo 110", { o: this.#aluOperations }, ({ o: apply }) => (instruction: InstructionContext) => {
         this.state.a = apply(instruction.readByte(address(instruction)));
       }), // ALU (IX/IY+d)
       ...instructionPattern("11 10 0 001", ({ readByte }) => { this.state[index] = this.stack.pop(readByte); }), // POP IX/IY

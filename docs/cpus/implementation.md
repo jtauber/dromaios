@@ -35,7 +35,11 @@ core. Keep a CPU in one file while this organization remains easy to follow.
 ## Stored-state descriptions
 
 Each CPU module exports a `cpu…StateDescription` beside its public state
-type. The description owns stored field names, types, and constraints. The
+type. For the 6502, 8080, and 6809, the declaration and derived types live in
+CPU-owned modules under [`state/`](../../src/components/cpus/state) and are
+re-exported by the original CPU module. This lets instruction generation load
+schemas without loading execution or its generated imports. The description
+owns stored field names, types, and constraints. The
 [shared state helpers](../../src/components/cpus/state.ts) provide:
 
 | Description | Meaning |
@@ -59,7 +63,7 @@ stack as readonly in caller-supplied state. Widths and hardware semantics still
 require independent tests. The Z80 describes its register bank once and reuses
 that description for both banks.
 
-The descriptions have three consumers:
+The descriptions have these consumers:
 
 - Constructors use `readState(description, initialState)` to copy and validate
   caller state. It reads only declared fields, once each, including inherited
@@ -72,6 +76,8 @@ The descriptions have three consumers:
   same descriptions to recognize fields and check values, array lengths, and
   choices. It retains ownership of hexadecimal notation, braces, capitalization,
   flag spelling, duplicate/missing-field checks, and source-location diagnostics.
+- The [instruction-semantics experiment](instruction-semantics.md) uses the
+  same schemas for register/flag symbols and generated state types.
 
 The constructor helper reports `RangeError` for invalid numbers or choices,
 and `TypeError` for invalid groups, array lengths, or Booleans, with a stored
@@ -167,7 +173,9 @@ the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
 The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
 operations, conditions, byte increment/decrement, addition to HL, and PSW/AF
-packing. These hooks keep differing flag rules explicit, including parity
+packing. The ALU selectors bind complete handlers: the accumulator helper
+performs ordinary read/operate/write instructions, while generated 8080
+comparisons supply their own operand reads and no destination write. These hooks keep differing flag rules explicit, including parity
 versus overflow and the opposite subtraction half-carry conventions. The shared
 code does not select behavior by checking which processor is executing.
 

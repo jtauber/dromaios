@@ -1,3 +1,4 @@
+import { instructions as semantics } from "./generated/6502.ts";
 import type { Ram } from "../memory/ram.js";
 import { flagRegister, negativeZero } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
@@ -8,21 +9,17 @@ import { modifyByte } from "./memory-operations.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
-import { defineState, copyState, readState, unsigned, flag, group } from "./state.ts";
-import type { StateValues, ReadonlyState } from "./state.js";
+import { copyState, readState } from "./state.ts";
+import { cpu6502StateDescription } from "./state/6502.ts";
+import type { Cpu6502State } from "./state/6502.ts";
+import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
 
-/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
-export const cpu6502StateDescription = defineState({
-  a: unsigned(8), x: unsigned(8), y: unsigned(8), sp: unsigned(8), pc: unsigned(16),
-  flags: group({ n: flag, v: flag, d: flag, i: flag, z: flag, c: flag }),
-});
-
-export type Cpu6502State = StateValues<typeof cpu6502StateDescription>;
-export type Cpu6502Flags = Cpu6502State["flags"];
+export { cpu6502StateDescription } from "./state/6502.ts";
+export type { Cpu6502State, Cpu6502Flags } from "./state/6502.ts";
 
 export type Cpu6502Snapshot = ReadonlyState<Cpu6502State>;
 
@@ -137,6 +134,17 @@ export class Cpu6502 {
     value => this.#shiftResult(shiftRight(8, value, this.#state.flags.c ? 1 : 0)), // 11 ROR
   ];
 
+  // CMP uses the same bbb addressing order; generated bodies include the operand reads.
+  readonly #comparisons = [
+    semantics.cmpIndexedIndirect, semantics.cmpZeroPage, semantics.cmpImmediate, semantics.cmpAbsolute,
+    semantics.cmpIndirectIndexed, semantics.cmpZeroPageX, semantics.cmpAbsoluteY, semantics.cmpAbsoluteX,
+  ];
+  readonly #zeroPageShifts: readonly OpcodeHandler[] = [
+    instruction => semantics.aslZeroPage(this.#state, instruction),
+    ...this.#shifts.slice(1).map(modify => (instruction: InstructionContext) =>
+      this.#modifyMemory(instruction.fetchByte(), modify, instruction)),
+  ];
+
   // Opcode bits: 7 6 5 | 4 3 2 | 1 0 = aaa bbb cc.
   // cc selects a group. In cc=01, aaa selects the operation and bbb its addressing mode.
   // The cc=00 and cc=10 instructions below have their own patterns.
@@ -149,13 +157,13 @@ export class Cpu6502 {
     ...instructionPattern("010 000 00", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
     ...instructionPattern("011 000 00", ({ readByte }) => this.#return(readByte)), // RTS
     ...instructionPattern("101 000 00", ({ fetchByte }) => this.#loadRegister("y", fetchByte())), // LDY #n
-    ...opcodeFamily("11r 000 00", { r: ["y", "x"] }, ({ r }) => ({ fetchByte }: InstructionContext) => this.#compare(r, fetchByte())), // CPY/CPX #n
+    ...opcodeFamily("11r 000 00", { r: [semantics.cpyImmediate, semantics.cpxImmediate] }, ({ r: compare }) => (instruction: InstructionContext) => compare(this.#state, instruction)), // CPY/CPX #n
 
     // cc=00, bbb=001: zero page. aaa=001 selects BIT, 100/101 select STY/LDY, 11r selects CPY/CPX.
     ...instructionPattern("001 001 00", ({ fetchByte, readByte }) => this.#testBits(readByte(fetchByte()))), // BIT zp
     ...instructionPattern("100 001 00", ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.y)), // STY zp
     ...instructionPattern("101 001 00", ({ fetchByte, readByte }) => this.#loadRegister("y", readByte(fetchByte()))), // LDY zp
-    ...opcodeFamily("11r 001 00", { r: ["y", "x"] }, ({ r }) => ({ fetchByte, readByte }: InstructionContext) => this.#compare(r, readByte(fetchByte()))), // CPY/CPX zp
+    ...opcodeFamily("11r 001 00", { r: [semantics.cpyZeroPage, semantics.cpxZeroPage] }, ({ r: compare }) => (instruction: InstructionContext) => compare(this.#state, instruction)), // CPY/CPX zp
 
     // cc=00, bbb=010: 0rp 010 00. r (bit 6) selects status (0)/A (1); p (bit 5) selects push (0)/pull (1).
     ...instructionPattern("00 0 010 00", ({ writeByte }) => this.#pushByte(packedFlags.encode(this.#state.flags) | 0x10, writeByte)), // PHP
@@ -174,7 +182,7 @@ export class Cpu6502 {
     ...instructionPattern("011 011 00", ({ fetchWord, readByte }) => this.#jump(this.#readPageWrappedPointer(fetchWord(), readByte))), // JMP (addr)
     ...instructionPattern("100 011 00", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.y)), // STY addr
     ...instructionPattern("101 011 00", ({ fetchWord, readByte }) => this.#loadRegister("y", readByte(fetchWord()))), // LDY addr
-    ...opcodeFamily("11r 011 00", { r: ["y", "x"] }, ({ r }) => ({ fetchWord, readByte }: InstructionContext) => this.#compare(r, readByte(fetchWord()))), // CPY/CPX addr
+    ...opcodeFamily("11r 011 00", { r: [semantics.cpyAbsolute, semantics.cpxAbsolute] }, ({ r: compare }) => (instruction: InstructionContext) => compare(this.#state, instruction)), // CPY/CPX addr
 
     // cc=00, bbb=100: ffv 100 00 selects a flag and the value required to branch.
     // ff (bits 7..6): 00 N, 01 V, 10 C, 11 Z.
@@ -215,7 +223,7 @@ export class Cpu6502 {
     ...instructionPattern("100 110 01", instruction => instruction.writeByte(this.#absoluteIndexed("y", instruction), this.#state.a)), // STA addr,Y
     ...instructionPattern("100 111 01", instruction => instruction.writeByte(this.#absoluteIndexed("x", instruction), this.#state.a)), // STA addr,X
     ...this.#accumulatorHandlers("101 bbb 01", value => this.#loadRegister("a", value)), // LDA
-    ...this.#accumulatorHandlers("110 bbb 01", value => this.#compare("a", value)), // CMP
+    ...opcodeFamily("110 bbb 01", { b: this.#comparisons }, ({ b: compare }) => (instruction: InstructionContext) => compare(this.#state, instruction)), // CMP
     ...this.#accumulatorHandlers("111 bbb 01", value => this.#subtractWithCarry(value)), // SBC
 
     // cc=10, bbb=000: aaa=101 selects LDX immediate.
@@ -225,7 +233,7 @@ export class Cpu6502 {
     // bbb=001/011/101/111 select zp/absolute/zp,X/absolute,X for these modifying operations.
     // STX/LDX occupy aaa=100/101 between those families and have their own indexing rules.
     // bbb=001: zero page.
-    ...this.#memoryShiftHandlers("0ss 001 10", ({ fetchByte }) => fetchByte()), // ASL/ROL/LSR/ROR zp
+    ...opcodeFamily("0ss 001 10", { s: this.#zeroPageShifts }, ({ s: shift }) => shift), // ASL/ROL/LSR/ROR zp
     ...instructionPattern("100 001 10", ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.x)), // STX zp
     ...instructionPattern("101 001 10", ({ fetchByte, readByte }) => this.#loadRegister("x", readByte(fetchByte()))), // LDX zp
     ...this.#memoryAdjustHandlers("11i 001 10", ({ fetchByte }) => fetchByte()), // DEC/INC zp
@@ -233,7 +241,7 @@ export class Cpu6502 {
     // bbb=010: 0ss shifts/rotates A; aaa=100..111 select TXA, TAX, DEX, NOP, not accumulator INC/DEC.
     ...opcodeFamily("0ss 010 10", { s: this.#shifts }, ({ s: modify }) => () => this.#loadRegister("a", modify(this.#state.a))), // ASL/ROL/LSR/ROR A
     ...instructionPattern("100 010 10", () => this.#loadRegister("a", this.#state.x)), // TXA
-    ...instructionPattern("101 010 10", () => this.#loadRegister("x", this.#state.a)), // TAX
+    ...instructionPattern("101 010 10", () => semantics.tax(this.#state)), // TAX
     ...instructionPattern("110 010 10", () => this.#adjustIndex("x", -1)), // DEX
     ...instructionPattern("111 010 10", () => {}), // NOP: step() advances PC; no further effects.
 
@@ -391,13 +399,6 @@ export class Cpu6502 {
 
   #setNegativeZero(value: number): void {
     Object.assign(this.#state.flags, negativeZero(8, value));
-  }
-
-  #compare(register: ByteRegister, value: number): void {
-    // CMP/CPX/CPY discard register - operand. C means no borrow; V and D are unaffected.
-    const { result, borrow } = subtract(8, this.#state[register], value);
-    this.#setNegativeZero(result);
-    this.#state.flags.c = !borrow;
   }
 
   #testBits(value: number): void {

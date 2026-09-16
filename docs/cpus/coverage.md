@@ -16,11 +16,11 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [312](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [271](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [269](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [385](../../src/components/cpus/6800.ts) | 197 / 197 | 100% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [449](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [659](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [598](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [450](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [661](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [608](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
 
@@ -40,7 +40,8 @@ an archived transcription of Microprocessor Report data.
 Source lines count the entire linked CPU implementation file, including
 comments and blank lines, using `wc -l`. Shared helpers, tests, and machine
 definitions are excluded, including the [8080/Z80 family core](../../src/components/cpus/8080-family.ts)
-and [Motorola operations](../../src/components/cpus/motorola.ts). A CPU row therefore
+and [Motorola operations](../../src/components/cpus/motorola.ts). Separate state
+schemas, authored semantics, and generated instruction bodies are also excluded. A CPU row therefore
 measures its own module rather than all the code it executes. These counts describe
 the current instruction-level models.
 

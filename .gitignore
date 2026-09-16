@@ -1,4 +1,5 @@
 node_modules/
 dist/
 src/machines/generated/
+src/components/cpus/generated/
 .DS_Store

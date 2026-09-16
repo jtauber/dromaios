@@ -89,12 +89,14 @@ npm test
 ```
 
 `npm ci` installs the locked development dependencies. `npm test` cleans generated
-output, generates factories from the [machine definitions](docs/machines/definitions.md),
+output, generates the bounded [CPU semantics](docs/cpus/instruction-semantics.md)
+and factories from the [machine definitions](docs/machines/definitions.md),
 checks the simulation without Node or browser ambient types, compiles the source,
 build script, and tests, and runs the compiled tests.
 `npm run build` performs the same checks and compilation without running tests.
-`npm run check:src` regenerates the machine factories and runs the simulation check
+`npm run check:src` regenerates both outputs and runs the simulation check
 using [tsconfig.src.json](tsconfig.src.json), without emitting JavaScript.
+`npm run generate:cpus` refreshes just the generated instruction bodies.
 `npm run generate:machines` refreshes just the generated TypeScript factories.
 
 For focused checks, select a CPU and optionally filter test names:

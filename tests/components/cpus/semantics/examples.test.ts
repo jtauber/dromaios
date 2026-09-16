@@ -79,5 +79,5 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionExamples), before);
   assert.equal(describeInstructions(instructionExamples), document);
-  assert.equal(instructionExamples.length, 15);
+  assert.equal(instructionExamples.length, 32);
 });

@@ -8,6 +8,7 @@ import type { OpcodeEntry } from "./opcodes.ts";
 export type OpcodeHandler = (instruction: InstructionContext) => void;
 export type ByteOperation = (value: number) => number;
 type ByteOperand = "b" | "c" | "d" | "e" | "h" | "l" | "(hl)" | "a";
+export type AluInstruction = (operand: ByteOperand | "immediate") => OpcodeHandler;
 export type WordOperand = RegisterPair | "sp" | "status";
 type Registers = Record<"a" | "b" | "c" | "d" | "e" | "h" | "l" | "pc" | "sp", number> & { halted: boolean };
 const instructionPattern = opcodePattern<OpcodeHandler>;
@@ -23,7 +24,7 @@ export abstract class Cpu8080Family<State extends Registers> {
   }
 
   // These hooks describe instruction differences, without imposing a common flag layout.
-  protected abstract readonly aluOperations: readonly ByteOperation[];
+  protected abstract readonly aluInstructions: readonly AluInstruction[];
   protected abstract readonly accumulatorOperations: readonly (() => void)[];
   protected abstract readonly conditions: readonly (() => boolean)[];
   protected abstract adjustByte(value: number, delta: -1 | 1): number;
@@ -88,8 +89,7 @@ export abstract class Cpu8080Family<State extends Registers> {
       ...opcodeFamily("01 ddd sss", { d: this.byteOperands, s: this.byteOperands }, ({ d: destination, s: source }) => this.#transferHandler(destination, source)), // MOV / LD; HLT / HALT
 
       // 10 ooo rrr: ooo selects ADD/ADC/SUB/SBC/AND/XOR/OR/CP; rrr selects B/C/D/E/H/L/(HL)/A.
-      ...opcodeFamily("10 ooo rrr", { o: this.aluOperations, r: this.byteOperands }, ({ o: operate, r: operand }) =>
-        (instruction: InstructionContext) => { this.state.a = operate(this.readOperand(operand, instruction)); }), // ALU r / ALU (HL)
+      ...opcodeFamily("10 ooo rrr", { o: this.aluInstructions, r: this.byteOperands }, ({ o: instruction, r: operand }) => instruction(operand)), // ALU r / ALU (HL)
 
       // 11 ccc 000: conditional returns read the stack only when the condition is true.
       ...opcodeFamily("11 ccc 000", { c: this.conditions }, ({ c: condition }) => ({ readByte }: InstructionContext) => this.stack.return(readByte, condition())), // RET cc
@@ -118,12 +118,19 @@ export abstract class Cpu8080Family<State extends Registers> {
       ...instructionPattern("11 00 1 101", ({ fetchWord, writeByte }) => this.stack.call(fetchWord(), writeByte)), // CALL nn
 
       // 11 ooo 110: the same ooo operations with an immediate byte instead of a register/memory selector.
-      ...opcodeFamily("11 ooo 110", { o: this.aluOperations }, ({ o: operate }) =>
-        ({ fetchByte }: InstructionContext) => { this.state.a = operate(fetchByte()); }), // ALU n
+      ...opcodeFamily("11 ooo 110", { o: this.aluInstructions }, ({ o: instruction }) => instruction("immediate")), // ALU n
 
       // 11 ttt 111: ttt selects the restart address 00,08,10,18,20,28,30,38; it is an ordinary call.
       ...opcodeFamily("11 ttt 111", { t: [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] }, ({ t: address }) => ({ writeByte }: InstructionContext) => this.stack.call(address, writeByte)), // RST p
     ];
+  }
+
+  /** Bind an ordinary accumulator operation; a comparison can instead supply a no-write body. */
+  protected accumulatorInstruction(operate: ByteOperation): AluInstruction {
+    return operand => instruction => {
+      const value = operand === "immediate" ? instruction.fetchByte() : this.readOperand(operand, instruction);
+      this.state.a = operate(value);
+    };
   }
 
   #transferHandler(destination: ByteOperand, source: ByteOperand): OpcodeHandler {

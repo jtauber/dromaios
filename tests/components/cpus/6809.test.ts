@@ -2689,25 +2689,26 @@ test("6809 implements all 268 documented forms and rejects all other encodings o
 test("6809 CMPX reads the updated indexed register only after both source bytes succeed", () => {
   const failure = new Error("source read failed");
   class FailingRam extends ObservedRam {
-    fail = false;
+    failAt: number | undefined;
     override read(address: number): number {
-      if (this.fail && address === 0x4001) throw failure;
+      if (address === this.failAt) throw failure;
       return super.read(address);
     }
   }
-  for (const fail of [false, true]) {
+  for (const failAt of [undefined, 0x4000, 0x4001]) {
     const ram = new FailingRam();
     const before = initialState({ x: 0x4000 });
     const bytes = [0xac, 0x81]; // CMPX ,X++ compares 4002 with the word at old X=4000.
     bytes.forEach((byte, offset) => ram.write(before.pc + offset, byte));
     ram.write(0x4000, 0x40); ram.write(0x4001, 2);
-    ram.accesses.length = 0; ram.fail = fail;
+    ram.accesses.length = 0; ram.failAt = failAt;
     const cpu = new Cpu6809(ram, before);
     const accesses = [...bytes.map((value, offset) => ({ kind: "read", address: before.pc + offset, value })),
-      { kind: "read", address: 0x4000, value: 0x40 }, ...(fail ? [] : [{ kind: "read", address: 0x4001, value: 2 }])];
+      ...(failAt === 0x4000 ? [] : [{ kind: "read", address: 0x4000, value: 0x40 }]),
+      ...(failAt === undefined ? [{ kind: "read", address: 0x4001, value: 2 }] : [])];
     const after = { ...before, x: 0x4002, pc: before.pc + 2,
-      flags: fail ? before.flags : { ...before.flags, n: false, z: true, v: false, c: false } };
-    if (fail) assert.throws(() => cpu.step(), error => error === failure);
+      flags: failAt !== undefined ? before.flags : { ...before.flags, n: false, z: true, v: false, c: false } };
+    if (failAt !== undefined) assert.throws(() => cpu.step(), error => error === failure);
     else assert.deepEqual(cpu.step(), { before: snapshotOf(before), after: snapshotOf(after), outcome: "executed",
       instruction: { address: before.pc, bytes }, accesses });
     assert.deepEqual(cpu.snapshot(), snapshotOf(after));

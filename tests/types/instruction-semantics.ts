@@ -2,6 +2,10 @@ import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
 import { cpuSymbols, literal, not, value, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
+import { instructions as generated6502 } from "../../src/components/cpus/generated/6502.js";
+import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
+import type { Cpu6502State } from "../../src/components/cpus/6502.js";
+import type { Cpu8080State } from "../../src/components/cpus/8080.js";
 
 // Compiled, never called: names come from CPU schemas; reads, expressions, and writes have distinct roles.
 export function checkInstructionSemantics(): void {
@@ -30,4 +34,16 @@ export function checkInstructionSemantics(): void {
     // @ts-expect-error Flag assignments require Boolean formulas.
     { flag: mos.flag("z"), value: literal(8, 0) },
   ] };
+}
+
+export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State): void {
+  generated6502.tax(mos);
+  generated6502.cmpImmediate(mos, { fetchByte: () => 0 });
+  generated8080.cmpB(intel);
+  // @ts-expect-error Generated handlers use the concrete CPU's stored-state type.
+  generated6502.cmpImmediate(intel, { fetchByte: () => 0 });
+  // @ts-expect-error ASL needs both memory callbacks as well as instruction fetching.
+  generated6502.aslZeroPage(mos, { fetchByte: () => 0 });
+  // @ts-expect-error Register comparison neither needs nor accepts a fetching capability.
+  generated8080.cmpB(intel, { fetchByte: () => 0 });
 }

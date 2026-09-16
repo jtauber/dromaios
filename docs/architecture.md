@@ -37,9 +37,10 @@ types are derived from those descriptions; snapshot views remain explicit TypeSc
 
 A bounded [instruction-semantics experiment](cpus/instruction-semantics.md) now
 represents comparisons and selected ordering cases as typed data, paired with
-prose. It validates those definitions and generates expanded explanations. CPU
-execution still uses the existing implementations; execution through these
-definitions awaits a separate review.
+prose. It validates those definitions and generates both expanded explanations
+and typed TypeScript bodies for selected 6502, 8080, and 6809 instructions. The
+CPU tables bind those bodies to their existing state and instruction contexts;
+decoding, recording, and lifecycle behavior remain in the current cores.
 
 The rule of three applies to these generalizations too. We will use the 8080,
 6502, and 6809 examples to discover useful common descriptions while preserving

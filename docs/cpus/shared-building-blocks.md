@@ -1314,6 +1314,13 @@ the language is worth adopting.
 
 ### 5. Execute one slice and produce a useful second output
 
+The [current executable experiment](instruction-semantics.md#executable-generation-and-integration)
+generates and binds comparison bodies across the three CPUs, plus TAX and
+zero-page ASL. It shares its definitions with the explanatory listing. The
+JSR and 68000 probes below remain requirements for later vocabulary; they are
+not yet represented by this byte/word slice. Whole-model migration remains a
+separate decision.
+
 Implement the representation on the bounded comparison slice across the three
 CPUs. Include at least one complete typed path from opcode mapping through
 register binding, operand resolution, calculation, flag application, and

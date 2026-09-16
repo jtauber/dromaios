@@ -1,3 +1,4 @@
+import { instructions as semantics } from "./generated/6809.ts";
 import type { Ram } from "../memory/ram.js";
 import { flagRegister } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, WaitingStep } from "./execution-records.ts";
@@ -8,23 +9,17 @@ import { modifyByte } from "./memory-operations.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
-import { defineState, copyState, readState, unsigned, flag, boolean, namedChoices, group } from "./state.ts";
-import type { StateValues, ReadonlyState } from "./state.js";
+import { copyState, readState } from "./state.ts";
+import { cpu6809StateDescription } from "./state/6809.ts";
+import type { Cpu6809State } from "./state/6809.ts";
+import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import { motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
 import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 
-/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
-export const cpu6809StateDescription = defineState({
-  a: unsigned(8), b: unsigned(8), dp: unsigned(8),
-  x: unsigned(16), y: unsigned(16), s: unsigned(16), u: unsigned(16), pc: unsigned(16),
-  waitMode: namedChoices("none", "sync", "cwai"), nmiArmed: boolean,
-  flags: group({ e: flag, f: flag, h: flag, i: flag, n: flag, z: flag, v: flag, c: flag }),
-});
-
-export type Cpu6809State = StateValues<typeof cpu6809StateDescription>;
-export type Cpu6809Flags = Cpu6809State["flags"];
+export { cpu6809StateDescription } from "./state/6809.ts";
+export type { Cpu6809State, Cpu6809Flags } from "./state/6809.ts";
 
 export type Cpu6809Snapshot = ReadonlyState<Cpu6809State> & {
   readonly d: number;
@@ -272,17 +267,24 @@ export class Cpu6809 {
 
     // 1 r 00 oooo: immediate A/B operations; word families occupy the remaining slots.
     ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r 00 ${bits}`,
-      { r: ["a", "b"] }, ({ r }) => ({ fetchByte }: InstructionContext) => apply(r, fetchByte()))),
+      { r: ["a", "b"] }, ({ r }): OpcodeHandler => bits === "0001"
+        ? instruction => ({ a: semantics.cmpaImmediate, b: semantics.cmpbImmediate })[r](this.#state, instruction)
+        : ({ fetchByte }) => apply(r, fetchByte()))), // oooo=0001: generated CMPA/B bodies.
     ...instructionPattern("1 0 00 1101", ({ fetchByte, writeByte }) => this.#call(this.#relativeAddress(signed8(fetchByte())), writeByte)), // BSR rel8
 
     // 1 r mm oooo: the same operation selectors with a resolved memory address.
     ...this.#memoryModes.flatMap(({ bits, address }) => this.#memoryAccumulatorHandlers(bits, address)),
 
-    // 1 r mm 0011: r=0 subtracts from D, r=1 adds to D. 10 mm 1100 compares X.
+    // 10 mm 1100: CMPX uses immediate/direct/indexed/extended sources for mm=00/01/10/11.
+    ...instructionPattern("10 00 1100", instruction => semantics.cmpxImmediate(this.#state, instruction)),
+    ...instructionPattern("10 01 1100", instruction => semantics.cmpxDirect(this.#state, instruction)),
+    ...instructionPattern("10 10 1100", instruction => this.#compareXIndexed(instruction)),
+    ...instructionPattern("10 11 1100", instruction => semantics.cmpxExtended(this.#state, instruction)),
+
+    // 1 r mm 0011: r=0 subtracts from D, r=1 adds to D.
     ...this.#wordHandlers([
       { bits: "10 mm 0011", apply: value => this.#wordArithmetic("subtract", "d", value) }, // SUBD
       { bits: "11 mm 0011", apply: value => this.#wordArithmetic("add", "d", value) }, // ADDD
-      { bits: "10 mm 1100", apply: value => this.#wordArithmetic("compare", "x", value) }, // CMPX
     ], [
       { bits: "11 mm 110", register: "d" }, // LDD / STD
       { bits: "10 mm 111", register: "x" }, // LDX / STX
@@ -348,9 +350,8 @@ export class Cpu6809 {
     return (this.#state.dp << 8) | offset;
   }
 
-  #indexedAddress(instruction: InstructionContext): number | undefined {
+  #indexedAddress(instruction: InstructionContext, postbyte = instruction.fetchByte()): number | undefined {
     const { fetchByte, fetchWord, readByte } = instruction;
-    const postbyte = fetchByte();
     // 0 rr nnnnn: rr=00 X, 01 Y, 10 U, 11 S; nnnnn is a signed five-bit offset.
     const register = (["x", "y", "u", "s"] as const)[(postbyte >>> 5) & 3]!;
     const base = this.#state[register];
@@ -396,6 +397,15 @@ export class Cpu6809 {
     // Modulo 65536 also interprets D and word offsets as two's-complement values.
     address &= 0xffff;
     return indirect ? this.#readWord(address, readByte) : address;
+  }
+
+  // Only postbyte 1 00 0 0001 (,X++) is represented in the executable semantics experiment.
+  #compareXIndexed(instruction: InstructionContext): "unsupported" | void {
+    const postbyte = instruction.fetchByte();
+    if (postbyte === 0b1_00_0_0001) return semantics.cmpxPostincrement(this.#state, instruction);
+    const address = this.#indexedAddress(instruction, postbyte);
+    if (address === undefined) return "unsupported";
+    this.#wordArithmetic("compare", "x", this.#readWord(address, instruction.readByte));
   }
 
   // Loads and stores.

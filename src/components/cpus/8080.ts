@@ -1,7 +1,8 @@
+import { instructions as semantics } from "./generated/8080.ts";
 import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
-import type { ByteOperation } from "./8080-family.ts";
+import type { AluInstruction, ByteOperation } from "./8080-family.ts";
 import { flagRegister, signZeroParity8 } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
@@ -14,22 +15,16 @@ import { recordMemory } from "./memory-access.ts";
 import { recordPorts } from "./port-access.ts";
 import type { BytePorts, PortAccess } from "./port-access.ts";
 import type { WordInstructionContext } from "./instruction-context.ts";
-import { defineState, copyState, readState, unsigned, flag, boolean, group } from "./state.ts";
-import type { StateValues, ReadonlyState } from "./state.js";
+import { copyState, readState } from "./state.ts";
+import { cpu8080StateDescription } from "./state/8080.ts";
+import type { Cpu8080State } from "./state/8080.ts";
+import type { ReadonlyState } from "./state.js";
 import { opcodeTable, opcodePattern } from "./opcodes.ts";
 import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
 
-/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
-export const cpu8080StateDescription = defineState({
-  a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
-  pc: unsigned(16), sp: unsigned(16),
-  flags: group({ s: flag, z: flag, ac: flag, p: flag, cy: flag }),
-  interruptEnabled: boolean, interruptDeferred: boolean, halted: boolean,
-});
-
-export type Cpu8080State = StateValues<typeof cpu8080StateDescription>;
-export type Cpu8080Flags = Cpu8080State["flags"];
+export { cpu8080StateDescription } from "./state/8080.ts";
+export type { Cpu8080State, Cpu8080Flags } from "./state/8080.ts";
 
 export type Cpu8080Snapshot = ReadonlyState<Cpu8080State> & {
   readonly bc: number;
@@ -172,15 +167,24 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
 
   // 10 ooo rrr and 11 ooo 110 share this three-bit ALU selector.
   // These closures read state at execution; CMP updates flags but retains A.
-  protected override readonly aluOperations: readonly ByteOperation[] = [
-    value => this.#add(value), // 000 ADD / ADI
-    value => this.#add(value, this.state.flags.cy ? 1 : 0), // 001 ADC / ACI
-    value => this.#subtract(value), // 010 SUB / SUI
-    value => this.#subtract(value, this.state.flags.cy ? 1 : 0), // 011 SBB / SBI
-    value => this.#and(value), // 100 ANA / ANI
-    value => this.#aluResult(this.state.a ^ value, false, false), // 101 XRA / XRI
-    value => this.#aluResult(this.state.a | value, false, false), // 110 ORA / ORI
-    value => this.#compare(value), // 111 CMP / CPI
+  protected override readonly aluInstructions: readonly AluInstruction[] = [
+    ...([
+      value => this.#add(value), // 000 ADD / ADI
+      value => this.#add(value, this.state.flags.cy ? 1 : 0), // 001 ADC / ACI
+      value => this.#subtract(value), // 010 SUB / SUI
+      value => this.#subtract(value, this.state.flags.cy ? 1 : 0), // 011 SBB / SBI
+      value => this.#and(value), // 100 ANA / ANI
+      value => this.#aluResult(this.state.a ^ value, false, false), // 101 XRA / XRI
+      value => this.#aluResult(this.state.a | value, false, false), // 110 ORA / ORI
+    ] satisfies readonly ByteOperation[]).map(operate => this.accumulatorInstruction(operate)),
+    // 111 CMP / CPI: generated bodies read their own source and never write A.
+    operand => {
+      const compare = {
+        b: semantics.cmpB, c: semantics.cmpC, d: semantics.cmpD, e: semantics.cmpE,
+        h: semantics.cmpH, l: semantics.cmpL, "(hl)": semantics.cmpM, a: semantics.cmpA, immediate: semantics.cpi,
+      }[operand];
+      return instruction => compare(this.state, instruction);
+    },
   ];
 
   // ccc = ff v: ff selects Z, CY, P, S; v is the required flag value (0 or 1).
@@ -228,12 +232,6 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
     const accumulator = this.state.a;
     // ANA clears CY; AC is bit 3 of A OR the operand.
     return this.#aluResult(accumulator & value, ((accumulator | value) & 0x08) !== 0, false);
-  }
-
-  #compare(value: number): number {
-    this.#subtract(value);
-    // Use subtraction's flags, but retain A as the ALU result.
-    return this.state.a;
   }
 
   protected override adjustByte(value: number, delta: -1 | 1): number {

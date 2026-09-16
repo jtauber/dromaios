@@ -1,11 +1,10 @@
 # Instruction semantics experiment
 
-This implements the representation review in
-[stage 4 of the shared-building-blocks proposal](shared-building-blocks.md#4-design-a-minimal-dsl-representation).
-It supplies typed definitions, validation, and a reproducible
-[expanded listing](semantic-examples.md). The eight CPU implementations and
-their execution interfaces are unchanged. There is **no interpreter, emulator
-code generator, opcode binding, or execution through these definitions yet**.
+This implements the bounded executable review in
+[stage 5 of the shared-building-blocks proposal](shared-building-blocks.md#5-execute-one-slice-and-produce-a-useful-second-output).
+Typed definitions drive validation, a reproducible [expanded listing](semantic-examples.md),
+and generated TypeScript instruction bodies used by the 6502, 8080, and 6809.
+The public execution interfaces and supported opcode inventories are unchanged.
 
 The experiment asks whether an instruction's meaning can be described clearly
 enough for execution and explanation to share one source. The authored
@@ -17,13 +16,17 @@ it does not choose an external grammar or a document format for authoring CPUs.
 
 | Definitions | What they challenge |
 | --- | --- |
-| 6502 CMP/CPX/CPY, immediate and absolute | Share subtraction without writeback; preserve V/D/I; C means no borrow |
-| 8080 CPI, CMP B, CMP M | Immediate, register, and memory sources; parity and inverse half-borrow |
-| 6809 CMPA/CMPB immediate, CMPX `,X++` | Byte/word widths; addressing changes the register that comparison subsequently reads |
+| 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
+| 8080 CPI and every CMP register/memory form | Immediate, register, and memory sources; parity and inverse half-borrow |
+| 6809 CMPA/CMPB immediate; CMPX immediate/direct/extended and `,X++` | Byte/word widths; addressing changes the register that comparison subsequently reads |
 | 6502 TAX and 8080 MOV B,A | Similar transfers with different flag effects |
 | 6502 ASL zero page | One resolved address, an original-value write, and two separate flag stages |
 
-These are fifteen illustrative bodies, not complete addressing-mode inventories.
+There are 32 bodies. All are generated and executable; 31 are bound into their
+CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
+hook for that one sample would complicate the shared 8080/Z80 transfer family.
+Other 6809 comparison addressing forms and other shift forms retain their
+existing shared helpers. This is not a complete CPU migration.
 Bodies start after opcode selection. `CMPX ,X++` starts after postbyte `81`
 has selected that particular form; decoding or rejecting other postbytes is
 not represented. The existing
@@ -96,8 +99,8 @@ listings are hexadecimal. There is no implicit truncation on a write.
 | `not(value)` | Boolean negation |
 
 Binary operands must have equal widths. These arithmetic meanings correspond
-to existing [ALU](../../src/components/cpus/alu.ts) contracts; the representation
-does not implement or evaluate them yet. The reporter uses explanatory spellings
+to existing [ALU](../../src/components/cpus/alu.ts) contracts; generated code
+uses those helpers for arithmetic facts and parity. The reporter uses explanatory spellings
 such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 
 | Statement | Ordered effect or capture |
@@ -113,12 +116,13 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 
 The current cores still own fetch-cursor behavior, PC commitment, access
 recording, exception handling, and instruction boundaries. In particular,
-`fetch-byte` does not assert one universal PC-update rule for all CPUs. A future
-execution binding must preserve each core's existing context contract. Word
+`fetch-byte` does not assert one universal PC-update rule for all CPUs. Generated
+bodies receive each core's existing callbacks, including interrupt-supplied
+fetching on the 8080. Word
 data reads in this slice are two explicit byte reads with visible ordering and
 address wrapping; no word-access primitive hides the partial-read boundary.
 
-Statements execute in their listed order under the proposed contract. A failed
+Statements execute in their listed order under this contract. A failed
 effect stops the body; prior completed effects remain. There is no implicit
 transaction or rollback. This describes the selected cores' existing host-error
 behavior. Hardware fault delivery and cycle timing are separate contracts.
@@ -134,13 +138,14 @@ that register read earlier would change the definition, not just its formatting.
 In ASL, the original-value write precedes any flag update. Doubling the byte
 modulo 256 describes the result; the original top bit supplies C. The result
 write separates the C policy from the N/Z policy. A reporter can locate each
-stage directly, and an eventual executor must preserve both writes even when
-their values are equal.
+stage directly. Generated code preserves both writes even when their values
+are equal, and leaves C committed if the final write fails.
 
-The 8080 comparison sample explicitly has no destination write. Its current
-ALU path returns A to a common assignment, producing an assignment of A to
-itself. Omitting that internal assignment retains the architectural behavior;
-the later integration must check the existing records and independent tests.
+The 8080 comparisons explicitly have no destination write. The shared 8080/Z80
+ALU table now binds complete instruction handlers; ordinary arithmetic still
+uses the shared operand-and-accumulator helper. The 8080 selects generated
+comparison bodies instead. Its old compare wrapper and redundant A assignment
+are removed; the Z80 keeps its existing arithmetic behavior.
 
 ## Validation and generated explanations
 
@@ -177,29 +182,69 @@ build does not silently rewrite this documentation.
 [Tests](../../tests/components/cpus/semantics) independently specify expected
 expansions and ordering, probe validation errors and ownership, and check
 reproducibility. [Type checks](../../tests/types/instruction-semantics.ts) cover
-schema-derived names and distinct operand roles. They test the representation
-and reporting, not execution or equivalence to the existing CPUs.
+schema-derived names, distinct operand roles, concrete generated CPU-state
+types, and the precise context capabilities each body needs. Execution tests
+cover all byte operand pairs against independent arithmetic, word boundaries,
+lexical scope isolation, source effects, and retained effects on failure. The
+existing CPU tests remain the independent opcode, record, and rejection baseline.
+
+## Executable generation and integration
+
+[generateInstructions](../../src/components/cpus/semantics/generate.ts) validates
+and freezes its input before emitting code. Generated methods take the concrete
+`Cpu6502State`, `Cpu8080State`, or `Cpu6809State` and only the callbacks their
+statements use, expressed as a `Pick<ByteInstructionContext, ...>`. Register-only
+bodies have no context parameter. There is no interpreter or semantic dispatch
+on the execution path.
+
+Captures become uniquely named constants. Source scopes are expanded inline,
+with separate name maps; only the result enters the caller's map. Policy
+arguments are captured once, then all flag results are computed before any flag
+assignment. No reads, writes, or policies move across one another. Widths select
+the existing ALU helper arguments and sign bits. Widening a known unsigned byte
+requires no JavaScript arithmetic. The output is deliberately unoptimized:
+repeated subtraction facts remain separate calls rather than introducing an
+optimization pass into this review.
+
+The [generation script](../../scripts/generate-cpu-semantics.ts) produces
+`src/components/cpus/generated/{6502,8080,6809}.ts`. These files are ignored build
+output and removed by `npm run clean`. Regenerate with `npm run generate:cpus`;
+`npm run build` generates these bodies and the machine factories automatically.
+The source-only check and ordinary compilation both type-check the generated
+bodies. Reproducibility tests compare every module with fresh output and run the
+native generator in a clean temporary tree from another working directory.
+
+The three CPU-owned state declarations now live under
+[`src/components/cpus/state/`](../../src/components/cpus/state), re-exported
+through their original CPU modules. This lets definitions and generation load
+schemas without importing execution or requiring generated files to exist.
+The machine parser imports those schemas directly too, so machine generation
+works independently of generated CPU output. There is still one authority for
+each CPU's stored fields.
+
+Opcode selection remains in the CPU tables. The 6502 binds the complete
+comparison families, TAX, and zero-page ASL. The 8080 binds all nine CMP/CPI forms.
+The 6809 binds immediate CMPA/B, three ordinary CMPX modes, and one indexed body:
+it fetches the postbyte once, selects generated `,X++` for `81`, and delegates
+other forms to its existing indexed decoder. Unsupported postbytes retain the
+same rejection behavior. Generated definitions do not silently claim the rest
+of that decoder.
 
 ## Decision and next review
 
-The representation adds machinery and duplicates a small set of instruction
-meanings during the experiment. No production instruction has been migrated,
-and this change claims no source reduction. The useful result so far is that
-operand order and CPU-specific flag formulas produce readable explanations
-without inspecting host callbacks. Review the authored definitions, validator,
-and reporter together with the output when judging that benefit.
+This slice demonstrates one meaning producing both executable code and an
+explanation. It **adds authored machinery overall**, including the generator,
+more explicit addressing sources, and integration bindings. Moving state
+schemas and producing ignored output is not source reduction. The 6502 and
+8080 handwritten comparison wrappers are removed, while shared arithmetic and
+addressing helpers still serve instructions outside the migration. Review the
+whole change, including definitions and generated output, rather than the CPU
+module line counts alone.
 
-For the next executable slice, prefer a small **TypeScript generator**. It can
-emit direct ordered statements and use existing arithmetic helpers, while
-keeping the result inspectable alongside its definition. Direct binding would
-need an adapter for each represented operation; interpretation would put that
-dispatch on the execution path. Generation fits the repository's existing build
-workflow. Keep it unoptimized initially and retain correspondence to definitions.
-
-That next slice must bind the actual CPU state/context types, preserve opcode
-selection and rejection behavior, and pass the existing independent comparison
-tests. It must also execute the indexed-read and ASL-write failure cases.
-Only after that evidence should migrated handwritten semantics be removed.
+The next decision is whether this extra structure earns its inspection benefit
+before expanding the vocabulary. Keep the comparison and failure probes as
+regressions. Improve definition readability where needed, then migrate another
+small coherent group; do not jump to a general CPU grammar or whole-model rewrite.
 
 General addressing decoders, register views, flag reads, branches, loops, stack
 bodies, instruction rejection, pending commits, and exception delivery are not
