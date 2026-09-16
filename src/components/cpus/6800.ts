@@ -4,27 +4,21 @@ import { flagRegister } from "./flags.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import { signed8, readWordBE } from "./binary.ts";
-import { modifyByte } from "./memory-operations.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
-import { defineState, copyState, readState, unsigned, flag, boolean, group } from "./state.ts";
-import type { StateValues, ReadonlyState } from "./state.js";
+import { copyState, readState } from "./state.ts";
+import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
-import { subtract, shiftLeft, shiftRight } from "./alu.ts";
-import type { ShiftResult } from "./alu.ts";
+import { motorolaUnaryOperations, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
+import { subtract } from "./alu.ts";
+import { instructions as semantics } from "./generated/6800.ts";
+import { cpu6800StateDescription } from "./state/6800.ts";
+import type { Cpu6800State } from "./state/6800.ts";
 
-/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
-export const cpu6800StateDescription = defineState({
-  a: unsigned(8), b: unsigned(8), x: unsigned(16), sp: unsigned(16), pc: unsigned(16),
-  flags: group({ h: flag, i: flag, n: flag, z: flag, v: flag, c: flag }),
-  waiting: boolean,
-});
-
-export type Cpu6800State = StateValues<typeof cpu6800StateDescription>;
-export type Cpu6800Flags = Cpu6800State["flags"];
+export { cpu6800StateDescription } from "./state/6800.ts";
+export type { Cpu6800State, Cpu6800Flags } from "./state/6800.ts";
 
 export type Cpu6800Snapshot = ReadonlyState<Cpu6800State>;
 
@@ -47,7 +41,6 @@ export type Cpu6800InterruptRecord = StateTransition<Cpu6800Snapshot> & { readon
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type Accumulator = "a" | "b";
 type WordRegister = "sp" | "x";
-type ByteOperation = (value: number) => number;
 type AddressReader = (instruction: InstructionContext) => number;
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
@@ -132,18 +125,8 @@ export class Cpu6800 {
   readonly #wordRegisters = ["sp", "x"] as const;
 
   // 01 tt oooo: tt=00 A, 01 B, 10 indexed, 11 extended; oooo selects the operation.
-  // TST (1101) only reads; CLR (1111) only writes. Neither needs a byte transform.
-  readonly #unaryOperations: readonly { bits: string; apply: ByteOperation }[] = [
-    { bits: "0000", apply: value => this.#alu.subtract(0, value) }, // NEG
-    { bits: "0011", apply: value => this.#alu.complement(value) }, // COM
-    { bits: "0100", apply: value => this.#shiftResult(shiftRight(8, value, 0)) }, // LSR
-    { bits: "0110", apply: value => this.#shiftResult(shiftRight(8, value, this.#state.flags.c ? 1 : 0)) }, // ROR
-    { bits: "0111", apply: value => this.#shiftResult(shiftRight(8, value, value >= 0x80 ? 1 : 0)) }, // ASR
-    { bits: "1000", apply: value => this.#shiftResult(shiftLeft(8, value, 0)) }, // ASL
-    { bits: "1001", apply: value => this.#shiftResult(shiftLeft(8, value, this.#state.flags.c ? 1 : 0)) }, // ROL
-    { bits: "1010", apply: value => this.#alu.adjust(value, -1) }, // DEC
-    { bits: "1100", apply: value => this.#alu.adjust(value, 1) }, // INC
-  ];
+  // TST (1101) only reads; CLR (1111) only writes. JMP (1110) remains separate.
+  static readonly #unaryOperations = motorolaUnaryOperations(semantics);
 
   // 1 r mm oooo shares the 6809's byte operations; word operations and stores remain below.
   readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
@@ -199,10 +182,8 @@ export class Cpu6800 {
     ...instructionPattern("0011111 1", instruction => this.#enterInterrupt(0xfffa, instruction)), // SWI
 
     // 010 r oooo (tt=00/01): r selects A=0/B=1. 1110 is unused here.
-    ...this.#unaryOperations.flatMap(({ bits, apply }) => opcodeFamily(`010 r ${bits}`,
-      { r: ["a", "b"] }, ({ r }) => () => { this.#state[r] = apply(this.#state[r]); })),
-    ...opcodeFamily("010 r 1101", { r: ["a", "b"] }, ({ r }) => () => this.#test(this.#state[r])), // TSTA / TSTB
-    ...opcodeFamily("010 r 1111", { r: ["a", "b"] }, ({ r }) => () => { this.#state[r] = this.#alu.clear(); }), // CLRA / CLRB
+    ...Cpu6800.#unaryOperations.flatMap(({ bits, registers }) => opcodeFamily(`010 r ${bits}`,
+      { r: registers }, ({ r: execute }) => () => execute(this.#state))),
 
     // 011 m oooo (tt=10/11): m selects indexed=0/extended=1; JMP (1110) uses the address without reading data.
     ...this.#memoryUnaryHandlers("0110", ({ fetchByte }) => this.#indexedAddress(fetchByte())),
@@ -241,11 +222,9 @@ export class Cpu6800 {
 
   #memoryUnaryHandlers(prefix: "0110" | "0111", address: AddressReader): readonly OpcodeEntry<OpcodeHandler>[] {
     return [
-      ...this.#unaryOperations.flatMap(({ bits, apply }) => instructionPattern(`${prefix} ${bits}`,
-        instruction => modifyByte(address(instruction), apply, instruction))),
-      ...instructionPattern(`${prefix} 1101`, instruction => this.#test(instruction.readByte(address(instruction)))), // TST
+      ...Cpu6800.#unaryOperations.flatMap(({ bits, memory }) => instructionPattern(`${prefix} ${bits}`,
+        instruction => memory(this.#state, address(instruction), instruction))),
       ...instructionPattern(`${prefix} 1110`, instruction => { this.#state.pc = address(instruction); }), // JMP
-      ...instructionPattern(`${prefix} 1111`, instruction => instruction.writeByte(address(instruction), this.#alu.clear())), // CLR
     ];
   }
 
@@ -361,18 +340,6 @@ export class Cpu6800 {
     this.#state.flags.n = (result & 0x80) !== 0;
     this.#state.flags.z = this.#state.x === value;
     this.#state.flags.v = overflow;
-  }
-
-  #shiftResult(shifted: ShiftResult): number {
-    const result = this.#alu.shift(shifted);
-    // Every 6800 shift/rotate sets V=N XOR C; the 6809's right shifts preserve V.
-    this.#state.flags.v = this.#state.flags.n !== this.#state.flags.c;
-    return result;
-  }
-
-  #test(value: number): void {
-    this.#alu.test(value);
-    this.#state.flags.c = false; // Unlike 6809 TST, 6800 TST clears C.
   }
 
   // Memory operations.

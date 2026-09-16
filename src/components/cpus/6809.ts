@@ -14,7 +14,7 @@ import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
 import { add, subtract } from "./alu.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
@@ -165,19 +165,7 @@ export class Cpu6809 {
   // 0110 oooo = indexed, 0111 oooo = extended. r=0 selects A, r=1 selects B.
   // Generated register bodies are in A/B selector order; memory bodies receive one resolved address.
   // TST (1101) never writes. JMP (1110) changes PC and stays outside this inventory.
-  static readonly #unaryOperations = [
-    { bits: "0000", registers: [semantics.negA, semantics.negB], memory: semantics.negMemory }, // NEG
-    { bits: "0011", registers: [semantics.comA, semantics.comB], memory: semantics.comMemory }, // COM
-    { bits: "0100", registers: [semantics.lsrA, semantics.lsrB], memory: semantics.lsrMemory }, // LSR
-    { bits: "0110", registers: [semantics.rorA, semantics.rorB], memory: semantics.rorMemory }, // ROR
-    { bits: "0111", registers: [semantics.asrA, semantics.asrB], memory: semantics.asrMemory }, // ASR
-    { bits: "1000", registers: [semantics.aslA, semantics.aslB], memory: semantics.aslMemory }, // ASL (LSL)
-    { bits: "1001", registers: [semantics.rolA, semantics.rolB], memory: semantics.rolMemory }, // ROL
-    { bits: "1010", registers: [semantics.decA, semantics.decB], memory: semantics.decMemory }, // DEC
-    { bits: "1100", registers: [semantics.incA, semantics.incB], memory: semantics.incMemory }, // INC
-    { bits: "1101", registers: [semantics.tstA, semantics.tstB], memory: semantics.tstMemory }, // TST
-    { bits: "1111", registers: [semantics.clrA, semantics.clrB], memory: semantics.clrMemory }, // CLR
-  ] as const;
+  static readonly #unaryOperations = motorolaUnaryOperations(semantics);
 
   // 1 r mm oooo: r selects A/B; mm=00 immediate, 01 direct, 10 indexed, 11 extended.
   // Byte operations are shared with the 6800; word operations and stores remain below.

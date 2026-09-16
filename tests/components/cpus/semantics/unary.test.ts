@@ -4,6 +4,8 @@ import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/6502.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
+import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
+import type { Cpu6800State } from "../../../../src/components/cpus/state/6800.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
@@ -110,6 +112,44 @@ test("6809 unary bodies read once, apply only their declared flags in order, and
     assert.deepEqual(events, [target === "Memory" ? "read memory" : `read ${register}`,
       ...updates.map(([flag, value]) => `flags.${flag}=${Number(value)}`),
       ...(name === "tst" ? [] : [`${target === "Memory" ? "memory" : register}=${result}`])]);
+    assert.deepEqual(state.flags, { ...beforeFlags, ...Object.fromEntries(updates) });
+    assert.equal(state.a, target === "A" ? result : original);
+    assert.equal(state.b, target === "B" ? result : original);
+    assert.equal(memory, target === "Memory" ? result : original);
+  }
+});
+
+test("6800 unary bodies retain their flag order, clear TST carry, and never read a CLR destination", () => {
+  // Literal expectations include right-shift overflow and unchanged zero writes.
+  for (const [name, original, result, updates] of [
+    ["neg", 0x80, 0x80, [["n", true], ["z", false], ["v", true], ["c", true]]],
+    ["com", 0xaa, 0x55, [["n", false], ["z", false], ["v", false], ["c", true]]],
+    ["lsr", 1, 0, [["n", false], ["z", true], ["c", true], ["v", true]]],
+    ["ror", 1, 0x80, [["n", true], ["z", false], ["c", true], ["v", false]]],
+    ["asr", 0x80, 0xc0, [["n", true], ["z", false], ["c", false], ["v", true]]],
+    ["asl", 0x40, 0x80, [["n", true], ["z", false], ["c", false], ["v", true]]],
+    ["rol", 0x80, 1, [["n", false], ["z", false], ["c", true], ["v", true]]],
+    ["inc", 0x7f, 0x80, [["n", true], ["z", false], ["v", true]]],
+    ["dec", 0x80, 0x7f, [["n", false], ["z", false], ["v", true]]],
+    ["tst", 0x80, 0x80, [["n", true], ["z", false], ["v", false], ["c", false]]],
+    ["clr", 0, 0, [["n", false], ["z", true], ["c", false], ["v", false]]],
+  ] as const) for (const target of ["A", "B", "Memory"] as const) {
+    const events: string[] = [], beforeFlags = { h: true, i: true, n: false, z: true, v: false, c: true };
+    const state: Cpu6800State = { a: original, b: original, x: 0, sp: 0, pc: 0, waiting: false,
+      flags: observe({ ...beforeFlags }, events, "flags.") };
+    const observed = observe(state, events), register = target === "A" ? "a" : "b";
+    let memory: number = original;
+    if (target === "Memory") motorola6800[`${name}Memory`](observed, 0xffff, {
+      readByte(address) { assert.equal(address, 0xffff); events.push("read memory"); return memory; },
+      writeByte(address, byte) { assert.equal(address, 0xffff); events.push(`memory=${byte}`); memory = byte; },
+    });
+    else motorola6800[`${name}${target}`](observed);
+    assert.deepEqual(events, [
+      ...(name === "clr" ? [] : [target === "Memory" ? "read memory" : `read ${register}`]),
+      ...(name === "ror" || name === "rol" ? ["read flags.c"] : []),
+      ...updates.map(([flag, value]) => `flags.${flag}=${Number(value)}`),
+      ...(name === "tst" ? [] : [`${target === "Memory" ? "memory" : register}=${result}`]),
+    ]);
     assert.deepEqual(state.flags, { ...beforeFlags, ...Object.fromEntries(updates) });
     assert.equal(state.a, target === "A" ? result : original);
     assert.equal(state.b, target === "B" ? result : original);

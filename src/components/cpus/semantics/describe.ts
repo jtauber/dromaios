@@ -81,7 +81,7 @@ validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
 Bodies begin after opcode selection. The indexed 6809 comparison sample also
-begins after postbyte selection; memory shifts receive a resolved address from
+begins after postbyte selection; Motorola memory unary bodies receive a resolved address from
 the existing decoder. Declared inputs are captured before entry. Statements are
 ordered. Captures are immutable; a source
 block has its own scope. All expressions in one flag update are evaluated before

@@ -8,7 +8,7 @@ validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
 Bodies begin after opcode selection. The indexed 6809 comparison sample also
-begins after postbyte selection; memory shifts receive a resolved address from
+begins after postbyte selection; Motorola memory unary bodies receive a resolved address from
 the existing decoder. Declared inputs are captured before entry. Statements are
 ordered. Captures are immutable; a source
 block has its own scope. All expressions in one flag update are evaluated before
@@ -1598,6 +1598,605 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I, C.
 
+### 6800 NEGA
+
+Capture A. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read A
+result := subtract(00:u8, original)
+flags "6800 NEG" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(00:u8, original)
+  C := borrow(00:u8, original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 NEGB
+
+Capture B. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read B
+result := subtract(00:u8, original)
+flags "6800 NEG" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(00:u8, original)
+  C := borrow(00:u8, original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 NEG memory
+
+Entry is after successful address resolution. Read the byte at that captured address. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := subtract(00:u8, original)
+flags "6800 NEG" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(00:u8, original)
+  C := borrow(00:u8, original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 COMA
+
+Capture A. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read A
+result := subtract(FF:u8, original)
+flags "6800 COM" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 1:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 COMB
+
+Capture B. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read B
+result := subtract(FF:u8, original)
+flags "6800 COM" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 1:flag
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 COM memory
+
+Entry is after successful address resolution. Read the byte at that captured address. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := subtract(FF:u8, original)
+flags "6800 COM" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 1:flag
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 LSRA
+
+Capture A. Shift right, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftRight(original, 0:flag)
+flags "6800 LSR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 LSRB
+
+Capture B. Shift right, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read B
+result := shiftRight(original, 0:flag)
+flags "6800 LSR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 LSR memory
+
+Entry is after successful address resolution. Read the byte at that captured address. Shift right, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := shiftRight(original, 0:flag)
+flags "6800 LSR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 RORA
+
+Capture A. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6800 ROR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 RORB
+
+Capture B. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read B
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6800 ROR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ROR memory
+
+Entry is after successful address resolution. Read the byte at that captured address. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6800 ROR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASRA
+
+Capture A. Shift right, inserting the original sign bit. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftRight(original, topBit(original))
+flags "6800 ASR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASRB
+
+Capture B. Shift right, inserting the original sign bit. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read B
+result := shiftRight(original, topBit(original))
+flags "6800 ASR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASR memory
+
+Entry is after successful address resolution. Read the byte at that captured address. Shift right, inserting the original sign bit. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := shiftRight(original, topBit(original))
+flags "6800 ASR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+  V := xor(topBit(result), lowBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASLA
+
+Capture A. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftLeft(original, 0:flag)
+flags "6800 ASL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASLB
+
+Capture B. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read B
+result := shiftLeft(original, 0:flag)
+flags "6800 ASL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ASL memory
+
+Entry is after successful address resolution. Read the byte at that captured address. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := shiftLeft(original, 0:flag)
+flags "6800 ASL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ROLA
+
+Capture A. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6800 ROL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ROLB
+
+Capture B. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read B
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6800 ROL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ROL memory
+
+Entry is after successful address resolution. Read the byte at that captured address. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6800 ROL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 DECA
+
+Capture A. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read A
+result := subtract(original, 01:u8)
+flags "6800 DEC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 80:u8))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 DECB
+
+Capture B. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read B
+result := subtract(original, 01:u8)
+flags "6800 DEC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 80:u8))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 DEC memory
+
+Entry is after successful address resolution. Read the byte at that captured address. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := subtract(original, 01:u8)
+flags "6800 DEC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 80:u8))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 INCA
+
+Capture A. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read A
+result := addWrap(original, 01:u8)
+flags "6800 INC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 7F:u8))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 INCB
+
+Capture B. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+original:u8 := read B
+result := addWrap(original, 01:u8)
+flags "6800 INC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 7F:u8))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 INC memory
+
+Entry is after successful address resolution. Read the byte at that captured address. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := addWrap(original, 01:u8)
+flags "6800 INC" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := isZero(subtract(original, 7F:u8))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 TSTA
+
+Capture A. Test the original byte, clearing V. Clear C. Apply the declared flags, preserving unlisted flags. Do not write a result. No data-memory access occurs.
+
+```text
+original:u8 := read A
+result := original
+flags "6800 TST" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 TSTB
+
+Capture B. Test the original byte, clearing V. Clear C. Apply the declared flags, preserving unlisted flags. Do not write a result. No data-memory access occurs.
+
+```text
+original:u8 := read B
+result := original
+flags "6800 TST" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 TST memory
+
+Entry is after successful address resolution. Read the byte at that captured address. Test the original byte, clearing V. Clear C. Apply the declared flags, preserving unlisted flags. Do not write a result. A failed read preserves flags and completed addressing effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := original
+flags "6800 TST" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 CLRA
+
+Do not read the destination. Clear the byte. Set Z; clear N/C/V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+result := 00:u8
+flags "6800 CLR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := 0:flag
+  V := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 CLRB
+
+Do not read the destination. Clear the byte. Set Z; clear N/C/V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
+
+```text
+result := 00:u8
+flags "6800 CLR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := 0:flag
+  V := 0:flag
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 CLR memory
+
+Entry is after successful address resolution. Do not read the destination. Clear the byte. Set Z; clear N/C/V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed write retains their updates and completed addressing effects.
+
+```text
+address:u16 := input
+result := 00:u8
+flags "6800 CLR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := 0:flag
+  V := 0:flag
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: H, I.
+
 ### 8080 RLC
 
 Capture A and rotate left, inserting the outgoing bit. Write A before replacing CY with the outgoing bit. Preserve S, Z, AC, and P; no data-memory access occurs.
@@ -1876,7 +2475,7 @@ Flags preserved throughout: S, Z, AC, P, CY.
 
 ### 6809 NEGA
 
-Capture A. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture A. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -1894,7 +2493,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 NEGB
 
-Capture B. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture B. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -1912,7 +2511,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 NEG memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+Entry is after successful address resolution. Read the byte at that captured address. Negate the byte modulo 256. V marks original 80; C marks a nonzero original. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
 
 ```text
 address:u16 := input
@@ -1931,7 +2530,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 COMA
 
-Capture A. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture A. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -1949,7 +2548,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 COMB
 
-Capture B. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture B. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -1967,7 +2566,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 COM memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+Entry is after successful address resolution. Read the byte at that captured address. Take the byte's ones' complement: FF minus the original. Clear V and set C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
 
 ```text
 address:u16 := input
@@ -1986,7 +2585,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 LSRA
 
-Capture A. Shift right, inserting zero. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture A. Shift right, inserting zero. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -2003,7 +2602,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 LSRB
 
-Capture B. Shift right, inserting zero. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture B. Shift right, inserting zero. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -2020,7 +2619,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 LSR memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Shift right, inserting zero. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+Entry is after successful address resolution. Read the byte at that captured address. Shift right, inserting zero. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
 
 ```text
 address:u16 := input
@@ -2038,7 +2637,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 RORA
 
-Capture A. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture A. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -2056,7 +2655,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 RORB
 
-Capture B. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture B. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -2074,7 +2673,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 ROR memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+Entry is after successful address resolution. Read the byte at that captured address. Shift right, inserting the captured incoming C. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
 
 ```text
 address:u16 := input
@@ -2093,7 +2692,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 ASRA
 
-Capture A. Shift right, inserting the original sign bit. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture A. Shift right, inserting the original sign bit. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -2110,7 +2709,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 ASRB
 
-Capture B. Shift right, inserting the original sign bit. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture B. Shift right, inserting the original sign bit. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -2127,7 +2726,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 ASR memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Shift right, inserting the original sign bit. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+Entry is after successful address resolution. Read the byte at that captured address. Shift right, inserting the original sign bit. Set C from the outgoing bit. Preserve V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
 
 ```text
 address:u16 := input
@@ -2145,7 +2744,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 ASLA
 
-Capture A. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture A. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -2163,7 +2762,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 ASLB
 
-Capture B. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture B. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -2181,7 +2780,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 ASL memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+Entry is after successful address resolution. Read the byte at that captured address. Shift left, inserting zero. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
 
 ```text
 address:u16 := input
@@ -2200,7 +2799,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 ROLA
 
-Capture A. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture A. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -2219,7 +2818,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 ROLB
 
-Capture B. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture B. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -2238,7 +2837,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 ROL memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+Entry is after successful address resolution. Read the byte at that captured address. Shift left, inserting the captured incoming C. Set C from the outgoing bit. Set V to N XOR C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
 
 ```text
 address:u16 := input
@@ -2258,7 +2857,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 DECA
 
-Capture A. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture A. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -2275,7 +2874,7 @@ Flags preserved throughout: E, F, H, I, C.
 
 ### 6809 DECB
 
-Capture B. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture B. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -2292,7 +2891,7 @@ Flags preserved throughout: E, F, H, I, C.
 
 ### 6809 DEC memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+Entry is after successful address resolution. Read the byte at that captured address. Decrement modulo 256. V marks original 80; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
 
 ```text
 address:u16 := input
@@ -2310,7 +2909,7 @@ Flags preserved throughout: E, F, H, I, C.
 
 ### 6809 INCA
 
-Capture A. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture A. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -2327,7 +2926,7 @@ Flags preserved throughout: E, F, H, I, C.
 
 ### 6809 INCB
 
-Capture B. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture B. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -2344,7 +2943,7 @@ Flags preserved throughout: E, F, H, I, C.
 
 ### 6809 INC memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+Entry is after successful address resolution. Read the byte at that captured address. Increment modulo 256. V marks original 7F; preserve C. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
 
 ```text
 address:u16 := input
@@ -2362,7 +2961,7 @@ Flags preserved throughout: E, F, H, I, C.
 
 ### 6809 TSTA
 
-Capture A. Test the original byte, clearing V and preserving C. Apply the declared flags, preserving E/F/H/I. Do not write a result. No data-memory access occurs.
+Capture A. Test the original byte, clearing V. Preserve C. Apply the declared flags, preserving unlisted flags. Do not write a result. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -2378,7 +2977,7 @@ Flags preserved throughout: E, F, H, I, C.
 
 ### 6809 TSTB
 
-Capture B. Test the original byte, clearing V and preserving C. Apply the declared flags, preserving E/F/H/I. Do not write a result. No data-memory access occurs.
+Capture B. Test the original byte, clearing V. Preserve C. Apply the declared flags, preserving unlisted flags. Do not write a result. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -2394,7 +2993,7 @@ Flags preserved throughout: E, F, H, I, C.
 
 ### 6809 TST memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Test the original byte, clearing V and preserving C. Apply the declared flags, preserving E/F/H/I. Do not write a result. A failed read preserves flags and completed addressing effects.
+Entry is after successful address resolution. Read the byte at that captured address. Test the original byte, clearing V. Preserve C. Apply the declared flags, preserving unlisted flags. Do not write a result. A failed read preserves flags and completed addressing effects.
 
 ```text
 address:u16 := input
@@ -2411,7 +3010,7 @@ Flags preserved throughout: E, F, H, I, C.
 
 ### 6809 CLRA
 
-Capture A. Clear the byte. Set Z; clear N/C/V. The original read still occurs. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture A. Clear the byte. Set Z; clear N/C/V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -2429,7 +3028,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CLRB
 
-Capture B. Clear the byte. Set Z; clear N/C/V. The original read still occurs. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. No data-memory access occurs.
+Capture B. Clear the byte. Set Z; clear N/C/V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -2447,7 +3046,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CLR memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Clear the byte. Set Z; clear N/C/V. The original read still occurs. Apply the declared flags, preserving E/F/H/I. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
+Entry is after successful address resolution. Read the byte at that captured address. Clear the byte. Set Z; clear N/C/V. Apply the declared flags, preserving unlisted flags. Then write the result once, even if unchanged. A failed read preserves flags and completed addressing effects. A failed write retains their updates and completed addressing effects.
 
 ```text
 address:u16 := input

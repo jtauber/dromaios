@@ -33,21 +33,13 @@ test("the shared Motorola ALU reads flags only during execution and follows repl
   assert.equal(reads, 2);
 });
 
-test("Motorola byte operations preserve unspecified flags and leave CPU-specific V/C rules to callers", () => {
+test("Motorola byte and word result flags preserve carry and control flags", () => {
   const flags = { h: true, n: false, z: true, v: true, c: true, i: true };
   const alu = motorolaByteAlu(() => flags);
-  assert.equal(alu.adjust(0x7f, 1), 0x80);
-  assert.deepEqual(flags, { h: true, n: true, z: false, v: true, c: true, i: true });
-  assert.equal(alu.adjust(0x80, -1), 0x7f);
-  assert.equal(flags.v, true);
-  assert.equal(alu.shift({ result: 0, carry: false }), 0);
-  assert.deepEqual(flags, { h: true, n: false, z: true, v: true, c: false, i: true });
-  assert.equal(alu.complement(0), 0xff);
+  alu.test(0x80);
   assert.deepEqual(flags, { h: true, n: true, z: false, v: false, c: true, i: true });
   alu.test(0x80, 16);
   assert.deepEqual(flags, { h: true, n: false, z: false, v: false, c: true, i: true });
-  assert.equal(alu.clear(), 0);
-  assert.deepEqual(flags, { h: true, n: false, z: true, v: false, c: false, i: true });
 });
 
 test("shared Motorola accumulator operations bind lazily and read current registers and restored carry", () => {

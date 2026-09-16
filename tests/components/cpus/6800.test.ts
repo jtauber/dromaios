@@ -1570,6 +1570,42 @@ for (const { name, opcodes: [, , indexed, extended] } of unaryForms) {
   });
 }
 
+test("6800 unary failures retain completed fetches and apply flags only after the required operand read", () => {
+  const failure = new Error("unary access failure");
+  class FaultRam extends ObservedRam {
+    failAt = -1; attempts = 0;
+    override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
+    override write(address: number, value: number): void { if (this.attempts++ === this.failAt) throw failure; super.write(address, value); }
+  }
+  for (const { name, opcodes: [, , indexed, extended] } of unaryForms) {
+    for (const bytes of [[indexed, 0xff], [extended, 0, 0x80]]) for (const bits of [0, 63]) {
+      const before = initialState({ pc: 0xffff, x: 0xff81, flags: flags(bits) });
+      const expected = unaryResult(name, 0x80, before.flags), readsOperand = name !== "CLR", writesResult = name !== "TST";
+      const accesses = [
+        ...bytes.map((value, offset) => ({ kind: "read", address: (before.pc + offset) % 65536, value })),
+        ...(readsOperand ? [{ kind: "read", address: 0x80, value: 0x80 }] : []),
+        ...(writesResult ? [{ kind: "write", address: 0x80, value: expected.result }] : []),
+      ];
+      for (let failAt = -1; failAt < accesses.length; failAt++) {
+        const ram = new FaultRam();
+        bytes.forEach((value, offset) => ram.write((before.pc + offset) % 65536, value));
+        ram.write(0x80, 0x80);
+        const cpu = new Cpu6800(ram, before);
+        ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
+        const completed = failAt < 0 ? accesses.length : failAt;
+        const after = { ...before, pc: (before.pc + Math.min(completed, bytes.length)) % 65536,
+          flags: completed >= bytes.length + Number(readsOperand) ? expected.flags : before.flags };
+        if (failAt < 0) assert.deepEqual(cpu.step(), { before, after, instruction: { address: before.pc, bytes }, accesses, outcome: "executed" });
+        else assert.throws(() => cpu.step(), error => error === failure);
+        assert.deepEqual(cpu.snapshot(), after, `${name}, bytes=${bytes}, failAt=${failAt}`);
+        assert.deepEqual(ram.accesses, accesses.slice(0, completed));
+        ram.failAt = -1;
+        assert.equal(ram.read(0x80), writesResult && failAt < 0 ? expected.result : 0x80);
+      }
+    }
+  }
+});
+
 test("6800 unary steps read current data and retain independent records across resumption, edits, and reset", () => {
   const ram = new ObservedRam();
   const bytes = [0x64, 0x80, 0x76, 0, 0, 0x7d, 0, 0, 0x6f, 0x80]; // LSR, ROR, TST, CLR at 0000

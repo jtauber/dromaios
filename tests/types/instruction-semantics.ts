@@ -5,6 +5,8 @@ import type { FlagPolicy, NumberExpression, Statement } from "../../src/componen
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
 import { instructions as generated6809 } from "../../src/components/cpus/generated/6809.js";
+import { instructions as generated6800 } from "../../src/components/cpus/generated/6800.js";
+import type { Cpu6800State } from "../../src/components/cpus/6800.js";
 import type { Cpu6502State } from "../../src/components/cpus/6502.js";
 import type { Cpu8080State } from "../../src/components/cpus/8080.js";
 import type { Cpu6809State } from "../../src/components/cpus/6809.js";
@@ -49,7 +51,7 @@ export function checkInstructionSemantics(): void {
   ] };
 }
 
-export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State, motorola: Cpu6809State): void {
+export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State, motorola: Cpu6809State, m6800: Cpu6800State): void {
   const readers = sourceReaders(mos);
   const address: number = readers.addresses.absoluteX({ fetchByte: () => 0 });
   const byte: number = readers.operands[3]({ fetchByte: () => 0, readByte: () => 0 });
@@ -74,6 +76,13 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6809.tstMemory(motorola, 0xffff, { readByte: () => 0 });
   generated6809.clrMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   generated6809.negA(motorola);
+  generated6800.clrA(m6800);
+  generated6800.clrMemory(m6800, 0xffff, { writeByte: () => {} });
+  generated6800.tstMemory(m6800, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error The original 6800 CLR has no read capability.
+  generated6800.clrMemory(m6800, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Generated 6800 bodies retain the 6800 state type.
+  generated6800.clrA(motorola);
   // @ts-expect-error TST has no write capability.
   generated6809.tstMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error The original 6809 CLR reads its operand even though the result is constant.

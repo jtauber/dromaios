@@ -1,6 +1,7 @@
 import { add, subtract } from "./alu.ts";
 import { negativeZero } from "./flags.ts";
-import type { ArithmeticWidth, AdditionResult, SubtractionResult, ShiftResult } from "./alu.ts";
+import type { ArithmeticWidth, AdditionResult, SubtractionResult } from "./alu.ts";
+import type { ByteMemory } from "./memory-access.ts";
 
 interface ConditionCodes { n: boolean; z: boolean; v: boolean; c: boolean }
 type Condition = (flags: Readonly<ConditionCodes>) => boolean;
@@ -55,37 +56,33 @@ export function motorolaByteAlu(readFlags: () => ConditionCodes & { h: boolean }
       flags.c = flags.c || carry;
       return result;
     },
-    complement(value: number): number {
-      const flags = readFlags(), result = value ^ 0xff;
-      Object.assign(flags, negativeZero(8, result));
-      flags.v = false;
-      flags.c = true;
-      return result;
-    },
-    adjust(value: number, delta: -1 | 1): number {
-      const flags = readFlags(), result = (value + delta) & 0xff;
-      Object.assign(flags, negativeZero(8, result));
-      flags.v = value === (delta === 1 ? 0x7f : 0x80);
-      return result;
-    },
-    shift({ result, carry }: ShiftResult): number {
-      const flags = readFlags();
-      Object.assign(flags, negativeZero(8, result));
-      flags.c = carry;
-      return result; // V is preserved here; each CPU selects the instructions that replace it.
-    },
     test(value: number, width: 8 | 16 = 8): void {
       const flags = readFlags();
       Object.assign(flags, negativeZero(width, value));
-      flags.v = false; // 6800 TST additionally clears C; 6809 TST preserves it.
-    },
-    clear(): number {
-      const flags = readFlags();
-      Object.assign(flags, negativeZero(8, 0));
-      flags.v = flags.c = false;
-      return 0;
+      flags.v = false;
     },
   };
+}
+
+type UnaryName = "neg" | "com" | "lsr" | "ror" | "asr" | "asl" | "rol" | "dec" | "inc" | "tst" | "clr";
+type UnaryBodies<State> = Readonly<Record<`${UnaryName}${"A" | "B"}`, (state: State) => void>
+  & Record<`${UnaryName}Memory`, (state: State, address: number, instruction: ByteMemory) => void>>;
+
+/** Bind generated unary bodies to the shared oooo selector; CPUs supply the addressing prefixes. */
+export function motorolaUnaryOperations<State>(bodies: UnaryBodies<State>) {
+  return ([
+    ["0000", "neg"], // NEG
+    ["0011", "com"], // COM
+    ["0100", "lsr"], // LSR
+    ["0110", "ror"], // ROR
+    ["0111", "asr"], // ASR
+    ["1000", "asl"], // ASL (LSL)
+    ["1001", "rol"], // ROL
+    ["1010", "dec"], // DEC
+    ["1100", "inc"], // INC
+    ["1101", "tst"], // TST: no write
+    ["1111", "clr"], // CLR: only the 6809 reads the operand
+  ] as const).map(([bits, name]) => ({ bits, registers: [bodies[`${name}A`], bodies[`${name}B`]], memory: bodies[`${name}Memory`] }));
 }
 
 type Accumulator = "a" | "b";

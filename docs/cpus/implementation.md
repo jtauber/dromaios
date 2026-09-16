@@ -35,7 +35,7 @@ core. Keep a CPU in one file while this organization remains easy to follow.
 ## Stored-state descriptions
 
 Each CPU module exports a `cpu…StateDescription` beside its public state
-type. For the 6502, 8080, and 6809, the declaration and derived types live in
+type. For the 6502, 6800, 8080, and 6809, the declaration and derived types live in
 CPU-owned modules under [`state/`](../../src/components/cpus/state) and are
 re-exported by the original CPU module. This lets instruction generation load
 schemas without loading execution or its generated imports. The description
@@ -552,10 +552,11 @@ and example tests retain their independently authored expectations.
 ## Shared result flags and memory modification
 
 Pure result-flag helpers calculate named updates; the instruction schedules
-when to apply them. The shared `modifyByte` body takes an already resolved
-address and supports either a result write or an original-value write before
-transformation followed by the result write. Keep flag updates that follow a
-successful write outside that body, as the 6502 does for memory N/Z.
+when to apply them. Generated unary bodies now express memory modification
+as ordered statements: the 6502 writes the original byte before transformation,
+while the 6800/6809 ordinarily read, transform, and write once. Keep the
+6502's carry before the result write and N/Z after it. The earlier `modifyByte`
+helper has no remaining CPU callers and has been removed.
 
 The [first operation-block experiment](shared-operation-blocks.md) defines
 these contracts, comparison and transfer boundaries, and failure checks.
@@ -570,26 +571,29 @@ family relationships. The 6800, 6809, and 68000 share the T/F, HI/LS, CC/CS,
 NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition tests. The opcode tables retain
 the 6800's absent BRN and the 68000 branch family's BSR exception.
 
-`motorolaByteAlu` shares the 6800/6809 byte addition, subtraction, complement,
-increment/decrement, shift-result, test-result, clear, and decimal-adjust behavior. It receives
+`motorolaByteAlu` shares the remaining 6800/6809 byte addition, subtraction,
+test-result, and decimal-adjust behavior. It receives
 a flag getter and reads it only during execution, so restoring CC cannot leave
 operations attached to an old flag object. Addition replaces H; subtraction
 preserves it under the existing model contracts. Unnamed flags are preserved.
 Decimal adjustment uses the original A/H/C, preserves H, and clears undefined
 V under the shared model policy.
-The CPUs keep their differences visible: 6800 TST clears C, 6809 TST preserves
-it; every 6800 shift sets V=N XOR C, while 6809 right shifts preserve V.
-The 6800's write-only CLR and the 6809's read/modify/write CLR stay in their
-addressing/dispatch code.
+The [shared unary definitions](../../src/components/cpus/semantics/motorola.ts)
+express NEG/COM/shifts/rotates/INC/DEC/TST/CLR once. Each CPU declares whether
+CLR reads its operand, TST clears C, and right shifts set V=N XOR C. The
+`motorolaUnaryOperations` table binds generated register/memory bodies to their
+shared `oooo` operation selectors. Addressing prefixes and JMP remain in each
+CPU. Construction reads no live state; generated bodies receive the executing
+CPU's state explicitly.
 
 `motorolaAccumulatorOperations` also shares the ten byte-operation selectors
 in `1 r mm oooo`, including their accumulator writeback and flag effects.
 Its state getter and ALU callbacks are bound during construction and read only
 when an instruction executes. Each CPU supplies its own immediate and memory
 readers: in particular, the 6809 still rejects undefined indexed postbytes before
-running an operation. Stores, word execution, and unary dispatch remain local, while matching
-arithmetic flag policies and memory modification use the shared operations
-described above. Address and effect-order differences stay visible.
+running an operation. Stores, word execution, and addressing remain local.
+Matching arithmetic flag policies use the shared operations described above;
+unary semantics use generated bodies. Address and effect-order differences stay visible.
 
 [Tests](../../tests/components/cpus/motorola.test.ts) compare encoded conditions
 with unsigned and signed arithmetic and verify preserved flags and replaced

@@ -50,7 +50,7 @@ SP is respectively `FF`, `FE`, or `FD`. Only earlier writes survive.
 
 A resolved location for `01FE` cannot substitute for the captured `44`.
 An eager fetch of `55` cannot substitute for the later read of `01`.
-Keep JSR's ordered body explicit; do not extend `modifyByte` to describe it.
+Keep JSR's ordered body explicit; a byte-modification recipe cannot describe it.
 
 ### 8088: resolve a segmented location, not one physical word address
 

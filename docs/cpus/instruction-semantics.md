@@ -3,7 +3,7 @@
 This implements the bounded executable review in
 [stage 5 of the shared-building-blocks proposal](shared-building-blocks.md#5-execute-one-slice-and-produce-a-useful-second-output).
 Typed definitions drive validation, a reproducible [expanded listing](semantic-examples.md),
-and generated TypeScript instruction bodies used by the 6502, 8080, and 6809.
+and generated TypeScript instruction bodies used by the 6502, 6800, 8080, and 6809.
 The public execution interfaces and supported opcode inventories are unchanged.
 
 The experiment asks whether an instruction's meaning can be described clearly
@@ -26,8 +26,9 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 8080 RLC/RRC/RAL/RAR | Circular or through-carry rotation; write A before CY and preserve every other flag |
 | 6809 LSR/ROR/ASR/ASL/ROL on A/B and memory | Zero, carry, or sign-bit insertion; N/Z/C before writeback; left shifts set V to N XOR C, right shifts preserve V; memory bodies receive a resolved address and retain flags on a failed write |
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
+| All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 123 bodies. All are generated and executable; 122 are bound into their
+There are 156 bodies. All are generated and executable; 155 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other 6809 comparison addressing forms and shifts on the remaining CPUs retain
@@ -36,7 +37,8 @@ Bodies start after opcode selection. `CMPX ,X++` starts after postbyte `81`
 has selected that particular form; decoding or rejecting other postbytes is
 not represented. Each 6809 memory-unary body starts after successful address
 resolution and serves direct, indexed, and extended forms, including all legal
-indexed postbytes. The decoder remains handwritten. The existing
+indexed postbytes. The 6800 memory bodies likewise serve every indexed displacement
+and extended address after resolution. Both decoders remain handwritten. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
 independent CPU tests are the behavioral baseline.
 
@@ -52,7 +54,8 @@ The authoring layers have separate homes:
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift recipes, N/Z policies, and checked opcode inventories |
-| [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary definitions and explanations, parameterized by their read and flag differences |
+| [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
 Each CPU definition module follows sources, policies, instruction construction,
@@ -168,19 +171,30 @@ while right shifts preserve V. That XOR uses the captured original and result,
 so the policy does not depend on assignments to live N or C. The 6502 retains
 its separate carry-before-writeback and N/Z-after-writeback stages, including
 the original-value memory write before a rotate reads incoming C.
-The 6809's `unary` construction recipe now covers all eleven byte unary
-operations. It captures the original register or memory byte, calculates a
-result using a pure expression or ordered steps, applies N/Z and the operation's
-additional flag updates, and optionally writes the result. INC/DEC preserve C;
-TST clears V, preserves C, and omits writeback. CLR still reads the original,
-even though its result is constant. Existing arithmetic and flag expressions
-describe all six additional families without new primitives.
+The shared `motorolaUnary` construction covers all eleven byte unary operations
+for the 6800 and 6809. It captures the original register or memory byte when
+required, calculates a result using a pure expression or ordered steps, applies
+N/Z and the operation's additional flag updates, and optionally writes the result.
+INC/DEC preserve C; TST clears V and omits writeback. Each CPU's definition
+declares three differences:
+
+| Rule | 6800 | 6809 |
+| --- | --- | --- |
+| `clearReadsOperand` | No: CLR only writes | Yes: CLR reads before applying flags and writing |
+| `testClearsCarry` | Yes | No: preserve C |
+| `rightShiftSetsOverflow` | Yes: V = N XOR C | No: preserve V |
+
+These choices affect construction only; generated bodies contain no CPU-model
+branch. Both CPUs use the existing primitive vocabulary. The migration leaves
+the existing 6502, 8080, and 6809 generated code byte-for-byte unchanged.
 
 Every 6809 memory unary operation reads its operand once. Rotates capture
 incoming C after that read; all operations except TST write once, including
 unchanged values. A failed read leaves flags unchanged; a failed write retains
 the completed flag updates. Address-register updates performed by the decoder
 survive either failure.
+The 6800 uses the same ordering except for CLR's omitted read. A failed CLR
+write therefore retains its flag updates without any preceding data-memory read.
 
 ## Primitive meanings
 
@@ -315,13 +329,17 @@ word value in both directions and with either incoming bit, distinguish a
 captured flag from later live-state changes, and inspect carry reads and updates
 between the two memory writes. The 6502 tests cover every byte and incoming flag
 combination for every modifying form, plus failure at every memory access.
-Generated-body probes also inspect the 8080 and 6809 register/flag write order,
+Generated-body probes also inspect the 8080, 6800, and 6809 register/flag write order,
 require incoming-carry reads only for through-carry rotations, and exercise
 nested Boolean XOR over its complete truth table. They check the additional
 6809 unary families' flag assignments, TST's missing write, and CLR's retained
 read, including an unchanged zero result. Existing CPU tests exhaust
 every byte and incoming flag combination for the newly migrated forms, using
 independent bit-string rotations and integer shift/overflow expectations.
+The [6800 CPU tests](../../tests/components/cpus/6800.test.ts) cover all unsigned
+indexed displacements, wrapped and overlapping fetches, and failures at every
+fetch, operand read, and result write. Generated-body probes distinguish its
+CLR with no register or memory read, TST's cleared carry, and right-shift V.
 The [6809 CPU tests](../../tests/components/cpus/6809.test.ts) also exercise all
 217 legal indexed postbytes for every memory unary operation, retain rejection of all 39
 undefined postbytes, and inject failure at each access in direct, extended,
@@ -332,7 +350,7 @@ overlap, S updates and NMI arming, exact completed accesses, and full state.
 
 [generateInstructions](../../src/components/cpus/semantics/generate.ts) validates
 and freezes its input before emitting code. Generated methods take the concrete
-`Cpu6502State`, `Cpu8080State`, or `Cpu6809State`, followed by any numeric inputs
+`Cpu6502State`, `Cpu6800State`, `Cpu8080State`, or `Cpu6809State`, followed by any numeric inputs
 in declaration order, then only the callbacks their statements use, expressed
 as a `Pick<ByteInstructionContext, ...>`. For example,
 `rolMemory(state, address, { readByte, writeByte })` cannot fetch operands or
@@ -352,14 +370,14 @@ repeated subtraction facts remain separate calls rather than introducing an
 optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
-`src/components/cpus/generated/{6502,8080,6809}.ts`. These files are ignored build
+`src/components/cpus/generated/{6502,6800,8080,6809}.ts`. These files are ignored build
 output and removed by `npm run clean`. Regenerate with `npm run generate:cpus`;
 `npm run build` generates these bodies and the machine factories automatically.
 The source-only check and ordinary compilation both type-check the generated
 bodies. Reproducibility tests compare every module with fresh output and run the
 native generator in a clean temporary tree from another working directory.
 
-The three CPU-owned state declarations now live under
+The four CPU-owned state declarations now live under
 [`src/components/cpus/state/`](../../src/components/cpus/state), re-exported
 through their original CPU modules. This lets definitions and generation load
 schemas without importing execution or requiring generated files to exist.
@@ -392,12 +410,12 @@ This covers the complete 6502 comparison, load, shift/rotate, and byte
 increment/decrement families, plus all six register transfers. The 8080 retains
 named bodies for its nine CMP/CPI bindings and four accumulator rotates in the
 shared 8080/Z80 family. The Z80's own bodies remain unchanged.
-The 6809 unary inventory binds generated A/B and memory bodies from the same
-operation selectors, including TST and CLR. This static inventory contains only
-function references; each invocation supplies the current CPU state. Its ordinary
-address wrapper resolves one address, rejects undefined postbytes before body
-entry, and then calls the generated memory body. The handwritten unary selector
-and memory-modification path are gone. JMP remains a separate address operation.
+The 6800 and 6809 bind generated A/B and memory bodies through one
+`motorolaUnaryOperations` selector table, including TST and CLR. Each CPU's static
+inventory contains function references only; each invocation supplies the current
+CPU state. CPU-owned wrappers resolve one address, with the 6809 rejecting
+undefined postbytes before body entry. The handwritten unary calculations and
+memory-modification paths are gone. JMP remains a separate address operation.
 The 6809 binds immediate CMPA/B, three ordinary CMPX modes, and one indexed body:
 it fetches the postbyte once, selects generated `,X++` for `81`, and delegates
 other forms to its existing indexed decoder. Unsupported postbytes retain the
@@ -421,7 +439,7 @@ Measure the complete [source footprint](coverage.md#source-footprint), including
 definitions and shared machinery, with generated output counted separately.
 Moving code into a definition file does not count as source reduction. Review
 whether family authoring, reusable sources, and explicit ordered statements
-improve understanding. The shared shift recipe now serves the 6502, 8080, and
+improve understanding. The shared shift recipe now serves the 6502, 6800, 8080, and
 6809, with sign extension and circular rotation expressed using existing
 primitives. Boolean XOR is the only new expression needed for this extension.
 Their different flag and writeback schedules remain explicit. Completing all
@@ -429,13 +447,14 @@ Their different flag and writeback schedules remain explicit. Completing all
 memory-modification path. Declared numeric inputs let eleven memory bodies
 share the existing address-decoder boundary, covering thirty-three memory
 opcode forms. TST's read-only behavior and CLR's real memory read remain
-explicit. Definitions and bindings still cost more source than this step removes.
-
-Next, review reuse with the 6800 unary family. Much of its arithmetic and
-encoding is shared, but its TST clears C, memory CLR omits the read, and every
-shift sets V to N XOR C. Sharing construction should expose those differences
-and retire the corresponding handwritten paths. Measure total authored source
-before treating another migration increase as simplification.
+explicit. Sharing these definitions and the unary selector table with the 6800
+removes four unused runtime ALU helpers and its shift/test wrappers. With the
+last caller migrated, the earlier `modifyByte` helper is also removed; generated
+statements and CPU boundary tests retain its relevant access-order guarantees.
+Total authored CPU source now falls modestly after accounting for the shared
+builder and the newly separate 6800 state schema. This demonstrates useful
+family reuse, but does not establish a large code reduction or justify new
+semantic primitives on its own.
 
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve

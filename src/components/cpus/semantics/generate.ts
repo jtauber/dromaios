@@ -9,7 +9,7 @@ type Scope = ReadonlyMap<string, CapturedValue>;
 type Capability = "fetchByte" | "readByte" | "writeByte";
 
 /** Compile the bounded experiment to ordinary typed statements, without executing any effects. */
-export function generateInstructions(cpu: "6502" | "8080" | "6809", definitions: Readonly<Record<string, InstructionDefinition>>,
+export function generateInstructions(cpu: "6502" | "6800" | "8080" | "6809", definitions: Readonly<Record<string, InstructionDefinition>>,
   { bindOpcodes = false, sources }: { bindOpcodes?: boolean; sources?: SourceDefinitions } = {}): string {
   // Numeric definition keys are the opcode authority when generating execution bindings.
   if (bindOpcodes) opcodeTable(Object.entries(definitions).map(([opcode, definition]) => [Number(opcode), definition]));
