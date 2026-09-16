@@ -167,22 +167,40 @@ test("generated transfers capture their source and differ only in the declared f
   assert.deepEqual(i.flags, intelState().flags);
 });
 
-test("generated indexed comparison wraps each address and stops at either failed source read", () => {
-  for (const failAt of [-1, 0, 1]) {
-    const state = motorolaState(), before = { ...state.flags };
-    state.x = 0xffff;
-    const reads: number[] = [], failure = new Error("read failed");
-    const execute = () => motorola.cmpxPostincrement(state, { readByte(address) {
-      assert.equal(state.x, 1); // The update precedes even the first source read.
-      if (reads.length === failAt) throw failure;
-      reads.push(address);
-      return address === 0xffff ? 0 : 1;
-    } });
-    if (failAt >= 0) assert.throws(execute, error => error === failure);
-    else execute();
-    assert.equal(state.x, 1);
-    assert.deepEqual(reads, [0xffff, 0].slice(0, failAt < 0 ? 2 : failAt));
-    assert.deepEqual(state.flags, failAt >= 0 ? before : { ...before, n: false, z: true, v: false, c: false });
+test("generated 6809 comparisons capture every register or D view after all operand reads and stop at each failure", () => {
+  for (const register of ["a", "b", "d", "x", "y", "u", "s"] as const) for (const mode of ["Immediate", "Memory"] as const) {
+    const word = register !== "a" && register !== "b", bytes = word ? [0x12, 0x34] : [0x80];
+    for (let failAt = -1; failAt < bytes.length; failAt++) {
+      const state = motorolaState(), flags = { ...state.flags }, events: string[] = [], failure = new Error("read failed");
+      let reads = 0;
+      const observed = new Proxy(state, {
+        get(target, key, receiver) {
+          if (["a", "b", "x", "y", "u", "s"].includes(String(key))) events.push(`register ${String(key)}`);
+          return Reflect.get(target, key, receiver);
+        },
+        set() { assert.fail("A comparison must not write any register"); },
+      });
+      const read = () => {
+        events.push(`operand ${reads}`);
+        if (reads === failAt) throw failure;
+        const byte = bytes[reads++]!;
+        // Source effects replace the compared value: capturing it before the final read gives the wrong answer.
+        if (register === "d") { state.a = 0x12; state.b = reads === 2 ? 0x34 : 0xff; }
+        else state[register] = word ? (reads === 2 ? 0x1234 : 0xffff) : 0x80;
+        return byte;
+      };
+      const execute = () => mode === "Immediate" ? motorola[`cmp${register}Immediate`](observed, { fetchByte: read })
+        : motorola[`cmp${register}Memory`](observed, 0xffff, { readByte(address) {
+          assert.equal(address, reads === 0 ? 0xffff : 0); return read();
+        } });
+      if (failAt >= 0) assert.throws(execute, error => error === failure);
+      else execute();
+      assert.deepEqual(events, [
+        ...bytes.slice(0, failAt < 0 ? bytes.length : failAt + 1).map((_, i) => `operand ${i}`),
+        ...(failAt < 0 ? (register === "d" ? ["register a", "register b"] : [`register ${register}`]) : []),
+      ]);
+      assert.deepEqual(state.flags, failAt >= 0 ? flags : { ...flags, n: false, z: true, v: false, c: false });
+    }
   }
 });
 

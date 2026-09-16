@@ -80,9 +80,9 @@ See the [representation contract](instruction-semantics.md) for primitive meanin
 validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
-Bodies begin after opcode selection. The indexed 6809 comparison sample also
-begins after postbyte selection; Motorola memory unary bodies receive a resolved address from
-the existing decoder. Declared inputs are captured before entry. Statements are
+Bodies begin after opcode selection. Motorola memory unary bodies and 6809 memory
+comparisons receive a resolved address from the existing decoder. Declared inputs
+are captured before entry. Statements are
 ordered. Captures are immutable; a source
 block has its own scope. All expressions in one flag update are evaluated before
 any of its assignments. On an effect failure, completed effects remain and no

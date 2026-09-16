@@ -1321,6 +1321,9 @@ shift recipe also drives the 8080 accumulator rotates and all 6800/6809 A/B and
 memory shifts, with each CPU's flag and writeback schedule explicit. Shared
 Motorola unary construction also covers NEG/COM/INC/DEC/CLR/TST, with the CLR
 read, TST carry, and right-shift overflow differences declared by each CPU.
+All seven 6809 comparisons now use generated bodies across every addressing
+mode, with memory bodies entered after the existing decoder and D explicitly
+read as A followed by B.
 These definitions produce both execution and the explanatory listing. The
 JSR and 68000 probes below remain requirements for later vocabulary; they are
 not yet represented by this byte/word slice. Whole-model migration remains a

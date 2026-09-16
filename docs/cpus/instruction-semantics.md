@@ -18,7 +18,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | --- | --- |
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 CPI and every CMP register/memory form | Immediate, register, and memory sources; parity and inverse half-borrow |
-| 6809 CMPA/CMPB immediate; CMPX immediate/direct/extended and `,X++` | Byte/word widths; addressing changes the register that comparison subsequently reads |
+| 6809 CMPA/B/D/X/Y/U/S, every addressing form | Byte/word widths, D as A:B, and addressing that changes the register subsequently compared |
 | 6502 LDA/LDX/LDY, every supported addressing form | Reuse comparison sources; delay destination and N/Z updates until the source succeeds |
 | All six 6502 register transfers and 8080 MOV B,A | Share read/write behavior while selecting N/Z or preserving every flag; SP transfers do not access the stack |
 | All 6502 ASL/ROL/LSR/ROR forms | One resolved address, an original-value write, a captured incoming carry for rotates, and separate C and N/Z stages; accumulator forms share the operation |
@@ -28,16 +28,14 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 156 bodies. All are generated and executable; 155 are bound into their
+There are 164 bodies. All are generated and executable; 163 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
-Other 6809 comparison addressing forms and shifts on the remaining CPUs retain
-their existing shared helpers. This is not a complete CPU migration.
-Bodies start after opcode selection. `CMPX ,X++` starts after postbyte `81`
-has selected that particular form; decoding or rejecting other postbytes is
-not represented. Each 6809 memory-unary body starts after successful address
-resolution and serves direct, indexed, and extended forms, including all legal
-indexed postbytes. The 6800 memory bodies likewise serve every indexed displacement
+Other instruction families retain their existing shared helpers. This is not a
+complete CPU migration. Bodies start after opcode selection. Each 6809 memory
+comparison or unary body starts after successful address resolution and serves
+direct, indexed, and extended forms, including all legal indexed postbytes.
+The 6800 memory bodies likewise serve every indexed displacement
 and extended address after resolution. Both decoders remain handwritten. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
 independent CPU tests are the behavioral baseline.
@@ -81,8 +79,9 @@ families; the resulting definitions still contain only data.
 stored fields. It offers typed register and flag names and records register
 widths from that schema. There is no second register-layout declaration.
 Current symbols cover stored unsigned byte/word registers and the `flags`
-group; slices, concatenated register views, banks, and computed views remain
-future work. HL in the 8080 sample is explicitly read as H and L, then combined.
+group; general declarations for slices, register views, and banks remain future
+work. Composed reads already use ordinary sources: 8080 HL is explicitly read
+as H then L, and the 6809's D as A then B, before combining the bytes.
 
 TypeScript distinguishes a register, a captured numeric expression, and a flag
 expression. Registers and flags do not implicitly read themselves. A numeric
@@ -103,9 +102,12 @@ closed scopes; a policy receives an input only through an explicit argument.
 This lets a body consume a resolved address without hiding address calculation
 inside a callback or pretending it is a new memory-access primitive.
 
-The shared `compare(register, source, policy)` construction function produces
-four statements: read the source, read the register, capture subtraction,
-and apply the policy. Source bodies and policies remain present as named,
+The shared `compare(left, right, policy)` construction function produces four
+statements: capture the right operand, read the left register or source, capture
+subtraction, and apply the policy. The right operand may be a source or a pure
+expression over values already captured by the body. The left may be a stored
+register or a source that reads a view such as D. All right-operand effects finish
+before the left is read. Source bodies and policies remain present as named,
 inspectable data. The construction function itself is TypeScript, with typed
 parameters; there is no general parameterized instruction-body call node yet.
 We can judge the repeated pattern without first designing higher-order DSL
@@ -185,8 +187,8 @@ declares three differences:
 | `rightShiftSetsOverflow` | Yes: V = N XOR C | No: preserve V |
 
 These choices affect construction only; generated bodies contain no CPU-model
-branch. Both CPUs use the existing primitive vocabulary. The migration leaves
-the existing 6502, 8080, and 6809 generated code byte-for-byte unchanged.
+branch. Both CPUs use the existing primitive vocabulary. Sharing unary
+construction left the existing 6502, 8080, and 6809 generated code byte-for-byte unchanged.
 
 Every 6809 memory unary operation reads its operand once. Rotates capture
 incoming C after that read; all operations except TST write once, including
@@ -259,11 +261,15 @@ behavior. Hardware fault delivery and cycle timing are separate contracts.
 
 ## Why the difficult cases remain visible
 
-In `CMPX ,X++`, the source captures old X, writes `old X + 2` modulo 65536,
-reads the high byte at old X, then the low byte at `old X + 1` modulo 65536.
-The comparison register read follows all four effects. Thus a second-read
+In `CMPX ,X++`, the existing address decoder captures old X and writes
+`old X + 2` modulo 65536. The generated body receives the captured address,
+reads the high byte there, then the low byte at `old X + 1` modulo 65536.
+Only then does it read the updated X for comparison. Thus a second-read
 failure retains the increment and performs no comparison flag update. Moving
 that register read earlier would change the definition, not just its formatting.
+The same boundary serves every indexed postbyte and compared register. CMPD
+reads A then B after both operand bytes, so addressing through A, B, or D does
+not move the comparison-register capture ahead of the memory reads.
 
 In memory shifts and rotates, the original-value write precedes the calculation
 and any flag update. ROL/ROR capture incoming C after that write succeeds.
@@ -341,10 +347,15 @@ indexed displacements, wrapped and overlapping fetches, and failures at every
 fetch, operand read, and result write. Generated-body probes distinguish its
 CLR with no register or memory read, TST's cleared carry, and right-shift V.
 The [6809 CPU tests](../../tests/components/cpus/6809.test.ts) also exercise all
-217 legal indexed postbytes for every memory unary operation, retain rejection of all 39
-undefined postbytes, and inject failure at each access in direct, extended,
+217 legal indexed postbytes for every memory unary operation and all seven
+comparisons, retain rejection of all 39 undefined postbytes, and inject failure
+at each access in direct, extended,
 auto-updated, and indirect examples. They check wrapping, code/pointer/data
 overlap, S updates and NMI arming, exact completed accesses, and full state.
+Generated comparison probes change the compared register during operand reads
+and require its capture only after the last successful read. These cover every
+register in immediate and memory bodies, D's A-then-B read order, and failures
+before either operand byte completes.
 
 ## Executable generation and integration
 
@@ -416,11 +427,13 @@ inventory contains function references only; each invocation supplies the curren
 CPU state. CPU-owned wrappers resolve one address, with the 6809 rejecting
 undefined postbytes before body entry. The handwritten unary calculations and
 memory-modification paths are gone. JMP remains a separate address operation.
-The 6809 binds immediate CMPA/B, three ordinary CMPX modes, and one indexed body:
-it fetches the postbyte once, selects generated `,X++` for `81`, and delegates
-other forms to its existing indexed decoder. Unsupported postbytes retain the
-same rejection behavior. Generated definitions do not silently claim the rest
-of that decoder.
+The 6809 uses one comparison-family binding across its three opcode pages.
+Each register has an immediate body that fetches its operand and a memory body
+that receives the decoder's resolved address. This covers CMPA/B/D/X/Y/U/S in
+all four addressing modes, with no special indexed postbyte path. Unsupported
+postbytes retain the same rejection behavior before body entry. The handwritten
+accumulator table excludes CMP; the word-arithmetic helper now serves only
+ADDD/SUBD. Address decoding itself remains outside the generated definitions.
 
 ## Decision and next review
 
@@ -456,14 +469,20 @@ builder and the newly separate 6800 state schema. This demonstrates useful
 family reuse, but does not establish a large code reduction or justify new
 semantic primitives on its own.
 
+Completing the 6809 comparison family replaces its partial indexed sample and
+separate direct/extended definitions with one memory body per compared register.
+Explicit byte reads and concatenation express D without a new register-view
+primitive. All 28 comparison forms use the same construction, and total authored
+source falls again after including the definitions and bindings.
+
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve
 handwritten instructions. A later JSR slice remains a test of interleaved
 fetching and stack writes, but adding that vocabulary alone would not establish
 a source-reduction benefit.
 
-General addressing decoders (such as the full 6809 postbyte decoder), register
-views, branches, loops, stack bodies, instruction rejection, pending
+General addressing decoders (such as the full 6809 postbyte decoder), general
+register-view declarations, branches, loops, stack bodies, instruction rejection, pending
 commits, and exception delivery are not represented here. The 6502 JSR and 68000
 MOVE traces still challenge later ordering vocabulary. The 6507 address-projection
 and 4004 nibble/interface probes remain acceptance requirements, not capabilities

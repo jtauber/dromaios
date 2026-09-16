@@ -30,24 +30,20 @@ test("comparison expansions read the source before the register and expose CPU-s
   }
 });
 
-test("indexed word comparison expands the address update and both byte reads before recapturing X", () => {
-  const text = description("6809", "CMPX ,X++");
-  const start = text.indexOf("```text\n"), end = text.indexOf("\n```", start);
-  assert.equal(text.slice(start + 8, end), `right:u16 := source "word at old X, advance X by two" {
-  address:u16 := read X
-  write X:u16 := addWrap(address, 0002:u16)
-  high:u8 := read memory[address]
-  low:u8 := read memory[addWrap(address, 0001:u16)]
-  yield concatHighLow(high, low)
-}
-left:u16 := read X
-result := subtract(left, right)
-flags "6809 comparison" simultaneously {
-  N := topBit(result)
-  Z := isZero(result)
-  V := subtractOverflow(left, right)
-  C := borrow(left, right)
-} // Preserve unlisted flags.`);
+test("6809 memory comparisons show data reads before the register or D view, without repeating address resolution", () => {
+  for (const name of ["CMPA", "CMPB", "CMPD", "CMPX", "CMPY", "CMPU", "CMPS"]) {
+    const text = description("6809", `${name} memory`), register = name.slice(3);
+    const first = text.indexOf("read memory[address]"), last = text.indexOf("read memory[addWrap(address, 0001:u16)]");
+    const left = text.indexOf(register === "D" ? 'left:u16 := source "D from A:B"' : `:= read ${register}`);
+    assert.ok(first >= 0 && left > first);
+    if (register !== "A" && register !== "B") assert.ok(last > first && left > last);
+    assert.ok(text.indexOf("result := subtract(left, right)") > left);
+    assert.doesNotMatch(text, /fetch byte|write |read [XYUS]\n.*read memory/s);
+    if (register === "D") {
+      assert.ok(text.indexOf("read A", left) < text.indexOf("read B", left));
+      assert.match(text.slice(left), /yield concatHighLow\(high, low\)/);
+    }
+  }
 });
 
 test("memory ASL exposes two actual writes and separate carry and N/Z stages", () => {
@@ -168,5 +164,5 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 156);
+  assert.equal(instructionDefinitions.length, 164);
 });

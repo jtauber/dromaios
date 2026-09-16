@@ -76,6 +76,13 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6809.tstMemory(motorola, 0xffff, { readByte: () => 0 });
   generated6809.clrMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   generated6809.negA(motorola);
+  generated6809.cmpaMemory(motorola, 0xffff, { readByte: () => 0 });
+  generated6809.cmpdMemory(motorola, 0xffff, { readByte: () => 0 });
+  generated6809.cmpsImmediate(motorola, { fetchByte: () => 0 });
+  // @ts-expect-error Comparison memory bodies cannot fetch or resolve another address.
+  generated6809.cmpxMemory(motorola, 0xffff, { readByte: () => 0, fetchByte: () => 0 });
+  // @ts-expect-error A comparison cannot write its memory operand.
+  generated6809.cmpdMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   generated6800.clrA(m6800);
   generated6800.clrMemory(m6800, 0xffff, { writeByte: () => {} });
   generated6800.tstMemory(m6800, 0xffff, { readByte: () => 0 });

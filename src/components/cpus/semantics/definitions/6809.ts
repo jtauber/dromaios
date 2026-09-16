@@ -1,5 +1,5 @@
 import { cpu6809StateDescription } from "../../state/6809.ts";
-import { addWrap, borrow, capture, concat, cpuSymbols, fetchByte, literal, overflow, readMemory, readRegister, value, writeRegister } from "../model.ts";
+import { addWrap, borrow, concat, cpuSymbols, fetchByte, literal, overflow, readMemory, readRegister, value } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, ValueSource, Width } from "../model.ts";
 import { compare, immediateByte, negativeZeroPolicy } from "../builders.ts";
 import { motorolaUnary } from "../motorola.ts";
@@ -7,14 +7,11 @@ import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("6809", cpu6809StateDescription);
 
-const xPostincrement: ValueSource = {
-  name: "word at old X, advance X by two", width: 16,
-  steps: [
-    readRegister("address", cpu.register("x")),
-    writeRegister(cpu.register("x"), addWrap(value("address"), literal(16, 2))),
-    readMemory("high", value("address")),
-    readMemory("low", addWrap(value("address"), literal(16, 1))),
-  ], result: concat(value("high"), value("low")),
+// D is a view, not an extra stored register. Read A then B only when comparison reaches its left operand.
+const d: ValueSource = {
+  name: "D from A:B", width: 16,
+  steps: [readRegister("high", cpu.register("a")), readRegister("low", cpu.register("b"))],
+  result: concat(value("high"), value("low")),
 };
 
 const immediateWord: ValueSource = {
@@ -22,20 +19,6 @@ const immediateWord: ValueSource = {
     fetchByte("high"), fetchByte("low"),
   ], result: concat(value("high"), value("low")),
 };
-function memoryWord(mode: "direct" | "extended"): ValueSource {
-  const direct = mode === "direct";
-  return { name: direct ? "direct word through DP" : "extended word", width: 16, steps: [
-    ...(direct ? [
-      fetchByte("addressLow"),
-      readRegister("addressHigh", cpu.register("dp")),
-    ] : [
-      fetchByte("addressHigh"), fetchByte("addressLow"),
-    ]),
-    capture("address", concat(value("addressHigh"), value("addressLow"))),
-    readMemory("high", value("address")),
-    readMemory("low", addWrap(value("address"), literal(16, 1))),
-  ], result: concat(value("high"), value("low")) };
-}
 
 function comparisonFlags(width: Width): FlagPolicy {
   const resultFlags = negativeZeroPolicy("6809 comparison", cpu.flag("n"), cpu.flag("z"), width);
@@ -46,28 +29,26 @@ function comparisonFlags(width: Width): FlagPolicy {
   ] };
 }
 
-function comparison(register: "a" | "b" | "x", source: ValueSource, operand: string): InstructionDefinition {
+function comparison(register: "a" | "b" | "d" | "x" | "y" | "u" | "s", mode: "Immediate" | "Memory"): InstructionDefinition {
+  const left = register === "d" ? d : cpu.register(register), word = left.width === 16, memory = mode === "Memory";
+  const reads = word ? [readMemory("high", value("address")), readMemory("low", addWrap(value("address"), literal(16, 1)))]
+    : [readMemory("byte", value("address"))];
+  const right = memory ? (word ? concat(value("high"), value("low")) : value("byte")) : (word ? immediateWord : immediateByte);
   return defineInstruction({
-    cpu: cpu.declaration, name: `CMP${register.toUpperCase()} ${operand}`,
-    explanation: "Read the source before the comparison register. Apply N/Z/V/C from subtraction, retaining "
-      + "the compared register and preserving H and control flags. C means borrow.",
-    steps: compare(cpu.register(register), source, comparisonFlags(source.width)),
+    cpu: cpu.declaration, name: `CMP${register.toUpperCase()} ${memory ? "memory" : word ? "#word" : "#byte"}`,
+    ...(memory ? { inputs: { address: 16 as const } } : {}),
+    explanation: (memory ? "Entry is after successful direct/indexed/extended address resolution. Read the operand at that captured address. "
+      : "Fetch the immediate operand. ") + (word ? "Read high byte then low byte, wrapping at FFFF. " : "")
+      + "Only then read the comparison register" + (register === "d" ? " as A followed by B" : "") + ". "
+      + "Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. "
+      + "A failed read leaves flags unchanged; completed fetches and addressing effects remain.",
+    steps: [...(memory ? reads : []), ...compare(left, right, comparisonFlags(left.width))],
   });
 }
 
 export const instructions6809 = {
   ...motorolaUnary(cpu, { clearReadsOperand: true, testClearsCarry: false, rightShiftSetsOverflow: false }),
-  cmpaImmediate: comparison("a", immediateByte, "#byte"),
-  cmpbImmediate: comparison("b", immediateByte, "#byte"),
-  cmpxImmediate: comparison("x", immediateWord, "#word"),
-  cmpxDirect: comparison("x", memoryWord("direct"), "direct"),
-  cmpxExtended: comparison("x", memoryWord("extended"), "extended"),
-  cmpxPostincrement: defineInstruction({
-    cpu: cpu.declaration, name: "CMPX ,X++",
-    explanation: "Entry is after the opcode and postbyte 81 have selected this form. Capture old X, "
-      + "increment stored X, then read both source bytes high first. Only then capture X for "
-      + "comparison. If either memory read fails, the increment survives and comparison flags "
-      + "remain unchanged. Other postbytes are outside this sample.",
-    steps: compare(cpu.register("x"), xPostincrement, comparisonFlags(16)),
-  }),
+  // Each memory body serves all three address modes; opcode pages and patterns remain in the CPU.
+  ...Object.fromEntries((["a", "b", "d", "x", "y", "u", "s"] as const).flatMap(register =>
+    (["Immediate", "Memory"] as const).map(mode => [`cmp${register}${mode}`, comparison(register, mode)]))),
 };

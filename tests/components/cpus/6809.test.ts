@@ -2064,16 +2064,22 @@ function indexedForms(a: number, b: number, offset8: number, offset16: number) {
 
 const wrapAddress = (value: number) => ((value % 65536) + 65536) % 65536;
 
-const memoryUnaryEncodings = [
+const memoryByteEncodings = [
   ["NEG", 0x00, 0x60, 0x70], ["COM", 0x03, 0x63, 0x73],
   ["LSR", 0x04, 0x64, 0x74], ["ROR", 0x06, 0x66, 0x76], ["ASR", 0x07, 0x67, 0x77],
   ["ASL", 0x08, 0x68, 0x78], ["ROL", 0x09, 0x69, 0x79],
   ["DEC", 0x0a, 0x6a, 0x7a], ["INC", 0x0c, 0x6c, 0x7c],
   ["TST", 0x0d, 0x6d, 0x7d], ["CLR", 0x0f, 0x6f, 0x7f],
+  ["CMPA", 0x91, 0xa1, 0xb1], ["CMPB", 0xd1, 0xe1, 0xf1],
 ] as const;
+const writesMemoryByte = (name: typeof memoryByteEncodings[number][0]) => !["TST", "CMPA", "CMPB"].includes(name);
 
 // Arithmetic uses signed ranges; shifts and complement manipulate printed binary digits.
-function unaryMemoryResult(name: typeof memoryUnaryEncodings[number][0], value: number, flags: Cpu6809Flags) {
+function memoryByteResult(name: typeof memoryByteEncodings[number][0], value: number, state: Cpu6809State) {
+  const flags = state.flags;
+  if (name === "CMPA" || name === "CMPB") {
+    return { result: value, flags: byteArithmetic("CMP", state[name === "CMPA" ? "a" : "b"], value, flags).flags };
+  }
   const bits = value.toString(2).padStart(8, "0"), left = name === "ASL" || name === "ROL";
   if (["NEG", "COM", "DEC", "INC", "TST", "CLR"].includes(name)) {
     const signed = value < 128 ? value : value - 256;
@@ -2090,8 +2096,8 @@ function unaryMemoryResult(name: typeof memoryUnaryEncodings[number][0], value: 
     c: (left ? bits[0] : bits[7]) === "1", v: left ? value >= 64 && value < 192 : flags.v } };
 }
 
-test("6809 memory unary operations cover every indexed postbyte, including wrapping, overlap, and S updates", () => {
-  for (const [name, , opcode] of memoryUnaryEncodings) {
+test("6809 memory unary operations and byte comparisons cover every indexed postbyte, including wrapping, overlap, and S updates", () => {
+  for (const [name, , opcode] of memoryByteEncodings) {
     for (const [a, b, offset8, offset16] of [[0x80, 0xff, -128, -32768], [0, 1, -1, -1]] as const) {
       for (const form of indexedForms(a, b, offset8, offset16)) for (const base of [0, 0xffff]) {
         const pc = base === 0 ? 0xffff : 0xfffd, bytes = [opcode, form.postbyte, ...form.operands];
@@ -2102,7 +2108,7 @@ test("6809 memory unary operations cover every indexed postbyte, including wrapp
         if (form.indirect) { image.set(address, 0x40); image.set(wrapAddress(address + 1), 0); }
         bytes.forEach((value, offset) => image.set(wrapAddress(pc + offset), value));
         const target = form.indirect ? image.get(address)! * 256 + image.get(wrapAddress(address + 1))! : address;
-        const original = image.get(target) ?? 0, expected = unaryMemoryResult(name, original, state.flags);
+        const original = image.get(target) ?? 0, expected = memoryByteResult(name, original, state);
         const ram = new ObservedRam();
         for (const [address, value] of image) ram.write(address, value);
         const cpu = new Cpu6809(ram, state), before = cpu.snapshot();
@@ -2119,7 +2125,7 @@ test("6809 memory unary operations cover every indexed postbyte, including wrapp
               { kind: "read", address: wrapAddress(address + 1), value: image.get(wrapAddress(address + 1)) },
             ] : []),
             { kind: "read", address: target, value: original },
-            ...(name === "TST" ? [] : [{ kind: "write", address: target, value: expected.result }]),
+            ...(writesMemoryByte(name) ? [{ kind: "write", address: target, value: expected.result }] : []),
           ],
         }, `${name}, postbyte=${form.postbyte}, base=${base}`);
         assert.deepEqual(ram.accesses, record.accesses);
@@ -2130,15 +2136,15 @@ test("6809 memory unary operations cover every indexed postbyte, including wrapp
   }
 });
 
-test("6809 memory unary operations retain exactly completed fetches, address updates, and flags at every failed access", () => {
+test("6809 memory unary operations and byte comparisons retain exactly completed fetches, address updates, and flags at every failed access", () => {
   const failure = new Error("unary memory failure");
   class FaultRam extends ObservedRam {
     failAt = -1; attempts = 0;
     override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
     override write(address: number, value: number): void { if (this.attempts++ === this.failAt) throw failure; super.write(address, value); }
   }
-  for (const [name, direct, indexed, extended] of memoryUnaryEncodings) {
-    const writeBack = name !== "TST";
+  for (const [name, direct, indexed, extended] of memoryByteEncodings) {
+    const writeBack = writesMemoryByte(name);
     const cases: readonly { bytes: readonly number[]; state: Partial<Cpu6809State>; address: number;
       indirect?: boolean; update?: Partial<Cpu6809State> }[] = [
       { bytes: [direct, 0], state: { pc: 0xffff, dp: 0xff }, address: 0xff00 },
@@ -2154,7 +2160,7 @@ test("6809 memory unary operations retain exactly completed fetches, address upd
       if (indirect) { image.set(address, 0x40); image.set(wrapAddress(address + 1), 0); }
       bytes.forEach((value, offset) => image.set(wrapAddress(state.pc + offset), value));
       const target = indirect ? image.get(address)! * 256 + image.get(wrapAddress(address + 1))! : address;
-      const original = image.get(target) ?? 0, expected = unaryMemoryResult(name, original, state.flags);
+      const original = image.get(target) ?? 0, expected = memoryByteResult(name, original, state);
       const accesses = [
         ...bytes.map((value, offset) => ({ kind: "read", address: wrapAddress(state.pc + offset), value })),
         ...(indirect ? [
@@ -2810,33 +2816,59 @@ test("6809 implements all 268 documented forms and rejects all other encodings o
   }
 });
 
-test("6809 CMPX reads the updated indexed register only after both source bytes succeed", () => {
-  const failure = new Error("source read failed");
-  class FailingRam extends ObservedRam {
-    failAt: number | undefined;
-    override read(address: number): number {
-      if (address === this.failAt) throw failure;
-      return super.read(address);
-    }
+test("6809 word comparisons retain completed fetches and index updates at every failed operand or pointer read", () => {
+  const failure = new Error("comparison read failed");
+  class FaultRam extends ObservedRam {
+    failAt = -1; attempts = 0;
+    override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
   }
-  for (const failAt of [undefined, 0x4000, 0x4001]) {
-    const ram = new FailingRam();
-    const before = initialState({ x: 0x4000 });
-    const bytes = [0xac, 0x81]; // CMPX ,X++ compares 4002 with the word at old X=4000.
-    bytes.forEach((byte, offset) => ram.write(before.pc + offset, byte));
-    ram.write(0x4000, 0x40); ram.write(0x4001, 2);
-    ram.accesses.length = 0; ram.failAt = failAt;
-    const cpu = new Cpu6809(ram, before);
-    const accesses = [...bytes.map((value, offset) => ({ kind: "read", address: before.pc + offset, value })),
-      ...(failAt === 0x4000 ? [] : [{ kind: "read", address: 0x4000, value: 0x40 }]),
-      ...(failAt === undefined ? [{ kind: "read", address: 0x4001, value: 2 }] : [])];
-    const after = { ...before, x: 0x4002, pc: before.pc + 2,
-      flags: failAt !== undefined ? before.flags : { ...before.flags, n: false, z: true, v: false, c: false } };
-    if (failAt !== undefined) assert.throws(() => cpu.step(), error => error === failure);
-    else assert.deepEqual(cpu.step(), { before: snapshotOf(before), after: snapshotOf(after), outcome: "executed",
-      instruction: { address: before.pc, bytes }, accesses });
-    assert.deepEqual(cpu.snapshot(), snapshotOf(after));
-    assert.deepEqual(ram.accesses, accesses);
+  for (const form of additionalWords.filter(form => form.operation === "compare")) {
+    const [immediate, direct, indexed, extended] = form.opcodes;
+    const cases: readonly { bytes: readonly number[]; state: Partial<Cpu6809State>; address?: number;
+      indirect?: boolean; update?: Partial<Cpu6809State> }[] = [
+      { bytes: [immediate!, 0x80, 0], state: { pc: 0xffff } },
+      { bytes: [direct, 0xff], state: { pc: 0xffff, dp: 0xff }, address: 0xffff },
+      { bytes: [extended, 0xff, 0xff], state: { pc: 0xfffe }, address: 0xffff },
+      ...([ ["x", 0x81, 0x93], ["y", 0xa1, 0xb3], ["u", 0xc1, 0xd3], ["s", 0xe1, 0xf3] ] as const).flatMap(([register, increment, indirectDecrement]) => [
+        { bytes: [indexed, increment], state: { pc: 0xfffe, [register]: 0xffff }, address: 0xffff,
+          update: { [register]: 1, nmiArmed: register === "s" } },
+        { bytes: [indexed, indirectDecrement], state: { pc: 0xfffd, [register]: 1 }, address: 0xffff, indirect: true,
+          update: { [register]: 0xffff, nmiArmed: register === "s" } },
+      ]),
+      { bytes: [indexed, 0x99, 0xff, 0xff], state: { pc: 0xfffe, x: 1 }, address: 0, indirect: true },
+      { bytes: [indexed, 0x9f, 0xff, 0xff], state: { pc: 0x200 }, address: 0xffff, indirect: true },
+    ];
+    for (const { bytes: body, state: overrides, address, indirect, update } of cases) {
+      const state = initialState({ nmiArmed: false, ...overrides }), bytes = [...form.prefix, ...body];
+      const image = new Map<number, number>();
+      if (address !== undefined) {
+        image.set(indirect ? 0x4000 : address, 0x80); image.set(indirect ? 0x4001 : wrapAddress(address + 1), 0);
+        if (indirect) { image.set(address, 0x40); image.set(wrapAddress(address + 1), 0); }
+      }
+      bytes.forEach((byte, i) => image.set(wrapAddress(state.pc + i), byte));
+      const read = (address: number) => image.get(wrapAddress(address)) ?? 0;
+      const word = (address: number) => read(address) * 256 + read(address + 1);
+      const target = indirect ? word(address!) : address, operand = target === undefined ? 0x8000 : word(target);
+      const expected = expectedWord(form, { ...state, ...update }, operand);
+      const accesses = [
+        ...bytes.map((value, i) => ({ kind: "read", address: wrapAddress(state.pc + i), value })),
+        ...(indirect ? [address!, wrapAddress(address! + 1)].map(address => ({ kind: "read", address, value: read(address) })) : []),
+        ...(target === undefined ? [] : [target, wrapAddress(target + 1)].map(address => ({ kind: "read", address, value: read(address) }))),
+      ];
+      for (let failAt = -1; failAt < accesses.length; failAt++) {
+        const ram = new FaultRam();
+        for (const [address, value] of image) ram.write(address, value);
+        const cpu = new Cpu6809(ram, state), before = cpu.snapshot();
+        ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
+        const completed = failAt < 0 ? accesses.length : failAt;
+        const after = { ...before, ...(completed >= bytes.length ? update : {}),
+          pc: wrapAddress(state.pc + Math.min(completed, bytes.length)), flags: failAt < 0 ? expected.flags : before.flags };
+        if (failAt >= 0) assert.throws(() => cpu.step(), error => error === failure);
+        else assert.deepEqual(cpu.step(), { before, after, instruction: { address: state.pc, bytes }, accesses, outcome: "executed" });
+        assert.deepEqual(cpu.snapshot(), after, `${form.name}, bytes=${bytes}, failAt=${failAt}`);
+        assert.deepEqual(ram.accesses, accesses.slice(0, completed));
+      }
+    }
   }
 });
 

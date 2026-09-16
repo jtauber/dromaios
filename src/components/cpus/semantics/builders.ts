@@ -1,6 +1,6 @@
 import { capture, fetchByte, flagLiteral, flagValue, lowBit, negative, readFlag, readMemory, readRegister, readSource,
   shiftLeft, shiftRight, subtract, updateFlags, value, writeRegister, zero } from "./model.ts";
-import type { Flag, FlagPolicy, Register, Statement, ValueSource, Width } from "./model.ts";
+import type { Flag, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
 import type { InstructionDefinition } from "./model.ts";
 import { opcodeTable } from "../opcodes.ts";
 import type { OpcodeEntry } from "../opcodes.ts";
@@ -48,11 +48,11 @@ export function shift(direction: "left" | "right", incoming: ShiftInput = "zero"
   ] };
 }
 
-/** Finish all source effects before capturing the comparison register; never write it back. */
-export function compare(register: Register, source: ValueSource, policy: FlagPolicy): readonly Statement[] {
+/** Capture the right source or expression before reading the left register or view; never write it back. */
+export function compare(left: Register | ValueSource, right: ValueSource | NumberExpression, policy: FlagPolicy): readonly Statement[] {
   return [
-    readSource("right", source),
-    readRegister("left", register),
+    "kind" in right ? capture("right", right) : readSource("right", right),
+    "kind" in left ? readRegister("left", left) : readSource("left", left),
     capture("result", subtract(value("left"), value("right"))),
     updateFlags(policy, { left: value("left"), right: value("right"), result: value("result") }),
   ];

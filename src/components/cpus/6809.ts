@@ -168,8 +168,8 @@ export class Cpu6809 {
   static readonly #unaryOperations = motorolaUnaryOperations(semantics);
 
   // 1 r mm oooo: r selects A/B; mm=00 immediate, 01 direct, 10 indexed, 11 extended.
-  // Byte operations are shared with the 6800; word operations and stores remain below.
-  readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
+  // Byte operations are shared with the 6800; CMP (0001) has generated bodies below.
+  readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu).filter(({ bits }) => bits !== "0001");
 
   readonly #directOperandAddress: OperandReader = ({ fetchByte }) => this.#directAddress(fetchByte());
   readonly #indexedOperandAddress: AddressReader = instruction => this.#indexedAddress(instruction);
@@ -189,10 +189,9 @@ export class Cpu6809 {
   readonly #page2Handlers = opcodeTable<OpcodeHandler>([
     ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi2", instruction)), // SWI2
     ...this.#branchHandlers(({ fetchWord }) => fetchWord()).filter(([opcode]) => opcode !== 0x20), // LBRN and LBcc; LBRA has base opcode 16
-    ...this.#wordHandlers([
-      { bits: "10 mm 0011", apply: value => this.#wordArithmetic("compare", "d", value) }, // CMPD
-      { bits: "10 mm 1100", apply: value => this.#wordArithmetic("compare", "y", value) }, // CMPY
-    ], [
+    ...this.#comparisonHandlers("10 mm 0011", semantics.cmpdImmediate, semantics.cmpdMemory), // CMPD
+    ...this.#comparisonHandlers("10 mm 1100", semantics.cmpyImmediate, semantics.cmpyMemory), // CMPY
+    ...this.#wordHandlers([], [
       { bits: "10 mm 111", register: "y" }, // LDY / STY
       { bits: "11 mm 111", register: "s" }, // LDS / STS
     ]),
@@ -200,10 +199,8 @@ export class Cpu6809 {
   // Prefix 11 selects page 3: the same comparison fields select U/S rather than D/Y.
   readonly #page3Handlers = opcodeTable<OpcodeHandler>([
     ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi3", instruction)), // SWI3
-    ...this.#wordHandlers([
-      { bits: "10 mm 0011", apply: value => this.#wordArithmetic("compare", "u", value) }, // CMPU
-      { bits: "10 mm 1100", apply: value => this.#wordArithmetic("compare", "s", value) }, // CMPS
-    ]),
+    ...this.#comparisonHandlers("10 mm 0011", semantics.cmpuImmediate, semantics.cmpuMemory), // CMPU
+    ...this.#comparisonHandlers("10 mm 1100", semantics.cmpsImmediate, semantics.cmpsMemory), // CMPS
   ]);
 
   // Base opcode page; 10/11 dispatch exactly one following opcode in their own page.
@@ -251,26 +248,25 @@ export class Cpu6809 {
     ...this.#memoryUnaryHandlers("0110", this.#indexedOperandAddress),
     ...this.#memoryUnaryHandlers("0111", this.#extendedOperandAddress),
 
-    // 1 r 00 oooo: immediate A/B operations; word families occupy the remaining slots.
+    // 1 r mm 0001: CMPA/B share all four addressing modes; r=0 selects A, r=1 selects B.
+    ...this.#comparisonHandlers("10 mm 0001", semantics.cmpaImmediate, semantics.cmpaMemory), // CMPA
+    ...this.#comparisonHandlers("11 mm 0001", semantics.cmpbImmediate, semantics.cmpbMemory), // CMPB
+
+    // 1 r 00 oooo: remaining immediate A/B operations; word families occupy the remaining slots.
     ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r 00 ${bits}`,
-      { r: ["a", "b"] }, ({ r }): OpcodeHandler => bits === "0001"
-        ? instruction => ({ a: semantics.cmpaImmediate, b: semantics.cmpbImmediate })[r](this.#state, instruction)
-        : ({ fetchByte }) => apply(r, fetchByte()))), // oooo=0001: generated CMPA/B bodies.
+      { r: ["a", "b"] }, ({ r }) => ({ fetchByte }: InstructionContext) => apply(r, fetchByte()))),
     ...instructionPattern("1 0 00 1101", ({ fetchByte, writeByte }) => this.#call(this.#relativeAddress(signed8(fetchByte())), writeByte)), // BSR rel8
 
     // 1 r mm oooo: the same operation selectors with a resolved memory address.
     ...this.#memoryModes.flatMap(({ bits, address }) => this.#memoryAccumulatorHandlers(bits, address)),
 
     // 10 mm 1100: CMPX uses immediate/direct/indexed/extended sources for mm=00/01/10/11.
-    ...instructionPattern("10 00 1100", instruction => semantics.cmpxImmediate(this.#state, instruction)),
-    ...instructionPattern("10 01 1100", instruction => semantics.cmpxDirect(this.#state, instruction)),
-    ...instructionPattern("10 10 1100", instruction => this.#compareXIndexed(instruction)),
-    ...instructionPattern("10 11 1100", instruction => semantics.cmpxExtended(this.#state, instruction)),
+    ...this.#comparisonHandlers("10 mm 1100", semantics.cmpxImmediate, semantics.cmpxMemory), // CMPX
 
     // 1 r mm 0011: r=0 subtracts from D, r=1 adds to D.
     ...this.#wordHandlers([
-      { bits: "10 mm 0011", apply: value => this.#wordArithmetic("subtract", "d", value) }, // SUBD
-      { bits: "11 mm 0011", apply: value => this.#wordArithmetic("add", "d", value) }, // ADDD
+      { bits: "10 mm 0011", apply: value => this.#wordArithmetic("subtract", value) }, // SUBD
+      { bits: "11 mm 0011", apply: value => this.#wordArithmetic("add", value) }, // ADDD
     ], [
       { bits: "11 mm 110", register: "d" }, // LDD / STD
       { bits: "10 mm 111", register: "x" }, // LDX / STX
@@ -286,6 +282,17 @@ export class Cpu6809 {
   #branchHandlers(readOffset: OperandReader): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily("0010 ttt p", { t: motorolaConditionPairs, p: [false, true] },
       ({ t: test, p: invert }) => instruction => this.#branch(readOffset(instruction), test(this.#state.flags) !== invert));
+  }
+
+  // mm=00 fetches an immediate; mm=01/10/11 resolve direct/indexed/extended before reading data.
+  #comparisonHandlers(pattern: string,
+    immediate: (state: Cpu6809State, instruction: InstructionContext) => void,
+    memory: (state: Cpu6809State, address: number, instruction: InstructionContext) => void): readonly OpcodeEntry<OpcodeHandler>[] {
+    return [
+      ...instructionPattern(pattern.replace("mm", "00"), instruction => immediate(this.#state, instruction)),
+      ...this.#memoryModes.flatMap(({ bits, address }) => this.#addressedHandlers(address,
+        addressPattern(pattern.replace("mm", bits), (address, instruction) => memory(this.#state, address, instruction)))),
+    ];
   }
 
   // CLR also reads its operand here; the 6800 binds CLR to a write-only instruction.
@@ -335,7 +342,8 @@ export class Cpu6809 {
     return (this.#state.dp << 8) | offset;
   }
 
-  #indexedAddress(instruction: InstructionContext, postbyte = instruction.fetchByte()): number | undefined {
+  #indexedAddress(instruction: InstructionContext): number | undefined {
+    const postbyte = instruction.fetchByte();
     const { fetchByte, fetchWord, readByte } = instruction;
     // 0 rr nnnnn: rr=00 X, 01 Y, 10 U, 11 S; nnnnn is a signed five-bit offset.
     const register = (["x", "y", "u", "s"] as const)[(postbyte >>> 5) & 3]!;
@@ -382,15 +390,6 @@ export class Cpu6809 {
     // Modulo 65536 also interprets D and word offsets as two's-complement values.
     address &= 0xffff;
     return indirect ? this.#readWord(address, readByte) : address;
-  }
-
-  // Only postbyte 1 00 0 0001 (,X++) is represented in the executable semantics experiment.
-  #compareXIndexed(instruction: InstructionContext): "unsupported" | void {
-    const postbyte = instruction.fetchByte();
-    if (postbyte === 0b1_00_0_0001) return semantics.cmpxPostincrement(this.#state, instruction);
-    const address = this.#indexedAddress(instruction, postbyte);
-    if (address === undefined) return "unsupported";
-    this.#wordArithmetic("compare", "x", this.#readWord(address, instruction.readByte));
   }
 
   // Loads and stores.
@@ -552,12 +551,10 @@ export class Cpu6809 {
 
   // Arithmetic and CPU-specific flag effects.
 
-  #wordArithmetic(operation: "add" | "subtract" | "compare", register: WordRegister, value: number): void {
-    // Read after addressing: CMPX ,X++ compares the updated X, for example.
-    const left = this.#readWordRegister(register);
-    const arithmetic = operation === "add" ? add(16, left, value) : subtract(16, left, value);
+  #wordArithmetic(operation: "add" | "subtract", value: number): void {
+    const arithmetic = operation === "add" ? add(16, this.#d, value) : subtract(16, this.#d, value);
     Object.assign(this.#state.flags, motorolaArithmeticFlags(16, arithmetic));
-    if (operation !== "compare") this.#writeWordRegister(register, arithmetic.result);
+    this.#writeWordRegister("d", arithmetic.result);
   }
 
   #signExtend(): void {
