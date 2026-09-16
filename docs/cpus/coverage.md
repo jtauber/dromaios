@@ -1,11 +1,13 @@
 # CPU implementation coverage
 
-This is the living inventory of CPU support in Dromaios. Implementation
-coverage means the instructions and processor features the models provide.
-Test coverage measures how much existing code the tests exercise; even full
-test coverage can accompany a small instruction subset.
+This report tracks the current migration from handwritten instruction bodies to
+[shared, inspectable instruction definitions](instruction-semantics.md) that
+generate both executable code and explanations. All eight initial CPU models
+already implement **100% of their documented opcode forms**; the percentages
+below now measure definition migration. The detailed support inventory remains
+below as a reference for implemented behavior and processor limitations.
 
-Update this document whenever CPU support changes. The
+Update this document whenever migration or CPU support changes. The
 [model contracts](../README.md#cpu-models) define state and execution policies;
 example specifications define programs and expected results. [CPU scope](scope.md)
 records intended targets and the reasons for choosing them. Existing reference
@@ -13,16 +15,37 @@ emulators do not count toward implementation here.
 
 ## At a glance
 
-| Model | Introduced | Transistors (approx.) | Source lines | Complete / documented opcode forms | Opcode completion |
+| Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [312](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [269](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [385](../../src/components/cpus/6800.ts) | 197 / 197 | 100% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [450](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [661](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [608](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [312](../../src/components/cpus/8008.ts) | 0 / 250 | 0% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [269](../../src/components/cpus/8080.ts) | 9 / 244 | 3.7% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [385](../../src/components/cpus/6800.ts) | 0 / 197 | 0% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [454](../../src/components/cpus/6502.ts) | 39 / 151 | 25.8% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [661](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [608](../../src/components/cpus/6809.ts) | 5 / 268 | 1.9% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
+
+The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
+contains **55 generated bodies**, of which **54 are used by CPU execution**,
+covering **53 complete opcode forms**:
+
+- [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
+  14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, all six register transfers,
+  and ASL zero page. All 39 bodies are integrated and count as migrated forms.
+- [8080 definitions](../../src/components/cpus/semantics/definitions/8080.ts):
+  CPI and all eight CMP register/memory forms are integrated. MOV B,A is a
+  generated test sample, so it does not yet count toward migration.
+- [6809 definitions](../../src/components/cpus/semantics/definitions/6809.ts):
+  CMPA/CMPB immediate and CMPX immediate/direct/extended count as five migrated
+  forms. The sixth integrated body, CMPX indexed with postbyte `81` (`,X++`),
+  covers only one operand choice; other indexed postbytes still use handwritten
+  semantics, so the indexed opcode earns no migration credit yet.
+
+The other five CPUs have no instruction bodies generated from these definitions.
+Their existing shared TypeScript helpers remain useful, but are outside this
+migration count. The [next review](instruction-semantics.md#decision-and-next-review)
+is 6502 JSR's interleaved operand fetching and stack writes.
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -59,20 +82,26 @@ Opcode completion does not imply complete processor emulation.
 
 ## How the percentages are counted
 
-Opcode completion is **complete documented opcode forms / total documented
-opcode forms × 100**, rounded to one decimal place. A positive result that
+Definition migration is **fully migrated documented opcode forms / total
+documented opcode forms × 100**, rounded to one decimal place. A positive result that
 would round to zero is shown as **<0.1%**; an incomplete result that would
-round to 100% is shown as **>99.9%**. It measures instruction
-coverage, not overall processor completeness or the proportion of work done.
-Timing, interrupts, reset, and other processor features are tracked separately
-below and do not contribute to this percentage.
+round to 100% is shown as **>99.9%**. A form counts only when the real CPU uses
+its generated instruction body for every documented operand choice, with the
+existing behavior and failure boundaries verified. A generated sample used
+only in tests does not count. A shared definition may cover several encodings;
+each migrated encoding counts under the same rules as the support inventory.
+
+This measures migration of instruction bodies, not effort, code reduction, or
+processor completeness. Opcode selection and core execution machinery can
+remain handwritten. Reset, external interrupt delivery, cycle timing, and other
+processor features are outside the percentage. Test coverage is a separate
+measure of how much existing code the tests exercise.
 
 An opcode form is a specific encoding, including its addressing form. For
 example, immediate LDA and absolute LDA count separately. Operand values do
-not create additional forms. An opcode with restricted instruction semantics
-is partial and earns no completion credit until the restriction is removed.
-For example, an arithmetic form earns credit only once every supported
-arithmetic mode is implemented.
+not create additional forms. Partly migrated forms earn no credit until all
+their documented choices use generated semantics. The support inventory below
+continues to describe the behavior of both generated and handwritten bodies.
 
 The denominators count distinct documented encodings in the manufacturer
 instruction tables, with register fields expanded where they form part of

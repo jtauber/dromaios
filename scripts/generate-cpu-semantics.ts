@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { instructions6502, instructions8080, instructions6809 } from "../src/components/cpus/semantics/examples.ts";
+import { instructions6502, instructions8080, instructions6809 } from "../src/components/cpus/semantics/definitions.ts";
 import { generateInstructions } from "../src/components/cpus/semantics/generate.ts";
 
 /** Rebuild executable semantics from definitions and CPU-owned state schemas. */

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { instructionExamples } from "../../../../src/components/cpus/semantics/examples.js";
+import { instructionDefinitions } from "../../../../src/components/cpus/semantics/definitions.js";
 import { describeInstruction, describeInstructions } from "../../../../src/components/cpus/semantics/describe.js";
 
 function description(cpu: string, name: string): string {
-  const example = instructionExamples.find(example => example.cpu.name === cpu && example.name === name);
+  const example = instructionDefinitions.find(example => example.cpu.name === cpu && example.name === name);
   assert.ok(example);
   return describeInstruction(example);
 }
@@ -25,7 +25,7 @@ test("comparison expansions read the source before the register and expose CPU-s
   const motorola = description("6809", "CMPA #byte");
   assert.match(motorola, /V := subtractOverflow\(left, right\)/);
   assert.match(motorola, /C := borrow\(left, right\)/);
-  for (const definition of instructionExamples.filter(example => /^(CMP|CPX|CPY|CPI)/.test(example.name))) {
+  for (const definition of instructionDefinitions.filter(example => /^(CMP|CPX|CPY|CPI)/.test(example.name))) {
     assert.equal(definition.steps.some(step => step.kind === "write-register" || step.kind === "write-memory"), false);
   }
 });
@@ -51,7 +51,7 @@ flags "6809 comparison" simultaneously {
 });
 
 test("memory ASL exposes two actual writes and separate carry and N/Z stages", () => {
-  const example = instructionExamples.find(example => example.name === "ASL zero page")!;
+  const example = instructionDefinitions.find(example => example.name === "ASL zero page")!;
   assert.deepEqual(example.steps.map(step => step.kind), [
     "fetch-byte", "capture", "read-memory", "write-memory", "capture", "update-flags", "write-memory", "update-flags",
   ]);
@@ -65,19 +65,33 @@ test("memory ASL exposes two actual writes and separate carry and N/Z stages", (
   assert.match(text, /Flags preserved throughout: V, D, I\./);
 });
 
-test("transfers distinguish flag-changing TAX from flag-preserving MOV", () => {
-  const mos = description("6502", "TAX"), intel = description("8080", "MOV B,A");
-  assert.ok(mos.indexOf("write X:u8 := byte") < mos.indexOf("N := topBit(byte)"));
+test("transfers distinguish flag-changing TAX from flag-preserving TXS and MOV", () => {
+  const mos = description("6502", "TAX"), stack = description("6502", "TXS"), intel = description("8080", "MOV B,A");
+  const write = mos.indexOf("write X:u8 := result"), flags = mos.indexOf("N := topBit(result)");
+  assert.ok(write > mos.indexOf("read A") && flags > write);
   assert.match(mos, /Flags preserved throughout: V, D, I, C\./);
+  assert.match(stack, /read X/);
+  assert.match(stack, /write SP:u8 := result/);
+  assert.match(stack, /Flags preserved throughout: N, V, D, I, Z, C\./);
+  assert.doesNotMatch(stack, /simultaneously|read memory|write memory/);
   assert.match(intel, /Flags preserved throughout: S, Z, AC, P, CY\./);
   assert.doesNotMatch(intel, /simultaneously/);
 });
 
+test("the indexed load explanation distinguishes the index from the destination and shows the commit order", () => {
+  const text = description("6502", "LDX zero page,Y");
+  const fetch = text.indexOf("fetch byte"), index = text.indexOf("read Y"), read = text.indexOf("read memory[address]");
+  const write = text.indexOf("write X:u8 := result"), flags = text.indexOf("N := topBit(result)");
+  assert.ok(fetch >= 0 && fetch < index && index < read && read < write && write < flags);
+  assert.match(text, /address := zeroExtend16\(addWrap\(offset, index\)\)/);
+  assert.match(text, /Flags preserved throughout: V, D, I, C\./);
+});
+
 test("the review artifact is reproducible from the inert definitions and their accompanying prose", () => {
-  const before = JSON.stringify(instructionExamples);
-  const document = describeInstructions(instructionExamples);
+  const before = JSON.stringify(instructionDefinitions);
+  const document = describeInstructions(instructionDefinitions);
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
-  assert.equal(JSON.stringify(instructionExamples), before);
-  assert.equal(describeInstructions(instructionExamples), document);
-  assert.equal(instructionExamples.length, 32);
+  assert.equal(JSON.stringify(instructionDefinitions), before);
+  assert.equal(describeInstructions(instructionDefinitions), document);
+  assert.equal(instructionDefinitions.length, 55);
 });

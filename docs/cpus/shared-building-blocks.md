@@ -1315,8 +1315,8 @@ the language is worth adopting.
 ### 5. Execute one slice and produce a useful second output
 
 The [current executable experiment](instruction-semantics.md#executable-generation-and-integration)
-generates and binds comparison bodies across the three CPUs, plus TAX and
-zero-page ASL. It shares its definitions with the explanatory listing. The
+generates and binds comparison bodies across the three CPUs, plus 6502 loads,
+register transfers, and zero-page ASL. It shares its definitions with the explanatory listing. The
 JSR and 68000 probes below remain requirements for later vocabulary; they are
 not yet represented by this byte/word slice. Whole-model migration remains a
 separate decision.

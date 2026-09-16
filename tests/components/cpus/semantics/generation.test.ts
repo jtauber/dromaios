@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { instructions as mos } from "../../../../src/components/cpus/generated/6502.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
-import { instructions6502, instructions8080, instructions6809 } from "../../../../src/components/cpus/semantics/examples.js";
+import { instructions6502, instructions8080, instructions6809 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { cpuSymbols, addWrap, literal, value, zero } from "../../../../src/components/cpus/semantics/model.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";

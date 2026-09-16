@@ -1997,6 +1997,47 @@ test("6502 memory loads of X/Y use their specified index and replace only N/Z fo
   }
 });
 
+test("6502 loads commit their destination and flags only after every source read succeeds", () => {
+  const failure = new Error("load source read failed");
+  class FailingRam extends ObservedRam {
+    failAt = -1;
+    attempts = 0;
+    inspect: () => void = () => {};
+    override read(address: number): number {
+      this.inspect();
+      if (this.attempts++ === this.failAt) throw failure;
+      return super.read(address);
+    }
+  }
+  const accumulator = accumulatorForms.find(family => family.name === "LDA")!;
+  const forms = [
+    ...accumulator.opcodes.map((opcode, index) => ({ opcode, fixture: operandFixtures[index]! })),
+    ...registerMemoryForms.flatMap(form => "load" in form ? [{ opcode: form.load, fixture: form.fixture }] : []),
+    ...[0xa2, 0xa0].map(opcode => ({ opcode, fixture: operandFixtures[2]! })), // LDX/LDY immediate
+  ];
+  for (const { opcode, fixture } of forms) {
+    const bytes = [opcode, ...(fixture.address === null ? [0] : fixture.bytes)];
+    const before = initialState({ x: 2, y: 3, flags: { n: true, z: false, v: true, d: true, i: true, c: true } });
+    const reads = [
+      ...bytes.map((value, offset) => [before.pc + offset, value] as const),
+      ...fixture.pointers,
+      ...(fixture.address === null ? [] : [[fixture.address, 0] as const]),
+    ];
+    for (let failAt = 0; failAt < reads.length; failAt++) {
+      const ram = new FailingRam();
+      for (const [address, value] of reads) ram.write(address, value);
+      ram.accesses.length = 0;
+      ram.failAt = failAt;
+      const cpu = new Cpu6502(ram, before);
+      const during = () => ({ ...before, pc: before.pc + Math.min(ram.attempts, bytes.length) });
+      ram.inspect = () => assert.deepEqual(cpu.snapshot(), during());
+      assert.throws(() => cpu.step(), error => error === failure);
+      assert.deepEqual(cpu.snapshot(), { ...before, pc: before.pc + Math.min(failAt, bytes.length) });
+      assert.deepEqual(ram.accesses, reads.slice(0, failAt).map(([address, value]) => ({ kind: "read", address, value })));
+    }
+  }
+});
+
 test("6502 stores A/X/Y through every supported mode without changing flags or reading the destination", () => {
   const ram = new ObservedRam();
   for (const form of registerMemoryForms) {

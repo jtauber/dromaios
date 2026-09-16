@@ -39,6 +39,8 @@ export function checkInstructionSemantics(): void {
 export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State): void {
   generated6502.tax(mos);
   generated6502.cmpImmediate(mos, { fetchByte: () => 0 });
+  generated6502.ldxZeroPageY(mos, { fetchByte: () => 0, readByte: () => 0 });
+  generated6502.txs(mos);
   generated8080.cmpB(intel);
   // @ts-expect-error Generated handlers use the concrete CPU's stored-state type.
   generated6502.cmpImmediate(intel, { fetchByte: () => 0 });
@@ -46,4 +48,6 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6502.aslZeroPage(mos, { fetchByte: () => 0 });
   // @ts-expect-error Register comparison neither needs nor accepts a fetching capability.
   generated8080.cmpB(intel, { fetchByte: () => 0 });
+  // @ts-expect-error An indexed load also requires a data-memory read capability.
+  generated6502.ldxZeroPageY(mos, { fetchByte: () => 0 });
 }

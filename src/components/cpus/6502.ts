@@ -134,7 +134,11 @@ export class Cpu6502 {
     value => this.#shiftResult(shiftRight(8, value, this.#state.flags.c ? 1 : 0)), // 11 ROR
   ];
 
-  // CMP uses the same bbb addressing order; generated bodies include the operand reads.
+  // LDA/CMP use the same bbb addressing order; generated bodies include the operand reads.
+  readonly #loads = [
+    semantics.ldaIndexedIndirect, semantics.ldaZeroPage, semantics.ldaImmediate, semantics.ldaAbsolute,
+    semantics.ldaIndirectIndexed, semantics.ldaZeroPageX, semantics.ldaAbsoluteY, semantics.ldaAbsoluteX,
+  ];
   readonly #comparisons = [
     semantics.cmpIndexedIndirect, semantics.cmpZeroPage, semantics.cmpImmediate, semantics.cmpAbsolute,
     semantics.cmpIndirectIndexed, semantics.cmpZeroPageX, semantics.cmpAbsoluteY, semantics.cmpAbsoluteX,
@@ -156,13 +160,13 @@ export class Cpu6502 {
     ...instructionPattern("001 000 00", instruction => this.#call(instruction)), // JSR addr
     ...instructionPattern("010 000 00", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
     ...instructionPattern("011 000 00", ({ readByte }) => this.#return(readByte)), // RTS
-    ...instructionPattern("101 000 00", ({ fetchByte }) => this.#loadRegister("y", fetchByte())), // LDY #n
+    ...instructionPattern("101 000 00", instruction => semantics.ldyImmediate(this.#state, instruction)), // LDY #n
     ...opcodeFamily("11r 000 00", { r: [semantics.cpyImmediate, semantics.cpxImmediate] }, ({ r: compare }) => (instruction: InstructionContext) => compare(this.#state, instruction)), // CPY/CPX #n
 
     // cc=00, bbb=001: zero page. aaa=001 selects BIT, 100/101 select STY/LDY, 11r selects CPY/CPX.
     ...instructionPattern("001 001 00", ({ fetchByte, readByte }) => this.#testBits(readByte(fetchByte()))), // BIT zp
     ...instructionPattern("100 001 00", ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.y)), // STY zp
-    ...instructionPattern("101 001 00", ({ fetchByte, readByte }) => this.#loadRegister("y", readByte(fetchByte()))), // LDY zp
+    ...instructionPattern("101 001 00", instruction => semantics.ldyZeroPage(this.#state, instruction)), // LDY zp
     ...opcodeFamily("11r 001 00", { r: [semantics.cpyZeroPage, semantics.cpxZeroPage] }, ({ r: compare }) => (instruction: InstructionContext) => compare(this.#state, instruction)), // CPY/CPX zp
 
     // cc=00, bbb=010: 0rp 010 00. r (bit 6) selects status (0)/A (1); p (bit 5) selects push (0)/pull (1).
@@ -172,7 +176,7 @@ export class Cpu6502 {
     ...instructionPattern("01 1 010 00", ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte))), // PLA
     // aaa=100..111 selects DEY, TAY, INY, INX in this subgroup.
     ...instructionPattern("100 010 00", () => this.#adjustIndex("y", -1)), // DEY
-    ...instructionPattern("101 010 00", () => this.#loadRegister("y", this.#state.a)), // TAY
+    ...instructionPattern("101 010 00", () => semantics.tay(this.#state)), // TAY
     ...instructionPattern("110 010 00", () => this.#adjustIndex("y", 1)), // INY
     ...instructionPattern("111 010 00", () => this.#adjustIndex("x", 1)), // INX
 
@@ -181,7 +185,7 @@ export class Cpu6502 {
     ...instructionPattern("010 011 00", ({ fetchWord }) => this.#jump(fetchWord())), // JMP addr
     ...instructionPattern("011 011 00", ({ fetchWord, readByte }) => this.#jump(this.#readPageWrappedPointer(fetchWord(), readByte))), // JMP (addr)
     ...instructionPattern("100 011 00", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.y)), // STY addr
-    ...instructionPattern("101 011 00", ({ fetchWord, readByte }) => this.#loadRegister("y", readByte(fetchWord()))), // LDY addr
+    ...instructionPattern("101 011 00", instruction => semantics.ldyAbsolute(this.#state, instruction)), // LDY addr
     ...opcodeFamily("11r 011 00", { r: [semantics.cpyAbsolute, semantics.cpxAbsolute] }, ({ r: compare }) => (instruction: InstructionContext) => compare(this.#state, instruction)), // CPY/CPX addr
 
     // cc=00, bbb=100: ffv 100 00 selects a flag and the value required to branch.
@@ -195,21 +199,21 @@ export class Cpu6502 {
 
     // cc=00, bbb=101: aaa=100/101 select STY/LDY zero page indexed by X.
     ...instructionPattern("100 101 00", instruction => instruction.writeByte(this.#zeroPageIndexed("x", instruction), this.#state.y)), // STY zp,X
-    ...instructionPattern("101 101 00", instruction => this.#loadRegister("y", instruction.readByte(this.#zeroPageIndexed("x", instruction)))), // LDY zp,X
+    ...instructionPattern("101 101 00", instruction => semantics.ldyZeroPageX(this.#state, instruction)), // LDY zp,X
 
     // cc=00, bbb=110: 00v/01v/11v select CLC/SEC, CLI/SEI, CLD/SED; v (bit 5) is the new flag value.
     // aaa=100/101 select TYA/CLV.
     ...opcodeFamily("00v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.c = v; }), // CLC/SEC
     ...opcodeFamily("01v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.i = v; }), // CLI/SEI
-    ...instructionPattern("100 110 00", () => this.#loadRegister("a", this.#state.y)), // TYA
+    ...instructionPattern("100 110 00", () => semantics.tya(this.#state)), // TYA
     ...instructionPattern("101 110 00", () => { this.#state.flags.v = false; }), // CLV
     ...opcodeFamily("11v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.d = v; }), // CLD/SED
 
     // cc=00, bbb=111: aaa=101 selects LDY absolute indexed by X; no STY counterpart.
-    ...instructionPattern("101 111 00", instruction => this.#loadRegister("y", instruction.readByte(this.#absoluteIndexed("x", instruction)))), // LDY addr,X
+    ...instructionPattern("101 111 00", instruction => semantics.ldyAbsoluteX(this.#state, instruction)), // LDY addr,X
 
     // cc=01: aaa selects ORA, AND, EOR, ADC, STA, LDA, CMP, SBC in that order.
-    // Read families use all eight bbb readers above. STA has seven memory forms
+    // Read families use all eight bbb addressing forms above. STA has seven memory forms
     // and no bbb=010 immediate encoding.
     ...this.#accumulatorHandlers("000 bbb 01", value => this.#loadRegister("a", this.#state.a | value)), // ORA
     ...this.#accumulatorHandlers("001 bbb 01", value => this.#loadRegister("a", this.#state.a & value)), // AND
@@ -222,12 +226,12 @@ export class Cpu6502 {
     ...instructionPattern("100 101 01", instruction => instruction.writeByte(this.#zeroPageIndexed("x", instruction), this.#state.a)), // STA zp,X
     ...instructionPattern("100 110 01", instruction => instruction.writeByte(this.#absoluteIndexed("y", instruction), this.#state.a)), // STA addr,Y
     ...instructionPattern("100 111 01", instruction => instruction.writeByte(this.#absoluteIndexed("x", instruction), this.#state.a)), // STA addr,X
-    ...this.#accumulatorHandlers("101 bbb 01", value => this.#loadRegister("a", value)), // LDA
+    ...opcodeFamily("101 bbb 01", { b: this.#loads }, ({ b: load }) => (instruction: InstructionContext) => load(this.#state, instruction)), // LDA
     ...opcodeFamily("110 bbb 01", { b: this.#comparisons }, ({ b: compare }) => (instruction: InstructionContext) => compare(this.#state, instruction)), // CMP
     ...this.#accumulatorHandlers("111 bbb 01", value => this.#subtractWithCarry(value)), // SBC
 
     // cc=10, bbb=000: aaa=101 selects LDX immediate.
-    ...instructionPattern("101 000 10", ({ fetchByte }) => this.#loadRegister("x", fetchByte())), // LDX #n
+    ...instructionPattern("101 000 10", instruction => semantics.ldxImmediate(this.#state, instruction)), // LDX #n
 
     // cc=10 memory subgroups: 0ss selects ASL/ROL/LSR/ROR; 11i selects DEC (i=0)/INC (i=1).
     // bbb=001/011/101/111 select zp/absolute/zp,X/absolute,X for these modifying operations.
@@ -235,12 +239,12 @@ export class Cpu6502 {
     // bbb=001: zero page.
     ...opcodeFamily("0ss 001 10", { s: this.#zeroPageShifts }, ({ s: shift }) => shift), // ASL/ROL/LSR/ROR zp
     ...instructionPattern("100 001 10", ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.x)), // STX zp
-    ...instructionPattern("101 001 10", ({ fetchByte, readByte }) => this.#loadRegister("x", readByte(fetchByte()))), // LDX zp
+    ...instructionPattern("101 001 10", instruction => semantics.ldxZeroPage(this.#state, instruction)), // LDX zp
     ...this.#memoryAdjustHandlers("11i 001 10", ({ fetchByte }) => fetchByte()), // DEC/INC zp
 
     // bbb=010: 0ss shifts/rotates A; aaa=100..111 select TXA, TAX, DEX, NOP, not accumulator INC/DEC.
     ...opcodeFamily("0ss 010 10", { s: this.#shifts }, ({ s: modify }) => () => this.#loadRegister("a", modify(this.#state.a))), // ASL/ROL/LSR/ROR A
-    ...instructionPattern("100 010 10", () => this.#loadRegister("a", this.#state.x)), // TXA
+    ...instructionPattern("100 010 10", () => semantics.txa(this.#state)), // TXA
     ...instructionPattern("101 010 10", () => semantics.tax(this.#state)), // TAX
     ...instructionPattern("110 010 10", () => this.#adjustIndex("x", -1)), // DEX
     ...instructionPattern("111 010 10", () => {}), // NOP: step() advances PC; no further effects.
@@ -248,22 +252,22 @@ export class Cpu6502 {
     // bbb=011: absolute.
     ...this.#memoryShiftHandlers("0ss 011 10", ({ fetchWord }) => fetchWord()), // ASL/ROL/LSR/ROR addr
     ...instructionPattern("100 011 10", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.x)), // STX addr
-    ...instructionPattern("101 011 10", ({ fetchWord, readByte }) => this.#loadRegister("x", readByte(fetchWord()))), // LDX addr
+    ...instructionPattern("101 011 10", instruction => semantics.ldxAbsolute(this.#state, instruction)), // LDX addr
     ...this.#memoryAdjustHandlers("11i 011 10", ({ fetchWord }) => fetchWord()), // DEC/INC addr
 
     // bbb=101: zero page indexed by X, except STX/LDX use Y.
     ...this.#memoryShiftHandlers("0ss 101 10", instruction => this.#zeroPageIndexed("x", instruction)), // ASL/ROL/LSR/ROR zp,X
     ...instructionPattern("100 101 10", instruction => instruction.writeByte(this.#zeroPageIndexed("y", instruction), this.#state.x)), // STX zp,Y
-    ...instructionPattern("101 101 10", instruction => this.#loadRegister("x", instruction.readByte(this.#zeroPageIndexed("y", instruction)))), // LDX zp,Y
+    ...instructionPattern("101 101 10", instruction => semantics.ldxZeroPageY(this.#state, instruction)), // LDX zp,Y
     ...this.#memoryAdjustHandlers("11i 101 10", instruction => this.#zeroPageIndexed("x", instruction)), // DEC/INC zp,X
 
     // bbb=110: aaa=100/101 select TXS/TSX. Only TSX updates N/Z; TXS preserves every flag.
-    ...instructionPattern("100 110 10", () => { this.#state.sp = this.#state.x; }), // TXS
-    ...instructionPattern("101 110 10", () => this.#loadRegister("x", this.#state.sp)), // TSX
+    ...instructionPattern("100 110 10", () => semantics.txs(this.#state)), // TXS
+    ...instructionPattern("101 110 10", () => semantics.tsx(this.#state)), // TSX
 
     // bbb=111: absolute indexed by X, except LDX uses Y; no STX counterpart.
     ...this.#memoryShiftHandlers("0ss 111 10", instruction => this.#absoluteIndexed("x", instruction)), // ASL/ROL/LSR/ROR addr,X
-    ...instructionPattern("101 111 10", instruction => this.#loadRegister("x", instruction.readByte(this.#absoluteIndexed("y", instruction)))), // LDX addr,Y
+    ...instructionPattern("101 111 10", instruction => semantics.ldxAbsoluteY(this.#state, instruction)), // LDX addr,Y
     ...this.#memoryAdjustHandlers("11i 111 10", instruction => this.#absoluteIndexed("x", instruction)), // DEC/INC addr,X
   ]);
 

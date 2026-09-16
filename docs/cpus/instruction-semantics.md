@@ -8,7 +8,7 @@ The public execution interfaces and supported opcode inventories are unchanged.
 
 The experiment asks whether an instruction's meaning can be described clearly
 enough for execution and explanation to share one source. The authored
-[examples](../../src/components/cpus/semantics/examples.ts) pair prose with
+[definitions](../../src/components/cpus/semantics/definitions.ts) pair prose with
 structured bodies. This is a step toward the literate-programming aspiration;
 it does not choose an external grammar or a document format for authoring CPUs.
 
@@ -19,10 +19,11 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 CPI and every CMP register/memory form | Immediate, register, and memory sources; parity and inverse half-borrow |
 | 6809 CMPA/CMPB immediate; CMPX immediate/direct/extended and `,X++` | Byte/word widths; addressing changes the register that comparison subsequently reads |
-| 6502 TAX and 8080 MOV B,A | Similar transfers with different flag effects |
+| 6502 LDA/LDX/LDY, every supported addressing form | Reuse comparison sources; delay destination and N/Z updates until the source succeeds |
+| All six 6502 register transfers and 8080 MOV B,A | Share read/write behavior while selecting N/Z or preserving every flag; SP transfers do not access the stack |
 | 6502 ASL zero page | One resolved address, an original-value write, and two separate flag stages |
 
-There are 32 bodies. All are generated and executable; 31 are bound into their
+There are 55 bodies. All are generated and executable; 54 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other 6809 comparison addressing forms and other shift forms retain their
@@ -38,6 +39,20 @@ independent CPU tests are the behavioral baseline.
 [model.ts](../../src/components/cpus/semantics/model.ts) separates declarations,
 pure expressions, and ordered statements. Its constructors return ordinary
 readonly data. There is no instruction callback stored in a definition.
+
+The authoring layers have separate homes:
+
+| Location | Responsibility |
+| --- | --- |
+| [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
+| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared construction recipes: immediate/register sources, comparison, transfer, and N/Z policies |
+| [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
+| [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
+
+Each CPU definition module follows sources, policies, instruction construction,
+then named definitions. Shared recipes return data built from the existing
+vocabulary; they add no runtime callbacks or new language primitives. The
+compiler and reporter expand their results just like directly authored bodies.
 
 `cpuSymbols(name, stateDescription)` imports the CPU's existing authority for
 stored fields. It offers typed register and flag names and records register
@@ -61,6 +76,19 @@ inspectable data. The construction function itself is TypeScript, with typed
 parameters; there is no general parameterized instruction-body call node yet.
 We can judge the repeated pattern without first designing higher-order DSL
 parameters for every operand role.
+
+`transfer(destination, source, policy?)` captures its source as `result`, writes
+the destination, and optionally applies a policy with that result parameter.
+All 18 6502 load forms and six register transfers use this recipe; the 8080
+MOV B,A sample uses it too. The 6502 selects its N/Z policy except for TXS,
+which supplies no policy and preserves every flag. A source that fails never
+reaches the destination write or flag update.
+
+The 6502 comparison and load definitions share a named source inventory.
+Zero-page indexing wraps the byte address before widening; absolute indexing
+wraps the word address. LDX uses Y for indexed modes, whereas LDY uses X.
+The sole additional addressing source for loads is zero page indexed by Y;
+the other forms reuse the comparison sources, including both indirect modes.
 
 A `ValueSource` has a name, result width, ordered body, and pure result expression.
 Its captures live in a fresh scope; only its yielded value enters its caller's
@@ -223,7 +251,8 @@ works independently of generated CPU output. There is still one authority for
 each CPU's stored fields.
 
 Opcode selection remains in the CPU tables. The 6502 binds the complete
-comparison families, TAX, and zero-page ASL. The 8080 binds all nine CMP/CPI forms.
+comparison and load families, all six register transfers, and zero-page ASL.
+The 8080 binds all nine CMP/CPI forms.
 The 6809 binds immediate CMPA/B, three ordinary CMPX modes, and one indexed body:
 it fetches the postbyte once, selects generated `,X++` for `81`, and delegates
 other forms to its existing indexed decoder. Unsupported postbytes retain the
@@ -243,8 +272,15 @@ module line counts alone.
 
 The next decision is whether this extra structure earns its inspection benefit
 before expanding the vocabulary. Keep the comparison and failure probes as
-regressions. Improve definition readability where needed, then migrate another
-small coherent group; do not jump to a general CPU grammar or whole-model rewrite.
+regressions. Loads and transfers now demonstrate reuse of operand sources and
+policies with no vocabulary extension. The existing result-writing and addressing
+helpers in the 6502 core still serve arithmetic, shifts, stores, and stack
+instructions outside this migration. They are not alternate handlers for the
+migrated loads or transfers.
+
+A subsequent JSR slice can challenge instruction fetching and stack-write
+ordering. Keep that review bounded before adding a general CPU grammar or
+attempting a whole-model rewrite.
 
 General addressing decoders, register views, flag reads, branches, loops, stack
 bodies, instruction rejection, pending commits, and exception delivery are not
