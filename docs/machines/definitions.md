@@ -56,6 +56,12 @@ CPU reconstruction. Its explicit machine reset resets the CPU and clears
 the device latch while retaining RAM and the host's transcript. Device
 connections and reset wiring remain ordinary composition code.
 
+The [8080 echo](../cpus/8080/examples/echo.md) and
+[68000 echo](../cpus/68000/examples/echo.md) reuse both input and output devices.
+Their explicit machine reset clears device latches as well as resetting the
+CPU; CPU-only reset preserves the devices. Host input offers and output
+history remain outside the machine definitions.
+
 ## Directory organization
 
 Machine definitions live under `src/machines/<cpu>/`, with matching tests

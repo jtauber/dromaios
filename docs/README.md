@@ -69,9 +69,13 @@ and processor features are tracked in the coverage document.
 The [8080 port-output](cpus/8080/examples/output.md) and
 [68000 ROM-output](cpus/68000/examples/output.md) examples send the same short
 message through a shared device, using port and memory-mapped connections.
+The [8080 echo](cpus/8080/examples/echo.md) and [68000 echo](cpus/68000/examples/echo.md)
+examples add polling and consuming input reads with the same devices.
 
 ## Devices
 
+- [Byte input](devices/byte-input.md): a pending-byte latch, readiness, consuming
+  reads, host offers, and detached inspection.
 - [Byte output](devices/byte-output.md): a write-only register, host notifications,
   detached inspection, and device reset.
 

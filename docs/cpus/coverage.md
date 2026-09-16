@@ -543,6 +543,7 @@ Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [decimal example tests](../../tests/machines/8080/decimal-example.test.ts),
 [counted-loop example tests](../../tests/machines/8080/counted-loop-example.test.ts),
 [port-output example tests](../../tests/machines/8080/output-example.test.ts),
+[polling-echo example tests](../../tests/machines/8080/echo-example.test.ts),
 [rotates example tests](../../tests/machines/8080/rotates-example.test.ts), and
 [public type checks](../../tests/types/8080.ts). ALU checks cover every byte operand
 pair and both incoming carry values for all eight operations, using independent
@@ -553,6 +554,9 @@ The [port-output example](8080/examples/output.md) sends the same six bytes
 as the 68000 through the shared byte-output device. Checks cover all 33
 instruction records, port routing, machine versus CPU reset, host failures,
 and snapshot-based resumption without replaying output.
+The [echo example](8080/examples/echo.md) polls input status, consumes one byte,
+and echoes it through the shared output device, stopping after newline.
+Tests distinguish pending input from data captured in A across pauses and resets.
 LXI/INX checks cover all pair and SP forms, derived views, byte carry and
 16-bit wrapping, flag preservation, operand order, and successive operations.
 PUSH/POP checks cover all three pairs, stack-access order, SP and PC wrapping,
@@ -2063,6 +2067,7 @@ Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [bus-error tests](../../tests/components/cpus/68000/bus-errors.test.ts),
 [ROM boot and mapped memory](../../tests/machines/68000/rom-boot-example.test.ts),
 [ROM output and device reset](../../tests/machines/68000/output-example.test.ts),
+[polling echo and consuming reads](../../tests/machines/68000/echo-example.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
 [register-transfer](../../tests/machines/68000/transfers-example.test.ts),
 [addressing](../../tests/machines/68000/addressing-example.test.ts),
@@ -2090,6 +2095,9 @@ The [ROM-output example](68000/examples/output.md) sends six bytes through a
 memory-mapped device. Its 17 steps verify distinct host notifications for
 repeated bytes, device RESET, inspection and restoration without replay,
 and retained output before a later byte transfer faults.
+The [echo example](68000/examples/echo.md) reuses the same input/output devices
+as the 8080. Checks include pending input, captured D0, restoration at every
+boundary, and consumption that survives a later fault during a long read.
 
 Completion checks execute all new register/EA forms. Decimal expectations use
 integer arithmetic on all valid packed operands and incoming X/Z; multiply
