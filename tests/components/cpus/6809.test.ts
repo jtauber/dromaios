@@ -2064,6 +2064,115 @@ function indexedForms(a: number, b: number, offset8: number, offset16: number) {
 
 const wrapAddress = (value: number) => ((value % 65536) + 65536) % 65536;
 
+const memoryShiftEncodings = [
+  ["LSR", 0x04, 0x64, 0x74], ["ROR", 0x06, 0x66, 0x76], ["ASR", 0x07, 0x67, 0x77],
+  ["ASL", 0x08, 0x68, 0x78], ["ROL", 0x09, 0x69, 0x79],
+] as const;
+
+// Move printed binary digits; overflow is independently checked against signed doubling limits.
+function shiftedMemory(name: typeof memoryShiftEncodings[number][0], value: number, flags: Cpu6809Flags) {
+  const bits = value.toString(2).padStart(8, "0"), left = name === "ASL" || name === "ROL";
+  const incoming = name === "ASR" ? bits[0]! : name === "ROL" || name === "ROR" ? String(Number(flags.c)) : "0";
+  const result = Number.parseInt(left ? bits.slice(1) + incoming : incoming + bits.slice(0, -1), 2);
+  return { result, flags: { ...flags, n: result >= 128, z: result === 0,
+    c: (left ? bits[0] : bits[7]) === "1", v: left ? value >= 64 && value < 192 : flags.v } };
+}
+
+test("6809 memory shifts cover every indexed postbyte, including wrapping, overlap, and S updates", () => {
+  for (const [name, , opcode] of memoryShiftEncodings) {
+    for (const [a, b, offset8, offset16] of [[0x80, 0xff, -128, -32768], [0, 1, -1, -1]] as const) {
+      for (const form of indexedForms(a, b, offset8, offset16)) for (const base of [0, 0xffff]) {
+        const pc = base === 0 ? 0xffff : 0xfffd, bytes = [opcode, form.postbyte, ...form.operands];
+        const state = initialState({ a, b, pc, [form.register]: base, nmiArmed: false, flags: flagsFor(form.postbyte) });
+        const origin = form.absolute ? 0 : form.relative ? pc + bytes.length : base;
+        const address = wrapAddress(origin + form.offset), image = new Map<number, number>();
+        image.set(form.indirect ? 0x4000 : address, 0x81);
+        if (form.indirect) { image.set(address, 0x40); image.set(wrapAddress(address + 1), 0); }
+        bytes.forEach((value, offset) => image.set(wrapAddress(pc + offset), value));
+        const target = form.indirect ? image.get(address)! * 256 + image.get(wrapAddress(address + 1))! : address;
+        const original = image.get(target) ?? 0, expected = shiftedMemory(name, original, state.flags);
+        const ram = new ObservedRam();
+        for (const [address, value] of image) ram.write(address, value);
+        const cpu = new Cpu6809(ram, state), before = cpu.snapshot();
+        ram.accesses.length = 0;
+        const record = cpu.step();
+        assert.deepEqual(record, {
+          instruction: { address: pc, bytes }, before,
+          after: { ...before, [form.register]: wrapAddress(base + form.update), pc: wrapAddress(pc + bytes.length),
+            nmiArmed: form.register === "s" && form.update !== 0, flags: expected.flags },
+          outcome: "executed", accesses: [
+            ...bytes.map((value, offset) => ({ kind: "read", address: wrapAddress(pc + offset), value })),
+            ...(form.indirect ? [
+              { kind: "read", address, value: image.get(address) },
+              { kind: "read", address: wrapAddress(address + 1), value: image.get(wrapAddress(address + 1)) },
+            ] : []),
+            { kind: "read", address: target, value: original }, { kind: "write", address: target, value: expected.result },
+          ],
+        }, `${name}, postbyte=${form.postbyte}, base=${base}`);
+        assert.deepEqual(ram.accesses, record.accesses);
+        assert.deepEqual(cpu.snapshot(), record.after);
+        assert.equal(ram.read(target), expected.result);
+      }
+    }
+  }
+});
+
+test("6809 memory shifts retain exactly completed fetches, address updates, and flags at every failed access", () => {
+  const failure = new Error("shift memory failure");
+  class FaultRam extends ObservedRam {
+    failAt = -1; attempts = 0;
+    override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
+    override write(address: number, value: number): void { if (this.attempts++ === this.failAt) throw failure; super.write(address, value); }
+  }
+  for (const [name, direct, indexed, extended] of memoryShiftEncodings) {
+    const cases: readonly { bytes: readonly number[]; state: Partial<Cpu6809State>; address: number;
+      indirect?: boolean; update?: Partial<Cpu6809State> }[] = [
+      { bytes: [direct, 0], state: { pc: 0xffff, dp: 0xff }, address: 0xff00 },
+      { bytes: [extended, 0xff, 0xff], state: { pc: 0xfffe }, address: 0xffff },
+      { bytes: [indexed, 0x81], state: { pc: 0xfffe, x: 0xffff }, address: 0xffff, update: { x: 1 } }, // ,X++
+      { bytes: [indexed, 0xf3], state: { pc: 0xfffd, s: 1 }, address: 0xffff, indirect: true, update: { s: 0xffff, nmiArmed: true } }, // [,--S]
+      { bytes: [indexed, 0x99, 0xff, 0xff], state: { pc: 0xfffe, x: 1 }, address: 0, indirect: true }, // [-1,X]
+      { bytes: [indexed, 0x9f, 0xff, 0xff], state: { pc: 0x200 }, address: 0xffff, indirect: true }, // [FFFF]
+    ];
+    for (const { bytes, state: overrides, address, indirect, update } of cases) {
+      const state = initialState({ nmiArmed: false, flags: { ...flagsFor(0xff), v: false }, ...overrides });
+      const image = new Map<number, number>([[indirect ? 0x4000 : address, 0x80]]);
+      if (indirect) { image.set(address, 0x40); image.set(wrapAddress(address + 1), 0); }
+      bytes.forEach((value, offset) => image.set(wrapAddress(state.pc + offset), value));
+      const target = indirect ? image.get(address)! * 256 + image.get(wrapAddress(address + 1))! : address;
+      const original = image.get(target) ?? 0, expected = shiftedMemory(name, original, state.flags);
+      const accesses = [
+        ...bytes.map((value, offset) => ({ kind: "read", address: wrapAddress(state.pc + offset), value })),
+        ...(indirect ? [
+          { kind: "read", address, value: image.get(address) },
+          { kind: "read", address: wrapAddress(address + 1), value: image.get(wrapAddress(address + 1)) },
+        ] : []),
+        { kind: "read", address: target, value: original }, { kind: "write", address: target, value: expected.result },
+      ];
+      for (let failAt = -1; failAt < accesses.length; failAt++) {
+        const ram = new FaultRam();
+        for (const [address, value] of image) ram.write(address, value);
+        const cpu = new Cpu6809(ram, state), before = cpu.snapshot();
+        ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
+        const completed = failAt < 0 ? accesses.length : failAt;
+        const after = { ...before, ...(completed >= bytes.length ? update : {}),
+          pc: wrapAddress(state.pc + Math.min(completed, bytes.length)),
+          flags: completed >= accesses.length - 1 ? expected.flags : before.flags };
+        if (failAt >= 0) assert.throws(() => cpu.step(), error => error === failure);
+        else assert.deepEqual(cpu.step(), { before, after, instruction: { address: state.pc, bytes }, accesses, outcome: "executed" });
+        assert.deepEqual(cpu.snapshot(), after, `${name}, bytes=${bytes}, failAt=${failAt}`);
+        assert.deepEqual(ram.accesses, accesses.slice(0, completed));
+        assert.equal(ram.attempts, failAt < 0 ? accesses.length : failAt + 1);
+        ram.failAt = -1;
+        assert.equal(ram.read(target), failAt < 0 ? expected.result : original);
+        // Faults release the execution guard, so a repaired program can execute another instruction.
+        ram.write(after.pc, 0x12);
+        assert.equal(cpu.step().outcome, "executed");
+      }
+    }
+  }
+});
+
 test("6809 indexed JMP resolves every documented postbyte with offsets, auto-updates, indirection, and wrapping", () => {
   for (const [a, b, offset8, offset16] of [
     [0, 0, 0, 0], [0x7f, 1, 127, 32767], [0x80, 0xff, -128, -32768], [0xff, 0x80, -1, -1],

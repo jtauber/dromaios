@@ -22,13 +22,13 @@ emulators do not count toward implementation here.
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [385](../../src/components/cpus/6800.ts) | 0 / 197 | 0% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [329](../../src/components/cpus/6502.ts) | 70 / 151 | 46.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [661](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [612](../../src/components/cpus/6809.ts) | 15 / 268 | 5.6% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [607](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **100 generated bodies**, of which **99 are used by CPU execution**,
-covering **98 complete opcode forms**:
+contains **105 generated bodies**, of which **104 are used by CPU execution**,
+covering **113 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, all six register transfers,
@@ -40,8 +40,10 @@ covering **98 complete opcode forms**:
   count toward migration.
 - [6809 definitions](../../src/components/cpus/semantics/definitions/6809.ts):
   CMPA/CMPB immediate and CMPX immediate/direct/extended count as five migrated
-  forms. LSR/ROR/ASR/ASL/ROL on A and B add ten more; their memory forms retain
-  handwritten semantics. CMPX indexed with postbyte `81` (`,X++`) is also
+  forms. LSR/ROR/ASR/ASL/ROL on A/B and direct/indexed/extended memory add 25 more.
+  Each operation's memory body serves all three addressing modes after the
+  existing decoder supplies its resolved address; all documented postbytes use
+  the same generated body. CMPX indexed with postbyte `81` (`,X++`) is also
   integrated but covers only one operand choice; other indexed postbytes still
   use handwritten semantics, so the indexed opcode earns no migration credit yet.
 
@@ -91,26 +93,25 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,902 |
-| CPU-specific instruction definition files | 336 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,651 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,889** |
+| Eight CPU implementation files | 4,897 |
+| CPU-specific instruction definition files | 344 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,667 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,908** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 2,130 |
+| Generated CPU output, counted separately | 2,216 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The cross-CPU shift migration reduces the 8080 module from **269 to 263 lines**,
-retiring its rotate-result wrapper. The 6809 module grows from **608 to 612**
-while generated register bodies coexist with handwritten memory transforms;
-the 6502 module stays at 329. Definitions add 47 lines and shared construction
-and Boolean XOR support add 19, so total authored CPU source increases from
-**6,825 to 6,889 lines** (64 more). The generation script is unchanged in length.
-The shared shift recipe now serves three CPUs with different flag schedules,
-but this change is not a net source reduction. Migrating the 6809 memory forms
-is the next opportunity to remove the remaining shift-specific helpers and
-temporary register bindings; measure that work against this total too.
+Completing the 6809 memory shifts reduces its module from **612 to 607 lines**,
+removing the handwritten shift calculations, left-shift helper, and optional
+register overrides. One operation inventory now binds generated A/B and memory
+bodies. Definitions add eight lines, and shared support for declared numeric
+inputs adds 16, so total authored CPU source increases from **6,889 to 6,908
+lines** (19 more). The other CPU modules and generation script are unchanged
+in length. This completes the shift family but is still not a net source
+reduction; further migrations must account for their definition and binding
+costs as well as the handwritten helpers they remove.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 
@@ -126,8 +127,10 @@ only in tests does not count. A shared definition may cover several encodings;
 each migrated encoding counts under the same rules as the support inventory.
 
 This measures migration of instruction bodies, not effort, code reduction, or
-processor completeness. Opcode selection and core execution machinery can
-remain handwritten. Reset, external interrupt delivery, cycle timing, and other
+processor completeness. Opcode selection, core execution machinery, and an
+explicit address-decoder boundary can remain handwritten. The generated body
+must handle every documented operand choice at that boundary; this does not
+claim migration of the decoder itself. Reset, external interrupt delivery, cycle timing, and other
 processor features are outside the percentage. Test coverage is a separate
 measure of how much existing code the tests exercise.
 

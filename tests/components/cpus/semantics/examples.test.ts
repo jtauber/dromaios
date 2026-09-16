@@ -111,6 +111,17 @@ test("8080 and 6809 shift explanations expose their distinct input bits, flag ru
   assert.doesNotMatch(arithmetic, /read C|read memory|write memory/);
 });
 
+test("6809 memory shift explanations declare the resolved input and flag updates before their single write", () => {
+  const text = description("6809", "ROL memory");
+  const input = text.indexOf("address:u16 := input"), read = text.indexOf("original:u8 := read memory[address]");
+  const carry = text.indexOf("carry:flag := read C"), flags = text.indexOf("N := topBit(result)");
+  const overflow = text.indexOf("V := xor"), write = text.indexOf("write memory[address] := result");
+  assert.ok(input >= 0 && input < read && read < carry && carry < flags && flags < overflow && overflow < write);
+  assert.equal(text.match(/write memory/g)?.length, 1);
+  assert.doesNotMatch(text, /fetch byte|read [ABXYUS]\b/);
+  assert.match(text, /failed write retains their updates/);
+});
+
 test("the indexed load explanation distinguishes the index from the destination and shows the commit order", () => {
   const text = description("6502", "LDX zero page,Y");
   const fetch = text.indexOf("fetch byte"), index = text.indexOf("read Y"), read = text.indexOf("read memory[address]");
@@ -126,5 +137,5 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 100);
+  assert.equal(instructionDefinitions.length, 105);
 });

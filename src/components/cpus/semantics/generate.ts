@@ -108,10 +108,16 @@ export function generateInstructions(cpu: "6502" | "8080" | "6809", definitions:
       }
     }
     const scope = new Map<string, CapturedValue>();
+    const parameters = result ? [] : [`state: Cpu${cpu}State`];
+    for (const [name, type] of Object.entries(definition.inputs ?? {})) {
+      if (bindOpcodes) throw new Error(`${definition.name}: opcode bindings cannot supply instruction inputs.`);
+      const code = local(name);
+      parameters.push(`${code}: number`);
+      scope.set(name, { code, type });
+    }
     body(definition.steps, scope);
     if (result) emit(`return ${number(result, scope).code};`);
     needsContext ||= capabilities.size > 0;
-    const parameters = result ? [] : [`state: Cpu${cpu}State`];
     if (capabilities.size) parameters.push(`instruction: Pick<ByteInstructionContext, ${[...capabilities].map(name => JSON.stringify(name)).join(" | ")}>`);
     const key = bindOpcodes && !result ? `0x${Number(name).toString(16).padStart(2, "0")}` : JSON.stringify(name);
     return `${indent}// ${JSON.stringify(`${cpu} ${definition.name}`)}\n`

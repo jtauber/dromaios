@@ -130,7 +130,12 @@ export function validateInstruction(definition: InstructionDefinition): void {
       scope.set(step.name, captured);
     });
   }
-  steps(definition.steps, new Map(), "body");
+  const inputs = new Map<string, ValueType>();
+  for (const [name, bits] of Object.entries(definition.inputs ?? {})) {
+    identifier(name, "inputs");
+    inputs.set(name, width(bits, "inputs"));
+  }
+  steps(definition.steps, inputs, "body");
 }
 
 /** Plain data only: cloning must neither retain mutable caller objects nor hide host functions. */

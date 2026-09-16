@@ -70,6 +70,15 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated8080.cmpB(intel);
   generated8080.ral(intel);
   generated6809.rolB(motorola);
+  generated6809.rolMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error A memory shift requires the resolved numeric address before its memory capabilities.
+  generated6809.rolMemory(motorola, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error The resolved address is a value, not an opaque address resolver.
+  generated6809.rolMemory(motorola, () => 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Memory shifts require both read and write capabilities.
+  generated6809.rolMemory(motorola, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error Addressing is already complete; the body cannot fetch more instruction bytes.
+  generated6809.rolMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
   // @ts-expect-error Register shifts need no fetching or memory capability.
   generated6809.rolB(motorola, { fetchByte: () => 0 });
   // @ts-expect-error Rotates require their CPU's concrete state.

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/6502.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/6809.js";
-import { addWrap, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, literal, readFlag, shiftLeft, value, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
+import { addWrap, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, literal, readFlag, readMemory, shiftLeft, value, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 
@@ -51,6 +51,27 @@ test("widths require explicit widening, matching arithmetic operands, byte memor
   ] satisfies Statement[]) assert.throws(() => define([step]), /expected .*bit|source result width/);
   define([{ kind: "capture", name: "address", value: extend(literal(8, 255), 16) },
     { kind: "read-memory", name: "byte", address: value("address") }]);
+});
+
+test("instruction inputs are immutable typed captures in the body, not implicit source or policy parameters", () => {
+  const base = { name: "inputs", cpu: mos.declaration, explanation: "Input validation probe.", inputs: { address: 16 as const } };
+  defineInstruction({ ...base, steps: [readMemory("byte", value("address"))] });
+  for (const [steps, message] of [
+    [[capture("address", literal(16, 0))], /duplicate capture address/],
+    [[capture("result", shiftLeft(literal(8, 0), flagValue("address")))], /flag address has not been captured/],
+    [[{ kind: "read-source", name: "byte", source: { name: "closed", width: 8,
+      steps: [readMemory("byte", value("address"))], result: value("byte") } }], /not been captured/],
+    [[{ kind: "update-flags", policy: { ...policy, updates: [{ flag: mos.flag("z"), value: zero(value("address")) }] },
+      arguments: { byte: literal(8, 0) } }], /not been captured/],
+  ] satisfies [Statement[], RegExp][]) assert.throws(() => defineInstruction({ ...base, steps }), message);
+  assert.throws(() => defineInstruction({ ...base, inputs: { address: 8 }, steps: [readMemory("byte", value("address"))] }), /expected 16-bit value/);
+  assert.throws(() => defineInstruction({ ...base, inputs: { "bad-name": 16 }, steps: [] }), /inputs: invalid value name/);
+  assert.throws(() => defineInstruction({ ...base, inputs: { address: 32 }, steps: [] } as unknown as InstructionDefinition), /inputs: expected width/);
+  const inputs = { address: 16 as const };
+  const owned = defineInstruction({ ...base, inputs, steps: [] });
+  assert.notEqual(owned.inputs, inputs);
+  assert.equal(Object.isFrozen(owned.inputs), true);
+  assert.equal(Object.isFrozen(inputs), false);
 });
 
 test("CPU-owned state descriptions validate register identity, declared widths, and flag targets", () => {

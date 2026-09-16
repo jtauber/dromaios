@@ -71,6 +71,31 @@ test("opcode inventories reject collisions and invalid encodings before generati
   }
   assert.throws(() => generateInstructions("6502", { tax: definition }, { bindOpcodes: true }), /opcode/);
   assert.throws(() => generateInstructions("6502", { "170": definition, "0xAA": definition }, { bindOpcodes: true }), /Duplicate opcode/);
+  assert.throws(() => generateInstructions("6502", { "170": { ...definition, inputs: { address: 16 } } }, { bindOpcodes: true }), /cannot supply instruction inputs/);
+});
+
+test("generated numeric inputs preserve declaration order, widths, and names independently of host identifiers", async () => {
+  const cpu = cpuSymbols("6502", cpu6502StateDescription);
+  const definition = { cpu: cpu.declaration, name: "inputs", explanation: "Captured numeric inputs.",
+    inputs: { instruction: 16, state: 8, class: 8 }, steps: [
+      { kind: "write-register", register: cpu.register("pc"), value: value("instruction") },
+      { kind: "read-source", name: "local", source: { name: "shadow", width: 8,
+        steps: [{ kind: "capture", name: "state", value: literal(8, 0) }], result: value("state") } },
+      { kind: "write-register", register: cpu.register("a"), value: value("state") },
+      { kind: "write-memory", address: addWrap(value("instruction"), literal(16, 1)), value: value("class") },
+      { kind: "write-register", register: cpu.register("x"), value: value("local") },
+    ],
+  } as const;
+  const source = generateInstructions("6502", { probe: definition });
+  const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
+  const javascript = stripTypeScriptTypes(source).replace('"../alu.ts"', JSON.stringify(alu));
+  const compiled: { instructions: { probe(state: Cpu6502State, address: number, a: number, byte: number,
+    instruction: { writeByte(address: number, byte: number): void }): void } } =
+    await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
+  const state = mosState(), writes: number[][] = [];
+  compiled.instructions.probe(state, 0xffff, 0x80, 0x42, { writeByte: (address, byte) => { writes.push([address, byte]); } });
+  assert.deepEqual(writes, [[0, 0x42]]);
+  assert.equal(state.pc, 0xffff); assert.equal(state.a, 0x80); assert.equal(state.x, 0);
 });
 
 test("generated opcode bindings capture their own CPU instance and read live state only on execution", () => {

@@ -115,7 +115,32 @@ test("6809 register shifts apply only their declared flags before writing A or B
   }
 });
 
-test("generated memory shifts read carry only for rotates, after the original write and before the result write", () => {
+test("6809 memory shifts capture carry after the data read and keep the supplied address through flag updates and writeback", () => {
+  for (const [execute, result, incoming, left, outgoing] of [
+    [motorola.lsrMemory, 0x40, false, false, false], [motorola.rorMemory, 0xc0, true, false, false],
+    [motorola.asrMemory, 0xc0, false, false, false], [motorola.aslMemory, 0, false, true, true],
+    [motorola.rolMemory, 1, true, true, true],
+  ] as const) {
+    const events: string[] = [], flags = { e: true, f: true, h: true, i: true, n: true, z: false, v: false, c: false };
+    const state: Cpu6809State = { a: 0, b: 0, dp: 0, x: 0xffff, y: 0, s: 0, u: 0, pc: 0, waitMode: "none", nmiArmed: false,
+      flags: observe(flags, events, "flags.") };
+    execute(state, state.x, {
+      readByte(address) {
+        assert.equal(address, 0xffff); events.push("read memory");
+        flags.c = true; state.x = 0x1234; // Both change after the address is captured, before incoming carry is read.
+        return 0x80;
+      },
+      writeByte(address, byte) { assert.equal(address, 0xffff); assert.equal(byte, result); events.push("write memory"); },
+    });
+    assert.deepEqual(events, ["read memory", ...(incoming ? ["read flags.c"] : []),
+      `flags.n=${Number(result >= 128)}`, `flags.z=${Number(result === 0)}`, `flags.c=${Number(outgoing)}`,
+      ...(left ? ["flags.v=1"] : []), "write memory"]);
+    assert.deepEqual(flags, { e: true, f: true, h: true, i: true, n: result >= 128, z: result === 0, v: left, c: outgoing });
+    assert.equal(state.x, 0x1234);
+  }
+});
+
+test("6502 memory shifts read carry only for rotates, after the original write and before the result write", () => {
   for (const [opcode, original, result, outgoing, rotate] of [
     [0x06, 0x80, 0, true, false], [0x26, 0x80, 1, true, true],
     [0x46, 1, 0, true, false], [0x66, 1, 0x80, true, true],

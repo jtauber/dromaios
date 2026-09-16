@@ -24,16 +24,18 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | All 6502 ASL/ROL/LSR/ROR forms | One resolved address, an original-value write, a captured incoming carry for rotates, and separate C and N/Z stages; accumulator forms share the operation |
 | All 6502 memory INC/DEC and INX/INY/DEX/DEY | Share wrapping byte updates while preserving C and the same memory-write boundaries |
 | 8080 RLC/RRC/RAL/RAR | Circular or through-carry rotation; write A before CY and preserve every other flag |
-| 6809 LSR/ROR/ASR/ASL/ROL on A/B | Zero, carry, or sign-bit insertion; N/Z/C before writeback; left shifts set V to N XOR C, right shifts preserve V |
+| 6809 LSR/ROR/ASR/ASL/ROL on A/B and memory | Zero, carry, or sign-bit insertion; N/Z/C before writeback; left shifts set V to N XOR C, right shifts preserve V; memory bodies receive a resolved address and retain flags on a failed write |
 
-There are 100 bodies. All are generated and executable; 99 are bound into their
+There are 105 bodies. All are generated and executable; 104 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
-Other 6809 comparison addressing forms, its memory shifts, and shifts on the
-remaining CPUs retain their existing shared helpers. This is not a complete CPU migration.
+Other 6809 comparison addressing forms and shifts on the remaining CPUs retain
+their existing shared helpers. This is not a complete CPU migration.
 Bodies start after opcode selection. `CMPX ,X++` starts after postbyte `81`
 has selected that particular form; decoding or rejecting other postbytes is
-not represented. The existing
+not represented. Each 6809 memory-shift body starts after successful address
+resolution and serves direct, indexed, and extended forms, including all legal
+indexed postbytes. The decoder remains handwritten. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
 independent CPU tests are the behavioral baseline.
 
@@ -88,6 +90,14 @@ misspelled registers and flags at compile time. Runtime validation checks
 CPU identity and widths; the current state-schema types do not retain literal
 register widths in TypeScript, so the experiment does not promise compile-time
 width checking.
+
+An instruction may declare numeric `inputs`, such as `{ address: 16 }`. These
+are captured values supplied at entry, before any body statement, and belong
+to the body's initial scope. Their names and widths are validated, and a later
+capture cannot redefine them. Sources and flag policies retain their separate
+closed scopes; a policy receives an input only through an explicit argument.
+This lets a body consume a resolved address without hiding address calculation
+inside a callback or pretending it is a new memory-access primitive.
 
 The shared `compare(register, source, policy)` construction function produces
 four statements: read the source, read the register, capture subtraction,
@@ -152,11 +162,15 @@ writeback separately. Extracting this recipe leaves the existing 6502 bodies
 structurally unchanged.
 
 The 8080 writes A before replacing CY and preserves S/Z/AC/P. The 6809 instead
-updates N/Z/C before writing A or B; left shifts also replace V with N XOR C,
+updates N/Z/C before writing A, B, or memory; left shifts also replace V with N XOR C,
 while right shifts preserve V. That XOR uses the captured original and result,
 so the policy does not depend on assignments to live N or C. The 6502 retains
 its separate carry-before-writeback and N/Z-after-writeback stages, including
 the original-value memory write before a rotate reads incoming C.
+The 6809 reads its memory operand once, captures incoming C for rotates after
+that read, and writes the result once, including unchanged values. A failed
+read leaves flags unchanged; a failed write retains the completed flag updates.
+Address-register updates performed by its decoder survive either failure.
 
 ## Primitive meanings
 
@@ -296,13 +310,23 @@ require incoming-carry reads only for through-carry rotations, and exercise
 nested Boolean XOR over its complete truth table. Existing CPU tests exhaust
 every byte and incoming flag combination for the newly migrated forms, using
 independent bit-string rotations and integer shift/overflow expectations.
+The [6809 CPU tests](../../tests/components/cpus/6809.test.ts) also exercise all
+217 legal indexed postbytes for every memory shift, retain rejection of all 39
+undefined postbytes, and inject failure at each access in direct, extended,
+auto-updated, and indirect examples. They check wrapping, code/pointer/data
+overlap, S updates and NMI arming, exact completed accesses, and full state.
 
 ## Executable generation and integration
 
 [generateInstructions](../../src/components/cpus/semantics/generate.ts) validates
 and freezes its input before emitting code. Generated methods take the concrete
-`Cpu6502State`, `Cpu8080State`, or `Cpu6809State` and only the callbacks their
-statements use, expressed as a `Pick<ByteInstructionContext, ...>`. Register-only
+`Cpu6502State`, `Cpu8080State`, or `Cpu6809State`, followed by any numeric inputs
+in declaration order, then only the callbacks their statements use, expressed
+as a `Pick<ByteInstructionContext, ...>`. For example,
+`rolMemory(state, address, { readByte, writeByte })` cannot fetch operands or
+resolve the address again. Bindings must supply unsigned integers fitting the
+declared widths; the generated internal functions do not coerce or validate
+runtime inputs. Register-only
 bodies have no context parameter. There is no interpreter or semantic dispatch
 on the execution path.
 
@@ -338,7 +362,9 @@ constructs its combined table after initializing state, and the ordinary
 `opcodeTable` rejects any collision with its remaining handwritten entries.
 Each instance binds its own state; no register or memory read occurs during
 binding. Generated methods retain their precise callback types, while the
-bound handlers accept the shared byte instruction context.
+bound handlers accept the shared byte instruction context. Automatic opcode
+bindings reject definitions with numeric inputs, since they cannot supply
+those values; such bodies require an explicit CPU-owned binding.
 
 The generator's `sources` option also emits `sourceReaders(state)`. These readers
 use the same validation, lexical scopes, and statement compiler as instruction
@@ -354,11 +380,10 @@ This covers the complete 6502 comparison, load, shift/rotate, and byte
 increment/decrement families, plus all six register transfers. The 8080 retains
 named bodies for its nine CMP/CPI bindings and four accumulator rotates in the
 shared 8080/Z80 family. The Z80's own bodies remain unchanged.
-The 6809 unary inventory selects generated A/B shift bodies during table
-construction, while its memory forms retain the existing transformations.
-The selected register handler has no extra runtime dispatch branch. This
-temporary coexistence keeps the opcode patterns together while migration is
-incomplete.
+The 6809 shift inventory binds generated A/B and memory bodies from the same
+operation selectors. Its ordinary address wrapper resolves one address, rejects
+undefined postbytes before body entry, and then calls the generated memory body.
+There is no handwritten shift calculation or optional register override left.
 The 6809 binds immediate CMPA/B, three ordinary CMPX modes, and one indexed body:
 it fetches the postbyte once, selects generated `,X++` for `81`, and delegates
 other forms to its existing indexed decoder. Unsupported postbytes retain the
@@ -385,16 +410,17 @@ whether family authoring, reusable sources, and explicit ordered statements
 improve understanding. The shared shift recipe now serves the 6502, 8080, and
 6809, with sign extension and circular rotation expressed using existing
 primitives. Boolean XOR is the only new expression needed for this extension.
-Their different flag and writeback schedules remain explicit. The register
-migration still adds more authored source than it removes, partly because the
-6809 memory forms retain their handwritten transformations.
+Their different flag and writeback schedules remain explicit. Completing the
+6809 memory forms removes its shift-specific helper and temporary register
+overrides. Declared numeric inputs allow the five memory bodies to share the
+existing address-decoder boundary, covering fifteen opcode forms. Their source
+and binding cost still exceeds the handwritten code removed in this step.
 
-Next, migrate the 6809 memory shifts through the existing address-decoder
-boundary, preserving one resolved address, incoming-carry read timing, and
-flags-before-writeback behavior. This should remove the temporary register
-bindings and the CPU's shift-specific helper without first expressing the full
-postbyte decoder in the semantic vocabulary. Count any binding machinery as
-part of that change's source cost.
+Next, consider the remaining 6809 byte unary families: NEG, COM, INC, DEC, CLR,
+and TST. Completing that group could retire the remaining handwritten unary
+selector and memory-modification adapter, and consolidate the bindings. Keep
+TST's read-only behavior and CLR's real memory read explicit. Measure the total
+authored source before treating another migration increase as simplification.
 
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve

@@ -1317,7 +1317,7 @@ the language is worth adopting.
 The [current executable experiment](instruction-semantics.md#executable-generation-and-integration)
 generates and binds comparison bodies across the three CPUs, plus 6502 loads,
 register transfers, shifts/rotates, and byte increments/decrements. A shared
-shift recipe also drives the 8080 accumulator rotates and 6809 A/B shifts,
+shift recipe also drives the 8080 accumulator rotates and all 6809 A/B and memory shifts,
 with each CPU's flag and writeback schedule explicit. It shares its definitions
 with the explanatory listing. The
 JSR and 68000 probes below remain requirements for later vocabulary; they are

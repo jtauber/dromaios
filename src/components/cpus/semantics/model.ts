@@ -52,6 +52,8 @@ export interface InstructionDefinition {
   readonly name: string;
   readonly cpu: CpuDeclaration;
   readonly explanation: string;
+  /** Captured numeric inputs supplied by the caller, in declaration order, before the body runs. */
+  readonly inputs?: Readonly<Record<string, Width>>;
   readonly steps: readonly Statement[];
 }
 

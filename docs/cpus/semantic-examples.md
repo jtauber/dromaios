@@ -7,8 +7,10 @@ See the [representation contract](instruction-semantics.md) for primitive meanin
 validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
-Bodies begin after opcode selection; the indexed 6809 sample also begins after
-postbyte selection. Statements are ordered. Captures are immutable; a source
+Bodies begin after opcode selection. The indexed 6809 comparison sample also
+begins after postbyte selection; memory shifts receive a resolved address from
+the existing decoder. Declared inputs are captured before entry. Statements are
+ordered. Captures are immutable; a source
 block has its own scope. All expressions in one flag update are evaluated before
 any of its assignments. On an effect failure, completed effects remain and no
 later statement runs. See the contract for which bodies are bound to CPU opcodes;
@@ -1874,7 +1876,7 @@ Flags preserved throughout: S, Z, AC, P, CY.
 
 ### 6809 LSRA
 
-Capture A and shift right, inserting zero. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+Capture A. Shift right, inserting zero. Update N/Z/C before writing the result. Preserve V. Preserve E/F/H/I. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -1891,7 +1893,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 LSRB
 
-Capture B and shift right, inserting zero. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+Capture B. Shift right, inserting zero. Update N/Z/C before writing the result. Preserve V. Preserve E/F/H/I. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -1906,9 +1908,27 @@ write B:u8 := result
 
 Flags preserved throughout: E, F, H, I, V.
 
+### 6809 LSR memory
+
+Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Shift right, inserting zero. Update N/Z/C before writing the result. Preserve V. Preserve E/F/H/I. Write once, even if unchanged. A failed read preserves flags; a failed write retains their updates. Addressing effects survive either failure.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := shiftRight(original, 0:flag)
+flags "6809 LSR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: E, F, H, I, V.
+
 ### 6809 RORA
 
-Capture A and shift right, inserting the captured incoming C. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+Capture A. Shift right, inserting the captured incoming C. Update N/Z/C before writing the result. Preserve V. Preserve E/F/H/I. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -1926,7 +1946,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 RORB
 
-Capture B and shift right, inserting the captured incoming C. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+Capture B. Shift right, inserting the captured incoming C. Update N/Z/C before writing the result. Preserve V. Preserve E/F/H/I. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -1942,9 +1962,28 @@ write B:u8 := result
 
 Flags preserved throughout: E, F, H, I, V.
 
+### 6809 ROR memory
+
+Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Shift right, inserting the captured incoming C. Update N/Z/C before writing the result. Preserve V. Preserve E/F/H/I. Write once, even if unchanged. A failed read preserves flags; a failed write retains their updates. Addressing effects survive either failure.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6809 ROR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: E, F, H, I, V.
+
 ### 6809 ASRA
 
-Capture A and shift right, inserting the original sign bit. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+Capture A. Shift right, inserting the original sign bit. Update N/Z/C before writing the result. Preserve V. Preserve E/F/H/I. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -1961,7 +2000,7 @@ Flags preserved throughout: E, F, H, I, V.
 
 ### 6809 ASRB
 
-Capture B and shift right, inserting the original sign bit. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+Capture B. Shift right, inserting the original sign bit. Update N/Z/C before writing the result. Preserve V. Preserve E/F/H/I. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -1976,9 +2015,27 @@ write B:u8 := result
 
 Flags preserved throughout: E, F, H, I, V.
 
+### 6809 ASR memory
+
+Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Shift right, inserting the original sign bit. Update N/Z/C before writing the result. Preserve V. Preserve E/F/H/I. Write once, even if unchanged. A failed read preserves flags; a failed write retains their updates. Addressing effects survive either failure.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := shiftRight(original, topBit(original))
+flags "6809 ASR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: E, F, H, I, V.
+
 ### 6809 ASLA
 
-Capture A and shift left, inserting zero. Update N/Z/C before writing the register. Replace V with N XOR C. Preserve E/F/H/I; no data-memory access occurs.
+Capture A. Shift left, inserting zero. Update N/Z/C before writing the result. Replace V with N XOR C. Preserve E/F/H/I. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -1996,7 +2053,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 ASLB
 
-Capture B and shift left, inserting zero. Update N/Z/C before writing the register. Replace V with N XOR C. Preserve E/F/H/I; no data-memory access occurs.
+Capture B. Shift left, inserting zero. Update N/Z/C before writing the result. Replace V with N XOR C. Preserve E/F/H/I. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -2012,9 +2069,28 @@ write B:u8 := result
 
 Flags preserved throughout: E, F, H, I.
 
+### 6809 ASL memory
+
+Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Shift left, inserting zero. Update N/Z/C before writing the result. Replace V with N XOR C. Preserve E/F/H/I. Write once, even if unchanged. A failed read preserves flags; a failed write retains their updates. Addressing effects survive either failure.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := shiftLeft(original, 0:flag)
+flags "6809 ASL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
 ### 6809 ROLA
 
-Capture A and shift left, inserting the captured incoming C. Update N/Z/C before writing the register. Replace V with N XOR C. Preserve E/F/H/I; no data-memory access occurs.
+Capture A. Shift left, inserting the captured incoming C. Update N/Z/C before writing the result. Replace V with N XOR C. Preserve E/F/H/I. No data-memory access occurs.
 
 ```text
 original:u8 := read A
@@ -2033,7 +2109,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 ROLB
 
-Capture B and shift left, inserting the captured incoming C. Update N/Z/C before writing the register. Replace V with N XOR C. Preserve E/F/H/I; no data-memory access occurs.
+Capture B. Shift left, inserting the captured incoming C. Update N/Z/C before writing the result. Replace V with N XOR C. Preserve E/F/H/I. No data-memory access occurs.
 
 ```text
 original:u8 := read B
@@ -2046,6 +2122,26 @@ flags "6809 ROL" simultaneously {
   V := xor(topBit(result), topBit(original))
 } // Preserve unlisted flags.
 write B:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 ROL memory
+
+Entry is after successful direct/indexed/extended address resolution. Read the byte at that captured address. Shift left, inserting the captured incoming C. Update N/Z/C before writing the result. Replace V with N XOR C. Preserve E/F/H/I. Write once, even if unchanged. A failed read preserves flags; a failed write retains their updates. Addressing effects survive either failure.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6809 ROL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write memory[address] := result
 ```
 
 Flags preserved throughout: E, F, H, I.

@@ -16,7 +16,7 @@ import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import { motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
-import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
+import { add, subtract } from "./alu.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
 export type { Cpu6809State, Cpu6809Flags } from "./state/6809.ts";
@@ -47,8 +47,6 @@ type AddressedHandler = (address: number, instruction: InstructionContext) => vo
 type Accumulator = "a" | "b";
 type StackPointer = "s" | "u";
 type ByteOperation = (value: number) => number;
-type UnaryOperation = { readonly bits: string; readonly apply: ByteOperation;
-  readonly registers?: Readonly<Record<Accumulator, (state: Cpu6809State) => void>> };
 type OperandReader = (instruction: InstructionContext) => number;
 type AddressReader = (instruction: InstructionContext) => number | undefined;
 type WordRegister = "d" | "x" | "y" | "u" | "s" | "pc";
@@ -168,19 +166,21 @@ export class Cpu6809 {
   // Unary encodings: 0000 oooo = direct, 010r oooo = A/B,
   // 0110 oooo = indexed, 0111 oooo = extended. r=0 selects A, r=1 selects B.
   // TST (1101) is read-only and JMP (1110) changes PC; neither is a byte transform.
-  // Generated register bodies coexist with the shared memory transforms until memory forms migrate.
-  readonly #unaryOperations: readonly UnaryOperation[] = [
+  readonly #unaryOperations: readonly { bits: string; apply: ByteOperation }[] = [
     { bits: "0000", apply: value => this.#alu.subtract(0, value) }, // NEG
     { bits: "0011", apply: value => this.#alu.complement(value) }, // COM
-    { bits: "0100", apply: value => this.#alu.shift(shiftRight(8, value, 0)), registers: { a: semantics.lsrA, b: semantics.lsrB } }, // LSR
-    { bits: "0110", apply: value => this.#alu.shift(shiftRight(8, value, this.#state.flags.c ? 1 : 0)), registers: { a: semantics.rorA, b: semantics.rorB } }, // ROR
-    { bits: "0111", apply: value => this.#alu.shift(shiftRight(8, value, value >= 0x80 ? 1 : 0)), registers: { a: semantics.asrA, b: semantics.asrB } }, // ASR
-    { bits: "1000", apply: value => this.#shiftLeft(value, 0), registers: { a: semantics.aslA, b: semantics.aslB } }, // ASL (LSL)
-    { bits: "1001", apply: value => this.#shiftLeft(value, this.#state.flags.c ? 1 : 0), registers: { a: semantics.rolA, b: semantics.rolB } }, // ROL
     { bits: "1010", apply: value => this.#alu.adjust(value, -1) }, // DEC
     { bits: "1100", apply: value => this.#alu.adjust(value, 1) }, // INC
     { bits: "1111", apply: () => this.#alu.clear() }, // CLR
   ];
+  // Generated bodies share the unary encoding above; registers are in A/B selector order.
+  readonly #shiftOperations = [
+    { bits: "0100", registers: [semantics.lsrA, semantics.lsrB], memory: semantics.lsrMemory }, // LSR
+    { bits: "0110", registers: [semantics.rorA, semantics.rorB], memory: semantics.rorMemory }, // ROR
+    { bits: "0111", registers: [semantics.asrA, semantics.asrB], memory: semantics.asrMemory }, // ASR
+    { bits: "1000", registers: [semantics.aslA, semantics.aslB], memory: semantics.aslMemory }, // ASL (LSL)
+    { bits: "1001", registers: [semantics.rolA, semantics.rolB], memory: semantics.rolMemory }, // ROL
+  ] as const;
 
   // 1 r mm oooo: r selects A/B; mm=00 immediate, 01 direct, 10 indexed, 11 extended.
   // Byte operations are shared with the 6800; word operations and stores remain below.
@@ -259,10 +259,11 @@ export class Cpu6809 {
     ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi", instruction)), // SWI
 
     // 010 r oooo: A/B unary operations. TST updates flags without writing a result.
-    ...this.#unaryOperations.flatMap(({ bits, apply, registers }) => opcodeFamily(`010 r ${bits}`, {
+    ...this.#unaryOperations.flatMap(({ bits, apply }) => opcodeFamily(`010 r ${bits}`, {
       r: ["a", "b"],
-    }, ({ r: register }) => registers ? () => registers[register](this.#state)
-      : () => { this.#state[register] = apply(this.#state[register]); })),
+    }, ({ r: register }) => () => { this.#state[register] = apply(this.#state[register]); })),
+    ...this.#shiftOperations.flatMap(({ bits, registers }) => opcodeFamily(`010 r ${bits}`,
+      { r: registers }, ({ r: execute }) => () => execute(this.#state))),
     ...opcodeFamily("010 r 1101", { r: ["a", "b"] }, ({ r: register }) => () => this.#alu.test(this.#state[register])), // TSTA/B
 
     // 0110 oooo is indexed; 0111 oooo uses an extended address (including JMP).
@@ -311,6 +312,8 @@ export class Cpu6809 {
     return this.#addressedHandlers(address, [
       ...this.#unaryOperations.flatMap(({ bits, apply }) => addressPattern(`${prefix} ${bits}`,
         (address, instruction) => modifyByte(address, apply, instruction))),
+      ...this.#shiftOperations.flatMap(({ bits, memory }) => addressPattern(`${prefix} ${bits}`,
+        (address, instruction) => memory(this.#state, address, instruction))),
       ...addressPattern(`${prefix} 1101`, (address, { readByte }) => this.#alu.test(readByte(address))), // TST
       ...addressPattern(`${prefix} 1110`, address => { this.#state.pc = address; }), // JMP
     ]);
@@ -590,14 +593,6 @@ export class Cpu6809 {
     this.#writeWordRegister("d", product);
     this.#state.flags.z = product === 0;
     this.#state.flags.c = (product & 0x80) !== 0; // Bit 7 supports rounding the high byte, not overflow.
-  }
-
-  // The 6809 preserves V for right shifts and replaces it for left shifts.
-
-  #shiftLeft(value: number, incomingBit: 0 | 1): number {
-    const result = this.#alu.shift(shiftLeft(8, value, incomingBit));
-    this.#state.flags.v = this.#state.flags.n !== this.#state.flags.c;
-    return result;
   }
 
   // Memory operations.
