@@ -20,15 +20,28 @@ for (const query of ['highlights.scm', 'brackets.scm']) {
 // Independently check actual rendered highlight categories. Query matches alone
 // do not expose which category wins when two patterns capture the same token.
 const fixture = resolve(extension, 'tree-sitter-machine/test/fixtures/categories.machine');
-const html = treeSitter(['highlight', ...configArgs, '--html', '--style', 'minimal', '--layout', 'fragment', fixture], { capture: true }).stdout;
+function highlight(path) {
+  return treeSitter(['highlight', ...configArgs, '--html', '--style', 'minimal', '--layout', 'fragment', path], { capture: true }).stdout;
+}
+const html = highlight(fixture);
 for (const [text, category] of [
   ['cpu', 'keyword'], ['8080', 'type'], ['A', 'property'], ['FF', 'number'],
   ['false', 'boolean'], ['fault', 'constant'], ['flags', 'keyword'],
   ['byte-input', 'type'], ['ram', 'variable'], ['rom', 'type'],
-  ['dead', 'variable'], ['0FFH', 'number'], ['00', 'number'],
+  ['dead', 'variable'], ['0FFH', 'number'], ['00', 'number'], ['ram', 'keyword'],
 ]) {
   assert.ok(html.includes(`<span class='${category}'>${text}</span>`), `${text} is highlighted as ${category}`);
 }
 assert.ok(html.includes("class='comment'"), 'Assembly annotations remain comments');
+
+// In the ROM boot example both storage kinds must have the same category.
+// A global "ram" keyword capture used to nest inside its type capture, overriding
+// that colour in Zed, while "rom" had only the correct type capture.
+const romBoot = highlight(resolve(repository, 'src/machines/68000/rom-boot-example.machine'));
+for (const kind of ['rom', 'ram']) {
+  assert.ok(romBoot.includes(
+    `<span class='variable'>${kind}</span> <span class='operator'>=</span> <span class='type'>${kind}</span>`,
+  ), `${kind} declarations distinguish component names from storage types without overlapping captures`);
+}
 
 console.log('Highlight categories and bracket queries checked.');

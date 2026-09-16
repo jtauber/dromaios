@@ -1,7 +1,8 @@
 [
-  "ram" "cpu" "memory" "end" "components" "map" "image"
+  "cpu" "memory" "end" "components" "map" "image"
   "ports" "in" "out" "reset" "reset-devices"
 ] @keyword
+(ram_declaration "ram" @keyword)
 
 (cpu_model) @type
 (storage_kind) @type
