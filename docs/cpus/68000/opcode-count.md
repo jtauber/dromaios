@@ -118,8 +118,9 @@ alone does not define documented support.
 The implementation covers **all 36,029 forms** (45,816 expanded operation words).
 RESET completes the final form through its explicit device-reset connection.
 Native synchronous exceptions, trace, external interrupt offers, STOP wakeup,
-and RTE are implemented within the [model contract](model.md).
-Address/bus-error delivery, other illegal opwords, timing, prefetch, and complete
+and RTE are implemented within the [model contract](model.md). Illegal encodings
+and line-A/line-F words also deliver their exceptions, without adding opcode forms.
+Address/bus-error delivery, timing, prefetch, and complete
 machine/device models remain separate accuracy work. Documented opcode coverage
 does not measure those capabilities. The [coverage tracker](../coverage.md#68000)
 lists the implemented families and remaining model limits.

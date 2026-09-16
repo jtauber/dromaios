@@ -85,7 +85,8 @@ this measures construction after module initialization, not instruction speed.
 No changes to other CPU decoders were needed.
 
 The [CPU tests](../../../tests/components/cpus/68000.test.ts) establish all
-9,726 transfer forms and reject every unimplemented operation word. The
+9,726 transfer forms; words outside the instruction inventory now exercise the
+[illegal/emulator-line delivery checks](#illegal-and-emulator-line-exceptions). The
 [addressing example](examples/addressing.md) specifies complete state and RAM
 traces. These are local/manual-based checks; no external hardware corpus or
 cycle-level comparison is claimed.
@@ -418,9 +419,37 @@ all RTE status words, nested entries/returns and snapshot restoration, address
 wrapping, stack/vector overlap, privilege rejection before operand reads,
 and host RAM failures during frame/vector transfers. The
 [model contract](model.md#synchronous-exception-entry-and-return) describes
-alignment boundaries and callback-visible partial state. Only explicit
-ILLEGAL (`4AFC`) enters vector 4; decoding other illegal opwords, line-A/line-F,
-address/bus errors remain later work; interrupts, trace, and RESET follow below.
+alignment boundaries and callback-visible partial state. Illegal and emulator-line
+decoding is covered below; address/bus-error delivery remains deferred.
+
+## Illegal and emulator-line exceptions
+
+The [MC68000 User's Manual](https://www.nxp.com/docs/en/reference-manual/MC68000UM.pdf)
+§6.3.6 distinguishes illegal encodings (vector 4) from line-A and line-F
+software-emulation patterns (vectors 10 and 11 in table 6-2). It explicitly
+reserves `4AFA`, `4AFB`, and `4AFC` for illegal-instruction delivery. Sections
+6.2.3–6.2.4 and 6.3.8 establish the common six-byte frame and trace suppression
+for instructions that do not execute. The pinned
+[Musashi handlers](https://github.com/kstenerud/Musashi/blob/313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd/m68kcpu.h)
+also save the instruction-start PC for all three classes.
+
+The CPU retains explicit `1010 xxxx xxxx xxxx` and `1111 xxxx xxxx xxxx`
+patterns; unmatched words use illegal-instruction delivery. One exception
+description records the vector and instruction-completion policy, used for
+both saved-PC selection and trace eligibility. Frame handling remains shared
+with the existing synchronous exceptions.
+
+Independent tests retain the manual instruction inventory of 45,816 operation
+words, then check the other 19,720: 11,528 illegal encodings and 4,096 in each
+emulator line. These raw-word counts expand embedded operands and therefore
+differ from the documented opcode-form count. Further cases check all stored
+status combinations, full PC/stack wrapping, frame/vector overlap, zero and
+odd targets, repeated faults after RTE, record ownership, and host failures
+during opcode, frame, and vector accesses. A
+[runner program](../../../tests/machines/68000/emulator-lines.test.ts) uses
+handlers that edit the saved PC before RTE and restores snapshots at every
+boundary. This slice uses manual-derived tests and a source comparison;
+it does not add a hardware or external-corpus validation claim.
 
 
 ## Interrupts, trace, and RESET

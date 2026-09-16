@@ -265,10 +265,9 @@ test("68000 long stores accept two-byte alignment and wrap the physical bus afte
   }
 });
 
-test("68000 rejects every unsupported operation word after exactly two reads without changing state", () => {
+test("68000 decodes every non-instruction opword into its illegal or emulator-line exception", () => {
   const ram = new ObservedRam(0x1000000);
-  const before = snapshot(initialState());
-  const cpu = new Cpu68000(ram, before);
+  const before = initialState();
   const supported = new Set(registerForms.flatMap(({ load, add, store, quick, moves }) =>
     [load, add, store, ...moves, ...Array.from({ length: 256 }, (_, byte) => quick + byte)]));
   // Independent manual address sets: byte excludes An; destination excludes PC/immediate.
@@ -358,17 +357,16 @@ test("68000 rejects every unsupported operation word after exactly two reads wit
     }
   }
   assert.equal(supported.size, 45816); // Includes embedded MOVEQ, branch, quick, and shift counts, unlike coverage forms.
+  const counts = { "illegal-instruction": 0, "line-a": 0, "line-f": 0 };
   for (let opcode = 0; opcode < 65536; opcode++) {
     if (supported.has(opcode)) continue;
     const bytes = [Math.floor(opcode / 256), opcode % 256];
-    ram.write(0x1000, bytes[0]!);
-    ram.write(0x1001, bytes[1]!);
-    ram.accesses.length = 0;
-    const accesses = bytes.map((value, offset) => ({ kind: "read", address: 0x1000 + offset, value }));
-    assert.deepEqual(cpu.step(), { before, after: before, instruction: { address: before.pc, bytes },
-      accesses, outcome: "unsupported", reason: "opcode" });
-    assert.deepEqual(ram.accesses, accesses);
+    const line = opcode.toString(16).padStart(4, "0")[0];
+    const source = line === "a" ? "line-a" : line === "f" ? "line-f" : "illegal-instruction";
+    checkException(ram, before, bytes, source, line === "a" ? 10 : line === "f" ? 11 : 4);
+    counts[source]++;
   }
+  assert.deepEqual(counts, { "illegal-instruction": 11528, "line-a": 4096, "line-f": 4096 });
 });
 
 test("68000 rejects odd instruction addresses before reading and odd store addresses before writing or changing flags", () => {
@@ -1146,19 +1144,12 @@ test("68000 EOR memory writes, including unchanged values, cover every size, res
   }
 });
 
-test("68000 logic rejects invalid address forms", () => {
+test("68000 invalid logic address forms enter vector 4 before any operand accesses", () => {
   const ram = new ObservedRam(0x1000000);
-  const before = snapshot(initialState());
-  const cpu = new Cpu68000(ram, before);
+  const before = initialState();
   // OR/AND An sources; EOR PC/immediate destinations. Mode 001 in EOR's slot is CMPM.
   for (const opcode of [0x8008, 0x8048, 0x8088, 0xc008, 0xc048, 0xc088, 0xb17a, 0xb1bb, 0xb1bc]) {
-    const bytes = wordBytes(opcode);
-    bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
-    ram.accesses.length = 0;
-    const accesses = bytes.map((value, offset) => ({ kind: "read", address: physical(before.pc + offset), value }));
-    assert.deepEqual(cpu.step(), { before, after: before, accesses, instruction: { address: before.pc, bytes },
-      outcome: "unsupported", reason: "opcode" });
-    assert.deepEqual(ram.accesses, accesses);
+    checkException(ram, before, wordBytes(opcode), "illegal-instruction", 4);
   }
 });
 
@@ -3069,7 +3060,8 @@ test("68000 new word-source operations and MOVE from SR reject every odd memory 
 function checkException(ram: ObservedRam, before: Cpu68000State, bytes: number[], source: Cpu68000Exception,
   vector: number, effects: Partial<Cpu68000State> = {}, operandReads: Cpu68000MemoryAccess[] = []): void {
   const completed = { ...before, ...effects };
-  const returnPc = source === "privilege-violation" || source === "illegal-instruction" ? before.pc : unsignedLong(before.pc + bytes.length);
+  const returnPc = ["trap", "overflow-trap", "divide-by-zero", "bounds-check"].includes(source)
+    ? unsignedLong(before.pc + bytes.length) : before.pc;
   const target = 0xcd006000;
   const stack = unsignedLong(completed.ssp - 6);
   const status = statusWord(completed);
@@ -3110,6 +3102,82 @@ test("68000 ILLEGAL saves the faulting PC; TRAPV tests V and saves the following
     checkException(ram, before, [0x4a, 0xfc], "illegal-instruction", 4);
     if (before.flags.v) checkException(ram, before, [0x4e, 0x76], "overflow-trap", 7);
     else checkOrdinary(ram, before, [0x4e, 0x76], { ...before, pc: 0 });
+  }
+});
+
+test("68000 illegal and emulator-line entries preserve every status image and the full faulting PC", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const [opcode, source, vector] of [
+    [0x4afa, "illegal-instruction", 4], [0x4afb, "illegal-instruction", 4],
+    [0xa123, "line-a", 10], [0xfedc, "line-f", 11],
+  ] as const) {
+    for (let bits = 0; bits < 128; bits++) for (let mask = 0; mask < 8; mask++) {
+      const before = initialState({ pc: 0xfffffffe, interruptMask: mask, flags: { ...flags(bits), t: Boolean(bits & 32) } });
+      checkException(ram, before, wordBytes(opcode), source, vector);
+    }
+    for (const pc of [0x12fffffe, 0xfffffffe]) for (const ssp of [0, 2, 4, 0x12000002]) {
+      checkException(ram, initialState({ pc, ssp, flags: { ...flags(31), t: true } }), wordBytes(opcode), source, vector);
+    }
+  }
+});
+
+test("68000 illegal and emulator-line RTE returns retry the original word without an owed trace", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const [opcode, source, vector] of [[0x4afa, "illegal-instruction", 4], [0xa123, "line-a", 10], [0xffff, "line-f", 11]] as const) {
+    for (const s of [false, true]) for (const t of [false, true]) {
+      const before = initialState({ pc: 0xab001000, ssp: 0x12000002, flags: { ...flags(31), s, t } });
+      wordBytes(opcode).forEach((b, i) => ram.write(physical(before.pc + i), b));
+      longBytes(0xcd006000).forEach((b, i) => ram.write(vector * 4 + i, b));
+      [0x4e, 0x73].forEach((b, i) => ram.write(0x6000 + i, b));
+      const entry = new Cpu68000(ram, before).step();
+      assert.deepEqual(entry.exception, { source, vector, returnPc: before.pc });
+      assert.equal(entry.after.tracePending, false);
+      const saved = structuredClone(entry);
+      const restored = new Cpu68000(ram, entry.after);
+      const returned = restored.step();
+      assert.deepEqual(returned.after, snapshot(before));
+      assert.equal(returned.exception, undefined);
+      // Returning to the same word faults again; neither entry nor RTE manufactured a trace.
+      const retry = new Cpu68000(ram, returned.after).step();
+      assert.deepEqual(retry, entry);
+      assert.deepEqual(entry, saved);
+      Reflect.set(retry.exception!, "source", "edited");
+      Reflect.set(retry.after.flags, "c", !retry.after.flags.c);
+      assert.deepEqual(entry, saved);
+      assert.deepEqual(restored.snapshot(), snapshot(before));
+    }
+  }
+});
+
+test("68000 illegal and emulator-line vectors can be zero, odd, or overwritten by their own frame", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const [opcode, vector] of [[0x4afa, 4], [0xa123, 10], [0xfedc, 11]] as const) {
+    for (const target of [0, 0xffffffff]) {
+      const before = initialState({ flags: { ...flags(31), t: true } });
+      wordBytes(opcode).forEach((b, i) => ram.write(physical(before.pc + i), b));
+      longBytes(target).forEach((b, i) => ram.write(vector * 4 + i, b));
+      ram.accesses.length = 0;
+      const cpu = new Cpu68000(ram, before);
+      const entry = cpu.step();
+      assert.equal(entry.outcome, "executed");
+      assert.equal(entry.after.pc, target);
+      assert.equal(entry.after.tracePending, false);
+      assert.equal(entry.accesses.length, 12);
+      assert.deepEqual(entry.accesses.slice(-4), memoryAccesses("read", vector * 4, longBytes(target)));
+      assert.deepEqual(ram.accesses, entry.accesses);
+      if (target % 2) assert.deepEqual(cpu.step(), { before: entry.after, after: entry.after, instruction: null, accesses: [],
+        outcome: "unsupported", reason: "unaligned-address", fault: { operation: "fetch", address: target } });
+    }
+    const before = initialState({ pc: 0x12345678, ssp: vector * 4 + 4 });
+    wordBytes(opcode).forEach((b, i) => ram.write(physical(before.pc + i), b));
+    longBytes(0xdeadbeef).forEach((b, i) => ram.write(vector * 4 + i, b));
+    ram.accesses.length = 0;
+    const entry = new Cpu68000(ram, before).step();
+    assert.equal(entry.after.pc, before.pc, "The frame replaces the vector with the faulting PC");
+    assert.equal(entry.after.ssp, before.ssp - 6);
+    assert.deepEqual(entry.accesses.slice(-4), memoryAccesses("read", vector * 4, longBytes(before.pc)));
+    assert.equal(entry.accesses.length, 12);
+    assert.deepEqual(ram.accesses, entry.accesses);
   }
 });
 
@@ -3170,15 +3238,16 @@ test("68000 exception stacking precedes overlapping vector reads and fetches no 
 
 test("68000 odd exception stacks and RTE addresses expose the deferred address-error boundary", () => {
   const ram = new ObservedRam(0x1000000);
-  for (const opcode of [0x4e40, 0x4afc, 0x80df, 0x419f]) {
-    const before = initialState({ ssp: 0x1001, usp: 0xfffffffe, d0: 0xffffffff, flags: flags(63) });
+  for (const [opcode, vector] of [[0x4e40, 32], [0x4afc, 4], [0x80df, 5], [0x419f, 6],
+    [0x4afa, 4], [0xa123, 10], [0xfedc, 11]] as const) {
+    const before = initialState({ ssp: 0x1001, usp: 0xfffffffe, d0: 0xffffffff, flags: { ...flags(63), t: true } });
     wordBytes(opcode).forEach((b, i) => ram.write(0x1000 + i, b));
     ram.write(0xfffffe, 0); ram.write(0xffffff, 0);
     const step = new Cpu68000(ram, before).step();
     assert.equal(step.outcome, "unsupported");
     if (step.outcome !== "unsupported" || step.reason !== "unaligned-address") assert.fail("Expected an alignment boundary");
     assert.deepEqual(step.fault, { operation: "write", address: 0xfff });
-    assert.equal(step.exception?.vector, opcode === 0x4e40 ? 32 : opcode === 0x4afc ? 4 : opcode === 0x80df ? 5 : 6);
+    assert.equal(step.exception?.vector, vector);
     const after = { ...before, ...(opcode === 0x80df || opcode === 0x419f ? { usp: 0 } : {}),
       flags: { ...before.flags, ...(opcode === 0x80df ? { c: false } : opcode === 0x419f ? { n: true } : {}) } };
     assert.deepEqual(step.after, snapshot(after));
@@ -3242,15 +3311,18 @@ test("68000 callback failures retain completed transfers and release the executi
   const ram = new CallbackRam(0x1000000);
   const before = initialState();
   const failure = new Error("host RAM failure");
-  for (const mode of ["entry", "return", "reset"] as const) {
+  for (const [mode, opcode, vector] of [
+    ["entry", 0x4e40, 32], ["entry", 0x4afa, 4], ["entry", 0xa123, 10], ["entry", 0xfedc, 11],
+    ["return", 0x4e73, 32], ["reset", 0x4e40, 32],
+  ] as const) {
     const accesses = mode === "entry" ? 12 : 8;
     for (let stop = 0; stop < accesses; stop++) {
       ram.callback = () => {};
       const state = mode === "return" ? { ...before, ssp: 0x8000 } : before;
-      ram.write(0x1000, 0x4e); ram.write(0x1001, mode === "return" ? 0x73 : 0x40);
+      wordBytes(opcode).forEach((b, i) => ram.write(0x1000 + i, b));
       [0, 0, 0xab, 0, 0x20, 0].forEach((b, i) => ram.write(0x8000 + i, b));
       [0x56, 0, 0x90, 0, 0xab, 0, 0x10, 0].forEach((b, i) => ram.write(i, b));
-      longBytes(0xcd002000).forEach((b, i) => ram.write(128 + i, b));
+      longBytes(0xcd002000).forEach((b, i) => ram.write(vector * 4 + i, b));
       const cpu = new Cpu68000(ram, state);
       let calls = 0;
       ram.accesses.length = 0;
@@ -3402,6 +3474,8 @@ test("68000 trace follows completed instruction traps and is suppressed by illeg
     [[0x4e, 0x43], "trap", 35, true, false], [[0x4e, 0x76], "overflow-trap", 7, true, false],
     [[0x80, 0xfc, 0, 0], "divide-by-zero", 5, true, false], [[0x41, 0xbc, 0, 0], "bounds-check", 6, true, false],
     [[0x4a, 0xfc], "illegal-instruction", 4, false, false], [[0x4e, 0x70], "privilege-violation", 8, false, false],
+    [[0x4e, 0x74], "illegal-instruction", 4, false, false], [[0xa1, 0x23], "line-a", 10, false, false],
+    [[0xff, 0xff], "line-f", 11, false, true],
     [[0x4e, 0x72], "privilege-violation", 8, false, false], [[0x4e, 0x73], "privilege-violation", 8, false, false],
   ] as const) {
     const before = initialState({ flags: { ...flags(127), s: supervisor, t: true } });
@@ -3426,7 +3500,7 @@ test("68000 trace follows completed instruction traps and is suppressed by illeg
       assert.equal(ram.read(physical(before.ssp - 12)), 0x22); // Trace saves trap-handler SR, whose T is already clear.
     }
   }
-  for (const [pc, bytes] of [[0xab001001, []], [0xab001000, [0x4e, 0x74]], [0xab001000, [0x30, 0x10]]] as const) {
+  for (const [pc, bytes] of [[0xab001001, []], [0xab001000, [0x30, 0x10]]] as const) {
     const before = initialState({ pc, a0: 1, flags: { ...flags(127), t: true } });
     bytes.forEach((b, i) => ram.write(physical(pc + i), b));
     const record = new Cpu68000(ram, before).step();

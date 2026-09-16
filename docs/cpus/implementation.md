@@ -207,7 +207,9 @@ and `Cpu6502ResetRecord`. `InstructionStep`, `HaltedStep`, and `WaitingStep` acc
 optional access type. The 8008, 8080, Z80, and 8088 supply a union of memory and
 port accesses. The 8088 additionally records ESC delivery and TEST samples; the
 68000 includes a device-reset event. Other CPUs retain the memory-only default.
-Each step type selects its supported outcomes. The 68000 adds its alignment-fault branch, including a possible null instruction
+Each step type selects its supported outcomes. The 68000 selects only the executed
+branch of `InstructionStep`: invalid opwords deliver exceptions instead of opcode
+rejection. It adds its alignment-fault branch, including a possible null instruction
 on an unaligned opcode fetch, optional exception metadata with source/vector/PC,
 and a no-fetch trace-entry branch. The 8088 adds an executed no-fetch trap-entry
 branch, while software interrupts retain their triggering fetched instruction.

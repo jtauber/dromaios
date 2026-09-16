@@ -98,6 +98,7 @@ The 8008 also implements [external interrupt delivery](8008/model.md#external-in
 including supplied instruction bytes, STOPPED release, startup after reset, and
 native circular-stack calls without advancing the interrupted PC.
 The documented opcode milestone is complete for all eight. Further accuracy
-and machine integration work can now use that baseline. Address/bus errors
-and other illegal-opword delivery on the 68000 still need separate fault-sequencing work.
+and machine integration work can now use that baseline. The 68000 also delivers
+[illegal-instruction and emulator-line exceptions](68000/model.md#synchronous-exception-entry-and-return).
+Address/bus errors on the 68000 still need separate fault-sequencing work.
 Timing and device scheduling remain separate from completed opcode inventories.

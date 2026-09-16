@@ -69,7 +69,7 @@ export interface Cpu68000AlignmentFault {
 
 /** Synchronous sources using the original 68000's six-byte supervisor frame. */
 export type Cpu68000Exception = "divide-by-zero" | "bounds-check" | "privilege-violation"
-  | "trap" | "overflow-trap" | "illegal-instruction";
+  | "trap" | "overflow-trap" | "illegal-instruction" | "line-a" | "line-f";
 
 export interface Cpu68000ExceptionDelivery {
   readonly source: Cpu68000Exception | "trace";
@@ -79,7 +79,8 @@ export interface Cpu68000ExceptionDelivery {
 type InstructionFault = Cpu68000AlignmentFault | Cpu68000Exception;
 
 export type Cpu68000StepRecord = (
-  InstructionStep<Cpu68000Snapshot, Cpu68000Access> | HaltedStep<Cpu68000Snapshot, Cpu68000Access>
+  Extract<InstructionStep<Cpu68000Snapshot, Cpu68000Access>, { readonly outcome: "executed" }>
+  | HaltedStep<Cpu68000Snapshot, Cpu68000Access>
   | (StateTransition<Cpu68000Snapshot> & {
     readonly instruction: null; readonly outcome: "executed";
     readonly exception: Cpu68000ExceptionDelivery & { readonly source: "trace" };
@@ -191,10 +192,8 @@ export class Cpu68000 {
       const opcode = fetchWord();
       const instruction = { address, bytes };
       const handler = Cpu68000.#opcodeHandlers[opcode];
-      if (!handler) {
-        return { before, after: this.snapshot(), accesses, instruction, outcome: "unsupported", reason: "opcode" };
-      }
-      const fault = handler(this, {
+      // Unmatched words fault during decoding, before extensions or operands.
+      const fault = handler ? handler(this, {
         nextAddress: () => cursor, fetchWord, readByte, writeByte,
         resetDevices: () => {
           if (!this.#connections) throw new Error("RESET requires a connected device reset callback.");
@@ -206,17 +205,18 @@ export class Cpu68000 {
           const high = fetchWord();
           return ((high << 16) | fetchWord()) >>> 0;
         },
-      });
+      }) : "illegal-instruction";
       if (typeof fault === "string") {
+        const { vector, instructionCompleted } = Cpu68000.#exceptions[fault];
         const exception = {
           source: fault,
-          vector: fault === "trap" ? 32 + (opcode & 15) : Cpu68000.#exceptionVectors[fault],
+          vector: vector + (fault === "trap" ? opcode & 15 : 0),
           // Faulting instructions restart; arithmetic and explicit traps resume after their operands.
-          returnPc: fault === "privilege-violation" || fault === "illegal-instruction" ? address : cursor,
+          returnPc: instructionCompleted ? cursor : address,
         };
         const entryFault = this.#enterException(exception, { readByte, writeByte });
-        // Group-2 traps complete their instruction before an owed trace; illegal/privileged attempts do not.
-        if (!entryFault) this.#state.tracePending = before.flags.t && fault !== "illegal-instruction" && fault !== "privilege-violation";
+        // Only completed instructions can owe a trace after their synchronous exception.
+        if (!entryFault) this.#state.tracePending = before.flags.t && instructionCompleted;
         const record = { before, after: this.snapshot(), accesses, instruction, exception };
         return entryFault ? { ...record, outcome: "unsupported", reason: "unaligned-address", fault: entryFault }
           : { ...record, outcome: "executed" };
@@ -278,10 +278,17 @@ export class Cpu68000 {
 
   // Opcode selectors and construction. Register and mode fields use numeric encoding order.
 
-  static readonly #exceptionVectors = {
-    "illegal-instruction": 4, "divide-by-zero": 5, "bounds-check": 6,
-    "overflow-trap": 7, "privilege-violation": 8,
-  } as const;
+  // Completion determines both the saved PC and whether tracing follows entry.
+  static readonly #exceptions = {
+    "illegal-instruction": { vector: 4, instructionCompleted: false },
+    "divide-by-zero": { vector: 5, instructionCompleted: true },
+    "bounds-check": { vector: 6, instructionCompleted: true },
+    "overflow-trap": { vector: 7, instructionCompleted: true },
+    "privilege-violation": { vector: 8, instructionCompleted: false },
+    "line-a": { vector: 10, instructionCompleted: false },
+    "line-f": { vector: 11, instructionCompleted: false },
+    "trap": { vector: 32, instructionCompleted: true },
+  } as const satisfies Record<Cpu68000Exception, { readonly vector: number; readonly instructionCompleted: boolean }>;
 
   static readonly #dataRegisters = ["d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7"] as const;
   static readonly #addressRegisters = ["a0", "a1", "a2", "a3", "a4", "a5", "a6"] as const;
@@ -472,6 +479,10 @@ export class Cpu68000 {
     // ss=11 moves tt to bits 10..9: 1110 0 tt d 11 mmm rrr shifts a memory word once.
     // Only memory-alterable EAs are legal; bit 11=1 belongs to later chips' bit-field instructions.
     ...this.#memoryShiftHandlers("1110 0 tt d 11 mmm rrr"), // ASR/ASL, LSR/LSL, ROXR/ROXL, ROR/ROL <ea>
+
+    // Emulator lines: bits 15..12 select vector 10 or 11; all low twelve bits belong to software.
+    ...opcodePattern("1010 xxxx xxxx xxxx", (): Cpu68000Exception => "line-a"), // Line-A emulator
+    ...opcodePattern("1111 xxxx xxxx xxxx", (): Cpu68000Exception => "line-f"), // Line-F emulator
   ], 16);
 
   static #immediateHandlers(pattern: string, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {

@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [659](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [598](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1143](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1154](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -52,8 +52,8 @@ and have complete documented opcode coverage, following the
 [completion sequence](completion.md#completion-sequence). All eight also support
 explicit external interrupt delivery at instruction boundaries; their model
 contracts define native recognition and entry policies. Cycle timing remains
-unmodeled, and the 68000 still needs address/bus-error and other illegal-opword
-delivery. Opcode completion does not imply complete processor emulation.
+unmodeled, and the 68000 still needs address/bus-error delivery.
+Opcode completion does not imply complete processor emulation.
 
 ## How the percentages are counted
 
@@ -175,7 +175,7 @@ forms accept 4,096 words. Embedded literal values do not add coverage forms.
 | Stepping | At most one instruction attempt; before/after snapshots, fetched instruction bytes, ordered accesses, and outcome |
 | Reset records | Separate before/after snapshots and access list; CPU-specific reset effects |
 | Arithmetic and addresses | Results wrap at their modeled widths; 14-bit addresses for the 8008, 16-bit addresses for the other 8-bit cores; the 8088 forms 20-bit physical addresses from segments/offsets; the 68000 preserves 32-bit registers and masks bus addresses to 24 bits |
-| Unsupported attempts | `reason: "opcode"`, one opcode byte fetched (two for the 68000), unchanged CPU state and RAM; additional 68000 alignment boundaries below |
+| Unsupported attempts | Undocumented encodings on the byte CPUs report `reason: "opcode"` with unchanged CPU state and RAM; the 68000 delivers illegal/emulator-line exceptions and retains the alignment boundaries below |
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
 All eight currently omit cycle counts, complete bus-cycle modeling, electrical
@@ -1858,8 +1858,10 @@ addresses are compared; local tests check exact instruction-level ordering.
 [model contract](68000/model.md). The instruction-word inventory contains
 45,816 supported opwords; the coverage count collapses embedded literals.
 RESET uses an explicit device connection; synchronous exceptions, trace,
-external interrupt offers, STOP wakeup, and RTE are included. Address/bus errors,
-other illegal opwords, timing, prefetch, and complete devices remain separate.
+external interrupt offers, STOP wakeup, and RTE are included. Illegal words and
+line-A/line-F patterns also deliver their native exceptions without adding
+documented opcode forms. Address/bus errors, timing, prefetch, and complete
+devices remain separate.
 
 MOVE and MOVEA
 support every original-68000 source/destination combination and documented
@@ -2046,9 +2048,9 @@ intermediate overflow, register aliases, and memory updates.
 | Further transfers | MOVEP alternate-byte RAM transfers, EXG, EXT, and SWAP; every documented form |
 | Status and control | Packed CCR/SR moves and immediate logic, USP moves, RTR, CHK, TAS, NOP, and STOP; native privilege/bounds/divide-zero delivery |
 | Stopping | STOP loads SR and sets `halted`; traced STOP permits the next trace step; accepted interrupt/trace/reset wakes it |
-| Exceptions | Six-byte supervisor frames, synchronous and trace vectors, external interrupt acknowledgement, saved PC/SR, and RTE; [entry and failure contract](68000/model.md#synchronous-exception-entry-and-return) |
+| Exceptions | Six-byte supervisor frames, synchronous and trace vectors, all illegal and line-A/line-F encodings, external interrupt acknowledgement, saved PC/SR, and RTE; [entry and failure contract](68000/model.md#synchronous-exception-entry-and-return) |
 | External controls | [Selected level offers](68000/model.md#external-interrupt-delivery), all vector bytes, autovectors/spurious response, trace priority, STOP wakeup, and [RESET callback](68000/model.md#reset-device-connection) |
-| Remaining scope | Other illegal opwords, address/bus errors, complete devices, signal sampling, timing, and prefetch |
+| Remaining scope | Address/bus errors, complete devices, signal sampling, timing, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
@@ -2064,7 +2066,8 @@ Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [bit operations](../../tests/machines/68000/bits-example.test.ts), and
 [extended arithmetic example tests](../../tests/machines/68000/extended-example.test.ts),
 [decimal pipeline tests](../../tests/machines/68000/decimal-pipeline-example.test.ts),
-plus [interrupt/trace/RESET programs](../../tests/machines/68000/interrupts.test.ts)
+plus [interrupt/trace/RESET programs](../../tests/machines/68000/interrupts.test.ts),
+[illegal/emulator-line handlers](../../tests/machines/68000/emulator-lines.test.ts),
 and [public type checks](../../tests/types/68000.ts).
 
 Completion checks execute all new register/EA forms. Decimal expectations use
@@ -2083,8 +2086,9 @@ actual RAM accesses, and touched memory with guards. Further checks cover all
 every displacement/absolute-short word; size-specific flags and upper-register
 preservation; source/destination aliases; unsigned register and physical-bus
 wrapping; overlapping code and data; every word/long memory form's alignment
-rejection; and all unsupported operation words. Existing tests retain independent
-BigInt addition expectations, reset, live operands, and detached records.
+rejection; and exception delivery for every word outside the instruction
+inventory. Existing tests retain independent BigInt addition expectations,
+reset, live operands, and detached records.
 
 Immediate ALU checks execute all **900 legal forms** with all 128 incoming flag
 patterns, exhaust every byte operand pair for each family, and check word/long

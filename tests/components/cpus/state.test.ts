@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { array, boolean, choices, namedChoices, copyState, defineState, flag, group, readState, unsigned } from "../../../src/components/cpus/state.js";
+import type { StateFields } from "../../../src/components/cpus/state.js";
 
 test("state descriptions validate unsigned widths independently of CPU-specific register names", () => {
   for (const [bits, maximum] of [[1, 1], [3, 7], [8, 255], [14, 16383], [16, 65535],
@@ -105,6 +106,41 @@ test("state groups copy independently even when caller banks alias or contain re
   assert.deepEqual(source.flags, { c: true });
 });
 
+test("reusing a state description reads current values, validates each input, and detaches every copy", () => {
+  const description = defineState({ a: unsigned(8), bank: group({ slots: array(2, unsigned(16)), c: flag }) });
+  const source = { a: 1, bank: { slots: [2, 3] as [number, number], c: false } };
+  const first = readState(description, source);
+  source.a = 4;
+  source.bank.slots[0] = 5;
+  source.bank.c = true;
+  const second = readState(description, source);
+  assert.deepEqual(second, { a: 4, bank: { slots: [5, 3], c: true } });
+  const snapshot = copyState(description, second);
+  second.bank.slots[1] = 6;
+  second.bank.c = false;
+  assert.deepEqual(snapshot, { a: 4, bank: { slots: [5, 3], c: true } });
+  assert.deepEqual(first, { a: 1, bank: { slots: [2, 3], c: false } });
+  source.bank.slots[1] = 65536;
+  assert.throws(() => readState(description, source), {
+    name: "RangeError", message: "bank.slots[1] must be an integer from 0 to 65535.",
+  });
+  source.bank.slots[1] = 7;
+  assert.deepEqual(readState(description, source), { a: 4, bank: { slots: [5, 7], c: true } });
+});
+
+test("raw field maps reflect additions, replacements, and deletions between copies", () => {
+  const fields: Record<string, StateFields[string]> = { a: unsigned(8) };
+  const source = { a: 255, c: true };
+  assert.deepEqual(readState(fields, source), { a: 255 });
+  fields.a = unsigned(16);
+  fields.c = flag;
+  source.a = 65535;
+  assert.deepEqual(readState(fields, source), { a: 65535, c: true });
+  delete fields.a;
+  assert.deepEqual(copyState(fields, source), { c: true });
+  assert.deepEqual(readState(fields, source), { c: true });
+});
+
 test("missing state and groups fail without inventing defaults, and field names retain ordinary object semantics", () => {
   const description = defineState({ a: unsigned(8), bank: group({ flags: group({ c: flag }) }) });
   for (const value of [null, undefined, 0, true, "state"]) assert.throws(() => readState(description, value), TypeError);
@@ -117,6 +153,24 @@ test("missing state and groups fail without inventing defaults, and field names 
   assert.deepEqual(Object.keys(result), ["__proto__", "constructor"]);
   assert.equal(result.__proto__, 12);
   assert.equal(result.constructor, 345);
+});
+
+test("state copies retain own data properties for unusual names and ignore symbol metadata", () => {
+  const metadata = Symbol("metadata");
+  const fields = { ["__proto__"]: unsigned(8), constructor: unsigned(16), [metadata]: flag };
+  const source = { ["__proto__"]: 12, constructor: 345,
+    get [metadata](): boolean { throw new Error("Symbol metadata must not be read"); } };
+  for (const description of [fields, defineState(fields)]) {
+    for (const result of [readState(description, source), copyState(description, source)]) {
+      assert.equal(Object.getPrototypeOf(result), Object.prototype);
+      assert.deepEqual(Reflect.ownKeys(result), ["__proto__", "constructor"]);
+      for (const [name, value] of [["__proto__", 12], ["constructor", 345]] as const) {
+        assert.deepEqual(Object.getOwnPropertyDescriptor(result, name), {
+          value, writable: true, enumerable: true, configurable: true,
+        });
+      }
+    }
+  }
 });
 
 test("published state descriptions are immutable and own field maps and choice arrays", () => {

@@ -78,11 +78,10 @@ export function check68000Records(record: Cpu68000StepRecord, reset: Cpu68000Res
     record.reason;
   } else if (record.outcome === "halted") {
     const halted: boolean = record.after.halted;
-  } else if (record.reason === "opcode") {
-    const bytes: readonly number[] = record.instruction.bytes;
-    // @ts-expect-error An unsupported opcode has no alignment fault.
-    record.fault;
-  } else if (record.reason === "unaligned-address") {
+  } else {
+    const reason: "unaligned-address" = record.reason;
+    // @ts-expect-error Every opword executes or delivers an exception; opcode rejection is absent.
+    const opcode: "opcode" = record.reason;
     const operation: "fetch" | "read" | "write" = record.fault.operation;
     // @ts-expect-error Odd-PC attempts have no instruction.
     record.instruction.bytes;
@@ -90,7 +89,7 @@ export function check68000Records(record: Cpu68000StepRecord, reset: Cpu68000Res
     record.fault.address = 0;
   }
   if (record.exception) {
-    const source: "trace" | "trap" | "overflow-trap" | "illegal-instruction" | "divide-by-zero" | "bounds-check" | "privilege-violation" = record.exception.source;
+    const source: "trace" | "trap" | "overflow-trap" | "illegal-instruction" | "line-a" | "line-f" | "divide-by-zero" | "bounds-check" | "privilege-violation" = record.exception.source;
     const vector: number = record.exception.vector;
     const returnPc: number = record.exception.returnPc;
     // @ts-expect-error Exception metadata is readonly.

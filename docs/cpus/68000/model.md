@@ -93,7 +93,8 @@ mode before register. Both use this effective-address vocabulary:
 | `111` | `100` | Immediate | Word for byte/word; long for long |
 
 Byte transfers cannot use address-register direct. In MOVE, PC-relative and
-immediate operands are source-only. Other mode-`111` selectors are unsupported.
+immediate operands are source-only. Other mode-`111` selectors are invalid
+and deliver an illegal-instruction exception.
 Immediate bytes use the low byte of their extension word; its high byte is ignored.
 
 All address arithmetic wraps at 32 bits before bus mapping. PC-relative modes
@@ -335,7 +336,7 @@ Memory encoding `1110 0 tt d 11 mmm rrr` permits only the 42 memory-alterable
 EAs and always shifts a word once. Extensions are fetched before reading and
 writing the resolved operand. Auto-updates occur once; unchanged results are
 still written. Odd addresses reject the attempt before data access or state
-changes. Later-chip bit-field encodings with bit 11 set remain unsupported.
+changes. Later-chip bit-field encodings with bit 11 set enter vector 4.
 
 | Family | Incoming bit | X | V | C with zero count |
 | --- | --- | --- | --- | --- |
@@ -569,9 +570,8 @@ which ordinary interrupt levels may wake it; its new S can select USP.
 
 All documented original-68000 instruction forms are implemented within this
 instruction-level contract. Address/bus-error delivery, memory-mapped devices,
-timing, and prefetch remain outside it. Unrecognized opwords still report
-unsupported opcodes, including reserved encodings and line-A/line-F emulator
-traps; only explicit ILLEGAL uses vector 4.
+timing, and prefetch remain outside it. Words outside the instruction inventory
+deliver illegal-instruction or line-A/line-F exceptions as described below.
 
 ## Synchronous exception entry and return
 
@@ -582,16 +582,34 @@ runner continue through a handler. No handler opcode is fetched during entry.
 
 | Source | Vector | Saved PC |
 | --- | --- | --- |
-| `illegal-instruction` (ILLEGAL, `4AFC`) | 4 | Instruction start |
+| `illegal-instruction` (ILLEGAL, `4AFC`, and other invalid encodings outside lines A/F) | 4 | Instruction start |
 | `divide-by-zero` (DIVU/DIVS) | 5 | After opcode and extensions |
 | `bounds-check` (CHK) | 6 | After opcode and extensions |
 | `overflow-trap` (TRAPV with V=1) | 7 | After TRAPV |
 | `privilege-violation` | 8 | Instruction start |
+| `line-a` (`A000`–`AFFF`) | 10 | Instruction start |
+| `line-f` (`F000`–`FFFF`) | 11 | Instruction start |
 | `trap` (TRAP #n) | 32+n, n=0..15 | After TRAP |
 
+Bits 15..12 identify the two emulator lines; their low twelve bits are left
+for software interpretation. All other words outside the documented instruction
+inventory enter vector 4, including Motorola's reserved `4AFA`/`4AFB` words,
+invalid instruction/addressing combinations, and later-chip encodings absent
+from the original 68000. Detection fetches only the two-byte operation word,
+without extension or operand reads. No opcode produces `reason: "opcode"`;
+the step-record type's only unsupported reason is `unaligned-address`.
+
+These three classes do not complete an instruction and therefore owe no trace,
+even when T was set. They save the full faulting PC before its fetch increment,
+including at `FFFFFFFE`. RTE with an unchanged frame retries the same word;
+a software emulator must adjust the saved PC if it wants to resume after it.
+Each successful entry remains an executed step, so the runner continues through
+the handler using its normal step budget.
+
 TRAPV with V=0 advances PC without entering an exception. TRAP, TRAPV, ILLEGAL,
-and privilege violations preserve all condition codes. CHK and division apply
-the flag and completed-source effects described above before saving SR.
+other illegal encodings, emulator lines, and privilege violations preserve all
+condition codes. CHK and division apply the flag and completed-source effects
+described above before saving SR.
 
 Entry uses SSP even when the instruction ran in user mode:
 
@@ -788,7 +806,6 @@ odd exception-stack boundary above instead retains completed instruction effects
 
 | Case | Outcome details | Accesses |
 | --- | --- | --- |
-| Unimplemented operation word | `reason: "opcode"`; two instruction bytes | Two fetch reads |
 | Odd PC | `reason: "unaligned-address"`; `instruction: null`; `fault.operation: "fetch"` | None |
 | Odd word/long MOVE source | `reason: "unaligned-address"`; `fault.operation: "read"` | Opcode and source extension fetches; no source data read or destination fetch |
 | Odd word/long ALU operand | `reason: "unaligned-address"`; `fault.operation: "read"` | All instruction fetches; no operand reads or writes |
@@ -808,8 +825,8 @@ attempt.
 These are explicit model policies. A physical 68000 enters an address-error
 exception on an unaligned word access; this model reports the missing behavior
 instead. It does not generate address-error stack frames or emulate partial
-bus activity during an address fault. Unimplemented operation words likewise
-do not deliver illegal-instruction or line-A/line-F exceptions.
+bus activity during an address fault. Illegal-instruction and line-A/line-F
+delivery uses the six-byte entry contract above, including its odd-SSP boundary.
 
 Records own their snapshots, bytes, accesses, fault details, and exception
 metadata; the CPU retains no history. They describe instruction-level activity, without cycles, word bus
@@ -866,8 +883,9 @@ Addressing is defined in §§2.2.1–2.2.7 and §§2.2.11–2.2.18; §2.4 distin
 the original brief extension from later chips. Later-family additions are excluded.
 
 [CPU tests](../../../tests/components/cpus/68000.test.ts) check state ownership,
-validation, every unsupported operation word, arithmetic boundaries against a
-BigInt oracle, every register pair and MOVEQ byte, every incoming flag pattern,
+validation, exception delivery for every word outside the instruction inventory,
+arithmetic boundaries against a BigInt oracle, every register pair and MOVEQ
+byte, every incoming flag pattern,
 byte order, logical and physical wrapping, alignment rejection, reset, current
 RAM, overlapping stores, and detached records. Transfer checks execute every
 legal MOVE/MOVEA form with both active stacks, every index extension word,
@@ -960,6 +978,14 @@ privilege checks before operand reads, nesting, restored snapshots, wrapping,
 overlapping vectors, alignment boundaries, and RAM-callback failures. The
 [decimal pipeline](examples/decimal-pipeline.md) also runs a divide-by-zero
 handler and RTE through the shared runner.
+
+The [illegal/emulator-line review](reference-notes.md#illegal-and-emulator-line-exceptions)
+checks all 19,720 words outside the instruction inventory, all status combinations,
+trace suppression, PC/stack wrapping, frame/vector overlap, zero and odd targets,
+RTE retry, detached records, and failures at each opcode/frame/vector byte.
+A [combined program](../../../tests/machines/68000/emulator-lines.test.ts) handles
+all three classes by advancing the stacked PC and returning through RTE,
+with a restored CPU snapshot at every instruction boundary.
 
 The [interrupt/control review](reference-notes.md#interrupts-trace-and-reset)
 checks priority, trace sampling, level-7 edges, vector responses, RESET, and

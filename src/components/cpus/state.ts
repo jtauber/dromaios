@@ -92,9 +92,15 @@ export function group<const Fields extends StateFields>(fields: Fields): GroupFi
   return Object.freeze({ kind: "group", fields: defineState(fields) });
 }
 
+// Only owned, immutable maps are cached; callers may also pass mutable field maps.
+const fieldTemplates = new WeakMap<StateFields, StateFields>();
+
 /** Own a readonly field map; use the field constructors above for its immutable entries. */
 export function defineState<const Fields extends StateFields>(fields: Fields): Readonly<Fields> {
-  return Object.freeze({ ...fields });
+  const description = Object.freeze({ ...fields });
+  // Keep the same enumerable string fields as Object.entries, excluding symbol metadata.
+  fieldTemplates.set(description, Object.fromEntries(Object.entries(description)));
+  return description;
 }
 
 /** Copy and validate external state, reading only declared fields and each declared value once. */
@@ -114,10 +120,15 @@ function copyFields(fields: StateFields, value: unknown, path: string, validate:
     throw new TypeError(`${path || "State"} must be an object.`);
   }
   const source = value as Record<string, unknown>;
-  return Object.fromEntries(Object.entries(fields).map(([name, field]) => {
+  // Spreading a field template creates own data properties, even for __proto__.
+  // Replace the descriptions with copied values without allocating entry pairs per snapshot.
+  const result: Record<string, unknown> = { ...(fieldTemplates.get(fields) ?? Object.fromEntries(Object.entries(fields))) };
+  for (const name of Object.keys(result)) {
+    const field = result[name] as StateField;
     const label = path ? `${path}.${name}` : name;
-    return [name, copyValue(field, source[name], label, validate)];
-  }));
+    result[name] = copyValue(field, source[name], label, validate);
+  }
+  return result;
 }
 
 function copyValue(field: StateField, value: unknown, label: string, validate: boolean): unknown {
