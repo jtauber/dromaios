@@ -18,30 +18,32 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [312](../../src/components/cpus/8008.ts) | 0 / 250 | 0% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [269](../../src/components/cpus/8080.ts) | 9 / 244 | 3.7% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [263](../../src/components/cpus/8080.ts) | 13 / 244 | 5.3% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [385](../../src/components/cpus/6800.ts) | 0 / 197 | 0% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [329](../../src/components/cpus/6502.ts) | 70 / 151 | 46.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [661](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [608](../../src/components/cpus/6809.ts) | 5 / 268 | 1.9% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [612](../../src/components/cpus/6809.ts) | 15 / 268 | 5.6% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **86 generated bodies**, of which **85 are used by CPU execution**,
-covering **84 complete opcode forms**:
+contains **100 generated bodies**, of which **99 are used by CPU execution**,
+covering **98 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, all six register transfers,
   all 20 ASL/ROL/LSR/ROR forms, eight memory INC/DEC forms, and INX/INY/DEX/DEY.
   All 70 bodies are integrated and count as migrated forms.
 - [8080 definitions](../../src/components/cpus/semantics/definitions/8080.ts):
-  CPI and all eight CMP register/memory forms are integrated. MOV B,A is a
-  generated test sample, so it does not yet count toward migration.
+  CPI, all eight CMP register/memory forms, and RLC/RRC/RAL/RAR are integrated:
+  13 migrated forms. MOV B,A is a generated test sample, so it does not yet
+  count toward migration.
 - [6809 definitions](../../src/components/cpus/semantics/definitions/6809.ts):
   CMPA/CMPB immediate and CMPX immediate/direct/extended count as five migrated
-  forms. The sixth integrated body, CMPX indexed with postbyte `81` (`,X++`),
-  covers only one operand choice; other indexed postbytes still use handwritten
-  semantics, so the indexed opcode earns no migration credit yet.
+  forms. LSR/ROR/ASR/ASL/ROL on A and B add ten more; their memory forms retain
+  handwritten semantics. CMPX indexed with postbyte `81` (`,X++`) is also
+  integrated but covers only one operand choice; other indexed postbytes still
+  use handwritten semantics, so the indexed opcode earns no migration credit yet.
 
 The other five CPUs have no instruction bodies generated from these definitions.
 Their existing shared TypeScript helpers remain useful, but are outside this
@@ -89,23 +91,26 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,904 |
-| CPU-specific instruction definition files | 289 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,632 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,825** |
+| Eight CPU implementation files | 4,902 |
+| CPU-specific instruction definition files | 336 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,651 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,889** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 1,912 |
+| Generated CPU output, counted separately | 2,130 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The shift/rotate and increment/decrement migration reduces the 6502 module from
-**390 to 329 lines** (61 fewer), retiring its handwritten operation selector,
-family builders, and update helpers. Definitions add 31 lines, and shared flag
-capture/shift support adds 41, so total authored CPU source increases from
-**6,814 to 6,825 lines** (11 more). The generation script is unchanged in length.
-This change completes coherent families but is not a net source reduction;
-reuse across other CPUs remains the next test of the added vocabulary.
+The cross-CPU shift migration reduces the 8080 module from **269 to 263 lines**,
+retiring its rotate-result wrapper. The 6809 module grows from **608 to 612**
+while generated register bodies coexist with handwritten memory transforms;
+the 6502 module stays at 329. Definitions add 47 lines and shared construction
+and Boolean XOR support add 19, so total authored CPU source increases from
+**6,825 to 6,889 lines** (64 more). The generation script is unchanged in length.
+The shared shift recipe now serves three CPUs with different flag schedules,
+but this change is not a net source reduction. Migrating the 6809 memory forms
+is the next opportunity to remove the remaining shift-specific helpers and
+temporary register bindings; measure that work against this total too.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

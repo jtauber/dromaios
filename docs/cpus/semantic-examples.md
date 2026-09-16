@@ -1596,6 +1596,68 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I, C.
 
+### 8080 RLC
+
+Capture A and rotate left, inserting the outgoing bit. Write A before replacing CY with the outgoing bit. Preserve S, Z, AC, and P; no data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftLeft(original, topBit(original))
+write A:u8 := result
+flags "8080 rotate carry" simultaneously {
+  CY := topBit(original)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, AC, P.
+
+### 8080 RRC
+
+Capture A and rotate right, inserting the outgoing bit. Write A before replacing CY with the outgoing bit. Preserve S, Z, AC, and P; no data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftRight(original, lowBit(original))
+write A:u8 := result
+flags "8080 rotate carry" simultaneously {
+  CY := lowBit(original)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, AC, P.
+
+### 8080 RAL
+
+Capture A and rotate left, inserting the captured incoming CY. Write A before replacing CY with the outgoing bit. Preserve S, Z, AC, and P; no data-memory access occurs.
+
+```text
+original:u8 := read A
+carry:flag := read CY
+result := shiftLeft(original, carry)
+write A:u8 := result
+flags "8080 rotate carry" simultaneously {
+  CY := topBit(original)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, AC, P.
+
+### 8080 RAR
+
+Capture A and rotate right, inserting the captured incoming CY. Write A before replacing CY with the outgoing bit. Preserve S, Z, AC, and P; no data-memory access occurs.
+
+```text
+original:u8 := read A
+carry:flag := read CY
+result := shiftRight(original, carry)
+write A:u8 := result
+flags "8080 rotate carry" simultaneously {
+  CY := lowBit(original)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, AC, P.
+
 ### 8080 CPI byte
 
 Retain A without a destination write. S/Z describe the byte result, P its even parity, CY the borrow, and AC the inverse borrow at the low-nibble boundary.
@@ -1809,6 +1871,184 @@ write B:u8 := result
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
+
+### 6809 LSRA
+
+Capture A and shift right, inserting zero. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftRight(original, 0:flag)
+flags "6809 LSR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I, V.
+
+### 6809 LSRB
+
+Capture B and shift right, inserting zero. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+
+```text
+original:u8 := read B
+result := shiftRight(original, 0:flag)
+flags "6809 LSR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I, V.
+
+### 6809 RORA
+
+Capture A and shift right, inserting the captured incoming C. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6809 ROR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I, V.
+
+### 6809 RORB
+
+Capture B and shift right, inserting the captured incoming C. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+
+```text
+original:u8 := read B
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6809 ROR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I, V.
+
+### 6809 ASRA
+
+Capture A and shift right, inserting the original sign bit. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftRight(original, topBit(original))
+flags "6809 ASR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I, V.
+
+### 6809 ASRB
+
+Capture B and shift right, inserting the original sign bit. Update N/Z/C before writing the register. Preserve V. Preserve E/F/H/I; no data-memory access occurs.
+
+```text
+original:u8 := read B
+result := shiftRight(original, topBit(original))
+flags "6809 ASR" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I, V.
+
+### 6809 ASLA
+
+Capture A and shift left, inserting zero. Update N/Z/C before writing the register. Replace V with N XOR C. Preserve E/F/H/I; no data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftLeft(original, 0:flag)
+flags "6809 ASL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 ASLB
+
+Capture B and shift left, inserting zero. Update N/Z/C before writing the register. Replace V with N XOR C. Preserve E/F/H/I; no data-memory access occurs.
+
+```text
+original:u8 := read B
+result := shiftLeft(original, 0:flag)
+flags "6809 ASL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 ROLA
+
+Capture A and shift left, inserting the captured incoming C. Update N/Z/C before writing the register. Replace V with N XOR C. Preserve E/F/H/I; no data-memory access occurs.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6809 ROL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 ROLB
+
+Capture B and shift left, inserting the captured incoming C. Update N/Z/C before writing the register. Replace V with N XOR C. Preserve E/F/H/I; no data-memory access occurs.
+
+```text
+original:u8 := read B
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6809 ROL" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  C := topBit(original)
+  V := xor(topBit(result), topBit(original))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPA #byte
 

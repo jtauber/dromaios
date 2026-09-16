@@ -18,6 +18,7 @@ export type FlagExpression =
   | { readonly kind: "flag-value"; readonly name: string }
   | { readonly kind: "flag-literal"; readonly value: boolean }
   | { readonly kind: "not"; readonly value: FlagExpression }
+  | { readonly kind: "xor"; readonly left: FlagExpression; readonly right: FlagExpression }
   | { readonly kind: "negative" | "low-bit" | "zero" | "even-parity"; readonly value: NumberExpression }
   | { readonly kind: "borrow" | "half-borrow" | "subtract-overflow"; readonly left: NumberExpression; readonly right: NumberExpression };
 
@@ -91,6 +92,7 @@ export const lowBit = (value: NumberExpression): FlagExpression => ({ kind: "low
 export const zero = (value: NumberExpression): FlagExpression => ({ kind: "zero", value });
 export const evenParity = (value: NumberExpression): FlagExpression => ({ kind: "even-parity", value });
 export const not = (value: FlagExpression): FlagExpression => ({ kind: "not", value });
+export const xor = (left: FlagExpression, right: FlagExpression): FlagExpression => ({ kind: "xor", left, right });
 export const borrow = (left: NumberExpression, right: NumberExpression): FlagExpression => ({ kind: "borrow", left, right });
 export const halfBorrow = (left: NumberExpression, right: NumberExpression): FlagExpression => ({ kind: "half-borrow", left, right });
 export const overflow = (left: NumberExpression, right: NumberExpression): FlagExpression => ({ kind: "subtract-overflow", left, right });

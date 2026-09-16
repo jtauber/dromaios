@@ -25,6 +25,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "flag-value": return expr.name;
       case "flag-literal": return expr.value ? "1:flag" : "0:flag";
       case "not": return `not(${flag(expr.value, parameters)})`;
+      case "xor": return `xor(${flag(expr.left, parameters)}, ${flag(expr.right, parameters)})`;
       case "negative": case "low-bit": case "zero": case "even-parity":
         return `${{ negative: "topBit", "low-bit": "lowBit", zero: "isZero", "even-parity": "evenParity8" }[expr.kind]}(${number(expr.value, parameters)})`;
       case "borrow": case "half-borrow": case "subtract-overflow":

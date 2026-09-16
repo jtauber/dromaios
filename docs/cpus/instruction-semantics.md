@@ -23,12 +23,14 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | All six 6502 register transfers and 8080 MOV B,A | Share read/write behavior while selecting N/Z or preserving every flag; SP transfers do not access the stack |
 | All 6502 ASL/ROL/LSR/ROR forms | One resolved address, an original-value write, a captured incoming carry for rotates, and separate C and N/Z stages; accumulator forms share the operation |
 | All 6502 memory INC/DEC and INX/INY/DEX/DEY | Share wrapping byte updates while preserving C and the same memory-write boundaries |
+| 8080 RLC/RRC/RAL/RAR | Circular or through-carry rotation; write A before CY and preserve every other flag |
+| 6809 LSR/ROR/ASR/ASL/ROL on A/B | Zero, carry, or sign-bit insertion; N/Z/C before writeback; left shifts set V to N XOR C, right shifts preserve V |
 
-There are 86 bodies. All are generated and executable; 85 are bound into their
+There are 100 bodies. All are generated and executable; 99 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
-Other 6809 comparison addressing forms and shifts on other CPUs retain their
-existing shared helpers. This is not a complete CPU migration.
+Other 6809 comparison addressing forms, its memory shifts, and shifts on the
+remaining CPUs retain their existing shared helpers. This is not a complete CPU migration.
 Bodies start after opcode selection. `CMPX ,X++` starts after postbyte `81`
 has selected that particular form; decoding or rejecting other postbytes is
 not represented. The existing
@@ -46,7 +48,7 @@ The authoring layers have separate homes:
 | Location | Responsibility |
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
-| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer recipes, N/Z policies, and checked opcode inventories |
+| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift recipes, N/Z policies, and checked opcode inventories |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -140,6 +142,22 @@ recipes: the original-value write and flag schedule are not imposed on other
 processors. Opcode fields select the operation and address source from one
 inventory for the complete families.
 
+The shared `shift(direction, incoming)` recipe consumes the caller's `original`
+capture and produces `result`, plus an outgoing-carry expression. Its incoming
+bit can be zero (logical shift), the original sign (arithmetic right shift),
+the outgoing bit (circular rotation), or a CPU flag symbol (through-carry
+rotation). Only the flag-symbol case emits a `readFlag("carry", ...)` statement.
+The caller places these steps at the required point and schedules flags and
+writeback separately. Extracting this recipe leaves the existing 6502 bodies
+structurally unchanged.
+
+The 8080 writes A before replacing CY and preserves S/Z/AC/P. The 6809 instead
+updates N/Z/C before writing A or B; left shifts also replace V with N XOR C,
+while right shifts preserve V. That XOR uses the captured original and result,
+so the policy does not depend on assignments to live N or C. The 6502 retains
+its separate carry-before-writeback and N/Z-after-writeback stages, including
+the original-value memory write before a rotate reads incoming C.
+
 ## Primitive meanings
 
 This vocabulary deliberately supports unsigned **8- and 16-bit values**,
@@ -167,6 +185,7 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `halfBorrow(left, right)` | Whether `(left mod 16) < (right mod 16)`, at either supported width |
 | `overflow(left, right)` | Whether signed subtraction falls outside the signed range at that width |
 | `not(value)` | Boolean negation |
+| `xor(left, right)` | Boolean exclusive OR; true exactly when its two Boolean operands differ |
 
 Binary arithmetic operands must have equal widths. Shift operands have distinct
 roles: a byte/word value and a Boolean incoming bit; shifts do not update flags.
@@ -272,6 +291,11 @@ word value in both directions and with either incoming bit, distinguish a
 captured flag from later live-state changes, and inspect carry reads and updates
 between the two memory writes. The 6502 tests cover every byte and incoming flag
 combination for every modifying form, plus failure at every memory access.
+Generated-body probes also inspect the 8080 and 6809 register/flag write order,
+require incoming-carry reads only for through-carry rotations, and exercise
+nested Boolean XOR over its complete truth table. Existing CPU tests exhaust
+every byte and incoming flag combination for the newly migrated forms, using
+independent bit-string rotations and integer shift/overflow expectations.
 
 ## Executable generation and integration
 
@@ -328,7 +352,13 @@ their complete bodies are migrated.
 
 This covers the complete 6502 comparison, load, shift/rotate, and byte
 increment/decrement families, plus all six register transfers. The 8080 retains
-named bodies for its nine CMP/CPI bindings in the shared 8080/Z80 family.
+named bodies for its nine CMP/CPI bindings and four accumulator rotates in the
+shared 8080/Z80 family. The Z80's own bodies remain unchanged.
+The 6809 unary inventory selects generated A/B shift bodies during table
+construction, while its memory forms retain the existing transformations.
+The selected register handler has no extra runtime dispatch branch. This
+temporary coexistence keeps the opcode patterns together while migration is
+incomplete.
 The 6809 binds immediate CMPA/B, three ordinary CMPX modes, and one indexed body:
 it fetches the postbyte once, selects generated `,X++` for `81`, and delegates
 other forms to its existing indexed decoder. Unsupported postbytes retain the
@@ -352,10 +382,19 @@ Measure the complete [source footprint](coverage.md#source-footprint), including
 definitions and shared machinery, with generated output counted separately.
 Moving code into a definition file does not count as source reduction. Review
 whether family authoring, reusable sources, and explicit ordered statements
-improve understanding. This family migration adds slightly more shared support
-and definitions than it removes from the CPU module. Next, exercise the same
-concepts on the 8080 and 6809, keeping each CPU's flag and writeback rules explicit,
-before expanding the vocabulary further.
+improve understanding. The shared shift recipe now serves the 6502, 8080, and
+6809, with sign extension and circular rotation expressed using existing
+primitives. Boolean XOR is the only new expression needed for this extension.
+Their different flag and writeback schedules remain explicit. The register
+migration still adds more authored source than it removes, partly because the
+6809 memory forms retain their handwritten transformations.
+
+Next, migrate the 6809 memory shifts through the existing address-decoder
+boundary, preserving one resolved address, incoming-carry read timing, and
+flags-before-writeback behavior. This should remove the temporary register
+bindings and the CPU's shift-specific helper without first expressing the full
+postbyte decoder in the semantic vocabulary. Count any binding machinery as
+part of that change's source cost.
 
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve

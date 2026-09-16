@@ -69,6 +69,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
         if (typeof expr.value !== "boolean") fail(where, "flag literal must be Boolean");
         return;
       case "not": return flagExpression(expr.value, scope, where);
+      case "xor": flagExpression(expr.left, scope, where); flagExpression(expr.right, scope, where); return;
       case "negative": case "low-bit": case "zero": case "even-parity": {
         const bits = expression(expr.value, scope, where);
         if (expr.kind === "even-parity" && bits !== 8) fail(where, "even parity requires a byte");

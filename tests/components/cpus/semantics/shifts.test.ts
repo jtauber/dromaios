@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/6502.js";
+import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
+import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
-import { capture, cpuSymbols, flagLiteral, flagValue, lowBit, negative, readFlag, readRegister,
-  shiftLeft, shiftRight, updateFlags, value, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
+import type { Cpu8080State } from "../../../../src/components/cpus/state/8080.js";
+import { capture, cpuSymbols, flagLiteral, flagValue, literal, lowBit, negative, not, readFlag, readRegister,
+  shiftLeft, shiftRight, updateFlags, value, writeRegister, xor } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 
@@ -40,6 +43,75 @@ test("generated word shifts preserve a captured incoming flag and handle every u
     compiled.instructions[direction](state);
     assert.equal(state.x, direction === "left" ? (original * 2 + Number(incoming)) % 65536 : Math.floor(original / 2) + Number(incoming) * 32768);
     assert.equal(state.flags.c, direction === "left" ? original >= 32768 : original % 2 === 1);
+  }
+});
+
+test("generated Boolean XOR preserves nested operands and negation for the complete truth table", async () => {
+  const cpu = cpuSymbols("6809", cpu6809StateDescription);
+  const source = generateInstructions("6809", { probe: defineInstruction({
+    cpu: cpu.declaration, name: "probe", explanation: "Nested Boolean XOR probe.", steps: [
+      readFlag("first", cpu.flag("n")), readFlag("second", cpu.flag("z")), readFlag("third", cpu.flag("c")),
+      capture("result", shiftLeft(literal(16, 0), xor(not(flagValue("first")), xor(flagValue("second"), flagValue("third"))))),
+      writeRegister(cpu.register("x"), value("result")),
+    ],
+  }) });
+  const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
+  const javascript = stripTypeScriptTypes(source).replace('"../alu.ts"', JSON.stringify(alu));
+  const compiled: { instructions: { probe: (state: Cpu6809State) => void } } =
+    await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
+  for (const n of [false, true]) for (const z of [false, true]) for (const c of [false, true]) {
+    const state: Cpu6809State = { a: 0, b: 0, dp: 0, x: 0, y: 0, s: 0, u: 0, pc: 0, waitMode: "none", nmiArmed: false,
+      flags: { e: false, f: false, h: false, i: false, n, z, v: false, c } };
+    compiled.instructions.probe(state);
+    assert.equal(state.x, (Number(!n) + Number(z) + Number(c)) % 2);
+  }
+});
+
+// Expose generated-body statement order; ordinary CPU state remains plain owned data.
+function observe<T extends object>(target: T, events: string[], prefix = ""): T {
+  return new Proxy(target, {
+    get(object, key, receiver) {
+      const value: unknown = Reflect.get(object, key, receiver);
+      if (typeof value === "number" || typeof value === "boolean") events.push(`read ${prefix}${String(key)}`);
+      return value;
+    },
+    set(object, key, value: unknown) {
+      events.push(`${prefix}${String(key)}=${Number(value)}`);
+      return Reflect.set(object, key, value);
+    },
+  });
+}
+
+test("8080 rotates write A before CY and read incoming CY only for through-carry forms", () => {
+  for (const [name, result, incoming] of [["rlc", 3, false], ["rrc", 0xc0, false], ["ral", 2, true], ["rar", 0x40, true]] as const) {
+    const events: string[] = [];
+    const state: Cpu8080State = { a: 0x81, b: 0, c: 0, d: 0, e: 0, h: 0, l: 0, sp: 0, pc: 0,
+      halted: false, interruptEnabled: false, interruptDeferred: false,
+      flags: observe({ s: true, z: true, ac: true, p: true, cy: false }, events, "flags.") };
+    intel[name](observe(state, events));
+    assert.deepEqual(events, ["read a", ...(incoming ? ["read flags.cy"] : []), `a=${result}`, "flags.cy=1"]);
+    assert.equal(state.a, result);
+    assert.deepEqual(state.flags, { s: true, z: true, ac: true, p: true, cy: true });
+  }
+});
+
+test("6809 register shifts apply only their declared flags before writing A or B", () => {
+  for (const register of ["a", "b"] as const) for (const [a, b, result, incoming, left] of [
+    [motorola.lsrA, motorola.lsrB, 0x40, false, false],
+    [motorola.rorA, motorola.rorB, 0x40, true, false],
+    [motorola.asrA, motorola.asrB, 0xc0, false, false],
+    [motorola.aslA, motorola.aslB, 2, false, true],
+    [motorola.rolA, motorola.rolB, 2, true, true],
+  ] as const) {
+    const events: string[] = [];
+    const state: Cpu6809State = { a: 0x81, b: 0x81, dp: 0, x: 0, y: 0, s: 0, u: 0, pc: 0, waitMode: "none", nmiArmed: false,
+      flags: observe({ e: true, f: true, h: true, i: true, n: true, z: true, v: true, c: false }, events, "flags.") };
+    (register === "a" ? a : b)(observe(state, events));
+    assert.deepEqual(events, [`read ${register}`, ...(incoming ? ["read flags.c"] : []),
+      `flags.n=${Number(result >= 128)}`, "flags.z=0", "flags.c=1", ...(left ? ["flags.v=1"] : []), `${register}=${result}`]);
+    assert.equal(state[register], result);
+    assert.equal(state[register === "a" ? "b" : "a"], 0x81);
+    assert.deepEqual(state.flags, { e: true, f: true, h: true, i: true, n: result >= 128, z: false, v: true, c: true });
   }
 });
 

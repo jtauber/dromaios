@@ -1,7 +1,7 @@
 import { cpu6809StateDescription } from "../../state/6809.ts";
-import { addWrap, borrow, capture, concat, cpuSymbols, fetchByte, literal, overflow, readMemory, readRegister, value, writeRegister } from "../model.ts";
-import type { FlagPolicy, InstructionDefinition, ValueSource, Width } from "../model.ts";
-import { compare, immediateByte, negativeZeroPolicy } from "../builders.ts";
+import { addWrap, borrow, capture, concat, cpuSymbols, fetchByte, literal, negative, overflow, readMemory, readRegister, updateFlags, value, writeRegister, xor } from "../model.ts";
+import type { Flag, FlagPolicy, InstructionDefinition, ValueSource, Width } from "../model.ts";
+import { compare, immediateByte, negativeZeroPolicy, shift } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("6809", cpu6809StateDescription);
@@ -54,7 +54,37 @@ function comparison(register: "a" | "b" | "x", source: ValueSource, operand: str
   });
 }
 
+function registerShifts(name: string, direction: "left" | "right", incoming: "zero" | "sign" | Flag = "zero") {
+  const operation = shift(direction, incoming);
+  const nz = negativeZeroPolicy(`6809 ${name}`, cpu.flag("n"), cpu.flag("z"), 8);
+  const policy: FlagPolicy = {
+    ...nz, parameters: { original: 8, result: 8 },
+    updates: [
+      ...nz.updates,
+      { flag: cpu.flag("c"), value: operation.carry },
+      ...(direction === "left" ? [{ flag: cpu.flag("v"), value: xor(negative(value("result")), operation.carry) }] : []),
+    ],
+  };
+  return Object.fromEntries((["a", "b"] as const).map(register => [`${name.toLowerCase()}${register.toUpperCase()}`, defineInstruction({
+    cpu: cpu.declaration, name: `${name}${register.toUpperCase()}`,
+    explanation: `Capture ${register.toUpperCase()} and shift ${direction}, inserting `
+      + (incoming === "zero" ? "zero" : incoming === "sign" ? "the original sign bit" : "the captured incoming C")
+      + ". Update N/Z/C before writing the register. "
+      + (direction === "left" ? "Replace V with N XOR C. " : "Preserve V. ")
+      + "Preserve E/F/H/I; no data-memory access occurs.",
+    steps: [
+      readRegister("original", cpu.register(register)), ...operation.steps,
+      updateFlags(policy, { original: value("original"), result: value("result") }),
+      writeRegister(cpu.register(register), value("result")),
+    ],
+  })]));
+}
+
 export const instructions6809 = {
+  // 010 r oooo: r selects A/B; oooo=0100/0110/0111/1000/1001 selects LSR/ROR/ASR/ASL/ROL.
+  ...registerShifts("LSR", "right"), ...registerShifts("ROR", "right", cpu.flag("c")),
+  ...registerShifts("ASR", "right", "sign"),
+  ...registerShifts("ASL", "left"), ...registerShifts("ROL", "left", cpu.flag("c")),
   cmpaImmediate: comparison("a", immediateByte, "#byte"),
   cmpbImmediate: comparison("b", immediateByte, "#byte"),
   cmpxImmediate: comparison("x", immediateWord, "#word"),

@@ -1,9 +1,9 @@
 import { cpu6502StateDescription } from "../../state/6502.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
-import { addWrap, borrow, capture, concat, cpuSymbols, extend, fetchByte, flagLiteral, flagValue, literal, lowBit, negative, not,
-  readFlag, readMemory, readRegister, readSource, shiftLeft, shiftRight, subtract, updateFlags, value, writeMemory, writeRegister } from "../model.ts";
+import { addWrap, borrow, capture, concat, cpuSymbols, extend, fetchByte, literal, not,
+  readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
-import { compare, immediateByte, instructionSet, memorySource, negativeZeroPolicy, registerSource, transfer } from "../builders.ts";
+import { compare, immediateByte, instructionSet, memorySource, negativeZeroPolicy, registerSource, shift, transfer } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("6502", cpu6502StateDescription);
@@ -76,14 +76,12 @@ function registerTransfer(name: string, from: "a" | "x" | "y" | "sp", to: "a" | 
 }
 
 // A byte operation consumes "original" and captures "result"; its flag stages stay in place.
-function shift(name: string, direction: "left" | "right", rotate = false) {
-  const operation = direction === "left" ? shiftLeft : shiftRight;
-  const carry = direction === "left" ? negative : lowBit;
+function shiftOperation(name: string, direction: "left" | "right", rotate = false) {
+  const operation = shift(direction, rotate ? cpu.flag("c") : "zero");
   return { name, steps: [
-    ...(rotate ? [readFlag("carry", cpu.flag("c"))] : []),
-    capture("result", operation(value("original"), rotate ? flagValue("carry") : flagLiteral(false))),
+    ...operation.steps,
     updateFlags({ name: `6502 ${name} carry`, parameters: { original: 8 }, unlisted: "preserve",
-      updates: [{ flag: cpu.flag("c"), value: carry(value("original")) }],
+      updates: [{ flag: cpu.flag("c"), value: operation.carry }],
     }, { original: value("original") }),
   ] };
 }
@@ -122,7 +120,7 @@ export const sources6502 = { cpu: cpu.declaration, groups: {
 const indexRegisters = ["y", "x"] as const;
 const otherIndex = { x: "y", y: "x" } as const;
 // 0ss bbb 10: ss selects ASL/ROL/LSR/ROR. 11i bbb 10: i selects DEC/INC.
-const shifts = [shift("ASL", "left"), shift("ROL", "left", true), shift("LSR", "right"), shift("ROR", "right", true)];
+const shifts = [shiftOperation("ASL", "left"), shiftOperation("ROL", "left", true), shiftOperation("LSR", "right"), shiftOperation("ROR", "right", true)];
 const adjustments = [
   { name: "DEC", steps: [capture("result", subtract(value("original"), literal(8, 1)))] },
   { name: "INC", steps: [capture("result", addWrap(value("original"), literal(8, 1)))] },

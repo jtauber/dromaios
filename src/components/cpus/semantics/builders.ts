@@ -1,4 +1,5 @@
-import { capture, fetchByte, negative, readMemory, readRegister, readSource, subtract, updateFlags, value, writeRegister, zero } from "./model.ts";
+import { capture, fetchByte, flagLiteral, flagValue, lowBit, negative, readFlag, readMemory, readRegister, readSource,
+  shiftLeft, shiftRight, subtract, updateFlags, value, writeRegister, zero } from "./model.ts";
 import type { Flag, FlagPolicy, Register, Statement, ValueSource, Width } from "./model.ts";
 import type { InstructionDefinition } from "./model.ts";
 import { opcodeTable } from "../opcodes.ts";
@@ -31,6 +32,19 @@ export function memorySource(address: ValueSource): ValueSource {
 export function negativeZeroPolicy(name: string, n: Flag, z: Flag, width: Width): FlagPolicy {
   return { name, parameters: { result: width }, unlisted: "preserve", updates: [
     { flag: n, value: negative(value("result")) }, { flag: z, value: zero(value("result")) },
+  ] };
+}
+
+export type ShiftInput = "zero" | "sign" | "outgoing" | Flag;
+
+/** Consume "original", capture "result", and describe outgoing carry. The caller schedules flags and writeback. */
+export function shift(direction: "left" | "right", incoming: ShiftInput = "zero") {
+  const original = value("original"), carry = direction === "left" ? negative(original) : lowBit(original);
+  const bit = typeof incoming === "string"
+    ? { zero: flagLiteral(false), sign: negative(original), outgoing: carry }[incoming] : flagValue("carry");
+  return { carry, steps: [
+    ...(typeof incoming === "string" ? [] : [readFlag("carry", incoming)]),
+    capture("result", (direction === "left" ? shiftLeft : shiftRight)(original, bit)),
   ] };
 }
 

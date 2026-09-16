@@ -92,6 +92,25 @@ test("rotate and adjustment explanations expose carry capture, writeback, and pr
   }
 });
 
+test("8080 and 6809 shift explanations expose their distinct input bits, flag rules, and writeback order", () => {
+  const intel = description("8080", "RAL");
+  assert.match(intel, /carry:flag := read CY/);
+  assert.match(intel, /shiftLeft\(original, carry\)/);
+  assert.ok(intel.indexOf("write A:u8 := result") < intel.indexOf("CY := topBit(original)"));
+  assert.match(intel, /Flags preserved throughout: S, Z, AC, P\./);
+  const circular = description("8080", "RRC");
+  assert.match(circular, /shiftRight\(original, lowBit\(original\)\)/);
+  assert.doesNotMatch(circular, /read CY/);
+  const motorola = description("6809", "ROLA");
+  assert.match(motorola, /V := xor\(topBit\(result\), topBit\(original\)\)/);
+  assert.ok(motorola.indexOf("V := xor") < motorola.indexOf("write A:u8 := result"));
+  assert.match(motorola, /Flags preserved throughout: E, F, H, I\./);
+  const arithmetic = description("6809", "ASRB");
+  assert.match(arithmetic, /shiftRight\(original, topBit\(original\)\)/);
+  assert.match(arithmetic, /Flags preserved throughout: E, F, H, I, V\./);
+  assert.doesNotMatch(arithmetic, /read C|read memory|write memory/);
+});
+
 test("the indexed load explanation distinguishes the index from the destination and shows the commit order", () => {
   const text = description("6502", "LDX zero page,Y");
   const fetch = text.indexOf("fetch byte"), index = text.indexOf("read Y"), read = text.indexOf("read memory[address]");
@@ -107,5 +126,5 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 86);
+  assert.equal(instructionDefinitions.length, 100);
 });

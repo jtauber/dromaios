@@ -51,6 +51,7 @@ export function generateInstructions(cpu: "6502" | "8080" | "6809", definitions:
         case "flag-value": return scope.get(expr.name)!.code;
         case "flag-literal": return String(expr.value);
         case "not": return `!(${flag(expr.value, scope)})`;
+        case "xor": return `(${flag(expr.left, scope)}) !== (${flag(expr.right, scope)})`;
         case "negative": case "low-bit": case "zero": case "even-parity": {
           const value = number(expr.value, scope);
           if (expr.kind === "negative" || expr.kind === "low-bit") return `(${value.code} & 0x${(expr.kind === "low-bit" ? 1 : 2 ** (value.type - 1)).toString(16)}) !== 0`;

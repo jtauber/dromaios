@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/6502.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/6809.js";
-import { addWrap, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, literal, readFlag, shiftLeft, value, zero } from "../../../../src/components/cpus/semantics/model.js";
+import { addWrap, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, literal, readFlag, shiftLeft, value, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 
@@ -102,6 +102,21 @@ test("flag captures have distinct types, CPU ownership, ordering, and lexical sc
   const invalid = { kind: "flag-literal", value: 1 } as unknown as FlagExpression;
   assert.throws(() => define([capture("bad", shiftLeft(literal(8, 0), invalid))]), /flag literal must be Boolean/);
   assert.throws(() => define([capture("bad", shiftLeft(literal(8, 256), flagLiteral(false)))]), /literal does not fit/);
+});
+
+test("Boolean XOR validates both operands and respects closed policy scopes", () => {
+  const flag = flagLiteral(false);
+  for (const invalid of [literal(8, 1) as unknown as FlagExpression, flagValue("missing")]) {
+    for (const expression of [xor(flag, invalid), xor(invalid, flag)]) {
+      assert.throws(() => define([capture("result", shiftLeft(literal(8, 0), expression))]), /flag expression|not been captured/);
+    }
+  }
+  assert.throws(() => define([
+    readFlag("carry", mos.flag("c")),
+    { kind: "update-flags", policy: { ...policy, updates: [
+      { flag: mos.flag("z"), value: xor(zero(value("byte")), flagValue("carry")) },
+    ] }, arguments: { byte: literal(8, 0) } },
+  ]), /flag carry has not been captured/);
 });
 
 test("validated descriptions own and freeze their data without freezing caller objects", () => {

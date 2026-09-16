@@ -20,8 +20,7 @@ import { cpu8080StateDescription } from "./state/8080.ts";
 import type { Cpu8080State } from "./state/8080.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeTable, opcodePattern } from "./opcodes.ts";
-import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
-import type { ShiftResult } from "./alu.ts";
+import { add, subtract } from "./alu.ts";
 
 export { cpu8080StateDescription } from "./state/8080.ts";
 export type { Cpu8080State, Cpu8080Flags } from "./state/8080.ts";
@@ -194,10 +193,10 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
 
   // 00 ooo 111: accumulator/carry operations, in encoded order.
   protected override readonly accumulatorOperations: readonly (() => void)[] = [
-    () => this.#rotateAccumulator(shiftLeft(8, this.state.a, (this.state.a & 0x80) !== 0 ? 1 : 0)), // 000 RLC
-    () => this.#rotateAccumulator(shiftRight(8, this.state.a, (this.state.a & 1) !== 0 ? 1 : 0)), // 001 RRC
-    () => this.#rotateAccumulator(shiftLeft(8, this.state.a, this.state.flags.cy ? 1 : 0)), // 010 RAL
-    () => this.#rotateAccumulator(shiftRight(8, this.state.a, this.state.flags.cy ? 1 : 0)), // 011 RAR
+    () => semantics.rlc(this.state), // 000 RLC
+    () => semantics.rrc(this.state), // 001 RRC
+    () => semantics.ral(this.state), // 010 RAL
+    () => semantics.rar(this.state), // 011 RAR
     () => this.#decimalAdjust(), // 100 DAA
     () => { this.state.a ^= 0xff; }, // 101 CMA
     () => { this.state.flags.cy = true; }, // 110 STC
@@ -254,11 +253,6 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
     const cy = accumulator > 0x99 || this.state.flags.cy;
     const correction = lowCorrection + (cy ? 0x60 : 0);
     this.state.a = this.#aluResult(accumulator + correction, low + lowCorrection > 0x0f, cy);
-  }
-
-  #rotateAccumulator({ result, carry }: ShiftResult): void {
-    this.state.a = result;
-    this.state.flags.cy = carry; // Rotates preserve every other flag.
   }
 
   #aluResult(value: number, ac: boolean, cy: boolean): number {
