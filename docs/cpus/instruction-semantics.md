@@ -21,12 +21,13 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 CMPA/CMPB immediate; CMPX immediate/direct/extended and `,X++` | Byte/word widths; addressing changes the register that comparison subsequently reads |
 | 6502 LDA/LDX/LDY, every supported addressing form | Reuse comparison sources; delay destination and N/Z updates until the source succeeds |
 | All six 6502 register transfers and 8080 MOV B,A | Share read/write behavior while selecting N/Z or preserving every flag; SP transfers do not access the stack |
-| 6502 ASL zero page | One resolved address, an original-value write, and two separate flag stages |
+| All 6502 ASL/ROL/LSR/ROR forms | One resolved address, an original-value write, a captured incoming carry for rotates, and separate C and N/Z stages; accumulator forms share the operation |
+| All 6502 memory INC/DEC and INX/INY/DEX/DEY | Share wrapping byte updates while preserving C and the same memory-write boundaries |
 
-There are 55 bodies. All are generated and executable; 54 are bound into their
+There are 86 bodies. All are generated and executable; 85 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
-Other 6809 comparison addressing forms and other shift forms retain their
+Other 6809 comparison addressing forms and shifts on other CPUs retain their
 existing shared helpers. This is not a complete CPU migration.
 Bodies start after opcode selection. `CMPX ,X++` starts after postbyte `81`
 has selected that particular form; decoding or rejecting other postbytes is
@@ -76,8 +77,11 @@ group; slices, concatenated register views, banks, and computed views remain
 future work. HL in the 8080 sample is explicitly read as H and L, then combined.
 
 TypeScript distinguishes a register, a captured numeric expression, and a flag
-expression. A register does not implicitly read itself. A numeric expression
-cannot be a flag formula or register destination. Schema-derived names catch
+expression. Registers and flags do not implicitly read themselves. A numeric
+expression cannot be a flag formula or register destination. `readFlag` captures
+a Boolean at an explicit statement boundary; `flagValue` refers to that capture.
+Validation keeps Boolean and numeric captures distinct within the same lexical
+scope, including source-local scopes. Schema-derived names catch
 misspelled registers and flags at compile time. Runtime validation checks
 CPU identity and widths; the current state-schema types do not retain literal
 register widths in TypeScript, so the experiment does not promise compile-time
@@ -101,9 +105,9 @@ reaches the destination write or flag update.
 The 6502 describes effective addresses as word-valued sources. They perform
 operand fetches and any pointer reads, then stop before the final data read.
 `memorySource(address)` resolves that address once and reads its byte. Comparison
-and load bodies use these byte sources; handwritten stores and memory modifiers
-use the address sources directly. Zero-page indexing wraps the byte address
-before widening; absolute indexing wraps the word address. LDX uses Y for
+and load bodies use these byte sources; handwritten stores and generated memory
+modifiers use the address sources directly. Zero-page indexing wraps the byte
+address before widening; absolute indexing wraps the word address. LDX uses Y for
 indexed modes, whereas LDY uses X.
 
 `sources6502` groups eight named address sources and eight `bbb` operand sources.
@@ -126,21 +130,37 @@ within one invocation are simultaneous: evaluate every expression first, then
 apply the updates. Distinct invocations remain at their declared positions in
 the instruction body.
 
+The 6502's `updateByte` construction recipe captures `original`, expands an
+operation that captures `result`, writes the result, and applies N/Z. Memory
+targets first resolve one address and include the original-value write;
+register targets read and write the selected register. The four shift/rotate
+operations declare their carry stage before writeback. INC/DEC declare only
+the wrapped arithmetic, preserving C. These are CPU-specific construction
+recipes: the original-value write and flag schedule are not imposed on other
+processors. Opcode fields select the operation and address source from one
+inventory for the complete families.
+
 ## Primitive meanings
 
-This vocabulary deliberately supports unsigned **8- and 16-bit values** and
-**16-bit byte memory addresses**. Widths are decimal; literals in expanded
-listings are hexadecimal. There is no implicit truncation on a write.
+This vocabulary deliberately supports unsigned **8- and 16-bit values**,
+**Boolean flag captures**, and **16-bit byte memory addresses**. Widths are decimal;
+numeric literals in expanded listings are hexadecimal, while flag constants
+are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 
 | Expression | Meaning |
 | --- | --- |
-| `value(name)` | An already captured value in the current lexical scope |
+| `value(name)` | An already captured numeric value in the current lexical scope |
+| `flagValue(name)` | An already captured Boolean flag in the current lexical scope |
+| `flagLiteral(value)` | A Boolean constant; never a numeric zero or one |
 | `literal(width, value)` | An unsigned constant that fits the width |
 | `subtract(left, right)` | Binary subtraction modulo `2^width`, with no input borrow |
 | `addWrap(left, right)` | Addition modulo `2^width` |
 | `concat(high, low)` | Two bytes combined as `high * 256 + low`, yielding a word |
 | `extend(value, width)` | Unsigned widening; narrowing and equal-width conversions are rejected |
+| `shiftLeft(value, incoming)` | Shift left once at the operand's width, discard the outgoing high bit, and insert the Boolean incoming bit at bit 0 |
+| `shiftRight(value, incoming)` | Shift right once at the operand's width, discard bit 0, and insert the Boolean incoming bit at the high bit |
 | `negative(value)` | Whether the top bit at the value's width is set |
+| `lowBit(value)` | Whether bit 0 is set |
 | `zero(value)` | Whether the unsigned value is zero |
 | `evenParity(value)` | Whether a byte has an even population count, including zero |
 | `borrow(left, right)` | Whether unsigned `left < right` |
@@ -148,7 +168,9 @@ listings are hexadecimal. There is no implicit truncation on a write.
 | `overflow(left, right)` | Whether signed subtraction falls outside the signed range at that width |
 | `not(value)` | Boolean negation |
 
-Binary operands must have equal widths. These arithmetic meanings correspond
+Binary arithmetic operands must have equal widths. Shift operands have distinct
+roles: a byte/word value and a Boolean incoming bit; shifts do not update flags.
+These arithmetic meanings correspond
 to existing [ALU](../../src/components/cpus/alu.ts) contracts; generated code
 uses those helpers for arithmetic facts and parity. The reporter uses explanatory spellings
 such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
@@ -157,6 +179,7 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | --- | --- |
 | `capture` | Evaluate a pure numeric expression and give the value a fresh, immutable name |
 | `read-register` | Read the selected stored register now, capturing its value |
+| `read-flag` | Read the selected stored flag now, capturing its Boolean value |
 | `fetch-byte` | Request one byte from the instruction context's fetch interface and capture it after success |
 | `read-memory` | Read one byte at an explicit word address; capture it after success |
 | `write-register` | Replace the stored register with an equal-width unsigned value |
@@ -185,11 +208,14 @@ The comparison register read follows all four effects. Thus a second-read
 failure retains the increment and performs no comparison flag update. Moving
 that register read earlier would change the definition, not just its formatting.
 
-In ASL, the original-value write precedes any flag update. Doubling the byte
-modulo 256 describes the result; the original top bit supplies C. The result
-write separates the C policy from the N/Z policy. A reporter can locate each
-stage directly. Generated code preserves both writes even when their values
-are equal, and leaves C committed if the final write fails.
+In memory shifts and rotates, the original-value write precedes the calculation
+and any flag update. ROL/ROR capture incoming C after that write succeeds.
+The original top bit supplies outgoing C for ASL/ROL; bit 0 supplies it for
+LSR/ROR. The result write separates the C policy from the N/Z policy. A reporter
+can locate each stage directly. Generated code preserves both writes even when
+their values are equal, and leaves C committed if the final write fails.
+Memory INC/DEC use the same two writes but preserve C throughout; accumulator
+and index-register forms perform no data-memory access.
 
 The 8080 comparisons explicitly have no destination write. The shared 8080/Z80
 ALU table now binds complete instruction handlers; ordinary arithmetic still
@@ -241,6 +267,11 @@ existing CPU tests remain the independent opcode, record, and rejection baseline
 address resolution from data reads, check byte/word wrapping and live index-read
 order, and inject failures at each source access. CPU tests also check stores,
 arithmetic, and memory modifiers through their ordinary opcode paths.
+[Shift probes](../../tests/components/cpus/semantics/shifts.test.ts) check every
+word value in both directions and with either incoming bit, distinguish a
+captured flag from later live-state changes, and inspect carry reads and updates
+between the two memory writes. The 6502 tests cover every byte and incoming flag
+combination for every modifying form, plus failure at every memory access.
 
 ## Executable generation and integration
 
@@ -295,9 +326,9 @@ memory reads; each call observes live registers at their declared positions.
 Remaining handwritten operations can therefore share the definitions before
 their complete bodies are migrated.
 
-This covers the complete 6502 comparison and load families, all six register
-transfers, and zero-page ASL. The 8080 retains named bodies for its nine CMP/CPI
-bindings in the shared 8080/Z80 family.
+This covers the complete 6502 comparison, load, shift/rotate, and byte
+increment/decrement families, plus all six register transfers. The 8080 retains
+named bodies for its nine CMP/CPI bindings in the shared 8080/Z80 family.
 The 6809 binds immediate CMPA/B, three ordinary CMPX modes, and one indexed body:
 it fetches the postbyte once, selects generated `,X++` for `81`, and delegates
 other forms to its existing indexed decoder. Unsupported postbytes retain the
@@ -312,14 +343,19 @@ migration percentages alone do not establish a reduction in code or complexity.
 The family cleanup removes the 6502's duplicate load/comparison binding arrays
 and individual bindings. Shared address and operand readers then remove four
 handwritten addressing helpers and the duplicate accumulator operand list.
-All 55 instruction bodies retain their behavior and effect order; the independent
-encoding and CPU tests check their execution connections and failure boundaries.
+Completing the shift/rotate and increment/decrement families removes the shift
+selector, shift/adjust family builders, memory-modification wrapper, carry-result
+wrapper, and index-adjustment helper. Independent encoding and CPU tests check
+execution connections, effect order, and failure boundaries.
 
 Measure the complete [source footprint](coverage.md#source-footprint), including
 definitions and shared machinery, with generated output counted separately.
 Moving code into a definition file does not count as source reduction. Review
 whether family authoring, reusable sources, and explicit ordered statements
-improve understanding before expanding the vocabulary further.
+improve understanding. This family migration adds slightly more shared support
+and definitions than it removes from the CPU module. Next, exercise the same
+concepts on the 8080 and 6809, keeping each CPU's flag and writeback rules explicit,
+before expanding the vocabulary further.
 
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve
@@ -328,7 +364,7 @@ fetching and stack writes, but adding that vocabulary alone would not establish
 a source-reduction benefit.
 
 General addressing decoders (such as the full 6809 postbyte decoder), register
-views, flag reads, branches, loops, stack bodies, instruction rejection, pending
+views, branches, loops, stack bodies, instruction rejection, pending
 commits, and exception delivery are not represented here. The 6502 JSR and 68000
 MOVE traces still challenge later ordering vocabulary. The 6507 address-projection
 and 4004 nibble/interface probes remain acceptance requirements, not capabilities

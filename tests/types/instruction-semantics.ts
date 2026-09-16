@@ -1,6 +1,6 @@
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { cpuSymbols, literal, not, value, zero } from "../../src/components/cpus/semantics/model.js";
+import { cpuSymbols, flagValue, literal, not, readFlag, shiftLeft, value, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
@@ -24,6 +24,14 @@ export function checkInstructionSemantics(): void {
   not(mos.register("a"));
   // @ts-expect-error Numeric expressions are not Boolean expressions.
   not(value("byte"));
+  readFlag("carry", mos.flag("c"));
+  shiftLeft(value("byte"), flagValue("carry"));
+  // @ts-expect-error Reading a flag requires a flag symbol, not a register.
+  readFlag("carry", mos.register("a"));
+  // @ts-expect-error The incoming bit is Boolean, not an unchecked numeric value.
+  shiftLeft(value("byte"), literal(8, 1));
+  // @ts-expect-error A captured flag cannot be the numeric shift operand.
+  shiftLeft(flagValue("carry"), flagValue("carry"));
   // @ts-expect-error This vocabulary covers 8- and 16-bit values.
   literal(32, 0);
   // @ts-expect-error Immediate values cannot be register destinations.
@@ -50,6 +58,10 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6502[0xc9](mos, { fetchByte: () => 0 });
   generated6502[0xb6](mos, { fetchByte: () => 0, readByte: () => 0 });
   generated6502[0x9a](mos);
+  generated6502[0x6a](mos);
+  generated6502[0xe8](mos);
+  // @ts-expect-error Accumulator rotates need no memory or fetching context.
+  generated6502[0x6a](mos, { fetchByte: () => 0 });
   generated8080.cmpB(intel);
   // @ts-expect-error Generated handlers use the concrete CPU's stored-state type.
   generated6502[0xc9](intel, { fetchByte: () => 0 });

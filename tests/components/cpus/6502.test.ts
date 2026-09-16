@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu6502 } from "../../../src/components/cpus/6502.js";
-import type { Cpu6502Flags, Cpu6502State } from "../../../src/components/cpus/6502.js";
+import type { Cpu6502Flags, Cpu6502MemoryAccess, Cpu6502State } from "../../../src/components/cpus/6502.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";
@@ -3076,30 +3076,43 @@ test("6502 JMP indirect keeps repeated reads when its pointer overlaps instructi
   }
 });
 
-test("6502 memory ASL preserves the split flag updates when either write fails", () => {
-  const failure = new Error("write failed");
-  for (const [bytes, address] of [[[0x06, 0x80], 0x80], [[0x0e, 0, 0x40], 0x4000]] as const) {
-    class FailingRam extends ObservedRam {
-      failOnWrite = 0;
-      readonly target = address;
-      override write(address: number, value: number): void {
-        if (address === this.target && this.failOnWrite > 0 && --this.failOnWrite === 0) throw failure;
-        super.write(address, value);
+test("6502 memory modifications retain exactly the completed effects at every failed access", () => {
+  const failure = new Error("modification access failed");
+  class FailingRam extends ObservedRam {
+    failAt = -1;
+    attempts = 0;
+    attempt(): void { if (this.attempts++ === this.failAt) throw failure; }
+    override read(address: number): number { this.attempt(); return super.read(address); }
+    override write(address: number, value: number): void { this.attempt(); super.write(address, value); }
+  }
+  for (const { name, opcodes } of modifyForms) for (const [mode, opcode] of opcodes.entries()) {
+    const { bytes: operands, address } = modifyOperands[mode]!;
+    if (opcode === null || address === null) continue;
+    const bytes = [opcode, ...operands];
+    for (const original of [0, 1, 0x7f, 0x80, 0x81, 0xff]) for (const c of [false, true]) {
+      const before = initialState({ pc: 0xfffe, x: 2, flags: { n: true, z: true, c, v: true, d: true, i: true } });
+      // Use a non-overlapping PC for the indexed zero-page form whose target is 0000.
+      if (address === 0) before.pc = 0x1234;
+      const { result, flags } = expectedModification(name, original, before.flags);
+      const sequence: readonly Cpu6502MemoryAccess[] = [
+        ...bytes.map((value, offset) => ({ kind: "read" as const, address: (before.pc + offset) % 0x10000, value })),
+        { kind: "read", address, value: original },
+        { kind: "write", address, value: original }, { kind: "write", address, value: result },
+      ];
+      for (let failAt = 0; failAt < sequence.length; failAt++) {
+        const ram = new FailingRam();
+        bytes.forEach((byte, offset) => ram.write((before.pc + offset) % 0x10000, byte));
+        ram.write(address, original);
+        ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
+        const cpu = new Cpu6502(ram, before);
+        assert.throws(() => cpu.step(), error => error === failure);
+        assert.equal(ram.attempts, failAt + 1);
+        assert.deepEqual(cpu.snapshot(), { ...before, pc: (before.pc + Math.min(failAt, bytes.length)) % 0x10000,
+          flags: { ...before.flags, c: failAt === sequence.length - 1 ? flags.c : c } });
+        assert.deepEqual(ram.accesses, sequence.slice(0, failAt));
+        ram.failAt = -1;
+        assert.equal(ram.read(address), original);
       }
-    }
-    for (const failOnWrite of [1, 2]) {
-      const ram = new FailingRam();
-      const before = initialState({ flags: { n: true, z: false, c: false, v: true, d: true, i: true } });
-      bytes.forEach((byte, offset) => ram.write(before.pc + offset, byte));
-      ram.write(address, 0x80);
-      ram.accesses.length = 0;
-      ram.failOnWrite = failOnWrite;
-      const cpu = new Cpu6502(ram, before);
-      assert.throws(() => cpu.step(), error => error === failure);
-      assert.deepEqual(cpu.snapshot(), { ...before, pc: before.pc + bytes.length, flags: { ...before.flags, c: failOnWrite === 2 } });
-      assert.deepEqual(ram.accesses, [...bytes.map((value, offset) => ({ kind: "read", address: before.pc + offset, value })),
-        { kind: "read", address, value: 0x80 }, ...(failOnWrite === 2 ? [{ kind: "write", address, value: 0x80 }] : [])]);
-      assert.equal(ram.read(address), 0x80);
     }
   }
 });

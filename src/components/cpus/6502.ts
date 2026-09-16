@@ -5,7 +5,6 @@ import type { FetchedInstruction, StateTransition, InstructionStep } from "./exe
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import { signed8, readWordLE } from "./binary.ts";
-import { modifyByte } from "./memory-operations.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -15,8 +14,7 @@ import type { Cpu6502State } from "./state/6502.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
-import type { ShiftResult } from "./alu.ts";
+import { add, subtract } from "./alu.ts";
 
 export { cpu6502StateDescription } from "./state/6502.ts";
 export type { Cpu6502State, Cpu6502Flags } from "./state/6502.ts";
@@ -40,8 +38,6 @@ export type Cpu6502InterruptRecord = StateTransition<Cpu6502Snapshot> & { readon
 );
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
-type AddressResolver = (instruction: InstructionContext) => number;
-type ByteOperation = (value: number) => number;
 type ByteRegister = "a" | "x" | "y";
 
 // Fix the handler type once so pattern callbacks infer their instruction context.
@@ -116,14 +112,6 @@ export class Cpu6502 {
 
   // Opcode selectors and construction.
 
-  // ss (bits 6..5) in 0ss bbb 10. Rotates insert the live incoming carry; shifts insert zero.
-  readonly #shifts: readonly ByteOperation[] = [
-    value => this.#shiftResult(shiftLeft(8, value, 0)),                          // 00 ASL
-    value => this.#shiftResult(shiftLeft(8, value, this.#state.flags.c ? 1 : 0)), // 01 ROL
-    value => this.#shiftResult(shiftRight(8, value, 0)),                         // 10 LSR
-    value => this.#shiftResult(shiftRight(8, value, this.#state.flags.c ? 1 : 0)), // 11 ROR
-  ];
-
   // Opcode bits: 7 6 5 | 4 3 2 | 1 0 = aaa bbb cc.
   // cc selects a group. In cc=01, aaa selects the operation and bbb its addressing mode.
   // Migrated patterns and bodies live together in semantics/definitions/6502.ts.
@@ -147,10 +135,7 @@ export class Cpu6502 {
       ...instructionPattern("00 1 010 00", ({ readByte }) => { this.#state.flags = packedFlags.decode(this.#pullByte(readByte)); }), // PLP
       ...instructionPattern("01 0 010 00", ({ writeByte }) => this.#pushByte(this.#state.a, writeByte)), // PHA
       ...instructionPattern("01 1 010 00", ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte))), // PLA
-      // aaa=100/110/111 selects DEY/INY/INX; TAY is generated.
-      ...instructionPattern("100 010 00", () => this.#adjustIndex("y", -1)), // DEY
-      ...instructionPattern("110 010 00", () => this.#adjustIndex("y", 1)), // INY
-      ...instructionPattern("111 010 00", () => this.#adjustIndex("x", 1)), // INX
+      // TAY and DEY/INY/INX are generated.
 
       // cc=00, bbb=011: absolute operands. aaa=001 selects BIT, 010/011 JMP absolute/indirect, 100 STY.
       ...instructionPattern("001 011 00", instruction => this.#testBits(instruction.readByte(addresses.absolute(instruction)))), // BIT addr
@@ -193,51 +178,19 @@ export class Cpu6502 {
       ...instructionPattern("100 111 01", instruction => instruction.writeByte(addresses.absoluteX(instruction), this.#state.a)), // STA addr,X
       ...this.#accumulatorHandlers("111 bbb 01", value => this.#subtractWithCarry(value)), // SBC
 
-      // cc=10 memory subgroups: 0ss selects ASL/ROL/LSR/ROR; 11i selects DEC (i=0)/INC (i=1).
-      // bbb=001/011/101/111 select zp/absolute/zp,X/absolute,X for these modifying operations.
-      // STX occupies aaa=100 between those families; LDX is generated.
-      // bbb=001: zero page.
-      // ASL zero page is generated; ss=01/10/11 remain ROL/LSR/ROR.
-      ...instructionPattern("001 001 10", instruction => this.#modifyMemory(addresses.zeroPage(instruction), this.#shifts[1]!, instruction)), // ROL zp
-      ...opcodeFamily("01s 001 10", { s: this.#shifts.slice(2) }, ({ s: modify }) => (instruction: InstructionContext) =>
-        this.#modifyMemory(addresses.zeroPage(instruction), modify, instruction)), // LSR/ROR zp
+      // cc=10: shifts/rotates, DEC/INC, DEX, LDX, and transfers are generated.
+      // aaa=100 selects STX; bbb=001/011/101 selects zp/absolute/zp,Y, with no absolute-indexed form.
       ...instructionPattern("100 001 10", instruction => instruction.writeByte(addresses.zeroPage(instruction), this.#state.x)), // STX zp
-      ...this.#memoryAdjustHandlers("11i 001 10", addresses.zeroPage), // DEC/INC zp
-
-      // bbb=010: 0ss shifts/rotates A; aaa=100..111 select TXA, TAX, DEX, NOP, not accumulator INC/DEC.
-      ...opcodeFamily("0ss 010 10", { s: this.#shifts }, ({ s: modify }) => () => this.#loadRegister("a", modify(this.#state.a))), // ASL/ROL/LSR/ROR A
-      ...instructionPattern("110 010 10", () => this.#adjustIndex("x", -1)), // DEX
+      // aaa=111, bbb=010 is NOP, not accumulator INC.
       ...instructionPattern("111 010 10", () => {}), // NOP: step() advances PC; no further effects.
-
-      // bbb=011: absolute.
-      ...this.#memoryShiftHandlers("0ss 011 10", addresses.absolute), // ASL/ROL/LSR/ROR addr
       ...instructionPattern("100 011 10", instruction => instruction.writeByte(addresses.absolute(instruction), this.#state.x)), // STX addr
-      ...this.#memoryAdjustHandlers("11i 011 10", addresses.absolute), // DEC/INC addr
-
-      // bbb=101: zero page indexed by X, except STX/LDX use Y.
-      ...this.#memoryShiftHandlers("0ss 101 10", addresses.zeroPageX), // ASL/ROL/LSR/ROR zp,X
       ...instructionPattern("100 101 10", instruction => instruction.writeByte(addresses.zeroPageY(instruction), this.#state.x)), // STX zp,Y
-      ...this.#memoryAdjustHandlers("11i 101 10", addresses.zeroPageX), // DEC/INC zp,X
-
-      // bbb=111: absolute indexed by X, except LDX uses Y; no STX counterpart.
-      ...this.#memoryShiftHandlers("0ss 111 10", addresses.absoluteX), // ASL/ROL/LSR/ROR addr,X
-      ...this.#memoryAdjustHandlers("11i 111 10", addresses.absoluteX), // DEC/INC addr,X
     ];
   }
 
   #accumulatorHandlers(pattern: string, operation: (value: number) => void): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { b: Object.values(this.#readers.operands) }, ({ b: readOperand }) =>
       instruction => operation(readOperand(instruction)));
-  }
-
-  #memoryShiftHandlers(pattern: string, resolveAddress: AddressResolver): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { s: this.#shifts }, ({ s: modify }) =>
-      instruction => this.#modifyMemory(resolveAddress(instruction), modify, instruction));
-  }
-
-  #memoryAdjustHandlers(pattern: string, resolveAddress: AddressResolver): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { i: [-1, 1] }, ({ i: delta }) =>
-      instruction => this.#modifyMemory(resolveAddress(instruction), value => (value + delta) & 0xff, instruction));
   }
 
   // Indirect JMP retains the NMOS page-wrap behavior.
@@ -249,20 +202,11 @@ export class Cpu6502 {
     return low | (high << 8);
   }
 
-  // Loads and byte updates.
+  // Loads.
 
   #loadRegister(register: ByteRegister, value: number): void {
     this.#state[register] = value;
     this.#setNegativeZero(value);
-  }
-
-  #adjustIndex(register: "x" | "y", delta: -1 | 1): void {
-    this.#loadRegister(register, (this.#state[register] + delta) & 0xff);
-  }
-
-  #modifyMemory(address: number, modify: ByteOperation, instruction: InstructionContext): void {
-    // A shift updates C during modify; N/Z change only after the final write succeeds.
-    this.#setNegativeZero(modifyByte(address, modify, instruction, "original-and-result"));
   }
 
   // Control flow.
@@ -330,12 +274,7 @@ export class Cpu6502 {
     return readByte(0x0100 | this.#state.sp);
   }
 
-  // Shifts, arithmetic, and flags.
-
-  #shiftResult({ result, carry }: ShiftResult): number {
-    this.#state.flags.c = carry;
-    return result; // The accumulator or memory writeback supplies N/Z.
-  }
+  // Arithmetic and flags.
 
   #setNegativeZero(value: number): void {
     Object.assign(this.#state.flags, negativeZero(8, value));

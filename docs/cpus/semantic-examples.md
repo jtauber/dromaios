@@ -18,7 +18,7 @@ MOV B,A remains an executable comparison sample outside the 8080 opcode table.
 
 ### 6502 ASL zero page
 
-Resolve the address once. Read the original byte and write it back unchanged. Then compute the shifted byte and apply C before the final write; N/Z follow only after that write succeeds. A failed original write leaves flags unchanged; a failed final write retains the new C and old N/Z. These are the existing model's host-error boundaries, not a cycle-level hardware claim.
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
 
 ```text
 address:u16 := source "zero page" {
@@ -27,7 +27,7 @@ address:u16 := source "zero page" {
 }
 original:u8 := read memory[address]
 write memory[address] := original
-result := addWrap(original, original)
+result := shiftLeft(original, 0:flag)
 flags "6502 ASL carry" simultaneously {
   C := topBit(original)
 } // Preserve unlisted flags.
@@ -39,6 +39,484 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 ASL A
+
+Read A before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+original:u8 := read A
+result := shiftLeft(original, 0:flag)
+flags "6502 ASL carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ASL absolute
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute address, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := shiftLeft(original, 0:flag)
+flags "6502 ASL carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ASL zero page,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "zero page indexed by X" {
+  offset:u8 := fetch byte
+  index:u8 := read X
+  yield zeroExtend16(addWrap(offset, index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := shiftLeft(original, 0:flag)
+flags "6502 ASL carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ASL absolute,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute indexed by X" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  index:u8 := read X
+  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := shiftLeft(original, 0:flag)
+flags "6502 ASL carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ROL zero page
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "zero page" {
+  offset:u8 := fetch byte
+  yield zeroExtend16(offset)
+}
+original:u8 := read memory[address]
+write memory[address] := original
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6502 ROL carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ROL A
+
+Read A before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6502 ROL carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ROL absolute
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute address, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+write memory[address] := original
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6502 ROL carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ROL zero page,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "zero page indexed by X" {
+  offset:u8 := fetch byte
+  index:u8 := read X
+  yield zeroExtend16(addWrap(offset, index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6502 ROL carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ROL absolute,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute indexed by X" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  index:u8 := read X
+  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "6502 ROL carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 LSR zero page
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "zero page" {
+  offset:u8 := fetch byte
+  yield zeroExtend16(offset)
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := shiftRight(original, 0:flag)
+flags "6502 LSR carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 LSR A
+
+Read A before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+original:u8 := read A
+result := shiftRight(original, 0:flag)
+flags "6502 LSR carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 LSR absolute
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute address, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := shiftRight(original, 0:flag)
+flags "6502 LSR carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 LSR zero page,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "zero page indexed by X" {
+  offset:u8 := fetch byte
+  index:u8 := read X
+  yield zeroExtend16(addWrap(offset, index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := shiftRight(original, 0:flag)
+flags "6502 LSR carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 LSR absolute,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute indexed by X" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  index:u8 := read X
+  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := shiftRight(original, 0:flag)
+flags "6502 LSR carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ROR zero page
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "zero page" {
+  offset:u8 := fetch byte
+  yield zeroExtend16(offset)
+}
+original:u8 := read memory[address]
+write memory[address] := original
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6502 ROR carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ROR A
+
+Read A before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6502 ROR carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ROR absolute
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute address, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+write memory[address] := original
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6502 ROR carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ROR zero page,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "zero page indexed by X" {
+  offset:u8 := fetch byte
+  index:u8 := read X
+  yield zeroExtend16(addWrap(offset, index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6502 ROR carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 ROR absolute,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute indexed by X" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  index:u8 := read X
+  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "6502 ROR carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I.
+
+### 6502 DEY
+
+Read Y before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+original:u8 := read Y
+result := subtract(original, 01:u8)
+write Y:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
 
 ### 6502 TXA
 
@@ -649,6 +1127,43 @@ flags "6502 comparison" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 DEC zero page
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "zero page" {
+  offset:u8 := fetch byte
+  yield zeroExtend16(offset)
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := subtract(original, 01:u8)
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 INY
+
+Read Y before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+original:u8 := read Y
+result := addWrap(original, 01:u8)
+write Y:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 CMP #byte
 
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
@@ -668,6 +1183,22 @@ flags "6502 comparison" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 DEX
+
+Read X before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+original:u8 := read X
+result := subtract(original, 01:u8)
+write X:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
 
 ### 6502 CPY absolute
 
@@ -718,6 +1249,28 @@ flags "6502 comparison" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 DEC absolute
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute address, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := subtract(original, 01:u8)
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
 
 ### 6502 CMP (zero page),Y
 
@@ -773,6 +1326,28 @@ flags "6502 comparison" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 DEC zero page,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "zero page indexed by X" {
+  offset:u8 := fetch byte
+  index:u8 := read X
+  yield zeroExtend16(addWrap(offset, index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := subtract(original, 01:u8)
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 CMP absolute,Y
 
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
@@ -825,6 +1400,29 @@ flags "6502 comparison" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 DEC absolute,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute indexed by X" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  index:u8 := read X
+  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := subtract(original, 01:u8)
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 CPX #byte
 
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
@@ -869,6 +1467,43 @@ flags "6502 comparison" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 INC zero page
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "zero page" {
+  offset:u8 := fetch byte
+  yield zeroExtend16(offset)
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := addWrap(original, 01:u8)
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 INX
+
+Read X before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+original:u8 := read X
+result := addWrap(original, 01:u8)
+write X:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 CPX absolute
 
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
@@ -893,6 +1528,73 @@ flags "6502 comparison" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 INC absolute
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute address, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := addWrap(original, 01:u8)
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 INC zero page,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "zero page indexed by X" {
+  offset:u8 := fetch byte
+  index:u8 := read X
+  yield zeroExtend16(addWrap(offset, index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := addWrap(original, 01:u8)
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 INC absolute,X
+
+Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
+
+```text
+address:u16 := source "absolute indexed by X" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  index:u8 := read X
+  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+}
+original:u8 := read memory[address]
+write memory[address] := original
+result := addWrap(original, 01:u8)
+write memory[address] := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
 
 ### 8080 CPI byte
 

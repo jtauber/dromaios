@@ -1,9 +1,10 @@
-import type { FlagExpression, InstructionDefinition, NumberExpression, SourceDefinitions, Statement, Width } from "./model.ts";
+import type { FlagExpression, InstructionDefinition, NumberExpression, SourceDefinitions, Statement, ValueType, Width } from "./model.ts";
 import { readSource, value } from "./model.ts";
 import { defineInstruction } from "./validate.ts";
 import { opcodeTable } from "../opcodes.ts";
 
-interface CapturedValue { readonly code: string; readonly width: Width }
+interface CapturedValue { readonly code: string; readonly type: ValueType }
+type CapturedNumber = CapturedValue & { readonly type: Width };
 type Scope = ReadonlyMap<string, CapturedValue>;
 type Capability = "fetchByte" | "readByte" | "writeByte";
 
@@ -28,32 +29,38 @@ export function generateInstructions(cpu: "6502" | "8080" | "6809", definitions:
     const field = (name: string): string => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
     const comment = (text: string): void => { emit(`// ${JSON.stringify(text)}`); };
 
-    function number(expr: NumberExpression, scope: Scope): CapturedValue {
+    function number(expr: NumberExpression, scope: Scope): CapturedNumber {
       switch (expr.kind) {
-        case "value": return scope.get(expr.name)!; // Validation has resolved names and widths.
-        case "literal": return { code: `0x${expr.value.toString(16)}`, width: expr.width };
-        case "extend": return { code: number(expr.value, scope).code, width: expr.width };
+        case "value": return scope.get(expr.name)! as CapturedNumber; // Validation has resolved names and types.
+        case "literal": return { code: `0x${expr.value.toString(16)}`, type: expr.width };
+        case "extend": return { code: number(expr.value, scope).code, type: expr.width };
+        case "shift-left": case "shift-right": {
+          const operand = number(expr.value, scope), operation = helper(expr.kind === "shift-left" ? "shiftLeft" : "shiftRight");
+          return { code: `${operation}(${operand.type}, ${operand.code}, (${flag(expr.incoming, scope)}) ? 1 : 0).result`, type: operand.type };
+        }
         case "subtract": case "add-wrap": case "concat": {
           const left = number(expr.left, scope), right = number(expr.right, scope);
-          if (expr.kind === "concat") return { code: `((${left.code} << 8) | ${right.code})`, width: 16 };
+          if (expr.kind === "concat") return { code: `((${left.code} << 8) | ${right.code})`, type: 16 };
           const operation = helper(expr.kind === "subtract" ? "subtract" : "add");
-          return { code: `${operation}(${left.width}, ${left.code}, ${right.code}).result`, width: left.width };
+          return { code: `${operation}(${left.type}, ${left.code}, ${right.code}).result`, type: left.type };
         }
       }
     }
     function flag(expr: FlagExpression, scope: Scope): string {
       switch (expr.kind) {
+        case "flag-value": return scope.get(expr.name)!.code;
+        case "flag-literal": return String(expr.value);
         case "not": return `!(${flag(expr.value, scope)})`;
-        case "negative": case "zero": case "even-parity": {
+        case "negative": case "low-bit": case "zero": case "even-parity": {
           const value = number(expr.value, scope);
-          if (expr.kind === "negative") return `(${value.code} & 0x${(2 ** (value.width - 1)).toString(16)}) !== 0`;
+          if (expr.kind === "negative" || expr.kind === "low-bit") return `(${value.code} & 0x${(expr.kind === "low-bit" ? 1 : 2 ** (value.type - 1)).toString(16)}) !== 0`;
           if (expr.kind === "zero") return `${value.code} === 0`;
           return `${helper("evenParity8")}(${value.code})`;
         }
         case "borrow": case "half-borrow": case "subtract-overflow": {
           const left = number(expr.left, scope), right = number(expr.right, scope);
           const property = { borrow: "borrow", "half-borrow": "halfBorrow", "subtract-overflow": "overflow" }[expr.kind];
-          return `${helper("subtract")}(${left.width}, ${left.code}, ${right.code}).${property}`;
+          return `${helper("subtract")}(${left.type}, ${left.code}, ${right.code}).${property}`;
         }
       }
     }
@@ -62,9 +69,10 @@ export function generateInstructions(cpu: "6502" | "8080" | "6809", definitions:
         let captured: CapturedValue;
         switch (step.kind) {
           case "capture": captured = number(step.value, scope); break;
-          case "read-register": captured = { code: `state${field(step.register.field)}`, width: step.register.width }; break;
-          case "fetch-byte": captured = { code: `${access("fetchByte")}()`, width: 8 }; break;
-          case "read-memory": captured = { code: `${access("readByte")}(${number(step.address, scope).code})`, width: 8 }; break;
+          case "read-register": captured = { code: `state${field(step.register.field)}`, type: step.register.width }; break;
+          case "read-flag": captured = { code: `state.flags${field(step.flag.field)}`, type: "flag" }; break;
+          case "fetch-byte": captured = { code: `${access("fetchByte")}()`, type: 8 }; break;
+          case "read-memory": captured = { code: `${access("readByte")}(${number(step.address, scope).code})`, type: 8 }; break;
           case "read-source": {
             comment(`Source: ${step.source.name}`);
             const sourceScope = new Map<string, CapturedValue>();
@@ -81,7 +89,7 @@ export function generateInstructions(cpu: "6502" | "8080" | "6809", definitions:
             for (const name of Object.keys(step.policy.parameters)) {
               const argument = number(step.arguments[name]!, scope), code = local(name);
               emit(`const ${code} = ${argument.code};`);
-              parameters.set(name, { code, width: argument.width });
+              parameters.set(name, { code, type: argument.type });
             }
             // Compute every right-hand side before making any of the flag assignments.
             const updates = step.policy.updates.map(update => {
@@ -95,7 +103,7 @@ export function generateInstructions(cpu: "6502" | "8080" | "6809", definitions:
         }
         const code = local(step.name);
         emit(`const ${code} = ${captured.code};`);
-        scope.set(step.name, { code, width: captured.width });
+        scope.set(step.name, { code, type: captured.type });
       }
     }
     const scope = new Map<string, CapturedValue>();

@@ -2,6 +2,7 @@ import type { GroupField, StateFields, UnsignedField } from "../state.ts";
 
 // The first experiment covers byte/word operations on the three 16-bit address spaces.
 export type Width = 8 | 16;
+export type ValueType = Width | "flag";
 export interface Register { readonly kind: "register"; readonly cpu: string; readonly field: string; readonly width: Width }
 export interface Flag { readonly kind: "flag"; readonly cpu: string; readonly field: string }
 export interface CpuDeclaration { readonly name: string; readonly state: StateFields }
@@ -11,10 +12,13 @@ export type NumberExpression =
   | { readonly kind: "value"; readonly name: string }
   | { readonly kind: "literal"; readonly width: Width; readonly value: number }
   | { readonly kind: "subtract" | "add-wrap" | "concat"; readonly left: NumberExpression; readonly right: NumberExpression }
+  | { readonly kind: "shift-left" | "shift-right"; readonly value: NumberExpression; readonly incoming: FlagExpression }
   | { readonly kind: "extend"; readonly value: NumberExpression; readonly width: Width };
 export type FlagExpression =
+  | { readonly kind: "flag-value"; readonly name: string }
+  | { readonly kind: "flag-literal"; readonly value: boolean }
   | { readonly kind: "not"; readonly value: FlagExpression }
-  | { readonly kind: "negative" | "zero" | "even-parity"; readonly value: NumberExpression }
+  | { readonly kind: "negative" | "low-bit" | "zero" | "even-parity"; readonly value: NumberExpression }
   | { readonly kind: "borrow" | "half-borrow" | "subtract-overflow"; readonly left: NumberExpression; readonly right: NumberExpression };
 
 export interface FlagPolicy {
@@ -36,6 +40,7 @@ export interface SourceDefinitions {
 export type Statement =
   | { readonly kind: "capture"; readonly name: string; readonly value: NumberExpression }
   | { readonly kind: "read-register"; readonly name: string; readonly register: Register }
+  | { readonly kind: "read-flag"; readonly name: string; readonly flag: Flag }
   | { readonly kind: "fetch-byte"; readonly name: string }
   | { readonly kind: "read-memory"; readonly name: string; readonly address: NumberExpression }
   | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource }
@@ -77,7 +82,12 @@ export const subtract = (left: NumberExpression, right: NumberExpression): Numbe
 export const addWrap = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "add-wrap", left, right });
 export const concat = (high: NumberExpression, low: NumberExpression): NumberExpression => ({ kind: "concat", left: high, right: low });
 export const extend = (value: NumberExpression, width: Width): NumberExpression => ({ kind: "extend", value, width });
+export const shiftLeft = (value: NumberExpression, incoming: FlagExpression): NumberExpression => ({ kind: "shift-left", value, incoming });
+export const shiftRight = (value: NumberExpression, incoming: FlagExpression): NumberExpression => ({ kind: "shift-right", value, incoming });
+export const flagValue = (name: string): FlagExpression => ({ kind: "flag-value", name });
+export const flagLiteral = (value: boolean): FlagExpression => ({ kind: "flag-literal", value });
 export const negative = (value: NumberExpression): FlagExpression => ({ kind: "negative", value });
+export const lowBit = (value: NumberExpression): FlagExpression => ({ kind: "low-bit", value });
 export const zero = (value: NumberExpression): FlagExpression => ({ kind: "zero", value });
 export const evenParity = (value: NumberExpression): FlagExpression => ({ kind: "even-parity", value });
 export const not = (value: FlagExpression): FlagExpression => ({ kind: "not", value });
@@ -89,6 +99,7 @@ export const overflow = (left: NumberExpression, right: NumberExpression): FlagE
 export const capture = (name: string, value: NumberExpression): Statement => ({ kind: "capture", name, value });
 export const fetchByte = (name: string): Statement => ({ kind: "fetch-byte", name });
 export const readRegister = (name: string, register: Register): Statement => ({ kind: "read-register", name, register });
+export const readFlag = (name: string, flag: Flag): Statement => ({ kind: "read-flag", name, flag });
 export const readMemory = (name: string, address: NumberExpression): Statement => ({ kind: "read-memory", name, address });
 export const readSource = (name: string, source: ValueSource): Statement => ({ kind: "read-source", name, source });
 export const writeRegister = (register: Register, value: NumberExpression): Statement => ({ kind: "write-register", register, value });

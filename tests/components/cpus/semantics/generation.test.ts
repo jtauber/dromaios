@@ -41,7 +41,14 @@ test("all generated modules reproduce from definitions without changing them", (
 test("6502 families generate exactly the migrated encodings, including the opposite-index loads", () => {
   // Explicit opcode expectations are independent of the authored bit-pattern expansion.
   const expected = {
-    0x06: "ASL zero page", 0x8a: "TXA", 0x98: "TYA", 0x9a: "TXS", 0xa8: "TAY", 0xaa: "TAX", 0xba: "TSX",
+    0x8a: "TXA", 0x98: "TYA", 0x9a: "TXS", 0xa8: "TAY", 0xaa: "TAX", 0xba: "TSX",
+    0x0a: "ASL A", 0x06: "ASL zero page", 0x0e: "ASL absolute", 0x16: "ASL zero page,X", 0x1e: "ASL absolute,X",
+    0x2a: "ROL A", 0x26: "ROL zero page", 0x2e: "ROL absolute", 0x36: "ROL zero page,X", 0x3e: "ROL absolute,X",
+    0x4a: "LSR A", 0x46: "LSR zero page", 0x4e: "LSR absolute", 0x56: "LSR zero page,X", 0x5e: "LSR absolute,X",
+    0x6a: "ROR A", 0x66: "ROR zero page", 0x6e: "ROR absolute", 0x76: "ROR zero page,X", 0x7e: "ROR absolute,X",
+    0xc6: "DEC zero page", 0xce: "DEC absolute", 0xd6: "DEC zero page,X", 0xde: "DEC absolute,X",
+    0xe6: "INC zero page", 0xee: "INC absolute", 0xf6: "INC zero page,X", 0xfe: "INC absolute,X",
+    0x88: "DEY", 0xc8: "INY", 0xca: "DEX", 0xe8: "INX",
     0xa1: "LDA (zero page,X)", 0xa5: "LDA zero page", 0xa9: "LDA #byte", 0xad: "LDA absolute",
     0xb1: "LDA (zero page),Y", 0xb5: "LDA zero page,X", 0xb9: "LDA absolute,Y", 0xbd: "LDA absolute,X",
     0xa2: "LDX #byte", 0xa6: "LDX zero page", 0xae: "LDX absolute", 0xb6: "LDX zero page,Y", 0xbe: "LDX absolute,Y",

@@ -12,6 +12,8 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "value": return Object.hasOwn(parameters, expr.name) ? number(parameters[expr.name]!) : expr.name;
       case "literal": return `${expr.value.toString(16).toUpperCase().padStart(expr.width / 4, "0")}:u${expr.width}`;
       case "extend": return `zeroExtend${expr.width}(${number(expr.value, parameters)})`;
+      case "shift-left": case "shift-right":
+        return `${expr.kind === "shift-left" ? "shiftLeft" : "shiftRight"}(${number(expr.value, parameters)}, ${flag(expr.incoming, parameters)})`;
       case "subtract": case "add-wrap": case "concat": {
         const operation = { subtract: "subtract", "add-wrap": "addWrap", concat: "concatHighLow" }[expr.kind];
         return `${operation}(${number(expr.left, parameters)}, ${number(expr.right, parameters)})`;
@@ -20,9 +22,11 @@ export function describeInstruction(definition: InstructionDefinition): string {
   }
   function flag(expr: FlagExpression, parameters: Readonly<Record<string, NumberExpression>>): string {
     switch (expr.kind) {
+      case "flag-value": return expr.name;
+      case "flag-literal": return expr.value ? "1:flag" : "0:flag";
       case "not": return `not(${flag(expr.value, parameters)})`;
-      case "negative": case "zero": case "even-parity":
-        return `${{ negative: "topBit", zero: "isZero", "even-parity": "evenParity8" }[expr.kind]}(${number(expr.value, parameters)})`;
+      case "negative": case "low-bit": case "zero": case "even-parity":
+        return `${{ negative: "topBit", "low-bit": "lowBit", zero: "isZero", "even-parity": "evenParity8" }[expr.kind]}(${number(expr.value, parameters)})`;
       case "borrow": case "half-borrow": case "subtract-overflow":
         return `${{ borrow: "borrow", "half-borrow": "halfBorrow4", "subtract-overflow": "subtractOverflow" }[expr.kind]}(${number(expr.left, parameters)}, ${number(expr.right, parameters)})`;
     }
@@ -33,6 +37,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
       switch (step.kind) {
         case "capture": emit(`${step.name} := ${number(step.value)}`); break;
         case "read-register": emit(`${step.name}:u${step.register.width} := read ${step.register.field.toUpperCase()}`); break;
+        case "read-flag": emit(`${step.name}:flag := read ${step.flag.field.toUpperCase()}`); break;
         case "fetch-byte": emit(`${step.name}:u8 := fetch byte`); break;
         case "read-memory": emit(`${step.name}:u8 := read memory[${number(step.address)}]`); break;
         case "write-register": emit(`write ${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}`); break;

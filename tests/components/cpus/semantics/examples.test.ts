@@ -75,6 +75,23 @@ test("transfers distinguish flag-changing TAX from flag-preserving TXS and MOV",
   assert.doesNotMatch(intel, /simultaneously/);
 });
 
+test("rotate and adjustment explanations expose carry capture, writeback, and preserved flags", () => {
+  const text = description("6502", "ROR absolute,X");
+  const originalWrite = text.indexOf("write memory[address] := original"), readCarry = text.indexOf("carry:flag := read C");
+  const shift = text.indexOf("result := shiftRight(original, carry)"), carry = text.indexOf("C := lowBit(original)");
+  const resultWrite = text.indexOf("write memory[address] := result"), nz = text.indexOf("N := topBit(result)");
+  assert.ok(originalWrite > 0 && originalWrite < readCarry && readCarry < shift && shift < carry && carry < resultWrite && resultWrite < nz);
+  assert.match(text, /Flags preserved throughout: V, D, I\./);
+  const accumulator = description("6502", "LSR A");
+  assert.match(accumulator, /shiftRight\(original, 0:flag\)/);
+  assert.doesNotMatch(accumulator, /read C|read memory|write memory/);
+  for (const name of ["INC zero page", "DEX"]) {
+    const adjustment = description("6502", name);
+    assert.match(adjustment, /Flags preserved throughout: V, D, I, C\./);
+    assert.doesNotMatch(adjustment, /read C|C :=/);
+  }
+});
+
 test("the indexed load explanation distinguishes the index from the destination and shows the commit order", () => {
   const text = description("6502", "LDX zero page,Y");
   const fetch = text.indexOf("fetch byte"), index = text.indexOf("read Y"), read = text.indexOf("read memory[address]");
@@ -90,5 +107,5 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 55);
+  assert.equal(instructionDefinitions.length, 86);
 });

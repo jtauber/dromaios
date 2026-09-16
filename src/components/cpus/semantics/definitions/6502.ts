@@ -1,8 +1,8 @@
 import { cpu6502StateDescription } from "../../state/6502.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
-import { addWrap, borrow, capture, concat, cpuSymbols, extend, fetchByte, literal, negative, not,
-  readMemory, readRegister, readSource, updateFlags, value, writeMemory } from "../model.ts";
-import type { FlagPolicy, InstructionDefinition, SourceDefinitions, ValueSource } from "../model.ts";
+import { addWrap, borrow, capture, concat, cpuSymbols, extend, fetchByte, flagLiteral, flagValue, literal, lowBit, negative, not,
+  readFlag, readMemory, readRegister, readSource, shiftLeft, shiftRight, subtract, updateFlags, value, writeMemory, writeRegister } from "../model.ts";
+import type { FlagPolicy, InstructionDefinition, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
 import { compare, immediateByte, instructionSet, memorySource, negativeZeroPolicy, registerSource, transfer } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
 
@@ -75,6 +75,38 @@ function registerTransfer(name: string, from: "a" | "x" | "y" | "sp", to: "a" | 
   });
 }
 
+// A byte operation consumes "original" and captures "result"; its flag stages stay in place.
+function shift(name: string, direction: "left" | "right", rotate = false) {
+  const operation = direction === "left" ? shiftLeft : shiftRight;
+  const carry = direction === "left" ? negative : lowBit;
+  return { name, steps: [
+    ...(rotate ? [readFlag("carry", cpu.flag("c"))] : []),
+    capture("result", operation(value("original"), rotate ? flagValue("carry") : flagLiteral(false))),
+    updateFlags({ name: `6502 ${name} carry`, parameters: { original: 8 }, unlisted: "preserve",
+      updates: [{ flag: cpu.flag("c"), value: carry(value("original")) }],
+    }, { original: value("original") }),
+  ] };
+}
+function updateByte(name: string, target: Register | ValueSource, operation: readonly Statement[]): InstructionDefinition {
+  const register = "kind" in target;
+  return defineInstruction({
+    cpu: cpu.declaration, name,
+    explanation: (register ? `Read ${target.field.toUpperCase()} before the operation. `
+      : "Resolve the address once, read the original byte, and write it back unchanged before the operation. ")
+      + "Perform the calculation and its flag updates, then write the result and apply N/Z. "
+      + "Rotates read incoming C at the calculation stage. A failed access prevents all later effects; "
+      + "a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.",
+    steps: [
+      ...(register ? [readRegister("original", target)] : [
+        readSource("address", target), readMemory("original", value("address")), writeMemory(value("address"), value("original")),
+      ]),
+      ...operation,
+      register ? writeRegister(target, value("result")) : writeMemory(value("address"), value("result")),
+      updateFlags(resultNZ, { result: value("result") }),
+    ],
+  });
+}
+
 // aaa bbb cc: cc=01 selects accumulator operations; aaa=101/110 selects LDA/CMP.
 // bbb selects the source below, in numeric order. Both families use this same list.
 const accumulatorOperands: readonly Operand[] = [
@@ -89,6 +121,17 @@ export const sources6502 = { cpu: cpu.declaration, groups: {
 } } satisfies SourceDefinitions;
 const indexRegisters = ["y", "x"] as const;
 const otherIndex = { x: "y", y: "x" } as const;
+// 0ss bbb 10: ss selects ASL/ROL/LSR/ROR. 11i bbb 10: i selects DEC/INC.
+const shifts = [shift("ASL", "left"), shift("ROL", "left", true), shift("LSR", "right"), shift("ROR", "right", true)];
+const adjustments = [
+  { name: "DEC", steps: [capture("result", subtract(value("original"), literal(8, 1)))] },
+  { name: "INC", steps: [capture("result", addWrap(value("original"), literal(8, 1)))] },
+];
+// bbb=mm1: mm (bits 4..3) selects zp/absolute/zp,X/absolute,X in numeric order.
+const modifyOperands: readonly Operand[] = [
+  ["zero page", addresses.zeroPage], ["absolute", addresses.absolute],
+  ["zero page,X", addresses.zeroPageX], ["absolute,X", addresses.absoluteX],
+];
 
 // These patterns generate both instruction bodies and their execution bindings.
 export const instructions6502 = instructionSet([
@@ -111,24 +154,12 @@ export const instructions6502 = instructionSet([
   ...opcodePattern("101 010 10", registerTransfer("TAX", "a", "x", resultNZ)),
   ...opcodePattern("100 110 10", registerTransfer("TXS", "x", "sp")),
   ...opcodePattern("101 110 10", registerTransfer("TSX", "sp", "x", resultNZ)),
-  // 0ss bbb 10: ss=00 selects ASL; bbb=001 selects zero page.
-  ...opcodePattern("000 001 10", defineInstruction({
-    cpu: cpu.declaration, name: "ASL zero page",
-    explanation: "Resolve the address once. Read the original byte and write it back unchanged. Then compute "
-      + "the shifted byte and apply C before the final write; N/Z follow only after that write "
-      + "succeeds. A failed original write leaves flags unchanged; a failed final write retains the "
-      + "new C and old N/Z. These are the existing model's host-error boundaries, not a cycle-level "
-      + "hardware claim.",
-    steps: [
-      readSource("address", addresses.zeroPage),
-      readMemory("original", value("address")),
-      writeMemory(value("address"), value("original")),
-      capture("result", addWrap(value("original"), value("original"))),
-      updateFlags({ name: "6502 ASL carry", parameters: { original: 8 }, unlisted: "preserve",
-        updates: [{ flag: cpu.flag("c"), value: negative(value("original")) }],
-      }, { original: value("original") }),
-      writeMemory(value("address"), value("result")),
-      updateFlags(resultNZ, { result: value("result") }),
-    ],
-  })),
+  // The same operations serve A and memory; only memory performs the original-value write.
+  ...opcodeFamily("0ss 010 10", { s: shifts }, ({ s }) => updateByte(`${s.name} A`, cpu.register("a"), s.steps)),
+  ...opcodeFamily("0ss mm1 10", { s: shifts, m: modifyOperands }, ({ s, m: [operand, address] }) => updateByte(`${s.name} ${operand}`, address, s.steps)),
+  ...opcodeFamily("11i mm1 10", { i: adjustments, m: modifyOperands }, ({ i, m: [operand, address] }) => updateByte(`${i.name} ${operand}`, address, i.steps)),
+  // 1ir 010 00: i=1 increments Y/X; i=0 has DEY only. DEX instead occupies 110 010 10.
+  ...opcodePattern("100 010 00", updateByte("DEY", cpu.register("y"), adjustments[0]!.steps)),
+  ...opcodeFamily("11r 010 00", { r: indexRegisters }, ({ r }) => updateByte(`IN${r.toUpperCase()}`, cpu.register(r), adjustments[1]!.steps)),
+  ...opcodePattern("110 010 10", updateByte("DEX", cpu.register("x"), adjustments[0]!.steps)),
 ]);

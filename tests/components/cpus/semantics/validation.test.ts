@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/6502.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/6809.js";
-import { addWrap, concat, cpuSymbols, evenParity, extend, literal, value, zero } from "../../../../src/components/cpus/semantics/model.js";
-import type { FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";
+import { addWrap, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, literal, readFlag, shiftLeft, value, zero } from "../../../../src/components/cpus/semantics/model.js";
+import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 
 const mos = cpuSymbols("6502", cpu6502StateDescription), motorola = cpuSymbols("6809", cpu6809StateDescription);
@@ -81,6 +81,27 @@ test("flag policies have closed parameter scopes, exact argument widths, unique 
   // Diagnostics preserve the instruction, statement, and named source/policy context.
   assert.throws(() => define([{ kind: "update-flags", policy, arguments: {} }]),
     /6502 probe \/ body \/ 1 update-flags \/ policy zero only: missing argument byte/);
+});
+
+test("flag captures have distinct types, CPU ownership, ordering, and lexical scope", () => {
+  const carry = readFlag("carry", mos.flag("c")), shifted = shiftLeft(literal(8, 0x80), flagValue("carry"));
+  define([carry, capture("result", shifted)]);
+  for (const [steps, message] of [
+    [[capture("result", shifted), carry], /flag carry has not been captured/],
+    [[capture("carry", literal(8, 1)), capture("result", shifted)], /flag carry has not been captured/],
+    [[carry, capture("byte", value("carry"))], /is a flag, not a number/],
+    [[carry, capture("carry", literal(8, 1))], /duplicate capture/],
+    [[readFlag("carry", motorola.flag("c"))], /unknown flag/],
+    [[readFlag("carry", { ...mos.flag("c"), field: "pc" })], /unknown flag/],
+    [[{ kind: "read-source", name: "result", source: { name: "local carry", width: 8, steps: [carry], result: shifted } },
+      capture("escaped", shifted)], /flag carry has not been captured/],
+    [[carry, { kind: "read-source", name: "result", source: { name: "outer carry", width: 8, steps: [], result: shifted } }], /flag carry has not been captured/],
+    [[carry, { kind: "update-flags", policy: { ...policy, updates: [{ flag: mos.flag("z"), value: flagValue("carry") }] },
+      arguments: { byte: literal(8, 0) } }], /flag carry has not been captured/],
+  ] satisfies [Statement[], RegExp][]) assert.throws(() => define(steps), message);
+  const invalid = { kind: "flag-literal", value: 1 } as unknown as FlagExpression;
+  assert.throws(() => define([capture("bad", shiftLeft(literal(8, 0), invalid))]), /flag literal must be Boolean/);
+  assert.throws(() => define([capture("bad", shiftLeft(literal(8, 256), flagLiteral(false)))]), /literal does not fit/);
 });
 
 test("validated descriptions own and freeze their data without freezing caller objects", () => {
