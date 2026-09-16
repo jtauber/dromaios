@@ -26,6 +26,11 @@ Bytes are integers from `00` through `FF`; addresses never wrap within a compone
 ROM construction also rejects empty images, invalid bytes, and array holes,
 rather than silently truncating or filling them.
 
+Devices can implement the same connection. [Byte output](../devices/byte-output.md)
+has one write-only register: writes notify the host, and reads return
+`"bus-error"`. Its state and reset behavior belong to the device; routing
+requires no device-specific map or CPU code.
+
 ## Fixed regions
 
 [`MemoryMap(size, regions)`](../../src/components/memory/memory-map.ts) implements
@@ -78,7 +83,7 @@ still accept `Ram`; this change does not generalize their memory APIs or invent
 fault delivery for them.
 
 Reads through a map are execution accesses. They are not a side-effect-free
-inspection API for future devices. There is no bank switching, mirroring
+inspection API for devices; use their snapshots. There is no bank switching, mirroring
 syntax, device scheduler, or cycle timing in this component.
 
 ## Checks
@@ -90,3 +95,5 @@ check every byte value, image copying, immutable writes, and host bounds.
 The [ROM-boot machine tests](../../tests/machines/68000/rom-boot-example.test.ts)
 connect both components to a real CPU and verify reset, fault handling,
 resumption, snapshots, exact access records, and complete memory images.
+The [ROM-output example](../cpus/68000/examples/output.md) checks mapped device
+writes, notifications, device reset, and output retained before a later fault.

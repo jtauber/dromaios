@@ -81,6 +81,11 @@ writes report bus errors. The map owns routing and components own storage.
 This example uses TypeScript wiring while the current definition language
 continues to describe flat RAM.
 
+The [byte-output device](devices/byte-output.md) uses the same memory connection.
+It owns a single register and notifies a host callback on each write; the host
+owns the output stream. The [ROM-output composition](cpus/68000/examples/output.md)
+maps the register and connects the CPU's RESET instruction to device reset.
+
 **Execution support** coordinates stepping, running, pausing, and eventually
 emulated time. Browser display updates should not define the machine's timing.
 The execution granularity and fidelity of each model need to be explicit.
@@ -92,8 +97,9 @@ It stops on completion, halt, unsupported attempts, or the step limit.
 work across components where meaningful, with specific views for distinctive
 hardware. Reading a device for inspection must not accidentally trigger the
 side effects of a CPU access, such as clearing an interrupt. The CPU models
-expose detached state snapshots and instruction access records; device
-inspection will develop as devices are added.
+expose detached state snapshots and instruction access records. Byte output
+likewise exposes a detached snapshot without reading its bus register or
+emitting output.
 
 **The browser interface** presents controls, displays, inspectors, and
 explanations. Components should be usable without the DOM or a browser render
@@ -131,7 +137,7 @@ interfaces and route names remain open to review through the first examples.
 
 ## Proposed repository layout
 
-The implementation has CPU models, RAM, ROM, memory maps, example setup, and tests. The other
+The implementation has CPU models, memory components, byte output, example setup, and tests. The other
 source paths show where code and content could go as we introduce them; their names can change with experience. No package or framework
 boundaries are implied by this tree. Build and test commands are in the
 [development instructions](../README.md#development).

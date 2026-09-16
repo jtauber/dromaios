@@ -66,6 +66,14 @@ The arithmetic examples provide a starting point for following execution.
 A dash means there is no separate example for that topic. Supported instructions
 and processor features are tracked in the coverage document.
 
+The [68000 ROM-output example](cpus/68000/examples/output.md) connects a
+memory-mapped device and sends a short message to the host.
+
+## Devices
+
+- [Byte output](devices/byte-output.md): a write-only register, host notifications,
+  detached inspection, and device reset.
+
 ## Execution support
 
 - [CPU runner](runtime/runner.md): bounded execution, completion and stopping

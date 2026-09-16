@@ -42,6 +42,11 @@ It is not generated from a flat-RAM definition. The
 protection, and unmapped-access behavior. More elaborate machine syntax can
 follow when concrete compositions establish what it needs to express.
 
+The [68000 ROM-output example](../cpus/68000/examples/output.md) also maps a
+byte-output register. Its factory takes the host output callback and wires
+device reset to the CPU's RESET connection; component behavior stays in the
+[device](../devices/byte-output.md).
+
 ## Directory organization
 
 Machine definitions live under `src/machines/<cpu>/`, with matching tests
