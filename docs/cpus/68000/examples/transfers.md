@@ -44,7 +44,8 @@ The 16 MiB RAM image starts zero-filled, with three blocks:
 | A4, A5, A6 | `50000000`, `60000000`, `70000000` |
 | USP, SSP, PC | `34FFE000`, `56FFD000`, `AB002000` |
 | interruptMask | `2` |
-| halted, tracePending | `false`, `false` |
+| IR | `0000` |
+| halted, faulted, tracePending | `false`, `false`, `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `0` |
 
 A7 exposes USP because S is clear. Construction does not reset or execute.
@@ -94,7 +95,7 @@ factory isolation, logical completion, pause/resume, snapshot restoration,
 reset and rerunning, and detached earlier records. The
 [CPU tests](../../../../tests/components/cpus/68000.test.ts) check every register
 combination, every MOVEQ byte, every incoming flag pattern, self-transfers,
-address wrapping, rejected stores, current operands, and all unsupported words.
+address wrapping, faulting stores, current operands, and all illegal/emulator-line words.
 
 The encoding and flag reference is Motorola's
 [M68000 Family Programmer's Reference Manual](https://www.nxp.com/docs/en/reference-manual/M68000PRM.pdf):

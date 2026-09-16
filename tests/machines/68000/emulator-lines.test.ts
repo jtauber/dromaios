@@ -41,7 +41,7 @@ test("68000 runner handles illegal, line-A, and line-F words through saved-PC ed
     { source: "line-a", vector: 10, returnPc: 0xab001002 },
     { source: "line-f", vector: 11, returnPc: 0xab001004 },
   ]);
-  assert.deepEqual(cpu.snapshot(), { ...before, pc: 0xab001008, physicalPc: 0x1008, a7: before.usp, d0: 42,
+  assert.deepEqual(cpu.snapshot(), { ...before, ir: 0x702a, pc: 0xab001008, physicalPc: 0x1008, a7: before.usp, d0: 42,
     flags: { ...before.flags, n: false, z: false, v: false, c: false } });
   const saved = structuredClone(records);
   cpu.reset();

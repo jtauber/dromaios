@@ -100,5 +100,7 @@ native circular-stack calls without advancing the interrupted PC.
 The documented opcode milestone is complete for all eight. Further accuracy
 and machine integration work can now use that baseline. The 68000 also delivers
 [illegal-instruction and emulator-line exceptions](68000/model.md#synchronous-exception-entry-and-return).
-Address/bus errors on the 68000 still need separate fault-sequencing work.
+It now delivers [address errors](68000/model.md#address-errors), including extended
+frames and terminal halt on failed entry. Bus errors still need an explicit
+memory-fault connection and delivery path.
 Timing and device scheduling remain separate from completed opcode inventories.

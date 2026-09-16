@@ -49,9 +49,10 @@ is a stated deterministic policy.
 
 The reference combines CPU execution with Mac ROM hooks, memory-manager guards,
 history, and device/runtime concerns. Dromaios keeps the CPU independent and
-returns records of its RAM calls. Its initial implementation has no exception
-delivery, prefetch, cycle counts, or device behavior. Alignment failures are
-explicit unsupported attempts rather than simulated successful accesses.
+returns records of its RAM calls. Its initial implementation had no exception
+delivery and reported alignment failures as unsupported attempts. The exception
+and address-error sections below describe the subsequent delivery work;
+prefetch and cycle counts remain outside the model.
 
 ## Ideas to revisit
 
@@ -67,7 +68,7 @@ The [model contract](model.md) records current policies; the
 The complete MOVE/MOVEA implementation uses a resolved operand distinguishing
 Dn, An, memory, and immediates. Source reading precedes destination resolution;
 pending An updates feed destination base/index calculations and commit only
-after alignment checks. This retains atomic unsupported attempts while giving
+after alignment checks. This retains staged operand updates on alignment faults while giving
 successful instructions the required source/destination interactions.
 
 The existing Mac emulator's `getEA`/`setEA` split and cached read/modify/write
@@ -127,7 +128,7 @@ DBcc preserves the high word and flags; a false condition decrements only the
 low word. The reference recombines words with a signed bitwise result; Dromaios
 uses its existing partial-register writer, retaining an unsigned stored long.
 Calls and returns reuse big-endian long access while selecting USP/SSP through
-A7. Explicit target and stack validation preserves the model's atomic rejection
+A7. Explicit target and stack validation preserves staged operand updates before address-error entry
 contract, without copying exception sequencing or timing from the reference.
 
 Independent condition truth tables, displacement/counter sweeps, and the
@@ -176,14 +177,14 @@ unsigned-result helper, avoiding signed JavaScript register values.
 Independent bit truth tables, all 5,760 forms, and complete
 [masked-merge traces](examples/logic.md) check the new bindings. Memory checks
 include unchanged writes, postincrement/predecrement, both stacks, physical
-and logical wrapping, overlapping code/data, and atomic alignment rejection.
+and logical wrapping, overlapping code/data, and staged operand updates on alignment faults.
 These are local and manual-based checks; no hardware corpus comparison is claimed.
 
 ## Addresses, register lists, and stack frames
 
 LEA/PEA/JMP/JSR reuse the existing EA resolver but use its address without
 reading operand data. BSR and JSR share one call operation, including full
-return addresses and atomic alignment rejection. The Mac reference's LEA
+return addresses and staged operand updates on alignment faults. The Mac reference's LEA
 and JSR tables admit extra modes; Dromaios uses Motorola's 28 control EAs
 consistently for all four instructions.
 
@@ -213,7 +214,7 @@ No timing or physical bus-order comparison is claimed.
 Independent tests enumerate the manual's legal forms, sweep every register
 mask in both sizes and directions, and exercise every word sign extension and
 LINK displacement. They also check unchanged flags, original and discarded
-base values, A7 aliases, wrapping, overlapping code/data, and atomic faults.
+base values, A7 aliases, wrapping, overlapping code/data, and staged updates on faults.
 The [frame example](examples/stack-frame.md) checks complete records and RAM
 images for a caller and subroutine using all seven new families.
 
@@ -326,7 +327,7 @@ NEGX to reuse SUBX's flag logic with a zero left operand. The opcode table
 retains the complete bit patterns and explicit addressing choices.
 
 The [model contract](model.md#extended-arithmetic-and-memory-comparison)
-specifies atomic alignment rejection and instruction-level access order;
+specifies staged operand updates on alignment faults and instruction-level access order;
 neither exception delivery nor cycle ordering is added here. The
 [combined example](examples/extended.md) restores a 64-bit memory value and
 compares it with a reference, while retaining the sum in registers. Tests
@@ -419,8 +420,8 @@ all RTE status words, nested entries/returns and snapshot restoration, address
 wrapping, stack/vector overlap, privilege rejection before operand reads,
 and host RAM failures during frame/vector transfers. The
 [model contract](model.md#synchronous-exception-entry-and-return) describes
-alignment boundaries and callback-visible partial state. Illegal and emulator-line
-decoding is covered below; address/bus-error delivery remains deferred.
+alignment faults and callback-visible partial state. Illegal/emulator-line and
+address-error delivery are covered below; bus-error signaling remains deferred.
 
 ## Illegal and emulator-line exceptions
 
@@ -507,3 +508,44 @@ priority, missing/invalid/failing connections, and every failing frame/vector
 byte. Existing instruction-family sweeps keep tracing disabled; dedicated trace
 tests cover T transitions and recognition. The combined runner tests exercise
 nested entries/returns and snapshot restoration with the device connection.
+
+
+## Address-error delivery
+
+The [MC68000 User's Manual](https://www.nxp.com/docs/en/reference-manual/MC68000UM.pdf),
+§§6.3.9–6.3.10 and figure 6-7, defines vector 3 and the original seven-word
+frame. At increasing addresses it contains SSW, the fault address, IR, SR,
+and PC. SSW describes read/write, instruction-processing state, and function
+codes. The I/N bit distinguishes normal/group-2 processing from group-0/group-1
+processing; it is not an instruction-space/data-space selector. PC-relative
+operands use program-space function codes even though the operation is a data
+read. Reserved SSW bits are zero in this model.
+
+The same manual states that a second error during bus/address-error or reset
+processing halts the processor until external reset. The core exposes this
+as a stored `faulted` latch, distinct from STOP, and retains the last completely
+fetched operation word in `ir` so an odd-PC fault is reproducible after restoring
+a snapshot. Short-frame handler-fetch faults save the original vector address,
+as specified for faults during the final part of exception processing.
+
+The [Musashi frame implementation](https://github.com/kstenerud/Musashi/blob/313ebf1bd9f4d0d93341eb5ce21fd8a119e9dbdd/m68kcpu.h)
+provides a second implementation cross-check for field layout and the extra
+eight bytes. It is not hardware evidence for instruction sequencing.
+RTE on the original processor has no format word to identify this longer frame;
+software must discard the extra eight bytes before its ordinary SR/PC return.
+
+Tests use literal offsets, status bits, and fault addresses from this contract.
+They cover each memory-mode alignment path, both supervisor modes, program/data
+function codes, group-2 versus other entry phases, frame/vector overlap,
+wraparound, restored snapshots, terminal halts, and every host-failure byte.
+A runner program performs explicit stack cleanup and RTE.
+
+These checks establish the declared instruction-level model, **not exact
+hardware fault timing or restartability**. Existing staged operand updates
+remain: failed alignment checks discard pending register/flag changes while
+preserving completed reads; exception entry then applies its own effects.
+Ordinary fault PCs follow the local fetch cursor. Hardware prefetch and partial
+instruction sequencing can produce different PCs and register values. The
+previous SingleStepTests comparisons explicitly excluded address-error cases;
+they are not evidence for this new path. Bus-error signaling remains deferred
+until RAM has an explicit fault interface; host exceptions still propagate.

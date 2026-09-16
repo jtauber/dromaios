@@ -1,5 +1,5 @@
 import type { Ram } from "../memory/ram.js";
-import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
+import type { FetchedInstruction, StateTransition } from "./execution-records.ts";
 import { checkUnsigned } from "../validation.ts";
 import { signed8 } from "./binary.ts";
 import { executionBoundary } from "./execution-boundary.ts";
@@ -19,7 +19,8 @@ export const cpu68000StateDescription = defineState({
   d4: unsigned(32), d5: unsigned(32), d6: unsigned(32), d7: unsigned(32),
   a0: unsigned(32), a1: unsigned(32), a2: unsigned(32), a3: unsigned(32),
   a4: unsigned(32), a5: unsigned(32), a6: unsigned(32),
-  usp: unsigned(32), ssp: unsigned(32), pc: unsigned(32), interruptMask: unsigned(3), halted: boolean, tracePending: boolean,
+  usp: unsigned(32), ssp: unsigned(32), pc: unsigned(32), ir: unsigned(16), interruptMask: unsigned(3),
+  halted: boolean, faulted: boolean, tracePending: boolean,
   flags: group({ x: flag, n: flag, z: flag, v: flag, c: flag, t: flag, s: flag }),
 });
 
@@ -54,8 +55,8 @@ export type Cpu68000InterruptRecord = StateTransition<Cpu68000Snapshot, Cpu68000
   readonly level: Cpu68000InterruptLevel;
 } & (
   | { readonly outcome: "accepted"; readonly vector: number; readonly returnPc: number }
-  | { readonly outcome: "ignored"; readonly reason: "masked" | "trace-pending" }
-  | { readonly outcome: "unsupported"; readonly reason: "unaligned-address"; readonly fault: Cpu68000AlignmentFault }
+  | { readonly outcome: "ignored"; readonly reason: "masked" | "trace-pending" | "faulted" }
+  | { readonly outcome: "executed" | "halted"; readonly exception: Cpu68000AddressErrorDelivery }
 );
 
 /** Instruction address is the full 32-bit PC; accesses contain physical addresses. */
@@ -71,25 +72,36 @@ export interface Cpu68000AlignmentFault {
 export type Cpu68000Exception = "divide-by-zero" | "bounds-check" | "privilege-violation"
   | "trap" | "overflow-trap" | "illegal-instruction" | "line-a" | "line-f";
 
-export interface Cpu68000ExceptionDelivery {
+export interface Cpu68000ShortExceptionDelivery {
   readonly source: Cpu68000Exception | "trace";
   readonly vector: number;
   readonly returnPc: number;
 }
-type InstructionFault = Cpu68000AlignmentFault | Cpu68000Exception;
 
-export type Cpu68000StepRecord = (
-  Extract<InstructionStep<Cpu68000Snapshot, Cpu68000Access>, { readonly outcome: "executed" }>
-  | HaltedStep<Cpu68000Snapshot, Cpu68000Access>
-  | (StateTransition<Cpu68000Snapshot> & {
-    readonly instruction: null; readonly outcome: "executed";
-    readonly exception: Cpu68000ExceptionDelivery & { readonly source: "trace" };
-  })
-  | (StateTransition<Cpu68000Snapshot, Cpu68000Access> & {
-    readonly outcome: "unsupported"; readonly reason: "unaligned-address";
-    readonly instruction: Cpu68000Instruction | null; readonly fault: Cpu68000AlignmentFault;
-  })
-) & { readonly exception?: Cpu68000ExceptionDelivery };
+export interface Cpu68000AddressErrorDelivery {
+  readonly source: "address-error";
+  readonly vector: 3;
+  /** Fetch cursor, or the interrupted exception's vector address; no hardware prefetch advancement. */
+  readonly returnPc: number;
+  readonly fault: Cpu68000AlignmentFault & {
+    readonly instructionRegister: number;
+    readonly functionCode: 1 | 2 | 5 | 6;
+    readonly processingInstruction: boolean;
+  };
+  /** A second fault during vector-3 entry leaves the CPU terminally halted. */
+  readonly entryFault?: Cpu68000AlignmentFault;
+}
+
+export type Cpu68000ExceptionDelivery = Cpu68000ShortExceptionDelivery | Cpu68000AddressErrorDelivery;
+// Detection retains the access space until the exception captures its function code.
+interface AlignmentFault extends Cpu68000AlignmentFault { readonly programSpace?: boolean }
+type InstructionFault = AlignmentFault | Cpu68000Exception;
+
+export type Cpu68000StepRecord = StateTransition<Cpu68000Snapshot, Cpu68000Access> & {
+  readonly instruction: Cpu68000Instruction | null;
+  readonly outcome: "executed" | "halted";
+  readonly exception?: Cpu68000ExceptionDelivery;
+};
 
 export type Cpu68000ResetRecord = StateTransition<Cpu68000Snapshot>;
 
@@ -102,7 +114,7 @@ interface InstructionContext extends ByteMemory {
 }
 
 type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => InstructionFault | void;
-type ControlOperation = (cpu: Cpu68000, address: number, instruction: InstructionContext) => Cpu68000AlignmentFault | void;
+type ControlOperation = (cpu: Cpu68000, address: number, instruction: InstructionContext) => AlignmentFault | void;
 type WordOperation = (cpu: Cpu68000, register: DataRegister, value: number) => Cpu68000Exception | void;
 type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
 type AddressRegister = `a${0 | 1 | 2 | 3 | 4 | 5 | 6}` | "usp" | "ssp";
@@ -116,7 +128,7 @@ type AluAddressing = "source" | "data-source" | "memory-destination" | "data-des
 type Operand =
   | { readonly kind: "data"; readonly register: DataRegister }
   | { readonly kind: "address"; readonly register: AddressRegister }
-  | { readonly kind: "memory"; readonly address: number }
+  | { readonly kind: "memory"; readonly address: number; readonly programSpace: boolean }
   | { readonly kind: "immediate"; readonly value: number };
 
 // Pending auto-updates are visible to the destination but commit only after alignment checks.
@@ -154,6 +166,7 @@ export class Cpu68000 {
       this.#state.flags.t = false;
       this.#state.interruptMask = 7;
       this.#state.halted = this.#state.tracePending = false;
+      this.#state.faulted = this.#state.pc % 2 !== 0;
       // Registers and condition codes not specified by reset retain their supplied values.
       return { before, after: this.snapshot(), accesses };
     });
@@ -166,18 +179,18 @@ export class Cpu68000 {
       const accesses: Cpu68000Access[] = [];
       const memory = this.#recordMemory(access => { accesses.push(access); });
       const { readByte, writeByte } = memory;
+      if (before.faulted) return { before, after: this.snapshot(), accesses, instruction: null, outcome: "halted" };
       if (before.tracePending) {
-        const exception = { source: "trace", vector: 9, returnPc: before.pc } as const;
-        const fault = this.#enterException(exception, memory);
-        const record = { before, after: this.snapshot(), accesses: memory.accesses, instruction: null, exception };
-        return fault ? { ...record, outcome: "unsupported", reason: "unaligned-address", fault }
-          : { ...record, outcome: "executed" };
+        const exception = this.#enterException({ source: "trace", vector: 9, returnPc: before.pc }, memory);
+        return { before, after: this.snapshot(), accesses, instruction: null, exception,
+          outcome: this.#state.faulted ? "halted" : "executed" };
       }
       if (before.halted) return { before, after: this.snapshot(), accesses, instruction: null, outcome: "halted" };
       const address = before.pc;
       if (address % 2 !== 0) {
-        return { before, after: this.snapshot(), accesses, instruction: null,
-          outcome: "unsupported", reason: "unaligned-address", fault: { operation: "fetch", address } };
+        const exception = this.#addressError({ operation: "fetch", address }, address, true, memory);
+        return { before, after: this.snapshot(), accesses, instruction: null, exception,
+          outcome: this.#state.faulted ? "halted" : "executed" };
       }
       const bytes: number[] = [];
       // Fetching and jumps share a local cursor; only a successful instruction commits PC.
@@ -189,7 +202,7 @@ export class Cpu68000 {
         bytes.push(high, low);
         return (high << 8) | low;
       };
-      const opcode = fetchWord();
+      const opcode = this.#state.ir = fetchWord();
       const instruction = { address, bytes };
       const handler = Cpu68000.#opcodeHandlers[opcode];
       // Unmatched words fault during decoding, before extensions or operands.
@@ -208,22 +221,22 @@ export class Cpu68000 {
       }) : "illegal-instruction";
       if (typeof fault === "string") {
         const { vector, instructionCompleted } = Cpu68000.#exceptions[fault];
-        const exception = {
+        const requested = {
           source: fault,
           vector: vector + (fault === "trap" ? opcode & 15 : 0),
           // Faulting instructions restart; arithmetic and explicit traps resume after their operands.
           returnPc: instructionCompleted ? cursor : address,
         };
-        const entryFault = this.#enterException(exception, { readByte, writeByte });
+        const exception = this.#enterException(requested, memory);
         // Only completed instructions can owe a trace after their synchronous exception.
-        if (!entryFault) this.#state.tracePending = before.flags.t && instructionCompleted;
-        const record = { before, after: this.snapshot(), accesses, instruction, exception };
-        return entryFault ? { ...record, outcome: "unsupported", reason: "unaligned-address", fault: entryFault }
-          : { ...record, outcome: "executed" };
+        if (exception.source !== "address-error") this.#state.tracePending = before.flags.t && instructionCompleted;
+        return { before, after: this.snapshot(), accesses, instruction, exception,
+          outcome: this.#state.faulted ? "halted" : "executed" };
       }
       if (fault) {
-        return { before, after: this.snapshot(), accesses, instruction, fault,
-          outcome: "unsupported", reason: "unaligned-address" };
+        const exception = this.#addressError(fault, cursor, true, memory);
+        return { before, after: this.snapshot(), accesses, instruction, exception,
+          outcome: this.#state.faulted ? "halted" : "executed" };
       }
       this.#state.pc = cursor;
       this.#state.tracePending = before.flags.t; // Sample T before execution, including SR loads and RTE.
@@ -238,18 +251,29 @@ export class Cpu68000 {
       if (level < 1) throw new RangeError("Interrupt level must be in 1..7.");
       const before = this.snapshot();
       const idle = { before, after: this.snapshot(), instruction: null, accesses: [], level } as const;
+      if (before.faulted) return { ...idle, outcome: "ignored", reason: "faulted" };
       if (before.tracePending) return { ...idle, outcome: "ignored", reason: "trace-pending" };
       if (level !== 7 && level <= before.interruptMask) return { ...idle, outcome: "ignored", reason: "masked" };
       if (typeof acknowledge !== "function") throw new TypeError("Interrupt delivery requires an acknowledge callback.");
-      const frame = this.#beginException();
-      if ("operation" in frame) return { ...idle, outcome: "unsupported", reason: "unaligned-address", fault: frame };
+      const accesses: Cpu68000InterruptAccess[] = [];
+      const memory = this.#recordMemory(access => { accesses.push(access); });
+      const frame = this.#beginException(6);
+      const stackFault = this.#stackFault(frame);
+      if (stackFault) {
+        const exception = this.#addressError(stackFault, before.pc, false, memory);
+        return { ...idle, after: this.snapshot(), accesses, outcome: "halted", exception };
+      }
       this.#state.interruptMask = level;
       const value = acknowledge();
       if (value !== "autovector" && value !== "spurious") checkUnsigned("Interrupt vector", value, 255);
       const vector = value === "autovector" ? 24 + level : value === "spurious" ? 24 : value;
-      const accesses: Cpu68000InterruptAccess[] = [{ kind: "acknowledge", level, value }];
-      const memory = this.#recordMemory(access => { accesses.push(access); });
-      this.#finishException(vector, before.pc, frame, memory);
+      accesses.push({ kind: "acknowledge", level, value });
+      const fault = this.#finishException(vector, before.pc, frame, memory);
+      if (fault) {
+        const exception = this.#addressError(fault, vector * 4, false, memory);
+        return { ...idle, after: this.snapshot(), accesses, exception,
+          outcome: this.#state.faulted ? "halted" : "executed" };
+      }
       return { before, after: this.snapshot(), instruction: null, accesses, level, outcome: "accepted", vector, returnPc: before.pc };
     });
   }
@@ -684,33 +708,69 @@ export class Cpu68000 {
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
-  // Exception entry and return. Six-byte frames use word order checked against the reference corpus.
+  // Exception entry and return. The original 68000 has no stacked frame-format word.
 
-  #beginException(): ExceptionFrame | Cpu68000AlignmentFault {
+  #beginException(bytes: 6 | 14): ExceptionFrame {
     const stack = this.#state.ssp;
-    // Address-error frames are deferred. Completed operand effects and any owed trace remain visible.
-    if (stack % 2 !== 0) return { operation: "write", address: (stack - 2) >>> 0 };
     const status = this.#status;
     this.#state.flags.s = true;
     this.#state.flags.t = false;
     this.#state.halted = this.#state.tracePending = false;
-    this.#state.ssp = (stack - 6) >>> 0;
+    this.#state.ssp = (stack - bytes) >>> 0;
     return { stack, status };
   }
 
-  #finishException(vector: number, returnPc: number, { stack, status }: ExceptionFrame, { readByte, writeByte }: ByteMemory): void {
+  #stackFault({ stack }: ExceptionFrame): AlignmentFault | undefined {
+    return stack % 2 ? { operation: "write", address: (stack - 2) >>> 0 } : undefined;
+  }
+
+  #loadVector(vector: number, readByte: ByteMemory["readByte"]): AlignmentFault | undefined {
+    this.#state.pc = this.#readMemory(32, vector * 4, readByte);
+    return this.#state.pc % 2 ? { operation: "fetch", address: this.#state.pc } : undefined;
+  }
+
+  #finishException(vector: number, returnPc: number, { stack, status }: ExceptionFrame, { readByte, writeByte }: ByteMemory): AlignmentFault | undefined {
     // PC low, SR, PC high; the final frame is SR at SSP and the full PC at SSP+2.
     this.#writeMemory(16, (stack - 2) >>> 0, returnPc & 0xffff, writeByte);
     this.#writeMemory(16, (stack - 6) >>> 0, status, writeByte);
     this.#writeMemory(16, (stack - 4) >>> 0, returnPc >>> 16, writeByte);
     // Stacking precedes vector reads: an overlapping frame changes the vector we actually load.
-    this.#state.pc = this.#readMemory(32, vector * 4, readByte);
+    return this.#loadVector(vector, readByte);
   }
 
-  #enterException({ vector, returnPc }: Cpu68000ExceptionDelivery, memory: ByteMemory): Cpu68000AlignmentFault | void {
-    const frame = this.#beginException();
-    if ("operation" in frame) return frame;
-    this.#finishException(vector, returnPc, frame, memory);
+  #enterException(exception: Cpu68000ShortExceptionDelivery, memory: ByteMemory): Cpu68000ExceptionDelivery {
+    const frame = this.#beginException(6);
+    const fault = this.#stackFault(frame) ?? this.#finishException(exception.vector, exception.returnPc, frame, memory);
+    // Group-2 traps count as instruction processing; trace/illegal/privilege/line faults do not.
+    const processing = exception.source !== "trace" && Cpu68000.#exceptions[exception.source].instructionCompleted;
+    if (!fault) return exception;
+    const returnPc = fault.operation === "fetch" ? exception.vector * 4 : exception.returnPc;
+    return this.#addressError(fault, returnPc, processing, memory);
+  }
+
+  #addressError(fault: AlignmentFault, returnPc: number, processingInstruction: boolean, memory: ByteMemory): Cpu68000AddressErrorDelivery {
+    // PC-relative data reads still use program space; I/N below describes a different distinction.
+    const program = fault.operation === "fetch" || fault.programSpace;
+    const functionCode = this.#state.flags.s ? (program ? 6 : 5) : (program ? 2 : 1);
+    const exception: Cpu68000AddressErrorDelivery = {
+      source: "address-error", vector: 3, returnPc,
+      fault: { operation: fault.operation, address: fault.address, instructionRegister: this.#state.ir, functionCode, processingInstruction },
+    };
+    const frame = this.#beginException(14);
+    let entryFault = this.#stackFault(frame);
+    if (!entryFault) {
+      // Seven words, pushed from the old SSP downwards. Reserved status bits are zero.
+      // At new SSP: SSW, fault address (long), IR, SR, saved PC (long).
+      const specialStatus = (fault.operation === "write" ? 0 : 0x10) | (processingInstruction ? 0 : 8) | functionCode;
+      const words = [returnPc & 0xffff, returnPc >>> 16, frame.status, this.#state.ir,
+        fault.address & 0xffff, fault.address >>> 16, specialStatus];
+      for (const [index, word] of words.entries()) this.#writeMemory(16, (frame.stack - 2 * (index + 1)) >>> 0, word, memory.writeByte);
+      entryFault = this.#loadVector(3, memory.readByte);
+    }
+    if (!entryFault) return exception;
+    // An address error during address-error entry cannot stack another frame. Only reset releases it.
+    this.#state.faulted = true;
+    return { ...exception, entryFault };
   }
 
   #returnFromException(instruction: InstructionContext): InstructionFault | void {
@@ -767,7 +827,7 @@ export class Cpu68000 {
         break;
       default: throw new Error("Invalid effective-address mode.");
     }
-    return { kind: "memory", address: address >>> 0 };
+    return { kind: "memory", address: address >>> 0, programSpace: mode === 7 && (code === 2 || code === 3) };
   }
 
   #indexOffset(extension: number, updates: AddressUpdates): number {
@@ -800,10 +860,10 @@ export class Cpu68000 {
   // Loads and stores. Source reads finish before resolving or writing the destination.
 
   #move(size: OperandSize, sourceMode: number, sourceCode: number, destinationMode: number, destinationCode: number,
-    instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    instruction: InstructionContext): AlignmentFault | void {
     const updates: AddressUpdates = new Map();
     const source = this.#resolveOperand(size, sourceMode, sourceCode, instruction, updates);
-    if (source.kind === "memory" && size !== 8 && source.address % 2 !== 0) return { operation: "read", address: source.address };
+    if (source.kind === "memory" && size !== 8 && source.address % 2 !== 0) return { operation: "read", address: source.address, programSpace: source.programSpace };
     const value = this.#readOperand(size, source, instruction.readByte);
     const destination = this.#resolveOperand(size, destinationMode, destinationCode, instruction, updates);
     if (destination.kind === "memory" && size !== 8 && destination.address % 2 !== 0) return { operation: "write", address: destination.address };
@@ -817,7 +877,7 @@ export class Cpu68000 {
     apply: (value: number) => Cpu68000Exception | void): InstructionFault | void {
     const updates: AddressUpdates = new Map();
     const operand = this.#resolveOperand(16, mode, code, instruction, updates);
-    if (operand.kind === "memory" && operand.address % 2 !== 0) return { operation: "read", address: operand.address };
+    if (operand.kind === "memory" && operand.address % 2 !== 0) return { operation: "read", address: operand.address, programSpace: operand.programSpace };
     const fault = apply(this.#readOperand(16, operand, instruction.readByte));
     // Completed source accesses update their original bank even when DIV/CHK requests an exception.
     // Loading SR can also change which stack pointer A7 selects before these updates commit.
@@ -857,7 +917,7 @@ export class Cpu68000 {
   }
 
   #moveMultiple(size: 16 | 32, load: boolean, mode: number, code: number,
-    instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    instruction: InstructionContext): AlignmentFault | void {
     const mask = instruction.fetchWord();
     const predecrement = mode === 0b100;
     const postincrement = mode === 0b011;
@@ -866,7 +926,7 @@ export class Cpu68000 {
     let address = predecrement || postincrement ? this.#state[base] : this.#controlAddress(mode, code, instruction);
     if (mask === 0) return; // No transfers: no alignment requirement or base update.
     const firstAddress = predecrement ? (address - size / 8) >>> 0 : address;
-    if (firstAddress % 2 !== 0) return { operation: load ? "read" : "write", address: firstAddress };
+    if (firstAddress % 2 !== 0) return { operation: load ? "read" : "write", address: firstAddress, programSpace: mode === 7 && (code === 2 || code === 3) };
     // Normal mask bits 0..15 select D0..D7,A0..A7. Predecrement reverses that list.
     for (let bit = 0; bit < 16; bit++) {
       if (!(mask & (1 << bit))) continue;
@@ -891,17 +951,17 @@ export class Cpu68000 {
     return (base + displacement) >>> 0;
   }
 
-  #jump(target: number, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+  #jump(target: number, instruction: InstructionContext): AlignmentFault | void {
     if (target % 2 !== 0) return { operation: "fetch", address: target };
     instruction.jump(target);
   }
 
-  #branch(byte: number, take: boolean, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+  #branch(byte: number, take: boolean, instruction: InstructionContext): AlignmentFault | void {
     const target = this.#branchTarget(byte, instruction);
     if (take) return this.#jump(target, instruction);
   }
 
-  #decrementBranch(register: DataRegister, condition: boolean, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+  #decrementBranch(register: DataRegister, condition: boolean, instruction: InstructionContext): AlignmentFault | void {
     const target = this.#branchTarget(0, instruction);
     if (condition) return;
     const counter = (this.#state[register] - 1) & 0xffff;
@@ -913,7 +973,7 @@ export class Cpu68000 {
     this.#writeOperand(16, { kind: "data", register }, counter, instruction.writeByte);
   }
 
-  #call(target: number, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+  #call(target: number, instruction: InstructionContext): AlignmentFault | void {
     const returnAddress = instruction.nextAddress();
     const stack = this.#addressRegister(7);
     const address = (this.#state[stack] - 4) >>> 0;
@@ -924,7 +984,7 @@ export class Cpu68000 {
     this.#state[stack] = address;
   }
 
-  #pushLong(value: number, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+  #pushLong(value: number, instruction: InstructionContext): AlignmentFault | void {
     const stack = this.#addressRegister(7);
     const address = (this.#state[stack] - 4) >>> 0;
     if (address % 2 !== 0) return { operation: "write", address };
@@ -932,7 +992,7 @@ export class Cpu68000 {
     this.#state[stack] = address;
   }
 
-  #link(code: number, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+  #link(code: number, instruction: InstructionContext): AlignmentFault | void {
     const displacement = instruction.fetchWord() << 16 >> 16;
     const register = this.#addressRegister(code);
     const stack = this.#addressRegister(7);
@@ -944,7 +1004,7 @@ export class Cpu68000 {
     this.#state[stack] = (address + displacement) >>> 0;
   }
 
-  #unlink(code: number, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+  #unlink(code: number, instruction: InstructionContext): AlignmentFault | void {
     const register = this.#addressRegister(code);
     const stack = this.#addressRegister(7);
     const address = this.#state[register];
@@ -954,7 +1014,7 @@ export class Cpu68000 {
     this.#state[register] = value; // UNLK A7 leaves the popped value itself in SP.
   }
 
-  #returnFromSubroutine(instruction: InstructionContext, restoreConditionCode = false): Cpu68000AlignmentFault | void {
+  #returnFromSubroutine(instruction: InstructionContext, restoreConditionCode = false): AlignmentFault | void {
     const stack = this.#addressRegister(7);
     const address = this.#state[stack];
     if (address % 2 !== 0) return { operation: "read", address };
@@ -1007,13 +1067,13 @@ export class Cpu68000 {
   }
 
   #immediate(size: OperandSize, mode: number, code: number, apply: AluOperation,
-    instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    instruction: InstructionContext): AlignmentFault | void {
     const value = this.#fetchImmediate(size, instruction);
     return this.#effectiveAddressAlu(size, mode, code, value, apply, instruction);
   }
 
   #effectiveAddressAlu(size: OperandSize, mode: number, code: number, value: number, apply: AluOperation,
-    instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    instruction: InstructionContext): AlignmentFault | void {
     const updates: AddressUpdates = new Map();
     const destination = this.#resolveOperand(size, mode, code, instruction, updates);
     if (destination.kind === "address") throw new Error("Invalid data-ALU destination reached execution.");
@@ -1022,10 +1082,10 @@ export class Cpu68000 {
   }
 
   #pairedAlu(size: OperandSize, sourceMode: number, sourceCode: number, destinationMode: number, destinationCode: number,
-    apply: AluOperation, instruction: InstructionContext): Cpu68000AlignmentFault | void {
+    apply: AluOperation, instruction: InstructionContext): AlignmentFault | void {
     const updates: AddressUpdates = new Map();
     const source = this.#resolveOperand(size, sourceMode, sourceCode, instruction, updates);
-    if (source.kind === "memory" && size !== 8 && source.address % 2 !== 0) return { operation: "read", address: source.address };
+    if (source.kind === "memory" && size !== 8 && source.address % 2 !== 0) return { operation: "read", address: source.address, programSpace: source.programSpace };
     let value = this.#readOperand(size, source, instruction.readByte);
     // Two auto-updates of the same An use successive addresses, source before destination.
     const destination = this.#resolveOperand(size, destinationMode, destinationCode, instruction, updates);

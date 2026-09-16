@@ -11,7 +11,7 @@ function initialState(supervisor = false): Cpu68000Snapshot {
     d4: 0x01234567, d5: 0x89abcdef, d6: 0xfedcba98, d7: 0x76543210,
     a0: 0x10000000, a1: 0x20000000, a2: 0x30000000, a3: 0x40000000,
     a4: 0x50000000, a5: 0x60000000, a6: 0x70000000, usp: 0x34008000, ssp: 0x56009000,
-    pc: 0xab002000, a7: supervisor ? 0x56009000 : 0x34008000, physicalPc: 0x2000, halted: false, tracePending: false, interruptMask: supervisor ? 7 : 2,
+    pc: 0xab002000, a7: supervisor ? 0x56009000 : 0x34008000, physicalPc: 0x2000, ir: 0, faulted: false, halted: false, tracePending: false, interruptMask: supervisor ? 7 : 2,
     flags: { x: true, n: false, z: true, v: true, c: true, t: false, s: supervisor } };
 }
 
@@ -35,7 +35,7 @@ function expectedRecords(supervisor = false): Cpu68000StepRecord[] {
     data: Cpu68000MemoryAccess[] = []): void {
     const flags = condition === undefined ? { ...before.flags } : { ...before.flags,
       x: condition[0] === "1", n: condition[1] === "1", z: condition[2] === "1", v: condition[3] === "1", c: condition[4] === "1" };
-    const after = { ...before, ...changes, flags, pc: 0xab000000 + nextPc, physicalPc: nextPc };
+    const after = { ...before, ir: bytes[0]! * 256 + bytes[1]!, ...changes, flags, pc: 0xab000000 + nextPc, physicalPc: nextPc };
     records.push({ before, after, outcome: "executed", instruction: { address: before.pc, bytes },
       accesses: [...read(before.physicalPc, ...bytes), ...data] });
     before = after;
@@ -137,21 +137,27 @@ test("68000 control-flow resumes with two live return addresses, restores snapsh
   assert.deepEqual(cpu.snapshot(), final);
 });
 
-test("68000 runner stops at an odd call target without pushing, then resumes with corrected code", () => {
+test("68000 runner delivers an odd call target before pushing and can retry a restored boundary", () => {
   const { cpu, ram, endAddress } = create68000ControlFlowExample();
   const expected = expectedRecords();
   assert.equal(runCpu(cpu, { maxSteps: 4, endAddress }).stopReason, "step-limit");
   ram.write(0x2041, 1);
-  const rejected = runCpu(cpu, { maxSteps: 32, endAddress });
-  assert.equal(rejected.stopReason, "unsupported");
-  assert.equal(rejected.records.length, 1);
-  const before = expected[4]!.before;
-  assert.deepEqual(rejected.records[0], { before, after: before, outcome: "unsupported", reason: "unaligned-address",
-    instruction: { address: 0xab002040, bytes: [0x61, 1] }, fault: { operation: "fetch", address: 0xab002043 },
-    accesses: read(0x2040, 0x61, 1) });
+  const before = cpu.snapshot();
+  const result = runCpu(cpu, { maxSteps: 1, endAddress });
+  assert.equal(result.stopReason, "step-limit");
+  assert.equal(result.records.length, 1);
+  const record = result.records[0]!;
+  assert.equal(record.exception?.source, "address-error");
+  if (record.exception?.source !== "address-error") assert.fail();
+  assert.equal(record.exception.fault.operation, "fetch");
+  assert.equal(record.exception.fault.address, 0xab002043);
+  assert.equal(record.exception.returnPc, 0xab002042);
+  assert.equal(record.after.usp, before.usp);
+  assert.equal(record.after.ssp, before.ssp - 14);
   for (const address of [0x7ff8, 0x7ff9, 0x7ffa, 0x7ffb]) assert.equal(ram.read(address), 0xcc);
   ram.write(0x2041, 0x1e);
-  assert.deepEqual(runCpu(cpu, { maxSteps: 32, endAddress }), { stopReason: "completed", records: expected.slice(4) });
+  const restored = new Cpu68000(ram, before);
+  assert.deepEqual(runCpu(restored, { maxSteps: 32, endAddress }), { stopReason: "completed", records: expected.slice(4) });
 });
 
 test("68000 loops obey the runner budget and changed input follows the conditional path", () => {

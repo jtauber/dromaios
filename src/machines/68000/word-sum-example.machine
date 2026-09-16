@@ -7,6 +7,8 @@ cpu 68000 {
   A0 = 10000000  A1 = 20000000  A2 = 30000000  A3 = 40000000
   A4 = 50000000  A5 = 60000000  A6 = 70000000
   USP = 34008000  SSP = 56009000  PC = AB002000
+  IR = 0000
+  faulted = false
   halted = false  tracePending = false
   interruptMask = 2
   flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 0 }

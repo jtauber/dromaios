@@ -25,8 +25,10 @@ stored fields:
 | `a0`–`a6` | Unsigned 32-bit address registers |
 | `usp`, `ssp` | Unsigned 32-bit user and supervisor stack pointers |
 | `pc` | Unsigned 32-bit program counter |
+| `ir` | Unsigned 16-bit last completely fetched operation word |
 | `interruptMask` | Integer from 0 through 7 |
 | `halted` | Boolean STOP latch; required in initial state |
+| `faulted` | Boolean terminal double-fault latch; only external reset releases it |
 | `tracePending` | Boolean owed-trace latch; required independently of T and STOP |
 | `flags.x/n/z/v/c` | Boolean extend, negative, zero, overflow, and carry |
 | `flags.t/s` | Boolean trace and supervisor bits |
@@ -35,7 +37,10 @@ The original status register has X/N/Z/V/C at bits 4–0, interrupt mask at
 10–8, S at 13, and T at 15. There is no master-mode bit or second trace bit.
 Instructions pack and unpack SR/CCR from these fields; snapshots keep no duplicate
 packed register. STOP sets `halted`; completed instructions that began with T
-set owe a trace through `tracePending`. Both latches are stored in snapshots.
+set owe a trace through `tracePending`. All three latches are stored in snapshots. `faulted` takes priority over STOP,
+trace, and interrupt recognition. `ir` changes as soon as both opcode bytes
+have been read; extension fetches, trace, and interrupt entry preserve it.
+An odd instruction PC therefore stacks the supplied or previously fetched IR.
 Synchronous exceptions and trace ignore the interrupt mask; external requests
 use the level rules below. Entry clears T and selects SSP.
 
@@ -211,12 +216,12 @@ arithmetic wraps at 32 bits before each byte's physical-bus mapping.
 Modifying forms write the resolved destination once at the selected width,
 including unchanged results. The instruction-level trace reads source bytes,
 then destination bytes, then writes destination bytes, each in increasing
-address order. Alignment failures preserve all state and RAM, including X/Z
-and pending pointer updates. A source fault records only the opcode fetch;
+address order. Alignment failures preserve operand state, including X/Z
+and pending pointer updates, before entering vector 3. A source fault records only the opcode fetch;
 a destination fault also records the completed source read. Both report a
 `read` fault because the destination must be read before any modification.
-This follows the model's atomic unsupported-attempt policy rather than
-delivering an address-error exception or modeling bus-cycle order.
+This follows the staged operand policy below; it does not model bus-cycle
+ordering or hardware prefetch effects.
 
 The [extended arithmetic example](examples/extended.md) adds and restores a
 64-bit memory value, adjusts its register copy, and compares the restored
@@ -238,7 +243,7 @@ normally: `EOR.L D0,D0` clears D0 while preserving X.
 The same resolved-operand execution paths handle arithmetic and logic. Memory
 destinations are read and written once at the selected width, even when the
 result is unchanged; address auto-updates occur once. Word/long alignment
-faults preserve all state and RAM. The [masked-merge example](examples/logic.md)
+faults preserve pending operand state, then enter vector 3. The [masked-merge example](examples/logic.md)
 combines register and memory logic with a loop, checksum, and bit summary.
 
 ## Bit operations
@@ -317,7 +322,7 @@ unless the instruction is TST. On the original 68000, **CLR and Scc also read
 their memory destinations before writing**, even though the old value does
 not affect the result. Unchanged writes are recorded. Auto-updates occur once,
 including TST's updates without a write; byte A7 steps by two. Odd word/long
-operands are rejected before data access or state changes. The
+operands fault before data access or operand-state changes, then enter vector 3. The
 [unary example](examples/unary.md) combines all eight families.
 
 ## Shifts and rotates
@@ -449,14 +454,14 @@ on the 24-bit bus. Stack reads/writes are high-byte-first and ascending, as for
 other long operands in this instruction-level model.
 
 Taken targets are checked before committing PC, a DBcc counter, or stack
-changes. An odd target produces an unsupported `fetch` alignment fault in the
+changes. An odd target enters vector 3 with a `fetch` alignment fault in the
 current instruction's record, with its instruction bytes present and no target
 read. Untaken and expired-counter paths do not validate the unused target.
 BSR/JSR check stack alignment before target alignment and write nothing on either
-failure. RTS checks stack alignment before reading the return address; an odd
-return target retains those four reads but leaves A7 and PC unchanged. These
-atomic rejection rules are model policies, not exception/bus sequencing for
-physical hardware. The [control-flow example](examples/control-flow.md)
+failure before address-error entry. RTS checks stack alignment before reading
+the return address; an odd target retains those four reads but does not commit
+the return's A7/PC changes. Vector-3 entry follows these staged operand rules;
+hardware partial effects and prefetch sequencing are outside this contract. The [control-flow example](examples/control-flow.md)
 exercises nested calls and both active stacks.
 
 ## Stack frames
@@ -469,7 +474,8 @@ allocation. The long-displacement LINK of later processors is excluded.
 
 UNLK (`0100 1110 0101 1 rrr`) reads the saved long at An, sets SP to An plus
 four, then restores An. For UNLK A7, the popped value is the final SP.
-An unaligned frame read or push preserves all state and RAM. An odd pointer
+An unaligned frame read or push enters vector 3 before committing the
+instruction's stack changes. An odd pointer
 produced by LINK's allocation or popped by UNLK is permitted until an
 instruction attempts a word/long access through it.
 
@@ -569,7 +575,7 @@ A masked interrupt leaves it stopped. The immediate SR's new mask controls
 which ordinary interrupt levels may wake it; its new S can select USP.
 
 All documented original-68000 instruction forms are implemented within this
-instruction-level contract. Address/bus-error delivery, memory-mapped devices,
+instruction-level contract. Bus-error delivery, memory-mapped devices,
 timing, and prefetch remain outside it. Words outside the instruction inventory
 deliver illegal-instruction or line-A/line-F exceptions as described below.
 
@@ -596,8 +602,8 @@ for software interpretation. All other words outside the documented instruction
 inventory enter vector 4, including Motorola's reserved `4AFA`/`4AFB` words,
 invalid instruction/addressing combinations, and later-chip encodings absent
 from the original 68000. Detection fetches only the two-byte operation word,
-without extension or operand reads. No opcode produces `reason: "opcode"`;
-the step-record type's only unsupported reason is `unaligned-address`.
+without extension or operand reads. Every step either executes (possibly
+delivering an exception) or halts; there is no unsupported-opcode outcome.
 
 These three classes do not complete an instruction and therefore owe no trace,
 even when T was set. They save the full faulting PC before its fetch increment,
@@ -613,9 +619,10 @@ described above before saving SR.
 
 Entry uses SSP even when the instruction ran in user mode:
 
-1. Validate the current SSP's word alignment, after completed operand updates.
-2. Capture SR, set S, clear T, and reserve six bytes by subtracting six from SSP.
-   Clear STOP and the pending-trace latch. The interrupt mask is unchanged.
+1. Capture SR, set S, clear T, and reserve six bytes by subtracting six from SSP,
+   after completed operand updates. Clear STOP and the pending-trace latch;
+   the interrupt mask is unchanged.
+2. Check the first stack write's alignment.
 3. Write the return PC's low word at old SSP−2, SR at old SSP−6, and PC's high
    word at old SSP−4. Each word writes its high byte first.
 4. Read a full 32-bit handler PC from `vector × 4`, high byte first, and commit it.
@@ -623,9 +630,9 @@ Entry uses SSP even when the instruction ran in user mode:
 The resulting frame contains SR at new SSP and the full return PC at SSP+2.
 The original 68000 has no extra format/vector word. SSP arithmetic wraps at
 32 bits; every bus access masks to 24 bits. Writes precede vector reads, so an
-overlapping frame can overwrite the vector. An odd handler PC is retained;
-the next opcode fetch reaches the deferred address-error boundary without
-undoing entry. An owed trace may be delivered before that fetch.
+overlapping frame can overwrite the vector. An odd handler PC triggers
+address-error delivery in the same boundary, after the completed frame writes
+and vector reads; an aborted entry owes no trace.
 
 RTE requires supervisor mode. It reads PC high at SSP+2, SR at SSP, then PC low
 at SSP+4, all through the original supervisor stack. It validates the restored
@@ -638,18 +645,14 @@ without retroactively tracing an RTE that began with T=0.
 
 ### Delivery failures and callbacks
 
-An odd exception SSP returns `outcome: "unsupported"`,
-`reason: "unaligned-address"`, and a write fault at old SSP−2. It retains
-`exception` metadata for the attempted delivery. No frame or vector access
-occurs and PC/S/T/SSP remain unchanged by entry, but already completed CHK/DIV
-flag and source-register effects remain. This boundary is not safely retried
-as an unchanged instruction; callers must resolve the unsupported address-error
-behavior. It differs from the ordinary alignment rejections below.
+An odd exception SSP starts address-error delivery and faults again on the
+same odd stack, producing a terminal halt. Completed instruction effects remain
+visible. The [address-error contract](#address-errors) defines frame reservation,
+metadata, handler-fetch failures, and reset recovery.
 
-An odd RTE stack produces a read fault before frame reads. An odd restored
-PC produces a fetch fault after all six reads. Both preserve CPU state and RAM;
-neither synthesizes an address-error frame. These are explicit boundaries of
-this model, not hardware address-error sequencing.
+An odd RTE stack faults before frame reads; an odd restored PC faults after all
+six reads. The return's register/SR updates remain staged in either case, then
+vector-3 entry applies its own state and memory effects.
 
 `step()`, `reset()`, and `interrupt()` share a per-instance execution guard.
 RAM and device callbacks may inspect `snapshot()`; nested mutations throw
@@ -657,9 +660,10 @@ before any nested CPU changes.
 The guard clears on success or failure. A host RAM exception propagates without
 a record or fabricated bus-error delivery. Completed writes are not rolled back.
 During entry S/T and reserved SSP are visible before the first frame write;
-PC changes only after all vector bytes arrive. During RTE the stored CPU state
-changes only after all frame reads and target validation. During reset, SSP
-commits after four vector bytes; PC and reset flags follow the remaining four.
+PC changes only after all vector bytes arrive. During RTE the stack/PC/SR
+return state changes only after all frame reads and target validation; IR
+already holds `4E73`. During reset, SSP commits after four vector bytes;
+PC and reset flags follow the remaining four.
 
 ## Trace recognition
 
@@ -676,13 +680,13 @@ TRAP, taken TRAPV, CHK failure, and division by zero complete their own exceptio
 entry first, then retain any trace owed by the original instruction. That trace
 stacks the resulting handler PC/SR before any handler opcode executes. Illegal
 instructions and privilege violations do not complete an instruction, so they
-suppress tracing. Unsupported opcode/alignment attempts create no owed trace.
+suppress tracing. Address errors likewise suppress the owed trace.
 Host callback failures have no completed retirement; their effects follow the
 failure boundaries above.
 
-An odd trace stack reports the existing alignment boundary with no accesses,
-preserving the owed trace and STOP latch. Once entry begins, callback failures
-retain cleared latches and reserved SSP, as for other entries. External reset
+An odd trace stack terminally halts through failed address-error entry, with
+no RAM accesses, cleared STOP/trace latches, and 20 reserved stack bytes.
+Host callback failures retain cleared latches and reserved SSP, as for other entries. External reset
 clears an owed trace after reading both reset vectors. T and `tracePending`
 are intentionally independent: setting T during an instruction or restoring a
 snapshot with T=1 does not itself request an immediate trace entry.
@@ -698,14 +702,15 @@ held level 7 when the current mask is below 7. It is accepted even at mask 7.
 **Do not repeatedly offer a held level 7 at mask 7**; each such call would
 represent another selected edge. Ignored requests remain caller-owned.
 
-An owed trace returns `outcome: "ignored", reason: "trace-pending"` before
+A terminal halt returns `outcome: "ignored", reason: "faulted"`. Otherwise an
+owed trace returns `outcome: "ignored", reason: "trace-pending"` before
 masking or acknowledgement. Deliver that trace with `step()` and reoffer the
 selected interrupt before executing handler code. Otherwise a masked request
 returns `outcome: "ignored", reason: "masked"`. Neither calls the device,
 reads RAM, changes state, nor wakes STOP. Invalid levels throw before mutation;
 an acknowledgement callback is required only for an eligible request.
 
-After checking SSP alignment, accepted delivery captures the old SR, selects
+Accepted delivery captures the old SR, selects
 supervisor mode, clears T/STOP, reserves six frame bytes, and sets the mask to
 the selected level. It then calls `acknowledge()` once:
 
@@ -726,8 +731,10 @@ Following acknowledgement, the common entry path writes PC low, the saved
 pre-interrupt SR, and PC high, then reads the vector. The return PC is the
 full address of the instruction that would otherwise execute. Frame/vector
 overlap and address wrapping follow the synchronous entry contract. An odd
-SSP reports `unsupported`/`unaligned-address` before acknowledgement or changes.
-This is a declared model boundary, not address-error bus sequencing.
+SSP starts address-error delivery before acknowledgement and terminally halts
+on the same odd stack. An odd loaded handler PC instead enters vector 3 after
+acknowledgement and frame writes. Such records use `outcome: "executed"` or
+`"halted"` and carry address-error metadata.
 
 The separate interrupt record contains `level`, a null instruction, detached
 snapshots, and ordered accesses. Accepted records add `vector` and `returnPc`.
@@ -752,7 +759,7 @@ is supplied again when constructing a CPU from a snapshot.
 
 An absent connection throws only when a supervisor-mode RESET uses it. A
 user-mode attempt enters the privilege vector without calling the device.
-A throwing callback leaves CPU state and PC at the instruction boundary,
+A throwing callback leaves PC at the instruction boundary and IR at `4E70`,
 returns no record, and does not undo device effects. The execution guard still
 clears. No synthetic memory transfer or cycle count represents RESET's output.
 The physical chip's 124-clock reset pulse is not timed here.
@@ -791,8 +798,9 @@ budget determines when to stop.
 Register/address arithmetic and logic fetch the opcode and EA extensions, then read
 the memory operand if present. A memory destination is resolved once and read
 before its result is written to the same address. CMP/CMPA perform no writes;
-predecrement/postincrement still takes effect. All alignment checks precede
-state changes, including flags and pending An updates.
+predecrement/postincrement still takes effect. Operand alignment checks precede
+operand-state changes, including flags and pending An updates; IR has already
+been fetched, and an alignment fault then enters vector 3.
 
 Control-flow records fetch only the current instruction's bytes, followed by
 BSR/JSR's four writes or RTS's four reads where applicable. They contain no
@@ -801,36 +809,77 @@ PEA and LINK append four stack writes after all instruction fetches; UNLK
 appends four frame reads. MOVEM fetches the mask and EA extensions before any
 data transfer, then records the selected registers in transfer order.
 
-Ordinary unsupported attempts below preserve all CPU state and RAM. The
-odd exception-stack boundary above instead retains completed instruction effects:
+## Address errors
 
-| Case | Outcome details | Accesses |
-| --- | --- | --- |
-| Odd PC | `reason: "unaligned-address"`; `instruction: null`; `fault.operation: "fetch"` | None |
-| Odd word/long MOVE source | `reason: "unaligned-address"`; `fault.operation: "read"` | Opcode and source extension fetches; no source data read or destination fetch |
-| Odd word/long ALU operand | `reason: "unaligned-address"`; `fault.operation: "read"` | All instruction fetches; no operand reads or writes |
-| Odd word/long MOVE destination | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches and any source data reads; no writes |
-| Odd BSR/JSR/PEA/LINK stack address | `reason: "unaligned-address"`; `fault.operation: "write"` | All instruction fetches; no writes |
-| Odd RTS/RTR/RTE stack address | `reason: "unaligned-address"`; `fault.operation: "read"` | Two opcode fetches; no stack reads |
-| Odd UNLK frame address | `reason: "unaligned-address"`; `fault.operation: "read"` | Two opcode fetches; no frame reads |
-| Odd nonempty MOVEM transfer | `reason: "unaligned-address"`; `fault.operation: "read"` or `"write"` | All instruction fetches; no data transfers |
-| Odd taken branch/jump/return target | `reason: "unaligned-address"`; `fault.operation: "fetch"`; instruction present | Instruction fetches; RTS/RTR/RTE also reads four/six stack bytes; no writes or target reads |
+Odd instruction fetches and word/long operand accesses enter **vector 3** in
+the detecting boundary. The odd access itself makes no RAM call. Byte operands
+and MOVEP's separate byte transfers remain valid at odd addresses. Entry selects
+SSP, clears T, STOP, and owed trace, preserves the interrupt mask, and reserves
+14 bytes. It writes seven words from the old SSP downwards, high byte first
+within each word, then reads the vector at physical `00000C`–`00000F`.
 
-Alignment faults include the full rejected address in `fault.address`. A local
-fetch cursor and pending address updates allow rejection without changing PC,
-registers, or flags for these ordinary rejections. Repeating them repeats their
-reads and leaves state unchanged. The runner stops on the first unsupported
-attempt.
+| Offset from new SSP | Contents |
+| --- | --- |
+| +0 | Special status word (SSW) |
+| +2 | Full 32-bit fault address |
+| +6 | Instruction register |
+| +8 | Saved SR |
+| +10 | Saved 32-bit PC |
 
-These are explicit model policies. A physical 68000 enters an address-error
-exception on an unaligned word access; this model reports the missing behavior
-instead. It does not generate address-error stack frames or emulate partial
-bus activity during an address fault. Illegal-instruction and line-A/line-F
-delivery uses the six-byte entry contract above, including its odd-SSP boundary.
+SSW bit 4 is 1 for read/fetch and 0 for write. Bit 3 is 0 during instruction
+processing (including group-2 traps) and 1 during group-0/group-1 exceptions,
+trace, or interrupts. Bits 2–0 are the faulting access's function code:
+user data/program = 1/2; supervisor data/program = 5/6. PC-relative data
+operands use program space. Other bits are zero by model policy. Function codes
+appear in the fault metadata and SSW, not on the ordinary byte-access records.
+
+The saved PC is the local fetch cursor: the instruction start for a rejected
+initial opcode fetch, or the address following the completely fetched opcode
+and extensions for an operand or taken-target fault. For example, an odd
+`MOVE.W (A0),D0` operand saves start+2; an odd absolute-long source saves
+start+6. A failed branch saves its sequential cursor, with the attempted target
+recorded separately as the fault address. A fault on an exception handler's
+initial fetch saves that exception's vector address.
+
+**This is an instruction-level recovery contract.** Hardware prefetch can
+advance the saved PC differently and can expose different partial register
+effects. Pending An updates, result writes, condition-code changes, return
+frame consumption, and call pushes still wait for their existing alignment
+checks. Already completed source reads remain in the record. Completed
+DIV/CHK source updates and flags remain visible if their exception entry
+fails. There is no rollback of completed RAM calls or earlier exception work.
+Handlers must choose a recovery PC; this core does not restart arbitrary
+faulting instructions automatically.
+
+The original 68000 has no frame-format word. **RTE consumes only the ordinary
+six-byte SR/PC frame**. An address-error handler must remove the first eight
+bytes itself (for example, `ADDQ.L #8,A7`) before RTE. It can edit the saved PC
+first to retry or skip the faulting instruction.
+
+A successful entry returns `outcome: "executed"` and `exception.source:
+"address-error"`; the shared runner can execute the handler next. Exception
+metadata contains vector 3, `returnPc`, and a `fault` with operation, full
+address, instruction register, function code, and `processingInstruction`.
+`instruction` is null for an initial odd-PC fault or failed trace entry.
+
+An odd SSP or odd vector-3 handler PC faults during address-error entry and
+sets `faulted`. The record returns `outcome: "halted"` and adds `entryFault`.
+No recursive frame is attempted. Frame reservation precedes the first write;
+thus an odd SSP reserves 14 bytes without writing, or 20 bytes in total when
+a six-byte exception entry failed first. Completed writes/vector reads stay
+visible. Subsequent `step()` calls return halted with no accesses; all interrupt
+offers return ignored with reason `"faulted"`, including level 7. Snapshots
+preserve this latch. External reset can release it; a reset vector with an odd
+PC leaves it set. An odd SSP alone is harmless until a stack access needs it.
+
+A thrown RAM callback is a **host error**, not a modeled bus error. It returns
+no record, retains completed transfers and state changes, and clears the
+reentrancy guard. Bus-error signaling and vector-2 delivery remain deferred
+until there is an explicit memory-fault connection.
 
 Records own their snapshots, bytes, accesses, fault details, and exception
 metadata; the CPU retains no history. They describe instruction-level activity, without cycles, word bus
-transactions, function codes, prefetch, or speculative reads. Device-reset
+transactions, ordinary-access function codes, prefetch, or speculative reads. Device-reset
 events and interrupt acknowledgements represent the explicit connections above.
 
 ## External reset
@@ -840,16 +889,17 @@ events and interrupt acknowledgements represent the explicit connections above.
 1. Read bytes `000000`–`000003` into SSP, high byte first.
 2. Read bytes `000004`–`000007` into PC, high byte first.
 3. Set S, clear T, set `interruptMask` to 7, and clear `halted` and `tracePending`.
+4. Clear `faulted` if the new PC is even; otherwise set it.
 
 Both vectors retain all 32 bits. A7 now exposes the new SSP. D0–D7, A0–A6,
-USP, X/N/Z/V/C, and RAM are preserved. Preserving registers and condition codes
+USP, IR, X/N/Z/V/C, and RAM are preserved. Preserving registers and condition codes
 whose reset values are unspecified is a deterministic model policy, not a
 hardware guarantee.
 
 The reset record has detached `before`/`after` snapshots and exactly eight
 reads, with no instruction or step outcome. Reset does not fetch the next
-instruction. An odd vector PC is retained and rejected by the next `step()`;
-reset fault sequencing is deferred. Reset differs from restarting an example,
+instruction. An odd vector PC is retained and terminally halts the CPU during reset.
+The rejected fetch makes no RAM call and creates no exception frame. Reset differs from restarting an example,
 which creates fresh CPU state and RAM.
 
 The **RESET instruction** resets external devices without reinitializing the
@@ -886,27 +936,27 @@ the original brief extension from later chips. Later-family additions are exclud
 validation, exception delivery for every word outside the instruction inventory,
 arithmetic boundaries against a BigInt oracle, every register pair and MOVEQ
 byte, every incoming flag pattern,
-byte order, logical and physical wrapping, alignment rejection, reset, current
+byte order, logical and physical wrapping, alignment faults, reset, current
 RAM, overlapping stores, and detached records. Transfer checks execute every
 legal MOVE/MOVEA form with both active stacks, every index extension word,
 every word displacement, source/destination aliasing, partial-register writes,
-and all word/long memory modes' alignment rejection. The
+and alignment faults in every word/long memory mode. The
 [addressing example tests](../../../tests/machines/68000/addressing-example.test.ts)
 check full traces and RAM images through bounded running, resumption, and reset.
 Immediate checks execute every legal size/address form and incoming flag
 pattern, exhaust byte operand pairs, and check word/long boundaries, flags,
-read/modify/write order, comparison auto-updates, and atomic alignment rejection.
+read/modify/write order, comparison auto-updates, and staged operand updates on alignment faults.
 The [ALU example tests](../../../tests/machines/68000/alu-example.test.ts)
 check all six families together, including complete traces and RAM images.
 Control-flow checks cover the full condition truth tables, displacement and
 counter sweeps, both stacks, full return addresses, overlapping code/stack,
-atomic alignment rejection, and retries. The
+staged operand updates on alignment faults, and retries. The
 [control-flow example tests](../../../tests/machines/68000/control-flow-example.test.ts)
 verify nested calls, loops, complete traces and RAM images, and snapshot resumption.
 Register/address arithmetic checks all 9,144 forms in both modes, every byte
 operand pair, every sign-extended word, word/long boundaries with every incoming
 flag pattern, pointer aliases, wrapped and overlapping operands, and atomic
-alignment rejection. The [word-sum tests](../../../tests/machines/68000/word-sum-example.test.ts)
+alignment faults. The [word-sum tests](../../../tests/machines/68000/word-sum-example.test.ts)
 check all six families together with literal traces and complete RAM images.
 Logic checks execute all 5,760 forms, exhaust byte operand pairs against bit
 truth tables, and cover every result bit and incoming flag pattern, partial
@@ -916,7 +966,7 @@ check complete merge/checksum traces and RAM images, resumption, and live masks.
 Address/frame checks exercise all 464 added forms, every MOVEM mask in both
 sizes/directions, every sign-extended word and LINK displacement, flag
 preservation, base/index aliases, both stacks, empty lists, wrapping, overlapping
-code/data, and atomic rejection. The
+code/data, and staged operand updates on faults. The
 [stack-frame example tests](../../../tests/machines/68000/stack-frame-example.test.ts)
 check all seven families together with complete records and RAM images,
 bounded execution, snapshot resumption, changed input, and reset.
@@ -938,7 +988,7 @@ count/destination register pair, and every byte with counts 0–63 and both X
 inputs. Independent BigInt arithmetic and bit-string rotations check word/long
 boundaries, all count values, all incoming flag patterns, full rotations,
 and ASL's intermediate overflow. Memory checks include all legal EAs, both
-stacks, unchanged writes, wrapping, code overlap, and atomic rejection.
+stacks, unchanged writes, wrapping, code overlap, and staged operand updates on faults.
 The [shifts example tests](../../../tests/machines/68000/shifts-example.test.ts)
 check all eight operations together, complete records and RAM images, live
 inputs, reset preservation, and restoration between carry-dependent words.
@@ -992,3 +1042,12 @@ checks priority, trace sampling, level-7 edges, vector responses, RESET, and
 independent-corpus limits. [Combined program tests](../../../tests/machines/68000/interrupts.test.ts)
 exercise trap → trace → interrupt → RESET → three RTEs, restoring snapshots
 between entries/returns, plus STOP wakeup through an interrupt and RTE.
+
+The [address-error tests](../../../tests/components/cpus/68000.test.ts) check
+literal seven-word frames and function codes in both modes, saved cursors,
+IR retention, group-1/group-2 entry faults, trace and interrupt handler faults,
+frame/vector overlap, 24/32-bit wrapping, terminal halt and reset recovery,
+snapshot restoration, and host failures at every frame/vector byte. The
+[runner recovery test](../../../tests/machines/68000/example.test.ts) removes
+the eight extra bytes before RTE. See the [reference discussion](reference-notes.md#address-error-delivery)
+for the limits of these checks.

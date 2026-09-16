@@ -20,7 +20,8 @@ addresses in the program table are physical. PC retains its high byte `AB`.
 | A4, A5, A6 | `50000000`, `60000000`, `70000000` |
 | USP, SSP, PC | `34008000`, `56009000`, `AB002000` |
 | interruptMask | `2` |
-| halted, tracePending | `false`, `false` |
+| IR | `0000` |
+| halted, faulted, tracePending | `false`, `false`, `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `0` |
 
 A7 initially exposes USP. The 16 MiB image starts zero-filled, with these
@@ -131,4 +132,4 @@ and inspect entire initial/final images. They also check factory independence,
 logical completion, pause/resume, snapshot restoration, reset, and record
 ownership. The [CPU tests](../../../../tests/components/cpus/68000.test.ts)
 separately cover all legal transfer forms, index/displacement choices,
-aliasing, wrapping, and alignment rejection.
+aliasing, wrapping, and alignment faults.

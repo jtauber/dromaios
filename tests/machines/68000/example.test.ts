@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { Cpu68000 } from "../../../src/components/cpus/68000.js";
 import type { Cpu68000Snapshot, Cpu68000StepRecord } from "../../../src/components/cpus/68000.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
 import { create68000Example, create68000ExampleMemory } from "../../../src/machines/generated/68000/example.js";
@@ -10,7 +11,7 @@ function initialState(): Cpu68000Snapshot {
     d4: 0x01234567, d5: 0x89abcdef, d6: 0xfedcba98, d7: 0x76543210,
     a0: 0x10000000, a1: 0x20000000, a2: 0x30000000, a3: 0x40000000,
     a4: 0x50000000, a5: 0x60000000, a6: 0x70000000, usp: 0x34ffe000, ssp: 0x56ffd000,
-    pc: 0xab001000, halted: false, tracePending: false, interruptMask: 2, a7: 0x34ffe000, physicalPc: 0x1000,
+    pc: 0xab001000, ir: 0, faulted: false, halted: false, tracePending: false, interruptMask: 2, a7: 0x34ffe000, physicalPc: 0x1000,
     flags: { x: true, n: false, z: true, v: true, c: true, t: false, s: false } };
 }
 
@@ -25,11 +26,11 @@ function checkMemory(ram: Ram, finished = false): void {
 
 function expectedRecords(): readonly Cpu68000StepRecord[] {
   const before = initialState();
-  const load = { ...before, d0: 0x7fffffff, pc: 0xab001006, physicalPc: 0x1006,
+  const load = { ...before, ir: 0x203c, d0: 0x7fffffff, pc: 0xab001006, physicalPc: 0x1006,
     flags: { x: true, n: false, z: false, v: false, c: false, t: false, s: false } };
-  const add = { ...load, d0: 0x80000000, pc: 0xab00100c, physicalPc: 0x100c,
+  const add = { ...load, ir: 0x0680, d0: 0x80000000, pc: 0xab00100c, physicalPc: 0x100c,
     flags: { x: false, n: true, z: false, v: true, c: false, t: false, s: false } };
-  const store = { ...add, pc: 0xab001012, physicalPc: 0x1012, flags: { ...add.flags, v: false } };
+  const store = { ...add, ir: 0x23c0, pc: 0xab001012, physicalPc: 0x1012, flags: { ...add.flags, v: false } };
   return [
     { before, after: load, outcome: "executed", instruction: { address: 0xab001000, bytes: [0x20, 0x3c, 0x7f, 0xff, 0xff, 0xff] },
       accesses: [{ kind: "read", address: 0x1000, value: 0x20 }, { kind: "read", address: 0x1001, value: 0x3c },
@@ -83,7 +84,7 @@ test("68000 example records long arithmetic and physical accesses, completing at
   assert.equal(continued.stopReason, "step-limit");
   const before = records[2]!.after;
   assert.deepEqual(continued.records, [{ before,
-    after: { ...before, pc: 0xab001016, physicalPc: 0x1016, flags: { ...before.flags, n: false, z: true } },
+    after: { ...before, ir: 0, pc: 0xab001016, physicalPc: 0x1016, flags: { ...before.flags, n: false, z: true } },
     outcome: "executed", instruction: { address: before.pc, bytes: [0, 0, 0, 0] },
     accesses: [0x1012, 0x1013, 0x1014, 0x1015].map(address => ({ kind: "read", address, value: 0 })) }]);
 });
@@ -113,23 +114,38 @@ test("68000 example pauses and resumes, resets from vectors, and restarts with i
   assert.deepEqual(runCpu(fresh.cpu, { maxSteps: 3 }), { records: expected, stopReason: "step-limit" });
 });
 
-test("68000 runner stops at an alignment rejection and can resume after the operand is corrected", () => {
+test("68000 runner follows vector 3 and software removes the extended frame before RTE", () => {
   const { cpu, ram, endAddress } = create68000Example();
   ram.write(0x1011, 0x83);
-  const result = runCpu(cpu, { maxSteps: 10, endAddress });
-  assert.equal(result.stopReason, "unsupported");
-  assert.equal(result.records.length, 3);
-  const rejected = result.records[2]!;
-  assert.equal(rejected.outcome, "unsupported");
-  if (rejected.outcome === "unsupported") {
-    assert.equal(rejected.reason, "unaligned-address");
-    if (rejected.reason === "unaligned-address") assert.deepEqual(rejected.fault, { operation: "write", address: 0xcd020083 });
-  }
-  assert.deepEqual(rejected.before, expectedRecords()[1]!.after);
-  assert.deepEqual(rejected.after, rejected.before);
+  [0, 0, 0x30, 0].forEach((b, i) => ram.write(12 + i, b));
+  // The saved PC already points past the failed store. Discard SSW/address/IR, then RTE.
+  [0x50, 0x8f, 0x4e, 0x73].forEach((b, i) => ram.write(0x3000 + i, b)); // ADDQ.L #8,A7; RTE
+  const result = runCpu(cpu, { maxSteps: 5, endAddress });
+  assert.equal(result.stopReason, "completed");
+  assert.equal(result.records.length, 5);
+  const fault = result.records[2]!;
+  assert.equal(fault.exception?.source, "address-error");
+  if (fault.exception?.source !== "address-error") assert.fail();
+  assert.equal(fault.exception.fault.address, 0xcd020083);
+  assert.equal(fault.exception.fault.operation, "write");
+  assert.deepEqual(fault.before, expectedRecords()[1]!.after);
+  assert.equal(fault.after.ssp, fault.before.ssp - 14);
+  assert.equal(fault.after.pc, 0x3000);
   assert.equal(ram.read(0x20083), 0);
+  assert.equal(cpu.snapshot().ssp, initialState().ssp);
+  assert.equal(cpu.snapshot().a7, initialState().usp);
+  assert.equal(cpu.snapshot().ir, 0x4e73);
+  assert.deepEqual(cpu.snapshot().flags, fault.before.flags);
   const saved = structuredClone(result);
-  ram.write(0x1011, 0x82);
-  assert.deepEqual(runCpu(cpu, { maxSteps: 1, endAddress }), { records: expectedRecords().slice(2), stopReason: "completed" });
+  const replay = create68000Example();
+  replay.ram.write(0x1011, 0x83);
+  [0, 0, 0x30, 0].forEach((b, i) => replay.ram.write(12 + i, b));
+  [0x50, 0x8f, 0x4e, 0x73].forEach((b, i) => replay.ram.write(0x3000 + i, b));
+  let restored = replay.cpu;
+  for (const expected of result.records) {
+    assert.deepEqual(restored.step(), expected);
+    restored = new Cpu68000(replay.ram, restored.snapshot());
+  }
+  cpu.reset();
   assert.deepEqual(result, saved);
 });

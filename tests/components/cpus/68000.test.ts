@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu68000 } from "../../../src/components/cpus/68000.js";
-import type { Cpu68000Flags, Cpu68000State, Cpu68000Snapshot, Cpu68000MemoryAccess, Cpu68000Exception } from "../../../src/components/cpus/68000.js";
+import type { Cpu68000Flags, Cpu68000State, Cpu68000Snapshot, Cpu68000MemoryAccess, Cpu68000Exception, Cpu68000StepRecord } from "../../../src/components/cpus/68000.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
 
@@ -34,7 +34,7 @@ function initialState(overrides: Partial<Cpu68000State> = {}): Cpu68000State {
     d4: 0x01234567, d5: 0x89abcdef, d6: 0xfedcba98, d7: 0x76543210,
     a0: 0x10000000, a1: 0x20000000, a2: 0x30000000, a3: 0x40000000,
     a4: 0x50000000, a5: 0x60000000, a6: 0x70000000, usp: 0x34ffe000, ssp: 0x56ffd000,
-    pc: 0xab001000, halted: false, tracePending: false, interruptMask: 2, flags: flags(127), ...overrides };
+    pc: 0xab001000, ir: 0, faulted: false, halted: false, tracePending: false, interruptMask: 2, flags: flags(127), ...overrides };
 }
 
 function snapshot(state: Cpu68000State): Cpu68000Snapshot {
@@ -66,11 +66,34 @@ function checkStep(ram: ObservedRam, before: Cpu68000State, bytes: readonly numb
   ram.accesses.length = 0;
   const cpu = runningCpu ?? new Cpu68000(ram, before);
   const accesses = [...reads, ...writes];
+  after.ir = bytes[0]! * 256 + bytes[1]!;
   assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after),
     instruction: { address: before.pc, bytes }, outcome: "executed", accesses });
   assert.deepEqual(cpu.snapshot(), snapshot(after));
   assert.deepEqual(ram.accesses, accesses);
   for (const { address, value } of writes) assert.equal(ram.read(address), value);
+}
+
+function addressErrorRecord({ before, instruction, accesses, fault }: {
+  before: Cpu68000Snapshot; instruction: { address: number; bytes: readonly number[] } | null;
+  accesses: readonly Cpu68000MemoryAccess[]; fault: { operation: "fetch" | "read" | "write"; address: number };
+}): Cpu68000StepRecord {
+  const ir = instruction ? instruction.bytes[0]! * 256 + instruction.bytes[1]! : before.ir;
+  const returnPc = unsignedLong(before.pc + (instruction?.bytes.length ?? 0));
+  const program = fault.operation === "fetch" || (fault.operation === "read" && [58, 59].includes(ir % 64));
+  const functionCode: 1 | 2 | 5 | 6 = before.flags.s ? (program ? 6 : 5) : (program ? 2 : 1);
+  const stack = unsignedLong(before.ssp - 14);
+  const base = { ...before, ir, ssp: stack, halted: false, tracePending: false, flags: { ...before.flags, s: true, t: false } };
+  const exception = { source: "address-error" as const, vector: 3 as const, returnPc,
+    fault: { ...fault, instructionRegister: ir, functionCode, processingInstruction: true } };
+  if (before.ssp % 2) return { before, after: snapshot({ ...base, faulted: true }), instruction, accesses,
+    outcome: "halted", exception: { ...exception, entryFault: { operation: "write", address: unsignedLong(before.ssp - 2) } } };
+  const words = [returnPc % 65536, Math.floor(returnPc / 65536), statusWord(before), ir,
+    fault.address % 65536, Math.floor(fault.address / 65536), (fault.operation === "write" ? 0 : 16) + functionCode];
+  const writes = words.flatMap((word, i) => memoryAccesses("write", before.ssp - 2 - 2 * i, wordBytes(word)));
+  // These fixtures use a zero vector. Dedicated address-error tests below exercise nonzero and overlapping vectors.
+  return { before, after: snapshot({ ...base, pc: 0 }), instruction, outcome: "executed", exception,
+    accesses: [...accesses, ...writes, ...memoryAccesses("read", 12, [0, 0, 0, 0])] };
 }
 
 test("68000 construction owns all stored state and derives A7 and physical PC without reading RAM", () => {
@@ -109,7 +132,7 @@ test("68000 reads declared getters once and ignores contradictory derived views 
     }
   }
   assert.deepEqual(new Cpu68000(new Ram(0x1000000), state).snapshot(), expected);
-  assert.equal(calls.size, 29);
+  assert.equal(calls.size, 31);
   assert.ok([...calls.values()].every(count => count === 1));
 });
 
@@ -369,33 +392,31 @@ test("68000 decodes every non-instruction opword into its illegal or emulator-li
   assert.deepEqual(counts, { "illegal-instruction": 11528, "line-a": 4096, "line-f": 4096 });
 });
 
-test("68000 rejects odd instruction addresses before reading and odd store addresses before writing or changing flags", () => {
+test("68000 odd fetches and stores enter vector 3 without making the rejected access", () => {
   const ram = new ObservedRam(0x1000000);
   for (const address of [1, 0x1001, 0x12ffffff, 0xffffffff]) {
     const before = snapshot(initialState({ pc: address }));
-    const cpu = new Cpu68000(ram, before);
     ram.accesses.length = 0;
     for (let attempt = 0; attempt < 2; attempt++) {
-      assert.deepEqual(cpu.step(), { before, after: before, instruction: null, accesses: [],
-        outcome: "unsupported", reason: "unaligned-address", fault: { operation: "fetch", address } });
+      ram.accesses.length = 0;
+      const expected = addressErrorRecord({ before, instruction: null, accesses: [], fault: { operation: "fetch", address } });
+      assert.deepEqual(new Cpu68000(ram, before).step(), expected);
+      assert.deepEqual(ram.accesses, expected.accesses);
     }
-    assert.deepEqual(ram.accesses, []);
     const storeBefore = snapshot(initialState());
     const bytes = [0x23, 0xc0, ...longBytes(address)];
-    const accesses = bytes.map((value, offset) => ({ kind: "read", address: 0x1000 + offset, value }));
+    const accesses = bytes.map((value, offset) => ({ kind: "read" as const, address: 0x1000 + offset, value }));
     for (const { address, value } of accesses) ram.write(address, value);
-    const storeCpu = new Cpu68000(ram, storeBefore);
     for (let attempt = 0; attempt < 2; attempt++) {
       ram.accesses.length = 0;
-      assert.deepEqual(storeCpu.step(), { before: storeBefore, after: storeBefore, accesses,
-        instruction: { address: storeBefore.pc, bytes }, outcome: "unsupported", reason: "unaligned-address",
-        fault: { operation: "write", address } });
-      assert.deepEqual(ram.accesses, accesses);
+      const expected = addressErrorRecord({ before: storeBefore, accesses, instruction: { address: storeBefore.pc, bytes }, fault: { operation: "write", address } });
+      assert.deepEqual(new Cpu68000(ram, storeBefore).step(), expected);
+      assert.deepEqual(ram.accesses, expected.accesses);
     }
   }
 });
 
-test("68000 every register store rejects odd addresses atomically and writes current values across the bus boundary", () => {
+test("68000 every register store faults before writeback and writes current values after restoring a corrected boundary", () => {
   const ram = new ObservedRam(0x1000000);
   for (const { register, store } of registerForms) {
     const state = initialState();
@@ -403,16 +424,16 @@ test("68000 every register store rejects odd addresses atomically and writes cur
     bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
     ram.accesses.length = 0;
     const cpu = new Cpu68000(ram, state);
-    const accesses = bytes.map((value, offset) => ({ kind: "read", address: 0x1000 + offset, value }));
+    const accesses = bytes.map((value, offset) => ({ kind: "read" as const, address: 0x1000 + offset, value }));
     const rejected = cpu.step();
-    assert.deepEqual(rejected, { outcome: "unsupported", reason: "unaligned-address", before: snapshot(state), after: snapshot(state),
-      instruction: { address: state.pc, bytes }, accesses, fault: { operation: "write", address: 0xffffffff } });
-    assert.deepEqual(ram.accesses, accesses);
+    const expected = addressErrorRecord({ before: snapshot(state), instruction: { address: state.pc, bytes }, accesses, fault: { operation: "write", address: 0xffffffff } });
+    assert.deepEqual(rejected, expected);
+    assert.deepEqual(ram.accesses, expected.accesses);
     const saved = structuredClone(rejected);
     const writes = longBytes(state[register]).map((value, offset) => ({ kind: "write" as const,
       address: (0xfffffe + offset) % 16777216, value }));
     checkStep(ram, state, [...wordBytes(store), 0xff, 0xff, 0xff, 0xfe],
-      { ...state, pc: 0xab001006, flags: moveFlags(state.flags, state[register]) }, writes, cpu);
+      { ...state, pc: 0xab001006, flags: moveFlags(state.flags, state[register]) }, writes);
     assert.deepEqual(rejected, saved);
   }
 });
@@ -435,7 +456,7 @@ test("68000 handlers read current registers and fetch modified embedded immediat
   ram.write(0x1010, 0x76); // Restore only the opcode's high byte: the next immediate is now zero.
   ram.accesses.length = 0;
   const record = cpu.step();
-  assert.deepEqual(record, { before: snapshot(stored), after: snapshot({ ...stored, d3: 0, pc: 0xab001012 }),
+  assert.deepEqual(record, { before: snapshot(stored), after: snapshot({ ...stored, ir: 0x7600, d3: 0, pc: 0xab001012 }),
     instruction: { address: 0xab001010, bytes: [0x76, 0] }, outcome: "executed",
     accesses: [{ kind: "read", address: 0x1010, value: 0x76 }, { kind: "read", address: 0x1011, value: 0 }] });
   assert.deepEqual(ram.accesses, record.accesses);
@@ -451,12 +472,12 @@ test("68000 reset reads current vectors high byte first and preserves unspecifie
       const state = initialState({ flags: flags(bits), interruptMask: bits % 8 });
       const cpu = new Cpu68000(ram, state);
       const accesses = bytes.map((value, address) => ({ kind: "read", address, value }));
-      const after = snapshot({ ...state, ssp, pc, interruptMask: 7, flags: { ...state.flags, t: false, s: true } });
+      const after = snapshot({ ...state, faulted: pc % 2 !== 0, ssp, pc, interruptMask: 7, flags: { ...state.flags, t: false, s: true } });
       const record = cpu.reset();
       assert.deepEqual(record, { before: snapshot(state), after, accesses });
       assert.deepEqual(ram.accesses, accesses);
       assert.deepEqual(cpu.snapshot(), after);
-      if (pc % 2) assert.equal(cpu.step().outcome, "unsupported");
+      if (pc % 2) assert.equal(cpu.step().outcome, "halted");
       ram.write(0, 0);
       cpu.reset();
       assert.deepEqual(record.after, after);
@@ -601,6 +622,7 @@ function checkTransfer(ram: ObservedRam, before: Cpu68000State, opcode: number, 
   const cpu = new Cpu68000(ram, before);
   ram.accesses.length = 0;
   const record = cpu.step();
+  after.ir = bytes[0]! * 256 + bytes[1]!;
   assert.deepEqual(record, { before: snapshot(before), after: snapshot(after), instruction: { address: before.pc, bytes },
     outcome: "executed", accesses }, `operation word ${opcode.toString(16)}`);
   assert.deepEqual(ram.accesses, accesses);
@@ -737,7 +759,7 @@ test("68000 reads overlapping source bytes before destination extensions and wri
   }
 });
 
-test("68000 read and write alignment rejection preserves both pending address updates and all RAM", () => {
+test("68000 read and write address errors discard pending address updates before exception entry", () => {
   const ram = new ObservedRam(0x1000000);
   const cases = [
     { opcode: 0x22d8, a0: 0xab020001, a1: 0xcd030000, address: 0xab020001, operation: "read", reads: 0 }, // (A0)+,(A1)+
@@ -753,7 +775,6 @@ test("68000 read and write alignment rejection preserves both pending address up
     bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
     [0x81, 0x23, 0x45, 0x67].forEach((value, offset) => ram.write(0x20000 + offset, value));
     ram.write(0x30000, 0xaa);
-    const cpu = new Cpu68000(ram, state);
     const before = snapshot(state);
     const accesses = [
       ...bytes.map((value, offset) => ({ kind: "read" as const, address: 0x1000 + offset, value })),
@@ -761,9 +782,9 @@ test("68000 read and write alignment rejection preserves both pending address up
     ];
     for (let repeat = 0; repeat < 2; repeat++) {
       ram.accesses.length = 0;
-      assert.deepEqual(cpu.step(), { before, after: before, instruction: { address: state.pc, bytes }, accesses,
-        outcome: "unsupported", reason: "unaligned-address", fault: { operation: item.operation, address: item.address } });
-      assert.deepEqual(ram.accesses, accesses);
+      const expected = addressErrorRecord({ before, instruction: { address: state.pc, bytes }, accesses, fault: { operation: item.operation, address: item.address } });
+      assert.deepEqual(new Cpu68000(ram, before).step(), expected);
+      assert.deepEqual(ram.accesses, expected.accesses);
       assert.equal(ram.read(0x30000), 0xaa);
     }
   }
@@ -793,7 +814,7 @@ test("68000 MOVE host errors retain only completed accesses and commit address u
     assert.throws(() => cpu.step(), error => error === failure);
     const after = writing ? { ...before, a0: 0xab020004, a1: 0xcd030004 } : before;
     // Flags wait for the full write; PC waits for a successful instruction. Neither changes here.
-    assert.deepEqual(cpu.snapshot(), snapshot(after));
+    assert.deepEqual(cpu.snapshot(), snapshot({ ...after, ir: 0x22d8 }));
     assert.deepEqual(ram.accesses, [
       { kind: "read", address: 0x1000, value: 0x22 }, { kind: "read", address: 0x1001, value: 0xd8 },
       ...value.slice(0, writing ? 4 : byte).map((v, i) => ({ kind: "read", address: 0x20000 + i, value: v })),
@@ -827,12 +848,11 @@ test("68000 every word/long memory mode reports full odd read/write addresses wi
         const bytes = [...wordBytes(opcode), ...extension];
         bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
         ram.accesses.length = 0;
-        const cpu = new Cpu68000(ram, state);
         const before = snapshot(state);
-        const accesses = bytes.map((value, offset) => ({ kind: "read", address: 0x1000 + offset, value }));
-        assert.deepEqual(cpu.step(), { before, after: before, instruction: { address: state.pc, bytes }, accesses,
-          outcome: "unsupported", reason: "unaligned-address", fault: { operation, address } });
-        assert.deepEqual(ram.accesses, accesses);
+        const accesses = bytes.map((value, offset) => ({ kind: "read" as const, address: 0x1000 + offset, value }));
+        const expected = addressErrorRecord({ before, instruction: { address: state.pc, bytes }, accesses, fault: { operation, address } });
+        assert.deepEqual(new Cpu68000(ram, before).step(), expected);
+        assert.deepEqual(ram.accesses, expected.accesses);
       }
     }
   }
@@ -950,6 +970,7 @@ function checkAlu(ram: ObservedRam, before: Cpu68000State, form: AluForm,
   }
   const cpu = new Cpu68000(ram, before);
   ram.accesses.length = 0;
+  after.ir = bytes[0]! * 256 + bytes[1]!;
   assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), outcome: "executed",
     instruction: { address: before.pc, bytes }, accesses }, `${name} ${bytes.slice(0, 2).map(b => b.toString(16)).join(" ")}`);
   assert.deepEqual(cpu.snapshot(), snapshot(after));
@@ -1044,7 +1065,7 @@ test("68000 CMPA compares against its own updated source pointer, preserving X a
   }
 });
 
-test("68000 all word/long arithmetic and logic memory modes reject odd reads atomically, including pending An updates", () => {
+test("68000 all word/long arithmetic and logic memory modes enter vector 3 before committing pending An updates", () => {
   const ram = new ObservedRam(0x1000000);
   for (const form of [...arithmeticForms, ...logicForms].filter(form => form.size !== 1)) for (const bits of [0, 127]) {
     const state = transferState(bits);
@@ -1060,14 +1081,13 @@ test("68000 all word/long arithmetic and logic memory modes reject odd reads ato
       const bytes = [...wordBytes(form.base + 7 * 512 + ea.code), ...extension];
       bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
       ram.write(physical(address), 0xa5);
-      const cpu = new Cpu68000(ram, state);
       const before = snapshot(state);
-      const accesses = bytes.map((value, offset) => ({ kind: "read", address: 0x1000 + offset, value }));
+      const accesses = bytes.map((value, offset) => ({ kind: "read" as const, address: 0x1000 + offset, value }));
       for (let attempt = 0; attempt < 2; attempt++) {
         ram.accesses.length = 0;
-        assert.deepEqual(cpu.step(), { before, after: before, instruction: { address: state.pc, bytes }, accesses,
-          outcome: "unsupported", reason: "unaligned-address", fault: { operation: "read", address } });
-        assert.deepEqual(ram.accesses, accesses);
+        const expected = addressErrorRecord({ before, instruction: { address: state.pc, bytes }, accesses, fault: { operation: "read", address } });
+        assert.deepEqual(new Cpu68000(ram, before).step(), expected);
+        assert.deepEqual(ram.accesses, expected.accesses);
         assert.equal(ram.read(physical(address)), 0xa5);
       }
     }
@@ -1227,6 +1247,7 @@ function checkImmediate(ram: ObservedRam, before: Cpu68000State, name: Immediate
   }
   const cpu = new Cpu68000(ram, before);
   ram.accesses.length = 0;
+  after.ir = bytes[0]! * 256 + bytes[1]!;
   assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), outcome: "executed",
     instruction: { address: before.pc, bytes }, accesses }, `${name} ${opcode.toString(16)}`);
   assert.deepEqual(cpu.snapshot(), snapshot(after));
@@ -1314,7 +1335,7 @@ test("68000 immediate read/modify/write wraps addresses, updates either stack on
   }
 });
 
-test("68000 immediate ALU rejects every odd word/long memory mode without operand reads, writes, flags, or auto-updates", () => {
+test("68000 immediate ALU enters vector 3 for every odd word/long EA before operand access or writeback", () => {
   const ram = new ObservedRam(0x1000000);
   for (const { base } of immediateFamilies) for (const [size, code] of [[2, 0x40], [4, 0x80]] as const) {
     for (const bits of [0, 127]) {
@@ -1326,36 +1347,35 @@ test("68000 immediate ALU rejects every odd word/long memory mode without operan
       for (const destination of destinations) {
         if (destination.code > 57 || destination.address === undefined || destination.address % 2 === 0) continue;
         const bytes = [...wordBytes(base + code + destination.code), ...bytesFor(size, 1), ...destination.extension];
-        const accesses = bytes.map((value, offset) => ({ kind: "read", address: 0x1000 + offset, value }));
+        const accesses = bytes.map((value, offset) => ({ kind: "read" as const, address: 0x1000 + offset, value }));
         for (const { address, value } of accesses) ram.write(address, value);
-        const cpu = new Cpu68000(ram, state);
         const before = snapshot(state);
         for (let attempt = 0; attempt < 2; attempt++) {
           ram.accesses.length = 0;
-          assert.deepEqual(cpu.step(), { before, after: before, instruction: { address: state.pc, bytes }, accesses,
-            outcome: "unsupported", reason: "unaligned-address", fault: { operation: "read", address: destination.address } });
-          assert.deepEqual(ram.accesses, accesses);
+          const expected = addressErrorRecord({ before, instruction: { address: state.pc, bytes }, accesses, fault: { operation: "read", address: destination.address } });
+          assert.deepEqual(new Cpu68000(ram, before).step(), expected);
+          assert.deepEqual(ram.accesses, expected.accesses);
         }
       }
     }
   }
 });
 
-test("68000 immediate alignment rejection can be retried with changed RAM and retains detached fault records", () => {
+test("68000 immediate address errors retain detached records while restored boundaries use changed RAM", () => {
   const ram = new ObservedRam(0x1000000);
   const state = transferState(127);
   const cpu = new Cpu68000(ram, state);
   [0x04, 0x79, 0, 1, 0xff, 0xff, 0xff, 0xff].forEach((value, offset) => ram.write(0x1000 + offset, value));
   const rejected = cpu.step();
-  assert.equal(rejected.outcome, "unsupported");
+  assert.equal(rejected.exception?.source, "address-error");
   const saved = structuredClone(rejected);
   ram.write(0x1007, 0xfe);
   ram.write(0x1003, 2);
   ram.write(0xfffffe, 0);
   ram.write(0xffffff, 1);
-  const record = cpu.step();
+  const record = new Cpu68000(ram, state).step();
   assert.equal(record.outcome, "executed");
-  assert.deepEqual(record.after, snapshot({ ...state, pc: state.pc + 8,
+  assert.deepEqual(record.after, snapshot({ ...state, ir: 0x0479, pc: state.pc + 8,
     flags: { ...state.flags, x: true, n: true, z: false, v: false, c: true } }));
   assert.deepEqual(record.accesses.slice(-4), [
     { kind: "read", address: 0xfffffe, value: 0 }, { kind: "read", address: 0xffffff, value: 1 },
@@ -1390,17 +1410,14 @@ function conditionResult(truth: number, { n, z, v, c }: Cpu68000Flags): boolean 
   return Math.floor(truth / 2 ** row) % 2 === 1;
 }
 
-function checkControlRejection(ram: ObservedRam, before: Cpu68000State, bytes: readonly number[],
+function checkControlAddressError(ram: ObservedRam, before: Cpu68000State, bytes: readonly number[],
   operation: "fetch" | "read" | "write", address: number, data: readonly Cpu68000MemoryAccess[] = []): void {
   const fetches = bytes.map((value, offset) => ({ kind: "read" as const, address: physical(before.pc + offset), value }));
   for (const { address, value } of fetches) ram.write(address, value);
   ram.accesses.length = 0;
-  const cpu = new Cpu68000(ram, before);
-  assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(before), outcome: "unsupported",
-    reason: "unaligned-address", instruction: { address: before.pc, bytes }, fault: { operation, address },
-    accesses: [...fetches, ...data] });
-  assert.deepEqual(cpu.snapshot(), snapshot(before));
-  assert.deepEqual(ram.accesses, [...fetches, ...data]);
+  const expected = addressErrorRecord({ before: snapshot(before), instruction: { address: before.pc, bytes }, fault: { operation, address }, accesses: [...fetches, ...data] });
+  assert.deepEqual(new Cpu68000(ram, before).step(), expected);
+  assert.deepEqual(ram.accesses, expected.accesses);
 }
 
 function checkBranch(ram: ObservedRam, before: Cpu68000State, branch: number, byte: number, word: number, take: boolean): void {
@@ -1410,7 +1427,7 @@ function checkBranch(ram: ObservedRam, before: Cpu68000State, branch: number, by
   const returnAddress = unsignedLong(before.pc + bytes.length);
   const after = { ...before, flags: { ...before.flags }, pc: take ? target : returnAddress };
   if (take && target % 2 !== 0) {
-    checkControlRejection(ram, before, bytes, "fetch", target);
+    checkControlAddressError(ram, before, bytes, "fetch", target);
     return;
   }
   const writes: Cpu68000MemoryAccess[] = [];
@@ -1453,7 +1470,7 @@ function checkDecrementBranch(ram: ObservedRam, before: Cpu68000State, opcode: n
   const take = !condition && counter !== 65535;
   const target = unsignedLong(before.pc + 2 + (word < 32768 ? word : word - 65536));
   if (take && target % 2 !== 0) {
-    checkControlRejection(ram, before, bytes, "fetch", target);
+    checkControlAddressError(ram, before, bytes, "fetch", target);
     return;
   }
   checkStep(ram, before, bytes, { ...before, pc: take ? target : unsignedLong(before.pc + 4),
@@ -1518,21 +1535,21 @@ test("68000 RTS reads current big-endian return addresses, including zero, high 
     const stack = s ? "ssp" : "usp";
     const reads = longBytes(target).map((value, offset) => ({ kind: "read" as const, address: physical(before[stack] + offset), value }));
     for (const { address, value } of reads) ram.write(address, value);
-    if (target % 2) checkControlRejection(ram, before, [0x4e, 0x75], "fetch", target, reads);
+    if (target % 2) checkControlAddressError(ram, before, [0x4e, 0x75], "fetch", target, reads);
     else checkStep(ram, before, [0x4e, 0x75], { ...before, pc: target, [stack]: unsignedLong(before[stack] + 4) }, reads);
   }
 });
 
-test("68000 odd stack addresses reject calls before writes and returns before reads, preserving all state", () => {
+test("68000 odd call and return stack addresses enter vector 3 before instruction stack changes", () => {
   const ram = new ObservedRam(0x1000000);
   for (const s of [false, true]) for (const address of [1, 3, 0x12ffffff, 0xffffffff]) {
     const stack = s ? "ssp" : "usp";
     const before = initialState({ [stack]: address, flags: { ...flags(127), s } });
     for (const bytes of [[0x61, 2], [0x61, 0, 0x80, 0], [0x61, 1]]) {
       // Stack alignment takes priority when both the stack and taken target are odd.
-      checkControlRejection(ram, before, bytes, "write", unsignedLong(address - 4));
+      checkControlAddressError(ram, before, bytes, "write", unsignedLong(address - 4));
     }
-    checkControlRejection(ram, before, [0x4e, 0x75], "read", address);
+    checkControlAddressError(ram, before, [0x4e, 0x75], "read", address);
   }
 });
 
@@ -1552,7 +1569,7 @@ test("68000 call fetches finish before overlapping stack writes, and return read
   ]);
 });
 
-test("68000 retries rejected control transfers using current RAM, retaining detached fault records", () => {
+test("68000 restored control-transfer boundaries use current RAM and retain detached address-error records", () => {
   const ram = new ObservedRam(0x1000000);
   for (const kind of ["call", "counter", "return"] as const) {
     const before = initialState({ d0: 0xabcd0002, flags: flags(0) });
@@ -1561,11 +1578,11 @@ test("68000 retries rejected control transfers using current RAM, retaining deta
     bytes.forEach((value, offset) => ram.write(0x1000 + offset, value));
     longBytes(0xab001001).forEach((value, offset) => ram.write(physical(before.usp + offset), value));
     const fault = cpu.step();
-    assert.equal(fault.outcome, "unsupported");
+    assert.equal(fault.exception?.source, "address-error");
     const saved = structuredClone(fault);
-    assert.deepEqual(cpu.step(), fault);
+    assert.deepEqual(new Cpu68000(ram, before).step(), fault);
     ram.write(kind === "return" ? physical(before.usp + 3) : 0x1003, kind === "return" ? 4 : 2);
-    const executed = cpu.step();
+    const executed = new Cpu68000(ram, before).step();
     assert.equal(executed.outcome, "executed");
     assert.equal(executed.after.pc, 0xab001004);
     assert.equal(executed.after.d0, kind === "counter" ? 0xabcd0001 : before.d0);
@@ -1573,7 +1590,7 @@ test("68000 retries rejected control transfers using current RAM, retaining deta
     assert.deepEqual(executed.after.flags, before.flags);
     assert.deepEqual(fault, saved);
     Reflect.set(fault.after.flags, "x", true);
-    assert.deepEqual(cpu.snapshot().flags, before.flags);
+    assert.deepEqual(new Cpu68000(ram, before).snapshot().flags, before.flags);
   }
 });
 
@@ -1627,9 +1644,9 @@ test("68000 address operations preserve odd EAs, validate taken targets, and res
     checkStep(ram, before, [0x41, 0xd0], { ...before, pc: before.pc + 2 }); // LEA (A0),A0
     checkStep(ram, before, [0x48, 0x50], { ...before, [stack]: pushed, pc: before.pc + 2 },
       memoryAccesses("write", pushed, longBytes(address))); // PEA (A0), no target read
-    for (const opcode of [0x4e90, 0x4ed0]) checkControlRejection(ram, before, wordBytes(opcode), "fetch", address);
+    for (const opcode of [0x4e90, 0x4ed0]) checkControlAddressError(ram, before, wordBytes(opcode), "fetch", address);
     for (const opcode of [0x4850, 0x4e90]) {
-      checkControlRejection(ram, { ...before, [stack]: 3 }, wordBytes(opcode), "write", 0xffffffff);
+      checkControlAddressError(ram, { ...before, [stack]: 3 }, wordBytes(opcode), "write", 0xffffffff);
     }
     // A7 as both source and destination must not be changed until its EA has been captured.
     const even = transferState(bits);
@@ -1672,7 +1689,7 @@ test("68000 LINK/UNLK select every An and active stack, preserving flags and han
   }
 });
 
-test("68000 LINK signed allocations cover every word; frames wrap and reject odd accesses atomically", () => {
+test("68000 LINK signed allocations cover every word; frames wrap and fault before operand commits", () => {
   const ram = new ObservedRam(0x1000000);
   const before = initialState({ ssp: 2 });
   for (let displacement = 0; displacement < 65536; displacement++) {
@@ -1683,8 +1700,8 @@ test("68000 LINK signed allocations cover every word; frames wrap and reject odd
   for (const bits of [0, 127]) {
     const state = transferState(bits);
     const stack = state.flags.s ? "ssp" : "usp";
-    checkControlRejection(ram, { ...state, [stack]: 3 }, [0x4e, 0x56, 0xff, 0xf0], "write", 0xffffffff);
-    checkControlRejection(ram, { ...state, a6: 0xffffffff }, [0x4e, 0x5e], "read", 0xffffffff);
+    checkControlAddressError(ram, { ...state, [stack]: 3 }, [0x4e, 0x56, 0xff, 0xf0], "write", 0xffffffff);
+    checkControlAddressError(ram, { ...state, a6: 0xffffffff }, [0x4e, 0x5e], "read", 0xffffffff);
     longBytes(0x12345679).forEach((value, offset) => ram.write(physical(0xfffffffe + offset), value));
     checkStep(ram, { ...state, a6: 0xfffffffe }, [0x4e, 0x5e],
       { ...state, a6: 0x12345679, [stack]: 2, pc: state.pc + 2 }, memoryAccesses("read", 0xfffffffe, longBytes(0x12345679)));
@@ -1732,6 +1749,7 @@ function checkMultiple(ram: ObservedRam, before: Cpu68000State, form: typeof mul
   }
   ram.accesses.length = 0;
   const cpu = new Cpu68000(ram, before);
+  after.ir = bytes[0]! * 256 + bytes[1]!;
   assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), outcome: "executed",
     instruction: { address: before.pc, bytes }, accesses });
   assert.deepEqual(ram.accesses, accesses);
@@ -1809,19 +1827,18 @@ test("68000 MOVEM rejects odd transfers before writes or register changes, but a
       const ea = transferFixtures(before, form.size, before.pc + 4).find(ea => ea.code === code)!;
       checkMultiple(ram, before, form, ea, 0);
       for (const mask of [1, 0x8000, 0xffff]) {
-        checkControlRejection(ram, before, [...wordBytes(form.base + code), ...wordBytes(mask)],
+        checkControlAddressError(ram, before, [...wordBytes(form.base + code), ...wordBytes(mask)],
           form.load ? "read" : "write", ea.address!);
       }
     }
   }
-  // Correct the live address extension after rejection; the same CPU retries with unchanged state.
+  // Correct the address extension, then restore the original boundary to retry.
   const before = transferState();
   [0x48, 0xf9, 0xff, 0xff, 0xab, 0, 0x30, 1].forEach((value, offset) => ram.write(0x1000 + offset, value));
   const cpu = new Cpu68000(ram, before);
-  assert.equal(cpu.step().outcome, "unsupported");
-  assert.deepEqual(cpu.snapshot(), snapshot(before));
+  assert.equal(cpu.step().exception?.source, "address-error");
   ram.write(0x1007, 0);
-  const saved = cpu.step();
+  const saved = new Cpu68000(ram, before).step();
   assert.equal(saved.outcome, "executed");
   const expected = structuredClone(saved);
   cpu.reset();
@@ -1908,6 +1925,7 @@ function checkSingleOperand(ram: ObservedRam, before: Cpu68000State, name: Singl
   }
   const cpu = new Cpu68000(ram, before);
   ram.accesses.length = 0;
+  after.ir = bytes[0]! * 256 + bytes[1]!;
   assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), instruction: { address: before.pc, bytes },
     accesses, outcome: "executed" }, `${name} ${opcode.toString(16)}`);
   assert.deepEqual(cpu.snapshot(), snapshot(after));
@@ -2055,7 +2073,7 @@ test("68000 unary/quick/Scc memory access wraps, updates active A7 once, and fet
   }
 });
 
-test("68000 unary/quick word and long alignment rejection preserves every memory mode, flags, and pending updates", () => {
+test("68000 unary/quick word and long address errors discard pending operand updates in every memory mode", () => {
   const ram = new ObservedRam(0x1000000);
   for (const { opcodes } of [...unaryFamilies, ...quickFamilies]) for (const [index, base] of opcodes.entries()) {
     if (index === 0) continue;
@@ -2068,7 +2086,7 @@ test("68000 unary/quick word and long alignment rejection preserves every memory
         { code: 57, extension: [0xab, 0xff, 0xff, 0xff], address: 0xabffffff });
       for (const ea of destinations) {
         if (ea.code > 57 || ea.address === undefined || ea.address % 2 === 0) continue;
-        checkControlRejection(ram, before, [...wordBytes(base + ea.code), ...ea.extension], "read", ea.address);
+        checkControlAddressError(ram, before, [...wordBytes(base + ea.code), ...ea.extension], "read", ea.address);
       }
     }
   }
@@ -2081,11 +2099,11 @@ test("68000 unary alignment faults retry from live RAM without changing retained
   const cpu = new Cpu68000(ram, before);
   const fault = cpu.step();
   const savedFault = structuredClone(fault);
-  assert.equal(fault.outcome, "unsupported");
-  assert.deepEqual(cpu.snapshot(), snapshot(before));
+  assert.equal(fault.exception?.source, "address-error");
+  assert.equal(cpu.snapshot().ssp, before.ssp - 14);
   ram.write(0x1005, 0);
   [0x12, 0x34, 0x56, 0x78].forEach((value, offset) => ram.write(0x3000 + offset, value));
-  const record = cpu.step();
+  const record = new Cpu68000(ram, before).step();
   const saved = structuredClone(record);
   assert.equal(record.outcome, "executed");
   assert.deepEqual(record.accesses.slice(-8), [...memoryAccesses("read", 0x3000, [0x12, 0x34, 0x56, 0x78]), ...memoryAccesses("write", 0x3000, [0, 0, 0, 0])]);
@@ -2169,6 +2187,7 @@ function checkMemoryShift(ram: ObservedRam, before: Cpu68000State, name: ShiftNa
     ...memoryAccesses("write", address, wordBytes(expected.result))];
   const cpu = new Cpu68000(ram, before);
   ram.accesses.length = 0;
+  after.ir = bytes[0]! * 256 + bytes[1]!;
   assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), accesses,
     instruction: { address: before.pc, bytes }, outcome: "executed" });
   assert.deepEqual(cpu.snapshot(), snapshot(after));
@@ -2286,7 +2305,7 @@ test("68000 memory shifts reject odd addresses in every memory mode without read
       { code: 57, extension: [0xab, 0xff, 0xff, 0xff], address: 0xabffffff });
     for (const ea of addresses) {
       if (ea.code > 57 || ea.address === undefined || ea.address % 2 === 0) continue;
-      checkControlRejection(ram, before, [...wordBytes(memory + ea.code), ...ea.extension], "read", ea.address);
+      checkControlAddressError(ram, before, [...wordBytes(memory + ea.code), ...ea.extension], "read", ea.address);
     }
   }
 });
@@ -2355,6 +2374,7 @@ function checkBit(ram: ObservedRam, before: Cpu68000State, name: BitName, opcode
   }
   const cpu = new Cpu68000(ram, before);
   ram.accesses.length = 0;
+  after.ir = bytes[0]! * 256 + bytes[1]!;
   assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after), accesses,
     instruction: { address: before.pc, bytes }, outcome: "executed" }, `${name} ${opcode.toString(16)}`);
   assert.deepEqual(cpu.snapshot(), snapshot(after));
@@ -2568,13 +2588,15 @@ function checkPaired(ram: ObservedRam, before: Cpu68000State, family: PairedFami
   }
   const cpu = runningCpu ?? new Cpu68000(ram, before);
   ram.accesses.length = 0;
+  after.ir = bytes[0]! * 256 + bytes[1]!;
   const expected = invalidSource || invalidDestination
-    ? { before: snapshot(before), after: snapshot(before), accesses, instruction: { address: before.pc, bytes },
-      outcome: "unsupported", reason: "unaligned-address", fault: { operation: "read", address: invalidSource ? sourceAddress : destinationAddress } }
+    ? addressErrorRecord({ before: snapshot(before), accesses, instruction: { address: before.pc, bytes },
+      fault: { operation: "read", address: (invalidSource ? sourceAddress : destinationAddress)! } })
     : { before: snapshot(before), after: snapshot(after), accesses, instruction: { address: before.pc, bytes }, outcome: "executed" };
   assert.deepEqual(cpu.step(), expected, `${name} ${mode} ${size} ${source},${destination}`);
   assert.deepEqual(cpu.snapshot(), expected.after);
-  assert.deepEqual(ram.accesses, accesses);
+  assert.deepEqual(ram.accesses, expected.accesses);
+  for (const access of expected.accesses) if (access.kind === "write") memory.set(access.address, access.value);
   for (const [address, byte] of memory) assert.equal(ram.read(address), byte);
 }
 
@@ -2614,7 +2636,7 @@ for (const family of pairedFamilies) {
   });
 }
 
-test("68000 paired memory ALU preserves state on source or destination alignment faults and can retry as bytes", () => {
+test("68000 paired memory ALU discards pending operand changes on address errors and restored boundaries can execute as bytes", () => {
   const ram = new ObservedRam(0x1000000);
   for (const family of pairedFamilies.filter(family => family.mode !== "register")) for (const bits of [0, 127]) {
     for (let source = 0; source < 8; source++) for (let destination = 0; destination < 8; destination++) {
@@ -2625,7 +2647,7 @@ test("68000 paired memory ALU preserves state on source or destination alignment
         if (odd !== "source" && (source !== destination || odd === "destination")) before[registers[destination]!]++;
         const cpu = new Cpu68000(ram, before);
         checkPaired(ram, before, family, index, source, destination, 0x01234567, 0x89abcdef, cpu);
-        checkPaired(ram, before, family, 0, source, destination, 0x67, 0xef, cpu);
+        checkPaired(ram, before, family, 0, source, destination, 0x67, 0xef);
       }
     }
   }
@@ -2676,6 +2698,7 @@ function checkOrdinary(ram: ObservedRam, before: Cpu68000State, bytes: readonly 
   ram.accesses.length = 0;
   const cpu = runningCpu ?? new Cpu68000(ram, before);
   const accesses = [...memoryAccesses("read", before.pc, bytes), ...data];
+  after.ir = bytes[0]! * 256 + bytes[1]!;
   assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot(after),
     instruction: { address: before.pc, bytes }, outcome, accesses });
   assert.deepEqual(ram.accesses, accesses);
@@ -2992,10 +3015,13 @@ test("68000 RTR restores only CCR and full PC, validates before committing, and 
       const record = new Cpu68000(ram, before).step();
       const oddStack = address % 2 !== 0, oddTarget = target % 2 !== 0;
       const after = { ...before, pc: target, [supervisor ? "ssp" : "usp"]: unsignedLong(address + 6), flags: statusFlags(0xffe0, before.flags, false) };
-      assert.deepEqual(record, { before: snapshot(before), after: snapshot(oddStack || oddTarget ? before : after),
-        instruction: { address: before.pc, bytes }, accesses: [...memoryAccesses("read", before.pc, bytes), ...(oddStack ? [] : memoryAccesses("read", address, frame))],
-        ...(oddStack || oddTarget ? { outcome: "unsupported", reason: "unaligned-address", fault: {
-          operation: oddStack ? "read" : "fetch", address: oddStack ? address : target } } : { outcome: "executed" }) });
+      after.ir = 0x4e77;
+      const accesses = [...memoryAccesses("read", before.pc, bytes), ...(oddStack ? [] : memoryAccesses("read", address, frame))];
+      const expected = oddStack || oddTarget
+        ? addressErrorRecord({ before: snapshot(before), instruction: { address: before.pc, bytes }, accesses,
+          fault: { operation: oddStack ? "read" : "fetch", address: oddStack ? address : target } })
+        : { before: snapshot(before), after: snapshot(after), instruction: { address: before.pc, bytes }, accesses, outcome: "executed" };
+      assert.deepEqual(record, expected);
       assert.deepEqual(ram.accesses, record.accesses);
     }
   }
@@ -3033,7 +3059,7 @@ test("68000 NOP preserves state and STOP owns a validated, restorable latch clea
   }
 });
 
-test("68000 new word-source operations and MOVE from SR reject every odd memory EA atomically", () => {
+test("68000 word-source operations and MOVE from SR fault on every odd memory EA before operand commits", () => {
   const ram = new ObservedRam(0x1000000);
   for (const base of [0x4180, 0x44c0, 0x46c0, 0xc0c0, 0xc1c0, 0x80c0, 0x81c0, 0x40c0]) {
     const before = transferState(127);
@@ -3048,9 +3074,8 @@ test("68000 new word-source operations and MOVE from SR reject every odd memory 
       bytes.forEach((b, i) => ram.write(0x1000 + i, b));
       ram.accesses.length = 0;
       const record = new Cpu68000(ram, before).step();
-      assert.deepEqual(record, { before: snapshot(before), after: snapshot(before), instruction: { address: before.pc, bytes },
-        accesses: memoryAccesses("read", before.pc, bytes), outcome: "unsupported", reason: "unaligned-address",
-        fault: { operation: "read", address: ea.address } });
+      const expected = addressErrorRecord({ before: snapshot(before), instruction: { address: before.pc, bytes }, accesses: memoryAccesses("read", before.pc, bytes), fault: { operation: "read", address: ea.address! } });
+      assert.deepEqual(record, expected);
       assert.deepEqual(ram.accesses, record.accesses);
     }
   }
@@ -3071,6 +3096,7 @@ function checkException(ram: ObservedRam, before: Cpu68000State, bytes: number[]
   const cpu = new Cpu68000(ram, before);
   const record = cpu.step();
   const after = { ...completed, ssp: stack, pc: target, flags: { ...completed.flags, s: true, t: false } };
+  after.ir = bytes[0]! * 256 + bytes[1]!;
   assert.deepEqual(record, { before: snapshot(before), after: snapshot(after), instruction: { address: before.pc, bytes },
     outcome: "executed", exception: { source, vector, returnPc }, accesses: [
       ...memoryAccesses("read", before.pc, bytes), ...operandReads,
@@ -3135,16 +3161,16 @@ test("68000 illegal and emulator-line RTE returns retry the original word withou
       const saved = structuredClone(entry);
       const restored = new Cpu68000(ram, entry.after);
       const returned = restored.step();
-      assert.deepEqual(returned.after, snapshot(before));
+      assert.deepEqual(returned.after, snapshot({ ...before, ir: 0x4e73 }));
       assert.equal(returned.exception, undefined);
       // Returning to the same word faults again; neither entry nor RTE manufactured a trace.
       const retry = new Cpu68000(ram, returned.after).step();
-      assert.deepEqual(retry, entry);
+      assert.deepEqual(retry, { ...entry, before: returned.after });
       assert.deepEqual(entry, saved);
       Reflect.set(retry.exception!, "source", "edited");
       Reflect.set(retry.after.flags, "c", !retry.after.flags.c);
       assert.deepEqual(entry, saved);
-      assert.deepEqual(restored.snapshot(), snapshot(before));
+      assert.deepEqual(restored.snapshot(), snapshot({ ...before, ir: 0x4e73 }));
     }
   }
 });
@@ -3156,17 +3182,23 @@ test("68000 illegal and emulator-line vectors can be zero, odd, or overwritten b
       const before = initialState({ flags: { ...flags(31), t: true } });
       wordBytes(opcode).forEach((b, i) => ram.write(physical(before.pc + i), b));
       longBytes(target).forEach((b, i) => ram.write(vector * 4 + i, b));
+      for (let i = 12; i < 16; i++) ram.write(i, 0);
       ram.accesses.length = 0;
       const cpu = new Cpu68000(ram, before);
       const entry = cpu.step();
       assert.equal(entry.outcome, "executed");
-      assert.equal(entry.after.pc, target);
+      assert.equal(entry.after.pc, target % 2 ? 0 : target);
       assert.equal(entry.after.tracePending, false);
-      assert.equal(entry.accesses.length, 12);
-      assert.deepEqual(entry.accesses.slice(-4), memoryAccesses("read", vector * 4, longBytes(target)));
+      assert.equal(entry.accesses.length, target % 2 ? 30 : 12);
+      assert.deepEqual(entry.accesses.slice(8, 12), memoryAccesses("read", vector * 4, longBytes(target)));
       assert.deepEqual(ram.accesses, entry.accesses);
-      if (target % 2) assert.deepEqual(cpu.step(), { before: entry.after, after: entry.after, instruction: null, accesses: [],
-        outcome: "unsupported", reason: "unaligned-address", fault: { operation: "fetch", address: target } });
+      if (target % 2) {
+        assert.equal(entry.exception?.source, "address-error");
+        if (entry.exception?.source !== "address-error") assert.fail();
+        assert.deepEqual(entry.exception.fault, { operation: "fetch", address: target,
+          instructionRegister: opcode, functionCode: 6, processingInstruction: false });
+      }
+
     }
     const before = initialState({ pc: 0x12345678, ssp: vector * 4 + 4 });
     wordBytes(opcode).forEach((b, i) => ram.write(physical(before.pc + i), b));
@@ -3236,20 +3268,21 @@ test("68000 exception stacking precedes overlapping vector reads and fetches no 
   assert.deepEqual(ram.accesses, record.accesses);
 });
 
-test("68000 odd exception stacks and RTE addresses expose the deferred address-error boundary", () => {
+test("68000 odd exception stacks halt and RTE alignment faults enter vector 3", () => {
   const ram = new ObservedRam(0x1000000);
-  for (const [opcode, vector] of [[0x4e40, 32], [0x4afc, 4], [0x80df, 5], [0x419f, 6],
-    [0x4afa, 4], [0xa123, 10], [0xfedc, 11]] as const) {
+  for (const opcode of [0x4e40, 0x4afc, 0x80df, 0x419f, 0x4afa, 0xa123, 0xfedc]) {
     const before = initialState({ ssp: 0x1001, usp: 0xfffffffe, d0: 0xffffffff, flags: { ...flags(63), t: true } });
     wordBytes(opcode).forEach((b, i) => ram.write(0x1000 + i, b));
     ram.write(0xfffffe, 0); ram.write(0xffffff, 0);
     const step = new Cpu68000(ram, before).step();
-    assert.equal(step.outcome, "unsupported");
-    if (step.outcome !== "unsupported" || step.reason !== "unaligned-address") assert.fail("Expected an alignment boundary");
-    assert.deepEqual(step.fault, { operation: "write", address: 0xfff });
-    assert.equal(step.exception?.vector, vector);
-    const after = { ...before, ...(opcode === 0x80df || opcode === 0x419f ? { usp: 0 } : {}),
-      flags: { ...before.flags, ...(opcode === 0x80df ? { c: false } : opcode === 0x419f ? { n: true } : {}) } };
+    assert.equal(step.outcome, "halted");
+    if (step.exception?.source !== "address-error") assert.fail();
+    assert.deepEqual(step.exception.fault, { operation: "write", address: 0xfff, instructionRegister: opcode,
+      functionCode: 5, processingInstruction: [0x4e40, 0x80df, 0x419f].includes(opcode) });
+    assert.deepEqual(step.exception.entryFault, { operation: "write", address: 0xff9 });
+    const after = { ...before, ir: opcode, ssp: 0xfed, faulted: true,
+      ...(opcode === 0x80df || opcode === 0x419f ? { usp: 0 } : {}),
+      flags: { ...before.flags, s: true, t: false, ...(opcode === 0x80df ? { c: false } : opcode === 0x419f ? { n: true } : {}) } };
     assert.deepEqual(step.after, snapshot(after));
     assert.ok(step.accesses.every(access => access.kind === "read"));
   }
@@ -3259,23 +3292,13 @@ test("68000 odd exception stacks and RTE addresses expose the deferred address-e
     ram.write(0x1000, 0x4e); ram.write(0x1001, 0x73);
     const step = new Cpu68000(ram, before).step();
     if (stack % 2 || target % 2) {
-      assert.equal(step.outcome, "unsupported");
-      assert.deepEqual(step.after, snapshot(before));
-      if (step.outcome !== "unsupported" || step.reason !== "unaligned-address") assert.fail();
-      assert.deepEqual(step.fault, { operation: stack % 2 ? "read" : "fetch", address: stack % 2 ? stack : target });
-      assert.equal(step.accesses.length, stack % 2 ? 2 : 8);
+      assert.equal(step.outcome, stack % 2 ? "halted" : "executed");
+      if (step.exception?.source !== "address-error") assert.fail();
+      assert.equal(step.exception.fault.operation, stack % 2 ? "read" : "fetch");
+      assert.equal(step.exception.fault.address, stack % 2 ? stack : target);
+      assert.equal(step.accesses.length, stack % 2 ? 2 : 26);
     } else assert.equal(step.outcome, "executed");
   }
-  // A valid frame with an odd vector target commits entry, then the next fetch reaches the boundary.
-  const before = initialState();
-  ram.write(0x1000, 0x4e); ram.write(0x1001, 0x40);
-  longBytes(0xffffffff).forEach((b, i) => ram.write(128 + i, b));
-  const cpu = new Cpu68000(ram, before);
-  const entry = cpu.step();
-  assert.equal(entry.outcome, "executed");
-  assert.equal(entry.after.pc, 0xffffffff);
-  assert.deepEqual(cpu.step(), { before: entry.after, after: entry.after, instruction: null, accesses: [],
-    outcome: "unsupported", reason: "unaligned-address", fault: { operation: "fetch", address: 0xffffffff } });
 });
 
 test("68000 nested exceptions and RTE resume user code and restored snapshots without changing earlier records", () => {
@@ -3296,7 +3319,7 @@ test("68000 nested exceptions and RTE resume user code and restored snapshots wi
     [0xcd002002, before.ssp - 6, true, false], [0xab001002, before.ssp, false, false],
     [0xab001004, before.ssp, false, false],
   ]);
-  assert.deepEqual(cpu.snapshot(), snapshot({ ...before, pc: before.pc + 4, d0: 42,
+  assert.deepEqual(cpu.snapshot(), snapshot({ ...before, ir: 0x702a, pc: before.pc + 4, d0: 42,
     flags: { ...before.flags, n: false, z: false, v: false, c: false } }));
   assert.deepEqual(records[0]!.before, snapshot(before));
   assert.deepEqual(records[0]!.exception, { source: "trap", vector: 32, returnPc: before.pc + 2 });
@@ -3338,7 +3361,7 @@ test("68000 callback failures retain completed transfers and release the executi
       const partial = cpu.snapshot();
       const expected = mode === "entry" && stop >= 2 ? { ...before, ssp: before.ssp - 6, flags: { ...before.flags, t: false, s: true } }
         : mode === "reset" && stop >= 4 ? { ...before, ssp: 0x56009000 } : state;
-      assert.deepEqual(partial, snapshot(expected));
+      assert.deepEqual(partial, snapshot({ ...expected, ir: mode !== "reset" && stop >= 2 ? opcode : before.ir }));
       ram.callback = () => {};
       assert.doesNotThrow(() => cpu.reset());
       assert.equal(cpu.step().outcome, "executed");
@@ -3504,8 +3527,9 @@ test("68000 trace follows completed instruction traps and is suppressed by illeg
     const before = initialState({ pc, a0: 1, flags: { ...flags(127), t: true } });
     bytes.forEach((b, i) => ram.write(physical(pc + i), b));
     const record = new Cpu68000(ram, before).step();
-    assert.equal(record.outcome, "unsupported");
-    assert.deepEqual(record.after, snapshot(before));
+    assert.equal(record.exception?.source, "address-error");
+    assert.equal(record.after.tracePending, false);
+    assert.equal(record.after.flags.t, false);
   }
 });
 
@@ -3518,7 +3542,7 @@ test("68000 RESET invokes the live device connection, records it, and preserves 
     const connections = { value: 99, resetDevices() { this.value = 0; calls++; } };
     const cpu = new Cpu68000(ram, before, connections);
     ram.accesses.length = 0;
-    assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot({ ...before, pc: before.pc + 2, tracePending: before.flags.t }),
+    assert.deepEqual(cpu.step(), { before: snapshot(before), after: snapshot({ ...before, ir: 0x4e70, pc: before.pc + 2, tracePending: before.flags.t }),
       instruction: { address: before.pc, bytes: [0x4e, 0x70] }, outcome: "executed",
       accesses: [...memoryAccesses("read", before.pc, [0x4e, 0x70]), { kind: "reset" }] });
     assert.equal(calls, 1); assert.equal(connections.value, 0);
@@ -3530,19 +3554,19 @@ test("68000 RESET invokes the live device connection, records it, and preserves 
   const before = initialState();
   const absent = new Cpu68000(ram, before);
   assert.throws(() => absent.step(), /RESET requires a connected device reset callback/);
-  assert.deepEqual(absent.snapshot(), snapshot(before));
+  assert.deepEqual(absent.snapshot(), snapshot({ ...before, ir: 0x4e70 }));
   let calls = 0, fail = true;
   const failure = new Error("device reset failed");
   const cpu = new Cpu68000(ram, before, { resetDevices: () => {
     calls++;
-    assert.deepEqual(cpu.snapshot(), snapshot(before));
+    assert.deepEqual(cpu.snapshot(), snapshot({ ...before, ir: 0x4e70 }));
     assert.throws(() => cpu.step(), /must not be reentrant/);
     assert.throws(() => cpu.reset(), /must not be reentrant/);
     assert.throws(() => cpu.interrupt(7, () => "autovector"), /must not be reentrant/);
     if (fail) throw failure;
   } });
   assert.throws(() => cpu.step(), error => error === failure);
-  assert.deepEqual(cpu.snapshot(), snapshot(before));
+  assert.deepEqual(cpu.snapshot(), snapshot({ ...before, ir: 0x4e70 }));
   fail = false;
   assert.equal(cpu.step().outcome, "executed");
   assert.equal(calls, 2);
@@ -3557,21 +3581,24 @@ test("68000 pending traces validate, survive snapshots, precede halted and odd P
   }
   const cpu = new Cpu68000(ram, before);
   const record = cpu.step();
-  assert.deepEqual(record, { before: snapshot(before), after: snapshot(before), instruction: null, accesses: [],
-    exception: { source: "trace", vector: 9, returnPc: before.pc }, outcome: "unsupported", reason: "unaligned-address",
-    fault: { operation: "write", address: 0x8fff } });
+  assert.equal(record.outcome, "halted");
+  assert.equal(record.after.faulted, true);
+  assert.equal(record.after.tracePending, false);
+  assert.equal(record.instruction, null);
+  assert.deepEqual(record.accesses, []);
+  if (record.exception?.source !== "address-error") assert.fail();
+  assert.equal(record.exception.fault.processingInstruction, false);
   const restored = new Cpu68000(ram, { ...cpu.snapshot(), ssp: 0x9000 });
-  const trace = restored.step();
-  assert.equal(trace.outcome, "executed");
-  assert.equal(trace.after.halted, false);
-  assert.equal(trace.after.tracePending, false);
-  assert.equal(trace.after.pc, 0);
+  assert.equal(restored.step().outcome, "halted"); // Repairing SSP alone cannot release a terminal halt.
+  assert.equal(restored.interrupt(7, () => { assert.fail("A double fault cannot acknowledge"); }).outcome, "ignored");
   const odd = new Cpu68000(ram, { ...before, tracePending: false });
   let called = false;
-  assert.equal(odd.interrupt(7, () => { called = true; return "autovector"; }).outcome, "unsupported");
+  assert.equal(odd.interrupt(7, () => { called = true; return "autovector"; }).outcome, "halted");
   assert.equal(called, false);
-  assert.deepEqual(odd.snapshot(), snapshot({ ...before, tracePending: false }));
+  assert.equal(odd.snapshot().faulted, true);
   assert.equal(cpu.reset().after.tracePending, false);
+  assert.equal(cpu.snapshot().faulted, false);
+
 });
 
 test("68000 trace and interrupt RAM failures preserve completed transfers and clear reentrancy guards", () => {
@@ -3616,4 +3643,171 @@ test("68000 ignored interrupt snapshots are independently owned", () => {
   const saved = structuredClone(record);
   cpu.interrupt(7, () => "autovector");
   assert.deepEqual(record, saved);
+});
+
+// Address-error delivery: literal frame offsets and status bits from MC68000UM §§6.3.9–6.3.10.
+test("68000 address-error frames identify user/supervisor data, program, and write accesses", () => {
+  const ram = new ObservedRam(0x1000000);
+  const cases = [
+    { bytes: [], pc: 0xab001001, address: 0xab001001, operation: "fetch", code: 2, savedPc: 0xab001001 },
+    { bytes: [0x30, 0x18], pc: 0xab001000, address: 0xcd002001, operation: "read", code: 1, savedPc: 0xab001002 }, // MOVE.W (A0)+,D0
+    { bytes: [0x20, 0x3a, 0, 1], pc: 0xab001000, address: 0xab001003, operation: "read", code: 2, savedPc: 0xab001004 }, // MOVE.L (1,PC),D0
+    { bytes: [0x4c, 0xfa, 0, 1, 0, 1], pc: 0xab001000, address: 0xab001005, operation: "read", code: 2, savedPc: 0xab001006 }, // MOVEM.L (1,PC),D0
+    { bytes: [0x23, 0xc0, 0xff, 0xff, 0xff, 0xff], pc: 0xab001000, address: 0xffffffff, operation: "write", code: 1, savedPc: 0xab001006 },
+    { bytes: [0x60, 1], pc: 0xfffffffe, address: 1, operation: "fetch", code: 2, savedPc: 0 },
+  ] as const;
+  for (const s of [false, true]) for (const item of cases) {
+    const before = initialState({ pc: item.pc, ir: 0x4e71, a0: 0xcd002001, ssp: 0x12009000,
+      flags: { ...flags(31), s, t: true } });
+    item.bytes.forEach((b, i) => ram.write(physical(item.pc + i), b));
+    longBytes(0xef006000).forEach((b, i) => ram.write(12 + i, b));
+    ram.accesses.length = 0;
+    const cpu = new Cpu68000(ram, before);
+    const step = cpu.step();
+    const ir = item.bytes.length ? item.bytes[0]! * 256 + item.bytes[1]! : 0x4e71;
+    const code = item.code + (s ? 4 : 0);
+    const ssw = (item.operation === "write" ? 0 : 16) + code;
+    const frame = [...wordBytes(ssw), ...longBytes(item.address), ...wordBytes(ir), ...wordBytes(statusWord(before)), ...longBytes(item.savedPc)];
+    assert.equal(step.outcome, "executed");
+    assert.deepEqual(step.exception, { source: "address-error", vector: 3, returnPc: item.savedPc,
+      fault: { operation: item.operation, address: item.address, instructionRegister: ir, functionCode: code, processingInstruction: true } });
+    assert.deepEqual(step.after, snapshot({ ...before, ir, ssp: 0x12008ff2, pc: 0xef006000,
+      flags: { ...before.flags, s: true, t: false } }));
+    assert.deepEqual(step.instruction, item.bytes.length ? { address: item.pc, bytes: item.bytes } : null);
+    const writes = [12, 10, 8, 6, 4, 2, 0].flatMap(offset => memoryAccesses("write", 0x8ff2 + offset, frame.slice(offset, offset + 2)));
+    assert.deepEqual(step.accesses, [...memoryAccesses("read", item.pc, item.bytes), ...writes,
+      ...memoryAccesses("read", 12, [0xef, 0, 0x60, 0])]);
+    assert.deepEqual(ram.accesses, step.accesses);
+    frame.forEach((b, i) => assert.equal(ram.read(0x8ff2 + i), b));
+    assert.deepEqual(new Cpu68000(ram, step.after).snapshot(), step.after);
+  }
+});
+
+test("68000 address-error frames wrap and can overwrite their own vector before it is read", () => {
+  for (const ssp of [6, 0x1a]) {
+    const ram = new ObservedRam(0x1000000);
+    const before = initialState({ pc: 1, ir: 0x1234, ssp });
+    longBytes(0xab002000).forEach((b, i) => ram.write(12 + i, b));
+    const record = new Cpu68000(ram, before).step();
+    const stack = unsignedLong(ssp - 14);
+    const frame = [0, 0x16, 0, 0, 0, 1, 0x12, 0x34, 0x22, 0x1f, 0, 0, 0, 1];
+    assert.equal(record.after.ssp, stack);
+    assert.equal(record.after.pc, ssp === 6 ? 0xab002000 : 0x00160000);
+    frame.forEach((b, i) => assert.equal(ram.read(physical(stack + i)), b));
+    assert.deepEqual(record.accesses.slice(-4), memoryAccesses("read", 12, longBytes(record.after.pc)));
+    assert.equal(record.accesses.length, 18);
+  }
+});
+
+test("68000 faults on exception handler fetches retain completed entry and classify the processing phase", () => {
+  const cases = [
+    { opcode: 0x4e40, vector: 32, processing: true }, // Group-2 TRAP
+    { opcode: 0x80fc, vector: 5, processing: true }, // Group-2 divide by zero
+    { opcode: 0x4afa, vector: 4, processing: false },
+    { opcode: 0xa123, vector: 10, processing: false },
+    { opcode: 0xf123, vector: 11, processing: false },
+  ];
+  for (const item of cases) {
+    const ram = new ObservedRam(0x1000000);
+    const before = initialState({ flags: { ...flags(31), t: true } });
+    [...wordBytes(item.opcode), 0, 0].forEach((b, i) => ram.write(physical(before.pc + i), b));
+    longBytes(0xcd003001).forEach((b, i) => ram.write(item.vector * 4 + i, b));
+    longBytes(0xef006000).forEach((b, i) => ram.write(12 + i, b));
+    const record = new Cpu68000(ram, before).step();
+    assert.equal(record.outcome, "executed");
+    assert.deepEqual(record.exception, { source: "address-error", vector: 3, returnPc: item.vector * 4,
+      fault: { operation: "fetch", address: 0xcd003001, instructionRegister: item.opcode,
+        functionCode: 6, processingInstruction: item.processing } });
+    assert.equal(record.after.ssp, before.ssp - 20);
+    assert.equal(record.after.tracePending, false);
+    assert.equal(ram.read(physical(before.ssp - 19)), item.processing ? 0x16 : 0x1e);
+    assert.equal(record.after.pc, 0xef006000);
+  }
+  for (const trace of [false, true]) {
+    const ram = new ObservedRam(0x1000000);
+    const before = initialState({ ir: 0x4e71, tracePending: trace });
+    const vector = trace ? 9 : 31;
+    longBytes(0xcd003001).forEach((b, i) => ram.write(vector * 4 + i, b));
+    longBytes(0xef006000).forEach((b, i) => ram.write(12 + i, b));
+    const cpu = new Cpu68000(ram, before);
+    const record = trace ? cpu.step() : cpu.interrupt(7, () => "autovector");
+    assert.equal(record.outcome, "executed");
+    assert.deepEqual(record.exception, { source: "address-error", vector: 3, returnPc: vector * 4,
+      fault: { operation: "fetch", address: 0xcd003001, instructionRegister: 0x4e71, functionCode: 6, processingInstruction: false } });
+    assert.equal(record.after.ssp, before.ssp - 20);
+    assert.equal(record.after.interruptMask, trace ? 2 : 7);
+    assert.equal(record.instruction, null);
+  }
+});
+
+test("68000 terminal address errors survive snapshots and level 7 until a successful external reset", () => {
+  for (const oddStack of [false, true]) {
+    const ram = new ObservedRam(0x1000000);
+    const before = initialState({ pc: 1, ir: 0x9876, ssp: oddStack ? 0x9001 : 0x9000 });
+    longBytes(0xab002001).forEach((b, i) => ram.write(12 + i, b));
+    let cpu = new Cpu68000(ram, before);
+    const record = cpu.step();
+    assert.equal(record.outcome, "halted");
+    assert.equal(record.after.faulted, true);
+    if (record.exception?.source !== "address-error") assert.fail();
+    assert.deepEqual(record.exception.entryFault, oddStack ? { operation: "write", address: 0x8fff } : { operation: "fetch", address: 0xab002001 });
+    assert.equal(record.accesses.length, oddStack ? 0 : 18);
+    const saved = structuredClone(record);
+    cpu = new Cpu68000(ram, record.after);
+    assert.deepEqual(cpu.step(), { before: record.after, after: record.after, accesses: [], instruction: null, outcome: "halted" });
+    assert.deepEqual(cpu.interrupt(7, () => { assert.fail("Terminal halt must not acknowledge"); }), {
+      before: record.after, after: record.after, instruction: null, accesses: [], level: 7, outcome: "ignored", reason: "faulted" });
+    [...longBytes(0x12349000), ...longBytes(0xab001001)].forEach((b, i) => ram.write(i, b));
+    assert.equal(cpu.reset().after.faulted, true);
+    ram.write(7, 0);
+    assert.equal(cpu.reset().after.faulted, false);
+    assert.equal(cpu.snapshot().ir, 0x9876);
+    ram.write(0x1000, 0x4e); ram.write(0x1001, 0x71);
+    assert.equal(cpu.step().outcome, "executed");
+    assert.equal(cpu.snapshot().ir, 0x4e71);
+    assert.deepEqual(record, saved);
+  }
+});
+
+test("68000 IR and terminal-halt fields validate and fully fetched opwords survive host failures", () => {
+  const ram = new ObservedRam(0x1000000);
+  for (const ir of [-1, 65536, 0.5, NaN, undefined]) {
+    const state = initialState(); Reflect.set(state, "ir", ir);
+    assert.throws(() => new Cpu68000(ram, state), RangeError);
+  }
+  for (const faulted of [undefined, 0, "false", null]) {
+    const state = initialState(); Reflect.set(state, "faulted", faulted);
+    assert.throws(() => new Cpu68000(ram, state), TypeError);
+  }
+  class FailingRam extends ObservedRam {
+    stop = -1;
+    calls = 0;
+    override read(address: number): number {
+      if (this.calls++ === this.stop) throw new Error("Host read failed");
+      return super.read(address);
+    }
+    override write(address: number, value: number): void {
+      if (this.calls++ === this.stop) throw new Error("Host write failed");
+      super.write(address, value);
+    }
+  }
+  for (let stop = 0; stop < 20; stop++) {
+    const memory = new FailingRam(0x1000000);
+    const before = initialState({ ir: 0x4e71, a0: 1, flags: { ...flags(31), t: true } });
+    memory.write(0x1000, 0x30); memory.write(0x1001, 0x10); // MOVE.W (A0),D0
+    longBytes(0xcd006000).forEach((b, i) => memory.write(12 + i, b));
+    const cpu = new Cpu68000(memory, before);
+    memory.calls = 0; memory.stop = stop; memory.accesses.length = 0;
+    assert.throws(() => cpu.step(), /Host (read|write) failed/);
+    const entered = stop >= 2;
+    assert.deepEqual(cpu.snapshot(), snapshot({ ...before, ir: entered ? 0x3010 : before.ir,
+      ssp: before.ssp - (entered ? 14 : 0), flags: entered ? { ...before.flags, s: true, t: false } : before.flags }));
+    const frame = [0, 0x11, 0, 0, 0, 1, 0x30, 0x10, 0x82, 0x1f, 0xab, 0, 0x10, 2];
+    const expected = [...memoryAccesses("read", before.pc, [0x30, 0x10]),
+      ...[12, 10, 8, 6, 4, 2, 0].flatMap(offset => memoryAccesses("write", before.ssp - 14 + offset, frame.slice(offset, offset + 2))),
+      ...memoryAccesses("read", 12, [0xcd, 0, 0x60, 0])];
+    assert.deepEqual(memory.accesses, expected.slice(0, stop));
+    memory.stop = -1;
+    assert.doesNotThrow(() => cpu.reset());
+  }
 });

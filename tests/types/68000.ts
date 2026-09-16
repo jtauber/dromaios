@@ -29,6 +29,10 @@ export function check68000(ram: Ram, state: Cpu68000State, snapshot: Cpu68000Sna
   new Cpu68000(ram, { ...state, flags: { ...state.flags, x: 1 } });
   // @ts-expect-error STOP state is Boolean.
   new Cpu68000(ram, { ...state, halted: 1 });
+  // @ts-expect-error A terminal halt is Boolean.
+  new Cpu68000(ram, { ...state, faulted: 1 });
+  // @ts-expect-error The instruction register is numeric.
+  new Cpu68000(ram, { ...state, ir: false });
   // @ts-expect-error Stored snapshot fields are readonly.
   snapshot.d0 = 0;
   // @ts-expect-error Derived snapshot views are readonly.
@@ -78,18 +82,15 @@ export function check68000Records(record: Cpu68000StepRecord, reset: Cpu68000Res
     record.reason;
   } else if (record.outcome === "halted") {
     const halted: boolean = record.after.halted;
-  } else {
-    const reason: "unaligned-address" = record.reason;
-    // @ts-expect-error Every opword executes or delivers an exception; opcode rejection is absent.
-    const opcode: "opcode" = record.reason;
-    const operation: "fetch" | "read" | "write" = record.fault.operation;
-    // @ts-expect-error Odd-PC attempts have no instruction.
-    record.instruction.bytes;
+  }
+  if (record.exception?.source === "address-error") {
+    const code: 1 | 2 | 5 | 6 = record.exception.fault.functionCode;
+    const operation: "fetch" | "read" | "write" = record.exception.fault.operation;
     // @ts-expect-error Fault details are readonly.
-    record.fault.address = 0;
+    record.exception.fault.address = 0;
   }
   if (record.exception) {
-    const source: "trace" | "trap" | "overflow-trap" | "illegal-instruction" | "line-a" | "line-f" | "divide-by-zero" | "bounds-check" | "privilege-violation" = record.exception.source;
+    const source: "address-error" | "trace" | "trap" | "overflow-trap" | "illegal-instruction" | "line-a" | "line-f" | "divide-by-zero" | "bounds-check" | "privilege-violation" = record.exception.source;
     const vector: number = record.exception.vector;
     const returnPc: number = record.exception.returnPc;
     // @ts-expect-error Exception metadata is readonly.
@@ -122,11 +123,11 @@ export function check68000Controls(cpu: Cpu68000, state: Cpu68000State, ram: Ram
     const vector: number = record.vector;
     const pc: number = record.returnPc;
   } else if (record.outcome === "ignored") {
-    const reason: "masked" | "trace-pending" = record.reason;
+    const reason: "faulted" | "masked" | "trace-pending" = record.reason;
     // @ts-expect-error An ignored request has no delivered vector.
     record.vector;
   } else {
-    const address: number = record.fault.address;
+    const address: number = record.exception.fault.address;
   }
   // @ts-expect-error Interrupt entry fetches no instruction.
   record.instruction.bytes;

@@ -120,7 +120,7 @@ RESET completes the final form through its explicit device-reset connection.
 Native synchronous exceptions, trace, external interrupt offers, STOP wakeup,
 and RTE are implemented within the [model contract](model.md). Illegal encodings
 and line-A/line-F words also deliver their exceptions, without adding opcode forms.
-Address/bus-error delivery, timing, prefetch, and complete
+Bus-error delivery, timing, prefetch, and complete
 machine/device models remain separate accuracy work. Documented opcode coverage
 does not measure those capabilities. The [coverage tracker](../coverage.md#68000)
 lists the implemented families and remaining model limits.

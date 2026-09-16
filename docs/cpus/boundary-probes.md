@@ -85,7 +85,7 @@ Use `MOVE.L (A0)+,(A1)+` (`22D8`), PC=`AB001000`, A0=`AB020000`,
 A1=`CD030000`, source bytes `12 34 56 78`, and destination bytes all `CC`.
 The [current MOVE body](../../src/components/cpus/68000.ts) orders effects as follows:
 
-1. Fetch `22 D8` at bus addresses `001000`, `001001`; advance the local cursor only.
+1. Fetch `22 D8` at bus addresses `001000`, `001001`; advance the local cursor and store IR=`22D8`.
 2. Resolve source=`AB020000`; propose A0=`AB020004`; check source alignment.
 3. Read four source bytes at `020000`–`020003`, high first; capture `12345678`.
 4. Resolve destination=`CD030000`; propose A1=`CD030004`; check destination alignment.
@@ -95,10 +95,10 @@ The [current MOVE body](../../src/components/cpus/68000.ts) orders effects as fo
 
 | Stopping point | Stored registers/flags | Retained memory effects |
 | --- | --- | --- |
-| Odd source rejected | Entire initial state | Opcode reads only |
-| Odd destination rejected | Entire initial state | Opcode and all source reads |
-| Any source read throws | Entire initial state | Earlier reads only |
-| Any destination write throws | A0/A1 advanced; PC and flags unchanged | All source reads and earlier destination writes |
+| Odd source | Operand registers unchanged; IR fetched; vector-3 entry changes control state/SSP | Opcode reads, then address-error frame writes/vector reads |
+| Odd destination | Pending An updates discarded; IR fetched; vector-3 entry changes control state/SSP | Opcode/source reads, then address-error delivery |
+| Any source read throws | IR fetched; other state unchanged | Earlier reads only |
+| Any destination write throws | IR fetched and A0/A1 advanced; PC and flags unchanged | All source reads and earlier destination writes |
 
 The new test covers all eight data-access failure positions. Existing tests
 cover odd addresses and later addressing that uses a pending source increment.

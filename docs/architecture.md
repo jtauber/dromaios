@@ -227,8 +227,9 @@ views from word registers; records use physical RAM addresses and retain the
 logical registers in their snapshots. The 68000 preserves its full 32-bit PC,
 uses the low 24 bits for RAM access, and derives A7 from USP/SSP and supervisor
 mode. The runner compares each model's `snapshot().pc`; a 68000 completion
-address therefore retains all 32 bits. Alignment faults are reported as
-unsupported attempts until address-error exceptions are implemented.
+address therefore retains all 32 bits. Alignment faults enter the 68000's
+address-error vector; its model contract defines the extended frame,
+staged operand effects, and terminal halt on failed entry.
 Restarting an example creates fresh components.
 
 Reset behavior, step outcomes, and lesson completion remain specific to each

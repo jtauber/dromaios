@@ -32,7 +32,8 @@ alignment. No bytes change except those four destination bytes.
 | A4, A5, A6 | `50000000`, `60000000`, `70000000` |
 | USP, SSP, PC | `34FFE000`, `56FFD000`, `AB001000` |
 | interruptMask | `2` |
-| halted, tracePending | `false`, `false` |
+| IR | `0000` |
+| halted, faulted, tracePending | `false`, `false`, `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `0` |
 
 A7 initially exposes USP (`34FFE000`), because S is clear. Physical PC is
@@ -75,7 +76,7 @@ records, and the full initial/final RAM images. They compare the records with
 actual RAM calls, verify bounded pause/resume and logical completion, and check
 reset, rerunning, factory isolation, and retained records. The
 [CPU tests](../../../../tests/components/cpus/68000.test.ts) additionally cover
-arithmetic boundaries, alignment errors, address wrapping, and unsupported words.
+arithmetic boundaries, alignment errors, address wrapping, and illegal/emulator-line words.
 
 Encoding and flag expectations come from Motorola's
 [programmer's reference manual](https://www.nxp.com/docs/en/reference-manual/M68000PRM.pdf),

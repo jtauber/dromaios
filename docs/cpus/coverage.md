@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [659](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [598](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1154](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1214](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -52,7 +52,7 @@ and have complete documented opcode coverage, following the
 [completion sequence](completion.md#completion-sequence). All eight also support
 explicit external interrupt delivery at instruction boundaries; their model
 contracts define native recognition and entry policies. Cycle timing remains
-unmodeled, and the 68000 still needs address/bus-error delivery.
+unmodeled, and the 68000 still needs bus-error delivery.
 Opcode completion does not imply complete processor emulation.
 
 ## How the percentages are counted
@@ -175,7 +175,7 @@ forms accept 4,096 words. Embedded literal values do not add coverage forms.
 | Stepping | At most one instruction attempt; before/after snapshots, fetched instruction bytes, ordered accesses, and outcome |
 | Reset records | Separate before/after snapshots and access list; CPU-specific reset effects |
 | Arithmetic and addresses | Results wrap at their modeled widths; 14-bit addresses for the 8008, 16-bit addresses for the other 8-bit cores; the 8088 forms 20-bit physical addresses from segments/offsets; the 68000 preserves 32-bit registers and masks bus addresses to 24 bits |
-| Unsupported attempts | Undocumented encodings on the byte CPUs report `reason: "opcode"` with unchanged CPU state and RAM; the 68000 delivers illegal/emulator-line exceptions and retains the alignment boundaries below |
+| Unsupported attempts | Undocumented encodings on the byte CPUs report `reason: "opcode"` with unchanged CPU state and RAM; the 68000 delivers illegal/emulator-line and address-error exceptions |
 | Lesson restart | Fresh CPU and RAM from the example factory |
 
 All eight currently omit cycle counts, complete bus-cycle modeling, electrical
@@ -1860,7 +1860,7 @@ addresses are compared; local tests check exact instruction-level ordering.
 RESET uses an explicit device connection; synchronous exceptions, trace,
 external interrupt offers, STOP wakeup, and RTE are included. Illegal words and
 line-A/line-F patterns also deliver their native exceptions without adding
-documented opcode forms. Address/bus errors, timing, prefetch, and complete
+documented opcode forms. Bus errors, timing, prefetch, and complete
 devices remain separate.
 
 MOVE and MOVEA
@@ -1998,7 +1998,7 @@ Branch and DBcc targets use the opcode address plus two as their base. DBcc
 falls through without decrementing if its condition is true; otherwise it
 decrements Dn.W and branches unless the result is `FFFF`. The
 [control-flow contract](68000/model.md#control-flow-and-subroutines) defines
-stack behavior and atomic rejection of unaligned taken targets.
+stack behavior and address-error delivery for unaligned taken targets.
 
 LEA/PEA/JMP/JSR accept only control EAs. MOVEM stores also permit
 predecrement, excluding PC-relative forms; loads also permit postincrement.
@@ -2041,16 +2041,16 @@ intermediate overflow, register aliases, and memory updates.
 | Memory | Exactly 16 MiB; mask each address at RAM access, preserving full register values; big-endian bytes, words, and longs |
 | Instruction fetching | Even PC; 16-bit operation word; word/long extensions; sequential and branch PC wrap at 32 bits; no target prefetch |
 | Control flow | BRA/Bcc, DBcc, BSR/RTS, JMP/JSR; complete conditions, displacement forms, and counter registers |
-| Alignment | Even instruction, word, and long addresses; odd byte operands allowed; ordinary read/write faults preserve state and RAM; failed exception entry retains completed instruction effects |
+| Alignment | Odd instruction/word/long accesses enter vector 3 with a seven-word frame; byte operands remain valid; [staged operand and terminal-halt policy](68000/model.md#address-errors) |
 | Stack and addresses | A7 selects USP/SSP from S; BSR/JSR push and RTS pops a four-byte return address; LINK/UNLK frames, LEA/PEA address calculation, MOVEM saves/restores; byte auto-updates step by two |
-| Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts, clear halt and pending trace; preserve other registers, condition codes, and RAM under the documented policy |
+| Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts, clear STOP/pending trace and release terminal halt when the vector PC is even; preserve other registers, condition codes, and RAM under the documented policy |
 | Decimal and multiply/divide | ABCD/SBCD/NBCD, MULU/MULS/DIVU/DIVS; cumulative decimal Z, packed remainder/quotient, explicit undefined-flag policies |
 | Further transfers | MOVEP alternate-byte RAM transfers, EXG, EXT, and SWAP; every documented form |
 | Status and control | Packed CCR/SR moves and immediate logic, USP moves, RTR, CHK, TAS, NOP, and STOP; native privilege/bounds/divide-zero delivery |
 | Stopping | STOP loads SR and sets `halted`; traced STOP permits the next trace step; accepted interrupt/trace/reset wakes it |
 | Exceptions | Six-byte supervisor frames, synchronous and trace vectors, all illegal and line-A/line-F encodings, external interrupt acknowledgement, saved PC/SR, and RTE; [entry and failure contract](68000/model.md#synchronous-exception-entry-and-return) |
 | External controls | [Selected level offers](68000/model.md#external-interrupt-delivery), all vector bytes, autovectors/spurious response, trace priority, STOP wakeup, and [RESET callback](68000/model.md#reset-device-connection) |
-| Remaining scope | Address/bus errors, complete devices, signal sampling, timing, and prefetch |
+| Remaining scope | Bus-error delivery, complete devices, signal sampling, timing, and prefetch |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
@@ -2095,7 +2095,7 @@ patterns, exhaust every byte operand pair for each family, and check word/long
 boundaries against independent signed/unsigned ranges and logic truth tables.
 They check memory read/write order, partial-register preservation, identity
 writes, CMPI without writes, both stacks, ignored immediate high bytes, wrapped
-addresses, overlapping code/data, atomic alignment rejection, and retrying with
+addresses, overlapping code/data, staged operand updates on alignment faults, and retrying with
 changed RAM. The 16-step ALU example combines all six families, all three sizes,
 RAM transformations, comparison auto-updates, and bounded running/reset checks.
 
@@ -2109,7 +2109,7 @@ Control-flow tests cover all condition codes and incoming flags, every embedded
 branch byte, every word displacement for BRA/BSR/DBF, all DBcc registers, and
 every low-word counter for DBT/DBF. Checks preserve upper words and flags,
 exercise both stacks and wrapping, compare actual RAM accesses, and reject
-unaligned targets/stack operands without partial changes. The 36-step
+unaligned targets/stack operands before committing their staged instruction changes. The 36-step
 control-flow example processes a buffer through nested calls, takes both sides
 of a conditional branch, completes a counted loop, and resumes from snapshots
 with two live return addresses. Tests also check full RAM images, supervisor
@@ -2119,7 +2119,7 @@ Register/address arithmetic tests execute all **9,144 added forms**, including
 all register selectors, both stacks, and exact reads/writes. They exhaust every
 byte operand pair and sign-extended word, check word/long boundaries with all
 128 flag patterns, and exercise same-An auto-updates, wrapping, overlapping
-code/data, odd bytes, and atomic word/long alignment rejection. The 32-step
+code/data, odd bytes, and word/long address-error delivery before operand commits. The 32-step
 word-sum program cross-checks register and memory sums, applies a correction,
 and repositions pointers while preserving comparison flags. Tests check full
 traces and RAM images, bounded running, snapshot resumption, and changed input.
@@ -2128,7 +2128,7 @@ Register/memory logic checks execute all **5,760 added forms** in both modes,
 exhaust byte operand pairs against bit truth tables, and cover every result bit
 and incoming flag pattern. They verify EOR register aliases, partial Dn writes,
 high-bit long results, unchanged memory writes, wrapping, overlapping code/data,
-atomic alignment rejection, and excluded neighboring instructions. The 42-step
+staged operand updates on alignment faults, and excluded neighboring instructions. The 42-step
 masked-merge example combines AND/OR on registers and memory, EOR mask inversion
 and checksum accumulation, an OR summary, and a counted loop. Tests specify
 complete records and RAM images, including unchanged writes, and check snapshot
@@ -2159,7 +2159,7 @@ all immediate counts and register aliases, word/long bit boundaries, and
 all incoming flag patterns. Independent BigInt shifts and bit-string rotations
 check results and flags, including zero/large counts and ASL's intermediate
 overflow. Memory checks cover all EAs, actual read/write calls, both stacks,
-wrapping, unchanged results, code overlap, and atomic alignment rejection.
+wrapping, unchanged results, code overlap, and staged operand updates on alignment faults.
 The 32-step shifts example combines all eight operations in packed-sample
 processing and two-word shifts, with complete traces and RAM images, live
 inputs, reset preservation, and restoration between carry-dependent words.

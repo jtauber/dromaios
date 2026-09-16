@@ -18,7 +18,8 @@ does not require a device. Tracing stays disabled throughout this program.
 | A0, A1, A2, A3 | `AB003000`, `CD004000`, `EF005000`, `40000000` |
 | A4, A5, A6 | `50000000`, `60000000`, `70000000` |
 | USP, SSP, PC | `34008000`, `56009000`, `AB002000` |
-| interruptMask, halted, tracePending | `2`, `false`, `false` |
+| IR | `0000` |
+| interruptMask, halted, faulted, tracePending | `2`, `false`, `false`, `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `1` |
 
 Zero-filled 16 MiB RAM contains the reset vectors

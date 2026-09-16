@@ -11,7 +11,7 @@ function initialState(): Cpu68000Snapshot {
     d4: 0x01234567, d5: 0x89abcdef, d6: 0xfedcba98, d7: 0x76543210,
     a0: 0x10000000, a1: 0x20000000, a2: 0x30000000, a3: 0x40000000,
     a4: 0x50000000, a5: 0x60000000, a6: 0x70000000, usp: 0x34008000, ssp: 0x56009000,
-    pc: 0xab002000, a7: 0x34008000, physicalPc: 0x2000, halted: false, tracePending: false, interruptMask: 2,
+    pc: 0xab002000, a7: 0x34008000, physicalPc: 0x2000, ir: 0, faulted: false, halted: false, tracePending: false, interruptMask: 2,
     flags: { x: true, n: false, z: true, v: true, c: true, t: false, s: false } };
 }
 
@@ -44,7 +44,7 @@ function expectedRecords(): Cpu68000StepRecord[] {
   let before = initialState();
   return steps.map(([bytes, changes, condition, data]) => {
     const [x, n, z, v, c] = [...condition].map(bit => bit === "1");
-    const after = { ...before, ...changes, pc: before.pc + bytes.length, physicalPc: before.physicalPc + bytes.length,
+    const after = { ...before, ir: bytes[0]! * 256 + bytes[1]!, ...changes, pc: before.pc + bytes.length, physicalPc: before.physicalPc + bytes.length,
       flags: { ...before.flags, x: x!, n: n!, z: z!, v: v!, c: c! } };
     const record: Cpu68000StepRecord = { before, after, outcome: "executed", instruction: { address: before.pc, bytes },
       accesses: [...read(before.physicalPc, ...bytes), ...data] };

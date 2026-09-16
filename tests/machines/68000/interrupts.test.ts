@@ -39,7 +39,7 @@ test("68000 runner traverses TRAP, trace, IRQ, RESET, and three RTEs with restor
   }
   assert.deepEqual(addresses, [0x12004002, 0xef003000, 0xcd002000, 0xab001002]);
   assert.equal(resets, 1);
-  assert.deepEqual(cpu.snapshot(), { ...before, pc: before.pc + 2, physicalPc: 0x1002, a7: before.usp });
+  assert.deepEqual(cpu.snapshot(), { ...before, ir: 0x4e73, pc: before.pc + 2, physicalPc: 0x1002, a7: before.usp });
   assert.deepEqual({ trap, trace, irq }, saved);
 });
 
