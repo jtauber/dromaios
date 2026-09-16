@@ -5,7 +5,6 @@ import type { FetchedInstruction, StateTransition, InstructionStep, WaitingStep 
 import { executionBoundary } from "./execution-boundary.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { signed8, readWordBE } from "./binary.ts";
-import { modifyByte } from "./memory-operations.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -46,7 +45,6 @@ type OpcodeHandler = (instruction: InstructionContext) => "unsupported" | void;
 type AddressedHandler = (address: number, instruction: InstructionContext) => void;
 type Accumulator = "a" | "b";
 type StackPointer = "s" | "u";
-type ByteOperation = (value: number) => number;
 type OperandReader = (instruction: InstructionContext) => number;
 type AddressReader = (instruction: InstructionContext) => number | undefined;
 type WordRegister = "d" | "x" | "y" | "u" | "s" | "pc";
@@ -165,21 +163,20 @@ export class Cpu6809 {
 
   // Unary encodings: 0000 oooo = direct, 010r oooo = A/B,
   // 0110 oooo = indexed, 0111 oooo = extended. r=0 selects A, r=1 selects B.
-  // TST (1101) is read-only and JMP (1110) changes PC; neither is a byte transform.
-  readonly #unaryOperations: readonly { bits: string; apply: ByteOperation }[] = [
-    { bits: "0000", apply: value => this.#alu.subtract(0, value) }, // NEG
-    { bits: "0011", apply: value => this.#alu.complement(value) }, // COM
-    { bits: "1010", apply: value => this.#alu.adjust(value, -1) }, // DEC
-    { bits: "1100", apply: value => this.#alu.adjust(value, 1) }, // INC
-    { bits: "1111", apply: () => this.#alu.clear() }, // CLR
-  ];
-  // Generated bodies share the unary encoding above; registers are in A/B selector order.
-  readonly #shiftOperations = [
+  // Generated register bodies are in A/B selector order; memory bodies receive one resolved address.
+  // TST (1101) never writes. JMP (1110) changes PC and stays outside this inventory.
+  static readonly #unaryOperations = [
+    { bits: "0000", registers: [semantics.negA, semantics.negB], memory: semantics.negMemory }, // NEG
+    { bits: "0011", registers: [semantics.comA, semantics.comB], memory: semantics.comMemory }, // COM
     { bits: "0100", registers: [semantics.lsrA, semantics.lsrB], memory: semantics.lsrMemory }, // LSR
     { bits: "0110", registers: [semantics.rorA, semantics.rorB], memory: semantics.rorMemory }, // ROR
     { bits: "0111", registers: [semantics.asrA, semantics.asrB], memory: semantics.asrMemory }, // ASR
     { bits: "1000", registers: [semantics.aslA, semantics.aslB], memory: semantics.aslMemory }, // ASL (LSL)
     { bits: "1001", registers: [semantics.rolA, semantics.rolB], memory: semantics.rolMemory }, // ROL
+    { bits: "1010", registers: [semantics.decA, semantics.decB], memory: semantics.decMemory }, // DEC
+    { bits: "1100", registers: [semantics.incA, semantics.incB], memory: semantics.incMemory }, // INC
+    { bits: "1101", registers: [semantics.tstA, semantics.tstB], memory: semantics.tstMemory }, // TST
+    { bits: "1111", registers: [semantics.clrA, semantics.clrB], memory: semantics.clrMemory }, // CLR
   ] as const;
 
   // 1 r mm oooo: r selects A/B; mm=00 immediate, 01 direct, 10 indexed, 11 extended.
@@ -259,12 +256,8 @@ export class Cpu6809 {
     ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi", instruction)), // SWI
 
     // 010 r oooo: A/B unary operations. TST updates flags without writing a result.
-    ...this.#unaryOperations.flatMap(({ bits, apply }) => opcodeFamily(`010 r ${bits}`, {
-      r: ["a", "b"],
-    }, ({ r: register }) => () => { this.#state[register] = apply(this.#state[register]); })),
-    ...this.#shiftOperations.flatMap(({ bits, registers }) => opcodeFamily(`010 r ${bits}`,
+    ...Cpu6809.#unaryOperations.flatMap(({ bits, registers }) => opcodeFamily(`010 r ${bits}`,
       { r: registers }, ({ r: execute }) => () => execute(this.#state))),
-    ...opcodeFamily("010 r 1101", { r: ["a", "b"] }, ({ r: register }) => () => this.#alu.test(this.#state[register])), // TSTA/B
 
     // 0110 oooo is indexed; 0111 oooo uses an extended address (including JMP).
     ...this.#memoryUnaryHandlers("0110", this.#indexedOperandAddress),
@@ -310,11 +303,8 @@ export class Cpu6809 {
   // CLR also reads its operand here; the 6800 binds CLR to a write-only instruction.
   #memoryUnaryHandlers(prefix: "0000" | "0110" | "0111", address: AddressReader): readonly OpcodeEntry<OpcodeHandler>[] {
     return this.#addressedHandlers(address, [
-      ...this.#unaryOperations.flatMap(({ bits, apply }) => addressPattern(`${prefix} ${bits}`,
-        (address, instruction) => modifyByte(address, apply, instruction))),
-      ...this.#shiftOperations.flatMap(({ bits, memory }) => addressPattern(`${prefix} ${bits}`,
+      ...Cpu6809.#unaryOperations.flatMap(({ bits, memory }) => addressPattern(`${prefix} ${bits}`,
         (address, instruction) => memory(this.#state, address, instruction))),
-      ...addressPattern(`${prefix} 1101`, (address, { readByte }) => this.#alu.test(readByte(address))), // TST
       ...addressPattern(`${prefix} 1110`, address => { this.#state.pc = address; }), // JMP
     ]);
   }

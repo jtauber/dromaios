@@ -122,6 +122,26 @@ test("6809 memory shift explanations declare the resolved input and flag updates
   assert.match(text, /failed write retains their updates/);
 });
 
+test("6809 unary explanations distinguish real CLR reads, read-only TST, and carry-preserving adjustments", () => {
+  const clear = description("6809", "CLR memory");
+  const read = clear.indexOf("original:u8 := read memory[address]"), flags = clear.indexOf("N := topBit(result)");
+  assert.ok(read >= 0 && read < clear.indexOf("result := 00:u8") && read < flags);
+  assert.ok(flags < clear.indexOf("write memory[address] := result"));
+  assert.match(clear, /C := 0:flag/); assert.match(clear, /V := 0:flag/);
+  for (const name of ["TSTA", "TSTB", "TST memory"]) {
+    const text = description("6809", name);
+    assert.doesNotMatch(text, /write [AB]:|write memory/);
+    assert.match(text, /Flags preserved throughout: E, F, H, I, C\./);
+  }
+  for (const name of ["INCA", "DEC memory"]) {
+    const text = description("6809", name);
+    assert.doesNotMatch(text, /read C|C :=/);
+    assert.match(text, /Flags preserved throughout: E, F, H, I, C\./);
+  }
+  assert.match(description("6809", "NEG memory"), /C := borrow\(00:u8, original\)/);
+  assert.match(description("6809", "COMA"), /result := subtract\(FF:u8, original\)/);
+});
+
 test("the indexed load explanation distinguishes the index from the destination and shows the commit order", () => {
   const text = description("6502", "LDX zero page,Y");
   const fetch = text.indexOf("fetch byte"), index = text.indexOf("read Y"), read = text.indexOf("read memory[address]");
@@ -137,5 +157,5 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 105);
+  assert.equal(instructionDefinitions.length, 123);
 });

@@ -71,6 +71,13 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated8080.ral(intel);
   generated6809.rolB(motorola);
   generated6809.rolMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  generated6809.tstMemory(motorola, 0xffff, { readByte: () => 0 });
+  generated6809.clrMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  generated6809.negA(motorola);
+  // @ts-expect-error TST has no write capability.
+  generated6809.tstMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error The original 6809 CLR reads its operand even though the result is constant.
+  generated6809.clrMemory(motorola, 0xffff, { writeByte: () => {} });
   // @ts-expect-error A memory shift requires the resolved numeric address before its memory capabilities.
   generated6809.rolMemory(motorola, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error The resolved address is a value, not an opaque address resolver.

@@ -22,13 +22,13 @@ emulators do not count toward implementation here.
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [385](../../src/components/cpus/6800.ts) | 0 / 197 | 0% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [329](../../src/components/cpus/6502.ts) | 70 / 151 | 46.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [661](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [607](../../src/components/cpus/6809.ts) | 30 / 268 | 11.2% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [597](../../src/components/cpus/6809.ts) | 60 / 268 | 22.4% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **105 generated bodies**, of which **104 are used by CPU execution**,
-covering **113 complete opcode forms**:
+contains **123 generated bodies**, of which **122 are used by CPU execution**,
+covering **143 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, all six register transfers,
@@ -40,8 +40,9 @@ covering **113 complete opcode forms**:
   count toward migration.
 - [6809 definitions](../../src/components/cpus/semantics/definitions/6809.ts):
   CMPA/CMPB immediate and CMPX immediate/direct/extended count as five migrated
-  forms. LSR/ROR/ASR/ASL/ROL on A/B and direct/indexed/extended memory add 25 more.
-  Each operation's memory body serves all three addressing modes after the
+  forms. All eleven unary operations (NEG, COM, LSR, ROR, ASR, ASL, ROL, DEC, INC,
+  TST, CLR) on A/B and direct/indexed/extended memory add 55 more. Their 33 bodies
+  share one binding inventory. Each memory body serves all three addressing modes after the
   existing decoder supplies its resolved address; all documented postbytes use
   the same generated body. CMPX indexed with postbyte `81` (`,X++`) is also
   integrated but covers only one operand choice; other indexed postbytes still
@@ -93,25 +94,25 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,897 |
-| CPU-specific instruction definition files | 344 |
+| Eight CPU implementation files | 4,887 |
+| CPU-specific instruction definition files | 363 |
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,667 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,908** |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,917** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 2,216 |
+| Generated CPU output, counted separately | 2,519 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Completing the 6809 memory shifts reduces its module from **612 to 607 lines**,
-removing the handwritten shift calculations, left-shift helper, and optional
-register overrides. One operation inventory now binds generated A/B and memory
-bodies. Definitions add eight lines, and shared support for declared numeric
-inputs adds 16, so total authored CPU source increases from **6,889 to 6,908
-lines** (19 more). The other CPU modules and generation script are unchanged
-in length. This completes the shift family but is still not a net source
-reduction; further migrations must account for their definition and binding
-costs as well as the handwritten helpers they remove.
+Completing the remaining 6809 unary families reduces its module from **607 to
+597 lines**, removing the handwritten unary selector, memory-modification path,
+and separate TST bindings. One inventory now binds all eleven operations to
+generated A/B and memory bodies. Definitions add nineteen lines; shared
+machinery is unchanged. Total authored CPU source therefore increases from
+**6,908 to 6,917 lines** (nine more). The other CPU modules and generation script
+are unchanged in length. This consolidates the unary family but is still not a
+net source reduction; further migrations must account for their definition and
+binding costs as well as the handwritten helpers they remove.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

@@ -25,15 +25,16 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | All 6502 memory INC/DEC and INX/INY/DEX/DEY | Share wrapping byte updates while preserving C and the same memory-write boundaries |
 | 8080 RLC/RRC/RAL/RAR | Circular or through-carry rotation; write A before CY and preserve every other flag |
 | 6809 LSR/ROR/ASR/ASL/ROL on A/B and memory | Zero, carry, or sign-bit insertion; N/Z/C before writeback; left shifts set V to N XOR C, right shifts preserve V; memory bodies receive a resolved address and retain flags on a failed write |
+| 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 
-There are 105 bodies. All are generated and executable; 104 are bound into their
+There are 123 bodies. All are generated and executable; 122 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other 6809 comparison addressing forms and shifts on the remaining CPUs retain
 their existing shared helpers. This is not a complete CPU migration.
 Bodies start after opcode selection. `CMPX ,X++` starts after postbyte `81`
 has selected that particular form; decoding or rejecting other postbytes is
-not represented. Each 6809 memory-shift body starts after successful address
+not represented. Each 6809 memory-unary body starts after successful address
 resolution and serves direct, indexed, and extended forms, including all legal
 indexed postbytes. The decoder remains handwritten. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
@@ -167,10 +168,19 @@ while right shifts preserve V. That XOR uses the captured original and result,
 so the policy does not depend on assignments to live N or C. The 6502 retains
 its separate carry-before-writeback and N/Z-after-writeback stages, including
 the original-value memory write before a rotate reads incoming C.
-The 6809 reads its memory operand once, captures incoming C for rotates after
-that read, and writes the result once, including unchanged values. A failed
-read leaves flags unchanged; a failed write retains the completed flag updates.
-Address-register updates performed by its decoder survive either failure.
+The 6809's `unary` construction recipe now covers all eleven byte unary
+operations. It captures the original register or memory byte, calculates a
+result using a pure expression or ordered steps, applies N/Z and the operation's
+additional flag updates, and optionally writes the result. INC/DEC preserve C;
+TST clears V, preserves C, and omits writeback. CLR still reads the original,
+even though its result is constant. Existing arithmetic and flag expressions
+describe all six additional families without new primitives.
+
+Every 6809 memory unary operation reads its operand once. Rotates capture
+incoming C after that read; all operations except TST write once, including
+unchanged values. A failed read leaves flags unchanged; a failed write retains
+the completed flag updates. Address-register updates performed by the decoder
+survive either failure.
 
 ## Primitive meanings
 
@@ -300,18 +310,20 @@ existing CPU tests remain the independent opcode, record, and rejection baseline
 address resolution from data reads, check byte/word wrapping and live index-read
 order, and inject failures at each source access. CPU tests also check stores,
 arithmetic, and memory modifiers through their ordinary opcode paths.
-[Shift probes](../../tests/components/cpus/semantics/shifts.test.ts) check every
+[Unary probes](../../tests/components/cpus/semantics/unary.test.ts) check every
 word value in both directions and with either incoming bit, distinguish a
 captured flag from later live-state changes, and inspect carry reads and updates
 between the two memory writes. The 6502 tests cover every byte and incoming flag
 combination for every modifying form, plus failure at every memory access.
 Generated-body probes also inspect the 8080 and 6809 register/flag write order,
 require incoming-carry reads only for through-carry rotations, and exercise
-nested Boolean XOR over its complete truth table. Existing CPU tests exhaust
+nested Boolean XOR over its complete truth table. They check the additional
+6809 unary families' flag assignments, TST's missing write, and CLR's retained
+read, including an unchanged zero result. Existing CPU tests exhaust
 every byte and incoming flag combination for the newly migrated forms, using
 independent bit-string rotations and integer shift/overflow expectations.
 The [6809 CPU tests](../../tests/components/cpus/6809.test.ts) also exercise all
-217 legal indexed postbytes for every memory shift, retain rejection of all 39
+217 legal indexed postbytes for every memory unary operation, retain rejection of all 39
 undefined postbytes, and inject failure at each access in direct, extended,
 auto-updated, and indirect examples. They check wrapping, code/pointer/data
 overlap, S updates and NMI arming, exact completed accesses, and full state.
@@ -380,10 +392,12 @@ This covers the complete 6502 comparison, load, shift/rotate, and byte
 increment/decrement families, plus all six register transfers. The 8080 retains
 named bodies for its nine CMP/CPI bindings and four accumulator rotates in the
 shared 8080/Z80 family. The Z80's own bodies remain unchanged.
-The 6809 shift inventory binds generated A/B and memory bodies from the same
-operation selectors. Its ordinary address wrapper resolves one address, rejects
-undefined postbytes before body entry, and then calls the generated memory body.
-There is no handwritten shift calculation or optional register override left.
+The 6809 unary inventory binds generated A/B and memory bodies from the same
+operation selectors, including TST and CLR. This static inventory contains only
+function references; each invocation supplies the current CPU state. Its ordinary
+address wrapper resolves one address, rejects undefined postbytes before body
+entry, and then calls the generated memory body. The handwritten unary selector
+and memory-modification path are gone. JMP remains a separate address operation.
 The 6809 binds immediate CMPA/B, three ordinary CMPX modes, and one indexed body:
 it fetches the postbyte once, selects generated `,X++` for `81`, and delegates
 other forms to its existing indexed decoder. Unsupported postbytes retain the
@@ -410,17 +424,18 @@ whether family authoring, reusable sources, and explicit ordered statements
 improve understanding. The shared shift recipe now serves the 6502, 8080, and
 6809, with sign extension and circular rotation expressed using existing
 primitives. Boolean XOR is the only new expression needed for this extension.
-Their different flag and writeback schedules remain explicit. Completing the
-6809 memory forms removes its shift-specific helper and temporary register
-overrides. Declared numeric inputs allow the five memory bodies to share the
-existing address-decoder boundary, covering fifteen opcode forms. Their source
-and binding cost still exceeds the handwritten code removed in this step.
+Their different flag and writeback schedules remain explicit. Completing all
+6809 unary families removes the remaining handwritten selector and
+memory-modification path. Declared numeric inputs let eleven memory bodies
+share the existing address-decoder boundary, covering thirty-three memory
+opcode forms. TST's read-only behavior and CLR's real memory read remain
+explicit. Definitions and bindings still cost more source than this step removes.
 
-Next, consider the remaining 6809 byte unary families: NEG, COM, INC, DEC, CLR,
-and TST. Completing that group could retire the remaining handwritten unary
-selector and memory-modification adapter, and consolidate the bindings. Keep
-TST's read-only behavior and CLR's real memory read explicit. Measure the total
-authored source before treating another migration increase as simplification.
+Next, review reuse with the 6800 unary family. Much of its arithmetic and
+encoding is shared, but its TST clears C, memory CLR omits the read, and every
+shift sets V to N XOR C. Sharing construction should expose those differences
+and retire the corresponding handwritten paths. Measure total authored source
+before treating another migration increase as simplification.
 
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve

@@ -82,6 +82,41 @@ function observe<T extends object>(target: T, events: string[], prefix = ""): T 
   });
 }
 
+test("6809 unary bodies read once, apply only their declared flags in order, and omit TST writeback", () => {
+  // Literal boundary cases; the CPU tests separately exhaust every byte and incoming CC value.
+  for (const [name, original, result, updates] of [
+    ["neg", 0x80, 0x80, [["n", true], ["z", false], ["v", true], ["c", true]]],
+    ["neg", 0, 0, [["n", false], ["z", true], ["v", false], ["c", false]]],
+    ["com", 0xaa, 0x55, [["n", false], ["z", false], ["v", false], ["c", true]]],
+    ["inc", 0x7f, 0x80, [["n", true], ["z", false], ["v", true]]],
+    ["inc", 0xff, 0, [["n", false], ["z", true], ["v", false]]],
+    ["dec", 0x80, 0x7f, [["n", false], ["z", false], ["v", true]]],
+    ["dec", 0, 0xff, [["n", true], ["z", false], ["v", false]]],
+    ["tst", 0x80, 0x80, [["n", true], ["z", false], ["v", false]]],
+    ["tst", 0, 0, [["n", false], ["z", true], ["v", false]]],
+    ["clr", 0x80, 0, [["n", false], ["z", true], ["c", false], ["v", false]]],
+    ["clr", 0, 0, [["n", false], ["z", true], ["c", false], ["v", false]]],
+  ] as const) for (const target of ["A", "B", "Memory"] as const) for (const carry of [false, true]) {
+    const events: string[] = [], beforeFlags = { e: true, f: true, h: true, i: true, n: true, z: true, v: true, c: carry };
+    const state: Cpu6809State = { a: original, b: original, dp: 0, x: 0, y: 0, s: 0, u: 0, pc: 0, waitMode: "none", nmiArmed: false,
+      flags: observe({ ...beforeFlags }, events, "flags.") };
+    const observed = observe(state, events), register = target === "A" ? "a" : "b";
+    let memory: number = original;
+    if (target === "Memory") motorola[`${name}Memory`](observed, 0xffff, {
+      readByte(address) { assert.equal(address, 0xffff); events.push("read memory"); return memory; },
+      writeByte(address, byte) { assert.equal(address, 0xffff); events.push(`memory=${byte}`); memory = byte; },
+    });
+    else motorola[`${name}${target}`](observed);
+    assert.deepEqual(events, [target === "Memory" ? "read memory" : `read ${register}`,
+      ...updates.map(([flag, value]) => `flags.${flag}=${Number(value)}`),
+      ...(name === "tst" ? [] : [`${target === "Memory" ? "memory" : register}=${result}`])]);
+    assert.deepEqual(state.flags, { ...beforeFlags, ...Object.fromEntries(updates) });
+    assert.equal(state.a, target === "A" ? result : original);
+    assert.equal(state.b, target === "B" ? result : original);
+    assert.equal(memory, target === "Memory" ? result : original);
+  }
+});
+
 test("8080 rotates write A before CY and read incoming CY only for through-carry forms", () => {
   for (const [name, result, incoming] of [["rlc", 3, false], ["rrc", 0xc0, false], ["ral", 2, true], ["rar", 0x40, true]] as const) {
     const events: string[] = [];
