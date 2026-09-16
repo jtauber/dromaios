@@ -30,6 +30,9 @@ see the [development instructions](../README.md#development).
   DSL. The staged roadmap begins with ordinary TypeScript building blocks,
   reviews their clarity and limits, and tests later language support against
   existing models and future CPUs.
+- [Instruction semantics experiment](cpus/instruction-semantics.md): typed,
+  inspectable comparison and ordering definitions, validation, and
+  [generated explanations](cpus/semantic-examples.md); execution remains separate.
 
 ## CPU models
 

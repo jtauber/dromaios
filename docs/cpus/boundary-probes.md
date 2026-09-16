@@ -252,13 +252,13 @@ builtins proposed for one. Register views describe storage relationships;
 explicit reads turn views or locations into captured values. Address mapping,
 external selection, and pending updates require separate definitions.
 
-Within the DSL work, the next bounded task is **stage 4**: design typed
-declarations, pure expressions, and ordered statements for comparisons on
-6502/8080/6809. Include
-one transfer and the split-flag memory modification as counterexamples.
-Judge those definitions with their validation and expanded bodies before
-choosing an executor or generator. The 6507/4004 traces remain acceptance
-requirements; they are not evidence that the current helpers already support
+The [stage 4 representation experiment](instruction-semantics.md) now provides
+typed declarations, pure expressions, and ordered statements for a bounded
+comparison slice on 6502/8080/6809, plus transfers and split-flag memory
+modification. Its [expanded examples](semantic-examples.md) are generated from
+the definitions. Review those with the validator before connecting them to
+execution; the existing CPUs still run their original TypeScript bodies.
+The 6507/4004 traces remain acceptance requirements; they are not evidence that the current helpers already support
 those processors. Additional TypeScript sharing should follow demonstrated
 benefit rather than becoming a prerequisite for the language experiment.
 

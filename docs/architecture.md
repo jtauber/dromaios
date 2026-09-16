@@ -35,6 +35,12 @@ are one such example: CPU-owned fields and constraints drive constructor
 validation, snapshot copying, machine parsing, and public state types. The
 types are derived from those descriptions; snapshot views remain explicit TypeScript.
 
+A bounded [instruction-semantics experiment](cpus/instruction-semantics.md) now
+represents comparisons and selected ordering cases as typed data, paired with
+prose. It validates those definitions and generates expanded explanations. CPU
+execution still uses the existing implementations; execution through these
+definitions awaits a separate review.
+
 The rule of three applies to these generalizations too. We will use the 8080,
 6502, and 6809 examples to discover useful common descriptions while preserving
 their hardware distinctions. Definitions for other component types should
