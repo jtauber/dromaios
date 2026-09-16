@@ -1,6 +1,7 @@
 import { Cpu68000 } from "../../src/components/cpus/68000.js";
 import type { Cpu68000State, Cpu68000Snapshot, Cpu68000StepRecord, Cpu68000ResetRecord } from "../../src/components/cpus/68000.js";
 import type { Ram } from "../../src/components/memory/ram.js";
+import type { MemoryConnection } from "../../src/components/memory/connection.js";
 import { create68000Example } from "../../src/machines/generated/68000/example.js";
 import { create68000TransfersExample } from "../../src/machines/generated/68000/transfers-example.js";
 import { create68000AddressingExample } from "../../src/machines/generated/68000/addressing-example.js";
@@ -39,6 +40,10 @@ export function check68000(ram: Ram, state: Cpu68000State, snapshot: Cpu68000Sna
   snapshot.a7 = 0;
   // @ts-expect-error Nested flags are readonly.
   snapshot.flags.s = true;
+  // @ts-expect-error Pending-entry context is detached and readonly in snapshots.
+  snapshot.entry.vector = 0;
+  // @ts-expect-error Entry kinds are a closed set.
+  state.entry.kind = "interrupt";
   const pipeline = create68000DecimalPipelineExample();
   const pipelineResult: CpuRunResult<Cpu68000StepRecord> = runCpu(pipeline.cpu, { maxSteps: 30, endAddress: pipeline.endAddress });
   const machine: { cpu: Cpu68000; ram: Ram; endAddress: number } = create68000Example();
@@ -89,8 +94,12 @@ export function check68000Records(record: Cpu68000StepRecord, reset: Cpu68000Res
     // @ts-expect-error Fault details are readonly.
     record.exception.fault.address = 0;
   }
+  if (record.exception?.source === "bus-error") {
+    const vector: 2 = record.exception.vector;
+    const code: 1 | 2 | 5 | 6 = record.exception.fault.functionCode;
+  }
   if (record.exception) {
-    const source: "address-error" | "trace" | "trap" | "overflow-trap" | "illegal-instruction" | "line-a" | "line-f" | "divide-by-zero" | "bounds-check" | "privilege-violation" = record.exception.source;
+    const source: "bus-error" | "address-error" | "trace" | "trap" | "overflow-trap" | "illegal-instruction" | "line-a" | "line-f" | "divide-by-zero" | "bounds-check" | "privilege-violation" = record.exception.source;
     const vector: number = record.exception.vector;
     const returnPc: number = record.exception.returnPc;
     // @ts-expect-error Exception metadata is readonly.
@@ -104,6 +113,19 @@ export function check68000Records(record: Cpu68000StepRecord, reset: Cpu68000Res
   reset.instruction;
   // @ts-expect-error Reset records have no outcome.
   reset.outcome;
+}
+
+export function check68000Memory(state: Cpu68000State, ram: Ram): void {
+  const memory: MemoryConnection = {
+    size: ram.size,
+    read: address => address < 0x8000 ? ram.read(address) : "bus-error",
+    write: (address, value) => address < 0x8000 ? ram.write(address, value) : "bus-error",
+  };
+  new Cpu68000(memory, state);
+  // @ts-expect-error Failed reads use the explicit signal, not a missing byte.
+  new Cpu68000({ ...memory, read: () => undefined }, state);
+  // @ts-expect-error A write either succeeds or reports a bus error.
+  new Cpu68000({ ...memory, write: () => false }, state);
 }
 
 export function check68000Controls(cpu: Cpu68000, state: Cpu68000State, ram: Ram): void {

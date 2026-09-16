@@ -10,6 +10,7 @@ cpu 68000 {
   USP = 34008000  SSP = 56009000  PC = AB002000
   IR = 0000
   faulted = false
+  entry { kind = none  vector = 00 }
   halted = false  tracePending = false
   interruptMask = 2
   flags { X = 1  N = 0  Z = 1  V = 1  C = 1  T = 0  S = 0 }

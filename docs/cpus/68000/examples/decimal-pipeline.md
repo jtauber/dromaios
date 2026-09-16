@@ -19,6 +19,7 @@ does not require a device. Tracing stays disabled throughout this program.
 | A4, A5, A6 | `50000000`, `60000000`, `70000000` |
 | USP, SSP, PC | `34008000`, `56009000`, `AB002000` |
 | IR | `0000` |
+| entry.kind, entry.vector | `none`, `00` |
 | interruptMask, halted, faulted, tracePending | `2`, `false`, `false`, `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `1` |
 

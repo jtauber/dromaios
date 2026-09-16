@@ -184,9 +184,12 @@ views nor `PC` can be assigned. See the [8088 example](../cpus/8088/examples/ari
 for a complete definition using different code and data segments.
 
 The 68000 stores `D0`–`D7`, `A0`–`A6`, `USP`, `SSP`, and `PC` as unsigned
-32-bit values, plus `interruptMask` in `0`–`7`, flags `X/N/Z/V/C/T/S`, and
-the Boolean `halted` and `tracePending` latches. All are required: ordinary
-running examples use `halted = false` and `tracePending = false`. T enables
+32-bit values, plus 16-bit `IR`, `interruptMask` in `0`–`7`, flags
+`X/N/Z/V/C/T/S`, and the Boolean `halted`, `faulted`, and `tracePending` latches.
+All are required: ordinary running examples set all three latches to `false`.
+The required `entry` group preserves exception-fetch context; ordinary initial
+state uses `entry { kind = none  vector = 00 }`. Its other named kinds are
+`reset`, `fault`, `exception`, and `trap`; `vector` is an unsigned byte. T enables
 tracing of an instruction; `tracePending` represents a trace already owed.
 `A7` and `physicalPc` are derived and cannot be assigned. The original processor
 has one trace bit and no master-mode bit. See the

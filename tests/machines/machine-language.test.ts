@@ -502,7 +502,7 @@ const source68000 = `ram 1000000
 cpu 68000 {
   D0=11223344 D1=55667788 D2=99AABBCC D3=DDEEFF00 D4=01234567 D5=89ABCDEF D6=FEDCBA98 D7=76543210
   A0=10000000 A1=20000000 A2=30000000 A3=40000000 A4=50000000 A5=60000000 A6=70000000
-  USP=34FFE000 SSP=56FFD000 PC=AB001000 IR=0000 faulted=false interruptMask=2 halted=false tracePending=false
+  USP=34FFE000 SSP=56FFD000 PC=AB001000 IR=0000 faulted=false entry { kind=none vector=00 } interruptMask=2 halted=false tracePending=false
   flags { X=1 N=0 Z=1 V=1 C=1 T=0 S=0 }
 }`;
 
@@ -519,7 +519,7 @@ test("68000 parsing keeps full long registers and logical completion separate fr
       d4: 0x01234567, d5: 0x89abcdef, d6: 0xfedcba98, d7: 0x76543210,
       a0: 0x10000000, a1: 0x20000000, a2: 0x30000000, a3: 0x40000000,
       a4: 0x50000000, a5: 0x60000000, a6: 0x70000000, usp: 0x34ffe000, ssp: 0x56ffd000,
-      pc: 0xab001000, ir: 0, faulted: false, halted: false, tracePending: false, interruptMask: 2, flags: { x: true, n: false, z: true, v: true, c: true, t: false, s: false },
+      pc: 0xab001000, ir: 0, faulted: false, entry: { kind: "none", vector: 0 }, halted: false, tracePending: false, interruptMask: 2, flags: { x: true, n: false, z: true, v: true, c: true, t: false, s: false },
     });
   }
   for (const suffix of ["memory 1000000 {}", "memory FFFFFF { AA BB }", "end 100000000"]) {

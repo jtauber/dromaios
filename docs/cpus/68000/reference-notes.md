@@ -405,7 +405,8 @@ word order used here: entry writes PC low, SR, PC high; RTE reads PC high, SR,
 PC low. Timing, function codes, and instruction prefetch are not modeled.
 
 The RTE file's 4,054 and CHK file's 3,117 address-error cases were excluded
-because their longer frame and fault sequencing remain outside this model.
+because that comparison did not cover their longer frame and fault sequencing;
+those paths have separate manual-derived tests below.
 The DIVU/DIVS files were also inspected: after excluding address errors and
 ordinary division, they supply only one zero-divisor case (DIVU
 `80ef [DIVU (d16, A7), D0] 5745`). It stacks the instruction start PC, unlike
@@ -421,7 +422,7 @@ wrapping, stack/vector overlap, privilege rejection before operand reads,
 and host RAM failures during frame/vector transfers. The
 [model contract](model.md#synchronous-exception-entry-and-return) describes
 alignment faults and callback-visible partial state. Illegal/emulator-line and
-address-error delivery are covered below; bus-error signaling remains deferred.
+address-error and bus-error delivery are covered below.
 
 ## Illegal and emulator-line exceptions
 
@@ -547,5 +548,40 @@ preserving completed reads; exception entry then applies its own effects.
 Ordinary fault PCs follow the local fetch cursor. Hardware prefetch and partial
 instruction sequencing can produce different PCs and register values. The
 previous SingleStepTests comparisons explicitly excluded address-error cases;
-they are not evidence for this new path. Bus-error signaling remains deferred
-until RAM has an explicit fault interface; host exceptions still propagate.
+they are not evidence for this path. Explicit bus-error signaling is covered
+below; host exceptions still propagate.
+
+
+## Bus-error delivery
+
+The [MC68000 User's Manual](https://www.nxp.com/docs/en/reference-manual/MC68000UM.pdf),
+§§6.3.1 and 6.3.9–6.3.10, defines vector 2, the shared bus/address-error frame,
+and terminal halt when either fault interrupts bus/address-error or reset
+processing. Section 6.1.3 places reset vectors in supervisor program space;
+other exception vectors use supervisor data space. Figure 6-7 supplies the
+same SSW/IR/SR/PC layout used above. A fault on an exception vector read or
+initial handler fetch saves the interrupted exception's vector address.
+
+Dromaios now accepts an explicit `MemoryConnection` result for failed bytes.
+Its stored `entry` context retains reset/group-0/group-1/group-2 classification
+until the first opcode is completely fetched, including across snapshot
+restoration. This preserves the first-fetch fault rule without inventing
+prefetch reads in ordinary execution records. Thrown host exceptions remain
+outside the emulated bus-error mechanism.
+
+[Focused tests](../../../tests/components/cpus/68000/bus-errors.test.ts) inject
+faults at every byte of representative opcode, extension, long operand, call,
+return, short-frame, extended-frame, vector, and reset transfers. Literal frame
+offsets and status bits check both privilege modes, PC-relative program reads,
+MOVEP data reads, group classification, and nested faults. They also cover
+partial MOVEM loads and ALU writes, logical/physical wrapping, frame/vector
+overlap, snapshot detachment, first-handler fetch failures, and software cleanup
+followed by RTE. Separate host throws and invalid callback results must never
+be converted into vector 2.
+
+These checks validate the [declared recovery contract](model.md#bus-errors),
+not hardware bus-cycle fault timing. The byte connection can stop midway through
+a modeled word; hardware uses word bus transactions. Ordinary saved PCs follow
+the completed-word fetch cursor, and existing helper commit points determine
+partial register effects. No independent hardware fault corpus has been used;
+the earlier emulator-generated corpus checks do not establish bus-error accuracy.

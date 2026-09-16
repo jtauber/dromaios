@@ -33,6 +33,7 @@ alignment. No bytes change except those four destination bytes.
 | USP, SSP, PC | `34FFE000`, `56FFD000`, `AB001000` |
 | interruptMask | `2` |
 | IR | `0000` |
+| entry.kind, entry.vector | `none`, `00` |
 | halted, faulted, tracePending | `false`, `false`, `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `0` |
 

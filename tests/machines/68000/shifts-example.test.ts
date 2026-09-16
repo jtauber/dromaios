@@ -11,7 +11,7 @@ function initialState(supervisor = false): Cpu68000Snapshot {
     d4: 0x01234567, d5: 0x89abcdef, d6: 0xfedcba98, d7: 0x76543210,
     a0: 0x10000000, a1: 0x20000000, a2: 0x30000000, a3: 0x40000000,
     a4: 0x50000000, a5: 0x60000000, a6: 0x70000000, usp: 0x34008000, ssp: 0x56009000,
-    pc: 0xab002000, a7: supervisor ? 0x56009000 : 0x34008000, physicalPc: 0x2000, ir: 0, faulted: false, halted: false, tracePending: false, interruptMask: supervisor ? 7 : 2,
+    pc: 0xab002000, a7: supervisor ? 0x56009000 : 0x34008000, physicalPc: 0x2000, ir: 0, faulted: false, entry: { kind: supervisor ? "reset" : "none", vector: 0 }, halted: false, tracePending: false, interruptMask: supervisor ? 7 : 2,
     flags: { x: true, n: false, z: true, v: true, c: true, t: false, s: supervisor } };
 }
 const read = (address: number, ...bytes: number[]): Cpu68000MemoryAccess[] =>
@@ -31,7 +31,7 @@ function expectedRecords(supervisor = false): Cpu68000StepRecord[] {
     data: Cpu68000MemoryAccess[] = []): void {
     const flags = condition === undefined ? { ...before.flags } : { ...before.flags,
       x: condition[0] === "1", n: condition[1] === "1", z: condition[2] === "1", v: condition[3] === "1", c: condition[4] === "1" };
-    const after = { ...before, ir: bytes[0]! * 256 + bytes[1]!, ...changes, flags, pc: 0xab000000 + nextPc, physicalPc: nextPc };
+    const after = { ...before, entry: { kind: "none", vector: 0 } as const, ir: bytes[0]! * 256 + bytes[1]!, ...changes, flags, pc: 0xab000000 + nextPc, physicalPc: nextPc };
     records.push({ before, after, outcome: "executed", instruction: { address: before.pc, bytes },
       accesses: [...read(before.physicalPc, ...bytes), ...data] });
     before = after;

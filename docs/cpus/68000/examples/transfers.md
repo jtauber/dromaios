@@ -45,6 +45,7 @@ The 16 MiB RAM image starts zero-filled, with three blocks:
 | USP, SSP, PC | `34FFE000`, `56FFD000`, `AB002000` |
 | interruptMask | `2` |
 | IR | `0000` |
+| entry.kind, entry.vector | `none`, `00` |
 | halted, faulted, tracePending | `false`, `false`, `false` |
 | X, N, Z, V, C, T, S | `1`, `0`, `1`, `1`, `1`, `0`, `0` |
 

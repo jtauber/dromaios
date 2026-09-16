@@ -22,7 +22,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [659](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [598](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1214](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -52,7 +52,8 @@ and have complete documented opcode coverage, following the
 [completion sequence](completion.md#completion-sequence). All eight also support
 explicit external interrupt delivery at instruction boundaries; their model
 contracts define native recognition and entry policies. Cycle timing remains
-unmodeled, and the 68000 still needs bus-error delivery.
+unmodeled. The 68000 also delivers explicit bus and address errors within its
+instruction-level recovery contract.
 Opcode completion does not imply complete processor emulation.
 
 ## How the percentages are counted
@@ -2026,7 +2027,7 @@ intermediate overflow, register aliases, and memory updates.
 
 | Area | Implemented scope |
 | --- | --- |
-| Stored state | D0–D7, A0–A6, USP/SSP, and PC as unsigned 32-bit values; X/N/Z/V/C/T/S and three-bit interrupt mask; Boolean `halted` and `tracePending` latches |
+| Stored state | D0–D7, A0–A6, USP/SSP, and PC as unsigned 32-bit values; X/N/Z/V/C/T/S and three-bit interrupt mask; IR, Boolean `halted`/`faulted`/`tracePending` latches, and pending-entry context |
 | Views | A7 derived from S and USP/SSP; physical PC derived from the low 24 bits of PC |
 | Transfers | Complete MOVE.B/W/L, MOVEA.W/L, and MOVEM.W/L families; MOVEQ; partial Dn writes and sign-extended address-register word writes |
 | Immediate ALU | ADDI, SUBI, CMPI, ANDI, ORI, EORI in all three sizes and data-alterable modes; preserve upper Dn bits on byte/word writes |
@@ -2038,21 +2039,23 @@ intermediate overflow, register aliases, and memory updates.
 | Shifts and rotates | ASL/ASR, LSL/LSR, ROXL/ROXR, ROL/ROR; all register sizes, immediate/register counts, and word memory forms; shared one-bit helpers with CPU-specific flags |
 | Register/memory logic | AND, OR, EOR in all three sizes and legal directions/address sets; shared ALU execution and width-aware flag handling |
 | Effective addresses | Dn, An, indirect, postincrement, predecrement, signed displacement/index, absolute word/long, PC displacement/index, immediate; restrictions above |
-| Memory | Exactly 16 MiB; mask each address at RAM access, preserving full register values; big-endian bytes, words, and longs |
+| Memory | 16 MiB address space through `MemoryConnection` (including plain RAM); mask each physical address, preserving full register values; big-endian bytes, words, and longs |
 | Instruction fetching | Even PC; 16-bit operation word; word/long extensions; sequential and branch PC wrap at 32 bits; no target prefetch |
 | Control flow | BRA/Bcc, DBcc, BSR/RTS, JMP/JSR; complete conditions, displacement forms, and counter registers |
 | Alignment | Odd instruction/word/long accesses enter vector 3 with a seven-word frame; byte operands remain valid; [staged operand and terminal-halt policy](68000/model.md#address-errors) |
+| Bus errors | Explicit failed bytes enter vector 2; shared extended frame, partial effects, first-handler-fetch context, and terminal halt on a second fault; [recovery contract](68000/model.md#bus-errors) |
 | Stack and addresses | A7 selects USP/SSP from S; BSR/JSR push and RTS pops a four-byte return address; LINK/UNLK frames, LEA/PEA address calculation, MOVEM saves/restores; byte auto-updates step by two |
-| Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts, clear STOP/pending trace and release terminal halt when the vector PC is even; preserve other registers, condition codes, and RAM under the documented policy |
+| Reset | Read SSP from bytes 0–3 and PC from 4–7; set S, clear T, mask interrupts, clear STOP/pending trace and release terminal halt when both vectors succeed and the PC is even; preserve other registers, condition codes, and RAM under the documented policy |
 | Decimal and multiply/divide | ABCD/SBCD/NBCD, MULU/MULS/DIVU/DIVS; cumulative decimal Z, packed remainder/quotient, explicit undefined-flag policies |
 | Further transfers | MOVEP alternate-byte RAM transfers, EXG, EXT, and SWAP; every documented form |
 | Status and control | Packed CCR/SR moves and immediate logic, USP moves, RTR, CHK, TAS, NOP, and STOP; native privilege/bounds/divide-zero delivery |
 | Stopping | STOP loads SR and sets `halted`; traced STOP permits the next trace step; accepted interrupt/trace/reset wakes it |
 | Exceptions | Six-byte supervisor frames, synchronous and trace vectors, all illegal and line-A/line-F encodings, external interrupt acknowledgement, saved PC/SR, and RTE; [entry and failure contract](68000/model.md#synchronous-exception-entry-and-return) |
 | External controls | [Selected level offers](68000/model.md#external-interrupt-delivery), all vector bytes, autovectors/spurious response, trace priority, STOP wakeup, and [RESET callback](68000/model.md#reset-device-connection) |
-| Remaining scope | Bus-error delivery, complete devices, signal sampling, timing, and prefetch |
+| Remaining scope | Complete devices, signal sampling, timing, prefetch, and hardware-level partial-instruction fault sequencing |
 
 Verification: [CPU tests](../../tests/components/cpus/68000.test.ts),
+[bus-error tests](../../tests/components/cpus/68000/bus-errors.test.ts),
 [arithmetic](../../tests/machines/68000/example.test.ts),
 [register-transfer](../../tests/machines/68000/transfers-example.test.ts),
 [addressing](../../tests/machines/68000/addressing-example.test.ts),

@@ -11,7 +11,7 @@ function initialState(): Cpu68000Snapshot {
     d4: 0x01234567, d5: 0x89abcdef, d6: 0xfedcba98, d7: 0x76543210,
     a0: 0x10000000, a1: 0x20000000, a2: 0x30000000, a3: 0x40000000,
     a4: 0x50000000, a5: 0x60000000, a6: 0x70000000, usp: 0x34ffe000, ssp: 0x56ffd000,
-    pc: 0xab001000, ir: 0, faulted: false, halted: false, tracePending: false, interruptMask: 2, a7: 0x34ffe000, physicalPc: 0x1000,
+    pc: 0xab001000, ir: 0, faulted: false, entry: { kind: "none", vector: 0 }, halted: false, tracePending: false, interruptMask: 2, a7: 0x34ffe000, physicalPc: 0x1000,
     flags: { x: true, n: false, z: true, v: true, c: true, t: false, s: false } };
 }
 
@@ -97,7 +97,7 @@ test("68000 example pauses and resumes, resets from vectors, and restarts with i
   assert.deepEqual(first, { records: expected.slice(0, 1), stopReason: "step-limit" });
   assert.deepEqual(runCpu(cpu, { maxSteps: 2, endAddress }), { records: expected.slice(1), stopReason: "completed" });
   const before = expected[2]!.after;
-  const after = { ...before, ssp: 0x12fff000, a7: 0x12fff000, pc: 0xab001000, physicalPc: 0x1000,
+  const after = { ...before, entry: { kind: "reset", vector: 0 } as const, ssp: 0x12fff000, a7: 0x12fff000, pc: 0xab001000, physicalPc: 0x1000,
     interruptMask: 7, flags: { ...before.flags, s: true, t: false } };
   assert.deepEqual(cpu.reset(), { before, after, accesses: [
     { kind: "read", address: 0, value: 0x12 }, { kind: "read", address: 1, value: 0xff },

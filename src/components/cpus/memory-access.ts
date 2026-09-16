@@ -18,7 +18,7 @@ export interface RecordedMemory extends ByteMemory {
 }
 
 /** Create a fresh log; optionally report completed accesses to a combined bus log as they happen. */
-export function recordMemory(ram: Ram, onAccess?: (access: MemoryAccess) => void): RecordedMemory {
+export function recordMemory(ram: Pick<Ram, "read" | "write">, onAccess?: (access: MemoryAccess) => void): RecordedMemory {
   const accesses: MemoryAccess[] = [];
   const record = (access: MemoryAccess): void => { accesses.push(access); onAccess?.(access); };
   return {

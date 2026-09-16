@@ -213,9 +213,12 @@ Re-reading memory or devices afterward cannot reliably reconstruct them. The
 record must make its granularity clear; an instruction-level model does not
 automatically provide a complete cycle-by-cycle bus trace.
 
-The concrete CPU models take a `Ram` instance and explicit initial state.
-`Cpu8008` requires 16 KiB RAM; `Cpu8088` requires 1 MiB; `Cpu68000` requires
-16 MiB; `Cpu8080`, `Cpu6502`, `Cpu6800`, `Cpu6809`, and `CpuZ80` require 64 KiB.
+The concrete CPU models take explicit initial state and memory. `Cpu8008`
+requires 16 KiB RAM; `Cpu8088` requires 1 MiB; `Cpu8080`, `Cpu6502`, `Cpu6800`,
+`Cpu6809`, and `CpuZ80` require 64 KiB. `Cpu68000` takes a 16 MiB
+[MemoryConnection](../src/components/memory/connection.ts), which plain `Ram`
+also satisfies. A connection can return an explicit `"bus-error"` result; thrown
+host errors propagate. Other cores still accept `Ram` directly.
 They copy only declared state
 fields, including flags and any nested banks or address arrays, and expose
 `snapshot()` and `step()`.
@@ -227,9 +230,11 @@ views from word registers; records use physical RAM addresses and retain the
 logical registers in their snapshots. The 68000 preserves its full 32-bit PC,
 uses the low 24 bits for RAM access, and derives A7 from USP/SSP and supervisor
 mode. The runner compares each model's `snapshot().pc`; a 68000 completion
-address therefore retains all 32 bits. Alignment faults enter the 68000's
-address-error vector; its model contract defines the extended frame,
-staged operand effects, and terminal halt on failed entry.
+address therefore retains all 32 bits. Alignment faults and reported memory
+failures enter the 68000's address-error and bus-error vectors. Its model contract
+defines the shared extended frame, retained partial effects, and terminal halt
+on failed error/reset entry. Snapshots preserve pending entry context through
+the first handler fetch.
 Restarting an example creates fresh components.
 
 Reset behavior, step outcomes, and lesson completion remain specific to each

@@ -11,13 +11,13 @@
 [Reference review](reference-notes.md)
 
 This is an instruction-level model of the original Motorola 68000. It uses
-flat RAM, explicit initial state, detached snapshots, and records of actual
-byte accesses. Later 680x0 instructions and status bits are outside its scope.
+an explicit memory connection, initial state, detached snapshots, and records
+of completed byte accesses. Plain `Ram` remains a valid connection. Later 680x0 instructions and status bits are outside its scope.
 
 ## Stored state and inspection
 
-`new Cpu68000(ram, initialState, connections?)` requires exactly 16 MiB of RAM and all these
-stored fields:
+`new Cpu68000(memory, initialState, connections?)` requires a 16 MiB address
+space and all these stored fields:
 
 | Fields | Constraint |
 | --- | --- |
@@ -30,6 +30,8 @@ stored fields:
 | `halted` | Boolean STOP latch; required in initial state |
 | `faulted` | Boolean terminal double-fault latch; only external reset releases it |
 | `tracePending` | Boolean owed-trace latch; required independently of T and STOP |
+| `entry.kind` | `none`, `reset`, `fault`, `exception`, or `trap`: phase awaiting its first opcode fetch |
+| `entry.vector` | Unsigned byte identifying that exception vector; ignored for `none` and `reset` |
 | `flags.x/n/z/v/c` | Boolean extend, negative, zero, overflow, and carry |
 | `flags.t/s` | Boolean trace and supervisor bits |
 
@@ -46,7 +48,7 @@ use the level rules below. Entry clears T and selects SSP.
 
 The exported `cpu68000StateDescription` owns field names and constraints.
 Construction reads each declared field once, validates it, and owns a copy.
-Numeric errors throw `RangeError`; missing or invalid flag groups and Boolean
+Numeric and named-choice errors throw `RangeError`; missing or invalid flag groups and Boolean
 fields throw `TypeError`. Extra metadata and derived views are ignored.
 Construction does not read RAM, reset, or execute.
 
@@ -58,6 +60,41 @@ Construction does not read RAM, reset, or execute.
 
 Snapshots can initialize another CPU. Neither inspection nor snapshot copying
 accesses RAM. Mutating caller state or an earlier snapshot cannot alter the CPU.
+
+`entry` preserves the context of the next initial opcode fetch across snapshots.
+Ordinary initial state uses `{ kind: "none", vector: 0 }`. Successful reset
+sets `reset`; bus/address-error entry sets `fault`; group-1 exceptions, trace,
+and interrupts set `exception`; group-2 instruction traps set `trap`.
+The vector distinguishes, for example, TRAP #0 from TRAP #1. A complete opcode
+fetch clears the context to `none`, vector 0; a partial fetch preserves it.
+This records entry sequencing without storing a prefetch queue. The existing
+trace/interrupt boundary priority still applies before that fetch.
+
+## Memory connection
+
+[MemoryConnection](../../../src/components/memory/connection.ts) describes
+`size`, `read(address)`, and `write(address, value)`. Addresses reaching it are
+physical 24-bit addresses. A successful read returns an integer byte; a
+successful write returns nothing. Either operation can return `"bus-error"`
+to report a failed transfer. The connection must report failure **without
+completing that byte**, including any device side effect. `size` describes
+the address space, so unmapped regions need not allocate RAM.
+
+For example, a machine can expose a small RAM region on the full address bus:
+
+```typescript
+const memory: MemoryConnection = {
+  size: 0x1000000,
+  read: address => address < ram.size ? ram.read(address) : "bus-error",
+  write: (address, value) => address < ram.size ? ram.write(address, value) : "bus-error",
+};
+```
+
+Only this explicit result signals an emulated bus error. Thrown host values,
+even the string `"bus-error"`, propagate unchanged. Invalid successful read
+values throw `RangeError`; a write returning another value throws `TypeError`.
+The shared recorder logs a byte only after its transfer succeeds. The failed
+byte appears in fault metadata, while earlier successful bytes remain in order.
 
 ## Logical and physical addresses
 
@@ -575,8 +612,8 @@ A masked interrupt leaves it stopped. The immediate SR's new mask controls
 which ordinary interrupt levels may wake it; its new S can select USP.
 
 All documented original-68000 instruction forms are implemented within this
-instruction-level contract. Bus-error delivery, memory-mapped devices,
-timing, and prefetch remain outside it. Words outside the instruction inventory
+instruction-level contract, including the bus/address-error delivery below.
+Concrete devices, timing, and prefetch remain outside it. Words outside the instruction inventory
 deliver illegal-instruction or line-A/line-F exceptions as described below.
 
 ## Synchronous exception entry and return
@@ -657,13 +694,15 @@ vector-3 entry applies its own state and memory effects.
 `step()`, `reset()`, and `interrupt()` share a per-instance execution guard.
 RAM and device callbacks may inspect `snapshot()`; nested mutations throw
 before any nested CPU changes.
-The guard clears on success or failure. A host RAM exception propagates without
+The guard clears on success or failure. A host memory exception propagates without
 a record or fabricated bus-error delivery. Completed writes are not rolled back.
 During entry S/T and reserved SSP are visible before the first frame write;
 PC changes only after all vector bytes arrive. During RTE the stack/PC/SR
 return state changes only after all frame reads and target validation; IR
 already holds `4E73`. During reset, SSP commits after four vector bytes;
-PC and reset flags follow the remaining four.
+PC follows the remaining four. Reset control flags are applied after the vectors
+succeed or explicitly report a bus fault; a thrown host error preserves the
+control flags it interrupted. These are instruction-level commit points.
 
 ## Trace recognition
 
@@ -785,7 +824,7 @@ MOVEP advances by two between bytes, leaving the intervening locations untouched
 These are instruction-level records, not physical bus-cycle traces; prefetch
 and general word-transfer scheduling are outside this model. Exception frames
 and RTE use the explicit word order above, checked against the reference corpus.
-Each access reflects an actual RAM call, without synthetic destination reads or trace
+Each access reflects a completed memory call, without synthetic destination reads or trace
 reconstruction.
 
 Immediate ALU instructions fetch the operation word, immediate, and destination
@@ -852,7 +891,7 @@ Handlers must choose a recovery PC; this core does not restart arbitrary
 faulting instructions automatically.
 
 The original 68000 has no frame-format word. **RTE consumes only the ordinary
-six-byte SR/PC frame**. An address-error handler must remove the first eight
+six-byte SR/PC frame**. A bus/address-error handler must remove the first eight
 bytes itself (for example, `ADDQ.L #8,A7`) before RTE. It can edit the saved PC
 first to retry or skip the faulting instruction.
 
@@ -862,7 +901,7 @@ metadata contains vector 3, `returnPc`, and a `fault` with operation, full
 address, instruction register, function code, and `processingInstruction`.
 `instruction` is null for an initial odd-PC fault or failed trace entry.
 
-An odd SSP or odd vector-3 handler PC faults during address-error entry and
+A bus or address error during either vector-2 or vector-3 entry
 sets `faulted`. The record returns `outcome: "halted"` and adds `entryFault`.
 No recursive frame is attempted. Frame reservation precedes the first write;
 thus an odd SSP reserves 14 bytes without writing, or 20 bytes in total when
@@ -872,10 +911,55 @@ offers return ignored with reason `"faulted"`, including level 7. Snapshots
 preserve this latch. External reset can release it; a reset vector with an odd
 PC leaves it set. An odd SSP alone is harmless until a stack access needs it.
 
-A thrown RAM callback is a **host error**, not a modeled bus error. It returns
-no record, retains completed transfers and state changes, and clears the
-reentrancy guard. Bus-error signaling and vector-2 delivery remain deferred
-until there is an explicit memory-fault connection.
+## Bus errors
+
+A connection's `"bus-error"` result enters **vector 2**, read from physical
+`000008`–`00000B`. Bus and address errors share the seven-word frame and
+function-code rules above. This applies to instruction fetches, operands,
+call/return stacks, ordinary exception frames, and vector reads. The fault
+address identifies the exact failed byte, retaining its full logical address.
+`exception.source` is `"bus-error"`; the remaining metadata matches address errors.
+
+The saved PC follows the sequential fetch cursor after the last completely
+fetched word. A failed opcode fetch leaves `instruction: null` and the old IR;
+a failed extension leaves the completed opcode/extension words in
+`instruction.bytes`. A successfully read first byte of an incomplete word
+still appears in `accesses`. Failed calls save the sequential cursor even
+when their target was already selected. Failures during vector reads or the
+first handler fetch instead save the interrupted exception's vector address.
+
+Completed effects are retained according to the existing instruction helpers:
+
+| Interrupted work | Effects retained before vector-2 entry |
+| --- | --- |
+| MOVE source read | Earlier bytes read; pending An updates and destination remain unchanged |
+| MOVE destination write | Pending source/destination An updates and earlier written bytes; MOVE flags wait for the whole write |
+| ALU destination read/write | An updates precede the read; result flags precede the write |
+| MOVEM | Completed register loads/stores; its final base update waits for the entire list |
+| BSR/JSR, PEA, LINK | Earlier stack bytes written; the stack-pointer update waits for the complete push |
+| RTS/RTR/RTE | Earlier frame reads; return PC, flags, and stack consumption remain staged |
+| Ordinary exception entry | Reserved six-byte frame, supervisor/trace changes, completed bytes, and any acknowledged interrupt/mask update |
+
+These commit points deliberately describe this instruction-level model.
+They do not reproduce the original processor's internal partial execution or
+prefetch advancement. Hardware bus transactions are word-sized; this connection
+can stop between their two modeled bytes. Recovery software must choose the
+saved PC and account for retained effects; automatic instruction restart is
+not provided.
+
+Any bus/address error during bus/address-error entry terminally halts, including
+its first opcode fetch. A failed transfer while writing the frame or reading
+the vector appears as `exception.entryFault`, with `source: "bus-error"` for a
+bus failure. A failed initial handler fetch happens in the next `step()`:
+it returns `outcome: "halted"`, a top-level `fault`, and no new `exception` or
+frame. Reset's first opcode fetch follows the same terminal-halt rule. The
+stored `entry` context makes these decisions reproducible after restoration.
+A successful complete handler opcode clears that context; subsequent operand
+or extension faults belong to the handler instruction itself.
+
+Host exceptions return no record and retain completed effects, as described
+under [delivery failures](#delivery-failures-and-callbacks). They never set the
+terminal-halt latch merely because a callback threw.
 
 Records own their snapshots, bytes, accesses, fault details, and exception
 metadata; the CPU retains no history. They describe instruction-level activity, without cycles, word bus
@@ -889,17 +973,22 @@ events and interrupt acknowledgements represent the explicit connections above.
 1. Read bytes `000000`–`000003` into SSP, high byte first.
 2. Read bytes `000004`–`000007` into PC, high byte first.
 3. Set S, clear T, set `interruptMask` to 7, and clear `halted` and `tracePending`.
-4. Clear `faulted` if the new PC is even; otherwise set it.
+4. Set `entry` to `reset`, vector 0. Clear `faulted` only when both vectors
+   succeeded and the new PC is even.
 
 Both vectors retain all 32 bits. A7 now exposes the new SSP. D0–D7, A0–A6,
 USP, IR, X/N/Z/V/C, and RAM are preserved. Preserving registers and condition codes
 whose reset values are unspecified is a deterministic model policy, not a
 hardware guarantee.
 
-The reset record has detached `before`/`after` snapshots and exactly eight
-reads, with no instruction or step outcome. Reset does not fetch the next
+A successful reset record has detached `before`/`after` snapshots and exactly
+eight reads, with no instruction or step outcome. A reported bus fault stops
+further reads, preserves any complete SSP vector, applies the reset control
+flags, and sets `faulted`. It records the failed byte in top-level `fault`;
+no exception frame is created. Reset vector reads use supervisor program space. Reset does not fetch the next
 instruction. An odd vector PC is retained and terminally halts the CPU during reset.
-The rejected fetch makes no RAM call and creates no exception frame. Reset differs from restarting an example,
+The rejected fetch makes no memory call, is recorded in `fault`, and creates
+no exception frame. Reset differs from restarting an example,
 which creates fresh CPU state and RAM.
 
 The **RESET instruction** resets external devices without reinitializing the
@@ -1051,3 +1140,10 @@ snapshot restoration, and host failures at every frame/vector byte. The
 [runner recovery test](../../../tests/machines/68000/example.test.ts) removes
 the eight extra bytes before RTE. See the [reference discussion](reference-notes.md#address-error-delivery)
 for the limits of these checks.
+
+The [bus-error tests](../../../tests/components/cpus/68000/bus-errors.test.ts)
+inject explicit faults at each byte of representative instruction, operand,
+stack, exception, vector, and reset transfers. They also cover program-space
+operands, partial MOVEM/ALU effects, nested faults, first-handler-fetch context,
+frame/vector overlap, restored snapshots, RTE recovery, and host-error isolation.
+See the [reference discussion](reference-notes.md#bus-error-delivery).

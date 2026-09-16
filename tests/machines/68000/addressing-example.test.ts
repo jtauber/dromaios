@@ -11,7 +11,7 @@ function initialState(): Cpu68000Snapshot {
     d4: 0x01234567, d5: 0xffffffff, d6: 0xfedcba98, d7: 0x76543210,
     a0: 0x10000000, a1: 0x20000000, a2: 0x30000000, a3: 0x40000000,
     a4: 0x50000000, a5: 0x60000000, a6: 0x70000000, usp: 0x34008000, ssp: 0x56009000,
-    pc: 0xab002000, a7: 0x34008000, physicalPc: 0x2000, ir: 0, faulted: false, halted: false, tracePending: false, interruptMask: 2,
+    pc: 0xab002000, a7: 0x34008000, physicalPc: 0x2000, ir: 0, faulted: false, entry: { kind: "none", vector: 0 }, halted: false, tracePending: false, interruptMask: 2,
     flags: { x: true, n: false, z: true, v: true, c: true, t: false, s: false } };
 }
 
@@ -71,7 +71,7 @@ function expectedRecords(): Cpu68000StepRecord[] {
     [[0x23, 0xc6, 0xcd, 0, 0x40, 8], {}, true, write(0x4008, 0xfe, 0xdc, 0x89, 0xab)],
   ];
   return steps.map(([bytes, changes, negative, data]) => {
-    const after = { ...before, ir: bytes[0]! * 256 + bytes[1]!, ...changes, pc: before.pc + bytes.length, physicalPc: before.physicalPc + bytes.length,
+    const after = { ...before, entry: { kind: "none", vector: 0 } as const, ir: bytes[0]! * 256 + bytes[1]!, ...changes, pc: before.pc + bytes.length, physicalPc: before.physicalPc + bytes.length,
       flags: negative === null ? { ...before.flags } : { ...before.flags, n: negative, z: false, v: false, c: false } };
     const record: Cpu68000StepRecord = { before, after, outcome: "executed", instruction: { address: before.pc, bytes },
       accesses: [...read(before.physicalPc, ...bytes), ...data] };
@@ -136,7 +136,7 @@ test("68000 addressing pauses across stack operations, resumes from snapshots, a
 test("68000 addressing after reset uses SSP, preserves USP, and leaves the inactive stack memory untouched", () => {
   const { cpu, ram, endAddress } = create68000AddressingExample();
   const before = initialState();
-  const after = { ...before, flags: { ...before.flags, s: true }, interruptMask: 7, a7: before.ssp };
+  const after = { ...before, entry: { kind: "reset", vector: 0 } as const, flags: { ...before.flags, s: true }, interruptMask: 7, a7: before.ssp };
   assert.deepEqual(cpu.reset(), { before, after, accesses: read(0, 0x56, 0, 0x90, 0, 0xab, 0, 0x20, 0) });
   checkMemory(ram);
   const result = runCpu(cpu, { maxSteps: 18, endAddress });
