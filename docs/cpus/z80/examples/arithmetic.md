@@ -7,7 +7,7 @@ and flag semantics: load 2, add 3, store 5 at address 0080, and halt.
 [Model contract](../model.md) ·
 [Machine definition](../../../../src/machines/z80/example.machine) ·
 [Example tests](../../../../tests/machines/z80/example.test.ts) ·
-[CPU tests](../../../../tests/components/cpus/z80.test.ts)
+[CPU tests](../../../../tests/components/cpus/z80)
 
 The explicit initial state sets `interruptDeferred` and `nmiDeferred` to false.
 

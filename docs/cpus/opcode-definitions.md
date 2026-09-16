@@ -104,6 +104,15 @@ mechanism or the 6809's additional BRN instruction.
 
 ## Execution and verification
 
+The helper compiles each distinct pattern once, retaining its opcode values,
+field sizes, and selector indices for the lifetime of the module. That encoding
+data stays private and is never modified after compilation. Each family call
+still validates its supplied selectors and creates fresh entries and field
+maps before invoking the caller's binding function. Handlers and selector
+values are never cached, so CPU instances retain their own state and closures.
+This avoids repeatedly parsing and expanding the same encodings in exhaustive
+tests while keeping the patterns in CPU source unchanged.
+
 Construct tables once per CPU instance. Binding functions capture selectors;
 they must not read live CPU state or access RAM. The CPU retains ownership of
 state, instruction fetching, addressing, flags, control flow, and recorded

@@ -134,3 +134,44 @@ test("malformed patterns and incomplete or extraneous selector maps fail before 
   assert.throws(() => opcodeFamily("00xxx111", { x: [0, 1, 2, 3, 4, 5, 6, 7] }, bind), /Selector x is absent/);
   assert.throws(() => opcodePattern("ff010000", bind), /Selector f.*requires 4 values/);
 });
+
+test("repeated patterns share no selector values, captured field maps, handlers, or returned entries", () => {
+  const values = ["first", "second", "third", "fourth"];
+  const first = opcodeFamily("f x 01 f 0 01", { f: values }, selected => () => selected);
+  const second = opcodeFamily("f x 01 f 0 01", { f: [10, 20, 30, 40] }, selected => () => selected);
+  assert.deepEqual(first.map(([opcode, handler]) => [opcode, handler().f]), [
+    [0x11, "first"], [0x19, "second"], [0x51, "first"], [0x59, "second"],
+    [0x91, "third"], [0x99, "fourth"], [0xd1, "third"], [0xd9, "fourth"],
+  ]);
+  values[0] = "changed";
+  Reflect.set(first[0]![1](), "f", "mutated binding");
+  Reflect.set(first[0]!, 0, 0xff);
+  assert.equal(first[2]![1]().f, "first", "Even alias bindings own separate field maps");
+  const expected = [[0x11, 10], [0x19, 20], [0x51, 10], [0x59, 20], [0x91, 30], [0x99, 40], [0xd1, 30], [0xd9, 40]];
+  assert.deepEqual(second.map(([opcode, handler]) => [opcode, handler().f]), expected);
+  const third = opcodeFamily("f x 01 f 0 01", { f: [10, 20, 30, 40] }, selected => () => selected);
+  assert.deepEqual(third.map(([opcode, handler]) => [opcode, handler().f]), expected);
+  assert.notEqual(third[0]![1], second[0]![1]);
+});
+
+test("cached patterns still validate each selector map and recover from failed bindings", () => {
+  const pattern = "0000 0000 ffxx ffff";
+  const values = Array.from({ length: 64 }, (_, index) => index);
+  assert.equal(opcodeFamily(pattern, { f: values }, selected => selected.f).length, 256);
+  const forbidden = () => assert.fail("Invalid selectors must fail before binding");
+  assert.throws(() => opcodeFamily(pattern, {}, forbidden), /Selector f.*requires 64 values/);
+  assert.throws(() => opcodeFamily(pattern, { f: values, a: [0] }, forbidden), /Selector a is absent/);
+  const sparse = [...values];
+  delete sparse[10];
+  assert.throws(() => opcodeFamily(pattern, { f: sparse }, forbidden), /Selector f.*missing value 10/);
+  const error = new Error("binding failed");
+  let calls = 0;
+  assert.throws(() => opcodeFamily(pattern, { f: values }, () => {
+    if (++calls === 3) throw error;
+  }), failure => failure === error);
+  assert.equal(calls, 3);
+  const entries = opcodeFamily(pattern, { f: values }, selected => selected.f);
+  // Interpret the field directly from independently numbered opcode bits 7,6,3,2,1,0.
+  assert.deepEqual(entries, Array.from({ length: 256 }, (_, opcode) => [opcode,
+    Number.parseInt(opcode.toString(2).padStart(8, "0").replace(/^(.{2}).{2}/, "$1"), 2)]));
+});

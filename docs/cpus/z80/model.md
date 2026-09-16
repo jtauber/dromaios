@@ -7,7 +7,7 @@ repeating block instructions.
 The existing RAM setup and CPU runner work with this model without adapters.
 
 [Implementation](../../../src/components/cpus/z80.ts) ·
-[CPU tests](../../../tests/components/cpus/z80.test.ts) ·
+[CPU tests](../../../tests/components/cpus/z80) ·
 [Public type checks](../../../tests/types/z80.ts) ·
 [Coverage](../coverage.md#z80) ·
 [Arithmetic example](examples/arithmetic.md) ·

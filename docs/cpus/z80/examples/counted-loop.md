@@ -118,6 +118,6 @@ the original state, entry point `0200`, and memory image in fresh components.
   unchanged-value store must still occur. This checks that B wraps and that
   bounded running can pause and resume the longer loop.
 
-The [CPU tests](../../../../tests/components/cpus/z80.test.ts) separately cover
+The [CPU tests](../../../../tests/components/cpus/z80) separately cover
 all register forms, JR conditions, every displacement, every B value for DJNZ,
 all flag patterns, and every R value for all supported opcodes.

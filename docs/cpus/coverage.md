@@ -1540,7 +1540,7 @@ refreshing during HALT; the instruction-level halted state does not model
 those cycles. See the [model contract](z80/model.md) for unsupported-attempt and
 reset-preservation policies.
 
-Verification: [CPU tests](../../tests/components/cpus/z80.test.ts),
+Verification: [CPU tests](../../tests/components/cpus/z80),
 [arithmetic example tests](../../tests/machines/z80/example.test.ts),
 [counted-loop example tests](../../tests/machines/z80/counted-loop-example.test.ts),
 [transfer example tests](../../tests/machines/z80/transfers-example.test.ts),

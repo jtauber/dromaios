@@ -13,7 +13,8 @@
     "generate:machines": "node scripts/generate-machines.ts",
     "check:src": "npm run generate:machines && tsc --project tsconfig.src.json",
     "build": "npm run clean && npm run check:src && tsc",
-    "test": "npm run build && node --test \"dist/tests/**/*.test.js\""
+    "test": "npm run build && node scripts/test.ts",
+    "test:built": "node scripts/test.ts"
   },
   "devDependencies": {
     "@types/node": "24.13.4",

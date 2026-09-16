@@ -6,6 +6,18 @@ type Selected<Choices extends Selectors> = {
   readonly [Field in keyof Choices]: Choices[Field][number];
 };
 
+interface CompiledPattern {
+  /** Number of selector values required by each named field. */
+  readonly fields: ReadonlyMap<string, number>;
+  readonly encodings: readonly {
+    readonly opcode: number;
+    readonly codes: readonly (readonly [name: string, code: number])[];
+  }[];
+}
+
+// Only encoding data is shared. Selector values, bindings, and handlers belong to each caller.
+const compiledPatterns = new Map<string, CompiledPattern>();
+
 /** Construct an opcode table, rejecting duplicate entries even if their handlers agree. */
 export function opcodeTable<Handler>(
   entries: readonly OpcodeEntry<Handler>[],
@@ -38,14 +50,14 @@ export function opcodeFamily<const Choices extends Selectors, Handler>(
   selectors: Choices,
   bind: (selected: Selected<Choices>) => Handler,
 ): readonly OpcodeEntry<Handler>[] {
-  const { fixed, variables, fields } = parsePattern(pattern);
+  const { fields, encodings } = compilePattern(pattern);
   for (const name of Object.keys(selectors)) {
     if (!fields.has(name)) throw new Error(`Selector ${name} is absent from opcode pattern "${pattern}".`);
   }
-  for (const [name, positions] of fields) {
+  for (const [name, count] of fields) {
     const values = Object.hasOwn(selectors, name) ? selectors[name] : undefined;
-    if (!Array.isArray(values) || values.length !== 2 ** positions.length) {
-      throw new Error(`Selector ${name} in opcode pattern "${pattern}" requires ${2 ** positions.length} values.`);
+    if (!Array.isArray(values) || values.length !== count) {
+      throw new Error(`Selector ${name} in opcode pattern "${pattern}" requires ${count} values.`);
     }
     for (let index = 0; index < values.length; index++) {
       if (!Object.hasOwn(values, index)) {
@@ -54,7 +66,19 @@ export function opcodeFamily<const Choices extends Selectors, Handler>(
     }
   }
 
-  const entries: OpcodeEntry<Handler>[] = [];
+  return encodings.map(({ opcode, codes }) => {
+    const selected: Record<string, unknown> = {};
+    for (const [name, code] of codes) selected[name] = selectors[name]![code];
+    // Each binding owns its field map, even when multiple opcodes select the same values.
+    return [opcode, bind(selected as Selected<Choices>)];
+  });
+}
+
+function compilePattern(pattern: string): CompiledPattern {
+  const cached = compiledPatterns.get(pattern);
+  if (cached) return cached;
+  const { fixed, variables, fields } = parsePattern(pattern);
+  const encodings = [];
   // Enumerate only the variable bits; fixed bits never enter the selector space.
   for (let combination = 0; combination < 2 ** variables.length; combination++) {
     let opcode = fixed;
@@ -62,18 +86,18 @@ export function opcodeFamily<const Choices extends Selectors, Handler>(
       const bit = (combination >>> (variables.length - 1 - index)) & 1;
       opcode |= bit << position;
     }
-    const selected: Record<string, unknown> = {};
+    const codes: [string, number][] = [];
     for (const [name, positions] of fields) {
       let code = 0;
       // Field bits are read most significant first, including separated occurrences.
       for (const position of positions) code = (code << 1) | ((opcode >>> position) & 1);
-      selected[name] = selectors[name]![code];
+      codes.push([name, code]);
     }
-    // The pattern and complete selector arrays were checked above. Each binding owns
-    // its field map, so a handler can capture it without seeing a later combination.
-    entries.push([opcode, bind(selected as Selected<Choices>)]);
+    encodings.push({ opcode, codes });
   }
-  return entries;
+  const compiled = { fields: new Map([...fields].map(([name, positions]) => [name, 2 ** positions.length])), encodings };
+  compiledPatterns.set(pattern, compiled);
+  return compiled;
 }
 
 function parsePattern(pattern: string) {

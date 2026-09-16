@@ -96,6 +96,27 @@ build script, and tests, and runs the compiled tests.
 `npm run check:src` regenerates the machine factories and runs the simulation check
 using [tsconfig.src.json](tsconfig.src.json), without emitting JavaScript.
 `npm run generate:machines` refreshes just the generated TypeScript factories.
+
+For focused checks, select a CPU and optionally filter test names:
+
+```sh
+npm test -- z80
+npm test -- 8008 --test-name-pattern=interrupt
+npm run test:built -- z80 --test-name-pattern=interrupt
+```
+
+A CPU selection includes its component tests and machine examples. `test:built`
+skips the build; use it only while the compiled output is current. With no CPU
+selection, either command runs the whole suite, including shared helpers,
+the parser, generator, and runner. Keep `npm test` as the final regression
+check; focused runs retain the selected tests' exhaustive cases and assertions.
+
+CPU tests can use topic files under `tests/components/cpus/<cpu>/`, as the Z80
+does for arithmetic, transfers, control flow, prefixes, ports, and interrupts.
+This lets Node run independent topics in separate processes. Shared fixtures
+and independent expected-value calculations belong in `helpers.ts`, which
+registers no tests. Smaller CPU suites can keep their existing single file.
+
 Generated output and `node_modules/` are ignored by Git. There are no runtime
 dependencies; machine parsing happens during the build. The simulation source uses
 no Node or browser APIs.

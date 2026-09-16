@@ -1510,12 +1510,12 @@ Particularly useful regression cases are:
 | 6502 modification writes original and final values | Actual accesses, including same-value writes | [6502 tests](../../tests/components/cpus/6502.test.ts) |
 | 6502 memory shift fails at either write | Separate C and N/Z update stages | [6502 regression tests](../../tests/components/cpus/6502.test.ts); also checked against the pre-refactor source |
 | 6809 indexed load/store/compare aliases its index | Resolution order, live values, single updates | [6809 tests](../../tests/components/cpus/6809.test.ts) |
-| 8080 and Z80 comparisons produce different auxiliary flags | Explicit operation policies | [8080 tests](../../tests/components/cpus/8080.test.ts), [Z80 tests](../../tests/components/cpus/z80.test.ts) |
+| 8080 and Z80 comparisons produce different auxiliary flags | Explicit operation policies | [8080 tests](../../tests/components/cpus/8080.test.ts), [Z80 tests](../../tests/components/cpus/z80) |
 | 8088 word accesses cross a segment boundary | Logical progression before physical mapping | [8088 tests](../../tests/components/cpus/8088.test.ts) |
 | 8088 PUSH SP and POP SP | Source-capture and writeback order | [8088 tests](../../tests/components/cpus/8088.test.ts) |
 | 68000 source/destination auto-updates and alignment rejection | Pending effects and retained reads | [68000 tests](../../tests/components/cpus/68000.test.ts) |
 | 8008 nested calls wrap the address slots | Selected PC storage and non-memory stack behavior | [8008 tests](../../tests/components/cpus/8008.test.ts) |
-| Z80 block and 8088 REP operations step one element at a time | Runner boundaries, refetches, and records | [Z80 tests](../../tests/components/cpus/z80.test.ts), [8088 tests](../../tests/components/cpus/8088.test.ts) |
+| Z80 block and 8088 REP operations step one element at a time | Runner boundaries, refetches, and records | [Z80 tests](../../tests/components/cpus/z80), [8088 tests](../../tests/components/cpus/8088.test.ts) |
 
 During migration, running old and new implementations against the same cases
 can help find regressions. Agreement is evidence of preservation, not proof
