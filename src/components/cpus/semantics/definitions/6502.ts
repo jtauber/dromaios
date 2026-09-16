@@ -65,6 +65,15 @@ function load(register: "a" | "x" | "y", [operand, source]: Operand): Instructio
     steps: transfer(cpu.register(register), source, resultNZ),
   });
 }
+function store(register: "a" | "x" | "y", [operand, address]: Operand): InstructionDefinition {
+  return defineInstruction({
+    cpu: cpu.declaration, name: `ST${register.toUpperCase()} ${operand}`,
+    explanation: "Resolve the address once, including any pointer reads, before capturing the source register. "
+      + "Write that byte once, even if unchanged, without reading the destination. Preserve every flag. "
+      + "A failed access prevents later effects; completed fetches and pointer reads remain.",
+    steps: [readSource("address", address), readRegister("byte", cpu.register(register)), writeMemory(value("address"), value("byte"))],
+  });
+}
 function registerTransfer(name: string, from: "a" | "x" | "y" | "sp", to: "a" | "x" | "y" | "sp", policy?: FlagPolicy): InstructionDefinition {
   return defineInstruction({
     cpu: cpu.declaration, name,
@@ -105,14 +114,16 @@ function updateByte(name: string, target: Register | ValueSource, operation: rea
   });
 }
 
-// aaa bbb cc: cc=01 selects accumulator operations; aaa=101/110 selects LDA/CMP.
-// bbb selects the source below, in numeric order. Both families use this same list.
-const accumulatorOperands: readonly Operand[] = [
-  ["(zero page,X)", memorySource(addresses.indexedIndirect)], ["zero page", memorySource(addresses.zeroPage)],
-  ["#byte", immediateByte], ["absolute", memorySource(addresses.absolute)],
-  ["(zero page),Y", memorySource(addresses.indirectIndexed)], ["zero page,X", memorySource(addresses.zeroPageX)],
-  ["absolute,Y", memorySource(addresses.absoluteY)], ["absolute,X", memorySource(addresses.absoluteX)],
+// aaa bbb cc: cc=01, aaa=100/101/110 selects STA/LDA/CMP; bbb selects addressing in numeric order.
+// bbb=010 has no address: reads fetch an immediate byte, while STA omits that encoding.
+const accumulatorAddresses: readonly (Operand | undefined)[] = [
+  ["(zero page,X)", addresses.indexedIndirect], ["zero page", addresses.zeroPage],
+  undefined, ["absolute", addresses.absolute],
+  ["(zero page),Y", addresses.indirectIndexed], ["zero page,X", addresses.zeroPageX],
+  ["absolute,Y", addresses.absoluteY], ["absolute,X", addresses.absoluteX],
 ];
+const accumulatorOperands = accumulatorAddresses.map((operand): Operand => operand === undefined
+  ? ["#byte", immediateByte] : [operand[0], memorySource(operand[1])]);
 // The same bbb source inventory serves generated bodies and the remaining handwritten ALU.
 export const sources6502 = { cpu: cpu.declaration, groups: {
   addresses, operands: Object.fromEntries(accumulatorOperands.map(([, source], code) => [code, source])),
@@ -133,6 +144,8 @@ const modifyOperands: readonly Operand[] = [
 
 // These patterns generate both instruction bodies and their execution bindings.
 export const instructions6502 = instructionSet([
+  ...opcodeFamily("100 bbb 01", { b: accumulatorAddresses }, ({ b }) => b)
+    .flatMap(([opcode, address]) => address === undefined ? [] : [[opcode, store("a", address)] as const]),
   ...opcodeFamily("101 bbb 01", { b: accumulatorOperands }, ({ b }) => load("a", b)),
   ...opcodeFamily("110 bbb 01", { b: accumulatorOperands }, ({ b }) => comparison("a", b)),
   // 11r bbb 00: r selects Y/X; bbb=000/001/011 selects immediate/zero page/absolute.
@@ -145,6 +158,10 @@ export const instructions6502 = instructionSet([
   ...opcodeFamily("101 011 r0", { r: indexRegisters }, ({ r }) => load(r, ["absolute", memorySource(addresses.absolute)])),
   ...opcodeFamily("101 101 r0", { r: indexRegisters }, ({ r }) => load(r, [`zero page,${otherIndex[r].toUpperCase()}`, memorySource(zeroPage(otherIndex[r]))])),
   ...opcodeFamily("101 111 r0", { r: indexRegisters }, ({ r }) => load(r, [`absolute,${otherIndex[r].toUpperCase()}`, memorySource(absolute(otherIndex[r]))])),
+  // 100 bbb r0: STY/STX use zp/absolute/zp,OTHER; there is no immediate or absolute-indexed store.
+  ...opcodeFamily("100 001 r0", { r: indexRegisters }, ({ r }) => store(r, ["zero page", addresses.zeroPage])),
+  ...opcodeFamily("100 011 r0", { r: indexRegisters }, ({ r }) => store(r, ["absolute", addresses.absolute])),
+  ...opcodeFamily("100 101 r0", { r: indexRegisters }, ({ r }) => store(r, [`zero page,${otherIndex[r].toUpperCase()}`, zeroPage(otherIndex[r])])),
   // Register transfers occupy bbb=010/110; TXS alone preserves every flag.
   ...opcodePattern("101 010 00", registerTransfer("TAY", "a", "y", resultNZ)),
   ...opcodePattern("100 110 00", registerTransfer("TYA", "y", "a", resultNZ)),

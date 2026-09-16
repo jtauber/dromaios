@@ -21,6 +21,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 CMPA/B/D/X/Y/U/S, every addressing form | Byte/word widths, D as A:B, and addressing that changes the register subsequently compared |
 | 6800 CMPA/CMPB/CPX, every addressing form, and CBA | Share comparison construction; original CPX derives N/V from high bytes without low-byte borrow, Z from the whole word, and preserves C |
 | 6502 LDA/LDX/LDY, every supported addressing form | Reuse comparison sources; delay destination and N/Z updates until the source succeeds |
+| 6502 STA/STX/STY, every supported addressing form | Resolve the address before capturing the source; one write without a destination read or any flag access |
 | All six 6502 register transfers and 8080 MOV B,A | Share read/write behavior while selecting N/Z or preserving every flag; SP transfers do not access the stack |
 | All 6502 ASL/ROL/LSR/ROR forms | One resolved address, an original-value write, a captured incoming carry for rotates, and separate C and N/Z stages; accumulator forms share the operation |
 | All 6502 memory INC/DEC and INX/INY/DEX/DEY | Share wrapping byte updates while preserving C and the same memory-write boundaries |
@@ -29,7 +30,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 171 bodies. All are generated and executable; 170 are bound into their
+There are 184 bodies. All are generated and executable; 183 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other instruction families retain their existing shared helpers. This is not a
@@ -70,8 +71,10 @@ capture names, registers, addresses, and values used by validation and reporting
 The 6502 uses the existing `opcodeFamily` and `opcodePattern` helpers to construct
 definitions in place of runtime callbacks. `instructionSet` rejects duplicate or
 out-of-range opcodes before constructing the inventory. LDA and CMP share one
-`bbb` operand selector; CPX/CPY and LDX/LDY share Y/X register selectors. The load
-patterns explicitly select the other register for indexing. The definition's
+`bbb` operand selector, derived from the same address inventory used by STA.
+The immediate slot has no address, so STA omits that encoding. CPX/CPY and
+LDX/LDY/STX/STY share Y/X register selectors; indexed loads and stores explicitly
+select the other register for indexing. The definition's
 opcode is also its generated method key, so there is no second list of method
 names or handwritten per-instruction bindings. These are construction-time
 families; the resulting definitions still contain only data.
@@ -131,16 +134,23 @@ reaches the destination write or flag update.
 The 6502 describes effective addresses as word-valued sources. They perform
 operand fetches and any pointer reads, then stop before the final data read.
 `memorySource(address)` resolves that address once and reads its byte. Comparison
-and load bodies use these byte sources; handwritten stores and generated memory
+and load bodies use these byte sources; generated stores and memory
 modifiers use the address sources directly. Zero-page indexing wraps the byte
 address before widening; absolute indexing wraps the word address. LDX uses Y for
 indexed modes, whereas LDY uses X.
 
 `sources6502` groups eight named address sources and eight `bbb` operand sources.
-The operand readers and generated LDA/CMP bodies use the same selector inventory.
+The operand readers and generated STA/LDA/CMP bodies use the same selector inventory.
 This removes a second addressing implementation and operand list from the CPU.
 Indirect JMP retains its explicit page-wrap helper, and JSR still fetches its
 operand bytes separately around the stack writes.
+
+All thirteen STA/STX/STY forms use one store construction: read the address
+source, read the source register, and write its captured byte once. There is no
+destination read or flag statement. Failed address resolution prevents the
+register read and write; a failed write retains completed fetches and pointer
+reads while leaving every flag unchanged. The existing vocabulary expresses
+these effects without a new primitive, target abstraction, or compiler path.
 
 A `ValueSource` has a name, result width, ordered body, and pure result expression.
 Its captures live in a fresh scope; only its yielded value enters its caller's
@@ -345,6 +355,13 @@ existing CPU tests remain the independent opcode, record, and rejection baseline
 address resolution from data reads, check byte/word wrapping and live index-read
 order, and inject failures at each source access. CPU tests also check stores,
 arithmetic, and memory modifiers through their ordinary opcode paths.
+Store probes cover all thirteen generated forms, changing the source register
+during address resolution to detect early captures. They reject any flag access,
+extra destination read, or register write, and inject failures at every fetch,
+pointer read, and write. Existing CPU tests exhaust all byte values and flag
+combinations, verify unchanged-value writes and overlapping code/pointers, and
+retain exact completed accesses on failure. Literal encoding expectations also
+exclude immediate STA and undocumented STX/STY modes.
 [Unary probes](../../tests/components/cpus/semantics/unary.test.ts) check every
 word value in both directions and with either incoming bit, distinguish a
 captured flag from later live-state changes, and inspect carry reads and updates
@@ -439,7 +456,7 @@ memory reads; each call observes live registers at their declared positions.
 Remaining handwritten operations can therefore share the definitions before
 their complete bodies are migrated.
 
-This covers the complete 6502 comparison, load, shift/rotate, and byte
+This covers the complete 6502 comparison, load/store, shift/rotate, and byte
 increment/decrement families, plus all six register transfers. The 8080 retains
 named bodies for its nine CMP/CPI bindings and four accumulator rotates in the
 shared 8080/Z80 family. The Z80's own bodies remain unchanged.
@@ -510,6 +527,12 @@ and CPU-specific definitions shrink, but this step increases total authored
 source after accounting for shared construction and the expression. Its benefit
 is explicit hardware meaning and family reuse; the footprint report records the
 cost rather than treating migration credit as source reduction.
+
+The 6502 store migration consolidates thirteen handwritten bindings around one
+three-statement body and the shared accumulator address inventory. Existing
+definitions and address/operand sources remain structurally unchanged. It needs
+no new language or generator support, and total authored CPU source is unchanged
+after including its definition and binding costs.
 
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve

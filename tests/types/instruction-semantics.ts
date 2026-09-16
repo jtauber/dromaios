@@ -72,6 +72,15 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6502[0x9a](mos);
   generated6502[0x6a](mos);
   generated6502[0xe8](mos);
+  generated6502[0x8d](mos, { fetchByte: () => 0, writeByte: () => {} });
+  generated6502[0x96](mos, { fetchByte: () => 0, writeByte: () => {} });
+  generated6502[0x91](mos, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Absolute stores cannot read destination memory.
+  generated6502[0x8d](mos, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Indirect stores still require pointer reads.
+  generated6502[0x91](mos, { fetchByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Stores require a write callback even when the memory byte is unchanged.
+  generated6502[0x85](mos, { fetchByte: () => 0 });
   // @ts-expect-error Accumulator rotates need no memory or fetching context.
   generated6502[0x6a](mos, { fetchByte: () => 0 });
   generated8080.cmpB(intel);

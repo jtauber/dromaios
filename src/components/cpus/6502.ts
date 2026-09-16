@@ -126,9 +126,8 @@ export class Cpu6502 {
       ...instructionPattern("010 000 00", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
       ...instructionPattern("011 000 00", ({ readByte }) => this.#return(readByte)), // RTS
 
-      // cc=00, bbb=001: zero page. aaa=001 selects BIT, 100 selects STY.
+      // cc=00, bbb=001: aaa=001 selects BIT zero page.
       ...instructionPattern("001 001 00", instruction => this.#testBits(instruction.readByte(addresses.zeroPage(instruction)))), // BIT zp
-      ...instructionPattern("100 001 00", instruction => instruction.writeByte(addresses.zeroPage(instruction), this.#state.y)), // STY zp
 
       // cc=00, bbb=010: 0rp 010 00. r (bit 6) selects status (0)/A (1); p (bit 5) selects push (0)/pull (1).
       ...instructionPattern("00 0 010 00", ({ writeByte }) => this.#pushByte(packedFlags.encode(this.#state.flags) | 0x10, writeByte)), // PHP
@@ -137,11 +136,10 @@ export class Cpu6502 {
       ...instructionPattern("01 1 010 00", ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte))), // PLA
       // TAY and DEY/INY/INX are generated.
 
-      // cc=00, bbb=011: absolute operands. aaa=001 selects BIT, 010/011 JMP absolute/indirect, 100 STY.
+      // cc=00, bbb=011: aaa=001 selects BIT, 010/011 JMP absolute/indirect.
       ...instructionPattern("001 011 00", instruction => this.#testBits(instruction.readByte(addresses.absolute(instruction)))), // BIT addr
       ...instructionPattern("010 011 00", instruction => this.#jump(addresses.absolute(instruction))), // JMP addr
       ...instructionPattern("011 011 00", instruction => this.#jump(this.#readPageWrappedPointer(addresses.absolute(instruction), instruction.readByte))), // JMP (addr)
-      ...instructionPattern("100 011 00", instruction => instruction.writeByte(addresses.absolute(instruction), this.#state.y)), // STY addr
 
       // cc=00, bbb=100: ffv 100 00 selects a flag and the value required to branch.
       // ff (bits 7..6): 00 N, 01 V, 10 C, 11 Z.
@@ -152,9 +150,6 @@ export class Cpu6502 {
       }, ({ f: flag, v: value }) => ({ fetchByte }: InstructionContext) =>
         this.#branch(fetchByte(), this.#state.flags[flag] === value)),
 
-      // cc=00, bbb=101: aaa=100 selects STY zero page indexed by X.
-      ...instructionPattern("100 101 00", instruction => instruction.writeByte(addresses.zeroPageX(instruction), this.#state.y)), // STY zp,X
-
       // cc=00, bbb=110: 00v/01v/11v select CLC/SEC, CLI/SEI, CLD/SED; v (bit 5) is the new flag value.
       // aaa=101 selects CLV; TYA is generated.
       ...opcodeFamily("00v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.c = v; }), // CLC/SEC
@@ -163,28 +158,16 @@ export class Cpu6502 {
       ...opcodeFamily("11v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.d = v; }), // CLD/SED
 
       // cc=01: aaa selects ORA, AND, EOR, ADC, STA, LDA, CMP, SBC in that order.
-      // Read families use the generated bbb operand readers. STA has seven memory forms
-      // and no bbb=010 immediate encoding.
+      // Remaining read families use the generated bbb operand readers; STA/LDA/CMP are generated.
       ...this.#accumulatorHandlers("000 bbb 01", value => this.#loadRegister("a", this.#state.a | value)), // ORA
       ...this.#accumulatorHandlers("001 bbb 01", value => this.#loadRegister("a", this.#state.a & value)), // AND
       ...this.#accumulatorHandlers("010 bbb 01", value => this.#loadRegister("a", this.#state.a ^ value)), // EOR
       ...this.#accumulatorHandlers("011 bbb 01", value => this.#addWithCarry(value)), // ADC
-      ...instructionPattern("100 000 01", instruction => instruction.writeByte(addresses.indexedIndirect(instruction), this.#state.a)), // STA (zp,X)
-      ...instructionPattern("100 001 01", instruction => instruction.writeByte(addresses.zeroPage(instruction), this.#state.a)), // STA zp
-      ...instructionPattern("100 011 01", instruction => instruction.writeByte(addresses.absolute(instruction), this.#state.a)), // STA addr
-      ...instructionPattern("100 100 01", instruction => instruction.writeByte(addresses.indirectIndexed(instruction), this.#state.a)), // STA (zp),Y
-      ...instructionPattern("100 101 01", instruction => instruction.writeByte(addresses.zeroPageX(instruction), this.#state.a)), // STA zp,X
-      ...instructionPattern("100 110 01", instruction => instruction.writeByte(addresses.absoluteY(instruction), this.#state.a)), // STA addr,Y
-      ...instructionPattern("100 111 01", instruction => instruction.writeByte(addresses.absoluteX(instruction), this.#state.a)), // STA addr,X
       ...this.#accumulatorHandlers("111 bbb 01", value => this.#subtractWithCarry(value)), // SBC
 
-      // cc=10: shifts/rotates, DEC/INC, DEX, LDX, and transfers are generated.
-      // aaa=100 selects STX; bbb=001/011/101 selects zp/absolute/zp,Y, with no absolute-indexed form.
-      ...instructionPattern("100 001 10", instruction => instruction.writeByte(addresses.zeroPage(instruction), this.#state.x)), // STX zp
+      // cc=10: shifts/rotates, DEC/INC, DEX, LDX/STX, and transfers are generated.
       // aaa=111, bbb=010 is NOP, not accumulator INC.
       ...instructionPattern("111 010 10", () => {}), // NOP: step() advances PC; no further effects.
-      ...instructionPattern("100 011 10", instruction => instruction.writeByte(addresses.absolute(instruction), this.#state.x)), // STX addr
-      ...instructionPattern("100 101 10", instruction => instruction.writeByte(addresses.zeroPageY(instruction), this.#state.x)), // STX zp,Y
     ];
   }
 

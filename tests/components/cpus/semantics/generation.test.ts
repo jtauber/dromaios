@@ -40,7 +40,7 @@ test("all generated modules reproduce from definitions without changing them", (
   assert.throws(() => generateInstructions("8080", instructions6502), /expected a 8080 definition/);
 });
 
-test("6502 families generate exactly the migrated encodings, including the opposite-index loads", () => {
+test("6502 families generate exactly the migrated encodings, including opposite-index transfers and omitted store modes", () => {
   // Explicit opcode expectations are independent of the authored bit-pattern expansion.
   const expected = {
     0x8a: "TXA", 0x98: "TYA", 0x9a: "TXS", 0xa8: "TAY", 0xaa: "TAX", 0xba: "TSX",
@@ -55,6 +55,10 @@ test("6502 families generate exactly the migrated encodings, including the oppos
     0xb1: "LDA (zero page),Y", 0xb5: "LDA zero page,X", 0xb9: "LDA absolute,Y", 0xbd: "LDA absolute,X",
     0xa2: "LDX #byte", 0xa6: "LDX zero page", 0xae: "LDX absolute", 0xb6: "LDX zero page,Y", 0xbe: "LDX absolute,Y",
     0xa0: "LDY #byte", 0xa4: "LDY zero page", 0xac: "LDY absolute", 0xb4: "LDY zero page,X", 0xbc: "LDY absolute,X",
+    0x81: "STA (zero page,X)", 0x85: "STA zero page", 0x8d: "STA absolute", 0x91: "STA (zero page),Y",
+    0x95: "STA zero page,X", 0x99: "STA absolute,Y", 0x9d: "STA absolute,X",
+    0x86: "STX zero page", 0x8e: "STX absolute", 0x96: "STX zero page,Y",
+    0x84: "STY zero page", 0x8c: "STY absolute", 0x94: "STY zero page,X",
     0xc1: "CMP (zero page,X)", 0xc5: "CMP zero page", 0xc9: "CMP #byte", 0xcd: "CMP absolute",
     0xd1: "CMP (zero page),Y", 0xd5: "CMP zero page,X", 0xd9: "CMP absolute,Y", 0xdd: "CMP absolute,X",
     0xe0: "CPX #byte", 0xe4: "CPX zero page", 0xec: "CPX absolute",
@@ -62,6 +66,64 @@ test("6502 families generate exactly the migrated encodings, including the oppos
   };
   assert.deepEqual(Object.fromEntries(Object.entries(instructions6502).map(([opcode, definition]) => [opcode, definition.name])), expected);
   assert.deepEqual(opcodeEntries(mosState()).map(([opcode]) => opcode), Object.keys(expected).map(Number));
+});
+
+test("generated 6502 stores capture the source only after addressing, write once, and never touch flags even on failure", () => {
+  type Access = readonly [kind: "fetch", byte: number] | readonly [kind: "read", address: number, byte: number];
+  const cases: readonly [opcode: keyof typeof mos, register: "a" | "x" | "y", address: number, accesses: readonly Access[]][] = [
+    [0x81, "a", 0xffff, [["fetch", 0xfe], ["read", 0, 0xff], ["read", 1, 0xff]]],
+    [0x85, "a", 0xff, [["fetch", 0xff]]],
+    [0x8d, "a", 0xffff, [["fetch", 0xff], ["fetch", 0xff]]],
+    [0x91, "a", 2, [["fetch", 0xff], ["read", 0xff, 0xff], ["read", 0, 0xff]]],
+    [0x95, "a", 1, [["fetch", 0xff]]],
+    [0x99, "a", 2, [["fetch", 0xff], ["fetch", 0xff]]],
+    [0x9d, "a", 1, [["fetch", 0xff], ["fetch", 0xff]]],
+    [0x86, "x", 0xff, [["fetch", 0xff]]],
+    [0x8e, "x", 0xffff, [["fetch", 0xff], ["fetch", 0xff]]],
+    [0x96, "x", 2, [["fetch", 0xff]]],
+    [0x84, "y", 0xff, [["fetch", 0xff]]],
+    [0x8c, "y", 0xffff, [["fetch", 0xff], ["fetch", 0xff]]],
+    [0x94, "y", 1, [["fetch", 0xff]]],
+  ];
+  for (const [opcode, register, target, accesses] of cases) for (let failAt = -1; failAt <= accesses.length; failAt++) {
+    const state = { ...mosState(), x: 2, y: 3 }, flags = { ...state.flags }, events: string[] = [], failure = new Error("store access failed");
+    let reads = 0, writes = 0;
+    const observed = new Proxy(state, {
+      get(object, key, receiver) {
+        if (key === "flags") assert.fail("Stores must not read or replace flags");
+        if (key === register) events.push("source");
+        return Reflect.get(object, key, receiver);
+      },
+      set() { assert.fail("Stores must not change CPU state"); },
+    });
+    const read = (kind: "fetch" | "read", address?: number): number => {
+      const expected = accesses[reads];
+      assert.ok(expected, "unexpected operand or destination read");
+      assert.equal(expected[0], kind);
+      if (expected[0] === "read") assert.equal(address, expected[1]);
+      events.push(kind);
+      if (reads === failAt) throw failure;
+      state[register] = 0x40 + ++reads; // A premature source capture would write a stale value.
+      return expected[0] === "fetch" ? expected[1] : expected[2];
+    };
+    const run = () => mos[opcode](observed, {
+      fetchByte: () => read("fetch"), readByte: address => read("read", address),
+      writeByte(address, byte) {
+        assert.equal(address, target); assert.equal(byte, 0x40 + accesses.length);
+        events.push("write");
+        if (failAt === accesses.length) throw failure;
+        writes++;
+      },
+    });
+    if (failAt < 0) run();
+    else assert.throws(run, error => error === failure);
+    assert.deepEqual(events, [
+      ...accesses.slice(0, failAt < 0 ? accesses.length : failAt + 1).map(([kind]) => kind),
+      ...(failAt < 0 || failAt === accesses.length ? ["source", "write"] : []),
+    ]);
+    assert.equal(writes, failAt < 0 ? 1 : 0);
+    assert.deepEqual(state.flags, flags);
+  }
 });
 
 test("opcode inventories reject collisions and invalid encodings before generation", () => {

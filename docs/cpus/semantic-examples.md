@@ -504,6 +504,71 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 STA (zero page,X)
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "indexed indirect (zero page,X)" {
+  offset:u8 := fetch byte
+  index:u8 := read X
+  pointer := addWrap(offset, index)
+  low:u8 := read memory[zeroExtend16(pointer)]
+  high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+  base := concatHighLow(high, low)
+  yield base
+}
+byte:u8 := read A
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 STY zero page
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "zero page" {
+  offset:u8 := fetch byte
+  yield zeroExtend16(offset)
+}
+byte:u8 := read Y
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 STA zero page
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "zero page" {
+  offset:u8 := fetch byte
+  yield zeroExtend16(offset)
+}
+byte:u8 := read A
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 STX zero page
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "zero page" {
+  offset:u8 := fetch byte
+  yield zeroExtend16(offset)
+}
+byte:u8 := read X
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 DEY
 
 Read Y before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -538,6 +603,122 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I, C.
 
+### 6502 STY absolute
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "absolute address, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+byte:u8 := read Y
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 STA absolute
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "absolute address, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+byte:u8 := read A
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 STX absolute
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "absolute address, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+byte:u8 := read X
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 STA (zero page),Y
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "indirect indexed (zero page),Y" {
+  offset:u8 := fetch byte
+  pointer := offset
+  low:u8 := read memory[zeroExtend16(pointer)]
+  high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+  base := concatHighLow(high, low)
+  index:u8 := read Y
+  yield addWrap(base, zeroExtend16(index))
+}
+byte:u8 := read A
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 STY zero page,X
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "zero page indexed by X" {
+  offset:u8 := fetch byte
+  index:u8 := read X
+  yield zeroExtend16(addWrap(offset, index))
+}
+byte:u8 := read Y
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 STA zero page,X
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "zero page indexed by X" {
+  offset:u8 := fetch byte
+  index:u8 := read X
+  yield zeroExtend16(addWrap(offset, index))
+}
+byte:u8 := read A
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 STX zero page,Y
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "zero page indexed by Y" {
+  offset:u8 := fetch byte
+  index:u8 := read Y
+  yield zeroExtend16(addWrap(offset, index))
+}
+byte:u8 := read X
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 TYA
 
 Capture Y and write A. Then apply 6502 result N/Z, preserving unlisted flags. No data memory or stack access occurs, including transfers involving SP.
@@ -556,6 +737,23 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I, C.
 
+### 6502 STA absolute,Y
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "absolute indexed by Y" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  index:u8 := read Y
+  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+}
+byte:u8 := read A
+write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 TXS
 
 Capture X and write SP. Preserve every flag. No data memory or stack access occurs, including transfers involving SP.
@@ -566,6 +764,23 @@ result:u8 := source "register X" {
   yield contents
 }
 write SP:u8 := result
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 STA absolute,X
+
+Resolve the address once, including any pointer reads, before capturing the source register. Write that byte once, even if unchanged, without reading the destination. Preserve every flag. A failed access prevents later effects; completed fetches and pointer reads remain.
+
+```text
+address:u16 := source "absolute indexed by X" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  index:u8 := read X
+  yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+}
+byte:u8 := read A
+write memory[address] := byte
 ```
 
 Flags preserved throughout: N, V, D, I, Z, C.

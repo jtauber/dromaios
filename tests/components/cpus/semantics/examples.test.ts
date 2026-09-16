@@ -85,6 +85,16 @@ test("transfers distinguish flag-changing TAX from flag-preserving TXS and MOV",
   assert.doesNotMatch(intel, /simultaneously/);
 });
 
+test("6502 store explanations resolve pointers before reading the source and preserve every flag", () => {
+  const text = description("6502", "STA (zero page),Y");
+  const low = text.indexOf("low:u8 := read memory"), high = text.indexOf("high:u8 := read memory");
+  const index = text.indexOf("index:u8 := read Y"), source = text.indexOf("byte:u8 := read A"), write = text.indexOf("write memory[address] := byte");
+  assert.ok(low >= 0 && low < high && high < index && index < source && source < write);
+  assert.equal(text.match(/write memory/g)?.length, 1);
+  assert.doesNotMatch(text, /read memory\[address\]|simultaneously/);
+  assert.match(text, /Flags preserved throughout: N, V, D, I, Z, C\./);
+});
+
 test("rotate and adjustment explanations expose carry capture, writeback, and preserved flags", () => {
   const text = description("6502", "ROR absolute,X");
   const originalWrite = text.indexOf("write memory[address] := original"), readCarry = text.indexOf("carry:flag := read C");
@@ -178,5 +188,5 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 171);
+  assert.equal(instructionDefinitions.length, 184);
 });
