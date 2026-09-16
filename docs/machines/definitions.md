@@ -47,6 +47,15 @@ byte-output register. Its factory takes the host output callback and wires
 device reset to the CPU's RESET connection; component behavior stays in the
 [device](../devices/byte-output.md).
 
+## Compositions with ports
+
+The [8080 output example](../cpus/8080/examples/output.md) uses TypeScript to
+load flat RAM and connect one output port to the same byte-output device.
+Its factory accepts the host callback and exposes the port connection for
+CPU reconstruction. Its explicit machine reset resets the CPU and clears
+the device latch while retaining RAM and the host's transcript. Device
+connections and reset wiring remain ordinary composition code.
+
 ## Directory organization
 
 Machine definitions live under `src/machines/<cpu>/`, with matching tests

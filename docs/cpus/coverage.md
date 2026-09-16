@@ -542,12 +542,17 @@ Verification: [CPU tests](../../tests/components/cpus/8080.test.ts),
 [ALU example tests](../../tests/machines/8080/alu-example.test.ts),
 [decimal example tests](../../tests/machines/8080/decimal-example.test.ts),
 [counted-loop example tests](../../tests/machines/8080/counted-loop-example.test.ts),
+[port-output example tests](../../tests/machines/8080/output-example.test.ts),
 [rotates example tests](../../tests/machines/8080/rotates-example.test.ts), and
 [public type checks](../../tests/types/8080.ts). ALU checks cover every byte operand
 pair and both incoming carry values for all eight operations, using independent
 bit-by-bit arithmetic and logic references. Other checks cover exact accesses,
 wrapping, self-overwriting stores, halt/reset behavior, rejection of every
 unimplemented opcode, input validation, and detached records.
+The [port-output example](8080/examples/output.md) sends the same six bytes
+as the 68000 through the shared byte-output device. Checks cover all 33
+instruction records, port routing, machine versus CPU reset, host failures,
+and snapshot-based resumption without replaying output.
 LXI/INX checks cover all pair and SP forms, derived views, byte carry and
 16-bit wrapping, flag preservation, operand order, and successive operations.
 PUSH/POP checks cover all three pairs, stack-access order, SP and PC wrapping,

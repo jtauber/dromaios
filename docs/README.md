@@ -66,8 +66,9 @@ The arithmetic examples provide a starting point for following execution.
 A dash means there is no separate example for that topic. Supported instructions
 and processor features are tracked in the coverage document.
 
-The [68000 ROM-output example](cpus/68000/examples/output.md) connects a
-memory-mapped device and sends a short message to the host.
+The [8080 port-output](cpus/8080/examples/output.md) and
+[68000 ROM-output](cpus/68000/examples/output.md) examples send the same short
+message through a shared device, using port and memory-mapped connections.
 
 ## Devices
 

@@ -2,6 +2,7 @@
 
 [Source](../../src/components/devices/byte-output.ts) ·
 [Device tests](../../tests/components/devices/byte-output.test.ts) ·
+[8080 example](../cpus/8080/examples/output.md) ·
 [68000 example](../cpus/68000/examples/output.md) ·
 [Memory-map contract](../machines/memory-map.md)
 
@@ -29,6 +30,19 @@ is ignored; it cannot report an emulated bus error.
 The host owns the output stream. It can collect bytes, display characters,
 or forward them elsewhere. The component retains only its last byte, so
 running a machine does not accumulate an unbounded history inside the device.
+
+## Port connections
+
+A machine can also route port writes to this register. The
+[8080 example](../cpus/8080/examples/output.md) connects output port `01` to
+`output.write(0, value)` through the CPU's existing `BytePorts` interface.
+It rejects all inputs and other output ports before contacting the device.
+The component needs no knowledge of port numbers or CPU instructions.
+
+The 8080 and 68000 examples use the same device implementation and produce
+the same host bytes. Their CPU records retain the native access kind:
+`output` with a port number on the 8080, `write` with a physical memory
+address on the 68000. Routing and reset wiring belong to each composition.
 
 ## Inspection, reset, and restoration
 
@@ -63,3 +77,6 @@ snapshots, silent restoration/reset, invalid input, and host throws. The
 [machine tests](../../tests/machines/68000/output-example.test.ts) additionally
 check exact CPU access records, pause/resume, RESET wiring, and partial output
 before a later byte of a word transfer faults.
+The [8080 machine tests](../../tests/machines/8080/output-example.test.ts)
+verify port routing, separate CPU/device reset, callback failures, and the
+same output from both CPU compositions.
