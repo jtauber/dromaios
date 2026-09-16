@@ -1745,7 +1745,7 @@ requests with the caller and preserves recognition state in snapshots.
 | Prefixes | Four local segment overrides, LOCK with no bus effect, and bounded one-element repetition; last prefix of each kind wins |
 | Remaining scope | A complete coprocessor, pin sampling/scheduling, timing, bus arbitration, and prefetch |
 
-Verification: [CPU tests](../../tests/components/cpus/8088.test.ts),
+Verification: [CPU tests](../../tests/components/cpus/8088),
 [arithmetic](../../tests/machines/8088/example.test.ts),
 [transfer](../../tests/machines/8088/transfers-example.test.ts),
 [control-flow](../../tests/machines/8088/control-flow-example.test.ts), and

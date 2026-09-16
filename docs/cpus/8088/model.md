@@ -6,7 +6,7 @@ single-step traps, and optional port, ESC, and TEST connections. The stored
 instruction address is CS:IP; the physical PC is a derived view.
 
 [Implementation](../../../src/components/cpus/8088.ts) ·
-[CPU tests](../../../tests/components/cpus/8088.test.ts) ·
+[CPU tests](../../../tests/components/cpus/8088) ·
 [Public type checks](../../../tests/types/8088.ts) ·
 [Coverage](../coverage.md#8088) ·
 [Arithmetic example](examples/arithmetic.md) ·

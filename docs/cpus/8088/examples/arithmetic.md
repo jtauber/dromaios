@@ -7,7 +7,7 @@ the distinction between a logical address and its physical RAM location.
 [Model contract](../model.md) ·
 [Machine definition](../../../../src/machines/8088/example.machine) ·
 [Example tests](../../../../tests/machines/8088/example.test.ts) ·
-[CPU tests](../../../../tests/components/cpus/8088.test.ts) ·
+[CPU tests](../../../../tests/components/cpus/8088) ·
 [Coverage](../../coverage.md#8088)
 
 ## Initial state and program

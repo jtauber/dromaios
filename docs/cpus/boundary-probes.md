@@ -24,7 +24,7 @@ nor a callback alone establishes when a value was read or when an update commits
 
 The [6502 tests](../../tests/components/cpus/6502.test.ts),
 [6809 tests](../../tests/components/cpus/6809.test.ts),
-[8088 tests](../../tests/components/cpus/8088.test.ts), and
+[8088 tests](../../tests/components/cpus/8088), and
 [68000 tests](../../tests/components/cpus/68000.test.ts) check public snapshots
 and actual RAM calls. Host errors below throw out of `step()` without returning
 a step record. The independent RAM observer records completed accesses only.
@@ -54,7 +54,7 @@ Keep JSR's ordered body explicit; do not extend `modifyByte` to describe it.
 
 ### 8088: resolve a segmented location, not one physical word address
 
-Two independently listed mappings in the [tests](../../tests/components/cpus/8088.test.ts):
+Two independently listed mappings in the [tests](../../tests/components/cpus/8088):
 
 | Segment:offset | Low-byte bus address | High-byte bus address |
 | --- | --- | --- |
