@@ -963,6 +963,51 @@ for (const form of wordForms.filter(form => form.operation === "store" && form.m
   });
 }
 
+test("6800 comparisons retain completed fetches and unchanged flags at every failed read, including wrapped and overlapping operands", () => {
+  const failure = new Error("comparison read failure");
+  class FaultRam extends ObservedRam {
+    failAt = -1; attempts = 0;
+    override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
+  }
+  for (const [register, opcodes] of [["a", [0x81, 0x91, 0xa1, 0xb1]], ["b", [0xc1, 0xd1, 0xe1, 0xf1]], ["x", indexComparisons]] as const) {
+    const word = register === "x";
+    for (const [mode, opcode] of opcodes.entries()) for (const pc of [0x2000, 0xfffe, 0xffff]) for (const bits of [0, 63]) {
+      const cases = mode === 2 ? Array.from({ length: 256 }, (_, offset) => offset) : [mode === 1 ? 0xff : 0xffff];
+      for (const location of cases) {
+        const before = initialState({ pc, x: 0xffff, flags: flags(bits) });
+        const address = mode === 0 ? undefined : mode === 2 ? (before.x + location) % 65536 : location;
+        const bytes = [opcode, ...(mode === 0 ? (word ? [0x80, 1] : [0x80]) : mode === 3 ? [0xff, 0xff] : [location])];
+        const image = new Map<number, number>();
+        if (address !== undefined) { image.set(address, 0x80); if (word) image.set((address + 1) % 65536, 1); }
+        bytes.forEach((byte, i) => image.set((pc + i) % 65536, byte)); // Fetched code wins when it overlaps data.
+        const operand = address === undefined ? (word ? 0x8001 : 0x80)
+          : image.get(address)! * (word ? 256 : 1) + (word ? image.get((address + 1) % 65536)! : 0);
+        const expected = word ? indexComparison(before.x, operand, before.flags) : accumulatorResult("cmp", before[register], operand, before.flags).flags;
+        const accesses = [
+          ...bytes.map((value, i) => ({ kind: "read", address: (pc + i) % 65536, value })),
+          ...(address === undefined ? [] : (word ? [address, (address + 1) % 65536] : [address])
+            .map(address => ({ kind: "read", address, value: image.get(address)! }))),
+        ];
+        // Check every indexed offset; inject each failure at boundary offsets and in all other modes.
+        const failures = mode === 2 && ![0, 1, 127, 128, 255].includes(location) ? [-1] : [-1, ...accesses.map((_, i) => i)];
+        for (const failAt of failures) {
+          const ram = new FaultRam();
+          for (const [address, value] of image) ram.write(address, value);
+          const cpu = new Cpu6800(ram, before);
+          ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
+          const completed = failAt < 0 ? accesses.length : failAt;
+          const after = { ...before, pc: (pc + Math.min(completed, bytes.length)) % 65536,
+            flags: failAt < 0 ? expected : before.flags };
+          if (failAt >= 0) assert.throws(() => cpu.step(), error => error === failure);
+          else assert.deepEqual(cpu.step(), { before, after, instruction: { address: pc, bytes }, accesses, outcome: "executed" });
+          assert.deepEqual(cpu.snapshot(), after, `${register}, bytes=${bytes}, failAt=${failAt}`);
+          assert.deepEqual(ram.accesses, accesses.slice(0, completed));
+        }
+      }
+    }
+  }
+});
+
 test("6800 CPX checks every high-byte pair with low-byte equality and borrow, preserving C", () => {
   const ram = new Ram(65536);
   ram.write(0x2000, 0x8c);

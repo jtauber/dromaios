@@ -19,16 +19,16 @@ emulators do not count toward implementation here.
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [312](../../src/components/cpus/8008.ts) | 0 / 250 | 0% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [263](../../src/components/cpus/8080.ts) | 13 / 244 | 5.3% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [352](../../src/components/cpus/6800.ts) | 44 / 197 | 22.3% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [344](../../src/components/cpus/6800.ts) | 57 / 197 | 28.9% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [329](../../src/components/cpus/6502.ts) | 70 / 151 | 46.4% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [661](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [582](../../src/components/cpus/6809.ts) | 83 / 268 | 31.0% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [573](../../src/components/cpus/6809.ts) | 83 / 268 | 31.0% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **164 generated bodies**, of which **163 are used by CPU execution**,
-covering **210 complete opcode forms**:
+contains **171 generated bodies**, of which **170 are used by CPU execution**,
+covering **223 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, all six register transfers,
@@ -43,6 +43,9 @@ covering **210 complete opcode forms**:
   migrated forms. Their 33 bodies use the same
   [Motorola construction](../../src/components/cpus/semantics/motorola.ts) as the
   6809, with explicit differences for CLR reads, TST carry, and right-shift overflow.
+  CMPA/CMPB/CPX across all four addressing modes and CBA add 13 forms from seven
+  bodies. Comparison construction and address-mode bindings are shared with the
+  6809; CPX supplies its own high-byte N/V, whole-word Z, and preserved-C policy.
 - [6809 definitions](../../src/components/cpus/semantics/definitions/6809.ts):
   CMPA/B/D/X/Y/U/S across immediate/direct/indexed/extended addressing count as
   28 migrated forms from 14 bodies. All eleven unary operations (NEG, COM, LSR,
@@ -98,25 +101,26 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,839 |
-| CPU-specific instruction definition files | 296 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,741 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,876** |
+| Eight CPU implementation files | 4,822 |
+| CPU-specific instruction definition files | 285 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,798 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,905** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 3,269 |
+| Generated CPU output, counted separately | 3,411 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Completing the 6809 comparison family removes its special `CMPX ,X++` path,
-separate direct/extended comparison sources, and handwritten comparison paths.
-The CPU module loses **3 lines** and its definitions lose **19**; other authored
-CPU source and the generation script are unchanged in length. The shared
-comparison recipe now accepts a register view or an already captured operand,
-using existing primitives. Total authored CPU source falls from **6,898 to 6,876
-lines** (**22 fewer**). This is a modest net reduction; further migrations must
-account for definition and binding costs as well as the handwritten helpers
-they remove.
+Sharing comparison construction and bindings with the 6800 removes its handwritten
+CPX helper, the shared handwritten CMP selector, and the 6809's exclusion filter.
+The CPU modules lose **17 lines** in total: 6800 from 352 to 344 and 6809 from
+582 to 573. CPU-specific definitions lose **11 lines**, while other authored CPU
+source gains **57** for shared construction/bindings and the validated `highByte`
+expression. Total authored CPU source therefore rises from **6,876 to 6,905 lines**
+(**29 more**). This step makes the original 6800's different CPX rule inspectable
+and shares a complete comparison family, but does not deliver a net source
+reduction. The generation script is unchanged. Subsequent migrations must keep
+accounting for definition and binding costs as well as the helpers they remove.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

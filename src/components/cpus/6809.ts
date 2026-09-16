@@ -14,7 +14,7 @@ import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaComparisonBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
 import { add, subtract } from "./alu.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
@@ -169,7 +169,7 @@ export class Cpu6809 {
 
   // 1 r mm oooo: r selects A/B; mm=00 immediate, 01 direct, 10 indexed, 11 extended.
   // Byte operations are shared with the 6800; CMP (0001) has generated bodies below.
-  readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu).filter(({ bits }) => bits !== "0001");
+  readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
 
   readonly #directOperandAddress: OperandReader = ({ fetchByte }) => this.#directAddress(fetchByte());
   readonly #indexedOperandAddress: AddressReader = instruction => this.#indexedAddress(instruction);
@@ -183,6 +183,8 @@ export class Cpu6809 {
   // TFR/EXG postbyte ssss dddd: selector bit 3 chooses word=0/byte=1.
   // 0000..0101 = D/X/Y/U/S/PC; 1000..1011 = A/B/CC/DP; other selectors are undefined.
   readonly #transferRegisters = ["d", "x", "y", "u", "s", "pc", undefined, undefined, "a", "b", "cc", "dp"] as const;
+
+  readonly #comparisonHandlers = motorolaComparisonBindings(() => this.#state, this.#memoryModes);
 
   // Prefix 10 selects page 2. Word encodings retain mm=00/01/10/11 addressing.
   // Transfers append 0=load/1=store; immediate stores are undefined.
@@ -282,17 +284,6 @@ export class Cpu6809 {
   #branchHandlers(readOffset: OperandReader): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily("0010 ttt p", { t: motorolaConditionPairs, p: [false, true] },
       ({ t: test, p: invert }) => instruction => this.#branch(readOffset(instruction), test(this.#state.flags) !== invert));
-  }
-
-  // mm=00 fetches an immediate; mm=01/10/11 resolve direct/indexed/extended before reading data.
-  #comparisonHandlers(pattern: string,
-    immediate: (state: Cpu6809State, instruction: InstructionContext) => void,
-    memory: (state: Cpu6809State, address: number, instruction: InstructionContext) => void): readonly OpcodeEntry<OpcodeHandler>[] {
-    return [
-      ...instructionPattern(pattern.replace("mm", "00"), instruction => immediate(this.#state, instruction)),
-      ...this.#memoryModes.flatMap(({ bits, address }) => this.#addressedHandlers(address,
-        addressPattern(pattern.replace("mm", bits), (address, instruction) => memory(this.#state, address, instruction)))),
-    ];
   }
 
   // CLR also reads its operand here; the 6800 binds CLR to a write-only instruction.

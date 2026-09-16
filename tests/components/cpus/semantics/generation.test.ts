@@ -5,14 +5,16 @@ import { test } from "node:test";
 import { instructions as mos, opcodeEntries } from "../../../../src/components/cpus/generated/6502.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
+import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
 import { instructions6502, sources6502, instructions6800, instructions8080, instructions6809 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
-import { cpuSymbols, addWrap, literal, value, zero } from "../../../../src/components/cpus/semantics/model.js";
+import { cpuSymbols, addWrap, capture, highByte, literal, readRegister, value, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/state/6502.js";
 import type { Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
 import type { Cpu8080State } from "../../../../src/components/cpus/state/8080.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
+import type { Cpu6800State } from "../../../../src/components/cpus/state/6800.js";
 
 function mosState(): Cpu6502State {
   return { a: 0, x: 0, y: 0, sp: 0xff, pc: 0x1000, flags: { n: false, z: false, c: true, v: true, d: true, i: true } };
@@ -113,6 +115,68 @@ test("generated opcode bindings capture their own CPU instance and read live sta
   second.a = 0x44;
   secondHandlers[0xaa]!(unusedContext);
   assert.equal(second.x, 0x44); assert.equal(first.x, 0x80);
+});
+
+test("generated high-byte extraction handles every word and composes with wrapped arithmetic", async () => {
+  const cpu = cpuSymbols("6502", cpu6502StateDescription);
+  const source = generateInstructions("6502", { probe: { cpu: cpu.declaration, name: "probe", explanation: "High-byte extraction probe.", steps: [
+    readRegister("word", cpu.register("pc")), capture("high", highByte(value("word"))),
+    writeRegister(cpu.register("a"), value("high")),
+    writeRegister(cpu.register("x"), highByte(addWrap(value("word"), literal(16, 1)))),
+  ] } });
+  const alu = new URL("../../../../src/components/cpus/alu.js", import.meta.url).href;
+  const javascript = stripTypeScriptTypes(source).replace('"../alu.ts"', JSON.stringify(alu));
+  const compiled: { instructions: { probe(state: Cpu6502State): void } } = await import(`data:text/javascript,${encodeURIComponent(javascript)}`);
+  const state = mosState(), flags = { ...state.flags };
+  for (let word = 0; word < 65536; word++) {
+    state.pc = word;
+    compiled.instructions.probe(state);
+    assert.equal(state.a, Math.floor(word / 256));
+    assert.equal(state.x, Math.floor(((word + 1) % 65536) / 256));
+    assert.equal(state.pc, word);
+    assert.deepEqual(state.flags, flags);
+  }
+});
+
+test("6800 comparison bodies read complete operands before registers, never write them, and preserve flags on read failure", () => {
+  for (const [name, register] of [["cmpa", "a"], ["cmpb", "b"], ["cpx", "x"]] as const) {
+    for (const mode of ["Immediate", "Memory"] as const) for (const carry of [false, true]) {
+      const bytes = register === "x" ? [0x12, 0x34] : [0x80];
+      for (let failAt = -1; failAt < bytes.length; failAt++) {
+        const flags = { h: true, i: true, n: true, z: false, v: true, c: carry };
+        const state: Cpu6800State = { a: 0, b: 0, x: 0, sp: 0, pc: 0, waiting: false, flags: { ...flags } };
+        const events: string[] = [], failure = new Error("operand read failed");
+        const observed = new Proxy(state, {
+          get(target, key, receiver) {
+            if (["a", "b", "x"].includes(String(key))) events.push(`register ${String(key)}`);
+            return Reflect.get(target, key, receiver);
+          },
+          set() { assert.fail("A comparison must not write registers"); },
+        });
+        let reads = 0;
+        const read = () => {
+          events.push(`operand ${reads}`);
+          if (reads === failAt) throw failure;
+          const byte = bytes[reads++]!;
+          state[register] = register === "x" ? (reads === 2 ? 0x1234 : 0xffff) : 0x80;
+          return byte;
+        };
+        const execute = () => mode === "Immediate" ? motorola6800[`${name}Immediate`](observed, { fetchByte: read })
+          : motorola6800[`${name}Memory`](observed, 0xffff, { readByte(address) { assert.equal(address, reads === 0 ? 0xffff : 0); return read(); } });
+        if (failAt >= 0) assert.throws(execute, error => error === failure);
+        else execute();
+        assert.deepEqual(events, [
+          ...bytes.slice(0, failAt < 0 ? bytes.length : failAt + 1).map((_, i) => `operand ${i}`),
+          ...(failAt < 0 ? [`register ${register}`] : []),
+        ]);
+        assert.deepEqual(state.flags, failAt >= 0 ? flags : { ...flags, n: false, z: true, v: false, c: register === "x" && carry });
+      }
+    }
+  }
+  const state: Cpu6800State = { a: 0x80, b: 1, x: 0, sp: 0, pc: 0, waiting: false,
+    flags: { h: true, i: true, n: true, z: true, v: false, c: true } };
+  motorola6800.cba(new Proxy(state, { set() { assert.fail("CBA must not write registers"); } }));
+  assert.deepEqual(state.flags, { h: true, i: true, n: false, z: false, v: true, c: false });
 });
 
 test("generated byte comparisons match independent arithmetic for every operand pair", () => {

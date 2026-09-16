@@ -25,9 +25,22 @@ test("comparison expansions read the source before the register and expose CPU-s
   const motorola = description("6809", "CMPA #byte");
   assert.match(motorola, /V := subtractOverflow\(left, right\)/);
   assert.match(motorola, /C := borrow\(left, right\)/);
-  for (const definition of instructionDefinitions.filter(example => /^(CMP|CPX|CPY|CPI)/.test(example.name))) {
+  for (const definition of instructionDefinitions.filter(example => /^(CMP|CPX|CPY|CPI|CBA)/.test(example.name))) {
     assert.equal(definition.steps.some(step => step.kind === "write-register" || step.kind === "write-memory"), false);
   }
+});
+
+test("6800 CPX explains high-byte N/V, whole-word Z, and preserved carry in both bodies", () => {
+  for (const mode of ["#word", "memory"]) {
+    const text = description("6800", `CPX ${mode}`);
+    assert.match(text, /N := topBit\(subtract\(highByte\(left\), highByte\(right\)\)\)/);
+    assert.match(text, /Z := isZero\(result\)/);
+    assert.match(text, /V := subtractOverflow\(highByte\(left\), highByte\(right\)\)/);
+    assert.match(text, /Flags preserved throughout: H, I, C\./);
+    assert.doesNotMatch(text, /C :=|write X/);
+  }
+  assert.match(description("6800", "CMPA #byte"), /C := borrow\(left, right\)/);
+  assert.doesNotMatch(description("6800", "CBA"), /fetch byte|read memory|write [AB]/);
 });
 
 test("6809 memory comparisons show data reads before the register or D view, without repeating address resolution", () => {
@@ -38,7 +51,8 @@ test("6809 memory comparisons show data reads before the register or D view, wit
     assert.ok(first >= 0 && left > first);
     if (register !== "A" && register !== "B") assert.ok(last > first && left > last);
     assert.ok(text.indexOf("result := subtract(left, right)") > left);
-    assert.doesNotMatch(text, /fetch byte|write |read [XYUS]\n.*read memory/s);
+    const body = text.split("```text\n")[1]!.split("\n```")[0]!;
+    assert.doesNotMatch(body, /fetch byte|write |read [XYUS]\n.*read memory/s);
     if (register === "D") {
       assert.ok(text.indexOf("read A", left) < text.indexOf("read B", left));
       assert.match(text.slice(left), /yield concatHighLow\(high, low\)/);
@@ -164,5 +178,5 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 164);
+  assert.equal(instructionDefinitions.length, 171);
 });

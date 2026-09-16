@@ -7,7 +7,7 @@ See the [representation contract](instruction-semantics.md) for primitive meanin
 validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
-Bodies begin after opcode selection. Motorola memory unary bodies and 6809 memory
+Bodies begin after opcode selection. Motorola memory unary bodies and memory
 comparisons receive a resolved address from the existing decoder. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; a source
@@ -2197,6 +2197,150 @@ write memory[address] := result
 
 Flags preserved throughout: H, I.
 
+### 6800 CMPA #byte
+
+Fetch the immediate operand. Only then read A. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "6800 comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 CMPA memory
+
+Entry is after successful address resolution. Read the operand at that captured address. Only then read A. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read A
+result := subtract(left, right)
+flags "6800 comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 CMPB #byte
+
+Fetch the immediate operand. Only then read B. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+result := subtract(left, right)
+flags "6800 comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 CMPB memory
+
+Entry is after successful address resolution. Read the operand at that captured address. Only then read B. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read B
+result := subtract(left, right)
+flags "6800 comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 CPX #word
+
+Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read X. N/V describe high-byte subtraction without low-byte borrow; Z tests whole-word equality. Preserve H/I/C. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+
+```text
+right:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := read X
+result := subtract(left, right)
+flags "6800 CPX high-byte N/V and whole-word Z" simultaneously {
+  N := topBit(subtract(highByte(left), highByte(right)))
+  Z := isZero(result)
+  V := subtractOverflow(highByte(left), highByte(right))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 CPX memory
+
+Entry is after successful address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read X. N/V describe high-byte subtraction without low-byte borrow; Z tests whole-word equality. Preserve H/I/C. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+high:u8 := read memory[address]
+low:u8 := read memory[addWrap(address, 0001:u16)]
+right := concatHighLow(high, low)
+left:u16 := read X
+result := subtract(left, right)
+flags "6800 CPX high-byte N/V and whole-word Z" simultaneously {
+  N := topBit(subtract(highByte(left), highByte(right)))
+  Z := isZero(result)
+  V := subtractOverflow(highByte(left), highByte(right))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 CBA
+
+Compare A with B without writing either register. Set N/Z/V/C from byte subtraction, with C meaning borrow; preserve H/I. No data-memory access occurs.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "6800 comparison" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I.
+
 ### 8080 RLC
 
 Capture A and rotate left, inserting the outgoing bit. Write A before replacing CY with the outgoing bit. Preserve S, Z, AC, and P; no data-memory access occurs.
@@ -3065,7 +3209,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPA #byte
 
-Fetch the immediate operand. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Fetch the immediate operand. Only then read A. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 right:u8 := source "immediate byte" {
@@ -3086,7 +3230,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPA memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the operand at that captured address. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Entry is after successful address resolution. Read the operand at that captured address. Only then read A. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 address:u16 := input
@@ -3106,7 +3250,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPB #byte
 
-Fetch the immediate operand. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Fetch the immediate operand. Only then read B. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 right:u8 := source "immediate byte" {
@@ -3127,7 +3271,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPB memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the operand at that captured address. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Entry is after successful address resolution. Read the operand at that captured address. Only then read B. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 address:u16 := input
@@ -3147,7 +3291,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPD #word
 
-Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read the comparison register as A followed by B. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read D from A:B. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 right:u16 := source "immediate word, high byte first" {
@@ -3173,7 +3317,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPD memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read the comparison register as A followed by B. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Entry is after successful address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read D from A:B. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 address:u16 := input
@@ -3198,7 +3342,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPX #word
 
-Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read X. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 right:u16 := source "immediate word, high byte first" {
@@ -3220,7 +3364,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPX memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Entry is after successful address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read X. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 address:u16 := input
@@ -3241,7 +3385,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPY #word
 
-Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read Y. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 right:u16 := source "immediate word, high byte first" {
@@ -3263,7 +3407,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPY memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Entry is after successful address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read Y. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 address:u16 := input
@@ -3284,7 +3428,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPU #word
 
-Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read U. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 right:u16 := source "immediate word, high byte first" {
@@ -3306,7 +3450,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPU memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Entry is after successful address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read U. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 address:u16 := input
@@ -3327,7 +3471,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPS #word
 
-Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read S. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 right:u16 := source "immediate word, high byte first" {
@@ -3349,7 +3493,7 @@ Flags preserved throughout: E, F, H, I.
 
 ### 6809 CMPS memory
 
-Entry is after successful direct/indexed/extended address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read the comparison register. Apply N/Z/V/C from subtraction without writing a result, preserving H and control flags. C means borrow. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
+Entry is after successful address resolution. Read the operand at that captured address. Read high byte then low byte, wrapping at FFFF. Only then read S. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
 
 ```text
 address:u16 := input

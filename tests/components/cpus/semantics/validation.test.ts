@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/6502.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/6809.js";
-import { addWrap, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, literal, readFlag, readMemory, shiftLeft, value, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
+import { addWrap, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, highByte, literal, readFlag, readMemory, shiftLeft, value, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 
@@ -72,6 +72,17 @@ test("instruction inputs are immutable typed captures in the body, not implicit 
   assert.notEqual(owned.inputs, inputs);
   assert.equal(Object.isFrozen(owned.inputs), true);
   assert.equal(Object.isFrozen(inputs), false);
+});
+
+test("high-byte extraction requires a captured word and yields a byte, without implicit reads or conversions", () => {
+  define([capture("word", literal(16, 0xabcd)), { kind: "write-register", register: mos.register("a"), value: highByte(value("word")) }]);
+  for (const [expr, message] of [
+    [highByte(literal(8, 255)), /high byte requires a word/],
+    [highByte(highByte(literal(16, 65535))), /high byte requires a word/],
+    [highByte(value("missing")), /not been captured/],
+    [highByte(flagLiteral(true) as unknown as NumberExpression), /unknown numeric expression/],
+  ] satisfies [NumberExpression, RegExp][]) assert.throws(() => define([capture("byte", expr)]), message);
+  assert.throws(() => define([{ kind: "write-register", register: mos.register("pc"), value: highByte(literal(16, 0)) }]), /expected 16-bit value/);
 });
 
 test("CPU-owned state descriptions validate register identity, declared widths, and flag targets", () => {

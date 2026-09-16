@@ -11,8 +11,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
-import { subtract } from "./alu.ts";
+import { motorolaUnaryOperations, motorolaComparisonBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
 import { instructions as semantics } from "./generated/6800.ts";
 import { cpu6800StateDescription } from "./state/6800.ts";
 import type { Cpu6800State } from "./state/6800.ts";
@@ -128,7 +127,9 @@ export class Cpu6800 {
   // TST (1101) only reads; CLR (1111) only writes. JMP (1110) remains separate.
   static readonly #unaryOperations = motorolaUnaryOperations(semantics);
 
-  // 1 r mm oooo shares the 6809's byte operations; word operations and stores remain below.
+  readonly #comparisonHandlers = motorolaComparisonBindings(() => this.#state, this.#memoryModes);
+
+  // 1 r mm oooo shares the 6809's byte operations; CMP (0001) has generated bodies below.
   readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
 
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
@@ -146,7 +147,7 @@ export class Cpu6800 {
 
     // 0001000 c: subtract B from A; c=1 compares without replacing A. Both ignore incoming carry.
     ...instructionPattern("0001000 0", () => { this.#state.a = this.#alu.subtract(this.#state.a, this.#state.b); }), // SBA
-    ...instructionPattern("0001000 1", () => { this.#alu.subtract(this.#state.a, this.#state.b); }), // CBA
+    ...instructionPattern("0001000 1", () => semantics.cba(this.#state)), // CBA
 
     // 0001011 d: d=0 transfers A to B; d=1 transfers B to A. Both update N/Z/V.
     ...instructionPattern("0001011 0", () => this.#loadAccumulator("b", this.#state.a)), // TAB
@@ -191,7 +192,9 @@ export class Cpu6800 {
 
     // 1 r mm oooo: r (bit 6) selects A=0/B=1; mm (bits 5–4) selects addressing;
     // oooo (bits 3–0) selects a shared byte operation; 0011 remains undefined.
-    // Byte-operation selectors are shared with the 6809; CMP/BIT leave A/B unchanged.
+    // Generated CMP bodies preserve A/B; the remaining byte selectors are shared with the 6809.
+    ...this.#comparisonHandlers("1 0 mm 0001", semantics.cmpaImmediate, semantics.cmpaMemory), // CMPA
+    ...this.#comparisonHandlers("1 1 mm 0001", semantics.cmpbImmediate, semantics.cmpbMemory), // CMPB
     ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r mm ${bits}`,
       { r: ["a", "b"], m: this.#operandReaders }, ({ r, m: read }) => (instruction: InstructionContext) => apply(r, read(instruction)))),
     // Stores have no immediate form: expand only the three address-bearing modes.
@@ -199,7 +202,7 @@ export class Cpu6800 {
       ({ r }) => (instruction: InstructionContext) => this.#storeAccumulator(r, address(instruction), instruction.writeByte))), // STAA / STAB
 
     // 10 mm 1100: compare X with a word. The original 6800 compares its bytes separately.
-    ...opcodeFamily("10 mm 1100", { m: this.#wordOperandReaders }, ({ m: read }) => (instruction: InstructionContext) => this.#compareIndex(read(instruction))), // CPX
+    ...this.#comparisonHandlers("10 mm 1100", semantics.cpxImmediate, semantics.cpxMemory), // CPX
 
     // 10 mm 1101: mm=00 is BSR, 10/11 are indexed/extended JSR; 01 is undefined.
     ...instructionPattern("10 00 1101", ({ fetchByte, writeByte }: InstructionContext) => this.#call(this.#relativeAddress(fetchByte()), writeByte)), // BSR rel
@@ -329,17 +332,6 @@ export class Cpu6800 {
   #pullByte(readByte: InstructionContext["readByte"]): number {
     this.#state.sp = (this.#state.sp + 1) & 0xffff;
     return readByte(this.#state.sp);
-  }
-
-  // CPU-specific flag effects beyond the shared byte ALU.
-
-  #compareIndex(value: number): void {
-    // N/V describe the high-byte subtraction without a borrow from the low byte.
-    // Z tests equality of the whole word; H/I/C are preserved.
-    const { result, overflow } = subtract(8, this.#state.x >>> 8, value >>> 8);
-    this.#state.flags.n = (result & 0x80) !== 0;
-    this.#state.flags.z = this.#state.x === value;
-    this.#state.flags.v = overflow;
   }
 
   // Memory operations.

@@ -1,6 +1,6 @@
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { cpuSymbols, flagValue, literal, not, readFlag, shiftLeft, value, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { cpuSymbols, flagValue, highByte, literal, not, readFlag, shiftLeft, value, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
@@ -31,6 +31,11 @@ export function checkInstructionSemantics(): void {
   readFlag("carry", mos.flag("c"));
   shiftLeft(value("byte"), flagValue("carry"));
   xor(flagValue("carry"), zero(value("byte")));
+  highByte(value("word"));
+  // @ts-expect-error Byte extraction requires a numeric expression, not a live register.
+  highByte(mos.register("pc"));
+  // @ts-expect-error Flags cannot be word operands.
+  highByte(flagValue("carry"));
   // @ts-expect-error Boolean XOR cannot accept numeric operands.
   xor(value("byte"), flagValue("carry"));
   // @ts-expect-error Reading a flag requires a flag symbol, not a register.
@@ -86,6 +91,15 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800.clrA(m6800);
   generated6800.clrMemory(m6800, 0xffff, { writeByte: () => {} });
   generated6800.tstMemory(m6800, 0xffff, { readByte: () => 0 });
+  generated6800.cmpaImmediate(m6800, { fetchByte: () => 0 });
+  generated6800.cpxMemory(m6800, 0xffff, { readByte: () => 0 });
+  generated6800.cba(m6800);
+  // @ts-expect-error CPX needs two explicit byte reads, never a write capability.
+  generated6800.cpxMemory(m6800, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error The address is already resolved when a memory comparison starts.
+  generated6800.cmpbMemory(m6800, 0xffff, { readByte: () => 0, fetchByte: () => 0 });
+  // @ts-expect-error CBA needs no instruction context.
+  generated6800.cba(m6800, { fetchByte: () => 0 });
   // @ts-expect-error The original 6800 CLR has no read capability.
   generated6800.clrMemory(m6800, 0xffff, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Generated 6800 bodies retain the 6800 state type.

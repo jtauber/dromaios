@@ -42,6 +42,9 @@ export function validateInstruction(definition: InstructionDefinition): void {
         if (!Number.isSafeInteger(expr.value) || expr.value < 0 || expr.value >= 2 ** bits) fail(where, `literal does not fit ${bits} bits`);
         return bits;
       }
+      case "high-byte":
+        if (expression(expr.value, scope, where) !== 16) fail(where, "high byte requires a word");
+        return 8;
       case "extend": {
         const from = expression(expr.value, scope, where), to = width(expr.width, where);
         if (to <= from) fail(where, "extension must widen its operand");

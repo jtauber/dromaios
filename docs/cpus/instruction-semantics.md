@@ -19,6 +19,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 CPI and every CMP register/memory form | Immediate, register, and memory sources; parity and inverse half-borrow |
 | 6809 CMPA/B/D/X/Y/U/S, every addressing form | Byte/word widths, D as A:B, and addressing that changes the register subsequently compared |
+| 6800 CMPA/CMPB/CPX, every addressing form, and CBA | Share comparison construction; original CPX derives N/V from high bytes without low-byte borrow, Z from the whole word, and preserves C |
 | 6502 LDA/LDX/LDY, every supported addressing form | Reuse comparison sources; delay destination and N/Z updates until the source succeeds |
 | All six 6502 register transfers and 8080 MOV B,A | Share read/write behavior while selecting N/Z or preserving every flag; SP transfers do not access the stack |
 | All 6502 ASL/ROL/LSR/ROR forms | One resolved address, an original-value write, a captured incoming carry for rotates, and separate C and N/Z stages; accumulator forms share the operation |
@@ -28,15 +29,15 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 164 bodies. All are generated and executable; 163 are bound into their
+There are 171 bodies. All are generated and executable; 170 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
 comparison or unary body starts after successful address resolution and serves
 direct, indexed, and extended forms, including all legal indexed postbytes.
-The 6800 memory bodies likewise serve every indexed displacement
-and extended address after resolution. Both decoders remain handwritten. The existing
+The 6800 memory comparisons likewise serve direct/indexed/extended forms, while
+its unary operations have indexed/extended forms. Both decoders remain handwritten. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
 independent CPU tests are the behavioral baseline.
 
@@ -52,7 +53,7 @@ The authoring layers have separate homes:
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift recipes, N/Z policies, and checked opcode inventories |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary definitions and explanations, parameterized by their read and flag differences |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary and comparison construction, with explicit operand-read and flag policies |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -112,6 +113,13 @@ inspectable data. The construction function itself is TypeScript, with typed
 parameters; there is no general parameterized instruction-body call node yet.
 We can judge the repeated pattern without first designing higher-order DSL
 parameters for every operand role.
+
+`motorolaComparison` constructs immediate and resolved-memory bodies for each
+compared register or view. Its default policy applies N/Z/V/C at the operand's
+width, with C meaning borrow. The original 6800 CPX instead supplies a named
+policy using `highByte(left)` and `highByte(right)` for N/V, whole-word subtraction
+for Z, and no C assignment. Its explanation accompanies the policy in the 6800
+definition. CBA uses the same `compare` recipe with B as its register source.
 
 `transfer(destination, source, policy?)` captures its source as `result`, writes
 the destination, and optionally applies a policy with that result parameter.
@@ -214,6 +222,7 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `subtract(left, right)` | Binary subtraction modulo `2^width`, with no input borrow |
 | `addWrap(left, right)` | Addition modulo `2^width` |
 | `concat(high, low)` | Two bytes combined as `high * 256 + low`, yielding a word |
+| `highByte(value)` | Extract bits 15–8 of a captured word as a byte; byte operands and live register symbols are rejected |
 | `extend(value, width)` | Unsigned widening; narrowing and equal-width conversions are rejected |
 | `shiftLeft(value, incoming)` | Shift left once at the operand's width, discard the outgoing high bit, and insert the Boolean incoming bit at bit 0 |
 | `shiftRight(value, incoming)` | Shift right once at the operand's width, discard bit 0, and insert the Boolean incoming bit at the high bit |
@@ -270,6 +279,12 @@ that register read earlier would change the definition, not just its formatting.
 The same boundary serves every indexed postbyte and compared register. CMPD
 reads A then B after both operand bytes, so addressing through A, B, or D does
 not move the comparison-register capture ahead of the memory reads.
+
+The original 6800 CPX deliberately does not use whole-word N/V. Comparing
+`0100` with `0101` leaves N clear: the high bytes are equal, and the low-byte
+borrow does not enter their subtraction. Z is clear because the whole words
+differ, and C retains its previous value. A high-byte extraction expression
+makes this rule visible without a CPU-specific primitive or opaque callback.
 
 In memory shifts and rotates, the original-value write precedes the calculation
 and any flag update. ROL/ROR capture incoming C after that write succeeds.
@@ -346,6 +361,13 @@ The [6800 CPU tests](../../tests/components/cpus/6800.test.ts) cover all unsigne
 indexed displacements, wrapped and overlapping fetches, and failures at every
 fetch, operand read, and result write. Generated-body probes distinguish its
 CLR with no register or memory read, TST's cleared carry, and right-shift V.
+Comparison tests cover all unsigned indexed offsets, wrapped and overlapping
+fetches/data reads, and failure at every read in boundary cases. CPX retains its
+exhaustive independent high-byte-pair tests with equal and unequal low bytes.
+Generated-body probes verify operand-before-register ordering and no writeback
+for CMPA/CMPB/CPX and CBA. Compiler probes check `highByte` for every word and
+after wrapped arithmetic; validation rejects non-word inputs and wrong-width
+uses of its byte result.
 The [6809 CPU tests](../../tests/components/cpus/6809.test.ts) also exercise all
 217 legal indexed postbytes for every memory unary operation and all seven
 comparisons, retain rejection of all 39 undefined postbytes, and inject failure
@@ -427,13 +449,18 @@ inventory contains function references only; each invocation supplies the curren
 CPU state. CPU-owned wrappers resolve one address, with the 6809 rejecting
 undefined postbytes before body entry. The handwritten unary calculations and
 memory-modification paths are gone. JMP remains a separate address operation.
-The 6809 uses one comparison-family binding across its three opcode pages.
+The 6800 and 6809 share one comparison-family binding, with the 6809 using it
+across its three opcode pages.
 Each register has an immediate body that fetches its operand and a memory body
 that receives the decoder's resolved address. This covers CMPA/B/D/X/Y/U/S in
 all four addressing modes, with no special indexed postbyte path. Unsupported
-postbytes retain the same rejection behavior before body entry. The handwritten
-accumulator table excludes CMP; the word-arithmetic helper now serves only
-ADDD/SUBD. Address decoding itself remains outside the generated definitions.
+postbytes retain the same rejection behavior before body entry. The 6809's
+word-arithmetic helper now serves only ADDD/SUBD. The 6800 binds CMPA/CMPB/CPX
+through the same wrapper and CBA directly.
+The shared accumulator table no longer includes CMP, so the 6809 no longer needs
+to filter it out. The original 6800 CPX helper is gone. Binding captures a state
+getter without reading it until execution, and resolves each memory address once
+before entering its body. Address decoding remains outside the generated definitions.
 
 ## Decision and next review
 
@@ -474,6 +501,15 @@ separate direct/extended definitions with one memory body per compared register.
 Explicit byte reads and concatenation express D without a new register-view
 primitive. All 28 comparison forms use the same construction, and total authored
 source falls again after including the definitions and bindings.
+
+Sharing comparison construction and bindings with the 6800 completes its thirteen
+comparison forms. CPX motivates one narrow `highByte` expression, with width
+validation, executable generation, and an explanatory spelling. Existing 6502,
+8080, and 6809 generated bodies remain byte-for-byte unchanged. The CPU modules
+and CPU-specific definitions shrink, but this step increases total authored
+source after accounting for shared construction and the expression. Its benefit
+is explicit hardware meaning and family reuse; the footprint report records the
+cost rather than treating migration credit as source reduction.
 
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve

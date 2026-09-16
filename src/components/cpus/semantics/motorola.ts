@@ -1,9 +1,9 @@
-import { addWrap, borrow, capture, flagLiteral, literal, negative, overflow, readMemory, readRegister, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
-import type { CpuDeclaration, Flag, FlagPolicy, NumberExpression, Register, Statement } from "./model.ts";
-import { negativeZeroPolicy, shift } from "./builders.ts";
+import { addWrap, borrow, capture, concat, fetchByte, flagLiteral, literal, negative, overflow, readMemory, readRegister, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
+import type { CpuDeclaration, Flag, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
+import { compare, immediateByte, negativeZeroPolicy, shift } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
 
-interface UnaryCpu {
+interface MotorolaCpu {
   readonly declaration: CpuDeclaration;
   register(field: "a" | "b"): Register;
   flag(field: "n" | "z" | "v" | "c"): Flag;
@@ -15,7 +15,7 @@ interface UnaryPolicy {
 }
 
 /** Shared Motorola unary meanings; each CPU declares its read, carry, and overflow differences. */
-export function motorolaUnary(cpu: UnaryCpu, rules: UnaryPolicy) {
+export function motorolaUnary(cpu: MotorolaCpu, rules: UnaryPolicy) {
   function unary(name: string, calculation: NumberExpression | readonly Statement[], updates: FlagPolicy["updates"], explanation: string, writeBack = true) {
     const read = name !== "CLR" || rules.clearReadsOperand;
     const nz = negativeZeroPolicy(`${cpu.declaration.name} ${name}`, cpu.flag("n"), cpu.flag("z"), 8);
@@ -77,4 +77,38 @@ export function motorolaUnary(cpu: UnaryCpu, rules: UnaryPolicy) {
       { flag: cpu.flag("c"), value: flagLiteral(false) }, { flag: cpu.flag("v"), value: flagLiteral(false) },
     ], "Clear the byte. Set Z; clear N/C/V."),
   };
+}
+
+/** Ordinary byte/word comparison changes NZVC, with C meaning borrow. The original 6800 CPX supplies its own policy. */
+export function motorolaComparisonFlags(cpu: MotorolaCpu, width: Width): FlagPolicy {
+  const nz = negativeZeroPolicy(`${cpu.declaration.name} comparison`, cpu.flag("n"), cpu.flag("z"), width);
+  return { ...nz, parameters: { left: width, right: width, result: width }, updates: [
+    ...nz.updates, { flag: cpu.flag("v"), value: overflow(value("left"), value("right")) },
+    { flag: cpu.flag("c"), value: borrow(value("left"), value("right")) },
+  ] };
+}
+
+const immediateWord: ValueSource = { name: "immediate word, high byte first", width: 16,
+  steps: [fetchByte("high"), fetchByte("low")], result: concat(value("high"), value("low")) };
+
+/** Two bodies per comparison: immediate fetching, or data reads after CPU-owned address resolution. */
+export function motorolaComparison(cpu: MotorolaCpu, mnemonic: string, left: Register | ValueSource,
+  flags = motorolaComparisonFlags(cpu, left.width),
+  explanation = "Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow.") {
+  const word = left.width === 16;
+  return Object.fromEntries((["Immediate", "Memory"] as const).map(mode => {
+    const memory = mode === "Memory";
+    const reads = word ? [readMemory("high", value("address")), readMemory("low", addWrap(value("address"), literal(16, 1)))]
+      : [readMemory("byte", value("address"))];
+    const right = memory ? (word ? concat(value("high"), value("low")) : value("byte")) : (word ? immediateWord : immediateByte);
+    return [`${mnemonic.toLowerCase()}${mode}`, defineInstruction({
+      cpu: cpu.declaration, name: `${mnemonic} ${memory ? "memory" : word ? "#word" : "#byte"}`,
+      ...(memory ? { inputs: { address: 16 as const } } : {}),
+      explanation: (memory ? "Entry is after successful address resolution. Read the operand at that captured address. " : "Fetch the immediate operand. ")
+        + (word ? "Read high byte then low byte, wrapping at FFFF. " : "")
+        + `Only then read ${"kind" in left ? left.field.toUpperCase() : left.name}. ${explanation} Do not write a result. `
+        + "A failed read leaves flags unchanged; completed fetches and addressing effects remain.",
+      steps: [...(memory ? reads : []), ...compare(left, right, flags)],
+    })];
+  }));
 }

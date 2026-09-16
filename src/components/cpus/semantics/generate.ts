@@ -33,6 +33,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8080" | "6809", def
       switch (expr.kind) {
         case "value": return scope.get(expr.name)! as CapturedNumber; // Validation has resolved names and types.
         case "literal": return { code: `0x${expr.value.toString(16)}`, type: expr.width };
+        case "high-byte": return { code: `(${number(expr.value, scope).code} >>> 8)`, type: 8 };
         case "extend": return { code: number(expr.value, scope).code, type: expr.width };
         case "shift-left": case "shift-right": {
           const operand = number(expr.value, scope), operation = helper(expr.kind === "shift-left" ? "shiftLeft" : "shiftRight");

@@ -586,14 +586,20 @@ shared `oooo` operation selectors. Addressing prefixes and JMP remain in each
 CPU. Construction reads no live state; generated bodies receive the executing
 CPU's state explicitly.
 
-`motorolaAccumulatorOperations` also shares the ten byte-operation selectors
+Comparison construction is also shared. Each CPU declares its compared registers
+and any special policy, including the original 6800's CPX high-byte N/V rule.
+`motorolaComparisonBindings` binds immediate and resolved-memory bodies to the
+`mm` addressing field. It reads no state during construction and rejects an
+undefined address before body entry; the decoders remain CPU-specific.
+
+`motorolaAccumulatorOperations` also shares the nine remaining byte-operation selectors
 in `1 r mm oooo`, including their accumulator writeback and flag effects.
 Its state getter and ALU callbacks are bound during construction and read only
 when an instruction executes. Each CPU supplies its own immediate and memory
 readers: in particular, the 6809 still rejects undefined indexed postbytes before
-running an operation. Stores, word execution, and addressing remain local.
+running an operation. Stores, word loads/arithmetic, and addressing remain local.
 Matching arithmetic flag policies use the shared operations described above;
-unary semantics use generated bodies. Address and effect-order differences stay visible.
+unary and comparison semantics use generated bodies. Address and effect-order differences stay visible.
 
 [Tests](../../tests/components/cpus/motorola.test.ts) compare encoded conditions
 with unsigned and signed arithmetic and verify preserved flags and replaced

@@ -12,6 +12,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "value": return Object.hasOwn(parameters, expr.name) ? number(parameters[expr.name]!) : expr.name;
       case "literal": return `${expr.value.toString(16).toUpperCase().padStart(expr.width / 4, "0")}:u${expr.width}`;
       case "extend": return `zeroExtend${expr.width}(${number(expr.value, parameters)})`;
+      case "high-byte": return `highByte(${number(expr.value, parameters)})`;
       case "shift-left": case "shift-right":
         return `${expr.kind === "shift-left" ? "shiftLeft" : "shiftRight"}(${number(expr.value, parameters)}, ${flag(expr.incoming, parameters)})`;
       case "subtract": case "add-wrap": case "concat": {
@@ -80,7 +81,7 @@ See the [representation contract](instruction-semantics.md) for primitive meanin
 validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
-Bodies begin after opcode selection. Motorola memory unary bodies and 6809 memory
+Bodies begin after opcode selection. Motorola memory unary bodies and memory
 comparisons receive a resolved address from the existing decoder. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; a source
