@@ -1322,7 +1322,9 @@ not yet represented by this byte/word slice. Whole-model migration remains a
 separate decision.
 
 The 6502 now authors these migrated instructions as encoding families and
-generates their execution bindings too. Assess this cleanup against the complete
+generates their execution bindings too. Its address and operand definitions also
+generate readers for handwritten instructions, replacing duplicate addressing
+helpers. Assess this cleanup against the complete
 [authored-source footprint](coverage.md#source-footprint), including shared
 machinery, before treating migration percentages as evidence of simpler code.
 

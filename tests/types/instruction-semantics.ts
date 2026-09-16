@@ -2,7 +2,7 @@ import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
 import { cpuSymbols, literal, not, value, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
-import { instructions as generated6502 } from "../../src/components/cpus/generated/6502.js";
+import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
 import type { Cpu6502State } from "../../src/components/cpus/6502.js";
 import type { Cpu8080State } from "../../src/components/cpus/8080.js";
@@ -37,6 +37,15 @@ export function checkInstructionSemantics(): void {
 }
 
 export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State): void {
+  const readers = sourceReaders(mos);
+  const address: number = readers.addresses.absoluteX({ fetchByte: () => 0 });
+  const byte: number = readers.operands[3]({ fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error An indirect address needs pointer reads, even without a final data read.
+  readers.addresses.indirectIndexed({ fetchByte: () => 0 });
+  // @ts-expect-error The memory operand needs a data read; its address reader does not.
+  readers.operands[3]({ fetchByte: () => 0 });
+  // @ts-expect-error Reader bindings require the concrete CPU state.
+  sourceReaders(intel);
   generated6502[0xaa](mos);
   generated6502[0xc9](mos, { fetchByte: () => 0 });
   generated6502[0xb6](mos, { fetchByte: () => 0, readByte: () => 0 });

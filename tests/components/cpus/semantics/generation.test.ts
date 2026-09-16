@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { instructions as mos, opcodeEntries } from "../../../../src/components/cpus/generated/6502.js";
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
-import { instructions6502, instructions8080, instructions6809 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions6502, sources6502, instructions8080, instructions6809 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { cpuSymbols, addWrap, literal, value, zero } from "../../../../src/components/cpus/semantics/model.js";
@@ -30,9 +30,9 @@ function motorolaState(): Cpu6809State {
 test("all generated modules reproduce from definitions without changing them", () => {
   for (const [cpu, definitions] of [["6502", instructions6502], ["8080", instructions8080], ["6809", instructions6809]] as const) {
     const before = JSON.stringify(definitions);
-    const source = generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502" });
+    const source = generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502", sources: cpu === "6502" ? sources6502 : undefined });
     assert.equal(source, readFileSync(`src/components/cpus/generated/${cpu}.ts`, "utf8"));
-    assert.equal(generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502" }), source);
+    assert.equal(generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502", sources: cpu === "6502" ? sources6502 : undefined }), source);
     assert.equal(JSON.stringify(definitions), before);
   }
   assert.throws(() => generateInstructions("8080", instructions6502), /expected a 8080 definition/);

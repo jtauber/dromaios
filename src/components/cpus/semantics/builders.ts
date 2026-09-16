@@ -1,4 +1,4 @@
-import { capture, fetchByte, negative, readRegister, readSource, subtract, updateFlags, value, writeRegister, zero } from "./model.ts";
+import { capture, fetchByte, negative, readMemory, readRegister, readSource, subtract, updateFlags, value, writeRegister, zero } from "./model.ts";
 import type { Flag, FlagPolicy, Register, Statement, ValueSource, Width } from "./model.ts";
 import type { InstructionDefinition } from "./model.ts";
 import { opcodeTable } from "../opcodes.ts";
@@ -20,6 +20,12 @@ export const immediateByte: ValueSource = {
 export function registerSource(register: Register): ValueSource {
   return { name: `register ${register.field.toUpperCase()}`, width: register.width,
     steps: [readRegister("contents", register)], result: value("contents") };
+}
+
+/** Resolve an address once, then read its byte. Stores and modifiers can use the address source alone. */
+export function memorySource(address: ValueSource): ValueSource {
+  return { name: `byte at ${address.name}`, width: 8,
+    steps: [readSource("address", address), readMemory("byte", value("address"))], result: value("byte") };
 }
 
 export function negativeZeroPolicy(name: string, n: Flag, z: Flag, width: Width): FlagPolicy {

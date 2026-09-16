@@ -98,11 +98,19 @@ MOV B,A sample uses it too. The 6502 selects its N/Z policy except for TXS,
 which supplies no policy and preserves every flag. A source that fails never
 reaches the destination write or flag update.
 
-The 6502 comparison and load definitions share source constructors and selectors.
-Zero-page indexing wraps the byte address before widening; absolute indexing
-wraps the word address. LDX uses Y for indexed modes, whereas LDY uses X.
-The sole additional addressing source for loads is zero page indexed by Y;
-the other forms reuse the comparison sources, including both indirect modes.
+The 6502 describes effective addresses as word-valued sources. They perform
+operand fetches and any pointer reads, then stop before the final data read.
+`memorySource(address)` resolves that address once and reads its byte. Comparison
+and load bodies use these byte sources; handwritten stores and memory modifiers
+use the address sources directly. Zero-page indexing wraps the byte address
+before widening; absolute indexing wraps the word address. LDX uses Y for
+indexed modes, whereas LDY uses X.
+
+`sources6502` groups eight named address sources and eight `bbb` operand sources.
+The operand readers and generated LDA/CMP bodies use the same selector inventory.
+This removes a second addressing implementation and operand list from the CPU.
+Indirect JMP retains its explicit page-wrap helper, and JSR still fetches its
+operand bytes separately around the stack writes.
 
 A `ValueSource` has a name, result width, ordered body, and pure result expression.
 Its captures live in a fresh scope; only its yielded value enters its caller's
@@ -229,6 +237,10 @@ types, and the precise context capabilities each body needs. Execution tests
 cover all byte operand pairs against independent arithmetic, word boundaries,
 lexical scope isolation, source effects, and retained effects on failure. The
 existing CPU tests remain the independent opcode, record, and rejection baseline.
+[Reader tests](../../tests/components/cpus/semantics/readers.test.ts) distinguish
+address resolution from data reads, check byte/word wrapping and live index-read
+order, and inject failures at each source access. CPU tests also check stores,
+arithmetic, and memory modifiers through their ordinary opcode paths.
 
 ## Executable generation and integration
 
@@ -273,6 +285,16 @@ Each instance binds its own state; no register or memory read occurs during
 binding. Generated methods retain their precise callback types, while the
 bound handlers accept the shared byte instruction context.
 
+The generator's `sources` option also emits `sourceReaders(state)`. These readers
+use the same validation, lexical scopes, and statement compiler as instruction
+bodies, returning the source's captured result. Each reader requires only the
+callbacks it uses: a simple address needs fetching, an indirect address also
+needs pointer reads, and a memory operand adds the final data read. The CPU
+binds readers after initializing its state. Binding performs no register or
+memory reads; each call observes live registers at their declared positions.
+Remaining handwritten operations can therefore share the definitions before
+their complete bodies are migrated.
+
 This covers the complete 6502 comparison and load families, all six register
 transfers, and zero-page ASL. The 8080 retains named bodies for its nine CMP/CPI
 bindings in the shared 8080/Z80 family.
@@ -288,23 +310,26 @@ The experiment demonstrates one meaning producing executable code and an
 explanation. Its initial representation and compiler added authored machinery;
 migration percentages alone do not establish a reduction in code or complexity.
 The family cleanup removes the 6502's duplicate load/comparison binding arrays
-and individual bindings. All 55 expanded bodies retain their previous meanings;
-the independent encoding and CPU tests check their execution connections.
+and individual bindings. Shared address and operand readers then remove four
+handwritten addressing helpers and the duplicate accumulator operand list.
+All 55 instruction bodies retain their behavior and effect order; the independent
+encoding and CPU tests check their execution connections and failure boundaries.
 
 Measure the complete [source footprint](coverage.md#source-footprint), including
 definitions and shared machinery, with generated output counted separately.
 Moving code into a definition file does not count as source reduction. Review
-whether family authoring and explicit ordered statements improve understanding
-before expanding the vocabulary further.
+whether family authoring, reusable sources, and explicit ordered statements
+improve understanding before expanding the vocabulary further.
 
 Subsequent migrations should also identify the handwritten helpers they can
-retire. The 6502's result-writing and addressing helpers still serve arithmetic,
-shifts, stores, and stack instructions, so they cannot yet be removed. A later
-JSR slice remains a test of interleaved fetching and stack writes, but adding
-that vocabulary alone would not establish a source-reduction benefit.
+retire. The 6502's result-writing, arithmetic, and stack helpers still serve
+handwritten instructions. A later JSR slice remains a test of interleaved
+fetching and stack writes, but adding that vocabulary alone would not establish
+a source-reduction benefit.
 
-General addressing decoders, register views, flag reads, branches, loops, stack
-bodies, instruction rejection, pending commits, and exception delivery are not
-represented here. The 6502 JSR and 68000 MOVE traces still challenge later
-ordering vocabulary. The 6507 address-projection and 4004 nibble/interface probes
-remain acceptance requirements, not capabilities of this byte/word slice.
+General addressing decoders (such as the full 6809 postbyte decoder), register
+views, flag reads, branches, loops, stack bodies, instruction rejection, pending
+commits, and exception delivery are not represented here. The 6502 JSR and 68000
+MOVE traces still challenge later ordering vocabulary. The 6507 address-projection
+and 4004 nibble/interface probes remain acceptance requirements, not capabilities
+of this byte/word slice.

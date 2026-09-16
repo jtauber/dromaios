@@ -1997,8 +1997,8 @@ test("6502 memory loads of X/Y use their specified index and replace only N/Z fo
   }
 });
 
-test("6502 loads commit their destination and flags only after every source read succeeds", () => {
-  const failure = new Error("load source read failed");
+test("6502 loads, logic, arithmetic, and comparisons change results only after every source read succeeds", () => {
+  const failure = new Error("operand source read failed");
   class FailingRam extends ObservedRam {
     failAt = -1;
     attempts = 0;
@@ -2009,9 +2009,8 @@ test("6502 loads commit their destination and flags only after every source read
       return super.read(address);
     }
   }
-  const accumulator = accumulatorForms.find(family => family.name === "LDA")!;
   const forms = [
-    ...accumulator.opcodes.map((opcode, index) => ({ opcode, fixture: operandFixtures[index]! })),
+    ...[...accumulatorForms, ...arithmeticForms].flatMap(family => family.opcodes.map((opcode, index) => ({ opcode, fixture: operandFixtures[index]! }))),
     ...registerMemoryForms.flatMap(form => "load" in form ? [{ opcode: form.load, fixture: form.fixture }] : []),
     ...[0xa2, 0xa0].map(opcode => ({ opcode, fixture: operandFixtures[2]! })), // LDX/LDY immediate
   ];
@@ -3101,6 +3100,37 @@ test("6502 memory ASL preserves the split flag updates when either write fails",
       assert.deepEqual(ram.accesses, [...bytes.map((value, offset) => ({ kind: "read", address: before.pc + offset, value })),
         { kind: "read", address, value: 0x80 }, ...(failOnWrite === 2 ? [{ kind: "write", address, value: 0x80 }] : [])]);
       assert.equal(ram.read(address), 0x80);
+    }
+  }
+});
+
+test("6502 stores stop at every failed fetch, pointer read, or write without reading destination memory", () => {
+  const failure = new Error("store access failed");
+  class FailingRam extends ObservedRam {
+    failAt = -1;
+    attempts = 0;
+    attempt(): void { if (this.attempts++ === this.failAt) throw failure; }
+    override read(address: number): number { this.attempt(); return super.read(address); }
+    override write(address: number, value: number): void { this.attempt(); super.write(address, value); }
+  }
+  for (const form of registerMemoryForms) {
+    if (!("store" in form)) continue;
+    const { register, store, fixture } = form;
+    const bytes = [store, ...fixture.bytes], target = fixture.address!;
+    const before = initialState({ x: 2, y: 3 });
+    const reads = [...bytes.map((value, offset) => [before.pc + offset, value] as const), ...fixture.pointers];
+    for (let failAt = 0; failAt <= reads.length; failAt++) {
+      const ram = new FailingRam();
+      for (const [address, value] of reads) ram.write(address, value);
+      ram.write(target, 0xa5);
+      ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
+      const cpu = new Cpu6502(ram, before);
+      assert.throws(() => cpu.step(), error => error === failure);
+      assert.equal(ram.attempts, failAt + 1);
+      assert.deepEqual(cpu.snapshot(), { ...before, pc: before.pc + Math.min(failAt, bytes.length) });
+      assert.deepEqual(ram.accesses, reads.slice(0, failAt).map(([address, value]) => ({ kind: "read", address, value })));
+      ram.failAt = -1;
+      assert.equal(ram.read(target), 0xa5, `${register} store changed memory despite failure`);
     }
   }
 });

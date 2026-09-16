@@ -21,8 +21,10 @@ MOV B,A remains an executable comparison sample outside the 8080 opcode table.
 Resolve the address once. Read the original byte and write it back unchanged. Then compute the shifted byte and apply C before the final write; N/Z follow only after that write succeeds. A failed original write leaves flags unchanged; a failed final write retains the new C and old N/Z. These are the existing model's host-error boundaries, not a cycle-level hardware claim.
 
 ```text
-offset:u8 := fetch byte
-address := zeroExtend16(offset)
+address:u16 := source "zero page" {
+  offset:u8 := fetch byte
+  yield zeroExtend16(offset)
+}
 original:u8 := read memory[address]
 write memory[address] := original
 result := addWrap(original, original)
@@ -111,14 +113,17 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "indexed indirect (zero page,X)" {
-  offset:u8 := fetch byte
-  index:u8 := read X
-  pointer := addWrap(offset, index)
-  low:u8 := read memory[zeroExtend16(pointer)]
-  high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-  base := concatHighLow(high, low)
-  byte:u8 := read memory[base]
+result:u8 := source "byte at indexed indirect (zero page,X)" {
+  address:u16 := source "indexed indirect (zero page,X)" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    pointer := addWrap(offset, index)
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    yield base
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 write A:u8 := result
@@ -153,9 +158,11 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "zero page" {
-  offset:u8 := fetch byte
-  address := zeroExtend16(offset)
+result:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
   byte:u8 := read memory[address]
   yield byte
 }
@@ -173,9 +180,11 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "zero page" {
-  offset:u8 := fetch byte
-  address := zeroExtend16(offset)
+result:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
   byte:u8 := read memory[address]
   yield byte
 }
@@ -193,9 +202,11 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "zero page" {
-  offset:u8 := fetch byte
-  address := zeroExtend16(offset)
+result:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
   byte:u8 := read memory[address]
   yield byte
 }
@@ -267,10 +278,13 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "absolute byte, low address byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  byte:u8 := read memory[concatHighLow(high, low)]
+result:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 write Y:u8 := result
@@ -287,10 +301,13 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "absolute byte, low address byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  byte:u8 := read memory[concatHighLow(high, low)]
+result:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 write A:u8 := result
@@ -307,10 +324,13 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "absolute byte, low address byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  byte:u8 := read memory[concatHighLow(high, low)]
+result:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 write X:u8 := result
@@ -327,14 +347,17 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "indirect indexed (zero page),Y" {
-  offset:u8 := fetch byte
-  pointer := offset
-  low:u8 := read memory[zeroExtend16(pointer)]
-  high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-  base := concatHighLow(high, low)
-  index:u8 := read Y
-  byte:u8 := read memory[addWrap(base, zeroExtend16(index))]
+result:u8 := source "byte at indirect indexed (zero page),Y" {
+  address:u16 := source "indirect indexed (zero page),Y" {
+    offset:u8 := fetch byte
+    pointer := offset
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    index:u8 := read Y
+    yield addWrap(base, zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 write A:u8 := result
@@ -351,10 +374,12 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "zero page indexed by X" {
-  offset:u8 := fetch byte
-  index:u8 := read X
-  address := zeroExtend16(addWrap(offset, index))
+result:u8 := source "byte at zero page indexed by X" {
+  address:u16 := source "zero page indexed by X" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    yield zeroExtend16(addWrap(offset, index))
+  }
   byte:u8 := read memory[address]
   yield byte
 }
@@ -372,10 +397,12 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "zero page indexed by X" {
-  offset:u8 := fetch byte
-  index:u8 := read X
-  address := zeroExtend16(addWrap(offset, index))
+result:u8 := source "byte at zero page indexed by X" {
+  address:u16 := source "zero page indexed by X" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    yield zeroExtend16(addWrap(offset, index))
+  }
   byte:u8 := read memory[address]
   yield byte
 }
@@ -393,10 +420,12 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "zero page indexed by Y" {
-  offset:u8 := fetch byte
-  index:u8 := read Y
-  address := zeroExtend16(addWrap(offset, index))
+result:u8 := source "byte at zero page indexed by Y" {
+  address:u16 := source "zero page indexed by Y" {
+    offset:u8 := fetch byte
+    index:u8 := read Y
+    yield zeroExtend16(addWrap(offset, index))
+  }
   byte:u8 := read memory[address]
   yield byte
 }
@@ -414,11 +443,14 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "absolute indexed by Y" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  index:u8 := read Y
-  byte:u8 := read memory[addWrap(concatHighLow(high, low), zeroExtend16(index))]
+result:u8 := source "byte at absolute indexed by Y" {
+  address:u16 := source "absolute indexed by Y" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read Y
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 write A:u8 := result
@@ -453,11 +485,14 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "absolute indexed by X" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  index:u8 := read X
-  byte:u8 := read memory[addWrap(concatHighLow(high, low), zeroExtend16(index))]
+result:u8 := source "byte at absolute indexed by X" {
+  address:u16 := source "absolute indexed by X" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read X
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 write Y:u8 := result
@@ -474,11 +509,14 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "absolute indexed by X" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  index:u8 := read X
-  byte:u8 := read memory[addWrap(concatHighLow(high, low), zeroExtend16(index))]
+result:u8 := source "byte at absolute indexed by X" {
+  address:u16 := source "absolute indexed by X" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read X
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 write A:u8 := result
@@ -495,11 +533,14 @@ Flags preserved throughout: V, D, I, C.
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
 
 ```text
-result:u8 := source "absolute indexed by Y" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  index:u8 := read Y
-  byte:u8 := read memory[addWrap(concatHighLow(high, low), zeroExtend16(index))]
+result:u8 := source "byte at absolute indexed by Y" {
+  address:u16 := source "absolute indexed by Y" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read Y
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 write X:u8 := result
@@ -536,14 +577,17 @@ Flags preserved throughout: V, D, I.
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
 
 ```text
-right:u8 := source "indexed indirect (zero page,X)" {
-  offset:u8 := fetch byte
-  index:u8 := read X
-  pointer := addWrap(offset, index)
-  low:u8 := read memory[zeroExtend16(pointer)]
-  high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-  base := concatHighLow(high, low)
-  byte:u8 := read memory[base]
+right:u8 := source "byte at indexed indirect (zero page,X)" {
+  address:u16 := source "indexed indirect (zero page,X)" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    pointer := addWrap(offset, index)
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    yield base
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read A
@@ -562,9 +606,11 @@ Flags preserved throughout: V, D, I.
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
 
 ```text
-right:u8 := source "zero page" {
-  offset:u8 := fetch byte
-  address := zeroExtend16(offset)
+right:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
   byte:u8 := read memory[address]
   yield byte
 }
@@ -584,9 +630,11 @@ Flags preserved throughout: V, D, I.
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
 
 ```text
-right:u8 := source "zero page" {
-  offset:u8 := fetch byte
-  address := zeroExtend16(offset)
+right:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
   byte:u8 := read memory[address]
   yield byte
 }
@@ -626,10 +674,13 @@ Flags preserved throughout: V, D, I.
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
 
 ```text
-right:u8 := source "absolute byte, low address byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  byte:u8 := read memory[concatHighLow(high, low)]
+right:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read Y
@@ -648,10 +699,13 @@ Flags preserved throughout: V, D, I.
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
 
 ```text
-right:u8 := source "absolute byte, low address byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  byte:u8 := read memory[concatHighLow(high, low)]
+right:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read A
@@ -670,14 +724,17 @@ Flags preserved throughout: V, D, I.
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
 
 ```text
-right:u8 := source "indirect indexed (zero page),Y" {
-  offset:u8 := fetch byte
-  pointer := offset
-  low:u8 := read memory[zeroExtend16(pointer)]
-  high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
-  base := concatHighLow(high, low)
-  index:u8 := read Y
-  byte:u8 := read memory[addWrap(base, zeroExtend16(index))]
+right:u8 := source "byte at indirect indexed (zero page),Y" {
+  address:u16 := source "indirect indexed (zero page),Y" {
+    offset:u8 := fetch byte
+    pointer := offset
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    index:u8 := read Y
+    yield addWrap(base, zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read A
@@ -696,10 +753,12 @@ Flags preserved throughout: V, D, I.
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
 
 ```text
-right:u8 := source "zero page indexed by X" {
-  offset:u8 := fetch byte
-  index:u8 := read X
-  address := zeroExtend16(addWrap(offset, index))
+right:u8 := source "byte at zero page indexed by X" {
+  address:u16 := source "zero page indexed by X" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    yield zeroExtend16(addWrap(offset, index))
+  }
   byte:u8 := read memory[address]
   yield byte
 }
@@ -719,11 +778,14 @@ Flags preserved throughout: V, D, I.
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
 
 ```text
-right:u8 := source "absolute indexed by Y" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  index:u8 := read Y
-  byte:u8 := read memory[addWrap(concatHighLow(high, low), zeroExtend16(index))]
+right:u8 := source "byte at absolute indexed by Y" {
+  address:u16 := source "absolute indexed by Y" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read Y
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read A
@@ -742,11 +804,14 @@ Flags preserved throughout: V, D, I.
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
 
 ```text
-right:u8 := source "absolute indexed by X" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  index:u8 := read X
-  byte:u8 := read memory[addWrap(concatHighLow(high, low), zeroExtend16(index))]
+right:u8 := source "byte at absolute indexed by X" {
+  address:u16 := source "absolute indexed by X" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read X
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read A
@@ -785,9 +850,11 @@ Flags preserved throughout: V, D, I.
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
 
 ```text
-right:u8 := source "zero page" {
-  offset:u8 := fetch byte
-  address := zeroExtend16(offset)
+right:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
   byte:u8 := read memory[address]
   yield byte
 }
@@ -807,10 +874,13 @@ Flags preserved throughout: V, D, I.
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
 
 ```text
-right:u8 := source "absolute byte, low address byte first" {
-  low:u8 := fetch byte
-  high:u8 := fetch byte
-  byte:u8 := read memory[concatHighLow(high, low)]
+right:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
   yield byte
 }
 left:u8 := read X

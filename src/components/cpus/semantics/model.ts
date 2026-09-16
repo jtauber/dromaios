@@ -29,6 +29,10 @@ export interface ValueSource {
   readonly steps: readonly Statement[];
   readonly result: NumberExpression;
 }
+export interface SourceDefinitions {
+  readonly cpu: CpuDeclaration;
+  readonly groups: Readonly<Record<string, Readonly<Record<string, ValueSource>>>>;
+}
 export type Statement =
   | { readonly kind: "capture"; readonly name: string; readonly value: NumberExpression }
   | { readonly kind: "read-register"; readonly name: string; readonly register: Register }

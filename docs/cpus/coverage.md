@@ -20,7 +20,7 @@ emulators do not count toward implementation here.
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [312](../../src/components/cpus/8008.ts) | 0 / 250 | 0% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [269](../../src/components/cpus/8080.ts) | 9 / 244 | 3.7% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [385](../../src/components/cpus/6800.ts) | 0 / 197 | 0% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [419](../../src/components/cpus/6502.ts) | 39 / 151 | 25.8% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [390](../../src/components/cpus/6502.ts) | 39 / 151 | 25.8% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [661](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [608](../../src/components/cpus/6809.ts) | 5 / 268 | 1.9% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
@@ -45,8 +45,9 @@ covering **53 complete opcode forms**:
 The other five CPUs have no instruction bodies generated from these definitions.
 Their existing shared TypeScript helpers remain useful, but are outside this
 migration count. The [current review](instruction-semantics.md#decision-and-next-review)
-focuses on clearer family definitions, generated bindings, and reducing total
-authored source before extending the instruction vocabulary.
+focuses on sharing address and operand definitions between generated and
+handwritten instructions, and reducing total authored source before extending
+the instruction vocabulary.
 
 [intel-transistors]: https://www.intel.com/pressroom/kits/quickreffam.htm "Intel Microprocessor Quick Reference Guide"
 [6800-transistors]: https://www.rocelec.com/news/the-bygone-motorola-6800 "Rochester Electronics: The Bygone Motorola 6800"
@@ -88,20 +89,22 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,994 |
-| CPU-specific instruction definition files | 261 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,566 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,821** |
+| Eight CPU implementation files | 4,965 |
+| CPU-specific instruction definition files | 258 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,591 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,814** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 1,074 |
+| Generated CPU output, counted separately | 1,307 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The family cleanup reduces authored CPU source from **6,844 to 6,821 lines**
-(23 fewer), including its new shared support; the generation script is unchanged
-in length. This is a modest net reduction. Definition migration percentages
-are unchanged because the cleanup moves no additional instruction bodies.
+The addressing cleanup reduces the 6502 module from **419 to 390 lines** and
+total authored CPU source from **6,821 to 6,814 lines** (seven fewer), including
+its new shared support; the generation script is unchanged in length. This is
+a small net reduction. The 16 generated address/operand readers share existing
+source definitions with handwritten instructions; they are not additional
+instruction bodies, so definition migration percentages are unchanged.
 
 ## How the percentages are counted
 

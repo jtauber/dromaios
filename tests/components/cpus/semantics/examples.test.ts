@@ -52,16 +52,13 @@ flags "6809 comparison" simultaneously {
 
 test("memory ASL exposes two actual writes and separate carry and N/Z stages", () => {
   const example = instructionDefinitions.find(example => example.name === "ASL zero page")!;
-  assert.deepEqual(example.steps.map(step => step.kind), [
-    "fetch-byte", "capture", "read-memory", "write-memory", "capture", "update-flags", "write-memory", "update-flags",
-  ]);
   const text = describeInstruction(example);
   const originalWrite = text.indexOf("write memory[address] := original");
   const carry = text.indexOf("C := topBit(original)");
   const resultWrite = text.indexOf("write memory[address] := result");
   const nz = text.indexOf("N := topBit(result)");
   assert.ok(originalWrite > 0 && originalWrite < carry && carry < resultWrite && resultWrite < nz);
-  assert.match(text, /address := zeroExtend16\(offset\)/);
+  assert.match(text, /yield zeroExtend16\(offset\)/);
   assert.match(text, /Flags preserved throughout: V, D, I\./);
 });
 
@@ -83,7 +80,7 @@ test("the indexed load explanation distinguishes the index from the destination 
   const fetch = text.indexOf("fetch byte"), index = text.indexOf("read Y"), read = text.indexOf("read memory[address]");
   const write = text.indexOf("write X:u8 := result"), flags = text.indexOf("N := topBit(result)");
   assert.ok(fetch >= 0 && fetch < index && index < read && read < write && write < flags);
-  assert.match(text, /address := zeroExtend16\(addWrap\(offset, index\)\)/);
+  assert.match(text, /yield zeroExtend16\(addWrap\(offset, index\)\)/);
   assert.match(text, /Flags preserved throughout: V, D, I, C\./);
 });
 

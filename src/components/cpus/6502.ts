@@ -1,4 +1,4 @@
-import { opcodeEntries } from "./generated/6502.ts";
+import { opcodeEntries, sourceReaders } from "./generated/6502.ts";
 import type { Ram } from "../memory/ram.js";
 import { flagRegister, negativeZero } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
@@ -40,7 +40,6 @@ export type Cpu6502InterruptRecord = StateTransition<Cpu6502Snapshot> & { readon
 );
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
-type OperandReader = (instruction: InstructionContext) => number;
 type AddressResolver = (instruction: InstructionContext) => number;
 type ByteOperation = (value: number) => number;
 type ByteRegister = "a" | "x" | "y";
@@ -55,6 +54,7 @@ const packedFlags = flagRegister({ n: 7, v: 6, d: 3, i: 2, z: 1, c: 0 }, 0x20);
 export class Cpu6502 {
   readonly #ram: Ram;
   readonly #state: Cpu6502State;
+  readonly #readers: ReturnType<typeof sourceReaders>;
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>>;
   readonly #atBoundary = executionBoundary("6502 step, reset, and interrupt calls must not be reentrant.");
 
@@ -64,6 +64,7 @@ export class Cpu6502 {
     }
     this.#ram = ram;
     this.#state = readState(cpu6502StateDescription, initialState);
+    this.#readers = sourceReaders(this.#state);
     this.#opcodeHandlers = opcodeTable(this.#instructionEntries());
   }
 
@@ -115,19 +116,6 @@ export class Cpu6502 {
 
   // Opcode selectors and construction.
 
-  // bbb (bits 4..2) in the accumulator group aaa bbb 01.
-  // Each reader captures one operand; stores use the address helpers without a data read.
-  readonly #accumulatorOperands: readonly OperandReader[] = [
-    instruction => instruction.readByte(this.#indexedIndirect(instruction)), // 000 (zp,X)
-    ({ fetchByte, readByte }) => readByte(fetchByte()),                      // 001 zp
-    ({ fetchByte }) => fetchByte(),                                         // 010 #n
-    ({ fetchWord, readByte }) => readByte(fetchWord()),                      // 011 addr
-    instruction => instruction.readByte(this.#indirectIndexed(instruction)), // 100 (zp),Y
-    instruction => instruction.readByte(this.#zeroPageIndexed("x", instruction)), // 101 zp,X
-    instruction => instruction.readByte(this.#absoluteIndexed("y", instruction)), // 110 addr,Y
-    instruction => instruction.readByte(this.#absoluteIndexed("x", instruction)), // 111 addr,X
-  ];
-
   // ss (bits 6..5) in 0ss bbb 10. Rotates insert the live incoming carry; shifts insert zero.
   readonly #shifts: readonly ByteOperation[] = [
     value => this.#shiftResult(shiftLeft(8, value, 0)),                          // 00 ASL
@@ -141,6 +129,7 @@ export class Cpu6502 {
   // Migrated patterns and bodies live together in semantics/definitions/6502.ts.
   // Only implemented encodings enter the table; this is not a decoder for every combination.
   #instructionEntries(): readonly OpcodeEntry<OpcodeHandler>[] {
+    const { addresses } = this.#readers;
     return [
       ...opcodeEntries(this.#state),
       // cc=00, bbb=000: aaa=000/010 select BRK/RTI; 001/011 select JSR/RTS.
@@ -150,8 +139,8 @@ export class Cpu6502 {
       ...instructionPattern("011 000 00", ({ readByte }) => this.#return(readByte)), // RTS
 
       // cc=00, bbb=001: zero page. aaa=001 selects BIT, 100 selects STY.
-      ...instructionPattern("001 001 00", ({ fetchByte, readByte }) => this.#testBits(readByte(fetchByte()))), // BIT zp
-      ...instructionPattern("100 001 00", ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.y)), // STY zp
+      ...instructionPattern("001 001 00", instruction => this.#testBits(instruction.readByte(addresses.zeroPage(instruction)))), // BIT zp
+      ...instructionPattern("100 001 00", instruction => instruction.writeByte(addresses.zeroPage(instruction), this.#state.y)), // STY zp
 
       // cc=00, bbb=010: 0rp 010 00. r (bit 6) selects status (0)/A (1); p (bit 5) selects push (0)/pull (1).
       ...instructionPattern("00 0 010 00", ({ writeByte }) => this.#pushByte(packedFlags.encode(this.#state.flags) | 0x10, writeByte)), // PHP
@@ -164,10 +153,10 @@ export class Cpu6502 {
       ...instructionPattern("111 010 00", () => this.#adjustIndex("x", 1)), // INX
 
       // cc=00, bbb=011: absolute operands. aaa=001 selects BIT, 010/011 JMP absolute/indirect, 100 STY.
-      ...instructionPattern("001 011 00", ({ fetchWord, readByte }) => this.#testBits(readByte(fetchWord()))), // BIT addr
-      ...instructionPattern("010 011 00", ({ fetchWord }) => this.#jump(fetchWord())), // JMP addr
-      ...instructionPattern("011 011 00", ({ fetchWord, readByte }) => this.#jump(this.#readPageWrappedPointer(fetchWord(), readByte))), // JMP (addr)
-      ...instructionPattern("100 011 00", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.y)), // STY addr
+      ...instructionPattern("001 011 00", instruction => this.#testBits(instruction.readByte(addresses.absolute(instruction)))), // BIT addr
+      ...instructionPattern("010 011 00", instruction => this.#jump(addresses.absolute(instruction))), // JMP addr
+      ...instructionPattern("011 011 00", instruction => this.#jump(this.#readPageWrappedPointer(addresses.absolute(instruction), instruction.readByte))), // JMP (addr)
+      ...instructionPattern("100 011 00", instruction => instruction.writeByte(addresses.absolute(instruction), this.#state.y)), // STY addr
 
       // cc=00, bbb=100: ffv 100 00 selects a flag and the value required to branch.
       // ff (bits 7..6): 00 N, 01 V, 10 C, 11 Z.
@@ -179,7 +168,7 @@ export class Cpu6502 {
         this.#branch(fetchByte(), this.#state.flags[flag] === value)),
 
       // cc=00, bbb=101: aaa=100 selects STY zero page indexed by X.
-      ...instructionPattern("100 101 00", instruction => instruction.writeByte(this.#zeroPageIndexed("x", instruction), this.#state.y)), // STY zp,X
+      ...instructionPattern("100 101 00", instruction => instruction.writeByte(addresses.zeroPageX(instruction), this.#state.y)), // STY zp,X
 
       // cc=00, bbb=110: 00v/01v/11v select CLC/SEC, CLI/SEI, CLD/SED; v (bit 5) is the new flag value.
       // aaa=101 selects CLV; TYA is generated.
@@ -189,19 +178,19 @@ export class Cpu6502 {
       ...opcodeFamily("11v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.d = v; }), // CLD/SED
 
       // cc=01: aaa selects ORA, AND, EOR, ADC, STA, LDA, CMP, SBC in that order.
-      // Read families use all eight bbb addressing forms above. STA has seven memory forms
+      // Read families use the generated bbb operand readers. STA has seven memory forms
       // and no bbb=010 immediate encoding.
       ...this.#accumulatorHandlers("000 bbb 01", value => this.#loadRegister("a", this.#state.a | value)), // ORA
       ...this.#accumulatorHandlers("001 bbb 01", value => this.#loadRegister("a", this.#state.a & value)), // AND
       ...this.#accumulatorHandlers("010 bbb 01", value => this.#loadRegister("a", this.#state.a ^ value)), // EOR
       ...this.#accumulatorHandlers("011 bbb 01", value => this.#addWithCarry(value)), // ADC
-      ...instructionPattern("100 000 01", instruction => instruction.writeByte(this.#indexedIndirect(instruction), this.#state.a)), // STA (zp,X)
-      ...instructionPattern("100 001 01", ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.a)), // STA zp
-      ...instructionPattern("100 011 01", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.a)), // STA addr
-      ...instructionPattern("100 100 01", instruction => instruction.writeByte(this.#indirectIndexed(instruction), this.#state.a)), // STA (zp),Y
-      ...instructionPattern("100 101 01", instruction => instruction.writeByte(this.#zeroPageIndexed("x", instruction), this.#state.a)), // STA zp,X
-      ...instructionPattern("100 110 01", instruction => instruction.writeByte(this.#absoluteIndexed("y", instruction), this.#state.a)), // STA addr,Y
-      ...instructionPattern("100 111 01", instruction => instruction.writeByte(this.#absoluteIndexed("x", instruction), this.#state.a)), // STA addr,X
+      ...instructionPattern("100 000 01", instruction => instruction.writeByte(addresses.indexedIndirect(instruction), this.#state.a)), // STA (zp,X)
+      ...instructionPattern("100 001 01", instruction => instruction.writeByte(addresses.zeroPage(instruction), this.#state.a)), // STA zp
+      ...instructionPattern("100 011 01", instruction => instruction.writeByte(addresses.absolute(instruction), this.#state.a)), // STA addr
+      ...instructionPattern("100 100 01", instruction => instruction.writeByte(addresses.indirectIndexed(instruction), this.#state.a)), // STA (zp),Y
+      ...instructionPattern("100 101 01", instruction => instruction.writeByte(addresses.zeroPageX(instruction), this.#state.a)), // STA zp,X
+      ...instructionPattern("100 110 01", instruction => instruction.writeByte(addresses.absoluteY(instruction), this.#state.a)), // STA addr,Y
+      ...instructionPattern("100 111 01", instruction => instruction.writeByte(addresses.absoluteX(instruction), this.#state.a)), // STA addr,X
       ...this.#accumulatorHandlers("111 bbb 01", value => this.#subtractWithCarry(value)), // SBC
 
       // cc=10 memory subgroups: 0ss selects ASL/ROL/LSR/ROR; 11i selects DEC (i=0)/INC (i=1).
@@ -209,11 +198,11 @@ export class Cpu6502 {
       // STX occupies aaa=100 between those families; LDX is generated.
       // bbb=001: zero page.
       // ASL zero page is generated; ss=01/10/11 remain ROL/LSR/ROR.
-      ...instructionPattern("001 001 10", instruction => this.#modifyMemory(instruction.fetchByte(), this.#shifts[1]!, instruction)), // ROL zp
+      ...instructionPattern("001 001 10", instruction => this.#modifyMemory(addresses.zeroPage(instruction), this.#shifts[1]!, instruction)), // ROL zp
       ...opcodeFamily("01s 001 10", { s: this.#shifts.slice(2) }, ({ s: modify }) => (instruction: InstructionContext) =>
-        this.#modifyMemory(instruction.fetchByte(), modify, instruction)), // LSR/ROR zp
-      ...instructionPattern("100 001 10", ({ fetchByte, writeByte }) => writeByte(fetchByte(), this.#state.x)), // STX zp
-      ...this.#memoryAdjustHandlers("11i 001 10", ({ fetchByte }) => fetchByte()), // DEC/INC zp
+        this.#modifyMemory(addresses.zeroPage(instruction), modify, instruction)), // LSR/ROR zp
+      ...instructionPattern("100 001 10", instruction => instruction.writeByte(addresses.zeroPage(instruction), this.#state.x)), // STX zp
+      ...this.#memoryAdjustHandlers("11i 001 10", addresses.zeroPage), // DEC/INC zp
 
       // bbb=010: 0ss shifts/rotates A; aaa=100..111 select TXA, TAX, DEX, NOP, not accumulator INC/DEC.
       ...opcodeFamily("0ss 010 10", { s: this.#shifts }, ({ s: modify }) => () => this.#loadRegister("a", modify(this.#state.a))), // ASL/ROL/LSR/ROR A
@@ -221,23 +210,23 @@ export class Cpu6502 {
       ...instructionPattern("111 010 10", () => {}), // NOP: step() advances PC; no further effects.
 
       // bbb=011: absolute.
-      ...this.#memoryShiftHandlers("0ss 011 10", ({ fetchWord }) => fetchWord()), // ASL/ROL/LSR/ROR addr
-      ...instructionPattern("100 011 10", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.#state.x)), // STX addr
-      ...this.#memoryAdjustHandlers("11i 011 10", ({ fetchWord }) => fetchWord()), // DEC/INC addr
+      ...this.#memoryShiftHandlers("0ss 011 10", addresses.absolute), // ASL/ROL/LSR/ROR addr
+      ...instructionPattern("100 011 10", instruction => instruction.writeByte(addresses.absolute(instruction), this.#state.x)), // STX addr
+      ...this.#memoryAdjustHandlers("11i 011 10", addresses.absolute), // DEC/INC addr
 
       // bbb=101: zero page indexed by X, except STX/LDX use Y.
-      ...this.#memoryShiftHandlers("0ss 101 10", instruction => this.#zeroPageIndexed("x", instruction)), // ASL/ROL/LSR/ROR zp,X
-      ...instructionPattern("100 101 10", instruction => instruction.writeByte(this.#zeroPageIndexed("y", instruction), this.#state.x)), // STX zp,Y
-      ...this.#memoryAdjustHandlers("11i 101 10", instruction => this.#zeroPageIndexed("x", instruction)), // DEC/INC zp,X
+      ...this.#memoryShiftHandlers("0ss 101 10", addresses.zeroPageX), // ASL/ROL/LSR/ROR zp,X
+      ...instructionPattern("100 101 10", instruction => instruction.writeByte(addresses.zeroPageY(instruction), this.#state.x)), // STX zp,Y
+      ...this.#memoryAdjustHandlers("11i 101 10", addresses.zeroPageX), // DEC/INC zp,X
 
       // bbb=111: absolute indexed by X, except LDX uses Y; no STX counterpart.
-      ...this.#memoryShiftHandlers("0ss 111 10", instruction => this.#absoluteIndexed("x", instruction)), // ASL/ROL/LSR/ROR addr,X
-      ...this.#memoryAdjustHandlers("11i 111 10", instruction => this.#absoluteIndexed("x", instruction)), // DEC/INC addr,X
+      ...this.#memoryShiftHandlers("0ss 111 10", addresses.absoluteX), // ASL/ROL/LSR/ROR addr,X
+      ...this.#memoryAdjustHandlers("11i 111 10", addresses.absoluteX), // DEC/INC addr,X
     ];
   }
 
   #accumulatorHandlers(pattern: string, operation: (value: number) => void): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { b: this.#accumulatorOperands }, ({ b: readOperand }) =>
+    return opcodeFamily(pattern, { b: Object.values(this.#readers.operands) }, ({ b: readOperand }) =>
       instruction => operation(readOperand(instruction)));
   }
 
@@ -251,28 +240,10 @@ export class Cpu6502 {
       instruction => this.#modifyMemory(resolveAddress(instruction), value => (value + delta) & 0xff, instruction));
   }
 
-  // Addressing. These helpers consume instruction operands and return data addresses.
-
-  #zeroPageIndexed(index: "x" | "y", { fetchByte }: InstructionContext): number {
-    return (fetchByte() + this.#state[index]) & 0xff;
-  }
-
-  #absoluteIndexed(index: "x" | "y", { fetchWord }: InstructionContext): number {
-    return (fetchWord() + this.#state[index]) & 0xffff;
-  }
-
-  #indexedIndirect(instruction: InstructionContext): number {
-    const pointer = this.#zeroPageIndexed("x", instruction);
-    return this.#readPageWrappedPointer(pointer, instruction.readByte);
-  }
-
-  #indirectIndexed({ fetchByte, readByte }: InstructionContext): number {
-    const address = this.#readPageWrappedPointer(fetchByte(), readByte);
-    return (address + this.#state.y) & 0xffff;
-  }
+  // Indirect JMP retains the NMOS page-wrap behavior.
 
   #readPageWrappedPointer(pointer: number, readByte: InstructionContext["readByte"]): number {
-    // Increment only the low byte: zero-page indirection and NMOS JMP both keep the pointer's page.
+    // Increment only the low byte: JMP (xxFF) reads the high target byte from xx00.
     const low = readByte(pointer);
     const high = readByte((pointer & 0xff00) | ((pointer + 1) & 0xff));
     return low | (high << 8);

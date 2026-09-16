@@ -141,6 +141,11 @@ Generate the execution bindings from those same patterns; the CPU combines them
 with its remaining handwritten entries after initializing state. Preserve the
 duplicate-opcode check across both sets. Avoid maintaining a second list of
 generated method names or repeating migrated patterns in the CPU class.
+Keep address and operand sources there too: generated bodies expand them, while
+handwritten operations use the generated `sourceReaders(state)`. Bind those
+readers after initializing state. Address readers stop before the final data
+read, allowing stores and memory modifiers to preserve their own access order.
+Keep instruction-specific exceptions, such as indirect JMP's page wrap, explicit.
 
 The complete support inventory belongs in [CPU implementation coverage](coverage.md).
 This guide describes organization and does not replace the model contracts or
