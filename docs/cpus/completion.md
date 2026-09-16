@@ -94,8 +94,10 @@ The 68000 now completes its documented opcode inventory, including
 [synchronous entry/RTE](68000/model.md#synchronous-exception-entry-and-return),
 [interrupt offers and trace](68000/model.md#external-interrupt-delivery), STOP
 wakeup, and the [RESET device connection](68000/model.md#reset-device-connection).
+The 8008 also implements [external interrupt delivery](8008/model.md#external-interrupt-delivery),
+including supplied instruction bytes, STOPPED release, startup after reset, and
+native circular-stack calls without advancing the interrupted PC.
 The documented opcode milestone is complete for all eight. Further accuracy
 and machine integration work can now use that baseline. Address/bus errors
 and other illegal-opword delivery on the 68000 still need separate fault-sequencing work.
-Timing and device scheduling remain separate from completed opcode inventories;
-8008 external interrupt delivery is also still deferred.
+Timing and device scheduling remain separate from completed opcode inventories.

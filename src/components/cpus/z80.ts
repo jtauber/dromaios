@@ -1,5 +1,4 @@
 import type { Ram } from "../memory/ram.js";
-import { checkUnsigned } from "../validation.ts";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
 import type { ByteOperation, WordOperand } from "./8080-family.ts";
@@ -7,6 +6,8 @@ import { flagRegister } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { signed8, readWordLE } from "./binary.ts";
 import { executionBoundary } from "./execution-boundary.ts";
+import { recordInterruptInstruction } from "./interrupt-instruction.ts";
+import type { InterruptInstruction, InterruptAcknowledge } from "./interrupt-instruction.ts";
 import { recordPorts } from "./port-access.ts";
 import type { BytePorts, PortAccess } from "./port-access.ts";
 import { recordMemory } from "./memory-access.ts";
@@ -59,13 +60,10 @@ export type CpuZ80StepRecord = InstructionStep<CpuZ80Snapshot, CpuZ80Access> | H
 export type CpuZ80ResetRecord = StateTransition<CpuZ80Snapshot>;
 
 export type CpuZ80InterruptSource = "irq" | "nmi";
-export type CpuZ80InterruptAccess = CpuZ80Access | { readonly kind: "acknowledge"; readonly value: number };
+export type CpuZ80InterruptAccess = CpuZ80Access | InterruptAcknowledge;
 
 /** Mode 0 executes externally supplied bytes, without inventing a RAM fetch address. */
-export interface CpuZ80InterruptInstruction {
-  readonly source: "interrupt";
-  readonly bytes: readonly number[];
-}
+export type CpuZ80InterruptInstruction = InterruptInstruction;
 
 export type CpuZ80InterruptRecord = StateTransition<CpuZ80Snapshot, CpuZ80InterruptAccess> & (
   | { readonly source: CpuZ80InterruptSource; readonly outcome: "ignored"; readonly reason: "deferred"; readonly instruction: null }
@@ -202,14 +200,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
       } else {
         this.state.iff2 = false;
         this.state.interruptDeferred = false;
-        const bytes: number[] = [];
-        const fetchByte = (): number => {
-          const value = acknowledge!();
-          checkUnsigned("Interrupt instruction byte", value, 0xff);
-          bytes.push(value);
-          recordAccess({ kind: "acknowledge", value });
-          return value; // All supplied instruction bytes leave PC unchanged, including operands.
-        };
+        const { instruction, fetchByte } = recordInterruptInstruction(acknowledge!, recordAccess);
         const opcode = fetchByte();
         if (this.state.im === 0) {
           const { handler } = this.#decode(opcode, (opcodeFetch = true) => {
@@ -220,7 +211,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
             const { readPort, writePort } = recordPorts(this.#ports, recordAccess);
             this.#executeHandler(handler, { readByte, writeByte, readPort, writePort, fetchByte, fetchWord: () => readWordLE(fetchByte) });
           }
-          const instruction: CpuZ80InterruptInstruction = { source: "interrupt", bytes };
           const record = { before, after: this.snapshot(), instruction, accesses, source };
           return handler
             ? { ...record, outcome: this.state.halted ? "halted" : "executed" }

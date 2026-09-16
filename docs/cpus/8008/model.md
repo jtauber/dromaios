@@ -1,11 +1,12 @@
 # 8008 model contract
 
-The Intel 8008 model implements all documented opcode forms with native port
-selectors and flat 16 KiB RAM. Its PC is a view of an internal address register;
+The Intel 8008 model implements all documented opcode forms, external interrupt
+delivery, native port selectors, and flat 16 KiB RAM. Its PC is a view of an internal address register;
 its memory addresses wrap at 14 bits.
 
 [Implementation](../../../src/components/cpus/8008.ts) ·
 [CPU tests](../../../tests/components/cpus/8008.test.ts) ·
+[Interrupt program test](../../../tests/machines/8008/interrupts.test.ts) ·
 [Public type checks](../../../tests/types/8008.ts) ·
 [Coverage](../coverage.md#8008) ·
 [Arithmetic example](examples/arithmetic.md) ·
@@ -89,7 +90,8 @@ Repeating the attempt repeats that one read. Atomic rejection is a model
 policy, including leaving PC unchanged despite the recorded fetch.
 
 All three documented HLT encodings (`00`, `01`, `FF`) advance PC once and set
-`halted`. Later stopped steps make no accesses. The model does not reproduce
+`halted`. Later stopped steps make no accesses; an [external interrupt](#external-interrupt-delivery)
+can release STOPPED. The model does not reproduce
 ongoing internal refresh, pin activity, dummy accesses, or cycle timing.
 
 ## Loads
@@ -174,7 +176,7 @@ and count adjustments between two byte rotations.
 
 ## Jumps, calls, and returns
 
-JMP and CAL fetch a low address byte followed by a high byte. The high byte's
+During ordinary RAM execution, JMP and CAL fetch a low address byte followed by a high byte. The high byte's
 top two bits are ignored for addressing but retained in the instruction record.
 All three fetches advance the caller's PC, including wrap at `3FFF`.
 
@@ -195,11 +197,11 @@ JMP, CAL, and RET each have eight documented encodings: `01 xxx 100` for JMP,
 `01 xxx 110` for CAL, and `00 xxx 111` for RET. The `xxx` bits are ignored.
 All forms preserve data registers and flags. Their only RAM accesses are the
 instruction bytes: there is no RAM stack access or destination prefetch.
-RST's eight encodings select distinct vectors, rather than aliases. This is
-ordinary execution from RAM; interrupt delivery and externally supplied
-instructions remain deferred. RST is a call, not `reset()` or a way to resume
-an already halted CPU. Intel's November 1973 manual describes it on printed
-page 14.
+RST's eight encodings select distinct vectors, rather than aliases. These fetch
+rules describe ordinary execution from RAM. An [externally supplied RST](#external-interrupt-delivery)
+can start a stopped CPU and saves the unchanged interrupted PC. RST remains a
+call, distinct from `reset()`. Intel's November 1973 manual describes it on
+printed page 14.
 
 Conditional control flow uses the same flag selector in all three families:
 
@@ -270,12 +272,66 @@ Missing connections, invalid input bytes, and device errors throw host errors;
 they do not return an instruction record. The completed opcode fetch remains:
 the selected PC has advanced, while A, flags, and inactive slots stay unchanged.
 Device side effects are not rolled back. RAM errors likewise retain completed
-effects. Callbacks may inspect `snapshot()`, but nested `step()` or `reset()`
+effects. Callbacks may inspect `snapshot()`, but nested `step()`, `reset()`, or `interrupt()`
 calls throw before mutating CPU state. The guard clears after success or error.
 
 This models instruction-level transfers. Multiplexed pin activity, including
-A and the flags exposed during input cycles, READY waits, timing, and external
-interrupt delivery remain unmodeled.
+A and the flags exposed during input cycles, READY waits, and timing remain unmodeled.
+
+## External interrupt delivery
+
+`interrupt(acknowledge: () => number)` offers an interrupt at the current
+instruction boundary. Every valid offer releases STOPPED before invoking the
+callback. The 8008 has no interrupt mask, enable delay, automatic flag save,
+or automatic call. The caller owns request qualification and scheduling; no
+request or device connection is added to snapshot state.
+
+The callback supplies the opcode and any immediate or address bytes, once per
+byte. All must be integers in `00`–`FF`. These bytes never advance PC. The
+ordinary opcode handlers execute the supplied instruction, using RAM only
+for data through H:L and the connected ports for INP/OUT. Address operands
+remain low-byte first, with their high two bits ignored when selecting a target.
+
+| Supplied instruction | Effect on control flow |
+| --- | --- |
+| RST / taken CAL | Leave the interrupted PC in its slot, select the next slot, and load the target |
+| JMP / taken conditional jump | Replace the selected PC |
+| RET / taken conditional return | Select the preceding slot without incrementing the outgoing one |
+| Untaken conditional transfer | Preserve every slot; jump/call still consume both supplied address bytes |
+| LAA or another non-branch instruction | Resume ordinary RAM execution at the unchanged PC |
+| HLT | Reenter STOPPED with no PC increment |
+
+An ordinary RAM HLT has already advanced PC, so a supplied RST/CAL preserves
+the address after that HLT. Calls retain the eight-slot wrap and overwrite
+behavior; a new interrupt can be offered at the very next boundary. Flags and
+registers change only as specified by the supplied instruction.
+
+Intel's [November 1973 manual](https://deramp.com/downloads/mfe_archive/050-Component%20Specifications/Intel/Microprocessors%20and%20Support/8008%20Family/i8008UM%20Nov%2073.pdf),
+printed pages 18–20, describes PC suppression, arbitrary supplied instructions,
+and startup. Figure 5 shows both supplied RST and CALL saving the interrupted
+PC; the startup examples include LAA at address zero executed first during
+the interrupt and then again by ordinary execution. The
+[Intellec 8 Reference Manual, June 1974](https://www.bitsavers.org/components/intel/MCS8/Intel_Intellec_8_Reference_Manual_Rev_1_Jun74.pdf),
+printed pages 18–19, distinguishes CPU acceptance from the peripheral logic
+needed to supply a multi-byte instruction. Here the callback models that
+external source; electrical synchronization and multiplexed bus states are
+outside the instruction-level contract.
+
+`Cpu8008InterruptRecord` contains detached `before`/`after` snapshots,
+`instruction: { source: "interrupt", bytes }`, and an ordered access list.
+There is no invented RAM instruction address. Acknowledgements use
+`{ kind: "acknowledge", value }`; actual data-memory and port transfers retain
+their existing shapes. Outcomes are `executed`, `halted`, or `unsupported`
+with `reason: "opcode"`. There is no masked or ignored outcome. An undefined
+byte is acknowledged and rejected after releasing STOPPED; it has no other
+effect. Ordinary `step()` keeps its existing atomic rejection policy.
+
+A missing/non-callable argument throws `TypeError` before acceptance. An invalid
+byte throws `RangeError`; callback or device errors propagate. These failures
+return no record and retain completed effects, including STOPPED release,
+without rollback or implicit retry. The same execution guard covers step,
+reset, and interrupt: callbacks may inspect snapshots, but nested mutations
+throw before changing state. The guard clears even after a failure.
 
 ## CPU reset
 
@@ -292,8 +348,8 @@ empty access list, with no instruction or step outcome. Repeating reset has
 the same effects. No power transition, clock sequence, forced instruction, or
 interrupt is simulated. This method is distinct from the 8008 RST instruction.
 
-Since interrupt delivery is deferred, a reset CPU remains stopped. Example
-factories explicitly initialize `halted = false`; creating a new example
+After reset, `interrupt()` can start the CPU with an externally supplied
+instruction. Example factories explicitly initialize `halted = false`; creating a new example
 restarts the lesson with fresh RAM and its original state. Construction never
 implies physical power-on behavior.
 
@@ -340,6 +396,15 @@ fetches, live device state, ordered transfers, detached records, callback
 reentrancy, and connection failures. A combined INP/CAL/ADI/OUT/RET/HLT program
 checks bounded running and snapshot restoration across a wrapped call.
 
+Interrupt tests check every RST vector, stack selector, and flag pattern at
+boundary PCs; all jump/call/return aliases; both paths of every condition;
+one-, two-, and three-byte supplied instructions; memory and port access order;
+STOPPED release and reentry; undefined bytes; and callback validation, failure,
+reentrancy, and record ownership. The [combined interrupt program](../../../tests/machines/8008/interrupts.test.ts)
+starts after reset, initializes RAM through a supplied RST, halts, services a
+supplied CAL, returns, and resumes arithmetic/output. Reconstructing the CPU
+at each boundary with its snapshot and reconnected device preserves the trace.
+
 The generated examples check both factories, whole memory images, complete
 traces, bounded running, caller completion, reset, and fresh restart. The
 nested-call trace also checks inactive slot contents across returns.
@@ -352,6 +417,6 @@ resumption with carry pending between two RAM bytes.
 Parser and generator tests cover address lists, ranges, RAM size, diagnostics,
 and declaration order. Type checks preserve concrete CPU and runner records.
 
-All documented instruction forms are implemented. External interrupt delivery,
-memory-mapped devices, and timing remain outside this model; opcode completion
+All documented instruction forms and boundary interrupt delivery are implemented.
+Memory-mapped devices and timing remain outside this model; opcode completion
 does not imply complete processor emulation or cycle accuracy.

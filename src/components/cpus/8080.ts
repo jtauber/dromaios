@@ -1,5 +1,4 @@
 import type { Ram } from "../memory/ram.js";
-import { checkUnsigned } from "../validation.ts";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
 import type { ByteOperation } from "./8080-family.ts";
@@ -7,6 +6,8 @@ import { flagRegister, signZeroParity8 } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
+import { recordInterruptInstruction } from "./interrupt-instruction.ts";
+import type { InterruptInstruction, InterruptAcknowledge } from "./interrupt-instruction.ts";
 import { readWordLE } from "./binary.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import { recordMemory } from "./memory-access.ts";
@@ -45,13 +46,10 @@ export type Cpu8080StepRecord = InstructionStep<Cpu8080Snapshot, Cpu8080Access> 
 
 export type Cpu8080ResetRecord = StateTransition<Cpu8080Snapshot>;
 
-export type Cpu8080InterruptAccess = Cpu8080Access | { readonly kind: "acknowledge"; readonly value: number };
+export type Cpu8080InterruptAccess = Cpu8080Access | InterruptAcknowledge;
 
 /** Interrupt instruction bytes have an external source, with no RAM fetch address. */
-export interface Cpu8080InterruptInstruction {
-  readonly source: "interrupt";
-  readonly bytes: readonly number[];
-}
+export type Cpu8080InterruptInstruction = InterruptInstruction;
 
 export type Cpu8080InterruptRecord = StateTransition<Cpu8080Snapshot, Cpu8080InterruptAccess> & (
   | { readonly outcome: "ignored"; readonly reason: "disabled" | "deferred"; readonly instruction: null }
@@ -137,17 +135,9 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
       const accesses: Cpu8080InterruptAccess[] = [];
       const recordAccess = (access: Cpu8080InterruptAccess): void => { accesses.push(access); };
       const { readByte, writeByte } = recordMemory(this.#ram, recordAccess);
-      const bytes: number[] = [];
-      const fetchByte = (): number => {
-        const value = acknowledge();
-        checkUnsigned("Interrupt instruction byte", value, 0xff);
-        bytes.push(value);
-        recordAccess({ kind: "acknowledge", value });
-        return value; // Acknowledged instruction bytes never increment PC, including CALL's operands.
-      };
+      const { instruction, fetchByte } = recordInterruptInstruction(acknowledge, recordAccess);
       const handler = this.#opcodeHandlers[fetchByte()];
       if (handler) this.#executeHandler(handler, { readByte, writeByte, fetchByte, fetchWord: () => readWordLE(fetchByte) }, recordAccess);
-      const instruction: Cpu8080InterruptInstruction = { source: "interrupt", bytes };
       const record = { before, after: this.snapshot(), instruction, accesses };
       return handler
         ? { ...record, outcome: this.state.halted ? "halted" : "executed" }

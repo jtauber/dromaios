@@ -3,6 +3,9 @@ import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep }
 import { readWordLE } from "./binary.ts";
 import { executeByteInstruction, programCounter } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
+import { recordInterruptInstruction } from "./interrupt-instruction.ts";
+import type { InterruptInstruction, InterruptAcknowledge } from "./interrupt-instruction.ts";
+import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import { recordPorts } from "./port-access.ts";
 import type { BytePorts, PortAccess } from "./port-access.ts";
@@ -45,6 +48,14 @@ export type Cpu8008StepRecord = InstructionStep<Cpu8008Snapshot, Cpu8008Access> 
 
 export type Cpu8008ResetRecord = StateTransition<Cpu8008Snapshot>;
 
+export type Cpu8008InterruptAccess = Cpu8008Access | InterruptAcknowledge;
+export type Cpu8008InterruptInstruction = InterruptInstruction;
+
+export type Cpu8008InterruptRecord = StateTransition<Cpu8008Snapshot, Cpu8008InterruptAccess> & (
+  | { readonly outcome: "executed" | "halted"; readonly instruction: Cpu8008InterruptInstruction }
+  | { readonly outcome: "unsupported"; readonly reason: "opcode"; readonly instruction: Cpu8008InterruptInstruction }
+);
+
 interface InstructionContext extends WordInstructionContext, BytePorts {}
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperand = "a" | "b" | "c" | "d" | "e" | "h" | "l" | "m";
@@ -54,7 +65,7 @@ export class Cpu8008 {
   readonly #ram: Ram;
   readonly #ports: BytePorts | undefined;
   readonly #state: StoredState;
-  readonly #atBoundary = executionBoundary("8008 step and reset calls must not be reentrant.");
+  readonly #atBoundary = executionBoundary("8008 step, reset, and interrupt calls must not be reentrant.");
   readonly #counter = programCounter(() => this.#pc, value => { this.#pc = value & 0x3fff; });
 
   constructor(ram: Ram, initialState: Cpu8008State, ports?: BytePorts) {
@@ -98,6 +109,28 @@ export class Cpu8008 {
       const accesses: readonly Cpu8008Access[] = [...execution.accesses, ...ports.accesses];
       const record = { before, after: this.snapshot(), instruction: execution.instruction, accesses };
       return execution.executed
+        ? { ...record, outcome: this.#state.halted ? "halted" : "executed" }
+        : { ...record, outcome: "unsupported", reason: "opcode" };
+    });
+  }
+
+  /** Offer an external instruction at this boundary; the 8008 has no interrupt mask or queue. */
+  interrupt(acknowledge: () => number): Cpu8008InterruptRecord {
+    return this.#atBoundary<Cpu8008InterruptRecord>(() => {
+      if (typeof acknowledge !== "function") throw new TypeError("8008 interrupt requires an acknowledgement callback.");
+      const before = this.snapshot();
+      // Acceptance releases STOPPED. Only the supplied instruction can change flags or call a handler.
+      this.#state.halted = false;
+      const accesses: Cpu8008InterruptAccess[] = [];
+      const recordAccess = (access: Cpu8008InterruptAccess): void => { accesses.push(access); };
+      const { readByte, writeByte } = recordMemory(this.#ram, recordAccess);
+      const { readPort, writePort } = recordPorts(this.#ports, recordAccess);
+      const { instruction, fetchByte } = recordInterruptInstruction(acknowledge, recordAccess);
+      // T1I suppresses PC advancement for every supplied byte, including immediate/address operands.
+      const handler = this.#opcodeHandlers[fetchByte()];
+      if (handler) handler({ readByte, writeByte, readPort, writePort, fetchByte, fetchWord: () => readWordLE(fetchByte) });
+      const record = { before, after: this.snapshot(), instruction, accesses };
+      return handler
         ? { ...record, outcome: this.#state.halted ? "halted" : "executed" }
         : { ...record, outcome: "unsupported", reason: "opcode" };
     });
@@ -229,7 +262,7 @@ export class Cpu8008 {
 
   #call(address: number, taken = true): void {
     if (!taken) return;
-    // Fetching CAL's three bytes or RST's one byte has advanced the caller's slot.
+    // RAM fetches advance the caller's slot; externally supplied bytes leave it unchanged.
     // The next physical slot becomes PC; an eighth nested call overwrites the oldest return.
     this.#state.stackIndex = (this.#state.stackIndex + 1) & 7;
     this.#jump(address);
@@ -237,7 +270,7 @@ export class Cpu8008 {
 
   #return(taken = true): void {
     if (!taken) return;
-    // Opcode fetch already advanced the outgoing slot. Retain it when selecting the caller.
+    // Retain the outgoing slot, advanced only when the opcode came from RAM.
     this.#state.stackIndex = (this.#state.stackIndex + 7) & 7;
   }
 

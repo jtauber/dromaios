@@ -1,5 +1,5 @@
 import { Cpu8008 } from "../../src/components/cpus/8008.js";
-import type { Cpu8008State, Cpu8008Snapshot, Cpu8008StepRecord, Cpu8008ResetRecord } from "../../src/components/cpus/8008.js";
+import type { Cpu8008State, Cpu8008Snapshot, Cpu8008StepRecord, Cpu8008ResetRecord, Cpu8008InterruptRecord } from "../../src/components/cpus/8008.js";
 import type { Ram } from "../../src/components/memory/ram.js";
 import type { BytePorts } from "../../src/components/cpus/port-access.ts";
 import { runCpu } from "../../src/runtime/run-cpu.js";
@@ -107,4 +107,40 @@ export function check8008Records(record: Cpu8008StepRecord, reset: Cpu8008ResetR
   reset.instruction;
   // @ts-expect-error Reset snapshots remain readonly.
   reset.after.addressStack[0] = 0;
+}
+
+export function check8008Interrupt(cpu: Cpu8008, record: Cpu8008InterruptRecord): void {
+  const result: Cpu8008InterruptRecord = cpu.interrupt(() => 0x0d);
+  // @ts-expect-error Every offer needs an acknowledgement callback.
+  cpu.interrupt();
+  // @ts-expect-error A callback supplies a byte, not a void notification.
+  cpu.interrupt(() => {});
+  const source: "interrupt" = record.instruction.source;
+  const bytes: readonly number[] = record.instruction.bytes;
+  // @ts-expect-error Supplied instructions have no RAM fetch address.
+  record.instruction.address;
+  // @ts-expect-error Supplied instruction bytes remain readonly.
+  record.instruction.bytes.push(0);
+  // @ts-expect-error Interrupt snapshots retain readonly address slots.
+  record.after.addressStack[0] = 0;
+  // @ts-expect-error No interrupt-enable latch exists on the 8008.
+  record.after.interruptEnabled;
+  if (record.outcome === "unsupported") {
+    const reason: "opcode" = record.reason;
+  } else {
+    const outcome: "executed" | "halted" = record.outcome;
+    // @ts-expect-error The 8008 has no masked/ignored interrupt outcome.
+    record.reason;
+  }
+  for (const access of record.accesses) {
+    if (access.kind === "acknowledge") {
+      const byte: number = access.value;
+      // @ts-expect-error Acknowledgement has no RAM address.
+      access.address;
+      // @ts-expect-error Acknowledgement has no port selector.
+      access.port;
+      // @ts-expect-error Acknowledgement entries are readonly.
+      access.value = 0;
+    }
+  }
 }

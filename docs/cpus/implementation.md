@@ -228,9 +228,10 @@ Each distinguishes accepted entry from an ignored request. The 6809 also
 distinguishes masked SYNC resumption and unarmed NMI. Wait modes and native
 frames stay in each CPU; the runner preserves `waiting` as a stopping reason.
 
-The 8080's separate interrupt record uses `StateTransition` with memory, port,
-and acknowledgement accesses. Its supplied instruction has a source and bytes,
-with no invented RAM address. The Z80 uses the same record conventions for
+The separate interrupt records for the 8008 and 8080 use `StateTransition` with memory, port,
+and acknowledgement accesses. Each supplied instruction has a source and bytes,
+with no invented RAM address. The 8008 accepts every explicit offer, with no
+mask or implicit call. The Z80 uses the same record conventions for
 mode-0 execution and null instructions for NMI and mode-1/2 entry. It shares
 its decoder and retirement logic between normal and supplied instructions,
 while their PC/R fetch policies remain explicit. RETI notification follows
@@ -345,10 +346,21 @@ transfer once, after all memory fetches.
 The Z80 binds the same port callbacks in its own prefix-aware step loop and
 records actual memory/port interleaving, including block I/O.
 
-8080 interrupt delivery uses the same table and handler-context binding, with
+8008 and 8080 interrupt delivery use the same tables and handler-context binding, with
 acknowledgement supplying instruction bytes while PC stays unchanged by fetches.
-It records data-memory and port transfers as they complete. Acceptance and HALT
+They record data-memory and port transfers as they complete. Acceptance and HALT
 release stay in the CPU; the shared RAM-fetch executor does not need an interrupt mode.
+
+The [supplied-instruction recorder](../../src/components/cpus/interrupt-instruction.ts)
+shares byte validation and acknowledgement recording between the 8008, 8080,
+and Z80. It returns a fresh `instruction` and `fetchByte` callback; each fetch
+asks the external source once, validates the byte, appends it, and reports the
+completed acknowledgement to the combined access log. It never advances PC.
+Native acceptance, stack behavior, decoding, Z80 refresh, and retirement remain
+in each CPU. The public CPU instruction/access types alias its readonly shapes.
+[Recorder tests](../../tests/components/cpus/interrupt-instruction.test.ts) cover
+lazy reads, all byte values, ownership, and failures; CPU tests retain their
+independent state and access expectations.
 
 All eight CPUs wrap their mutating public operations with a per-instance
 [`executionBoundary`](../../src/components/cpus/execution-boundary.ts) guard.

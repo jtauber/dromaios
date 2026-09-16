@@ -38,6 +38,17 @@ function flags(bits: number): Cpu8008Flags {
   return { s: Boolean(bits & 1), z: Boolean(bits & 2), p: Boolean(bits & 4), c: Boolean(bits & 8) };
 }
 
+function interruptBytes(cpu: Cpu8008, ...bytes: number[]) {
+  let index = 0;
+  const record = cpu.interrupt(() => {
+    assert.ok(index < bytes.length, "No extra acknowledgement");
+    return bytes[index++]!;
+  });
+  assert.equal(index, bytes.length, "Every supplied byte is used");
+  assert.deepEqual(record.instruction, { source: "interrupt", bytes });
+  return record;
+}
+
 // Literal rows from Intel's load matrix; columns are A/B/C/D/E/H/L/M.
 const transferColumns = ["a", "b", "c", "d", "e", "h", "l", "m"] as const;
 const transferRows = [
@@ -1011,14 +1022,14 @@ test("8008 construction, inspection, halted steps, undefined opcodes, and reset 
 });
 
 for (const opcode of [0x41, 0x51]) {
-  test(`8008 port ${opcode.toString(16)} callbacks may inspect state but cannot nest step or reset`, () => {
+  test(`8008 port ${opcode.toString(16)} callbacks may inspect state but cannot nest step, reset, or interrupt`, () => {
     const ram = new Ram(0x4000);
     ram.write(0x2000, opcode);
     const before = initialState();
     const transfer = (): number => {
       const during = cpu.snapshot();
       assert.deepEqual(during, advanced(before, 0x2001));
-      for (const mutate of [() => cpu.step(), () => cpu.reset()]) {
+      for (const mutate of [() => cpu.step(), () => cpu.reset(), () => cpu.interrupt(() => 0xc0)]) {
         assert.throws(mutate, /must not be reentrant/);
         assert.deepEqual(cpu.snapshot(), during);
       }
@@ -1143,4 +1154,279 @@ test("8008 executes current operands and self-modified code while retaining deta
   Reflect.set(load.after.addressStack, 3, 0);
   assert.equal(store.before.pc, 0x2002);
   assert.equal(store.before.addressStack[3], 0x2002);
+});
+
+// Intel's November 1973 manual, pp. 18–20: T1I does not increment PC;
+// supplied instructions may start a stopped CPU without necessarily calling a routine.
+test("8008 interrupt RST preserves the interrupted PC in every slot, including stopped and boundary PCs", () => {
+  const ram = new ObservedRam(0x4000);
+  for (const { opcode, address } of restarts) {
+    for (let slot = 0; slot < 8; slot++) {
+      for (const pc of [0, 0x1234, 0x3fff]) {
+        for (const halted of [false, true]) {
+          for (let bits = 0; bits < 16; bits++) {
+            const before = atPc(pc, slot, { halted, flags: flags(bits) });
+            const addressStack: Cpu8008AddressStack = [...before.addressStack];
+            const stackIndex = (slot + 1) % 8;
+            addressStack[stackIndex] = address;
+            const cpu = new Cpu8008(ram, before);
+            assert.deepEqual(interruptBytes(cpu, opcode), {
+              before: snapshot(before), after: snapshot({ ...before, addressStack, stackIndex, halted: false }),
+              instruction: { source: "interrupt", bytes: [opcode] }, outcome: "executed",
+              accesses: [{ kind: "acknowledge", value: opcode }],
+            });
+            // A supplied RET changes only the selector; even its outgoing slot is not incremented.
+            const ret = interruptBytes(cpu, 0x07);
+            assert.deepEqual(ret.after, snapshot({ ...before, addressStack, halted: false }));
+          }
+        }
+      }
+    }
+  }
+  assert.deepEqual(ram.accesses, []);
+});
+
+test("8008 supplied CAL/JMP aliases consume all address bytes without advancing the caller", () => {
+  const ram = new ObservedRam(0x4000);
+  for (const opcode of [0x44, 0x4c, 0x54, 0x5c, 0x64, 0x6c, 0x74, 0x7c, 0x46, 0x4e, 0x56, 0x5e, 0x66, 0x6e, 0x76, 0x7e]) {
+    const call = [0x46, 0x4e, 0x56, 0x5e, 0x66, 0x6e, 0x76, 0x7e].includes(opcode);
+    for (let slot = 0; slot < 8; slot++) {
+      for (const target of [0, 0xff, 0x100, 0x3fff]) {
+        for (const highBits of [0, 0x40, 0x80, 0xc0]) {
+          const before = atPc(0x3fff, slot, { halted: true });
+          const addressStack: Cpu8008AddressStack = [...before.addressStack];
+          const stackIndex = call ? (slot + 1) % 8 : slot;
+          addressStack[stackIndex] = target;
+          const bytes = [opcode, target % 256, Math.floor(target / 256) + highBits];
+          const cpu = new Cpu8008(ram, before);
+          const record = interruptBytes(cpu, ...bytes);
+          assert.deepEqual(record.after, snapshot({ ...before, addressStack, stackIndex, halted: false }));
+          assert.deepEqual(record.accesses, bytes.map(value => ({ kind: "acknowledge", value })));
+          assert.equal(record.outcome, "executed");
+        }
+      }
+    }
+  }
+  assert.deepEqual(ram.accesses, []);
+});
+
+test("8008 supplied conditional transfers preserve every slot on untaken paths and use current flags", () => {
+  const ram = new ObservedRam(0x4000);
+  for (const condition of conditions) {
+    for (let bits = 0; bits < 16; bits++) {
+      for (let slot = 0; slot < 8; slot++) {
+        const before = atPc(0x3fff, slot, { halted: true, flags: flags(bits) });
+        const taken = before.flags[condition.flag] === condition.value;
+        for (const operation of ["jump", "call", "ret"] as const) {
+          const cpu = new Cpu8008(ram, before);
+          const bytes = operation === "ret" ? [condition.ret] : [condition[operation], 0x34, 0xd2];
+          const addressStack: Cpu8008AddressStack = [...before.addressStack];
+          const stackIndex = !taken || operation === "jump" ? slot : (slot + (operation === "call" ? 1 : 7)) % 8;
+          if (taken && operation !== "ret") addressStack[stackIndex] = 0x1234;
+          const record = interruptBytes(cpu, ...bytes);
+          assert.deepEqual(record.after, snapshot({ ...before, addressStack, stackIndex, halted: false }));
+          assert.deepEqual(record.accesses, bytes.map(value => ({ kind: "acknowledge", value })));
+          assert.equal(record.outcome, "executed");
+        }
+      }
+    }
+  }
+  assert.deepEqual(ram.accesses, []);
+});
+
+test("8008 successive interrupt offers need no intervening step and wrap the native address stack", () => {
+  const cpu = new Cpu8008(new Ram(0x4000), atPc(0x3fff, 0, { halted: true }));
+  const addresses = [0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38, 0x00];
+  for (const [i, opcode] of [0x0d, 0x15, 0x1d, 0x25, 0x2d, 0x35, 0x3d, 0x05].entries()) {
+    const record = interruptBytes(cpu, opcode);
+    assert.equal(record.after.pc, addresses[i]);
+    assert.equal(record.after.stackIndex, (i + 1) % 8);
+  }
+  assert.deepEqual(cpu.snapshot().addressStack, [0, 8, 16, 24, 32, 40, 48, 56]);
+  for (const [i, opcode] of [0x07, 0x0f, 0x17, 0x1f, 0x27, 0x2f, 0x37, 0x3f].entries()) {
+    const ret = interruptBytes(cpu, opcode);
+    assert.equal(ret.after.stackIndex, 7 - i);
+    assert.equal(ret.after.pc, (7 - i) * 8);
+    assert.deepEqual(ret.after.addressStack, [0, 8, 16, 24, 32, 40, 48, 56]);
+  }
+});
+
+test("8008 supplied LAA starts execution at the unchanged PC, as in Intel's power-on example", () => {
+  const ram = new ObservedRam(0x4000);
+  ram.write(0, 0xc0); // Intel's startup NOP, LAA.
+  ram.write(1, 0x06); // LAI 2A
+  ram.write(2, 0x2a);
+  const cpu = new Cpu8008(ram, initialState());
+  const before = cpu.reset().after;
+  ram.accesses.length = 0;
+  assert.deepEqual(interruptBytes(cpu, 0xc0).after, { ...before, halted: false });
+  assert.deepEqual(ram.accesses, []);
+  assert.deepEqual(cpu.step().instruction, { address: 0, bytes: [0xc0] });
+  const load = cpu.step();
+  assert.equal(load.after.pc, 3);
+  assert.equal(load.after.a, 0x2a);
+  assert.equal(load.after.stackIndex, 0);
+  assert.deepEqual(load.after.flags, before.flags);
+});
+
+test("8008 supplied immediate and memory instructions distinguish acknowledgements from data accesses", () => {
+  const ram = new ObservedRam(0x4000);
+  // Deliberately overlap data and PC; the only RAM reads/writes are through H:L.
+  const before = atPc(0x3fff, 7, { h: 0xff, l: 0xff, halted: true });
+  const cpu = new Cpu8008(ram, before);
+  const store = interruptBytes(cpu, 0x3e, 0xa5); // LMI A5
+  assert.deepEqual(store.after, snapshot({ ...before, halted: false }));
+  assert.deepEqual(store.accesses, [{ kind: "acknowledge", value: 0x3e }, { kind: "acknowledge", value: 0xa5 },
+    { kind: "write", address: 0x3fff, value: 0xa5 }]);
+  const load = interruptBytes(cpu, 0xc7); // LAM
+  assert.deepEqual(load.after, { ...store.after, a: 0xa5 });
+  assert.deepEqual(load.accesses, [{ kind: "acknowledge", value: 0xc7 }, { kind: "read", address: 0x3fff, value: 0xa5 }]);
+  const add = interruptBytes(cpu, 0x04, 0x5b); // ADI 5B
+  assert.deepEqual(add.after, { ...load.after, a: 0, flags: { s: false, z: true, p: true, c: true } });
+  assert.deepEqual(add.accesses, [{ kind: "acknowledge", value: 0x04 }, { kind: "acknowledge", value: 0x5b }]);
+  const memoryAdd = interruptBytes(cpu, 0x87); // ADM
+  assert.deepEqual(memoryAdd.after, { ...load.after, flags: { s: true, z: false, p: true, c: false } });
+  assert.deepEqual(memoryAdd.accesses, [{ kind: "acknowledge", value: 0x87 }, { kind: "read", address: 0x3fff, value: 0xa5 }]);
+  assert.deepEqual(ram.accesses, [{ kind: "write", address: 0x3fff, value: 0xa5 },
+    { kind: "read", address: 0x3fff, value: 0xa5 }, { kind: "read", address: 0x3fff, value: 0xa5 }]);
+});
+
+test("8008 supplied INP/OUT use native selectors, acknowledge before devices, and preserve PC and flags", () => {
+  const ram = new ObservedRam(0x4000);
+  const observed: unknown[] = [];
+  const before = atPc(0x3fff, 7, { halted: true });
+  const cpu = new Cpu8008(ram, before, {
+    readPort: port => { observed.push({ kind: "input", port, value: 0xa5 }); return 0xa5; },
+    writePort: (port, value) => { observed.push({ kind: "output", port, value }); },
+  });
+  for (const [port, opcode] of inputOpcodes.entries()) {
+    const record = cpu.interrupt(() => { observed.push({ kind: "acknowledge", value: opcode }); return opcode; });
+    assert.deepEqual(record.accesses, [{ kind: "acknowledge", value: opcode }, { kind: "input", port, value: 0xa5 }]);
+    assert.deepEqual(record.after, snapshot({ ...before, a: 0xa5, halted: false }));
+    assert.deepEqual(observed.splice(0), record.accesses);
+  }
+  for (const [index, opcode] of outputOpcodes.entries()) {
+    const record = cpu.interrupt(() => { observed.push({ kind: "acknowledge", value: opcode }); return opcode; });
+    assert.deepEqual(record.accesses, [{ kind: "acknowledge", value: opcode }, { kind: "output", port: index + 8, value: 0xa5 }]);
+    assert.deepEqual(record.after, snapshot({ ...before, a: 0xa5, halted: false }));
+    assert.deepEqual(observed.splice(0), record.accesses);
+  }
+  assert.deepEqual(ram.accesses, []);
+});
+
+test("8008 supplied HLT reenters STOPPED without advancing PC; undefined bytes retain acceptance effects", () => {
+  const ram = new ObservedRam(0x4000);
+  for (const halted of [false, true]) {
+    for (const opcode of [0x00, 0x01, 0xff, 0x22, 0x2a, 0x32, 0x38, 0x39, 0x3a]) {
+      const before = atPc(0x3fff, 7, { halted });
+      const cpu = new Cpu8008(ram, before);
+      const halt = [0, 1, 0xff].includes(opcode);
+      assert.deepEqual(interruptBytes(cpu, opcode), {
+        before: snapshot(before), after: snapshot({ ...before, halted: halt }),
+        instruction: { source: "interrupt", bytes: [opcode] }, accesses: [{ kind: "acknowledge", value: opcode }],
+        outcome: halt ? "halted" : "unsupported", ...(halt ? {} : { reason: "opcode" }),
+      });
+      if (halt) assert.equal(cpu.step().instruction, null);
+      // The CPU has no internal mask, even after an injected HLT or rejected byte.
+      assert.equal(interruptBytes(cpu, 0xc0).after.halted, false);
+    }
+  }
+  assert.deepEqual(ram.accesses, []);
+});
+
+test("8008 interrupt validates its callback before acceptance, but byte failures retain STOPPED release", () => {
+  const ram = new ObservedRam(0x4000);
+  const before = initialState({ halted: true });
+  const cpu = new Cpu8008(ram, before);
+  for (const callback of [undefined, null, 0, [], {}]) {
+    assert.throws(() => Reflect.apply(cpu.interrupt, cpu, [callback]), /acknowledgement callback/);
+    assert.deepEqual(cpu.snapshot(), snapshot(before));
+  }
+  for (let failureAt = 0; failureAt < 3; failureAt++) {
+    for (const invalid of [-1, 256, 1.5, NaN, Infinity, "0", null, undefined]) {
+      const attempt = new Cpu8008(ram, before);
+      let calls = 0;
+      const acknowledge = () => calls++ === failureAt ? invalid : [0x46, 0x34, 0x12][calls - 1];
+      assert.throws(() => Reflect.apply(attempt.interrupt, attempt, [acknowledge]), /Interrupt instruction byte/);
+      assert.equal(calls, failureAt + 1);
+      assert.deepEqual(attempt.snapshot(), snapshot({ ...before, halted: false }));
+      assert.equal(interruptBytes(attempt, 0xc0).outcome, "executed");
+    }
+    const attempt = new Cpu8008(ram, before);
+    const error = new Error("acknowledgement failed");
+    let calls = 0;
+    assert.throws(() => attempt.interrupt(() => {
+      if (calls++ === failureAt) throw error;
+      return [0x46, 0x34, 0x12][calls - 1]!;
+    }), value => value === error);
+    assert.equal(calls, failureAt + 1);
+    assert.deepEqual(attempt.snapshot(), snapshot({ ...before, halted: false }));
+    assert.equal(attempt.reset().after.halted, true);
+  }
+  assert.deepEqual(ram.accesses, []);
+});
+
+test("8008 acknowledgement, data-memory, and port callbacks cannot nest mutating operations", () => {
+  for (const operation of ["acknowledge", "read", "write", "input", "output"] as const) {
+    const before = initialState({ halted: true });
+    const inspect = () => {
+      const during = cpu.snapshot();
+      assert.deepEqual(during, snapshot({ ...before, halted: false }));
+      for (const mutate of [() => cpu.step(), () => cpu.reset(), () => cpu.interrupt(() => assert.fail("nested acknowledgement"))]) {
+        assert.throws(mutate, /must not be reentrant/);
+        assert.deepEqual(cpu.snapshot(), during);
+      }
+    };
+    class InspectingRam extends Ram {
+      override read(address: number): number { if (operation === "read") inspect(); return super.read(address); }
+      override write(address: number, value: number): void { if (operation === "write") inspect(); super.write(address, value); }
+    }
+    const ram = new InspectingRam(0x4000);
+    const cpu = new Cpu8008(ram, before, {
+      readPort: () => { inspect(); return 0xa5; }, writePort: () => { inspect(); },
+    });
+    const opcode = { acknowledge: 0xc0, read: 0xc7, write: 0xf8, input: 0x41, output: 0x51 }[operation];
+    assert.equal(cpu.interrupt(() => { if (operation === "acknowledge") inspect(); return opcode; }).outcome, "executed");
+    assert.equal(cpu.reset().after.halted, true);
+  }
+});
+
+test("8008 supplied memory and port failures propagate unchanged and release the execution guard", () => {
+  const before = initialState({ halted: true });
+  const error = new Error("device failed");
+  class FailingRam extends Ram {
+    override read(): number { throw error; }
+    override write(): void { throw error; }
+  }
+  for (const opcode of [0xc7, 0xf8, 0x41, 0x51]) {
+    const cpu = new Cpu8008(new FailingRam(0x4000), before, {
+      readPort: () => { throw error; }, writePort: () => { throw error; },
+    });
+    assert.throws(() => cpu.interrupt(() => opcode), value => value === error);
+    assert.deepEqual(cpu.snapshot(), snapshot({ ...before, halted: false }));
+    assert.equal(cpu.reset().after.halted, true);
+  }
+  for (const readPort of [undefined, () => 256]) {
+    const cpu = new Cpu8008(new Ram(0x4000), before, readPort && { readPort, writePort: () => {} });
+    assert.throws(() => cpu.interrupt(() => 0x41));
+    assert.deepEqual(cpu.snapshot(), snapshot({ ...before, halted: false }));
+    assert.equal(interruptBytes(cpu, 0xc0).outcome, "executed");
+  }
+});
+
+test("8008 supplied instruction records own bytes, address slots, flags, and access lists", () => {
+  const cpu = new Cpu8008(new Ram(0x4000), initialState({ halted: true }));
+  const load = interruptBytes(cpu, 0x06, 0xa5);
+  const call = interruptBytes(cpu, 0x46, 0x34, 0x12);
+  const saved = structuredClone([load, call]);
+  cpu.reset();
+  interruptBytes(cpu, 0x0d);
+  assert.deepEqual([load, call], saved);
+  Reflect.set(load.after.addressStack, 3, 0);
+  Reflect.set(load.after.flags, "c", true);
+  Reflect.set(load.instruction.bytes, 0, 0xff);
+  Reflect.set(load.accesses[0]!, "value", 0xff);
+  assert.deepEqual(call, saved[1]);
+  assert.deepEqual(load.before, saved[0]!.before);
+  assert.equal(cpu.snapshot().pc, 8);
 });
