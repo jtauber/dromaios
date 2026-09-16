@@ -1,14 +1,15 @@
 # Machine language
 
-Dromaios uses `.machine` files for its flat-RAM example definitions. The language
-has four declarations: `ram`, `cpu`, `memory`, and optional `end`. All numeric
-data is hexadecimal by default. Register and flag names are uppercase by
+Dromaios uses `.machine` files for CPU state, byte images, and component wiring.
+A flat-RAM definition uses `ram`, `cpu`, `memory`, and optional `end`. A composed
+definition instead names its components and connects memory and devices explicitly.
+All numeric data is hexadecimal by default. Register and flag names are uppercase by
 convention; flags use `1` for set and `0` for clear.
 
 See [machine definitions](definitions.md) for example source files and
 the build workflow.
 
-## Example
+## Flat-RAM example
 
 The [6502 lesson](../cpus/6502/examples/arithmetic.md) supplies a reset vector as a second memory
 block. `end` records the caller's completion address, one byte past the program.
@@ -36,12 +37,12 @@ memory FFFC {
 end 0208
 ```
 
-## Reading rules
+## Common rules and flat-RAM shorthand
 
-- A file describes one machine. It has exactly one `ram` and one `cpu`
-  declaration, zero or more `memory` blocks, and at most one `end` declaration.
-  Top-level declarations can appear in any order. Memory blocks are applied in
-  their source order.
+- A file describes one CPU and its machine. It has exactly one `cpu` declaration
+  and at most one `end`. The flat-RAM shorthand has exactly one `ram` declaration
+  and zero or more `memory` byte blocks. Top-level declarations can appear in any
+  order. Byte blocks are applied in their source order.
 - `ram` gives the byte count: `4000` (16 KiB) for the 8008, `100000`
   (1 MiB) for the 8088, `1000000` (16 MiB) for the 68000, or `10000` (64 KiB)
   for the other current CPUs.
@@ -74,7 +75,7 @@ end 0208
   `100` means 256, and `FF` means 255. This applies equally to registers,
   addresses, RAM size, and bytes. Leading zeros affect presentation only.
   The first version has no decimal notation.
-- Outside memory byte bodies, explicit forms are optional aliases: `0x100`,
+- Outside memory and image byte bodies, explicit forms are optional aliases: `0x100`,
   `0X100`, `$100`, `100h`, and `100H` mean the same as bare `100`, for every CPU.
   Suffix-form numbers start with a decimal digit (`0FFH`); the preferred bare
   form is simply `FF`.
@@ -84,7 +85,7 @@ end 0208
   68000 physical addresses, eight for long registers, and a single digit for flag
   bits. Register ranges come from the CPU model; padding does not determine a
   register's width.
-- Inside a memory body, every token is exactly two bare hexadecimal digits.
+- Inside a memory or image body, every token is exactly two bare hexadecimal digits.
   Single digits, prefixed or suffixed numbers, and tokens longer than two
   digits are errors. No encoding keyword is needed.
 - The 8008's `addressStack = [ ... ]` contains exactly eight hexadecimal
@@ -94,7 +95,7 @@ end 0208
 - Braces delimit blocks; whitespace separates tokens. Indentation and line
   breaks are for readability. Assignments can share a line or occupy separate
   lines. Bytes continue across lines without commas, quotes, or continuation
-  characters. An empty memory block contributes no bytes.
+  characters. An empty byte block contributes no bytes; its starting address must still be in range.
 - `//` starts a comment through the end of the line. Assembly in comments
   explains the bytes; it does not generate or validate them. Instruction
   boundaries are determined by the CPU when executing, regardless of layout.
@@ -106,15 +107,110 @@ end 0208
 - `end` is an optional caller completion address in the range of `snapshot().pc`.
   For the 68000, `memory` addresses are in `000000`–`FFFFFF`, while `PC` and
   `end` retain all 32 bits (`00000000`–`FFFFFFFF`). Other current models require
-  completion addresses within RAM. It maps to the
+  completion addresses within the CPU's address space. It maps to the
   `endAddress` field. It neither executes instructions nor halts the CPU;
   the caller can stop stepping when PC reaches it. Omission leaves this
   metadata absent, as in the 8008 and 8080 lessons that use HLT and the Z80 lesson that
   uses HALT.
 
-Constructing a machine allocates RAM, loads its images, and constructs the CPU
-with the supplied state. Every instance is fresh; construction performs no CPU
-reset or execution.
+Constructing a machine allocates its components, loads RAM and ROM images, and
+constructs the CPU with the supplied state. Every instance is fresh; construction
+performs no CPU reset, execution, or host output callback.
+
+## Named components and wiring
+
+The [8080 echo definition](../../src/machines/8080/echo-example.machine) pairs its
+ordinary `cpu 8080 { ... }` state block with this wiring:
+
+```text
+components {
+    ram = ram 10000
+    input = byte-input
+    output = byte-output
+}
+
+memory = ram
+
+ports {
+    in 00 = input 0     // Status register
+    in 01 = input 1     // Consuming data register
+    out 01 = output 0   // The same port number in the other direction
+}
+
+image ram 0000 {
+    DB 00 B7 CA 00 00 DB 01 D3 01 FE 0A C2 00 00 76
+}
+
+reset { cpu input output }
+```
+
+A composed definition has exactly one `components` block and exactly one CPU
+memory connection: either `memory = name` or a `map` block. It cannot also use
+the flat `ram` declaration or `memory address { bytes }` shorthand. All references
+are resolved after parsing, so images and connections may precede their targets.
+
+Component names are case-sensitive: a lowercase letter followed by lowercase
+letters, digits, or underscores. `cpu`, `memory`, `ports`, and `reset` are reserved
+for the factory API. Every component name is unique within the machine. The
+available kinds are:
+
+| Kind | Declaration | Local addresses |
+| --- | --- | --- |
+| RAM | `ram = ram 1000` | `000`–`FFF`, initially zero |
+| ROM | `rom = rom 0400` | `000`–`3FF`, initially zero before images |
+| [Byte input](../devices/byte-input.md) | `input = byte-input` | `0` status, `1` consuming data |
+| [Byte output](../devices/byte-output.md) | `output = byte-output` | `0` output register |
+
+RAM and ROM sizes are positive hexadecimal byte counts, at most `1000000`
+(16 MiB). `image name address { bytes }` loads a named RAM or ROM component at a
+**local offset**. The start and whole block must fit; overlapping images apply in
+source order. ROM is constructed from the completed image and then remains
+read-only. Images cannot initialize devices; devices start with empty latches.
+
+`memory = name` connects a full-sized RAM directly to any supported CPU, using
+the same CPU-specific sizes as the flat shorthand. The 68000 additionally accepts
+a fixed map, as in the [echo definition](../../src/machines/68000/echo-example.machine):
+
+```text
+map 1000000 {
+    000000 = rom
+    010000 = ram
+    020000 = output
+    030000 = input
+}
+
+reset { cpu input output }
+reset-devices { input output }
+```
+
+Each region maps the whole named component beginning at local address zero.
+Regions must fit the CPU's address space and must not overlap. Mapping one
+component at two disjoint addresses explicitly aliases the same instance.
+Unmapped accesses and ROM writes follow the [memory-map contract](memory-map.md).
+Mapping a device preserves its read/write side effects.
+
+The optional `ports` block currently connects the 8080's byte ports. `in` entries
+require byte-input components; `out` entries require byte-output components. Port
+numbers are `00`–`FF`; local addresses must fit the device. Each direction may
+bind a port once, independently of the other direction. Unconnected accesses
+throw a host error before touching a device. Omitting `ports` retains the CPU's
+default unconnected-port behavior.
+
+Reset wiring is explicit and optional:
+
+- `reset { cpu ... }` adds a machine `reset()` method. The CPU must come first,
+  so its execution-boundary check precedes changes to devices. Remaining names
+  are devices, reset in the listed order. The method returns the CPU reset record;
+  that record does not include device resets. CPU-only `cpu.reset()` leaves
+  devices alone. RAM, ROM, and host transcripts survive either operation.
+- `reset-devices { ... }` connects the 68000's guest RESET instruction to the
+  listed devices, independently of machine reset. It does not reset the CPU.
+  An empty list explicitly connects a no-op; omitting the declaration leaves the
+  CPU's existing unconnected RESET behavior. Other CPU models reject it.
+
+A name cannot occur twice in either reset list. Neither declaration invokes a
+reset during construction. Input offers and output callbacks remain host code;
+see [generated factories](definitions.md#generated-factories) for the binding API.
 
 ## CPU state fields
 
@@ -198,7 +294,9 @@ has one trace bit and no master-mode bit. See the
 ## Errors
 
 The [parser](../../src/machines/machine-language.ts) validates syntax, complete CPU
-state, register widths, flag bits, and memory bounds before generating code.
+state, register widths, flag bits, image bounds, and component wiring before
+generating code. Unknown components, duplicate bindings, and overlapping regions
+are errors.
 Errors identify the filename, line, and column, with the offending source line
 and a caret. For example, a block that runs past the end of RAM reports:
 
@@ -210,9 +308,11 @@ lesson.machine:3:6: Memory block extends beyond address FFFF
 
 ## Scope and future extensions
 
-This version describes explicit state and byte images for one CPU with flat
-RAM of the size required by its model. More complex device wiring can still use TypeScript. The language
-does not define instruction behavior or assemble the comments beside the bytes.
+This version describes one CPU, RAM/ROM images, fixed 68000 memory maps, 8080
+byte ports, the two byte devices, and explicit reset wiring. Other devices, bank
+switching, interrupt wiring, clocks, and scripted host input remain TypeScript
+work until concrete examples establish their declarations. The language does not
+define instruction behavior or assemble the comments beside the bytes.
 
 Repeated addresses remain a future design question. In the 6502, 6800, and 6809
 examples, the starting address appears in PC, the program origin, and the

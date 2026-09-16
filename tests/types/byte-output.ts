@@ -1,8 +1,8 @@
 import { ByteOutput } from "../../src/components/devices/byte-output.js";
 import type { ByteOutputSnapshot } from "../../src/components/devices/byte-output.js";
 import type { MemoryConnection } from "../../src/components/memory/connection.js";
-import { create68000OutputExample } from "../../src/machines/68000/output-example.js";
-import { create8080OutputExample } from "../../src/machines/8080/output-example.js";
+import { create68000OutputExample } from "../../src/machines/generated/68000/output-example.js";
+import { create8080OutputExample } from "../../src/machines/generated/8080/output-example.js";
 import type { Cpu8080ResetRecord } from "../../src/components/cpus/8080.js";
 import type { BytePorts } from "../../src/components/cpus/port-access.js";
 
@@ -23,11 +23,11 @@ export function checkByteOutput(): void {
   new ByteOutput();
   // @ts-expect-error State contains a byte or null.
   new ByteOutput(() => {}, { lastByte: false });
-  const machine = create68000OutputExample(() => {});
+  const machine = create68000OutputExample({ output: () => {} });
   const device: ByteOutput = machine.output;
   // @ts-expect-error The machine requires its host output connection too.
   create68000OutputExample();
-  const portMachine = create8080OutputExample(() => {});
+  const portMachine = create8080OutputExample({ output: () => {} });
   const portDevice: ByteOutput = portMachine.output;
   const ports: BytePorts = portMachine.ports;
   const reset: Cpu8080ResetRecord = portMachine.reset();

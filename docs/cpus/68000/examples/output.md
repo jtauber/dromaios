@@ -1,7 +1,7 @@
 # 68000 ROM output
 
 [Model contract](../model.md) ·
-[Machine composition](../../../../src/machines/68000/output-example.ts) ·
+[Machine composition](../../../../src/machines/68000/output-example.machine) ·
 [Example tests](../../../../tests/machines/68000/output-example.test.ts) ·
 [Byte-output contract](../../../devices/byte-output.md)
 
@@ -13,7 +13,7 @@ RESET interfaces to a reusable component, with the host receiving the bytes.
 
 ```typescript
 const bytes: number[] = [];
-const machine = create68000OutputExample(value => { bytes.push(value); });
+const machine = create68000OutputExample({ output: value => { bytes.push(value); } });
 machine.cpu.reset();
 const run = runCpu(machine.cpu, { maxSteps: 17 });
 // bytes: [0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x0a]

@@ -15,7 +15,7 @@ export function checkParsedState(source: string): void {
   switch (machine.cpu) {
     case "68000": {
       const state: Cpu68000State = machine.initialState;
-      const size: 0x1000000 = machine.ramSize;
+      if ("ramSize" in machine) { const size: 0x1000000 = machine.ramSize; }
       const pc: number = state.pc;
       // @ts-expect-error A7 is derived from the two stored stack pointers.
       state.a7;
@@ -25,7 +25,7 @@ export function checkParsedState(source: string): void {
     }
     case "8088": {
       const state: Cpu8088State = machine.initialState;
-      const size: 0x100000 = machine.ramSize;
+      if ("ramSize" in machine) { const size: 0x100000 = machine.ramSize; }
       const ip: number = state.ip;
       // @ts-expect-error The physical PC is derived from CS:IP, not assigned.
       state.pc;
@@ -35,7 +35,7 @@ export function checkParsedState(source: string): void {
     }
     case "8008": {
       const state: Cpu8008State = machine.initialState;
-      const size: 0x4000 = machine.ramSize;
+      if ("ramSize" in machine) { const size: 0x4000 = machine.ramSize; }
       const address: number = state.addressStack[7];
       // @ts-expect-error PC is a derived snapshot view.
       state.pc;
@@ -71,7 +71,7 @@ export function checkParsedState(source: string): void {
     }
     case "6800": {
       const state: Cpu6800State = machine.initialState;
-      const size: 0x10000 = machine.ramSize;
+      if ("ramSize" in machine) { const size: 0x10000 = machine.ramSize; }
       const sp: number = state.sp;
       // @ts-expect-error The 6800 has no 6809 direct-page register.
       state.dp;

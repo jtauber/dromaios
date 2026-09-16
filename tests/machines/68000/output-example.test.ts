@@ -4,7 +4,7 @@ import { Cpu68000 } from "../../../src/components/cpus/68000.js";
 import type { Cpu68000Snapshot, Cpu68000StepRecord, Cpu68000Access } from "../../../src/components/cpus/68000.js";
 import { ByteOutput } from "../../../src/components/devices/byte-output.js";
 import { MemoryMap } from "../../../src/components/memory/memory-map.js";
-import { create68000OutputExample } from "../../../src/machines/68000/output-example.js";
+import { create68000OutputExample } from "../../../src/machines/generated/68000/output-example.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 const message = [0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x0a];
@@ -60,8 +60,8 @@ function checkImages(machine: ReturnType<typeof create68000OutputExample>): void
 
 test("68000 output factories allocate independent components without booting or notifying the host", () => {
   const events: number[] = [];
-  const machine = create68000OutputExample(value => { events.push(value); });
-  const fresh = create68000OutputExample(() => assert.fail("Unexpected output from independent machine"));
+  const machine = create68000OutputExample({ output: value => { events.push(value); } });
+  const fresh = create68000OutputExample({ output: () => assert.fail("Unexpected output from independent machine") });
   assert.deepEqual(machine.cpu.snapshot(), initialState());
   assert.deepEqual(machine.output.snapshot(), { lastByte: null });
   assert.equal(machine.memory.size, 0x1000000);
@@ -78,7 +78,7 @@ test("68000 output factories allocate independent components without booting or 
 
 test("68000 ROM output records exactly six writes, including repeated L, with no read or inspection side effects", t => {
   const events: number[] = [];
-  const machine = create68000OutputExample(value => {
+  const machine = create68000OutputExample({ output: value => {
     events.push(value);
     assert.deepEqual(machine.output.snapshot(), { lastByte: value });
     const state = machine.cpu.snapshot();
@@ -86,7 +86,7 @@ test("68000 ROM output records exactly six writes, including repeated L, with no
     assert.throws(() => machine.cpu.reset(), /must not be reentrant/);
     assert.throws(() => machine.cpu.interrupt(7, () => "autovector"), /must not be reentrant/);
     assert.deepEqual(machine.cpu.snapshot(), state);
-  });
+  } });
   const { cpu, memory, output } = machine;
   const transfers: Cpu68000Access[] = [];
   const read = memory.read.bind(memory), write = memory.write.bind(memory), resetDevice = output.reset.bind(output);
@@ -125,7 +125,7 @@ test("68000 ROM output records exactly six writes, including repeated L, with no
 test("68000 output pauses at every boundary and restores CPU and device snapshots without replay", () => {
   const events: number[] = [];
   const onWrite = (value: number): void => { events.push(value); };
-  const machine = create68000OutputExample(onWrite);
+  const machine = create68000OutputExample({ output: onWrite });
   machine.cpu.reset();
   let cpu = machine.cpu, output = machine.output;
   const expected = expectedRecords();
@@ -151,7 +151,7 @@ test("68000 output pauses at every boundary and restores CPU and device snapshot
 
 test("68000 CPU reset preserves device state; RESET clears its latch without changing CPU data, RAM, or the host transcript", () => {
   const events: number[] = [];
-  const machine = create68000OutputExample(value => { events.push(value); });
+  const machine = create68000OutputExample({ output: value => { events.push(value); } });
   machine.output.write(0, 0x7f);
   machine.ram.write(0, 0x5a);
   machine.cpu.reset();
@@ -178,7 +178,7 @@ test("68000 CPU reset preserves device state; RESET clears its latch without cha
 test("68000 write-only output faults on reads and preserves a completed high-byte output when a word crosses the region", () => {
   for (const store of [false, true]) {
     const events: number[] = [];
-    const machine = create68000OutputExample(value => { events.push(value); });
+    const machine = create68000OutputExample({ output: value => { events.push(value); } });
     machine.cpu.reset();
     const bytes = store ? [0x33, 0xfc, 0x12, 0x34, 0, 2, 0, 0] // MOVE.W #1234,(020000).L
       : [0x10, 0x39, 0, 2, 0, 0]; // MOVE.B (020000).L,D0
@@ -201,7 +201,7 @@ test("68000 host output failure propagates once with committed device and source
   const failure = new Error("output sink failed");
   const events: number[] = [];
   let fail = true;
-  const machine = create68000OutputExample(value => { events.push(value); if (fail) throw failure; });
+  const machine = create68000OutputExample({ output: value => { events.push(value); if (fail) throw failure; } });
   machine.cpu.reset();
   runCpu(machine.cpu, { maxSteps: 4 });
   const before = machine.cpu.snapshot();

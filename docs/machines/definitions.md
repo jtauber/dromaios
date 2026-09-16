@@ -1,18 +1,20 @@
 # Machine definitions
 
-The flat-RAM examples use the same [machine language](language.md) and setup
-code. Their `.machine` files supply the CPU model, all initial state, addressed
-byte images, and an optional caller completion address. The
+Examples use the same [machine language](language.md) for the CPU model, all
+initial state, addressed byte images, and an optional caller completion address.
+Composed definitions also name RAM, ROM, and byte devices and declare their
+memory, port, and reset connections. The
 [example catalog](../README.md#cpu-examples) links to specifications, each with
 its source definition and tests.
 
-Each file explicitly declares its CPU's RAM size: 16 KiB for the 8008,
+Flat-RAM files explicitly declare their CPU's RAM size: 16 KiB for the 8008,
 1 MiB for the 8088, 16 MiB for the 68000, and 64 KiB for the other current models. Unspecified memory
 is zero; blocks load in source order, with later bytes overwriting earlier ones where they
 overlap. Reset vectors are ordinary byte blocks. Initial state includes every
 stored field for that CPU. The optional `end` declaration supplies a completion
 address for the caller; it does not make the CPU stop there automatically.
-Memory images use physical RAM addresses. Completion compares `snapshot().pc`: a
+Flat-RAM images use physical RAM addresses; named `image` blocks use local
+component offsets. Completion compares `snapshot().pc`: a
 physical address for the [8088](../cpus/8088/model.md#logical-and-physical-addresses),
 but the full 32-bit register for the [68000](../cpus/68000/model.md#logical-and-physical-addresses).
 
@@ -21,8 +23,8 @@ but the full 32-bit register for the [68000](../cpus/68000/model.md#logical-and-
 The CPU owns its registers, flags, and any control latches. RAM owns the bytes.
 Example setup owns allocation, program loading, and deterministic
 initialization; these setup accesses do not appear in CPU execution records.
-The CPU accesses RAM through byte reads and writes and does not own example
-restart.
+The CPU accesses memory through byte reads and writes and does not own example
+restart. A machine may explicitly compose CPU and device resets.
 
 The [memory API](../../src/components/memory/ram.ts) is `new Ram(size)`, with
 a readonly `size` getter, `read(address)`, and `write(address, value)`.
@@ -32,35 +34,27 @@ be integers from `00` through `FF`. Invalid arguments throw `RangeError`.
 RAM rejects invalid host values instead of wrapping them to hardware widths.
 The [RAM tests](../../tests/components/memory/ram.test.ts) check these bounds.
 
-## Mapped compositions
+## Composed machines
 
-The [68000 ROM-boot example](../cpus/68000/examples/rom-boot.md) uses ordinary
-TypeScript to connect separate ROM and RAM through a fixed memory map. Its
-factory exposes those components without resetting or executing the CPU.
-It is not generated from a flat-RAM definition. The
-[memory-map contract](memory-map.md) defines region bounds, ownership, ROM
-protection, and unmapped-access behavior. More elaborate machine syntax can
-follow when concrete compositions establish what it needs to express.
+The [68000 ROM-boot example](../cpus/68000/examples/rom-boot.md) names separate
+ROM and RAM and connects them through a fixed map in its `.machine` definition.
+The [memory-map contract](memory-map.md) defines region bounds, ownership, ROM
+protection, and unmapped-access behavior.
 
 The [68000 ROM-output example](../cpus/68000/examples/output.md) also maps a
-byte-output register. Its factory takes the host output callback and wires
-device reset to the CPU's RESET connection; component behavior stays in the
-[device](../devices/byte-output.md).
-
-## Compositions with ports
-
-The [8080 output example](../cpus/8080/examples/output.md) uses TypeScript to
-load flat RAM and connect one output port to the same byte-output device.
-Its factory accepts the host callback and exposes the port connection for
-CPU reconstruction. Its explicit machine reset resets the CPU and clears
-the device latch while retaining RAM and the host's transcript. Device
-connections and reset wiring remain ordinary composition code.
+byte-output register and connects device reset to the CPU's RESET instruction.
+The [8080 output example](../cpus/8080/examples/output.md) connects one output
+port to the same device and declares a machine reset. Generated factories accept
+named host callbacks and expose the concrete components and CPU connections.
+Device behavior stays in the [device](../devices/byte-output.md).
 
 The [8080 echo](../cpus/8080/examples/echo.md) and
-[68000 echo](../cpus/68000/examples/echo.md) reuse both input and output devices.
-Their explicit machine reset clears device latches as well as resetting the
-CPU; CPU-only reset preserves the devices. Host input offers and output
-history remain outside the machine definitions.
+[68000 echo](../cpus/68000/examples/echo.md) declare both input and output devices.
+Their machine reset clears device latches as well as resetting the CPU;
+CPU-only reset preserves the devices. Host input offers and output history
+remain outside the machine definitions. The
+[language reference](language.md#named-components-and-wiring) specifies the
+supported connections and distinguishes machine reset from guest RESET.
 
 ## Directory organization
 
@@ -68,9 +62,10 @@ Machine definitions live under `src/machines/<cpu>/`, with matching tests
 under `tests/machines/<cpu>/`. For example, `8080/stack-example.machine`
 has a corresponding `8080/stack-example.test.ts`.
 
-The shared parser and RAM setup helper, and their tests, stay at the respective
-`machines/` roots. Additional subfolders can group examples as needed; the build
-discovers definitions recursively. Folder names organize the files; each
+The parser entry point and RAM setup helper stay at the `machines/` root;
+`machines/language/` contains token reading and composition validation. Their
+tests live at the `tests/machines/` root. Additional subfolders can group examples
+as needed; the build discovers definitions recursively. Folder names organize the files; each
 definition's `cpu` declaration still selects its processor model.
 
 ## Generated factories
@@ -88,24 +83,46 @@ words, capitalizing each part after `create`. Definitions in different folders
 can share a filename because their generated modules preserve those folders.
 
 The [parser](../../src/machines/machine-language.ts) checks syntax, complete CPU
-state, numeric ranges, and memory bounds, reporting errors with source locations.
+state, numeric ranges, image bounds, and connection targets, reporting errors
+with source locations.
 It imports [stored-state descriptions](../cpus/implementation.md#stored-state-descriptions)
 from the CPU modules, which also use them for constructor validation and
 snapshot copying. The parser owns the text syntax and source diagnostics.
-The generated code calls [defineRamExample](../../src/machines/ram-example.ts)
-with the selected CPU and a numeric definition; TypeScript also checks each
-generated call against the actual constructor.
+Flat-RAM code calls [defineRamExample](../../src/machines/ram-example.ts) with the
+selected CPU and a numeric definition. Composed machines generate direct component
+construction, image loading, port routing, and reset closures. TypeScript checks
+each generated call against its actual constructor.
 The example tests independently check full memory images, initial state, and
 execution.
 
 The helper accepts `ramSize`, defaulting to 64 KiB for direct TypeScript
 callers. Generated factories always supply the parsed size.
 
-Factories remain synchronous. Every call creates fresh RAM and CPU components
-without reset or execution; the memory-only factory does not construct a CPU.
-Factory return types retain the concrete CPU type and include `endAddress` only
-when the definition supplies it. Generated modules require no parser or file
-access when imported or used.
+Factories remain synchronous. Every call creates fresh components without reset,
+execution, or host notification; the flat-RAM memory-only factory does not
+construct a CPU. Return types retain the concrete CPU and component types and
+include `endAddress` only when declared. Generated modules require no parser or
+file access when imported or used.
+
+A composed definition generates one factory, with no memory-only counterpart.
+It returns `cpu` and every component under its declared name, plus `memory` for
+a map, `ports` for an explicit port block, and `reset` for a machine-reset list.
+These connection objects can also be used when reconstructing a CPU from a
+snapshot.
+
+Every byte-output component requires a named callback in the factory argument.
+A machine with no outputs takes no argument. For example:
+
+```typescript
+const bytes: number[] = [];
+const machine = create8080EchoExample({ output: value => { bytes.push(value); } });
+machine.reset();
+machine.input.offer(0x41);
+```
+
+With multiple outputs, each callback is keyed by its component name. There are
+no host expressions or callbacks inside a `.machine` file; host code supplies
+functions and decides when to offer input, reset, or execute.
 
 ## Editing and building
 

@@ -1,7 +1,7 @@
 # 8080 polling echo
 
 [CPU port contract](../model.md#port-io) ·
-[Machine composition](../../../../src/machines/8080/echo-example.ts) ·
+[Machine composition](../../../../src/machines/8080/echo-example.machine) ·
 [Example tests](../../../../tests/machines/8080/echo-example.test.ts) ·
 [Byte input](../../../devices/byte-input.md) ·
 [Byte output](../../../devices/byte-output.md)
@@ -13,7 +13,7 @@ counts and flag values.
 
 ## Construction and ports
 
-`create8080EchoExample(onWrite)` returns `cpu`, `ram`, `input`, `output`,
+`create8080EchoExample({ output: onWrite })` returns `cpu`, `ram`, `input`, `output`,
 `ports`, and `reset`. Construction allocates independent components without
 reset, execution, or host notification. CPU registers, flags, and control
 latches start at zero/false; input is empty and output has no last byte.
@@ -54,7 +54,7 @@ One possible host schedule is:
 
 ```typescript
 const bytes: number[] = [];
-const machine = create8080EchoExample(value => { bytes.push(value); });
+const machine = create8080EchoExample({ output: value => { bytes.push(value); } });
 machine.reset();
 machine.input.offer(0x48);
 runCpu(machine.cpu, { maxSteps: 7 }); // Echo H and return to polling.

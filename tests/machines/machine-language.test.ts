@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseMachine } from "../../src/machines/machine-language.js";
+import { parseMachine as parseDefinition } from "../../src/machines/machine-language.js";
+
+function parseMachine(...args: Parameters<typeof parseDefinition>) {
+  const machine = parseDefinition(...args);
+  assert.ok("ramSize" in machine);
+  return machine;
+}
 
 const sources = {
   "z80": `ram 10000

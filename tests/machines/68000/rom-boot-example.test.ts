@@ -4,7 +4,7 @@ import { Cpu68000 } from "../../../src/components/cpus/68000.js";
 import type { Cpu68000Snapshot, Cpu68000StepRecord, Cpu68000MemoryAccess } from "../../../src/components/cpus/68000.js";
 import { Ram } from "../../../src/components/memory/ram.js";
 import { Rom } from "../../../src/components/memory/rom.js";
-import { create68000RomBootExample } from "../../../src/machines/68000/rom-boot-example.js";
+import { create68000RomBootExample } from "../../../src/machines/generated/68000/rom-boot-example.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 const vectors = [0, 1, 0x10, 0, 0, 0, 1, 0, 0, 0, 2, 0];

@@ -1,0 +1,53 @@
+// Poll for input, echo each byte, and stop after newline.
+
+components {
+    rom = rom 0400
+    ram = ram 1000
+    input = byte-input
+    output = byte-output
+}
+
+cpu 68000 {
+    D0 = 00000000  D1 = 00000000  D2 = 00000000  D3 = 00000000
+    D4 = 00000000  D5 = 00000000  D6 = 00000000  D7 = 00000000
+    A0 = 00000000  A1 = 00000000  A2 = 00000000  A3 = 00000000
+    A4 = 00000000  A5 = 00000000  A6 = 00000000
+    USP = 00000000  SSP = 00000000  PC = 00000000  IR = 0000
+    interruptMask = 0
+    halted = false  faulted = false  tracePending = false
+    entry { kind = none  vector = 00 }
+    flags { X = 0  N = 0  Z = 0  V = 0  C = 0  T = 0  S = 0 }
+}
+
+map 1000000 {
+    000000 = rom
+    010000 = ram
+    020000 = output
+    030000 = input
+}
+
+image rom 000000 {
+    00 01 10 00         // Initial SSP: 011000, just above RAM.
+    00 00 01 00         // Initial PC: 000100, in ROM.
+    00 00 02 00         // Vector 2: 000200, a stopping fault handler.
+}
+
+image rom 000100 {
+    41 F9 00 03 00 00   // 0100: LEA (030000).L,A0 — input status/data.
+    43 F9 00 02 00 00   // 0106: LEA (020000).L,A1 — output.
+    4A 10               // 010C: TST.B (A0) — input ready?
+    67 FC               // 010E: BEQ 010C — poll while empty.
+    10 28 00 01         // 0110: MOVE.B 1(A0),D0 — consume the byte.
+    12 80               // 0114: MOVE.B D0,(A1) — echo it.
+    0C 00 00 0A         // 0116: CMPI.B #0A,D0
+    66 F0               // 011A: BNE 010C
+    4E 72 27 00         // 011C: STOP #2700
+}
+
+image rom 000200 {
+    4E 72 27 00
+}
+
+reset { cpu input output }
+
+reset-devices { input output }

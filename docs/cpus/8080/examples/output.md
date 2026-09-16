@@ -1,7 +1,7 @@
 # 8080 port output
 
 [Model contract](../model.md#port-io) ·
-[Machine composition](../../../../src/machines/8080/output-example.ts) ·
+[Machine composition](../../../../src/machines/8080/output-example.machine) ·
 [Example tests](../../../../tests/machines/8080/output-example.test.ts) ·
 [Byte-output contract](../../../devices/byte-output.md)
 
@@ -14,7 +14,7 @@ unchanged. Numbers below are hexadecimal except step counts and flag values.
 
 ```typescript
 const bytes: number[] = [];
-const machine = create8080OutputExample(value => { bytes.push(value); });
+const machine = create8080OutputExample({ output: value => { bytes.push(value); } });
 machine.reset();
 const run = runCpu(machine.cpu, { maxSteps: 33 });
 // bytes: [0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x0a]

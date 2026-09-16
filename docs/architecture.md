@@ -65,12 +65,13 @@ CPU instances without reset or execution; each CPU constructor still owns
 copying and validating its state. Example exports retain their concrete CPU
 types. More complex machine wiring can use ordinary TypeScript as it develops.
 
-The flat-RAM setups are [machine definitions](machines/definitions.md) written in a
-small language for CPU state and hexadecimal byte images. Definitions and their
-tests are grouped by CPU, and generated factories mirror the definition folders.
-A build step validates the definitions and generates calls to the same helper;
-the parser imports stored-state descriptions from the CPU modules. TypeScript
-checks generated calls against the selected CPU's state type. The
+The setups are [machine definitions](machines/definitions.md) written in a small
+language for CPU state, hexadecimal byte images, and component wiring. Definitions
+and their tests are grouped by CPU; generated factories mirror their folders.
+A build step validates the definitions, generating calls to the shared helper
+for flat RAM or direct constructors and connections for composed machines. The
+parser imports stored-state descriptions from the CPU modules. TypeScript
+checks generated calls against the selected CPU and component types. The
 generated factories are ordinary ES modules, so loading a machine requires no
 parser, file access, or asynchronous initialization.
 
@@ -78,8 +79,11 @@ The [first mapped composition](cpus/68000/examples/rom-boot.md) connects
 owned ROM and RAM through a [fixed memory map](machines/memory-map.md). Regions
 translate physical addresses into local component addresses; holes and ROM
 writes report bus errors. The map owns routing and components own storage.
-This example uses TypeScript wiring while the current definition language
-continues to describe flat RAM.
+Its `.machine` definition names the components, loads local byte images, and
+declares their map. The same language supports the 8080's directional byte-port
+connections and explicit machine reset and 68000 device-reset lists. Host output
+callbacks are named factory arguments; input offers and execution remain host
+operations. More elaborate devices and interrupt wiring can still use TypeScript.
 
 The [byte-output device](devices/byte-output.md) uses the same memory connection.
 It owns a single register and notifies a host callback on each write; the host

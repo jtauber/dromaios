@@ -1,7 +1,7 @@
 # 68000 ROM boot and mapped memory
 
 [Model contract](../model.md) ·
-[Machine composition](../../../../src/machines/68000/rom-boot-example.ts) ·
+[Machine composition](../../../../src/machines/68000/rom-boot-example.machine) ·
 [Example tests](../../../../tests/machines/68000/rom-boot-example.test.ts) ·
 [Memory-map contract](../../../machines/memory-map.md)
 
@@ -32,8 +32,8 @@ const run = runCpu(machine.cpu, { maxSteps: 10 });
 ```
 
 The factory returns the concrete `cpu`, `memory`, `rom`, and `ram` components.
-This first mapped composition uses TypeScript wiring. Existing `.machine`
-definitions continue to describe flat-RAM examples.
+The `.machine` definition declares its named ROM/RAM components, local byte
+images, and fixed map; the build generates this factory.
 
 ## Vectors and reset
 

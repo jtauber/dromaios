@@ -1,6 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
 import { fileURLToPath } from "node:url";
+import { compileComposition } from "./compile-composition.ts";
 import { parseMachine } from "../src/machines/machine-language.ts";
 
 /** Turn a machine definition into a factory checked against its concrete CPU. */
@@ -9,12 +10,17 @@ export function compileMachine(text: string, relativePath: string): string {
   if (relativePath !== `${stem}.machine` || !stem.split("/").every(part => /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(part))) {
     throw new Error(`Invalid machine path: ${relativePath}`);
   }
-  // The parser validates the explicit RAM size against the selected CPU model.
-  const { cpu, ...definition } = parseMachine(text, relativePath);
+  // The parser validates state and wiring against the selected CPU model.
+  const machine = parseMachine(text, relativePath);
+  const { cpu, ...definition } = machine;
   const data = JSON.stringify(definition, null, 2);
   const cpuClass = `Cpu${cpu.charAt(0).toUpperCase()}${cpu.slice(1)}`;
   const name = `create${stem.split(/[/-]/).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join("")}`;
   const from = posix.dirname(posix.join("generated", relativePath));
+  if ("components" in machine) {
+    return `// Generated from ${posix.relative(from, relativePath)}; edit the .machine definition instead.\n`
+      + compileComposition(machine, name, from);
+  }
   return `// Generated from ${posix.relative(from, relativePath)}; edit the .machine definition instead.
 import { ${cpuClass} } from "${posix.relative(from, `../components/cpus/${cpu}.js`)}";
 import { defineRamExample } from "${posix.relative(from, "ram-example.js")}";

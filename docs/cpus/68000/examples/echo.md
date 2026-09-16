@@ -1,7 +1,7 @@
 # 68000 polling echo
 
 [Model contract](../model.md) ·
-[Machine composition](../../../../src/machines/68000/echo-example.ts) ·
+[Machine composition](../../../../src/machines/68000/echo-example.machine) ·
 [Example tests](../../../../tests/machines/68000/echo-example.test.ts) ·
 [Byte input](../../../devices/byte-input.md) ·
 [Byte output](../../../devices/byte-output.md)
@@ -13,7 +13,7 @@ Numbers below are hexadecimal except step counts and flag values.
 
 ## Construction and map
 
-`create68000EchoExample(onWrite)` returns `cpu`, `memory`, `rom`, `ram`,
+`create68000EchoExample({ output: onWrite })` returns `cpu`, `memory`, `rom`, `ram`,
 `input`, `output`, and `reset`. Construction creates independent components
 without resetting, executing, or notifying the host. CPU registers and the
 interrupt mask start at zero, flags and latches at false, and `entry` at
@@ -61,7 +61,7 @@ once. The normal program performs no RAM writes.
 
 ```typescript
 const bytes: number[] = [];
-const machine = create68000EchoExample(value => { bytes.push(value); });
+const machine = create68000EchoExample({ output: value => { bytes.push(value); } });
 machine.reset();
 machine.input.offer(0x48);
 runCpu(machine.cpu, { maxSteps: 8 }); // Set up pointers, echo H, return to polling.

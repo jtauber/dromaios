@@ -1,0 +1,35 @@
+// Poll for input, echo each byte, and stop after newline.
+
+components {
+    ram = ram 10000
+    input = byte-input
+    output = byte-output
+}
+
+cpu 8080 {
+    A = 00  B = 00  C = 00  D = 00  E = 00  H = 00  L = 00
+    PC = 0000  SP = 0000
+    flags { S = 0  Z = 0  AC = 0  P = 0  CY = 0 }
+    interruptEnabled = false  interruptDeferred = false  halted = false
+}
+
+memory = ram
+
+ports {
+    in 00 = input 0
+    in 01 = input 1
+    out 01 = output 0
+}
+
+image ram 0000 {
+    DB 00               // 0000: IN 00 — input ready?
+    B7                  // 0002: ORA A
+    CA 00 00            // 0003: JZ 0000 — poll while empty.
+    DB 01               // 0006: IN 01 — consume the pending byte.
+    D3 01               // 0008: OUT 01 — echo it.
+    FE 0A               // 000A: CPI 0A — stop after echoing newline.
+    C2 00 00            // 000C: JNZ 0000
+    76                  // 000F: HLT
+}
+
+reset { cpu input output }

@@ -1,3 +1,7 @@
+import { machineSyntax } from "./language/syntax.ts";
+import type { Token } from "./language/syntax.ts";
+import { compositionSyntax } from "./language/composition.ts";
+import type { CompositionDefinition } from "./language/composition.ts";
 import { cpu8008StateDescription } from "../components/cpus/8008.ts";
 import { cpu8080StateDescription } from "../components/cpus/8080.ts";
 import { cpu8088StateDescription } from "../components/cpus/8088.ts";
@@ -32,7 +36,7 @@ type CpuDefinition = {
   [Model in CpuModel]: { readonly cpu: Model; readonly initialState: CpuStates[Model] };
 }[CpuModel];
 
-export type MachineDefinition = {
+export type RamMachineDefinition = {
   [Model in CpuModel]: {
     readonly cpu: Model;
     readonly initialState: CpuStates[Model];
@@ -44,62 +48,27 @@ export type MachineDefinition = {
   readonly endAddress?: number;
 };
 
-interface Token { readonly text: string; readonly offset: number }
+export type ComposedMachineDefinition = CpuDefinition & CompositionDefinition & { readonly endAddress?: number };
+export type MachineDefinition = RamMachineDefinition | ComposedMachineDefinition;
+
 type Value = number | string | boolean | number[] | { [name: string]: Value };
 
-/** Parse and validate one flat-RAM machine without constructing or running it. */
+/** Parse and validate a machine without constructing components or executing it. */
 export function parseMachine(source: string, filename = "<machine>"): MachineDefinition {
-  // Keep atoms whole: malformed values such as FF, or 0x12oops cannot parse in part.
-  const tokens = source.matchAll(/\/\/[^\r\n]*|\s+|[{}=\[\]]|[^\s{}=\[\]/]+|\//g);
-  function nextToken(): Token {
-    for (let next = tokens.next(); !next.done; next = tokens.next()) {
-      const match = next.value;
-      if (/^(?:\s|\/\/)/.test(match[0])) continue;
-      return { text: match[0], offset: match.index };
-    }
-    return { text: "", offset: source.length };
-  }
-  let current = nextToken();
-
-  function fail(token: Token, message: string): never {
-    const lines = source.slice(0, token.offset).split(/\r\n|\r|\n/);
-    const prefix = lines.at(-1) ?? "";
-    const line = prefix + source.slice(token.offset).split(/\r\n|\r|\n/, 1)[0];
-    const caret = prefix.replace(/[^\t]/g, " ") + "^";
-    throw new SyntaxError(`${filename}:${lines.length}:${prefix.length + 1}: ${message}\n${line}\n${caret}`);
-  }
-  function take(): Token {
-    const token = current;
-    current = nextToken();
-    return token;
-  }
-  function expect(text: string): Token {
-    if (current.text !== text) fail(current, `Expected ${JSON.stringify(text)}, found ${describe(current)}`);
-    return take();
-  }
-  function describe(token: Token): string {
-    return token.text === "" ? "end of file" : JSON.stringify(token.text);
-  }
-  function readNumber(token: Token, label: string, maximum: number): number {
-    const match = /^(?:0[xX]([\da-fA-F]+)|\$([\da-fA-F]+)|([\d][\da-fA-F]*)[hH]|([\da-fA-F]+))$/.exec(token.text);
-    const digits = match?.slice(1).find(value => value !== undefined);
-    if (digits === undefined) fail(token, `Expected a hexadecimal value for ${label}, found ${describe(token)}`);
-    const value = Number.parseInt(digits, 16);
-    if (!Number.isSafeInteger(value) || value > maximum) {
-      fail(token, `${label} must be in 0..${maximum.toString(16).toUpperCase()} (hexadecimal)`);
-    }
-    return value;
-  }
+  const syntax = machineSyntax(source, filename);
+  const { take, expect, describe, readNumber, readByte } = syntax;
+  const fail: (token: Token, message: string) => never = syntax.fail;
+  const composition = compositionSyntax(syntax);
   function readValue(field: Exclude<StateField, GroupField>, label: string): number | string | boolean | number[] {
     if (field.kind === "array") {
       expect("[");
       const values: number[] = [];
-      while (current.text !== "]") {
-        if (current.text === "") fail(current, `Expected "]" to close ${label}`);
-        if (values.length === field.length) fail(current, `${label} requires exactly ${field.length} values`);
+      while (syntax.current().text !== "]") {
+        if (syntax.current().text === "") fail(syntax.current(), `Expected "]" to close ${label}`);
+        if (values.length === field.length) fail(syntax.current(), `${label} requires exactly ${field.length} values`);
         values.push(readNumber(take(), `${label}[${values.length}]`, field.element.maximum));
       }
-      if (values.length !== field.length) fail(current, `${label} requires exactly ${field.length} values`);
+      if (values.length !== field.length) fail(syntax.current(), `${label} requires exactly ${field.length} values`);
       take();
       return values;
     }
@@ -128,8 +97,8 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
     expect("{");
     const fields = new Map(Object.entries(description).map(([name, field]) => [name.toLowerCase(), { name, field }]));
     const values: { [name: string]: Value } = {};
-    while (current.text !== "}") {
-      if (current.text === "") fail(current, `Expected "}" to close ${context}`);
+    while (syntax.current().text !== "}") {
+      if (syntax.current().text === "") fail(syntax.current(), `Expected "}" to close ${context}`);
       const token = take();
       const entry = fields.get(token.text.toLowerCase());
       if (!entry) fail(token, `Unknown field ${describe(token)} in ${context}`);
@@ -144,7 +113,7 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
       }
     }
     const missing = [...fields.values()].filter(({ name }) => !Object.hasOwn(values, name));
-    if (missing.length) fail(current, `Missing fields in ${context}: ${missing.map(({ name, field }) => fieldLabel(name, field)).join(", ")}`);
+    if (missing.length) fail(syntax.current(), `Missing fields in ${context}: ${missing.map(({ name, field }) => fieldLabel(name, field)).join(", ")}`);
     take();
     // Every described field is present exactly once, including validated choices and fixed array lengths.
     return values as StateValues<Fields>;
@@ -170,7 +139,7 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
   const memory: { address: number; bytes: number[] }[] = [];
   // CPU and RAM declarations may follow images. Retain locations for the final size check.
   const memoryBounds: { token: Token; address: number; isByte: boolean }[] = [];
-  while (current.text !== "") {
+  while (syntax.current().text !== "") {
     const declaration = take();
     switch (declaration.text) {
       case "ram": {
@@ -195,33 +164,47 @@ export function parseMachine(source: string, filename = "<machine>"): MachineDef
         break;
       }
       case "memory": {
+        if (syntax.current().text === "=") {
+          composition.read(declaration);
+          break;
+        }
         const addressToken = take();
         const address = readNumber(addressToken, "Memory address", 0xffffff);
         memoryBounds.push({ token: addressToken, address, isByte: false });
         expect("{");
         const bytes: number[] = [];
-        while (current.text !== "}") {
-          if (current.text === "") fail(current, 'Expected "}" to close memory block');
+        while (syntax.current().text !== "}") {
+          if (syntax.current().text === "") fail(syntax.current(), 'Expected "}" to close memory block');
           const token = take();
-          if (!/^[\da-fA-F]{2}$/.test(token.text)) fail(token, `Expected a two-digit hexadecimal byte, found ${describe(token)}`);
+          const byte = readByte(token);
           const limit = ram?.size ?? 0x1000000;
           if (address + bytes.length >= limit) {
             fail(token, `Memory block extends beyond address ${(limit - 1).toString(16).toUpperCase()}`);
           }
           memoryBounds.push({ token, address: address + bytes.length, isByte: true });
-          bytes.push(Number.parseInt(token.text, 16));
+          bytes.push(byte);
         }
         take();
         memory.push({ address, bytes });
         break;
       }
-      default: fail(declaration, `Unknown declaration ${describe(declaration)}; expected ram, cpu, memory, or end`);
+      default:
+        if (!composition.read(declaration)) fail(declaration, `Unknown declaration ${describe(declaration)}; expected ram, cpu, memory, end, components, image, map, ports, reset, or reset-devices`);
     }
   }
-  if (ram === undefined) fail(current, "Missing ram declaration");
-  if (cpu === undefined) fail(current, "Missing cpu declaration");
+  if (!composition.present && ram === undefined) fail(syntax.current(), "Missing ram declaration");
+  if (cpu === undefined) fail(syntax.current(), "Missing cpu declaration");
   const requiredSize = cpu.cpu === "8008" ? 0x4000 : cpu.cpu === "8088" ? 0x100000
     : cpu.cpu === "68000" ? 0x1000000 : 0x10000;
+  if (composition.present) {
+    if (ram !== undefined || memory.length) fail(ram?.token ?? memoryBounds[0]!.token, "Named components cannot be mixed with flat ram or memory blocks; use image blocks");
+    if (completion && completion.address > (cpu.cpu === "68000" ? 0xffffffff : requiredSize - 1)) {
+      fail(completion.token, `Completion address must be in 0..${(requiredSize - 1).toString(16).toUpperCase()}`);
+    }
+    const definition = { ...cpu, ...composition.finish(cpu.cpu, requiredSize) };
+    return completion === undefined ? definition : { ...definition, endAddress: completion.address };
+  }
+  if (ram === undefined) return fail(syntax.current(), "Missing ram declaration");
   if (ram.size !== requiredSize) fail(ram.token, `RAM size for ${cpu.cpu} must be ${requiredSize.toString(16).toUpperCase()}`);
   const lastAddress = (requiredSize - 1).toString(16).toUpperCase();
   for (const { token, address, isByte } of memoryBounds) {

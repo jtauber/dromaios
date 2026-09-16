@@ -5,8 +5,8 @@ import type { Cpu68000Access, Cpu68000Snapshot, Cpu68000StepRecord } from "../..
 import { ByteInput } from "../../../src/components/devices/byte-input.js";
 import { ByteOutput } from "../../../src/components/devices/byte-output.js";
 import { MemoryMap } from "../../../src/components/memory/memory-map.js";
-import { create68000EchoExample } from "../../../src/machines/68000/echo-example.js";
-import { create8080EchoExample } from "../../../src/machines/8080/echo-example.js";
+import { create68000EchoExample } from "../../../src/machines/generated/68000/echo-example.js";
+import { create8080EchoExample } from "../../../src/machines/generated/8080/echo-example.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 const vectors = [0, 1, 0x10, 0, 0, 0, 1, 0, 0, 0, 2, 0];
@@ -80,7 +80,7 @@ function checkImages(machine: ReturnType<typeof create68000EchoExample>): void {
 
 test("68000 echo creates independent components without booting, consuming input, or emitting output", () => {
   const events: number[] = [];
-  const machine = create68000EchoExample(value => { events.push(value); });
+  const machine = create68000EchoExample({ output: value => { events.push(value); } });
   assert.deepEqual(machine.cpu.snapshot(), initialState());
   assert.deepEqual(machine.input.snapshot(), { pendingByte: null });
   assert.deepEqual(machine.output.snapshot(), { lastByte: null });
@@ -88,7 +88,7 @@ test("68000 echo creates independent components without booting, consuming input
   checkImages(machine);
   assert.deepEqual(events, []);
   machine.input.offer(0x41); machine.output.write(0, 0x42); machine.ram.write(0, 0x5a);
-  const fresh = create68000EchoExample(() => assert.fail("Unexpected independent output"));
+  const fresh = create68000EchoExample({ output: () => assert.fail("Unexpected independent output") });
   assert.deepEqual(fresh.cpu.snapshot(), initialState());
   assert.deepEqual(fresh.input.snapshot(), { pendingByte: null });
   assert.deepEqual(fresh.output.snapshot(), { lastByte: null });
@@ -97,13 +97,13 @@ test("68000 echo creates independent components without booting, consuming input
 
 test("68000 echo records exact polling, consuming reads, and output for zero, signed, and repeated bytes", t => {
   const events: number[] = [];
-  const machine = create68000EchoExample(value => {
+  const machine = create68000EchoExample({ output: value => {
     events.push(value);
     assert.deepEqual(machine.input.snapshot(), { pendingByte: null });
     assert.deepEqual(machine.output.snapshot(), { lastByte: value });
     assert.throws(() => machine.reset(), /must not be reentrant/);
     assert.deepEqual(machine.output.snapshot(), { lastByte: value });
-  });
+  } });
   const { cpu, memory, input } = machine;
   const observed: Cpu68000Access[] = [];
   const read = memory.read.bind(memory), write = memory.write.bind(memory);
@@ -147,7 +147,7 @@ test("68000 echo records exact polling, consuming reads, and output for zero, si
 test("68000 echo restores CPU and both device snapshots at every boundary without replay", () => {
   const events: number[] = [];
   const onWrite = (value: number): void => { events.push(value); };
-  const machine = create68000EchoExample(onWrite);
+  const machine = create68000EchoExample({ output: onWrite });
   machine.reset();
   let cpu = machine.cpu, input = machine.input, output = machine.output;
   const emitted: number[] = [];
@@ -186,7 +186,7 @@ test("68000 echo restores CPU and both device snapshots at every boundary withou
 
 test("68000 echo retains a captured byte in D0 while the host offers another before output", () => {
   const events: number[] = [];
-  const machine = create68000EchoExample(value => { events.push(value); });
+  const machine = create68000EchoExample({ output: value => { events.push(value); } });
   machine.reset(); machine.input.offer(0x48);
   runCpu(machine.cpu, { maxSteps: 5 }); // Two LEAs, status, branch, then consuming read.
   assert.equal(machine.cpu.snapshot().d0, 0x48);
@@ -204,7 +204,7 @@ test("68000 echo retains a captured byte in D0 while the host offers another bef
 test("68000 input offered after an empty status read is consumed on the next poll", () => {
   for (const boundary of [1, 2]) {
     const events: number[] = [];
-    const machine = create68000EchoExample(value => { events.push(value); });
+    const machine = create68000EchoExample({ output: value => { events.push(value); } });
     machine.reset(); runCpu(machine.cpu, { maxSteps: 2 });
     const empty = iteration(setupRecords().at(-1)!.after, null);
     assert.deepEqual(runCpu(machine.cpu, { maxSteps: boundary }).records, empty.slice(0, boundary));
@@ -221,7 +221,7 @@ test("68000 input offered after an empty status read is consumed on the next pol
 
 test("68000 echo CPU reset preserves input; machine reset and RESET clear both devices without clearing RAM or output history", t => {
   const events: number[] = [];
-  const machine = create68000EchoExample(value => { events.push(value); });
+  const machine = create68000EchoExample({ output: value => { events.push(value); } });
   machine.input.offer(0x41); machine.output.write(0, 0x42); machine.ram.write(0, 0x5a);
   machine.cpu.reset();
   assert.deepEqual(machine.input.snapshot(), { pendingByte: 0x41 });
@@ -255,7 +255,7 @@ test("68000 echo CPU reset preserves input; machine reset and RESET clear both d
 
 test("68000 writes to input fault without consuming it, while a later long-read fault retains earlier consumption", () => {
   for (const kind of ["status-write", "data-write", "long-read"] as const) {
-    const machine = create68000EchoExample(() => assert.fail("Unexpected output"));
+    const machine = create68000EchoExample({ output: () => assert.fail("Unexpected output") });
     machine.reset(); machine.input.offer(0x41);
     const isRead = kind === "long-read";
     const address = kind === "data-write" ? 1 : 0;
@@ -279,7 +279,7 @@ test("68000 writes to input fault without consuming it, while a later long-read 
 test("68000 echo output failure preserves consumed input and captured D0 without automatic retry", () => {
   const failure = new Error("host output failed");
   const events: number[] = [];
-  const machine = create68000EchoExample(value => { events.push(value); throw failure; });
+  const machine = create68000EchoExample({ output: value => { events.push(value); throw failure; } });
   machine.reset(); machine.input.offer(0x48);
   runCpu(machine.cpu, { maxSteps: 5 });
   const before = machine.cpu.snapshot();
@@ -297,8 +297,8 @@ test("68000 echo output failure preserves consumed input and captured D0 without
 test("8080 port and 68000 memory-mapped echo consume the same host message and stop after newline", () => {
   const message = [0x48, 0x45, 0x4c, 0x4c, 0x4f, 10];
   const portBytes: number[] = [], memoryBytes: number[] = [];
-  const ports = create8080EchoExample(value => { portBytes.push(value); });
-  const mapped = create68000EchoExample(value => { memoryBytes.push(value); });
+  const ports = create8080EchoExample({ output: value => { portBytes.push(value); } });
+  const mapped = create68000EchoExample({ output: value => { memoryBytes.push(value); } });
   ports.reset(); mapped.reset();
   runCpu(mapped.cpu, { maxSteps: 2 });
   for (const value of message) {

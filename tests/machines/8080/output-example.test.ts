@@ -3,8 +3,8 @@ import { test } from "node:test";
 import { Cpu8080 } from "../../../src/components/cpus/8080.js";
 import type { Cpu8080Access, Cpu8080Snapshot, Cpu8080StepRecord } from "../../../src/components/cpus/8080.js";
 import type { Ram } from "../../../src/components/memory/ram.js";
-import { create8080OutputExample } from "../../../src/machines/8080/output-example.js";
-import { create68000OutputExample } from "../../../src/machines/68000/output-example.js";
+import { create8080OutputExample } from "../../../src/machines/generated/8080/output-example.js";
+import { create68000OutputExample } from "../../../src/machines/generated/68000/output-example.js";
 import { runCpu } from "../../../src/runtime/run-cpu.js";
 
 const message = [0x48, 0x45, 0x4c, 0x4c, 0x4f, 0x0a];
@@ -54,7 +54,7 @@ function checkMemory(ram: Ram): void {
 
 test("8080 output factories allocate independent state without reset, execution, or notification", () => {
   const events: number[] = [];
-  const machine = create8080OutputExample(value => { events.push(value); });
+  const machine = create8080OutputExample({ output: value => { events.push(value); } });
   assert.deepEqual(machine.cpu.snapshot(), initialState());
   assert.deepEqual(machine.output.snapshot(), { lastByte: null });
   assert.deepEqual(events, []);
@@ -62,7 +62,7 @@ test("8080 output factories allocate independent state without reset, execution,
   machine.ports.writePort(1, 0x41);
   machine.ram.write(0, 0);
   machine.cpu.step();
-  const fresh = create8080OutputExample(() => assert.fail("Unexpected independent output"));
+  const fresh = create8080OutputExample({ output: () => assert.fail("Unexpected independent output") });
   assert.deepEqual(fresh.cpu.snapshot(), initialState());
   assert.deepEqual(fresh.output.snapshot(), { lastByte: null });
   checkMemory(fresh.ram);
@@ -71,7 +71,7 @@ test("8080 output factories allocate independent state without reset, execution,
 
 test("8080 output emits HELLO and records each RAM fetch and port transfer in order", t => {
   const events: number[] = [];
-  const machine = create8080OutputExample(value => {
+  const machine = create8080OutputExample({ output: value => {
     events.push(value);
     const state = machine.cpu.snapshot();
     assert.deepEqual(machine.output.snapshot(), { lastByte: value });
@@ -80,7 +80,7 @@ test("8080 output emits HELLO and records each RAM fetch and port transfer in or
     assert.throws(() => machine.reset(), /must not be reentrant/);
     assert.deepEqual(machine.cpu.snapshot(), state);
     assert.deepEqual(machine.output.snapshot(), { lastByte: value });
-  });
+  } });
   const { cpu, ram, ports, output } = machine;
   const transfers: Cpu8080Access[] = [];
   const read = ram.read.bind(ram), writePort = ports.writePort;
@@ -118,7 +118,7 @@ test("8080 output emits HELLO and records each RAM fetch and port transfer in or
 
 test("8080 output resumes at every instruction boundary with the same device and no replay", () => {
   const events: number[] = [];
-  const machine = create8080OutputExample(value => { events.push(value); });
+  const machine = create8080OutputExample({ output: value => { events.push(value); } });
   let cpu = machine.cpu;
   let sent = 0;
   const expected = expectedRecords();
@@ -145,7 +145,7 @@ test("8080 output resumes at every instruction boundary with the same device and
 
 test("8080 machine reset clears the output latch; CPU reset preserves it, and neither erases RAM or the host stream", () => {
   const events: number[] = [];
-  const machine = create8080OutputExample(value => { events.push(value); });
+  const machine = create8080OutputExample({ output: value => { events.push(value); } });
   machine.ports.writePort(1, 0x7f);
   machine.ram.write(0x200, 0x5a);
   assert.deepEqual(machine.cpu.reset(), { before: initialState(), after: initialState(), accesses: [] });
@@ -176,7 +176,7 @@ test("8080 machine reset clears the output latch; CPU reset preserves it, and ne
 
 test("8080 machine routing rejects every input and unconnected output before contacting the device", t => {
   const events: number[] = [];
-  const { cpu, ram, output } = create8080OutputExample(value => { events.push(value); });
+  const { cpu, ram, output } = create8080OutputExample({ output: value => { events.push(value); } });
   const reads = t.mock.method(output, "read"), writes = t.mock.method(output, "write");
   for (let port = 0; port < 256; port++) {
     for (const opcode of [0xdb, 0xd3]) {
@@ -184,7 +184,7 @@ test("8080 machine routing rejects every input and unconnected output before con
       ram.write(0, opcode); ram.write(1, port);
       cpu.reset();
       const before = cpu.snapshot();
-      assert.throws(() => cpu.step(), opcode === 0xdb ? /no input ports/ : /only connects output port 01/);
+      assert.throws(() => cpu.step(), opcode === 0xdb ? /Unconnected input port/ : /Unconnected output port/);
       assert.deepEqual(cpu.snapshot(), { ...before, pc: 2 });
       assert.deepEqual(output.snapshot(), { lastByte: null });
     }
@@ -198,7 +198,7 @@ test("8080 host output failure retains the byte and fetched PC without retry or 
   const failure = new Error("output sink failed");
   const events: number[] = [];
   let fail = true;
-  const machine = create8080OutputExample(value => { events.push(value); if (fail) throw failure; });
+  const machine = create8080OutputExample({ output: value => { events.push(value); if (fail) throw failure; } });
   runCpu(machine.cpu, { maxSteps: 3 });
   const before = machine.cpu.snapshot();
   assert.throws(() => machine.cpu.step(), error => error === failure);
@@ -213,8 +213,8 @@ test("8080 host output failure retains the byte and fetched PC without retry or 
 
 test("8080 ports and 68000 mapped memory send the same bytes through the same device model", () => {
   const portBytes: number[] = [], memoryBytes: number[] = [];
-  const portMachine = create8080OutputExample(value => { portBytes.push(value); });
-  const memoryMachine = create68000OutputExample(value => { memoryBytes.push(value); });
+  const portMachine = create8080OutputExample({ output: value => { portBytes.push(value); } });
+  const memoryMachine = create68000OutputExample({ output: value => { memoryBytes.push(value); } });
   portMachine.reset(); memoryMachine.cpu.reset();
   assert.equal(runCpu(portMachine.cpu, { maxSteps: 33 }).stopReason, "halted");
   assert.equal(runCpu(memoryMachine.cpu, { maxSteps: 17 }).stopReason, "halted");
