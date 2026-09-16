@@ -48,6 +48,10 @@ their hardware distinctions. Definitions for other component types should
 likewise develop through concrete examples. No CPU or component DSL syntax or
 processing model is being chosen upfront.
 
+The [Zed extension](../editors/zed/README.md) uses a separate Tree-sitter grammar
+for editing machine definitions. The application parser and CPU state descriptions
+own validation; editor tooling recognises syntax and is built independently.
+
 ## The pieces
 
 **Components** model CPUs, memory, and devices. Each owns its relevant state and

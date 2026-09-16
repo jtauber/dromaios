@@ -1,0 +1,13 @@
+cpu 8080 {
+    A = FF
+    halted = false
+    entry { kind = fault }
+    flags { C = 1 }
+    addressStack = [0FFH $100 0x200]
+}
+components {
+    ram = rom 1000
+    dead = byte-input
+}
+memory = ram
+image ram 0000 { 00 FF } // MVI A, FF

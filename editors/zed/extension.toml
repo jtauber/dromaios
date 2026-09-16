@@ -1,0 +1,17 @@
+id = "dromaios"
+name = "Dromaios"
+version = "0.1.0"
+schema_version = 1
+authors = ["James Tauber"]
+description = "Syntax highlighting for Dromaios machine definitions"
+repository = "https://github.com/jtauber/dromaios"
+languages = ["languages/machine"]
+
+# Local installation uses the prebuilt grammar from npm run build. Publishing
+# through Zed's registry would additionally need committed parser sources and
+# a pinned revision here. Zed's dev-extension builder fetches a Git revision,
+# so it cannot build our uncommitted working-tree grammar.
+[grammars.dromaios_machine]
+repository = "https://github.com/jtauber/dromaios"
+rev = "main"
+path = "editors/zed/tree-sitter-machine"

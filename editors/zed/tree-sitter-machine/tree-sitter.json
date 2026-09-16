@@ -1,0 +1,19 @@
+{
+  "grammars": [
+    {
+      "name": "dromaios_machine",
+      "camelcase": "DromaiosMachine",
+      "scope": "source.dromaios-machine",
+      "path": ".",
+      "file-types": ["machine"],
+      "highlights": "../languages/machine/highlights.scm"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Dromaios machine definitions",
+    "authors": [{ "name": "James Tauber" }],
+    "links": { "repository": "https://github.com/jtauber/dromaios" }
+  }
+}

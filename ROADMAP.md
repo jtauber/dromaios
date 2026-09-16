@@ -35,6 +35,9 @@ its parts before implementing them.
 The 8080 example specification has been reviewed. Development uses TypeScript
 compiled to ES modules, npm, and Node.js 24's built-in test runner.
 
+[Editor tooling](editors/zed/README.md) has its own build and CI checks, allowing
+language support to develop alongside the machine format and eventual CPU DSL.
+
 ## 1. Follow a tiny 8080 program — complete
 
 - Introduce RAM and the 8080, implementing instructions incrementally.

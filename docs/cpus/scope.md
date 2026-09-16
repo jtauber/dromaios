@@ -11,6 +11,8 @@ will be organized for learning, exploration, and reference as support develops.
 - Use **TypeScript** as the initial implementation language. Future DSLs for
   CPU and component definitions remain a possible direction; see
   [implementation language and future definition languages](../architecture.md#implementation-language-and-future-definition-languages).
+  [Editor tooling](../../editors/zed/README.md) currently follows the machine
+  definition syntax; CPU DSL editor support will follow its eventual language design.
 - The introductory examples were built in the order **8080 → 6502 → 6809**
   to inform shared CPU and inspection interfaces.
 - Apply a **rule of three**: use evidence from three distinct architectures to

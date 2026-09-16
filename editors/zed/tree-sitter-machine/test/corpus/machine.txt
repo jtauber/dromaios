@@ -1,0 +1,113 @@
+==================
+Flat memory and contextual hexadecimal
+==================
+ram 10000
+cpu 8080 { A = FF PC = 0x200 halted = false flags { C = 1 } }
+memory 0200 { 3E FF // MVI A, FF
+76 }
+end $203
+---
+(source_file
+  (ram_declaration (number))
+  (cpu_declaration (cpu_model)
+    (state_block
+      (assignment (field_name) (number))
+      (assignment (field_name) (number))
+      (assignment (field_name) (boolean))
+      (state_group (field_name)
+        (state_block (assignment (field_name) (number))))))
+  (memory_block (number) (byte_block (byte) (byte) (comment) (byte)))
+  (end_declaration (number)))
+
+==================
+Nested state, named values, and numeric aliases
+==================
+cpu z80 {
+  alternate { A = a flags { C = 0 } }
+  entry { kind = fault vector = 0FFH }
+  waitMode = cwai halted = true
+  addressStack = [0 $a 0Xa 0ah FF ff // physical slots
+                  0x0 00H]
+}
+---
+(source_file
+  (cpu_declaration (cpu_model)
+    (state_block
+      (state_group (field_name)
+        (state_block
+          (assignment (field_name) (number))
+          (state_group (field_name)
+            (state_block (assignment (field_name) (number))))))
+      (state_group (field_name)
+        (state_block
+          (assignment (field_name) (named_value))
+          (assignment (field_name) (number))))
+      (assignment (field_name) (named_value))
+      (assignment (field_name) (boolean))
+      (assignment (field_name)
+        (number_array (number) (number) (number) (number) (number) (number)
+          (comment) (number) (number))))))
+
+==================
+Components and direct port wiring
+==================
+components { ram = ram 10000 input = byte-input output = byte-output }
+memory = ram
+ports { in 00 = input 0 in 01 = input 1 out 01 = output 0 }
+image ram 0 { DB 00 D3 01 }
+reset { cpu input output }
+---
+(source_file
+  (components_block
+    (component_declaration (component_name) (storage_kind) (number))
+    (component_declaration (component_name) (device_kind))
+    (component_declaration (component_name) (device_kind)))
+  (memory_connection (component_name))
+  (ports_block
+    (port_binding (number) (component_name) (number))
+    (port_binding (number) (component_name) (number))
+    (port_binding (number) (component_name) (number)))
+  (image_block (component_name) (number) (byte_block (byte) (byte) (byte) (byte)))
+  (reset_block (component_name) (component_name) (component_name)))
+
+==================
+Maps, keyword-like names, and empty blocks
+==================
+components { ram = rom 0400 dead = ram 1000 image = byte-output }
+map 1000000 { 000000 = ram 010000 = dead 020000 = image }
+image ram 0000 {}
+reset-devices { image }
+reset-devices {}
+---
+(source_file
+  (components_block
+    (component_declaration (component_name) (storage_kind) (number))
+    (component_declaration (component_name) (storage_kind) (number))
+    (component_declaration (component_name) (device_kind)))
+  (map_block (number)
+    (map_entry (number) (component_name))
+    (map_entry (number) (component_name))
+    (map_entry (number) (component_name)))
+  (image_block (component_name) (number) (byte_block))
+  (reset_block (component_name))
+  (reset_block))
+
+==================
+Malformed byte atoms stay whole and preserve following bytes
+==================
+memory 0 { FF00 0xFF $FF 0FFH F FF, GG 00 }
+---
+(source_file
+  (memory_block (number)
+    (byte_block
+      (invalid_byte) (invalid_byte) (invalid_byte) (invalid_byte)
+      (invalid_byte) (invalid_byte) (invalid_byte) (byte))))
+
+==================
+Incomplete state still has structure for highlighting
+==================
+cpu 6502 { A = FF
+---
+(source_file
+  (cpu_declaration (cpu_model)
+    (state_block (assignment (field_name) (number)) (MISSING "}"))))

@@ -99,6 +99,10 @@ using [tsconfig.src.json](tsconfig.src.json), without emitting JavaScript.
 `npm run generate:cpus` refreshes just the generated instruction bodies.
 `npm run generate:machines` refreshes just the generated TypeScript factories.
 
+Optional [Zed language support](editors/zed/README.md) adds syntax highlighting
+and bracket matching for `.machine` files. Its build and tests use a separate,
+locked editor toolchain; the simulation workflow above stays independent.
+
 For focused checks, select a CPU and optionally filter test names:
 
 ```sh
