@@ -25,6 +25,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6502 ORA/AND/EOR and BIT, every supported addressing form | Reuse byte sources and N/Z; BIT preserves A and derives N/V from memory, separately from the masked result used for Z |
 | 6800/6809 AND/BIT/EOR/OR on A/B, every supported addressing form | Share logical construction and operand bindings; N/Z describe the result, V clears, and BIT omits writeback |
 | 6800/6809 byte loads and stores, every supported addressing form | Share N/Z with V cleared; stores capture A/B after addressing, never read the destination, and apply flags only after a successful write |
+| 6800 word loads/stores for X/SP and 6809 word loads/stores for D/X/Y/U/S | Share byte/word transfer construction; high byte first, flags after both writes, explicit D split writes and LDS NMI arming |
 | 6800 TAB/TBA | Reuse the transfer recipe and Motorola byte-result policy, writing the destination before flags |
 | All six 6502 register transfers and 8080 MOV B,A | Share read/write behavior while selecting N/Z or preserving every flag; SP transfers do not access the stack |
 | All 6502 ASL/ROL/LSR/ROR forms | One resolved address, an original-value write, a captured incoming carry for rotates, and separate C and N/Z stages; accumulator forms share the operation |
@@ -34,14 +35,14 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 256 bodies. All are generated and executable; 255 are bound into their
+There are 277 bodies. All are generated and executable; 276 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
 extended forms, including all legal indexed postbytes. The 6800 memory
-comparisons, logic, and byte transfers likewise serve direct/indexed/extended
+comparisons, logic, and byte/word transfers likewise serve direct/indexed/extended
 forms, while its unary operations have indexed/extended forms. Both decoders
 remain handwritten. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
@@ -59,7 +60,7 @@ The authoring layers have separate homes:
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical recipes, N/Z policies, and checked opcode inventories |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, and byte-transfer construction, with explicit access and flag policies |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, and byte/word-transfer construction, with explicit access and flag policies |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -85,12 +86,16 @@ names or handwritten per-instruction bindings. These are construction-time
 families; the resulting definitions still contain only data.
 
 `cpuSymbols(name, stateDescription)` imports the CPU's existing authority for
-stored fields. It offers typed register and flag names and records register
+stored fields. It offers typed register, flag, and control-latch names and records register
 widths from that schema. There is no second register-layout declaration.
-Current symbols cover stored unsigned byte/word registers and the `flags`
-group; general declarations for slices, register views, and banks remain future
+Current symbols cover stored unsigned byte/word registers, the `flags`
+group, and top-level Boolean control latches; general declarations for slices, register views, and banks remain future
 work. Composed reads already use ordinary sources: 8080 HL is explicitly read
 as H then L, and the 6809's D as A then B, before combining the bytes.
+Compound transfer destinations use explicit ordered statements consuming
+`result`: LDD writes A then B using `highByte`/`lowByte`; LDS writes S then
+`writeLatch(cpu.latch("nmiArmed"), true)`. A latch is distinct from an architectural
+flag. The current latch vocabulary supports constant Boolean writes only.
 
 TypeScript distinguishes a register, a captured numeric expression, and a flag
 expression. Registers and flags do not implicitly read themselves. A numeric
@@ -131,10 +136,13 @@ definition. CBA uses the same `compare` recipe with B as its register source.
 
 `transfer(destination, source, policy?)` captures its source as `result`, writes
 the destination, and optionally applies a policy with that result parameter.
+The destination is a stored register or an explicit statement list using
+`result`; those statements are expanded directly, without an opaque setter.
 All 18 6502 load forms and six register transfers use this recipe; the 8080
 MOV B,A sample uses it too. The 6502 selects its N/Z policy except for TXS,
 which supplies no policy and preserves every flag. A source that fails never
-reaches the destination write or flag update.
+reaches the destination write or flag update. Motorola byte/word loads and
+TAB/TBA use the same recipe with a width-dependent N/Z policy and V cleared.
 
 The 6502 describes effective addresses as word-valued sources. They perform
 operand fetches and any pointer reads, then stop before the final data read.
@@ -242,7 +250,7 @@ write therefore retains its flag updates without any preceding data-memory read.
 ## Primitive meanings
 
 This vocabulary deliberately supports unsigned **8- and 16-bit values**,
-**Boolean flag captures**, and **16-bit byte memory addresses**. Widths are decimal;
+**Boolean flag captures**, constant **control-latch writes**, and **16-bit byte memory addresses**. Widths are decimal;
 numeric literals in expanded listings are hexadecimal, while flag constants
 are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 
@@ -256,7 +264,7 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `addWrap(left, right)` | Addition modulo `2^width` |
 | `bitAnd(left, right)`, `bitOr(left, right)`, `bitXor(left, right)` | Bitwise AND, OR, and exclusive OR on equal-width unsigned numbers, preserving that width; distinct from Boolean `xor` |
 | `concat(high, low)` | Two bytes combined as `high * 256 + low`, yielding a word |
-| `highByte(value)` | Extract bits 15–8 of a captured word as a byte; byte operands and live register symbols are rejected |
+| `highByte(value)`, `lowByte(value)` | Extract bits 15–8 or 7–0 of a captured word as a byte; byte operands and live register symbols are rejected |
 | `extend(value, width)` | Unsigned widening; narrowing and equal-width conversions are rejected |
 | `shiftLeft(value, incoming)` | Shift left once at the operand's width, discard the outgoing high bit, and insert the Boolean incoming bit at bit 0 |
 | `shiftRight(value, incoming)` | Shift right once at the operand's width, discard bit 0, and insert the Boolean incoming bit at the high bit |
@@ -287,6 +295,7 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `fetch-byte` | Request one byte from the instruction context's fetch interface and capture it after success |
 | `read-memory` | Read one byte at an explicit word address; capture it after success |
 | `write-register` | Replace the stored register with an equal-width unsigned value |
+| `write-latch` | Assign a Boolean constant to a declared top-level control latch; performs no read |
 | `write-memory` | Write one byte at an explicit word address, including unchanged values |
 | `read-source` | Expand and perform the named source body once in its own scope, then capture its result |
 | `update-flags` | Bind a named policy's pure parameters and apply its assignments at this point |
@@ -296,8 +305,8 @@ recording, exception handling, and instruction boundaries. In particular,
 `fetch-byte` does not assert one universal PC-update rule for all CPUs. Generated
 bodies receive each core's existing callbacks, including interrupt-supplied
 fetching on the 8080. Word
-data reads in this slice are two explicit byte reads with visible ordering and
-address wrapping; no word-access primitive hides the partial-read boundary.
+data reads and writes in this slice are two explicit byte accesses with visible
+ordering and address wrapping; no word-access primitive hides partial completion.
 
 Statements execute in their listed order under this contract. A failed
 effect stops the body; prior completed effects remain. There is no implicit
@@ -511,7 +520,7 @@ CPU state. CPU-owned wrappers resolve one address, with the 6809 rejecting
 undefined postbytes before body entry. The handwritten unary calculations and
 memory-modification paths are gone. JMP remains a separate address operation.
 The 6800 and 6809 share `motorolaOperandBindings` for comparisons, logic, and
-byte transfers, with the 6809 using it across its three opcode pages for comparisons.
+byte/word transfers, with the 6809 using it across its three opcode pages for comparisons.
 Each register has an immediate body that fetches its operand and a memory body
 that receives the decoder's resolved address. This covers CMPA/B/D/X/Y/U/S in
 all four addressing modes, with no special indexed postbyte path. Unsupported
@@ -529,19 +538,26 @@ body serves direct, indexed, and extended forms, with no new addressing path.
 The handwritten accumulator table now contains only SUB/SBC/ADC/ADD.
 
 Loads and the 6800's TAB/TBA reuse `transfer`: capture a source or an already
-read value, write the register, then apply the Motorola byte-result policy.
-Stores explicitly capture A/B after addressing, write once without reading the
-destination, then apply that same N/Z policy with V cleared. A failed store
-therefore preserves flags, unlike unary memory modifications, which apply
-flags before writing. Both CPU store helpers and the 6800 accumulator-load
-helper are gone; word loads/stores retain their existing helpers.
+read value, write the destination, then apply the Motorola result policy.
+`motorolaTransfers` constructs byte and word families; word reads reuse the
+same high/low layout and immediate source as comparisons. Stores capture the
+register or view after addressing, write each byte without reading the
+destination, then apply N/Z with V cleared. A failed word store preserves flags
+and completed writes. Unary memory modifications instead apply flags before
+writing. D supplies A/B reads and split writes; S supplies a write followed by
+NMI arming. Both CPUs' byte and word load/store helpers are gone, along with
+the shared runtime result-flag helper. The 6809 retains its word-register
+writer for handwritten arithmetic and transfers.
 
 The existing independent CPU tests cover values, flag patterns, and unchanged
 writes. Additional probes check each failed access, all 217 legal 6809 indexed
 postbytes, source/index aliases, partial PC/index updates, and unsupported
 postbyte rejection. Generated-body probes use replacement flag objects and
 changing registers during callbacks to verify capture order, single accesses,
-and flags derived from the captured byte. Type checks restrict store bodies to
+and flags derived from the captured byte or word. All seven word transfer
+families receive failure injection at either byte, including S auto-updates
+and successful LDS arming. Compiler probes test both byte extractions over
+all words and constant latch set/clear without state reads. Type checks restrict store bodies to
 writing, resolved loads to reading, and immediate loads to fetching.
 
 ## Decision and next review
@@ -620,8 +636,15 @@ Motorola flag policy without compiler changes. Fourteen new bodies cover thirty
 forms across both CPUs. Earlier definitions remain structurally unchanged, and
 the generated 6502/8080 modules are byte-for-byte identical. CPU modules shrink
 by 26 lines, while definitions and shared construction/bindings add 48, a net
-increase of 22 authored lines. Word loads/stores are the next nearby reuse
-opportunity, with explicit byte order and partial-write behavior to preserve.
+increase of 22 authored lines.
+
+The word-transfer migration extends that construction to all seven Motorola
+word registers or views, adding 21 bodies for 49 forms. Byte extraction gains
+`lowByte`; constant control-latch assignments model LDS arming without a
+CPU-specific compiler case. CPU modules shrink by 40 lines while definitions
+and shared support add 41, leaving one additional authored line overall.
+All 256 earlier definitions remain structurally unchanged. Compound writes
+remain ordinary statements and do not introduce a general register-view system.
 
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve

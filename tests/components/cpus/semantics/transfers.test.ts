@@ -96,3 +96,77 @@ test("6800 TAB/TBA capture the source once, write the destination, then set flag
     assert.deepEqual(events, [`read ${source}`, `write ${destination}`, "flag n", "flag z", "flag v"]);
   }
 });
+
+interface WordTransfer<State> {
+  readonly name: string;
+  readonly fields: readonly (keyof State & string)[];
+  readonly arm?: boolean;
+  immediate(state: State, instruction: { fetchByte(): number }): void;
+  memory(state: State, address: number, instruction: { readByte(address: number): number }): void;
+  store(state: State, address: number, instruction: { writeByte(address: number, value: number): void }): void;
+}
+
+test("Motorola word transfers capture once, wrap high-first accesses, and delay registers, latches, and flags until complete", () => {
+  function check<State extends Cpu6800State | Cpu6809State>(create: () => State, registers: readonly WordTransfer<State>[]): void {
+    for (const { name, fields, arm = false, ...body } of registers) for (const mode of ["immediate", "memory", "store"] as const) {
+      for (const word of [0, 1, 0xff, 0x100, 0x7fff, 0x8000, 0xffff]) for (const incoming of [false, true]) for (const failAt of [-1, 0, 1]) {
+        const state = create(), events: string[] = [], failure = new Error("word transfer failed");
+        const bytes = [Math.floor(word / 256), word % 256], parts = fields.length === 2 ? bytes : [word];
+        fields.forEach((field, i) => Reflect.set(state, field, mode === "store" ? parts[i]! : 0x55));
+        for (const key of Object.keys(state.flags)) Reflect.set(state.flags, key, incoming);
+        const before = structuredClone(state), oldFlags = state.flags, flags = { ...state.flags };
+        const observed = new Proxy(state, {
+          get(target, key, receiver) {
+            if (["a", "b", "x", "y", "u", "s", "sp", "nmiArmed"].includes(String(key))) events.push(`read ${String(key)}`);
+            return Reflect.get(target, key, receiver);
+          },
+          set(target, key, value) { events.push(`write ${String(key)}=${value}`); return Reflect.set(target, key, value); },
+        });
+        let attempts = 0;
+        const access = (address?: number, byte?: number): number => {
+          const i = attempts++;
+          if (mode !== "immediate") assert.equal(address, i === 0 ? 0xffff : 0);
+          if (mode === "store") assert.equal(byte, bytes[i], "Both writes must use the captured word");
+          events.push(`access ${i}`);
+          if (i === failAt) throw failure;
+          state.flags = observeFlags(flags, events);
+          if (mode === "store") fields.forEach(field => Reflect.set(state, field, 0x33));
+          return bytes[i]!;
+        };
+        const run = () => {
+          if (mode === "immediate") body.immediate(observed, { fetchByte: () => access() });
+          else if (mode === "memory") body.memory(observed, 0xffff, { readByte: access });
+          else body.store(observed, 0xffff, { writeByte: access });
+        };
+        if (failAt >= 0) assert.throws(run, error => error === failure);
+        else run();
+        const expected = structuredClone(before);
+        if (mode === "store" && failAt !== 0) fields.forEach(field => Reflect.set(expected, field, 0x33));
+        if (failAt < 0) {
+          if (mode !== "store") {
+            fields.forEach((field, i) => Reflect.set(expected, field, parts[i]!));
+            if (arm) Reflect.set(expected, "nmiArmed", true);
+          }
+          Object.assign(expected.flags, { n: word >= 32768, z: word === 0, v: false });
+        }
+        assert.deepEqual({ ...state, flags: failAt === 0 ? oldFlags : flags }, expected, `${name}, ${mode}, ${word}, fail=${failAt}`);
+        assert.deepEqual(oldFlags, before.flags);
+        assert.deepEqual(events, [
+          ...(mode === "store" ? fields.map(field => `read ${field}`) : []),
+          "access 0", ...(failAt === 0 ? [] : ["access 1"]),
+          ...(failAt >= 0 ? [] : [
+            ...(mode === "store" ? [] : [...fields.map((field, i) => `write ${field}=${parts[i]}`), ...(arm ? ["write nmiArmed=true"] : [])]),
+            "flag n", "flag z", "flag v",
+          ]),
+        ]);
+      }
+    }
+  }
+  check(state6800, ([{ name: "s", fields: ["sp"] }, { name: "x", fields: ["x"] }] as const).map(form => ({ ...form,
+    immediate: m6800[`ld${form.name}Immediate`], memory: m6800[`ld${form.name}Memory`], store: m6800[`st${form.name}Memory`],
+  })));
+  check(state6809, ([{ name: "d", fields: ["a", "b"] }, { name: "x", fields: ["x"] },
+    { name: "y", fields: ["y"] }, { name: "u", fields: ["u"] }, { name: "s", fields: ["s"], arm: true }] as const).map(form => ({ ...form,
+    immediate: m6809[`ld${form.name}Immediate`], memory: m6809[`ld${form.name}Memory`], store: m6809[`st${form.name}Memory`],
+  })));
+});

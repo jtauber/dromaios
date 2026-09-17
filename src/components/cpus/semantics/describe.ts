@@ -13,6 +13,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "literal": return `${expr.value.toString(16).toUpperCase().padStart(expr.width / 4, "0")}:u${expr.width}`;
       case "extend": return `zeroExtend${expr.width}(${number(expr.value, parameters)})`;
       case "high-byte": return `highByte(${number(expr.value, parameters)})`;
+      case "low-byte": return `lowByte(${number(expr.value, parameters)})`;
       case "shift-left": case "shift-right":
         return `${expr.kind === "shift-left" ? "shiftLeft" : "shiftRight"}(${number(expr.value, parameters)}, ${flag(expr.incoming, parameters)})`;
       case "subtract": case "add-wrap": case "concat": case "bit-and": case "bit-or": case "bit-xor": {
@@ -44,6 +45,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "fetch-byte": emit(`${step.name}:u8 := fetch byte`); break;
         case "read-memory": emit(`${step.name}:u8 := read memory[${number(step.address)}]`); break;
         case "write-register": emit(`write ${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}`); break;
+        case "write-latch": emit(`write ${step.latch.field}:boolean := ${step.value}`); break;
         case "write-memory": emit(`write memory[${number(step.address)}] := ${number(step.value)}`); break;
         case "read-source":
           emit(`${step.name}:u${step.source.width} := source "${step.source.name}" {`);
@@ -82,14 +84,14 @@ See the [representation contract](instruction-semantics.md) for primitive meanin
 validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
-Bodies begin after opcode selection. Motorola memory unary bodies and memory
-comparisons receive a resolved address from the existing decoder. Declared inputs
+Bodies begin after opcode selection. Motorola memory bodies receive a resolved
+address from the existing decoder. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; a source
 block has its own scope. All expressions in one flag update are evaluated before
 any of its assignments. On an effect failure, completed effects remain and no
 later statement runs. See the contract for which bodies are bound to CPU opcodes;
-MOV B,A remains an executable comparison sample outside the 8080 opcode table.
+MOV B,A remains an executable transfer sample outside the 8080 opcode table.
 
 ## Examples
 

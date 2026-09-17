@@ -42,8 +42,8 @@ export function validateInstruction(definition: InstructionDefinition): void {
         if (!Number.isSafeInteger(expr.value) || expr.value < 0 || expr.value >= 2 ** bits) fail(where, `literal does not fit ${bits} bits`);
         return bits;
       }
-      case "high-byte":
-        if (expression(expr.value, scope, where) !== 16) fail(where, "high byte requires a word");
+      case "high-byte": case "low-byte":
+        if (expression(expr.value, scope, where) !== 16) fail(where, `${expr.kind === "high-byte" ? "high" : "low"} byte requires a word`);
         return 8;
       case "extend": {
         const from = expression(expr.value, scope, where), to = width(expr.width, where);
@@ -124,6 +124,10 @@ export function validateInstruction(definition: InstructionDefinition): void {
           break;
         }
         case "write-register": expect(step.value, register(step.register, where)); return;
+        case "write-latch":
+          if (step.latch.cpu !== cpu.name || cpu.state[step.latch.field]?.kind !== "boolean") fail(where, `unknown control latch ${step.latch.cpu}.${step.latch.field}`);
+          if (typeof step.value !== "boolean") fail(where, "control latch value must be Boolean");
+          return;
         case "write-memory": expect(step.address, 16); expect(step.value, 8); return;
         case "update-flags": policy(step.policy, step.arguments, scope, `${where} / policy ${step.policy.name}`); return;
         default: return fail(where, "unknown statement");

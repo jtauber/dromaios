@@ -1001,6 +1001,46 @@ for (const form of wordForms.filter(form => form.operation === "store" && form.m
   });
 }
 
+test("6800 word transfers retain completed fetches and writes, delaying register and flag updates until success", () => {
+  const failure = new Error("word access failed");
+  class FaultRam extends ObservedRam {
+    failAt = -1; attempts = 0;
+    override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
+    override write(address: number, value: number): void { if (this.attempts++ === this.failAt) throw failure; super.write(address, value); }
+  }
+  for (const { register, opcode, mode, operation } of wordForms.filter(form => form.operation !== "compare")) {
+    const store = operation === "store";
+    for (const pc of [0x2000, 0xfffd, 0xffff]) for (const bits of [0, 63]) {
+      const state = initialState({ pc, x: 0xffff, sp: 0x8000, flags: flags(bits) });
+      const address = mode === 0 ? undefined : mode === 1 ? 0xff : mode === 2 ? 0xfe : 0xffff;
+      const bytes = [opcode, ...(mode === 0 ? [0x80, 1] : mode === 3 ? [0xff, 0xff] : [0xff])];
+      const image = new Map<number, number>();
+      if (address !== undefined) { image.set(address, 0x80); image.set((address + 1) % 65536, 1); }
+      bytes.forEach((byte, i) => image.set((pc + i) % 65536, byte));
+      const word = store ? state[register] : address === undefined ? 0x8001 : image.get(address)! * 256 + image.get((address + 1) % 65536)!;
+      const accesses = [
+        ...bytes.map((value, i) => ({ kind: "read", address: (pc + i) % 65536, value })),
+        ...(address === undefined ? [] : [address, (address + 1) % 65536].map((address, i) =>
+          ({ kind: store ? "write" : "read", address, value: i === 0 ? Math.floor(word / 256) : word % 256 }))),
+      ];
+      for (let failAt = -1; failAt < accesses.length; failAt++) {
+        const ram = new FaultRam();
+        for (const [address, value] of image) ram.write(address, value);
+        const cpu = new Cpu6800(ram, state), before = cpu.snapshot();
+        ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
+        const completed = failAt < 0 ? accesses.length : failAt;
+        const after = { ...before, pc: (pc + Math.min(completed, bytes.length)) % 65536,
+          ...(failAt < 0 ? { [register]: word, flags: { ...before.flags, n: word >= 32768, z: word === 0, v: false } } : {}) };
+        if (failAt >= 0) assert.throws(() => cpu.step(), error => error === failure);
+        else assert.deepEqual(cpu.step(), { before, after, instruction: { address: pc, bytes }, accesses, outcome: "executed" });
+        assert.deepEqual(cpu.snapshot(), after);
+        assert.deepEqual(ram.accesses, accesses.slice(0, completed));
+        assert.equal(ram.attempts, failAt < 0 ? accesses.length : failAt + 1);
+      }
+    }
+  }
+});
+
 test("6800 comparisons, logic, and loads retain completed fetches and unchanged registers/flags at every failed read", () => {
   const failure = new Error("operand read failure");
   class FaultRam extends ObservedRam {

@@ -2970,6 +2970,72 @@ test("6809 word comparisons retain completed fetches and index updates at every 
   }
 });
 
+test("6809 word transfers preserve every indexed form and partial effects at each failed access", () => {
+  const failure = new Error("word access failed");
+  class FaultRam extends ObservedRam {
+    failAt = -1; attempts = 0;
+    override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
+    override write(address: number, value: number): void { if (this.attempts++ === this.failAt) throw failure; super.write(address, value); }
+  }
+  for (const [register, prefix, loads, stores] of [
+    ["d", [], [0xcc, 0xdc, 0xec, 0xfc], [0xdd, 0xed, 0xfd]],
+    ["x", [], [0x8e, 0x9e, 0xae, 0xbe], [0x9f, 0xaf, 0xbf]],
+    ["u", [], [0xce, 0xde, 0xee, 0xfe], [0xdf, 0xef, 0xff]],
+    ["y", [0x10], [0x8e, 0x9e, 0xae, 0xbe], [0x9f, 0xaf, 0xbf]],
+    ["s", [0x10], [0xce, 0xde, 0xee, 0xfe], [0xdf, 0xef, 0xff]],
+  ] as const) for (const store of [false, true]) for (const mode of [0, 1, 2, 3]) {
+    if (store && mode === 0) continue;
+    const opcode = (store ? stores[mode - 1] : loads[mode])!;
+    for (const form of mode === 2 ? indexedForms(0x80, 0xff, -128, -32768) : [undefined]) for (const base of [0, 0xffff]) {
+      const state = initialState({ a: 0x80, b: 0xff, x: base, y: base, u: base, s: base, dp: 0xff,
+        pc: base === 0 ? 0xffff : 0xfffd, nmiArmed: false, flags: flagsFor(form?.postbyte ?? base % 256) });
+      const operands = mode === 0 ? [0x80, 1] : mode === 1 ? [0xff] : form ? [form.postbyte, ...form.operands] : [0xff, 0xff];
+      const bytes = [...prefix, opcode, ...operands], pc = wrapAddress(state.pc + bytes.length);
+      const origin = form?.absolute ? 0 : form?.relative ? pc : base;
+      const pointer = form ? wrapAddress(origin + form.offset) : 0xffff, image = new Map<number, number>();
+      const putWord = (address: number, word: number) => bytesOfWord(word).forEach((byte, i) => image.set(wrapAddress(address + i), byte));
+      putWord(form?.indirect ? 0x4000 : pointer, 0x8001);
+      if (form?.indirect) putWord(pointer, 0x4000);
+      bytes.forEach((byte, i) => image.set(wrapAddress(state.pc + i), byte));
+      const read = (address: number) => image.get(wrapAddress(address)) ?? 0;
+      const target = form?.indirect ? read(pointer) * 256 + read(pointer + 1) : pointer;
+      const updated = form ? { [form.register]: wrapAddress(base + form.update), nmiArmed: form.register === "s" && form.update !== 0 } : {};
+      const advanced = snapshotOf({ ...state, ...updated, pc });
+      const word = store ? advanced[register] : mode === 0 ? 0x8001 : read(target) * 256 + read(target + 1);
+      const accesses = [
+        ...bytes.map((value, i) => ({ kind: "read", address: wrapAddress(state.pc + i), value })),
+        ...(form?.indirect ? [pointer, wrapAddress(pointer + 1)].map(address => ({ kind: "read", address, value: read(address) })) : []),
+        ...(mode === 0 ? [] : [target, wrapAddress(target + 1)].map((address, i) =>
+          ({ kind: store ? "write" : "read", address, value: i === 0 ? Math.floor(word / 256) : word % 256 }))),
+      ];
+      // Every legal postbyte succeeds; fail each access for auto-updates on all index registers and representative pointer modes.
+      const failures = !form || [0x81, 0xa1, 0xc1, 0xe1, 0x93, 0xb3, 0xd3, 0xf3, 0x99, 0x9f].includes(form.postbyte)
+        ? [-1, ...accesses.map((_, i) => i)] : [-1];
+      for (const failAt of failures) {
+        const ram = new FaultRam();
+        for (const [address, value] of image) ram.write(address, value);
+        const cpu = new Cpu6809(ram, state), before = cpu.snapshot();
+        ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
+        const completed = failAt < 0 ? accesses.length : failAt;
+        const after = { ...before, ...(completed >= bytes.length ? updated : {}), pc: wrapAddress(state.pc + Math.min(completed, bytes.length)),
+          ...(failAt < 0 ? { flags: { ...before.flags, n: word >= 32768, z: word === 0, v: false },
+            ...(store ? {} : register === "d" ? { a: Math.floor(word / 256), b: word % 256 }
+              : { [register]: word, ...(register === "s" ? { nmiArmed: true } : {}) }) } : {}) };
+        after.d = after.a * 256 + after.b;
+        if (failAt >= 0) assert.throws(() => cpu.step(), error => error === failure);
+        else assert.deepEqual(cpu.step(), { before, after, instruction: { address: state.pc, bytes }, accesses, outcome: "executed" });
+        assert.deepEqual(cpu.snapshot(), after, `${register}, bytes=${bytes}, fail=${failAt}`);
+        assert.deepEqual(ram.accesses, accesses.slice(0, completed));
+        assert.equal(ram.attempts, failAt < 0 ? accesses.length : failAt + 1);
+        ram.failAt = -1;
+        if (store) for (const [i, address] of [target, wrapAddress(target + 1)].entries()) {
+          assert.equal(ram.read(address), completed > accesses.length - 2 + i ? bytesOfWord(word)[i] : read(address));
+        }
+      }
+    }
+  }
+});
+
 test("6809 indexed STX retains its address update and first write but delays flags if the second write fails", () => {
   const failure = new Error("second write failed");
   class FailingRam extends ObservedRam {

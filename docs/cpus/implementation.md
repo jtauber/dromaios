@@ -572,7 +572,7 @@ NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition tests. The opcode tables retain
 the 6800's absent BRN and the 68000 branch family's BSR exception.
 
 `motorolaByteAlu` shares the remaining 6800/6809 byte addition, subtraction,
-test-result, and decimal-adjust behavior. It receives
+and decimal-adjust behavior. It receives
 a flag getter and reads it only during execution, so restoring CC cannot leave
 operations attached to an old flag object. Addition replaces H; subtraction
 preserves it under the existing model contracts. Unnamed flags are preserved.
@@ -602,17 +602,26 @@ The 6800's ORAA/ORAB and the 6809's ORA/ORB retain their native display names.
 Byte loads and the 6800's TAB/TBA reuse the transfer recipe, writing the
 register before N/Z/V. Byte stores resolve the address, capture A/B, and write
 once without a destination read; only a successful write applies N/Z/V.
-They share the same byte-result flag policy as logic. The original 6800 retains
+They share the same result-flag policy as logic. The original 6800 retains
 its native LDAA/LDAB and STAA/STAB names in explanations.
+
+Word loads/stores use the same `motorolaTransfers` construction at width 16,
+with explicit high-byte-first accesses and wrapping. A load writes its register
+only after both reads succeed; a store applies flags only after both writes
+succeed. The 6809 definition supplies D's A/B source and split writes, and S's
+register write followed by NMI arming. `lowByte` and schema-checked `writeLatch`
+keep these effects visible in generated code and explanations. The old word
+load/store helpers and shared runtime result-flag helper have no remaining callers.
 
 `motorolaAccumulatorOperations` also shares the four remaining byte-arithmetic selectors
 in `1 r mm oooo`, including their accumulator writeback and flag effects.
 Its state getter and ALU callbacks are bound during construction and read only
 when an instruction executes. Each CPU supplies its own immediate and memory
 readers: in particular, the 6809 still rejects undefined indexed postbytes before
-running an operation. Word loads/stores/arithmetic and addressing remain local.
+running an operation. Word arithmetic and addressing remain local; the 6809's
+word-arithmetic adapters reuse the same operand bindings as generated bodies.
 Matching arithmetic flag policies use the shared operations described above;
-unary, comparison, logical, and byte-transfer semantics use generated bodies.
+unary, comparison, logical, and byte/word-transfer semantics use generated bodies.
 Address and effect-order differences stay visible.
 
 [Tests](../../tests/components/cpus/motorola.test.ts) compare encoded conditions

@@ -5,13 +5,14 @@ export type Width = 8 | 16;
 export type ValueType = Width | "flag";
 export interface Register { readonly kind: "register"; readonly cpu: string; readonly field: string; readonly width: Width }
 export interface Flag { readonly kind: "flag"; readonly cpu: string; readonly field: string }
+export interface Latch { readonly kind: "latch"; readonly cpu: string; readonly field: string }
 export interface CpuDeclaration { readonly name: string; readonly state: StateFields }
 
 /** Expressions use captured values only; reading live state requires a statement. */
 export type NumberExpression =
   | { readonly kind: "value"; readonly name: string }
   | { readonly kind: "literal"; readonly width: Width; readonly value: number }
-  | { readonly kind: "high-byte"; readonly value: NumberExpression }
+  | { readonly kind: "high-byte" | "low-byte"; readonly value: NumberExpression }
   | { readonly kind: "subtract" | "add-wrap" | "concat" | "bit-and" | "bit-or" | "bit-xor"; readonly left: NumberExpression; readonly right: NumberExpression }
   | { readonly kind: "shift-left" | "shift-right"; readonly value: NumberExpression; readonly incoming: FlagExpression }
   | { readonly kind: "extend"; readonly value: NumberExpression; readonly width: Width };
@@ -47,6 +48,7 @@ export type Statement =
   | { readonly kind: "read-memory"; readonly name: string; readonly address: NumberExpression }
   | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource }
   | { readonly kind: "write-register"; readonly register: Register; readonly value: NumberExpression }
+  | { readonly kind: "write-latch"; readonly latch: Latch; readonly value: boolean }
   | { readonly kind: "write-memory"; readonly address: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "update-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, NumberExpression>> };
 export interface InstructionDefinition {
@@ -60,6 +62,7 @@ export interface InstructionDefinition {
 
 type UnsignedNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends UnsignedField ? Key : never }[keyof Fields] & string;
 type FlagNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends { kind: "flag" } ? Key : never }[keyof Fields] & string;
+type LatchNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends { kind: "boolean" } ? Key : never }[keyof Fields] & string;
 
 /** Resolve symbols against CPU-owned schemas, without constructing a CPU or observing state. */
 export function cpuSymbols<const Fields extends StateFields & { flags: GroupField }>(name: string, state: Fields) {
@@ -76,6 +79,10 @@ export function cpuSymbols<const Fields extends StateFields & { flags: GroupFiel
       if (state.flags.fields[field]?.kind !== "flag") throw new Error(`${name}.${field}: expected a stored flag.`);
       return { kind: "flag", cpu: name, field };
     },
+    latch(field: LatchNames<Fields>): Latch {
+      if (state[field]?.kind !== "boolean") throw new Error(`${name}.${field}: expected a stored control latch.`);
+      return { kind: "latch", cpu: name, field };
+    },
   };
 }
 
@@ -89,6 +96,7 @@ export const bitOr = (left: NumberExpression, right: NumberExpression): NumberEx
 export const bitXor = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "bit-xor", left, right });
 export const concat = (high: NumberExpression, low: NumberExpression): NumberExpression => ({ kind: "concat", left: high, right: low });
 export const highByte = (value: NumberExpression): NumberExpression => ({ kind: "high-byte", value });
+export const lowByte = (value: NumberExpression): NumberExpression => ({ kind: "low-byte", value });
 export const extend = (value: NumberExpression, width: Width): NumberExpression => ({ kind: "extend", value, width });
 export const shiftLeft = (value: NumberExpression, incoming: FlagExpression): NumberExpression => ({ kind: "shift-left", value, incoming });
 export const shiftRight = (value: NumberExpression, incoming: FlagExpression): NumberExpression => ({ kind: "shift-right", value, incoming });
@@ -112,5 +120,6 @@ export const readFlag = (name: string, flag: Flag): Statement => ({ kind: "read-
 export const readMemory = (name: string, address: NumberExpression): Statement => ({ kind: "read-memory", name, address });
 export const readSource = (name: string, source: ValueSource): Statement => ({ kind: "read-source", name, source });
 export const writeRegister = (register: Register, value: NumberExpression): Statement => ({ kind: "write-register", register, value });
+export const writeLatch = (latch: Latch, value: boolean): Statement => ({ kind: "write-latch", latch, value });
 export const writeMemory = (address: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-memory", address, value });
 export const updateFlags = (policy: FlagPolicy, args: Readonly<Record<string, NumberExpression>>): Statement => ({ kind: "update-flags", policy, arguments: args });

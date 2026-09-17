@@ -1,6 +1,7 @@
+import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, literal, not, readFlag, shiftLeft, value, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, lowByte, literal, not, readFlag, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
@@ -32,6 +33,23 @@ export function checkInstructionSemantics(): void {
   shiftLeft(value("byte"), flagValue("carry"));
   xor(flagValue("carry"), zero(value("byte")));
   highByte(value("word"));
+  lowByte(value("word"));
+  const motorola = cpuSymbols("6809", cpu6809StateDescription);
+  writeLatch(motorola.latch("nmiArmed"), true);
+  // @ts-expect-error Word registers are not control latches.
+  motorola.latch("s");
+  // @ts-expect-error Architectural flags remain distinct from control latches.
+  motorola.latch("c");
+  // @ts-expect-error Latches are not numeric registers.
+  motorola.register("nmiArmed");
+  // @ts-expect-error Latch writes require an actual Boolean constant.
+  writeLatch(motorola.latch("nmiArmed"), 1);
+  // @ts-expect-error Architectural flags cannot be written as latches.
+  writeLatch(motorola.flag("c"), true);
+  // @ts-expect-error Low-byte extraction cannot implicitly read live state.
+  lowByte(motorola.register("s"));
+  // @ts-expect-error Low-byte extraction cannot accept flags.
+  lowByte(flagValue("carry"));
   bitAnd(bitOr(value("byte"), literal(8, 0)), bitXor(value("byte"), literal(8, 255)));
   // @ts-expect-error Numeric AND cannot accept Boolean flags.
   bitAnd(flagValue("carry"), value("byte"));
@@ -119,6 +137,22 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800.cmpaImmediate(m6800, { fetchByte: () => 0 });
   generated6800.cpxMemory(m6800, 0xffff, { readByte: () => 0 });
   generated6800.cba(m6800);
+  generated6800.ldsImmediate(m6800, { fetchByte: () => 0 });
+  generated6800.ldxMemory(m6800, 0xffff, { readByte: () => 0 });
+  generated6800.stsMemory(m6800, 0xffff, { writeByte: () => {} });
+  generated6809.ldsImmediate(motorola, { fetchByte: () => 0 });
+  generated6809.lddMemory(motorola, 0xffff, { readByte: () => 0 });
+  generated6809.stdMemory(motorola, 0xffff, { writeByte: () => {} });
+  // @ts-expect-error Word loads need byte fetching, not an opaque word fetch.
+  generated6800.ldsImmediate(m6800, { fetchWord: () => 0 });
+  // @ts-expect-error Word stores cannot read destination memory.
+  generated6809.stsMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Resolved word loads cannot fetch another address.
+  generated6809.ldyMemory(motorola, 0xffff, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Word stores require writes, including unchanged values.
+  generated6800.stxMemory(m6800, 0xffff, {});
+  // @ts-expect-error Word bodies retain the concrete CPU state.
+  generated6800.ldsImmediate(motorola, { fetchByte: () => 0 });
   generated6800.tab(m6800);
   generated6800.tba(m6800);
   generated6800.ldaImmediate(m6800, { fetchByte: () => 0 });

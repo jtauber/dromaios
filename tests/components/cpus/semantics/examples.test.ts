@@ -248,11 +248,42 @@ test("Motorola byte transfers explain captured sources and flags only after succ
   }
 });
 
+test("Motorola word-transfer explanations expose byte order, captured stores, D writes, and NMI arming", () => {
+  for (const cpu of ["6800", "6809"]) for (const register of cpu === "6800" ? ["S", "X"] : ["D", "X", "Y", "U", "S"]) {
+    const stored = cpu === "6800" && register === "S" ? "SP" : register;
+    for (const mode of ["#word", "memory"]) {
+      const text = description(cpu, `LD${register} ${mode}`);
+      const low = text.indexOf(mode === "memory" ? "low:u8 := read memory[addWrap(address, 0001:u16)]" : "low:u8 := fetch byte");
+      const write = text.indexOf(`write ${register === "D" ? "A:u8" : `${stored}:u16`}`);
+      assert.ok(low > 0 && low < write && write < text.indexOf("N := topBit(result)"));
+      assert.match(text, /yield concatHighLow\(high, low\)|result := concatHighLow\(high, low\)/);
+      assert.doesNotMatch(text, /write memory/);
+      if (cpu === "6809" && register === "S") {
+        const latch = text.indexOf("write nmiArmed:boolean := true");
+        assert.ok(write < latch && latch < text.indexOf("N := topBit(result)"));
+      }
+      if (register === "D") {
+        assert.match(text, /write A:u8 := highByte\(result\)/);
+        assert.match(text, /write B:u8 := lowByte\(result\)/);
+        assert.ok(write < text.indexOf("write B:u8") && text.indexOf("write B:u8") < text.indexOf("N := topBit(result)"));
+      }
+    }
+    const text = description(cpu, `ST${register} memory`);
+    const high = text.indexOf("write memory[address] := highByte(result)");
+    const low = text.indexOf("write memory[addWrap(address, 0001:u16)] := lowByte(result)");
+    assert.ok(high > 0 && high < low && low < text.indexOf("N := topBit(result)"));
+    assert.match(text, /Only after both writes succeed/);
+    assert.match(text, /completed writes, fetches, and addressing effects remain/);
+    assert.doesNotMatch(text, /read memory|fetch byte|write nmiArmed/);
+    assert.equal(text.match(/write memory/g)?.length, 2);
+  }
+});
+
 test("the review artifact is reproducible from the inert definitions and their accompanying prose", () => {
   const before = JSON.stringify(instructionDefinitions);
   const document = describeInstructions(instructionDefinitions);
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 256);
+  assert.equal(instructionDefinitions.length, 277);
 });

@@ -50,7 +50,6 @@ type AddressReader = (instruction: InstructionContext) => number | undefined;
 type WordRegister = "d" | "x" | "y" | "u" | "s" | "pc";
 type TransferRegister = WordRegister | Accumulator | "cc" | "dp";
 type WordOperation = { readonly bits: string; readonly apply: (value: number) => void };
-type WordTransfer = { readonly bits: string; readonly register: WordRegister };
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
@@ -145,10 +144,6 @@ export class Cpu6809 {
 
   get #d(): number { return (this.#state.a << 8) | this.#state.b; }
 
-  #readWordRegister(register: WordRegister): number {
-    return register === "d" ? this.#d : this.#state[register];
-  }
-
   #writeWordRegister(register: WordRegister, value: number): void {
     if (register === "d") {
       this.#state.a = value >>> 8;
@@ -193,10 +188,10 @@ export class Cpu6809 {
     ...this.#branchHandlers(({ fetchWord }) => fetchWord()).filter(([opcode]) => opcode !== 0x20), // LBRN and LBcc; LBRA has base opcode 16
     ...this.#operandHandlers("10 mm 0011", semantics.cmpdImmediate, semantics.cmpdMemory), // CMPD
     ...this.#operandHandlers("10 mm 1100", semantics.cmpyImmediate, semantics.cmpyMemory), // CMPY
-    ...this.#wordHandlers([], [
-      { bits: "10 mm 111", register: "y" }, // LDY / STY
-      { bits: "11 mm 111", register: "s" }, // LDS / STS
-    ]),
+    ...this.#operandHandlers("10 mm 1110", semantics.ldyImmediate, semantics.ldyMemory), // LDY
+    ...this.#operandHandlers("10 mm 1111", undefined, semantics.styMemory), // STY
+    ...this.#operandHandlers("11 mm 1110", semantics.ldsImmediate, semantics.ldsMemory), // LDS; arms NMI
+    ...this.#operandHandlers("11 mm 1111", undefined, semantics.stsMemory), // STS
   ]);
   // Prefix 11 selects page 3: the same comparison fields select U/S rather than D/Y.
   readonly #page3Handlers = opcodeTable<OpcodeHandler>([
@@ -269,11 +264,15 @@ export class Cpu6809 {
     ...this.#wordHandlers([
       { bits: "10 mm 0011", apply: value => this.#wordArithmetic("subtract", value) }, // SUBD
       { bits: "11 mm 0011", apply: value => this.#wordArithmetic("add", value) }, // ADDD
-    ], [
-      { bits: "11 mm 110", register: "d" }, // LDD / STD
-      { bits: "10 mm 111", register: "x" }, // LDX / STX
-      { bits: "11 mm 111", register: "u" }, // LDU / STU
     ]),
+
+    // 1 r mm 11tt: tt=00/01 select D load/store for r=1; tt=10/11 select X (r=0) or U (r=1).
+    ...this.#operandHandlers("11 mm 1100", semantics.lddImmediate, semantics.lddMemory), // LDD
+    ...this.#operandHandlers("11 mm 1101", undefined, semantics.stdMemory), // STD
+    ...this.#operandHandlers("10 mm 1110", semantics.ldxImmediate, semantics.ldxMemory), // LDX
+    ...this.#operandHandlers("10 mm 1111", undefined, semantics.stxMemory), // STX
+    ...this.#operandHandlers("11 mm 1110", semantics.lduImmediate, semantics.lduMemory), // LDU
+    ...this.#operandHandlers("11 mm 1111", undefined, semantics.stuMemory), // STU
   ]);
 
   #executePage(table: Readonly<Partial<Record<number, OpcodeHandler>>>, instruction: InstructionContext): "unsupported" | void {
@@ -303,18 +302,10 @@ export class Cpu6809 {
     ]);
   }
 
-  #wordHandlers(operations: readonly WordOperation[], transfers: readonly WordTransfer[] = []): readonly OpcodeEntry<OpcodeHandler>[] {
-    const reads: readonly WordOperation[] = [
-      ...operations,
-      ...transfers.map(({ bits, register }) => ({ bits: `${bits} 0`, apply: (value: number) => this.#loadWord(register, value) })),
-    ];
-    return [
-      ...reads.flatMap(({ bits, apply }) => instructionPattern(bits.replace("mm", "00"), ({ fetchWord }) => apply(fetchWord()))),
-      ...this.#memoryModes.flatMap(({ bits: mode, address }) => this.#addressedHandlers(address, [
-        ...reads.flatMap(({ bits, apply }) => addressPattern(bits.replace("mm", mode), (address, { readByte }) => apply(this.#readWord(address, readByte)))),
-        ...transfers.flatMap(({ bits, register }) => addressPattern(`${bits.replace("mm", mode)} 1`, (address, { writeByte }) => this.#storeWord(register, address, writeByte))),
-      ])),
-    ];
+  #wordHandlers(operations: readonly WordOperation[]): readonly OpcodeEntry<OpcodeHandler>[] {
+    return operations.flatMap(({ bits, apply }) => this.#operandHandlers(bits,
+      (_, { fetchWord }) => apply(fetchWord()),
+      (_, address, { readByte }) => apply(this.#readWord(address, readByte))));
   }
 
   #addressedHandlers(resolve: AddressReader, entries: readonly OpcodeEntry<AddressedHandler>[]): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -381,20 +372,7 @@ export class Cpu6809 {
     return indirect ? this.#readWord(address, readByte) : address;
   }
 
-  // Loads and stores.
-
-  #loadWord(register: WordRegister, value: number): void {
-    this.#writeWordRegister(register, value);
-    this.#alu.test(value, 16);
-  }
-
-  #storeWord(register: WordRegister, address: number, writeByte: InstructionContext["writeByte"]): void {
-    // Address calculation (including auto-update of this register) precedes reading the source.
-    const value = this.#readWordRegister(register);
-    writeByte(address, value >>> 8);
-    writeByte((address + 1) & 0xffff, value & 0xff);
-    this.#alu.test(value, 16);
-  }
+  // Effective addresses and register transfers.
 
   #loadEffectiveAddress(register: "x" | "y" | "s" | "u", address: number): void {
     this.#state[register] = address; // Overwrite any auto-update of the destination during addressing.

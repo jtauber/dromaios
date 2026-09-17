@@ -33,15 +33,6 @@ test("the shared Motorola ALU reads flags only during execution and follows repl
   assert.equal(reads, 2);
 });
 
-test("Motorola byte and word result flags preserve carry and control flags", () => {
-  const flags = { h: true, n: false, z: true, v: true, c: true, i: true };
-  const alu = motorolaByteAlu(() => flags);
-  alu.test(0x80);
-  assert.deepEqual(flags, { h: true, n: true, z: false, v: false, c: true, i: true });
-  alu.test(0x80, 16);
-  assert.deepEqual(flags, { h: true, n: false, z: false, v: false, c: true, i: true });
-});
-
 test("shared Motorola accumulator operations bind lazily and read current registers and restored carry", () => {
   let state = { a: 0x7f, b: 0x80, flags: { h: false, n: false, z: true, v: false, c: false, i: true } };
   let ready = false;

@@ -38,7 +38,6 @@ export type Cpu6800InterruptRecord = StateTransition<Cpu6800Snapshot> & { readon
 );
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
-type WordRegister = "sp" | "x";
 type AddressReader = (instruction: InstructionContext) => number;
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
@@ -116,11 +115,6 @@ export class Cpu6800 {
     ({ fetchByte }) => fetchByte(),
     ...this.#memoryModes.map(({ address }) => (instruction: InstructionContext) => instruction.readByte(address(instruction))),
   ];
-  readonly #wordOperandReaders: readonly ((instruction: InstructionContext) => number)[] = [
-    ({ fetchWord }) => fetchWord(),
-    ...this.#memoryModes.map(({ address }) => (instruction: InstructionContext) => this.#readWord(address(instruction), instruction.readByte)),
-  ];
-  readonly #wordRegisters = ["sp", "x"] as const;
 
   // 01 tt oooo: tt=00 A, 01 B, 10 indexed, 11 extended; oooo selects the operation.
   // TST (1101) only reads; CLR (1111) only writes. JMP (1110) remains separate.
@@ -204,11 +198,11 @@ export class Cpu6800 {
     ...instructionPattern("10 10 1101", ({ fetchByte, writeByte }: InstructionContext) => this.#call(this.#indexedAddress(fetchByte()), writeByte)), // JSR offset,X
     ...instructionPattern("10 11 1101", ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte)), // JSR addr
 
-    // 1 r mm 111s: r selects SP=0/X=1; s=0 loads, s=1 stores. No immediate store.
-    ...opcodeFamily("1 r mm 1110", { r: this.#wordRegisters, m: this.#wordOperandReaders },
-      ({ r, m: read }) => (instruction: InstructionContext) => this.#loadWord(r, read(instruction))), // LDS / LDX
-    ...this.#memoryModes.flatMap(({ bits, address }) => opcodeFamily(`1 r ${bits} 1111`, { r: this.#wordRegisters },
-      ({ r }) => (instruction: InstructionContext) => this.#storeWord(r, address(instruction), instruction.writeByte))), // STS / STX
+    // 1 r mm 111t: r selects SP=0/X=1; t=0 loads, t=1 stores. No immediate store.
+    ...this.#operandHandlers("10 mm 1110", semantics.ldsImmediate, semantics.ldsMemory), // LDS
+    ...this.#operandHandlers("10 mm 1111", undefined, semantics.stsMemory), // STS
+    ...this.#operandHandlers("11 mm 1110", semantics.ldxImmediate, semantics.ldxMemory), // LDX
+    ...this.#operandHandlers("11 mm 1111", undefined, semantics.stxMemory), // STX
 
     // All 197 documented encodings are covered; undefined encodings remain unsupported.
   ]);
@@ -232,19 +226,7 @@ export class Cpu6800 {
     return (this.#state.x + offset) & 0xffff;
   }
 
-  // Loads, stores, and accumulator operations.
-
-  #loadWord(register: WordRegister, value: number): void {
-    this.#state[register] = value;
-    this.#alu.test(value, 16);
-  }
-
-  #storeWord(register: WordRegister, address: number, writeByte: InstructionContext["writeByte"]): void {
-    const value = this.#state[register];
-    writeByte(address, value >>> 8);
-    writeByte((address + 1) & 0xffff, value & 0xff);
-    this.#alu.test(value, 16);
-  }
+  // Index adjustments.
 
   #adjustIndex(delta: -1 | 1): void {
     this.#state.x = (this.#state.x + delta) & 0xffff;

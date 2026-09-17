@@ -2,7 +2,7 @@ import { cpu6800StateDescription } from "../../state/6800.ts";
 import { cpuSymbols, highByte, negative, overflow, subtract, value, zero } from "../model.ts";
 import type { FlagPolicy } from "../model.ts";
 import { compare, registerSource, transfer } from "../builders.ts";
-import { motorolaByteResultFlags, motorolaByteTransfers, motorolaComparison, motorolaComparisonFlags, motorolaLogic, motorolaUnary } from "../motorola.ts";
+import { motorolaResultFlags, motorolaTransfers, motorolaComparison, motorolaComparisonFlags, motorolaLogic, motorolaUnary } from "../motorola.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("6800", cpu6800StateDescription);
@@ -20,13 +20,16 @@ const indexComparison: FlagPolicy = {
 export const instructions6800 = {
   ...motorolaUnary(cpu, { clearReadsOperand: false, testClearsCarry: true, rightShiftSetsOverflow: true }),
   ...motorolaLogic(cpu, "ORA"), // The original 6800 spells these ORAA/ORAB.
-  ...motorolaByteTransfers(cpu, ["LDA", "STA"]), // LDAA/LDAB and STAA/STAB.
+  ...Object.fromEntries((["a", "b"] as const).flatMap(register =>
+    Object.entries(motorolaTransfers(cpu, register.toUpperCase(), cpu.register(register), ["LDA", "STA"])))),
+  ...motorolaTransfers(cpu, "S", cpu.register("sp")),
+  ...motorolaTransfers(cpu, "X", cpu.register("x")),
   ...Object.fromEntries((["a", "b"] as const).map(source => {
     const destination = source === "a" ? "b" : "a", name = `T${source.toUpperCase()}${destination.toUpperCase()}`;
     return [name.toLowerCase(), defineInstruction({ cpu: cpu.declaration, name,
       explanation: `Capture ${source.toUpperCase()} and write ${destination.toUpperCase()}, then set N/Z from that byte and clear V. `
         + "Preserve other flags. No data-memory access occurs.",
-      steps: transfer(cpu.register(destination), registerSource(cpu.register(source)), motorolaByteResultFlags(cpu, "transfer")),
+      steps: transfer(cpu.register(destination), registerSource(cpu.register(source)), motorolaResultFlags(cpu, "transfer")),
     })];
   })),
   ...motorolaComparison(cpu, "CMPA", cpu.register("a")),

@@ -7,14 +7,14 @@ See the [representation contract](instruction-semantics.md) for primitive meanin
 validation, execution bindings, and current limits. The same definitions also
 generate typed instruction bodies for the bounded CPU migration.
 
-Bodies begin after opcode selection. Motorola memory unary bodies and memory
-comparisons receive a resolved address from the existing decoder. Declared inputs
+Bodies begin after opcode selection. Motorola memory bodies receive a resolved
+address from the existing decoder. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; a source
 block has its own scope. All expressions in one flag update are evaluated before
 any of its assignments. On an effect failure, completed effects remain and no
 later statement runs. See the contract for which bodies are bound to CPU opcodes;
-MOV B,A remains an executable comparison sample outside the 8080 opcode table.
+MOV B,A remains an executable transfer sample outside the 8080 opcode table.
 
 ## Examples
 
@@ -3503,6 +3503,120 @@ flags "6800 transfer" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 LDS #word
+
+Fetch the immediate word. Read high byte then low byte, wrapping at FFFF. Write SP, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+result:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write SP:u16 := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 LDS memory
+
+Entry is after successful address resolution. Read the word at that address. Read high byte then low byte, wrapping at FFFF. Write SP, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+high:u8 := read memory[address]
+low:u8 := read memory[addWrap(address, 0001:u16)]
+result := concatHighLow(high, low)
+write SP:u16 := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 STS memory
+
+Entry is after successful address resolution. Only then capture SP. Do not read the destination; write high byte then low byte, wrapping at FFFF, even if unchanged. Only after both writes succeed, set N/Z from the captured word and clear V, preserving other flags. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := input
+result:u16 := read SP
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 LDX #word
+
+Fetch the immediate word. Read high byte then low byte, wrapping at FFFF. Write X, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+result:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write X:u16 := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 LDX memory
+
+Entry is after successful address resolution. Read the word at that address. Read high byte then low byte, wrapping at FFFF. Write X, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+high:u8 := read memory[address]
+low:u8 := read memory[addWrap(address, 0001:u16)]
+result := concatHighLow(high, low)
+write X:u16 := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 STX memory
+
+Entry is after successful address resolution. Only then capture X. Do not read the destination; write high byte then low byte, wrapping at FFFF, even if unchanged. Only after both writes succeed, set N/Z from the captured word and clear V, preserving other flags. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := input
+result:u16 := read X
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
 ### 6800 TAB
 
 Capture A and write B, then set N/Z from that byte and clear V. Preserve other flags. No data-memory access occurs.
@@ -4974,6 +5088,302 @@ Entry is after successful address resolution. Only then capture B. Do not read t
 address:u16 := input
 result:u8 := read B
 write memory[address] := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDX #word
+
+Fetch the immediate word. Read high byte then low byte, wrapping at FFFF. Write X, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+result:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write X:u16 := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDX memory
+
+Entry is after successful address resolution. Read the word at that address. Read high byte then low byte, wrapping at FFFF. Write X, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+high:u8 := read memory[address]
+low:u8 := read memory[addWrap(address, 0001:u16)]
+result := concatHighLow(high, low)
+write X:u16 := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STX memory
+
+Entry is after successful address resolution. Only then capture X. Do not read the destination; write high byte then low byte, wrapping at FFFF, even if unchanged. Only after both writes succeed, set N/Z from the captured word and clear V, preserving other flags. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := input
+result:u16 := read X
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDY #word
+
+Fetch the immediate word. Read high byte then low byte, wrapping at FFFF. Write Y, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+result:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write Y:u16 := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDY memory
+
+Entry is after successful address resolution. Read the word at that address. Read high byte then low byte, wrapping at FFFF. Write Y, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+high:u8 := read memory[address]
+low:u8 := read memory[addWrap(address, 0001:u16)]
+result := concatHighLow(high, low)
+write Y:u16 := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STY memory
+
+Entry is after successful address resolution. Only then capture Y. Do not read the destination; write high byte then low byte, wrapping at FFFF, even if unchanged. Only after both writes succeed, set N/Z from the captured word and clear V, preserving other flags. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := input
+result:u16 := read Y
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDU #word
+
+Fetch the immediate word. Read high byte then low byte, wrapping at FFFF. Write U, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+result:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write U:u16 := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDU memory
+
+Entry is after successful address resolution. Read the word at that address. Read high byte then low byte, wrapping at FFFF. Write U, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+high:u8 := read memory[address]
+low:u8 := read memory[addWrap(address, 0001:u16)]
+result := concatHighLow(high, low)
+write U:u16 := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STU memory
+
+Entry is after successful address resolution. Only then capture U. Do not read the destination; write high byte then low byte, wrapping at FFFF, even if unchanged. Only after both writes succeed, set N/Z from the captured word and clear V, preserving other flags. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := input
+result:u16 := read U
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDD #word
+
+Fetch the immediate word. Read high byte then low byte, wrapping at FFFF. Write D as A then B, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+result:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(result)
+write B:u8 := lowByte(result)
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDD memory
+
+Entry is after successful address resolution. Read the word at that address. Read high byte then low byte, wrapping at FFFF. Write D as A then B, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+high:u8 := read memory[address]
+low:u8 := read memory[addWrap(address, 0001:u16)]
+result := concatHighLow(high, low)
+write A:u8 := highByte(result)
+write B:u8 := lowByte(result)
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STD memory
+
+Entry is after successful address resolution. Only then capture D. Do not read the destination; write high byte then low byte, wrapping at FFFF, even if unchanged. Only after both writes succeed, set N/Z from the captured word and clear V, preserving other flags. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := input
+result:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDS #word
+
+Fetch the immediate word. Read high byte then low byte, wrapping at FFFF. Write S and arm NMI, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+result:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write S:u16 := result
+write nmiArmed:boolean := true
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDS memory
+
+Entry is after successful address resolution. Read the word at that address. Read high byte then low byte, wrapping at FFFF. Write S and arm NMI, then set N/Z from the captured word and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+high:u8 := read memory[address]
+low:u8 := read memory[addWrap(address, 0001:u16)]
+result := concatHighLow(high, low)
+write S:u16 := result
+write nmiArmed:boolean := true
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STS memory
+
+Entry is after successful address resolution. Only then capture S. Do not read the destination; write high byte then low byte, wrapping at FFFF, even if unchanged. Only after both writes succeed, set N/Z from the captured word and clear V, preserving other flags. A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain.
+
+```text
+address:u16 := input
+result:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write memory[address] := highByte(result)
+write memory[addWrap(address, 0001:u16)] := lowByte(result)
 flags "6809 transfer" simultaneously {
   N := topBit(result)
   Z := isZero(result)

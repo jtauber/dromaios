@@ -58,11 +58,11 @@ export function compare(left: Register | ValueSource, right: ValueSource | Numbe
   ];
 }
 
-/** Capture the source once, write the destination, then optionally apply a policy parameterized by result. */
-export function transfer(destination: Register, source: ValueSource | NumberExpression, policy?: FlagPolicy): readonly Statement[] {
+/** Capture "result" once, write the register or explicit destination steps, then optionally apply flags. */
+export function transfer(destination: Register | readonly Statement[], source: ValueSource | NumberExpression, policy?: FlagPolicy): readonly Statement[] {
   const steps: Statement[] = [
     "kind" in source ? capture("result", source) : readSource("result", source),
-    writeRegister(destination, value("result")),
+    ...("kind" in destination ? [writeRegister(destination, value("result"))] : destination),
   ];
   if (policy !== undefined) steps.push(updateFlags(policy, { result: value("result") }));
   return steps;

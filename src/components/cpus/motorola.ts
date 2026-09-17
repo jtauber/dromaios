@@ -59,11 +59,6 @@ export function motorolaByteAlu(readFlags: () => ConditionCodes & { h: boolean }
       flags.c = flags.c || carry;
       return result;
     },
-    test(value: number, width: 8 | 16 = 8): void {
-      const flags = readFlags();
-      Object.assign(flags, negativeZero(width, value));
-      flags.v = false;
-    },
   };
 }
 

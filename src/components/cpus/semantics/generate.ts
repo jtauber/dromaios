@@ -34,6 +34,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8080" | "6809", def
         case "value": return scope.get(expr.name)! as CapturedNumber; // Validation has resolved names and types.
         case "literal": return { code: `0x${expr.value.toString(16)}`, type: expr.width };
         case "high-byte": return { code: `(${number(expr.value, scope).code} >>> 8)`, type: 8 };
+        case "low-byte": return { code: `(${number(expr.value, scope).code} & 0xff)`, type: 8 };
         case "extend": return { code: number(expr.value, scope).code, type: expr.width };
         case "shift-left": case "shift-right": {
           const operand = number(expr.value, scope), operation = helper(expr.kind === "shift-left" ? "shiftLeft" : "shiftRight");
@@ -88,6 +89,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8080" | "6809", def
             break;
           }
           case "write-register": emit(`state${field(step.register.field)} = ${number(step.value, scope).code};`); continue;
+          case "write-latch": emit(`state${field(step.latch.field)} = ${step.value};`); continue;
           case "write-memory": emit(`${access("writeByte")}(${number(step.address, scope).code}, ${number(step.value, scope).code});`); continue;
           case "update-flags": {
             comment(`Flags: ${step.policy.name}; preserve unlisted flags`);

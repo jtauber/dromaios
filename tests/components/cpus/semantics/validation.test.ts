@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/6502.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/6809.js";
-import { addWrap, bitAnd, bitOr, bitXor, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, highByte, literal, readFlag, readMemory, shiftLeft, value, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
+import { addWrap, bitAnd, bitOr, bitXor, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, highByte, lowByte, literal, readFlag, readMemory, shiftLeft, value, writeLatch, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 
@@ -94,15 +94,32 @@ test("numeric bitwise expressions require equally wide captured numbers and pres
   }
 });
 
-test("high-byte extraction requires a captured word and yields a byte, without implicit reads or conversions", () => {
-  define([capture("word", literal(16, 0xabcd)), { kind: "write-register", register: mos.register("a"), value: highByte(value("word")) }]);
-  for (const [expr, message] of [
-    [highByte(literal(8, 255)), /high byte requires a word/],
-    [highByte(highByte(literal(16, 65535))), /high byte requires a word/],
-    [highByte(value("missing")), /not been captured/],
-    [highByte(flagLiteral(true) as unknown as NumberExpression), /unknown numeric expression/],
-  ] satisfies [NumberExpression, RegExp][]) assert.throws(() => define([capture("byte", expr)]), message);
-  assert.throws(() => define([{ kind: "write-register", register: mos.register("pc"), value: highByte(literal(16, 0)) }]), /expected 16-bit value/);
+test("byte extraction requires a captured word and yields a byte, without implicit reads or conversions", () => {
+  for (const extract of [highByte, lowByte]) {
+    define([capture("word", literal(16, 0xabcd)), { kind: "write-register", register: mos.register("a"), value: extract(value("word")) }]);
+    for (const [expr, message] of [
+      [extract(literal(8, 255)), /byte requires a word/],
+      [extract(extract(literal(16, 65535))), /byte requires a word/],
+      [extract(value("missing")), /not been captured/],
+      [extract(flagLiteral(true) as unknown as NumberExpression), /unknown numeric expression/],
+    ] satisfies [NumberExpression, RegExp][]) assert.throws(() => define([capture("byte", expr)]), message);
+    assert.throws(() => define([{ kind: "write-register", register: mos.register("pc"), value: extract(literal(16, 0)) }]), /expected 16-bit value/);
+  }
+});
+
+test("control-latch writes require a Boolean constant and a declared latch belonging to this CPU", () => {
+  const latch = motorola.latch("nmiArmed");
+  const instruction = (steps: readonly Statement[]) => defineInstruction({ cpu: motorola.declaration, name: "latch", explanation: "Latch probe.", steps });
+  for (const value of [false, true]) instruction([writeLatch(latch, value)]);
+  for (const ref of [{ ...latch, cpu: "6502" }, ...["s", "flags", "c", "waitMode", "missing"].map(field => ({ ...latch, field }))]) {
+    assert.throws(() => instruction([writeLatch(ref, true)]), /unknown control latch/);
+  }
+  assert.throws(() => define([writeLatch(latch, true)]), /unknown control latch/);
+  for (const value of [0, 1, "true", null, flagLiteral(true)]) {
+    assert.throws(() => instruction([{ kind: "write-latch", latch, value } as unknown as Statement]), /control latch value must be Boolean/);
+  }
+  assert.throws(() => motorola.latch("s" as "nmiArmed"), /expected a stored control latch/);
+  assert.throws(() => motorola.register("nmiArmed" as "s"), /requires an 8- or 16-bit stored register/);
 });
 
 test("CPU-owned state descriptions validate register identity, declared widths, and flag targets", () => {

@@ -1,11 +1,12 @@
 import { cpu6809StateDescription } from "../../state/6809.ts";
-import { concat, cpuSymbols, readRegister, value } from "../model.ts";
+import { concat, cpuSymbols, highByte, lowByte, readRegister, value, writeLatch, writeRegister } from "../model.ts";
 import type { ValueSource } from "../model.ts";
-import { motorolaByteTransfers, motorolaComparison, motorolaLogic, motorolaUnary } from "../motorola.ts";
+import { registerSource } from "../builders.ts";
+import { motorolaTransfers, motorolaComparison, motorolaLogic, motorolaUnary } from "../motorola.ts";
 
 const cpu = cpuSymbols("6809", cpu6809StateDescription);
 
-// D is a view, not an extra stored register. Read A then B only when comparison reaches its left operand.
+// D is a view, not an extra stored register. Read A then B only when the instruction reaches its register source.
 const d: ValueSource = {
   name: "D from A:B", width: 16,
   steps: [readRegister("high", cpu.register("a")), readRegister("low", cpu.register("b"))],
@@ -15,7 +16,16 @@ const d: ValueSource = {
 export const instructions6809 = {
   ...motorolaUnary(cpu, { clearReadsOperand: true, testClearsCarry: false, rightShiftSetsOverflow: false }),
   ...motorolaLogic(cpu),
-  ...motorolaByteTransfers(cpu),
+  ...Object.fromEntries((["a", "b", "x", "y", "u"] as const).flatMap(register =>
+    Object.entries(motorolaTransfers(cpu, register.toUpperCase(), cpu.register(register))))),
+  ...motorolaTransfers(cpu, "D", { source: d,
+    write: [writeRegister(cpu.register("a"), highByte(value("result"))), writeRegister(cpu.register("b"), lowByte(value("result")))],
+    explanation: "Write D as A then B",
+  }),
+  ...motorolaTransfers(cpu, "S", { source: registerSource(cpu.register("s")),
+    write: [writeRegister(cpu.register("s"), value("result")), writeLatch(cpu.latch("nmiArmed"), true)],
+    explanation: "Write S and arm NMI",
+  }),
   // Each memory body serves all three address modes; opcode pages and patterns remain in the CPU.
   ...Object.fromEntries((["a", "b", "d", "x", "y", "u", "s"] as const).flatMap(register =>
     Object.entries(motorolaComparison(cpu, `CMP${register.toUpperCase()}`, register === "d" ? d : cpu.register(register))))),

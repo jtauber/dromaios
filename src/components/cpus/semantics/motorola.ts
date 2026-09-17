@@ -1,4 +1,4 @@
-import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, literal, negative, overflow, readMemory, readRegister, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
+import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, highByte, literal, lowByte, negative, overflow, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
 import { compare, immediateByte, logical, negativeZeroPolicy, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
@@ -91,6 +91,13 @@ export function motorolaComparisonFlags(cpu: MotorolaCpu, width: Width): FlagPol
 const immediateWord: ValueSource = { name: "immediate word, high byte first", width: 16,
   steps: [fetchByte("high"), fetchByte("low")], result: concat(value("high"), value("low")) };
 
+/** Read a resolved byte or high-first word. These captures belong to the instruction's scope. */
+function memoryOperand(width: Width) {
+  return width === 16
+    ? { steps: [readMemory("high", value("address")), readMemory("low", addWrap(value("address"), literal(16, 1)))], result: concat(value("high"), value("low")) }
+    : { steps: [readMemory("byte", value("address"))], result: value("byte") };
+}
+
 /** Two bodies per comparison: immediate fetching, or data reads after CPU-owned address resolution. */
 export function motorolaComparison(cpu: MotorolaCpu, mnemonic: string, left: Register | ValueSource,
   flags = motorolaComparisonFlags(cpu, left.width),
@@ -98,9 +105,8 @@ export function motorolaComparison(cpu: MotorolaCpu, mnemonic: string, left: Reg
   const word = left.width === 16;
   return Object.fromEntries((["Immediate", "Memory"] as const).map(mode => {
     const memory = mode === "Memory";
-    const reads = word ? [readMemory("high", value("address")), readMemory("low", addWrap(value("address"), literal(16, 1)))]
-      : [readMemory("byte", value("address"))];
-    const right = memory ? (word ? concat(value("high"), value("low")) : value("byte")) : (word ? immediateWord : immediateByte);
+    const operand = memoryOperand(left.width);
+    const right = memory ? operand.result : (word ? immediateWord : immediateByte);
     return [`${mnemonic.toLowerCase()}${mode}`, defineInstruction({
       cpu: cpu.declaration, name: `${mnemonic} ${memory ? "memory" : word ? "#word" : "#byte"}`,
       ...(memory ? { inputs: { address: 16 as const } } : {}),
@@ -108,20 +114,20 @@ export function motorolaComparison(cpu: MotorolaCpu, mnemonic: string, left: Reg
         + (word ? "Read high byte then low byte, wrapping at FFFF. " : "")
         + `Only then read ${"kind" in left ? left.field.toUpperCase() : left.name}. ${explanation} Do not write a result. `
         + "A failed read leaves flags unchanged; completed fetches and addressing effects remain.",
-      steps: [...(memory ? reads : []), ...compare(left, right, flags)],
+      steps: [...(memory ? operand.steps : []), ...compare(left, right, flags)],
     })];
   }));
 }
 
-/** Loads, stores, transfers, and logic describe the byte in N/Z, clear V, and preserve other flags. */
-export function motorolaByteResultFlags(cpu: MotorolaCpu, operation: string): FlagPolicy {
-  const nz = negativeZeroPolicy(`${cpu.declaration.name} ${operation}`, cpu.flag("n"), cpu.flag("z"), 8);
+/** Loads, stores, transfers, and logic describe the result in N/Z, clear V, and preserve other flags. */
+export function motorolaResultFlags(cpu: MotorolaCpu, operation: string, width: Width = 8): FlagPolicy {
+  const nz = negativeZeroPolicy(`${cpu.declaration.name} ${operation}`, cpu.flag("n"), cpu.flag("z"), width);
   return { ...nz, updates: [...nz.updates, { flag: cpu.flag("v"), value: flagLiteral(false) }] };
 }
 
 /** Shared A/B logical families: N/Z describe the result, V clears, and BIT omits register writeback. */
 export function motorolaLogic(cpu: MotorolaCpu, orMnemonic: "OR" | "ORA" = "OR") {
-  const flags = motorolaByteResultFlags(cpu, "logic");
+  const flags = motorolaResultFlags(cpu, "logic");
   return Object.fromEntries(([
     ["and", "AND", bitAnd, true], ["bit", "BIT", bitAnd, false],
     ["eor", "EOR", bitXor, true], ["or", orMnemonic, bitOr, true],
@@ -142,33 +148,43 @@ export function motorolaLogic(cpu: MotorolaCpu, orMnemonic: "OR" | "ORA" = "OR")
     }))));
 }
 
-/** Byte loads/stores share their meaning; CPUs retain their own address resolution and native names. */
-export function motorolaByteTransfers(cpu: MotorolaCpu, mnemonics: readonly [string, string] = ["LD", "ST"]) {
-  const flags = motorolaByteResultFlags(cpu, "transfer");
-  return Object.fromEntries((["a", "b"] as const).flatMap(register => {
-    const suffix = register.toUpperCase();
-    return [
-      ...(["Immediate", "Memory"] as const).map(mode => {
-        const memory = mode === "Memory";
-        return [`ld${register}${mode}`, defineInstruction({
-          cpu: cpu.declaration, name: `${mnemonics[0]}${suffix} ${memory ? "memory" : "#byte"}`,
-          ...(memory ? { inputs: { address: 16 as const } } : {}),
-          explanation: (memory ? "Entry is after successful address resolution. Read the byte at that address. " : "Fetch the immediate byte. ")
-            + `Write ${suffix}, then set N/Z from the captured byte and clear V, preserving other flags. `
-            + "A failed read prevents register and flag updates; completed fetches and addressing effects remain.",
-          steps: [...(memory ? [readMemory("byte", value("address"))] : []),
-            ...transfer(cpu.register(register), memory ? value("byte") : immediateByte, flags)],
-        })] as const;
-      }),
-      [`st${register}Memory`, defineInstruction({
-        cpu: cpu.declaration, name: `${mnemonics[1]}${suffix} memory`, inputs: { address: 16 },
-        explanation: `Entry is after successful address resolution. Only then capture ${suffix}. `
-          + "Do not read the destination; write the captured byte once, even if unchanged. "
+// A compound destination supplies explicit writes consuming "result", rather than a hidden runtime setter.
+type TransferRegister = Register | { readonly source: ValueSource; readonly write: readonly Statement[]; readonly explanation: string };
+
+/** Byte/word loads and stores share ordering; CPU-owned declarations expose compound register writes. */
+export function motorolaTransfers(cpu: MotorolaCpu, suffix: string, register: TransferRegister,
+  mnemonics: readonly [string, string] = ["LD", "ST"]) {
+  const stored = "kind" in register, width = stored ? register.width : register.source.width, word = width === 16;
+  const flags = motorolaResultFlags(cpu, "transfer", width), unit = word ? "word" : "byte";
+  const memory = memoryOperand(width), write = stored ? `Write ${register.field.toUpperCase()}` : register.explanation;
+  return Object.fromEntries([
+    ...(["Immediate", "Memory"] as const).map(mode => {
+      const resolved = mode === "Memory";
+      return [`ld${suffix.toLowerCase()}${mode}`, defineInstruction({
+        cpu: cpu.declaration, name: `${mnemonics[0]}${suffix} ${resolved ? "memory" : `#${unit}`}`,
+        ...(resolved ? { inputs: { address: 16 as const } } : {}),
+        explanation: (resolved ? `Entry is after successful address resolution. Read the ${unit} at that address. ` : `Fetch the immediate ${unit}. `)
+          + (word ? "Read high byte then low byte, wrapping at FFFF. " : "")
+          + `${write}, then set N/Z from the captured ${unit} and clear V, preserving other flags. `
+          + "A failed read prevents register and flag updates; completed fetches and addressing effects remain.",
+        steps: [...(resolved ? memory.steps : []),
+          ...transfer(stored ? register : register.write, resolved ? memory.result : word ? immediateWord : immediateByte, flags)],
+      })] as const;
+    }),
+    [`st${suffix.toLowerCase()}Memory`, defineInstruction({
+      cpu: cpu.declaration, name: `${mnemonics[1]}${suffix} memory`, inputs: { address: 16 },
+      explanation: `Entry is after successful address resolution. Only then capture ${stored ? register.field.toUpperCase() : suffix}. `
+        + (word ? "Do not read the destination; write high byte then low byte, wrapping at FFFF, even if unchanged. "
+          + "Only after both writes succeed, set N/Z from the captured word and clear V, preserving other flags. "
+          + "A failed write leaves flags unchanged; completed writes, fetches, and addressing effects remain."
+          : "Do not read the destination; write the captured byte once, even if unchanged. "
           + "Only after a successful write, set N/Z from that byte and clear V, preserving other flags. "
-          + "A failed write leaves flags unchanged; completed fetches and addressing effects remain.",
-        steps: [readRegister("result", cpu.register(register)), writeMemory(value("address"), value("result")),
-          updateFlags(flags, { result: value("result") })],
-      })] as const,
-    ];
-  }));
+          + "A failed write leaves flags unchanged; completed fetches and addressing effects remain."),
+      steps: [stored ? readRegister("result", register) : readSource("result", register.source),
+        ...(word ? [writeMemory(value("address"), highByte(value("result"))),
+          writeMemory(addWrap(value("address"), literal(16, 1)), lowByte(value("result")))]
+          : [writeMemory(value("address"), value("result"))]),
+        updateFlags(flags, { result: value("result") })],
+    })] as const,
+  ]);
 }
