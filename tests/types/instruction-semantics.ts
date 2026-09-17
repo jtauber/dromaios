@@ -127,6 +127,19 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6502[0x6a](mos, { fetchByte: () => 0 });
   generated8080.cmpB(intel);
   generated8080.ral(intel);
+  generated8080.adcA(intel);
+  generated8080.sbbM(intel, { readByte: () => 0 });
+  generated8080.ani(intel, { fetchByte: () => 0 });
+  // @ts-expect-error ALU register bodies do not need or accept an instruction context.
+  generated8080.addB(intel, { fetchByte: () => 0 });
+  // @ts-expect-error M supplies HL locally; memory ALU bodies cannot fetch another address.
+  generated8080.anaM(intel, { readByte: () => 0, fetchByte: () => 0 });
+  // @ts-expect-error Immediate ALU bodies have no data-memory read capability.
+  generated8080.sbi(intel, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error An ALU memory source is never a memory destination.
+  generated8080.oraM(intel, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error ALU bodies retain their concrete CPU state.
+  generated8080.adi(motorola, { fetchByte: () => 0 });
   generated6809.rolB(motorola);
   generated6809.rolMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   generated6809.tstMemory(motorola, 0xffff, { readByte: () => 0 });

@@ -185,9 +185,10 @@ the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
 The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
 operations, conditions, byte increment/decrement, addition to HL, and PSW/AF
-packing. The ALU selectors bind complete handlers: the accumulator helper
-performs ordinary read/operate/write instructions, while generated 8080
-comparisons supply their own operand reads and no destination write. These hooks keep differing flag rules explicit, including parity
+packing. The ALU selectors bind complete handlers: the Z80 uses the accumulator
+helper for read/operate/write instructions, while all 8080 byte ALU families
+use generated bodies with explicit source reads, flags, and writeback. CMP
+omits the destination write. These hooks keep differing flag rules explicit, including parity
 versus overflow and the opposite subtraction half-carry conventions. The shared
 code does not select behavior by checking which processor is executing.
 

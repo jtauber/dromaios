@@ -1,4 +1,4 @@
-import { addOverflow, addWrap, carry, halfCarry, flagValue, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, highByte, literal, lowByte, negative, overflow, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
+import { addOverflow, addWrap, carry, halfCarry, flagValue, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, highByte, literal, lowByte, negative, overflow, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
 import { arithmetic, compare, immediateByte, logical, negativeZeroPolicy, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
@@ -201,7 +201,7 @@ export function motorolaArithmetic(cpu: MotorolaCpu, operation: "add" | "subtrac
       ...(adding && width === 8 ? [{ flag: cpu.flag("h"), value: halfCarry(left, right, incoming) }] : []),
     ],
   };
-  return arithmetic(operation, flags, withCarry ? cpu.flag("c") : undefined);
+  return [...(withCarry ? [readFlag("carry", cpu.flag("c"))] : []), ...arithmetic(operation, flags, incoming)];
 }
 
 /** Immediate and resolved-memory arithmetic share operand-first reads, flags, then explicit register writeback. */

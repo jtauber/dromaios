@@ -18,7 +18,7 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [312](../../src/components/cpus/8008.ts) | 0 / 250 | 0% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [263](../../src/components/cpus/8080.ts) | 13 / 244 | 5.3% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [241](../../src/components/cpus/8080.ts) | 76 / 244 | 31.1% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [300](../../src/components/cpus/6800.ts) | 153 / 197 | 77.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [298](../../src/components/cpus/6502.ts) | 109 / 151 | 72.2% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [661](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
@@ -27,8 +27,8 @@ emulators do not count toward implementation here.
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **315 generated bodies**, of which **314 are used by CPU execution**,
-covering **479 complete opcode forms**:
+contains **378 generated bodies**, of which **377 are used by CPU execution**,
+covering **542 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -39,9 +39,13 @@ covering **479 complete opcode forms**:
   slot. Logical instructions read the operand before A; ORA/AND/EOR write A then
   set N/Z, while BIT preserves A and copies memory bits 7/6 into N/V.
 - [8080 definitions](../../src/components/cpus/semantics/definitions/8080.ts):
-  CPI, all eight CMP register/memory forms, and RLC/RRC/RAL/RAR are integrated:
-  13 migrated forms. MOV B,A is a generated test sample, so it does not yet
-  count toward migration.
+  All 72 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP register, memory, and immediate forms,
+  plus RLC/RRC/RAL/RAR, are integrated: 76 migrated forms. Arithmetic shares
+  its calculation and flag-application recipe with the Motorola CPUs, while
+  ADC/SBB explicitly capture CY before A. Policies retain parity, inverse
+  half-borrow on subtraction, and ANA's bit-3 auxiliary carry rule. Flags precede
+  writeback; CMP never writes A. MOV B,A remains a generated test sample and
+  does not count toward migration.
 - [6800 definitions](../../src/components/cpus/semantics/definitions/6800.ts):
   All eleven unary operations on A/B and indexed/extended memory count as 44
   migrated forms. Their 33 bodies use the same
@@ -130,27 +134,24 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,687 |
-| CPU-specific instruction definition files | 373 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,968 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,028** |
+| Eight CPU implementation files | 4,665 |
+| CPU-specific instruction definition files | 406 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,967 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,038** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 6,093 |
+| Generated CPU output, counted separately | 7,655 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Migrating Motorola binary arithmetic removes the shared runtime accumulator
-operation table, the 6800 byte-operand readers, and the 6809 memory-arithmetic,
-word-binding, and word-arithmetic helpers. Decimal adjustment remains a small
-shared function taking the current flags directly. CPU modules shrink by
-**40 lines**; CPU-specific definitions gain **16**, and other authored CPU
-source gains **56** after removals. Total authored CPU source rises from
-**6,996 to 7,028 lines** (**32 more**). This includes optional carry/borrow
-inputs, addition flag expressions, Boolean policy parameters, validation,
-generation, explanation, and shared byte/word arithmetic construction.
-The migration retires old paths and makes flag/writeback order explicit,
-but the added vocabulary still outweighs the source removed in this step.
+Migrating the remaining 8080 byte ALU families removes its handwritten add,
+subtract, and AND methods and binds all eight families to generated bodies.
+The 8080 module shrinks by **22 lines**; CPU-specific definitions gain **33**,
+and other authored CPU source shrinks by **one**. Total authored CPU source
+rises from **7,028 to 7,038 lines** (**10 more**). The shared arithmetic recipe
+now accepts captured carry, leaving each CPU's reads explicit; no new semantic
+primitive, validator rule, or generator feature is needed. The definitions
+still cost slightly more authored source than the retired execution paths.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

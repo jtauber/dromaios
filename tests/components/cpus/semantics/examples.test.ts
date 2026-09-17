@@ -285,5 +285,22 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 315);
+  assert.equal(instructionDefinitions.length, 378);
+});
+
+test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
+  for (const name of ["ADC M", "ACI byte", "SBB A", "SBI byte"]) {
+    const text = description("8080", name);
+    const carry = text.indexOf("carry:flag := read CY"), left = text.indexOf("left:u8 := read A");
+    assert.ok(carry > text.indexOf("right:u8 := source") && left > carry);
+    assert.ok(text.indexOf("write A:u8 := result") > text.indexOf("AC :="));
+    assert.match(text, /P := evenParity8\(result\)/);
+    assert.match(text, name.startsWith("A") ? /AC := halfCarry4\(left, right, carry\)/ : /AC := not\(halfBorrow4\(left, right, carry\)\)/);
+  }
+  for (const name of ["ADD H", "SUI byte", "ANA L", "XRI byte", "ORA M"]) assert.doesNotMatch(description("8080", name), /:= read CY/);
+  assert.match(description("8080", "ANA M"), /AC := not\(isZero\(bitAnd\(bitOr\(left, right\), 08:u8\)\)\)/);
+  for (const name of ["XRA A", "ORA A"]) {
+    const text = description("8080", name);
+    assert.match(text, /AC := 0:flag/); assert.match(text, /CY := 0:flag/);
+  }
 });

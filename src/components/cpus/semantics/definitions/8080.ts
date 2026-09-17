@@ -1,7 +1,7 @@
 import { cpu8080StateDescription } from "../../state/8080.ts";
-import { borrow, concat, cpuSymbols, evenParity, halfBorrow, negative, not, readMemory, readRegister, updateFlags, value, writeRegister, zero } from "../model.ts";
-import type { FlagPolicy, InstructionDefinition, ValueSource } from "../model.ts";
-import { compare, immediateByte, registerSource, shift, transfer } from "../builders.ts";
+import { bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readFlag, readMemory, readRegister, readSource, updateFlags, value, writeRegister, zero } from "../model.ts";
+import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
+import { arithmetic, compare, immediateByte, registerSource, shift, transfer } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("8080", cpu8080StateDescription);
@@ -15,24 +15,55 @@ const throughHL: ValueSource = {
   ], result: value("byte"),
 };
 
-const comparisonFlags: FlagPolicy = {
-  name: "8080 comparison", parameters: { left: 8, right: 8, result: 8 }, unlisted: "preserve",
-  updates: [
-    { flag: cpu.flag("s"), value: negative(value("result")) },
-    { flag: cpu.flag("z"), value: zero(value("result")) },
-    { flag: cpu.flag("p"), value: evenParity(value("result")) },
-    { flag: cpu.flag("cy"), value: borrow(value("left"), value("right")) },
-    { flag: cpu.flag("ac"), value: not(halfBorrow(value("left"), value("right"))) },
-  ],
-};
+// Shared source order: B/C/D/E/H/L/M/A, then the immediate byte. M reads H, L, then memory.
+const sources = [
+  ...(["b", "c", "d", "e", "h", "l"] as const).map(register => [register.toUpperCase(), registerSource(cpu.register(register))] as const),
+  ["M", throughHL], ["A", registerSource(cpu.register("a"))], ["byte", immediateByte],
+] as const;
 
-function comparison(source: ValueSource, name: string): InstructionDefinition {
-  return defineInstruction({
-    cpu: cpu.declaration, name,
-    explanation: "Retain A without a destination write. S/Z describe the byte result, P its even parity, "
-      + "CY the borrow, and AC the inverse borrow at the low-nibble boundary.",
-    steps: compare(cpu.register("a"), source, comparisonFlags),
-  });
+/** S/Z/P describe the captured result; every ALU operation supplies its own CY/AC meaning. */
+function aluFlags(name: string, cy: FlagExpression, ac: FlagExpression, withCarry = false): FlagPolicy {
+  return { name: `8080 ${name}`, parameters: { left: 8, right: 8, result: 8, ...(withCarry ? { carry: "flag" as const } : {}) }, unlisted: "preserve",
+    updates: [
+      { flag: cpu.flag("s"), value: negative(value("result")) }, { flag: cpu.flag("z"), value: zero(value("result")) },
+      { flag: cpu.flag("p"), value: evenParity(value("result")) }, { flag: cpu.flag("cy"), value: cy }, { flag: cpu.flag("ac"), value: ac },
+    ],
+  };
+}
+const left = value("left"), right = value("right");
+const comparisonFlags = aluFlags("comparison", borrow(left, right), not(halfBorrow(left, right)));
+
+/** Expand a complete register/memory/immediate family; the resulting definitions contain only data. */
+function aluFamily(mnemonic: string, immediate: string, steps: (source: ValueSource) => readonly Statement[], explanation: string) {
+  return Object.fromEntries(sources.map(([name, source]) => [
+    name === "byte" ? immediate.toLowerCase() : `${mnemonic.toLowerCase()}${name}`,
+    defineInstruction({ cpu: cpu.declaration, name: `${name === "byte" ? immediate : mnemonic} ${name}`, explanation, steps: steps(source) }),
+  ]));
+}
+
+function binaryArithmetic(mnemonic: string, immediate: string, operation: "add" | "subtract", withCarry = false) {
+  const adding = operation === "add", incoming = withCarry ? flagValue("carry") : undefined;
+  const flags = aluFlags(adding ? "addition" : "subtraction", (adding ? carry : borrow)(left, right, incoming),
+    adding ? halfCarry(left, right, incoming) : not(halfBorrow(left, right, incoming)), withCarry);
+  return aluFamily(mnemonic, immediate, source => [
+    readSource("right", source), ...(withCarry ? [readFlag("carry", cpu.flag("cy"))] : []), readRegister("left", cpu.register("a")),
+    ...arithmetic(operation, flags, incoming), writeRegister(cpu.register("a"), value("result")),
+  ], `Read the operand, ${withCarry ? "capture incoming CY, then read A" : "then read A without reading incoming flags"}. `
+    + `S/Z describe the byte result and P its even parity. CY reports ${adding ? "carry" : "borrow"}; `
+    + `AC reports ${adding ? "low-nibble carry" : "the inverse low-nibble borrow"}. `
+    + "Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.");
+}
+
+function logic(mnemonic: "ANA" | "XRA" | "ORA", immediate: string) {
+  const operation = { ANA: bitAnd, XRA: bitXor, ORA: bitOr }[mnemonic];
+  const auxiliary = mnemonic === "ANA" ? not(zero(bitAnd(bitOr(left, right), literal(8, 0x08)))) : flagLiteral(false);
+  const flags = aluFlags(mnemonic, flagLiteral(false), auxiliary);
+  return aluFamily(mnemonic, immediate, source => [
+    readSource("right", source), readRegister("left", cpu.register("a")), capture("result", operation(left, right)),
+    updateFlags(flags, { left, right, result: value("result") }), writeRegister(cpu.register("a"), value("result")),
+  ], "Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. "
+    + (mnemonic === "ANA" ? "Clear CY; AC is bit 3 of the original A OR the operand. " : "Clear CY and AC. ")
+    + "Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.");
 }
 
 function rotation(name: string, direction: "left" | "right", circular: boolean): InstructionDefinition {
@@ -55,15 +86,17 @@ export const instructions8080 = {
   // 00 ooo 111: ooo=000/001 selects circular left/right; 010/011 rotates through CY.
   rlc: rotation("RLC", "left", true), rrc: rotation("RRC", "right", true),
   ral: rotation("RAL", "left", false), rar: rotation("RAR", "right", false),
-  cpi: comparison(immediateByte, "CPI byte"),
-  cmpB: comparison(registerSource(cpu.register("b")), "CMP B"),
-  cmpC: comparison(registerSource(cpu.register("c")), "CMP C"),
-  cmpD: comparison(registerSource(cpu.register("d")), "CMP D"),
-  cmpE: comparison(registerSource(cpu.register("e")), "CMP E"),
-  cmpH: comparison(registerSource(cpu.register("h")), "CMP H"),
-  cmpL: comparison(registerSource(cpu.register("l")), "CMP L"),
-  cmpM: comparison(throughHL, "CMP M"),
-  cmpA: comparison(registerSource(cpu.register("a")), "CMP A"),
+  // ooo in 10 ooo rrr / 11 ooo 110 selects these eight ALU families.
+  ...binaryArithmetic("ADD", "ADI", "add"), // 000
+  ...binaryArithmetic("ADC", "ACI", "add", true), // 001
+  ...binaryArithmetic("SUB", "SUI", "subtract"), // 010
+  ...binaryArithmetic("SBB", "SBI", "subtract", true), // 011
+  ...logic("ANA", "ANI"), // 100
+  ...logic("XRA", "XRI"), // 101
+  ...logic("ORA", "ORI"), // 110
+  ...aluFamily("CMP", "CPI", source => compare(cpu.register("a"), source, comparisonFlags), // 111
+    "Retain A without a destination write. S/Z describe the byte result, P its even parity, "
+      + "CY the borrow, and AC the inverse borrow at the low-nibble boundary."),
   movBA: defineInstruction({
     cpu: cpu.declaration, name: "MOV B,A",
     explanation: "Capture A and write B. No flag-update statement occurs, so every flag is preserved.",

@@ -14,14 +14,15 @@ introduced here. The pure flag helpers remain in use.
 | Building block | Contract | Current uses |
 | --- | --- | --- |
 | `negativeZero(width, value)` | Pure N/Z updates for an unsigned result already reduced to 8, 16, or 32 bits | 6502 results; Motorola byte/word/long results; the S/Z portion of 8080 results |
-| `signZeroParity8(value)` | Pure S/Z/P updates; P is even byte parity | 8080 arithmetic, logic, and comparison |
+| `signZeroParity8(value)` | Pure S/Z/P updates; P is even byte parity | 8080 INR/DCR and DAA; its byte ALU families now declare these flags in generated definitions |
 | `motorolaArithmeticFlags(width, facts)` | Pure NZVC updates from addition/subtraction facts; C means carry or borrow respectively | 68000 arithmetic/comparison; the 6800/6809 now express their policies in generated definitions |
 
 Flag calculations live in [flags.ts](../../src/components/cpus/flags.ts) and
 [motorola.ts](../../src/components/cpus/motorola.ts). They return fresh objects
 and neither read nor mutate CPU state. The instruction applies the returned
 subset at its existing point in execution; unnamed flags remain untouched.
-The 8080 still replaces its complete flag object where its existing ALU did.
+The 8080's handwritten INR/DCR and DAA still replace the complete flag object;
+its generated ALU bodies assign the declared fields on the current flag object.
 Motorola operations still obtain the current flag object when invoked, so
 restoring CC cannot leave them attached to old storage.
 

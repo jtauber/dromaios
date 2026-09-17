@@ -4260,9 +4260,622 @@ flags "8080 rotate carry" simultaneously {
 
 Flags preserved throughout: S, Z, AC, P.
 
-### 8080 CPI byte
+### 8080 ADD B
 
-Retain A without a destination write. S/Z describe the byte result, P its even parity, CY the borrow, and AC the inverse borrow at the low-nibble boundary.
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right)
+  AC := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADD C
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right)
+  AC := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADD D
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right)
+  AC := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADD E
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right)
+  AC := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADD H
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right)
+  AC := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADD L
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right)
+  AC := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADD M
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right)
+  AC := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADD A
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right)
+  AC := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADI byte
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right)
+  AC := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADC B
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right, carry)
+  AC := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADC C
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right, carry)
+  AC := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADC D
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right, carry)
+  AC := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADC E
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right, carry)
+  AC := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADC H
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right, carry)
+  AC := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADC L
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right, carry)
+  AC := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADC M
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+carry:flag := read CY
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right, carry)
+  AC := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ADC A
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right, carry)
+  AC := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ACI byte
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports carry; AC reports low-nibble carry. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+carry:flag := read CY
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8080 addition" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := carry(left, right, carry)
+  AC := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SUB B
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right)
+  AC := not(halfBorrow4(left, right))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SUB C
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right)
+  AC := not(halfBorrow4(left, right))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SUB D
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right)
+  AC := not(halfBorrow4(left, right))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SUB E
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right)
+  AC := not(halfBorrow4(left, right))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SUB H
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right)
+  AC := not(halfBorrow4(left, right))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SUB L
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right)
+  AC := not(halfBorrow4(left, right))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SUB M
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right)
+  AC := not(halfBorrow4(left, right))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SUB A
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right)
+  AC := not(halfBorrow4(left, right))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SUI byte
+
+Read the operand, then read A without reading incoming flags. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
 
 ```text
 right:u8 := source "immediate byte" {
@@ -4271,13 +4884,859 @@ right:u8 := source "immediate byte" {
 }
 left:u8 := read A
 result := subtract(left, right)
-flags "8080 comparison" simultaneously {
+flags "8080 subtraction" simultaneously {
   S := topBit(result)
   Z := isZero(result)
   P := evenParity8(result)
   CY := borrow(left, right)
   AC := not(halfBorrow4(left, right))
 } // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SBB B
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right, carry)
+  AC := not(halfBorrow4(left, right, carry))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SBB C
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right, carry)
+  AC := not(halfBorrow4(left, right, carry))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SBB D
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right, carry)
+  AC := not(halfBorrow4(left, right, carry))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SBB E
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right, carry)
+  AC := not(halfBorrow4(left, right, carry))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SBB H
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right, carry)
+  AC := not(halfBorrow4(left, right, carry))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SBB L
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right, carry)
+  AC := not(halfBorrow4(left, right, carry))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SBB M
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+carry:flag := read CY
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right, carry)
+  AC := not(halfBorrow4(left, right, carry))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SBB A
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+carry:flag := read CY
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right, carry)
+  AC := not(halfBorrow4(left, right, carry))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 SBI byte
+
+Read the operand, capture incoming CY, then read A. S/Z describe the byte result and P its even parity. CY reports borrow; AC reports the inverse low-nibble borrow. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+carry:flag := read CY
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8080 subtraction" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right, carry)
+  AC := not(halfBorrow4(left, right, carry))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ANA B
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY; AC is bit 3 of the original A OR the operand. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8080 ANA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := not(isZero(bitAnd(bitOr(left, right), 08:u8)))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ANA C
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY; AC is bit 3 of the original A OR the operand. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8080 ANA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := not(isZero(bitAnd(bitOr(left, right), 08:u8)))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ANA D
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY; AC is bit 3 of the original A OR the operand. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8080 ANA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := not(isZero(bitAnd(bitOr(left, right), 08:u8)))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ANA E
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY; AC is bit 3 of the original A OR the operand. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8080 ANA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := not(isZero(bitAnd(bitOr(left, right), 08:u8)))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ANA H
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY; AC is bit 3 of the original A OR the operand. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8080 ANA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := not(isZero(bitAnd(bitOr(left, right), 08:u8)))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ANA L
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY; AC is bit 3 of the original A OR the operand. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8080 ANA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := not(isZero(bitAnd(bitOr(left, right), 08:u8)))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ANA M
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY; AC is bit 3 of the original A OR the operand. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8080 ANA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := not(isZero(bitAnd(bitOr(left, right), 08:u8)))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ANA A
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY; AC is bit 3 of the original A OR the operand. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8080 ANA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := not(isZero(bitAnd(bitOr(left, right), 08:u8)))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ANI byte
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY; AC is bit 3 of the original A OR the operand. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8080 ANA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := not(isZero(bitAnd(bitOr(left, right), 08:u8)))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 XRA B
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8080 XRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 XRA C
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8080 XRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 XRA D
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8080 XRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 XRA E
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8080 XRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 XRA H
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8080 XRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 XRA L
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8080 XRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 XRA M
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8080 XRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 XRA A
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8080 XRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 XRI byte
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8080 XRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ORA B
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8080 ORA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ORA C
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8080 ORA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ORA D
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8080 ORA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ORA E
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8080 ORA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ORA H
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8080 ORA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ORA L
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8080 ORA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ORA M
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8080 ORA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ORA A
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8080 ORA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8080 ORI byte
+
+Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. Clear CY and AC. Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8080 ORA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := 0:flag
+  AC := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
 ```
 
 Flags preserved throughout: none.
@@ -4446,6 +5905,28 @@ Retain A without a destination write. S/Z describe the byte result, P its even p
 right:u8 := source "register A" {
   contents:u8 := read A
   yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8080 comparison" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  CY := borrow(left, right)
+  AC := not(halfBorrow4(left, right))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### 8080 CPI byte
+
+Retain A without a destination write. S/Z describe the byte result, P its even parity, CY the borrow, and AC the inverse borrow at the low-nibble boundary.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
 }
 left:u8 := read A
 result := subtract(left, right)

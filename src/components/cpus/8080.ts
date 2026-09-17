@@ -2,7 +2,7 @@ import { instructions as semantics } from "./generated/8080.ts";
 import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
-import type { AluInstruction, ByteOperation } from "./8080-family.ts";
+import type { AluInstruction } from "./8080-family.ts";
 import { flagRegister, signZeroParity8 } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
@@ -20,7 +20,7 @@ import { cpu8080StateDescription } from "./state/8080.ts";
 import type { Cpu8080State } from "./state/8080.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeTable, opcodePattern } from "./opcodes.ts";
-import { add, subtract } from "./alu.ts";
+import { add } from "./alu.ts";
 
 export { cpu8080StateDescription } from "./state/8080.ts";
 export type { Cpu8080State, Cpu8080Flags } from "./state/8080.ts";
@@ -165,26 +165,21 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
   // Opcode selectors and construction.
 
   // 10 ooo rrr and 11 ooo 110 share this three-bit ALU selector.
-  // These closures read state at execution; CMP updates flags but retains A.
-  protected override readonly aluInstructions: readonly AluInstruction[] = [
-    ...([
-      value => this.#add(value), // 000 ADD / ADI
-      value => this.#add(value, this.state.flags.cy ? 1 : 0), // 001 ADC / ACI
-      value => this.#subtract(value), // 010 SUB / SUI
-      value => this.#subtract(value, this.state.flags.cy ? 1 : 0), // 011 SBB / SBI
-      value => this.#and(value), // 100 ANA / ANI
-      value => this.#aluResult(this.state.a ^ value, false, false), // 101 XRA / XRI
-      value => this.#aluResult(this.state.a | value, false, false), // 110 ORA / ORI
-    ] satisfies readonly ByteOperation[]).map(operate => this.accumulatorInstruction(operate)),
-    // 111 CMP / CPI: generated bodies read their own source and never write A.
-    operand => {
-      const compare = {
-        b: semantics.cmpB, c: semantics.cmpC, d: semantics.cmpD, e: semantics.cmpE,
-        h: semantics.cmpH, l: semantics.cmpL, "(hl)": semantics.cmpM, a: semantics.cmpA, immediate: semantics.cpi,
-      }[operand];
-      return instruction => compare(this.state, instruction);
-    },
-  ];
+  // Complete generated bodies own source reads, flag rules, and writeback; CMP retains A.
+  protected override readonly aluInstructions: readonly AluInstruction[] = ([
+    ["add", "adi"], // 000 ADD / ADI
+    ["adc", "aci"], // 001 ADC / ACI
+    ["sub", "sui"], // 010 SUB / SUI
+    ["sbb", "sbi"], // 011 SBB / SBI
+    ["ana", "ani"], // 100 ANA / ANI
+    ["xra", "xri"], // 101 XRA / XRI
+    ["ora", "ori"], // 110 ORA / ORI
+    ["cmp", "cpi"], // 111 CMP / CPI
+  ] as const).map(([operation, immediate]) => operand => {
+    const suffix = { b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", "(hl)": "M", a: "A" } as const;
+    const execute = operand === "immediate" ? semantics[immediate] : semantics[`${operation}${suffix[operand]}`];
+    return instruction => execute(this.state, instruction);
+  });
 
   // ccc = ff v: ff selects Z, CY, P, S; v is the required flag value (0 or 1).
   // Predicates read flags at execution.
@@ -215,23 +210,6 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
   ]);
 
   // Arithmetic, logic, and flags.
-
-  #add(value: number, carryIn: 0 | 1 = 0): number {
-    const { result, halfCarry, carry } = add(8, this.state.a, value, carryIn);
-    return this.#aluResult(result, halfCarry, carry);
-  }
-
-  #subtract(value: number, borrowIn: 0 | 1 = 0): number {
-    const { result, borrow, halfBorrow } = subtract(8, this.state.a, value, borrowIn);
-    // CY reports a borrow; AC is the inverse of the low-nibble borrow.
-    return this.#aluResult(result, !halfBorrow, borrow);
-  }
-
-  #and(value: number): number {
-    const accumulator = this.state.a;
-    // ANA clears CY; AC is bit 3 of A OR the operand.
-    return this.#aluResult(accumulator & value, ((accumulator | value) & 0x08) !== 0, false);
-  }
 
   protected override adjustByte(value: number, delta: -1 | 1): number {
     // INR sets AC on carry out of bit 3; DCR uses the inverse low-nibble borrow. Both preserve CY.

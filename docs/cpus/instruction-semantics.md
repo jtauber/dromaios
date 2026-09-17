@@ -17,7 +17,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | Definitions | What they challenge |
 | --- | --- |
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
-| 8080 CPI and every CMP register/memory form | Immediate, register, and memory sources; parity and inverse half-borrow |
+| 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | 6809 CMPA/B/D/X/Y/U/S, every addressing form | Byte/word widths, D as A:B, and addressing that changes the register subsequently compared |
 | 6800 CMPA/CMPB/CPX, every addressing form, and CBA | Share comparison construction; original CPX derives N/V from high bytes without low-byte borrow, Z from the whole word, and preserves C |
 | 6502 LDA/LDX/LDY, every supported addressing form | Reuse comparison sources; delay destination and N/Z updates until the source succeeds |
@@ -36,7 +36,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 315 bodies. All are generated and executable; 314 are bound into their
+There are 378 bodies. All are generated and executable; 377 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other instruction families retain their existing shared helpers. This is not a
@@ -138,9 +138,11 @@ policy using `highByte(left)` and `highByte(right)` for N/V, whole-word subtract
 for Z, and no C assignment. Its explanation accompanies the policy in the 6800
 definition. CBA uses the same `compare` recipe with B as its register source.
 
-`arithmetic(operation, policy, incoming?)` consumes captured `left` and `right`,
-optionally reads the incoming flag, captures `result`, and applies the policy.
-Writeback remains a separate stage. `motorolaArithmetic` supplies N/Z/V/C at the
+`arithmetic(operation, policy, incoming?)` consumes captured `left` and `right`
+and an optional captured carry expression, captures `result`, and applies the
+policy. The caller schedules reads and writeback. This preserves each model's
+existing order: Motorola ADC/SBC read the operand, accumulator, then C; 8080
+ADC/SBB read the operand, CY, then A. `motorolaArithmetic` supplies N/Z/V/C at the
 operand width, with C meaning carry for addition and borrow for subtraction.
 Only byte addition replaces H; subtraction and word arithmetic preserve it.
 `motorolaArithmeticFamily` reads the full immediate or resolved-memory operand
@@ -150,6 +152,14 @@ D's explicit A-then-B writes. ABA/SBA supply their own A-then-B operand reads
 and use the same calculation/policy construction. Failed operand reads retain
 completed fetching and address updates, without arithmetic or writeback.
 Decimal adjustment remains outside this binary arithmetic family.
+
+The 8080 expands all eight byte ALU families over one B/C/D/E/H/L/M/A/immediate
+source inventory. Addition/subtraction use the same `arithmetic` recipe, with
+S/Z/P derived from the byte result, CY as carry/borrow, and AC as low-nibble
+carry or inverse half-borrow. ANA instead derives AC from bit 3 of the original
+A OR the operand; XRA/ORA clear it. All three logical families clear CY.
+Flags precede A writeback, while CMP omits the write entirely. The definitions
+use existing expressions and policies without adding a semantic primitive.
 
 `transfer(destination, source, policy?)` captures its source as `result`, writes
 the destination, and optionally applies a policy with that result parameter.
@@ -363,11 +373,11 @@ their values are equal, and leaves C committed if the final write fails.
 Memory INC/DEC use the same two writes but preserve C throughout; accumulator
 and index-register forms perform no data-memory access.
 
-The 8080 comparisons explicitly have no destination write. The shared 8080/Z80
-ALU table now binds complete instruction handlers; ordinary arithmetic still
-uses the shared operand-and-accumulator helper. The 8080 selects generated
-comparison bodies instead. Its old compare wrapper and redundant A assignment
-are removed; the Z80 keeps its existing arithmetic behavior.
+The shared 8080/Z80 ALU table binds complete instruction handlers. The 8080
+selects generated bodies for all 72 register, memory, and immediate ALU forms;
+each owns its source reads, flag updates, and optional A writeback. Its old
+add/subtract/AND helpers are gone. The Z80 retains the operand-and-accumulator
+helper and its existing arithmetic behavior.
 
 ## Validation and generated explanations
 
@@ -479,8 +489,18 @@ verify complete-operand-before-register reads, single carry captures only for
 ADC/SBC, current flag objects, flags before writeback, and failure at each read.
 CPU tests retain exhaustive arithmetic expectations and now include these
 families in their wrapping, overlap, index-update, and access-failure probes.
-All 277 earlier definitions remain structurally unchanged; the 6502 and 8080
-generated modules remain byte-for-byte unchanged by this migration.
+
+[8080 ALU probes](../../tests/components/cpus/semantics/8080-alu.test.ts) check
+source-before-CY-before-A ordering, distinct reads when A is its own source,
+flags before writeback, and CMP's omitted write. Failed operand reads prevent
+later state access; successful reads may replace A and the flag object before
+the body continues. CPU tests exercise every ALU form through ordinary and
+interrupt-supplied execution, failing each fetch, acknowledgement, or memory
+read. They check wrapped PC, overlapping code/data, completed accesses, retained
+interrupt acceptance, EI deferral, and boundary-guard release. Existing exhaustive
+byte-pair tests remain independent of the definitions.
+All 315 definitions predating this 8080 ALU migration remain structurally
+unchanged; the 6502, 6800, and 6809 generated modules remain byte-for-byte unchanged.
 
 ## Executable generation and integration
 
@@ -543,8 +563,8 @@ Remaining handwritten operations can therefore share the definitions before
 their complete bodies are migrated.
 
 This covers the complete 6502 comparison, load/store, logical, shift/rotate, and
-byte increment/decrement families, plus all six register transfers. The 8080 retains
-named bodies for its nine CMP/CPI bindings and four accumulator rotates in the
+byte increment/decrement families, plus all six register transfers. The 8080 uses
+named bodies for all 72 byte ALU bindings and four accumulator rotates in the
 shared 8080/Z80 family. The Z80's own bodies remain unchanged.
 The 6800 and 6809 bind generated A/B and memory bodies through one
 `motorolaUnaryOperations` selector table, including TST and CLR. Each CPU's static
@@ -552,23 +572,22 @@ inventory contains function references only; each invocation supplies the curren
 CPU state. CPU-owned wrappers resolve one address, with the 6809 rejecting
 undefined postbytes before body entry. The handwritten unary calculations and
 memory-modification paths are gone. JMP remains a separate address operation.
-The 6800 and 6809 share `motorolaOperandBindings` for comparisons, logic, and
+The 6800 and 6809 share `motorolaOperandBindings` for comparisons, arithmetic, logic, and
 byte/word transfers, with the 6809 using it across its three opcode pages for comparisons.
 Each register has an immediate body that fetches its operand and a memory body
 that receives the decoder's resolved address. This covers CMPA/B/D/X/Y/U/S in
 all four addressing modes, with no special indexed postbyte path. Unsupported
-postbytes retain the same rejection behavior before body entry. The 6809's
-word-arithmetic helper now serves only ADDD/SUBD. The 6800 binds CMPA/CMPB/CPX
-through the same wrapper and CBA directly.
-The shared accumulator table no longer includes CMP, so the 6809 no longer needs
-to filter it out. The original 6800 CPX helper is gone. Binding captures a state
+postbytes retain the same rejection behavior before body entry. ADDD/SUBD use
+the same bindings; the old word-arithmetic helper is gone. The 6800 binds
+CMPA/CMPB/CPX through the same wrapper and CBA, ABA, and SBA directly.
+The handwritten accumulator-operation table and original 6800 CPX helper are
+gone. Binding captures a state
 getter without reading it until execution, and resolves each memory address once
 before entering its body. Address decoding remains outside the generated definitions.
 
-`motorolaByteBindings` selects CMP/AND/BIT/LD/ST/EOR/OR and A/B from the native
+`motorolaByteBindings` selects SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD and A/B from the native
 `1 r mm oooo` encoding. Stores omit the immediate binding. Each resolved-memory
 body serves direct, indexed, and extended forms, with no new addressing path.
-The handwritten accumulator table now contains only SUB/SBC/ADC/ADD.
 
 Loads and the 6800's TAB/TBA reuse `transfer`: capture a source or an already
 read value, write the destination, then apply the Motorola result policy.

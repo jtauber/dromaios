@@ -1,6 +1,6 @@
 import { addWrap, capture, fetchByte, flagLiteral, flagValue, lowBit, negative, readFlag, readMemory, readRegister, readSource,
   shiftLeft, shiftRight, subtract, updateFlags, value, writeRegister, zero } from "./model.ts";
-import type { Flag, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
+import type { Flag, FlagExpression, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
 import type { InstructionDefinition } from "./model.ts";
 import { opcodeTable } from "../opcodes.ts";
 import type { OpcodeEntry } from "../opcodes.ts";
@@ -79,12 +79,11 @@ export function logical(register: Register, source: ValueSource | NumberExpressi
   ];
 }
 
-/** Consume captured left/right operands, sample optional carry, then compute the result and flags. Writeback is separate. */
-export function arithmetic(operation: "add" | "subtract", policy: FlagPolicy, incoming?: Flag): readonly Statement[] {
-  const left = value("left"), right = value("right"), carry = incoming === undefined ? undefined : flagValue("carry");
+/** Consume captured left/right and optional carry, then compute the result and flags. Reads and writeback are separate. */
+export function arithmetic(operation: "add" | "subtract", policy: FlagPolicy, incoming?: FlagExpression): readonly Statement[] {
+  const left = value("left"), right = value("right");
   return [
-    ...(incoming === undefined ? [] : [readFlag("carry", incoming)]),
-    capture("result", (operation === "add" ? addWrap : subtract)(left, right, carry)),
-    updateFlags(policy, { left, right, result: value("result"), ...(carry === undefined ? {} : { carry }) }),
+    capture("result", (operation === "add" ? addWrap : subtract)(left, right, incoming)),
+    updateFlags(policy, { left, right, result: value("result"), ...(incoming === undefined ? {} : { carry: incoming }) }),
   ];
 }

@@ -1218,6 +1218,63 @@ for (const { name, opcodes, immediate, reference } of aluCases) {
   });
 }
 
+test("8080 ALU forms retain completed reads and interrupt acceptance on failure", () => {
+  const failure = new Error("ALU operand failure");
+  for (const { name, opcodes, immediate, reference } of aluCases) {
+    for (const [index, opcode] of [...opcodes, immediate].entries()) for (const external of [false, true]) {
+      for (const set of [false, true]) for (const address of [0, 0xffff]) {
+        const source = aluSources[index]!, bytes = source === "immediate" ? [opcode, 0x81] : [opcode];
+        const count = bytes.length + Number(source === "m");
+        for (let failAt = -1; failAt < count; failAt++) {
+          let attempts = 0;
+          const completed: ({ kind: "acknowledge"; value: number } | Cpu8080MemoryAccess)[] = [];
+          const attempt = () => { if (attempts++ === failAt) throw failure; };
+          class FaultRam extends ObservedRam {
+            override read(address: number): number {
+              attempt(); const value = super.read(address); completed.push({ kind: "read", address, value }); return value;
+            }
+          }
+          const ram = new FaultRam(), state = initialState({ pc: 0xffff, h: Math.floor(address / 256), l: address % 256,
+            interruptDeferred: !external, halted: external, flags: { s: set, z: set, ac: set, p: set, cy: set } });
+          ram.write(address, 0x81);
+          if (!external) bytes.forEach((value, i) => ram.write((state.pc + i) % 65536, value));
+          ram.accesses.length = 0;
+          const cpu = new Cpu8080(ram, state), before = cpu.snapshot();
+          const run = () => {
+            let next = 0;
+            return external ? cpu.interrupt(() => {
+              attempt(); const value = bytes[next++]!; completed.push({ kind: "acknowledge", value }); return value;
+            }) : cpu.step();
+          };
+          const operand = source === "immediate" ? 0x81 : source === "m" ? (!external && address === 0xffff ? opcode : 0x81) : state[source];
+          const result = reference(state.a, operand, Number(set));
+          const accesses = [
+            ...bytes.map((value, i) => external ? { kind: "acknowledge", value } : { kind: "read", address: (state.pc + i) % 65536, value }),
+            ...(source === "m" ? [{ kind: "read", address, value: operand }] : []),
+          ];
+          if (failAt >= 0) assert.throws(run, error => error === failure);
+          else {
+            const record = run();
+            assert.equal(record.outcome, "executed"); assert.deepEqual(record.accesses, accesses);
+          }
+          assert.deepEqual(cpu.snapshot(), { ...before,
+            pc: external ? state.pc : (state.pc + (failAt < 0 ? bytes.length : Math.min(failAt, bytes.length))) % 65536,
+            halted: false, interruptEnabled: !external, interruptDeferred: !external && failAt >= 0,
+            ...(failAt < 0 ? { a: result.result, flags: result.flags } : {}),
+          }, `${name}, ${source}, external=${external}, fail=${failAt}`);
+          assert.deepEqual(completed, accesses.slice(0, failAt < 0 ? count : failAt));
+          assert.equal(attempts, failAt < 0 ? count : failAt + 1);
+          if (failAt >= 0) {
+            // A failed boundary must release its guard; reset neither fetches nor changes the flags.
+            cpu.reset();
+            assert.equal(cpu.snapshot().pc, 0);
+          }
+        }
+      }
+    }
+  }
+});
+
 for (const { name, opcodes, reference } of [
   { name: "INR", opcodes: [0x04, 0x0c, 0x14, 0x1c, 0x24, 0x2c, 0x34, 0x3c],
     reference: (value: number) => referenceAddition(value, 1) },
