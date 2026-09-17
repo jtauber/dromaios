@@ -4198,6 +4198,1615 @@ flags "6800 comparison" simultaneously {
 
 Flags preserved throughout: H, I.
 
+### 8008 ADA
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8008 AD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ADB
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8008 AD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ADC
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8008 AD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ADD
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8008 AD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ADE
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8008 AD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ADH
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8008 AD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ADL
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8008 AD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ADM
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8008 AD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ADI byte
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "8008 AD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ACA
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8008 AC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ACB
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8008 AC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ACC
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8008 AC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ACD
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8008 AC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ACE
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8008 AC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ACH
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8008 AC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ACL
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8008 AC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ACM
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+  yield byte
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8008 AC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ACI byte
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "8008 AC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SUA
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 SU" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SUB
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 SU" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SUC
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 SU" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SUD
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 SU" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SUE
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 SU" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SUH
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 SU" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SUL
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 SU" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SUM
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 SU" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SUI byte
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 SU" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SBA
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8008 SB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SBB
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8008 SB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SBC
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8008 SB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SBD
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8008 SB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SBE
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8008 SB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SBH
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8008 SB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SBL
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8008 SB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SBM
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+  yield byte
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8008 SB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 SBI byte
+
+Read the operand, using only H:L's low 14 bits for memory. Capture incoming C, then read A. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "8008 SB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 NDA
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8008 ND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 NDB
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8008 ND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 NDC
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8008 ND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 NDD
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8008 ND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 NDE
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8008 ND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 NDH
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8008 ND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 NDL
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8008 ND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 NDM
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+  yield byte
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8008 ND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 NDI byte
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "8008 ND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 XRA
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8008 XR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 XRB
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8008 XR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 XRC
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8008 XR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 XRD
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8008 XR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 XRE
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8008 XR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 XRH
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8008 XR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 XRL
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8008 XR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 XRM
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+  yield byte
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8008 XR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 XRI byte
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "8008 XR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ORA
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8008 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ORB
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8008 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ORC
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8008 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ORD
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8008 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ORE
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8008 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ORH
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8008 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ORL
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8008 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ORM
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+  yield byte
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8008 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 ORI byte
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. Clear C. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "8008 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### 8008 CPA
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then retain A without a write. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### 8008 CPB
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then retain A without a write. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### 8008 CPC
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then retain A without a write. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### 8008 CPD
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then retain A without a write. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### 8008 CPE
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then retain A without a write. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### 8008 CPH
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then retain A without a write. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### 8008 CPL
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then retain A without a write. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### 8008 CPM
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then retain A without a write. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "memory through low 14 bits of HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### 8008 CPI byte
+
+Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports borrow. Apply flags, then retain A without a write. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "8008 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
 ### 8080 RLC
 
 Capture A and rotate left, inserting the outgoing bit. Write A before replacing CY with the outgoing bit. Preserve S, Z, AC, and P; no data-memory access occurs.

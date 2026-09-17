@@ -285,7 +285,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 458);
+  assert.equal(instructionDefinitions.length, 530);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -323,6 +323,23 @@ test("Z80 ALU explanations expose overflow versus parity, borrow half-carry, and
     assert.match(text, /PV := evenParity8\(result\)/);
     assert.match(text, mnemonic === "AND" ? /H := 1:flag/ : /H := 0:flag/);
     assert.match(text, /N := 0:flag/); assert.match(text, /C := 0:flag/);
+    assert.ok(text.indexOf("write A:u8 := result") > text.indexOf("C :="));
+  }
+});
+
+test("8008 ALU explanations retain native mnemonics, 14-bit memory, parity, and carry-before-A ordering", () => {
+  const memory = description("8008", "ACM");
+  assert.match(memory, /read memory\[bitAnd\(concatHighLow\(high, low\), 3FFF:u16\)\]/);
+  assert.ok(memory.indexOf("read H") < memory.indexOf("read L"));
+  assert.ok(memory.indexOf("carry:flag := read C") > memory.indexOf("read memory["));
+  assert.ok(memory.indexOf("left:u8 := read A") > memory.indexOf("carry:flag := read C"));
+  assert.match(memory, /P := evenParity8\(result\)/); assert.match(memory, /C := carry\(left, right, carry\)/);
+  const subtract = description("8008", "SBI byte");
+  assert.match(subtract, /C := borrow\(left, right, carry\)/);
+  assert.doesNotMatch(description("8008", "CPA"), /write A|:= read C/);
+  for (const mnemonic of ["NDI byte", "XRI byte", "ORI byte"]) {
+    const text = description("8008", mnemonic);
+    assert.match(text, /C := 0:flag/); assert.doesNotMatch(text, /:= read C/);
     assert.ok(text.indexOf("write A:u8 := result") > text.indexOf("C :="));
   }
 });

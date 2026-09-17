@@ -3,7 +3,7 @@
 This implements the bounded executable review in
 [stage 5 of the shared-building-blocks proposal](shared-building-blocks.md#5-execute-one-slice-and-produce-a-useful-second-output).
 Typed definitions drive validation, a reproducible [expanded listing](semantic-examples.md),
-and generated TypeScript instruction bodies used by the 6502, 6800, 8080, 6809, and Z80.
+and generated TypeScript instruction bodies used by the 6502, 6800, 8008, 8080, 6809, and Z80.
 The public execution interfaces and supported opcode inventories are unchanged.
 
 The experiment asks whether an instruction's meaning can be described clearly
@@ -19,6 +19,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
+| 8008 AD/AC/SU/SB/ND/XR/OR/CP, every register/memory/immediate form | Reuse Intel ALU construction with S/Z/P/C, native register order, and an explicit 14-bit memory mask; retain address-slot fetching and supplied-byte rules |
 | 6809 CMPA/B/D/X/Y/U/S, every addressing form | Byte/word widths, D as A:B, and addressing that changes the register subsequently compared |
 | 6800 CMPA/CMPB/CPX, every addressing form, and CBA | Share comparison construction; original CPX derives N/V from high bytes without low-byte borrow, Z from the whole word, and preserves C |
 | 6502 LDA/LDX/LDY, every supported addressing form | Reuse comparison sources; delay destination and N/Z updates until the source succeeds |
@@ -37,7 +38,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 458 bodies. All are generated and executable; 457 are bound into their
+There are 530 bodies. All are generated and executable; 529 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other instruction families retain their existing shared helpers. This is not a
@@ -63,8 +64,8 @@ The authoring layers have separate homes:
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, and byte/word-transfer construction, with explicit access and flag policies |
-| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8080/Z80 byte sources and ALU construction; explicit carry-before-A reads and flags-before-writeback |
-| [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
+| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 ALU construction with carry-before-A reads and flags-before-writeback; shared 8080/Z80 byte sources |
+| [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8008.ts](../../src/components/cpus/semantics/definitions/8008.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
 Each CPU definition module follows sources, policies, instruction construction,
@@ -173,6 +174,15 @@ sets H only for AND, and clears N/C. The Z80 supplies a resolved address to its
 eight indexed bodies, each shared by IX and IY. They read that address once
 before the ALU construction, without fetching displacement or touching either
 index register again. No general indexed-addressing primitive is needed.
+
+The 8008 is a third consumer of `intelByteAlu`, with no change to that builder.
+Its own source inventory follows A/B/C/D/E/H/L/M. Memory concatenates captured
+H/L and masks the address with `3FFF`, using the existing word-valued bitwise
+expression; no 14-bit register primitive is introduced. S/Z/P describe the byte
+result, C reports carry/borrow, and logic clears C. AC/SB capture C before A;
+CP has no destination write. The bodies neither select nor explicitly update
+address-stack slots. Ordinary fetching advances the selected PC slot, while
+interrupt-supplied bytes preserve it. These fetch policies stay in the CPU.
 
 `transfer(destination, source, policy?)` captures its source as `result`, writes
 the destination, and optionally applies a policy with that result parameter.
@@ -525,14 +535,25 @@ one that fails. Tests check exact completed accesses, wrapped/overlapping bytes,
 deferred-interrupt retirement, guard release, and every signed displacement at
 both address-space boundaries. Existing byte-pair, alternate-bank, and paired
 8080/Z80 expectations remain independent of the definitions.
-All 378 definitions predating this Z80 migration remain structurally unchanged;
-the 6502, 6800, 6809, and 8080 generated modules remain byte-for-byte unchanged.
+
+[8008 ALU probes](../../tests/components/cpus/semantics/8008-alu.test.ts) check
+every generated body, all four high-bit aliases of H:L, distinct A-as-source
+and accumulator captures, current flags after successful operand callbacks,
+and no address-stack, selector, or STOPPED access. The
+[CPU tests](../../tests/components/cpus/8008.test.ts) retain exhaustive byte-pair
+and native source-selector expectations. New failure checks cover every ALU
+form through ordinary and supplied execution, all eight selected PC slots,
+wrapped/overlapping reads, and each failed fetch, acknowledgement, or memory
+read. They require exact completed accesses, retained STOPPED release, untouched
+other address slots, and a released boundary guard.
+All 458 earlier definitions remain structurally unchanged; the five earlier
+generated CPU modules remain byte-for-byte unchanged by the 8008 migration.
 
 ## Executable generation and integration
 
 [generateInstructions](../../src/components/cpus/semantics/generate.ts) validates
 and freezes its input before emitting code. Generated methods take the concrete
-`Cpu6502State`, `Cpu6800State`, `Cpu8080State`, `Cpu6809State`, or `CpuZ80State`, followed by any numeric inputs
+CPU state type (including `Cpu8008State` with its readonly address-stack input), followed by any numeric inputs
 in declaration order, then only the callbacks their statements use, expressed
 as a `Pick<ByteInstructionContext, ...>`. For example,
 `rolMemory(state, address, { readByte, writeByte })` cannot fetch operands or
@@ -552,14 +573,14 @@ repeated arithmetic facts remain separate calls rather than introducing an
 optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
-`src/components/cpus/generated/{6502,6800,8080,6809,z80}.ts`. These files are ignored build
+`src/components/cpus/generated/{6502,6800,8008,8080,6809,z80}.ts`. These files are ignored build
 output and removed by `npm run clean`. Regenerate with `npm run generate:cpus`;
 `npm run build` generates these bodies and the machine factories automatically.
 The source-only check and ordinary compilation both type-check the generated
 bodies. Reproducibility tests compare every module with fresh output and run the
 native generator in a clean temporary tree from another working directory.
 
-The five CPU-owned state declarations now live under
+The six CPU-owned state declarations now live under
 [`src/components/cpus/state/`](../../src/components/cpus/state), re-exported
 through their original CPU modules. This lets definitions and generation load
 schemas without importing execution or requiring generated files to exist.
@@ -595,6 +616,11 @@ shared 8080/Z80 family. The Z80 binds its 72 ordinary ALU bodies through that
 same hook, with eight further bodies serving its sixteen indexed ALU forms.
 Its prefix recognition, signed displacement calculation, PC/R updates, and
 interrupt handling remain in the CPU module.
+The 8008 independently binds all 72 native ALU forms through complete generated
+bodies. Its address-register stack, fetching, and interrupt acceptance remain
+handwritten; its old add/subtract/compare methods and accumulator-returning
+dispatch are removed. The machine parser reads its separate state schema,
+without depending on generated execution code.
 The 6800 and 6809 bind generated A/B and memory bodies through one
 `motorolaUnaryOperations` selector table, including TST and CLR. Each CPU's static
 inventory contains function references only; each invocation supplies the current

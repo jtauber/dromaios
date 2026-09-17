@@ -1315,7 +1315,7 @@ the language is worth adopting.
 ### 5. Execute one slice and produce a useful second output
 
 The [current executable experiment](instruction-semantics.md#executable-generation-and-integration)
-generates and binds comparison bodies across five CPUs, logical bodies across
+generates and binds comparison bodies across six CPUs, logical bodies across
 the 6502/6800/6809, plus their byte loads/stores and Motorola word loads/stores,
 6502 register transfers and
 6800 TAB/TBA, and 6502 shifts/rotates and byte increments/decrements. A shared
@@ -1338,6 +1338,9 @@ declaring CY-before-A reads, parity, inverse subtraction half-borrow, and ANA's
 auxiliary carry rule. The Z80 now shares the Intel sources and ALU construction,
 with its own flag policies and resolved-memory bodies for both index registers.
 Prefix decoding and displacement resolution retain their existing boundary.
+The 8008 reuses the same ALU construction unchanged, supplying native register
+ordering, S/Z/P/C policies, and a bitwise `3FFF` memory mask. Its selected PC
+slot and interrupt-supplied fetch rules remain in its execution boundary.
 These expansions add no semantic primitive.
 These definitions produce both execution and the explanatory listing. The
 JSR and 68000 probes below remain requirements for later vocabulary; they are

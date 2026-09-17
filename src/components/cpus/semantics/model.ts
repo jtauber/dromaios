@@ -1,6 +1,6 @@
 import type { GroupField, StateFields, UnsignedField } from "../state.ts";
 
-// The experiment covers byte/word operations in 16-bit address spaces.
+// The experiment covers byte/word operations and addresses represented as 16-bit values.
 export type Width = 8 | 16;
 export type ValueType = Width | "flag";
 export interface Register { readonly kind: "register"; readonly cpu: string; readonly field: string; readonly width: Width }

@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [312](../../src/components/cpus/8008.ts) | 0 / 250 | 0% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [290](../../src/components/cpus/8008.ts) | 72 / 250 | 28.8% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [241](../../src/components/cpus/8080.ts) | 76 / 244 | 31.1% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [300](../../src/components/cpus/6800.ts) | 153 / 197 | 77.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [298](../../src/components/cpus/6502.ts) | 109 / 151 | 72.2% |
@@ -27,8 +27,8 @@ emulators do not count toward implementation here.
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **458 generated bodies**, of which **457 are used by CPU execution**,
-covering **630 complete opcode forms**:
+contains **530 generated bodies**, of which **529 are used by CPU execution**,
+covering **702 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -95,8 +95,16 @@ covering **630 complete opcode forms**:
   declaring its own P/V, H, N, and C policies. Prefix decoding, displacement
   fetching, address wrapping, and R updates remain in the CPU. Generated bodies
   preserve the alternate bank and control state; CP never writes A.
+- [8008 definitions](../../src/components/cpus/semantics/definitions/8008.ts):
+  All 72 byte ALU forms are integrated: AD/AC/SU/SB/ND/XR/OR/CP with each
+  register, memory, and immediate source. The existing Intel ALU construction
+  is reused unchanged, with S/Z/P/C policies and explicit C-before-A reads for
+  AC/SB. Native sources follow A/B/C/D/E/H/L/M; M masks H:L to `3FFF` without
+  changing H or L. Comparison never writes A. Fetching and interrupt acceptance
+  remain in the CPU, including the selected address slot and supplied bytes
+  that leave every address register unchanged.
 
-The other three CPUs have no instruction bodies generated from these definitions.
+The 8088 and 68000 have no instruction bodies generated from these definitions.
 Their existing shared TypeScript helpers remain useful, but are outside this
 migration count. The [current review](instruction-semantics.md#decision-and-next-review)
 focuses on complete operation families, explicit carry and writeback stages,
@@ -142,27 +150,26 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,628 |
-| CPU-specific instruction definition files | 444 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,012 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,084** |
+| Eight CPU implementation files | 4,606 |
+| CPU-specific instruction definition files | 498 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,031 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,135** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 9,771 |
+| Generated CPU output, counted separately | 11,404 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Migrating the Z80 byte ALU removes its handwritten add/subtract/compare methods,
-runtime ALU selector, and the shared family's now-unused accumulator wrapper.
-The Z80 module shrinks by **37 lines**, partly because its state schema moves
-to a separate CPU-owned module. CPU-specific definitions gain **38** lines net,
-including the reduction from sharing 8080 construction. Other authored CPU
-source gains **45**, including that schema, shared Intel construction, and
-generator registration. Total authored CPU source rises from **7,038 to 7,084
-lines** (**46 more**). No semantic primitive or validator rule is added; the
-generator gains the Z80 target and its existing state-type spelling. This step
-shares execution meaning across the siblings but does not reduce total authored
-source.
+Migrating the 8008 byte ALU removes its handwritten add/subtract/compare methods
+and binds complete generated bodies in place of the accumulator-returning ALU
+selector. The 8008 module shrinks by **22 lines**, partly because its state
+schema moves to a separate CPU-owned module. Definitions add **54** lines;
+other authored CPU source gains **19**, including the schema and inventory
+registration. Total authored CPU source rises from **7,084 to 7,135 lines**
+(**51 more**). The existing Intel ALU builder, semantic expressions, validator,
+and code generation are reused unchanged apart from registering the 8008 target.
+The 14-bit address mask is ordinary bitwise data. This validates a third
+consumer of the construction but does not reduce total authored source.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

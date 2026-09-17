@@ -35,7 +35,7 @@ core. Keep a CPU in one file while this organization remains easy to follow.
 ## Stored-state descriptions
 
 Each CPU module exports a `cpu…StateDescription` beside its public state
-type. For the 6502, 6800, 8080, 6809, and Z80, the declaration and derived types live in
+type. For the 6502, 6800, 8008, 8080, 6809, and Z80, the declaration and derived types live in
 CPU-owned modules under [`state/`](../../src/components/cpus/state) and are
 re-exported by the original CPU module. This lets instruction generation load
 schemas without loading execution or its generated imports. The description
@@ -209,6 +209,12 @@ therefore keep their existing execution contract. Both expose `snapshot`,
 `reset`, `step`, and their own boundary-level `interrupt` operation. The family
 adds no public controls or mutable state access. This shallow hierarchy expresses
 the 8080/Z80 relationship and is not a requirement for other processors.
+
+The 8008 reuses the same `intelByteAlu` construction without inheriting this
+execution core. Its definitions keep native A/B/C/D/E/H/L/M sources, a `3FFF`
+mask on memory addresses, and S/Z/P/C policies. Its own opcode table binds all
+72 ALU bodies; fetching retains the selected address-register PC and interrupt
+supplied-byte rules.
 
 ## Shared execution records
 

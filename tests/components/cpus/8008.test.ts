@@ -463,6 +463,61 @@ test("8008 memory ALU forms mask H:L, keep code reads distinct, and never write 
   }
 });
 
+test("8008 ALU forms retain completed reads and native address slots at every ordinary or supplied failure", () => {
+  const failure = new Error("ALU access failure");
+  for (const { operation, immediate, opcodes } of aluRows) {
+    for (const [index, source] of [...transferColumns, "immediate" as const].entries()) for (const external of [false, true]) {
+      for (let slot = 0; slot < 8; slot++) for (const bits of [0, 15]) for (const address of [0, 0x3fff]) {
+        const opcode = source === "immediate" ? immediate : opcodes[index]!;
+        const bytes = source === "immediate" ? [opcode, 0x81] : [opcode], count = bytes.length + Number(source === "m");
+        for (let failAt = -1; failAt < count; failAt++) {
+          let attempts = 0;
+          const completed: ({ kind: "acknowledge"; value: number } | Cpu8008MemoryAccess)[] = [];
+          const attempt = () => { if (attempts++ === failAt) throw failure; };
+          class FaultRam extends ObservedRam {
+            override read(address: number): number {
+              attempt(); const value = super.read(address); completed.push({ kind: "read", address, value }); return value;
+            }
+          }
+          const ram = new FaultRam(0x4000), state = atPc(0x3fff, slot, {
+            h: (slot % 4) * 64 + Math.floor(address / 256), l: address % 256, flags: flags(bits), halted: external });
+          ram.write(address, 0x81);
+          if (!external) bytes.forEach((value, i) => ram.write((0x3fff + i) % 0x4000, value));
+          ram.accesses.length = 0;
+          const cpu = new Cpu8008(ram, state);
+          const overlap = external ? -1 : bytes.findIndex((_, i) => (0x3fff + i) % 0x4000 === address);
+          const operand = source === "immediate" ? 0x81 : source === "m" ? (overlap < 0 ? 0x81 : bytes[overlap]!) : state[source];
+          const accesses = [
+            ...bytes.map((value, i) => external ? { kind: "acknowledge", value }
+              : { kind: "read", address: (0x3fff + i) % 0x4000, value }),
+            ...(source === "m" ? [{ kind: "read", address, value: operand }] : []),
+          ];
+          const run = () => {
+            let next = 0;
+            return external ? cpu.interrupt(() => {
+              attempt(); const value = bytes[next++]!; completed.push({ kind: "acknowledge", value }); return value;
+            }) : cpu.step();
+          };
+          if (failAt >= 0) assert.throws(run, error => error === failure);
+          else {
+            const record = run();
+            assert.equal(record.outcome, "executed"); assert.deepEqual(record.accesses, accesses);
+            assert.deepEqual(record.instruction?.bytes, bytes);
+          }
+          const fetched = failAt < 0 ? bytes.length : Math.min(failAt, bytes.length);
+          assert.deepEqual(cpu.snapshot(), advanced(state, external ? 0x3fff : (0x3fff + fetched) % 0x4000,
+            { halted: false, ...(failAt < 0 ? alu(operation, state.a, operand, state.flags.c) : {}) }),
+          `${operation} ${source}, supplied=${external}, slot=${slot}, fail=${failAt}`);
+          assert.deepEqual(completed, accesses.slice(0, failAt < 0 ? count : failAt));
+          assert.deepEqual(ram.accesses, completed.filter(access => access.kind === "read"));
+          assert.equal(attempts, failAt < 0 ? count : failAt + 1);
+          if (failAt >= 0) { cpu.reset(); assert.equal(cpu.snapshot().pc, 0); }
+        }
+      }
+    }
+  }
+});
+
 for (const { register, increment, decrement } of adjustments) {
   test(`8008 IN${register.toUpperCase()}/DC${register.toUpperCase()} cover every byte and flag pattern, preserving carry and wrapping only the selected register`, () => {
     const ram = new ObservedRam(0x4000);

@@ -1,3 +1,6 @@
+import { instructions as semantics } from "./generated/8008.ts";
+import { cpu8008StateDescription } from "./state/8008.ts";
+import type { Cpu8008State, Cpu8008StoredState } from "./state/8008.ts";
 import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { readWordLE } from "./binary.ts";
@@ -10,28 +13,15 @@ import type { MemoryAccess } from "./memory-access.ts";
 import { recordPorts } from "./port-access.ts";
 import type { BytePorts, PortAccess } from "./port-access.ts";
 import type { WordInstructionContext } from "./instruction-context.ts";
-import { defineState, copyState, readState, unsigned, flag, boolean, array, group } from "./state.ts";
-import type { StateValues, ReadonlyState } from "./state.js";
+import { copyState, readState } from "./state.ts";
+import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { add, subtract, shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
+import { shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
 
-/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
-export const cpu8008StateDescription = defineState({
-  a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
-  flags: group({ s: flag, z: flag, p: flag, c: flag }),
-  addressStack: array(8, unsigned(14)), stackIndex: unsigned(3), halted: boolean,
-});
-
-type StoredState = StateValues<typeof cpu8008StateDescription>;
-/** Eight physical address registers; stackIndex selects the current program counter. */
-export type Cpu8008AddressStack = StoredState["addressStack"];
-
-export type Cpu8008State = Omit<StoredState, "addressStack"> & {
-  addressStack: Readonly<Cpu8008AddressStack>;
-};
-export type Cpu8008Flags = Cpu8008State["flags"];
+export { cpu8008StateDescription } from "./state/8008.ts";
+export type { Cpu8008State, Cpu8008AddressStack, Cpu8008Flags } from "./state/8008.ts";
 
 export type Cpu8008Snapshot = ReadonlyState<Cpu8008State> & {
   readonly pc: number;
@@ -64,7 +54,7 @@ type ByteOperand = "a" | "b" | "c" | "d" | "e" | "h" | "l" | "m";
 export class Cpu8008 {
   readonly #ram: Ram;
   readonly #ports: BytePorts | undefined;
-  readonly #state: StoredState;
+  readonly #state: Cpu8008StoredState;
   readonly #atBoundary = executionBoundary("8008 step, reset, and interrupt calls must not be reentrant.");
   readonly #counter = programCounter(() => this.#pc, value => { this.#pc = value & 0x3fff; });
 
@@ -156,18 +146,22 @@ export class Cpu8008 {
   // rrr/ddd/sss select A/B/C/D/E/H/L/M in order; M addresses RAM through H:L's low 14 bits.
   readonly #byteOperands = ["a", "b", "c", "d", "e", "h", "l", "m"] as const;
 
-  // ooo selects the same operation in register/memory and immediate forms.
-  // Callbacks read live A and carry; compare sets subtraction flags but retains A.
-  readonly #aluOperations: readonly ((value: number) => number)[] = [
-    value => this.#add(value), // 000 ADr / ADI
-    value => this.#add(value, this.#state.flags.c ? 1 : 0), // 001 ACr / ACI
-    value => this.#subtract(value), // 010 SUr / SUI
-    value => this.#subtract(value, this.#state.flags.c ? 1 : 0), // 011 SBr / SBI
-    value => this.#aluResult(this.#state.a & value, false), // 100 NDr / NDI
-    value => this.#aluResult(this.#state.a ^ value, false), // 101 XRr / XRI
-    value => this.#aluResult(this.#state.a | value, false), // 110 ORr / ORI
-    value => this.#compare(value), // 111 CPr / CPI
-  ];
+  // ooo in 10 ooo sss / 00 ooo 100 selects the same ALU family.
+  // Complete generated bodies read their source and flags; compare never writes A.
+  readonly #aluInstructions = ([
+    ["ad", "adi"], // 000 ADr / ADI
+    ["ac", "aci"], // 001 ACr / ACI
+    ["su", "sui"], // 010 SUr / SUI
+    ["sb", "sbi"], // 011 SBr / SBI
+    ["nd", "ndi"], // 100 NDr / NDI
+    ["xr", "xri"], // 101 XRr / XRI
+    ["or", "ori"], // 110 ORr / ORI
+    ["cp", "cpi"], // 111 CPr / CPI
+  ] as const).map(([operation, immediate]) => (source: ByteOperand | "immediate"): OpcodeHandler => {
+    const suffix = { a: "A", b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", m: "M" } as const;
+    const execute = source === "immediate" ? semantics[immediate] : semantics[`${operation}${suffix[source]}`];
+    return instruction => execute(this.#state, instruction);
+  });
 
   // ccc = vff: v (bit 5) requires false/true; ff (bits 4..3) selects C/Z/S/P.
   // Conditions read the current flags when executing, not when binding an opcode.
@@ -192,7 +186,7 @@ export class Cpu8008 {
     ...opcodeFamily("00 ccc 011", { c: this.#conditions }, ({ c: condition }) => () => this.#return(condition())), // RFc / RTc
 
     // 00 ooo 100: ooo (bits 5..3) selects the ALU operation; the next byte is its operand.
-    ...opcodeFamily("00 ooo 100", { o: this.#aluOperations }, ({ o: operation }) => ({ fetchByte }: InstructionContext) => { this.#state.a = operation(fetchByte()); }), // ADI / ACI / SUI / SBI / NDI / XRI / ORI / CPI
+    ...opcodeFamily("00 ooo 100", { o: this.#aluInstructions }, ({ o: instruction }) => instruction("immediate")), // ADI / ACI / SUI / SBI / NDI / XRI / ORI / CPI
 
     // 00 vvv 101: a one-byte call to 0000..0038; vvv supplies address bits 5..3.
     ...opcodeFamily("00 vvv 101", { v: [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] }, ({ v: address }) => () => this.#call(address)), // RST
@@ -217,7 +211,7 @@ export class Cpu8008 {
     ...opcodeFamily("01 ppppp 1", { p: Array.from({ length: 32 }, (_, port) => port) }, ({ p: port }) => this.#portHandler(port)), // INP / OUT
 
     // 10 ooo sss: ooo (bits 5..3) selects the operation; sss (bits 2..0) selects A/B/C/D/E/H/L/M.
-    ...opcodeFamily("10 ooo sss", { o: this.#aluOperations, s: this.#byteOperands }, ({ o: operation, s: source }) => (instruction: InstructionContext) => { this.#state.a = operation(this.#readOperand(source, instruction)); }), // ADr / ACr / SUr / SBr / NDr / XRr / ORr / CPr (including M)
+    ...opcodeFamily("10 ooo sss", { o: this.#aluInstructions, s: this.#byteOperands }, ({ o: instruction, s: source }) => instruction(source)), // ADr / ACr / SUr / SBr / NDr / XRr / ORr / CPr (including M)
 
     // 11 ddd sss: ddd (bits 5..3) selects destination; sss (bits 2..0) selects source.
     // 11 111 111 is HLT, not LMM; the binding handles this exception without a data access.
@@ -287,22 +281,6 @@ export class Cpu8008 {
   #rotateAccumulator({ result, carry }: ShiftResult): void {
     this.#state.a = result;
     this.#state.flags.c = carry;
-  }
-
-  #add(value: number, carryIn: 0 | 1 = 0): number {
-    const { result, carry } = add(8, this.#state.a, value, carryIn);
-    return this.#aluResult(result, carry);
-  }
-
-  #subtract(value: number, borrowIn: 0 | 1 = 0): number {
-    const { result, borrow } = subtract(8, this.#state.a, value, borrowIn);
-    // C represents a borrow, including when value + incoming borrow is 100H.
-    return this.#aluResult(result, borrow);
-  }
-
-  #compare(value: number): number {
-    this.#subtract(value);
-    return this.#state.a;
   }
 
   #aluResult(result: number, carry: boolean): number {

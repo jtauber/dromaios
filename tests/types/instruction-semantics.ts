@@ -6,6 +6,8 @@ import type { FlagPolicy, NumberExpression, Statement } from "../../src/componen
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
 import type { CpuZ80State } from "../../src/components/cpus/z80.js";
+import { instructions as generated8008 } from "../../src/components/cpus/generated/8008.js";
+import type { Cpu8008State } from "../../src/components/cpus/8008.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
 import { instructions as generated6809 } from "../../src/components/cpus/generated/6809.js";
 import { instructions as generated6800 } from "../../src/components/cpus/generated/6800.js";
@@ -91,7 +93,7 @@ export function checkInstructionSemantics(): void {
   ] };
 }
 
-export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State, motorola: Cpu6809State, m6800: Cpu6800State, z80: CpuZ80State): void {
+export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State, motorola: Cpu6809State, m6800: Cpu6800State, z80: CpuZ80State, i8008: Cpu8008State): void {
   const readers = sourceReaders(mos);
   const address: number = readers.addresses.absoluteX({ fetchByte: () => 0 });
   const byte: number = readers.operands[3]({ fetchByte: () => 0, readByte: () => 0 });
@@ -141,6 +143,19 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generatedZ80.xorM(z80, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error Z80 policy fields require Z80 state.
   generatedZ80.subA(intel);
+  generated8008.acA(i8008);
+  generated8008.sbM(i8008, { readByte: () => 0 });
+  generated8008.ndi(i8008, { fetchByte: () => 0 });
+  // @ts-expect-error Register bodies need no fetch or memory capability.
+  generated8008.adB(i8008, { fetchByte: () => 0 });
+  // @ts-expect-error Memory bodies resolve H:L locally and cannot fetch an address.
+  generated8008.cpM(i8008, { readByte: () => 0, fetchByte: () => 0 });
+  // @ts-expect-error ALU memory sources are never destinations.
+  generated8008.xrM(i8008, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Immediate bodies need byte fetching, not data-memory reads.
+  generated8008.aci(i8008, { readByte: () => 0 });
+  // @ts-expect-error Concrete CPU state retains the 8008's address-register structure.
+  generated8008.adA(intel);
   generated8080.cmpB(intel);
   generated8080.ral(intel);
   generated8080.adcA(intel);

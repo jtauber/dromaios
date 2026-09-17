@@ -2,7 +2,7 @@ import { machineSyntax } from "./language/syntax.ts";
 import type { Token } from "./language/syntax.ts";
 import { compositionSyntax } from "./language/composition.ts";
 import type { CompositionDefinition } from "./language/composition.ts";
-import { cpu8008StateDescription } from "../components/cpus/8008.ts";
+import { cpu8008StateDescription } from "../components/cpus/state/8008.ts";
 import { cpu8080StateDescription } from "../components/cpus/state/8080.ts";
 import { cpu8088StateDescription } from "../components/cpus/8088.ts";
 import { cpu6502StateDescription } from "../components/cpus/state/6502.ts";
