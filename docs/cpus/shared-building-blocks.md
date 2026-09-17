@@ -1316,8 +1316,8 @@ the language is worth adopting.
 
 The [current executable experiment](instruction-semantics.md#executable-generation-and-integration)
 generates and binds comparison bodies across the four CPUs, logical bodies across
-the 6502/6800/6809, plus 6502 loads/stores,
-register transfers, shifts/rotates, and byte increments/decrements. A shared
+the 6502/6800/6809, plus their byte loads/stores, 6502 register transfers and
+6800 TAB/TBA, and 6502 shifts/rotates and byte increments/decrements. A shared
 shift recipe also drives the 8080 accumulator rotates and all 6800/6809 A/B and
 memory shifts, with each CPU's flag and writeback schedule explicit. Shared
 Motorola unary construction also covers NEG/COM/INC/DEC/CLR/TST, with the CLR

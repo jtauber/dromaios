@@ -1,6 +1,6 @@
 import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, literal, negative, overflow, readMemory, readRegister, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
-import { compare, immediateByte, logical, negativeZeroPolicy, shift } from "./builders.ts";
+import { compare, immediateByte, logical, negativeZeroPolicy, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
 
 interface MotorolaCpu {
@@ -113,10 +113,15 @@ export function motorolaComparison(cpu: MotorolaCpu, mnemonic: string, left: Reg
   }));
 }
 
+/** Loads, stores, transfers, and logic describe the byte in N/Z, clear V, and preserve other flags. */
+export function motorolaByteResultFlags(cpu: MotorolaCpu, operation: string): FlagPolicy {
+  const nz = negativeZeroPolicy(`${cpu.declaration.name} ${operation}`, cpu.flag("n"), cpu.flag("z"), 8);
+  return { ...nz, updates: [...nz.updates, { flag: cpu.flag("v"), value: flagLiteral(false) }] };
+}
+
 /** Shared A/B logical families: N/Z describe the result, V clears, and BIT omits register writeback. */
 export function motorolaLogic(cpu: MotorolaCpu, orMnemonic: "OR" | "ORA" = "OR") {
-  const nz = negativeZeroPolicy(`${cpu.declaration.name} logic`, cpu.flag("n"), cpu.flag("z"), 8);
-  const flags: FlagPolicy = { ...nz, updates: [...nz.updates, { flag: cpu.flag("v"), value: flagLiteral(false) }] };
+  const flags = motorolaByteResultFlags(cpu, "logic");
   return Object.fromEntries(([
     ["and", "AND", bitAnd, true], ["bit", "BIT", bitAnd, false],
     ["eor", "EOR", bitXor, true], ["or", orMnemonic, bitOr, true],
@@ -135,4 +140,35 @@ export function motorolaLogic(cpu: MotorolaCpu, orMnemonic: "OR" | "ORA" = "OR")
           ...logical(cpu.register(register), memory ? value("byte") : immediateByte, operation, flags, writeBack)],
       })];
     }))));
+}
+
+/** Byte loads/stores share their meaning; CPUs retain their own address resolution and native names. */
+export function motorolaByteTransfers(cpu: MotorolaCpu, mnemonics: readonly [string, string] = ["LD", "ST"]) {
+  const flags = motorolaByteResultFlags(cpu, "transfer");
+  return Object.fromEntries((["a", "b"] as const).flatMap(register => {
+    const suffix = register.toUpperCase();
+    return [
+      ...(["Immediate", "Memory"] as const).map(mode => {
+        const memory = mode === "Memory";
+        return [`ld${register}${mode}`, defineInstruction({
+          cpu: cpu.declaration, name: `${mnemonics[0]}${suffix} ${memory ? "memory" : "#byte"}`,
+          ...(memory ? { inputs: { address: 16 as const } } : {}),
+          explanation: (memory ? "Entry is after successful address resolution. Read the byte at that address. " : "Fetch the immediate byte. ")
+            + `Write ${suffix}, then set N/Z from the captured byte and clear V, preserving other flags. `
+            + "A failed read prevents register and flag updates; completed fetches and addressing effects remain.",
+          steps: [...(memory ? [readMemory("byte", value("address"))] : []),
+            ...transfer(cpu.register(register), memory ? value("byte") : immediateByte, flags)],
+        })] as const;
+      }),
+      [`st${register}Memory`, defineInstruction({
+        cpu: cpu.declaration, name: `${mnemonics[1]}${suffix} memory`, inputs: { address: 16 },
+        explanation: `Entry is after successful address resolution. Only then capture ${suffix}. `
+          + "Do not read the destination; write the captured byte once, even if unchanged. "
+          + "Only after a successful write, set N/Z from that byte and clear V, preserving other flags. "
+          + "A failed write leaves flags unchanged; completed fetches and addressing effects remain.",
+        steps: [readRegister("result", cpu.register(register)), writeMemory(value("address"), value("result")),
+          updateFlags(flags, { result: value("result") })],
+      })] as const,
+    ];
+  }));
 }

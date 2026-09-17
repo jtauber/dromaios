@@ -88,12 +88,12 @@ export function motorolaUnaryOperations<State>(bodies: UnaryBodies<State>) {
   ] as const).map(([bits, name]) => ({ bits, registers: [bodies[`${name}A`], bodies[`${name}B`]], memory: bodies[`${name}Memory`] }));
 }
 
-/** Bind operand bodies to mm=00 immediate and mm=01/10/11 resolved memory; construction reads no state. */
+/** Bind mm=00 immediate (when supplied) and mm=01/10/11 resolved memory; construction reads no state. */
 export function motorolaOperandBindings<State>(readState: () => State,
   modes: readonly { bits: string; address: (instruction: WordInstructionContext) => number | undefined }[]) {
-  return (pattern: string, immediate: (state: State, instruction: WordInstructionContext) => void,
+  return (pattern: string, immediate: ((state: State, instruction: WordInstructionContext) => void) | undefined,
     memory: (state: State, address: number, instruction: ByteMemory) => void): readonly OpcodeEntry<(instruction: WordInstructionContext) => "unsupported" | void>[] => [
-    ...opcodePattern(pattern.replace("mm", "00"), (instruction: WordInstructionContext) => immediate(readState(), instruction)),
+    ...(immediate ? opcodePattern(pattern.replace("mm", "00"), (instruction: WordInstructionContext) => immediate(readState(), instruction)) : []),
     ...modes.flatMap(({ bits, address: resolve }) => opcodePattern(pattern.replace("mm", bits), (instruction: WordInstructionContext) => {
       const address = resolve(instruction);
       if (address === undefined) return "unsupported";
@@ -102,30 +102,32 @@ export function motorolaOperandBindings<State>(readState: () => State,
   ];
 }
 
-type LogicalName = "and" | "bit" | "eor" | "or";
-type LogicalBodies<State> = Readonly<Record<`${LogicalName}${"a" | "b"}Immediate`, (state: State, instruction: WordInstructionContext) => void>
-  & Record<`${LogicalName}${"a" | "b"}Memory`, (state: State, address: number, instruction: ByteMemory) => void>>;
+type ByteReadName = "cmp" | "and" | "bit" | "ld" | "eor" | "or";
+type ByteBodies<State> = Readonly<Record<`${ByteReadName}${"a" | "b"}Immediate`, (state: State, instruction: WordInstructionContext) => void>
+  & Record<`${ByteReadName | "st"}${"a" | "b"}Memory`, (state: State, address: number, instruction: ByteMemory) => void>>;
 
-/** 1 r mm oooo: r selects A/B; the four oooo rows share the same immediate/memory boundary. */
-export function motorolaLogicalBindings<State>(bodies: LogicalBodies<State>, bind: ReturnType<typeof motorolaOperandBindings<State>>) {
-  return ([
-    ["0100", "and"], ["0101", "bit"], ["1000", "eor"], ["1010", "or"],
-  ] as const).flatMap(([bits, name]) => (["a", "b"] as const).flatMap((register, r) =>
-    bind(`1 ${r} mm ${bits}`, bodies[`${name}${register}Immediate`], bodies[`${name}${register}Memory`])));
+/** 1 r mm oooo: r selects A/B; these generated bodies share an immediate/resolved-memory boundary. */
+export function motorolaByteBindings<State>(bodies: ByteBodies<State>, bind: ReturnType<typeof motorolaOperandBindings<State>>) {
+  return (["a", "b"] as const).flatMap((register, r) => [
+    ...([
+      ["0001", "cmp"], ["0100", "and"], ["0101", "bit"], ["0110", "ld"],
+      ["1000", "eor"], ["1010", "or"],
+    ] as const).flatMap(([bits, name]) => bind(`1 ${r} mm ${bits}`, bodies[`${name}${register}Immediate`], bodies[`${name}${register}Memory`])),
+    ...bind(`1 ${r} mm 0111`, undefined, bodies[`st${register}Memory`]), // Stores have no immediate form.
+  ]);
 }
 
 type Accumulator = "a" | "b";
 interface AccumulatorState { a: number; b: number; flags: { c: boolean } }
 type AccumulatorOperation = { readonly bits: string; readonly apply: (register: Accumulator, value: number) => void };
 
-/** Remaining 6800/6809 byte-operation selectors; generated comparisons/logic and CPU-specific stores bind separately. */
+/** Remaining 6800/6809 byte-arithmetic selectors; generated comparisons, logic, and transfers bind separately. */
 export function motorolaAccumulatorOperations(readState: () => AccumulatorState, alu: ReturnType<typeof motorolaByteAlu>): readonly AccumulatorOperation[] {
   // 1 r mm oooo: r selects A/B, mm selects addressing, and these rows select oooo.
   // Construct only closures here: CPU state is not available until its constructor runs.
   return [
     { bits: "0000", apply: (r, value) => { readState()[r] = alu.subtract(readState()[r], value); } }, // SUBA/B
     { bits: "0010", apply: (r, value) => { readState()[r] = alu.subtract(readState()[r], value, readState().flags.c ? 1 : 0); } }, // SBCA/B
-    { bits: "0110", apply: (r, value) => { readState()[r] = value; alu.test(value); } }, // LDA/B (6800 LDAA/LDAB)
     { bits: "1001", apply: (r, value) => { readState()[r] = alu.add(readState()[r], value, readState().flags.c ? 1 : 0); } }, // ADCA/B
     { bits: "1011", apply: (r, value) => { readState()[r] = alu.add(readState()[r], value); } }, // ADDA/B
   ];

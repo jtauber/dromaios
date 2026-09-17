@@ -24,6 +24,8 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6502 STA/STX/STY, every supported addressing form | Resolve the address before capturing the source; one write without a destination read or any flag access |
 | 6502 ORA/AND/EOR and BIT, every supported addressing form | Reuse byte sources and N/Z; BIT preserves A and derives N/V from memory, separately from the masked result used for Z |
 | 6800/6809 AND/BIT/EOR/OR on A/B, every supported addressing form | Share logical construction and operand bindings; N/Z describe the result, V clears, and BIT omits writeback |
+| 6800/6809 byte loads and stores, every supported addressing form | Share N/Z with V cleared; stores capture A/B after addressing, never read the destination, and apply flags only after a successful write |
+| 6800 TAB/TBA | Reuse the transfer recipe and Motorola byte-result policy, writing the destination before flags |
 | All six 6502 register transfers and 8080 MOV B,A | Share read/write behavior while selecting N/Z or preserving every flag; SP transfers do not access the stack |
 | All 6502 ASL/ROL/LSR/ROR forms | One resolved address, an original-value write, a captured incoming carry for rotates, and separate C and N/Z stages; accumulator forms share the operation |
 | All 6502 memory INC/DEC and INX/INY/DEX/DEY | Share wrapping byte updates while preserving C and the same memory-write boundaries |
@@ -32,15 +34,16 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 242 bodies. All are generated and executable; 241 are bound into their
+There are 256 bodies. All are generated and executable; 255 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
-comparison or unary body starts after successful address resolution and serves
-direct, indexed, and extended forms, including all legal indexed postbytes.
-The 6800 memory comparisons likewise serve direct/indexed/extended forms, while
-its unary operations have indexed/extended forms. Both decoders remain handwritten. The existing
+body starts after successful address resolution and serves direct, indexed, and
+extended forms, including all legal indexed postbytes. The 6800 memory
+comparisons, logic, and byte transfers likewise serve direct/indexed/extended
+forms, while its unary operations have indexed/extended forms. Both decoders
+remain handwritten. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
 independent CPU tests are the behavioral baseline.
 
@@ -56,7 +59,7 @@ The authoring layers have separate homes:
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical recipes, N/Z policies, and checked opcode inventories |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, and logical construction, with explicit operand-read and flag policies |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, and byte-transfer construction, with explicit access and flag policies |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -507,8 +510,8 @@ inventory contains function references only; each invocation supplies the curren
 CPU state. CPU-owned wrappers resolve one address, with the 6809 rejecting
 undefined postbytes before body entry. The handwritten unary calculations and
 memory-modification paths are gone. JMP remains a separate address operation.
-The 6800 and 6809 share `motorolaOperandBindings` for comparison and logical
-families, with the 6809 using it across its three opcode pages for comparisons.
+The 6800 and 6809 share `motorolaOperandBindings` for comparisons, logic, and
+byte transfers, with the 6809 using it across its three opcode pages for comparisons.
 Each register has an immediate body that fetches its operand and a memory body
 that receives the decoder's resolved address. This covers CMPA/B/D/X/Y/U/S in
 all four addressing modes, with no special indexed postbyte path. Unsupported
@@ -520,11 +523,26 @@ to filter it out. The original 6800 CPX helper is gone. Binding captures a state
 getter without reading it until execution, and resolves each memory address once
 before entering its body. Address decoding remains outside the generated definitions.
 
-`motorolaLogicalBindings` selects AND/BIT/EOR/OR and A/B from the native
-`1 r mm oooo` encoding. Each resolved-memory body serves direct, indexed, and
-extended forms, with no new addressing path. The shared handwritten accumulator
-table now contains only SUB/SBC/LD/ADC/ADD; its four logical selectors and the
-single-use load wrapper have been removed.
+`motorolaByteBindings` selects CMP/AND/BIT/LD/ST/EOR/OR and A/B from the native
+`1 r mm oooo` encoding. Stores omit the immediate binding. Each resolved-memory
+body serves direct, indexed, and extended forms, with no new addressing path.
+The handwritten accumulator table now contains only SUB/SBC/ADC/ADD.
+
+Loads and the 6800's TAB/TBA reuse `transfer`: capture a source or an already
+read value, write the register, then apply the Motorola byte-result policy.
+Stores explicitly capture A/B after addressing, write once without reading the
+destination, then apply that same N/Z policy with V cleared. A failed store
+therefore preserves flags, unlike unary memory modifications, which apply
+flags before writing. Both CPU store helpers and the 6800 accumulator-load
+helper are gone; word loads/stores retain their existing helpers.
+
+The existing independent CPU tests cover values, flag patterns, and unchanged
+writes. Additional probes check each failed access, all 217 legal 6809 indexed
+postbytes, source/index aliases, partial PC/index updates, and unsupported
+postbyte rejection. Generated-body probes use replacement flag objects and
+changing registers during callbacks to verify capture order, single accesses,
+and flags derived from the captured byte. Type checks restrict store bodies to
+writing, resolved loads to reading, and immediate loads to fetching.
 
 ## Decision and next review
 
@@ -596,6 +614,14 @@ binding is renamed to reflect its general immediate/resolved-memory role.
 The 32 new bodies cover 64 complete opcode forms. Shared construction, bindings,
 and CPU integration cost 41 net authored lines after removals; the footprint
 report records this increase alongside the reuse across three CPUs.
+
+The byte-transfer migration reuses the same sources, transfer recipe, and
+Motorola flag policy without compiler changes. Fourteen new bodies cover thirty
+forms across both CPUs. Earlier definitions remain structurally unchanged, and
+the generated 6502/8080 modules are byte-for-byte identical. CPU modules shrink
+by 26 lines, while definitions and shared construction/bindings add 48, a net
+increase of 22 authored lines. Word loads/stores are the next nearby reuse
+opportunity, with explicit byte order and partial-write behavior to preserve.
 
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve

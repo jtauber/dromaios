@@ -59,9 +59,9 @@ export function compare(left: Register | ValueSource, right: ValueSource | Numbe
 }
 
 /** Capture the source once, write the destination, then optionally apply a policy parameterized by result. */
-export function transfer(destination: Register, source: ValueSource, policy?: FlagPolicy): readonly Statement[] {
+export function transfer(destination: Register, source: ValueSource | NumberExpression, policy?: FlagPolicy): readonly Statement[] {
   const steps: Statement[] = [
-    readSource("result", source),
+    "kind" in source ? capture("result", source) : readSource("result", source),
     writeRegister(destination, value("result")),
   ];
   if (policy !== undefined) steps.push(updateFlags(policy, { result: value("result") }));

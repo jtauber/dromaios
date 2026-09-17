@@ -220,11 +220,39 @@ test("Motorola logical explanations share result flags and distinguish BIT from 
   }
 });
 
+test("Motorola byte transfers explain captured sources and flags only after successful writes", () => {
+  for (const cpu of ["6800", "6809"]) for (const register of ["A", "B"]) {
+    const load = cpu === "6800" ? "LDA" : "LD", store = cpu === "6800" ? "STA" : "ST";
+    for (const mode of ["#byte", "memory"]) {
+      const text = description(cpu, `${load}${register} ${mode}`);
+      const read = text.indexOf(mode === "memory" ? "read memory[address]" : "fetch byte");
+      const write = text.indexOf(`write ${register}:u8 := result`), flags = text.indexOf("N := topBit(result)");
+      assert.ok(read >= 0 && read < write && write < flags);
+      assert.match(text, /V := 0:flag/);
+      assert.doesNotMatch(text, /:= read [AB]|write memory/);
+    }
+    const text = description(cpu, `${store}${register} memory`);
+    const read = text.indexOf(`:= read ${register}`), write = text.indexOf("write memory[address] := result");
+    assert.ok(read >= 0 && read < write && write < text.indexOf("N := topBit(result)"));
+    assert.equal(text.match(/write memory/g)?.length, 1);
+    assert.match(text, /failed write leaves flags unchanged/);
+    assert.doesNotMatch(text, /read memory|fetch byte/);
+    assert.match(text, cpu === "6800" ? /Flags preserved throughout: H, I, C\./ : /Flags preserved throughout: E, F, H, I, C\./);
+  }
+  for (const name of ["TAB", "TBA"]) {
+    const text = description("6800", name), source = name[1], destination = name[2];
+    const read = text.indexOf(`:= read ${source}`), write = text.indexOf(`write ${destination}:u8 := result`);
+    assert.ok(read >= 0 && read < write && write < text.indexOf("N := topBit(result)"));
+    assert.match(text, /V := 0:flag/);
+    assert.doesNotMatch(text, /fetch byte|read memory|write memory/);
+  }
+});
+
 test("the review artifact is reproducible from the inert definitions and their accompanying prose", () => {
   const before = JSON.stringify(instructionDefinitions);
   const document = describeInstructions(instructionDefinitions);
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 242);
+  assert.equal(instructionDefinitions.length, 256);
 });

@@ -2194,13 +2194,20 @@ test("6809 memory unary operations and byte comparisons retain exactly completed
   }
 });
 
-test("6809 logical families preserve indexed addressing, source aliases, and completed effects on read failure", () => {
-  const failure = new Error("logical operand read failed");
+test("6809 logic, loads, and stores preserve indexed addressing and completed effects on access failure", () => {
+  const failure = new Error("indexed operand access failed");
   class FaultRam extends ObservedRam {
     failAt = -1; attempts = 0;
     override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
+    override write(address: number, value: number): void { if (this.attempts++ === this.failAt) throw failure; super.write(address, value); }
   }
-  for (const [operation, register, , , opcode] of accumulatorForms.filter(([name]) => ["AND", "BIT", "EOR", "OR"].includes(name))) {
+  const forms = [
+    ...accumulatorForms.filter(([name]) => ["AND", "BIT", "LD", "EOR", "OR"].includes(name))
+      .map(([operation, register, , , opcode]) => ({ operation, register, opcode })),
+    { operation: "ST", register: "a", opcode: 0xa7 }, { operation: "ST", register: "b", opcode: 0xe7 },
+  ] as const;
+  for (const { operation, register, opcode } of forms) {
+    const store = operation === "ST";
     for (const [a, b] of [[0x80, 0xff], [0, 1]] as const) for (const form of indexedForms(a, b, -128, -32768)) {
       for (const base of [0, 0xffff]) {
         const pc = base === 0 ? 0xffff : 0xfffd, bytes = [opcode, form.postbyte, ...form.operands];
@@ -2211,11 +2218,11 @@ test("6809 logical families preserve indexed addressing, source aliases, and com
         if (form.indirect) { image.set(pointer, 0x40); image.set(wrapAddress(pointer + 1), 0); }
         bytes.forEach((byte, offset) => image.set(wrapAddress(pc + offset), byte));
         const address = form.indirect ? image.get(pointer)! * 256 + image.get(wrapAddress(pointer + 1))! : pointer;
-        const operand = image.get(address) ?? 0, result = byteLogic(operation, state[register], operand);
+        const operand = image.get(address) ?? 0, result = store ? state[register] : byteLogic(operation, state[register], operand);
         const accesses = [
           ...bytes.map((value, offset) => ({ kind: "read", address: wrapAddress(pc + offset), value })),
           ...(form.indirect ? [pointer, wrapAddress(pointer + 1)].map(address => ({ kind: "read", address, value: image.get(address)! })) : []),
-          { kind: "read", address, value: operand },
+          { kind: store ? "write" : "read", address, value: store ? result : operand },
         ];
         // Every legal postbyte succeeds; representative auto-update/pointer forms fail at each access too.
         const failures = [0x81, 0xf3, 0x99, 0x9f].includes(form.postbyte) ? [-1, ...accesses.map((_, i) => i)] : [-1];
@@ -2223,11 +2230,11 @@ test("6809 logical families preserve indexed addressing, source aliases, and com
           const ram = new FaultRam();
           for (const [location, byte] of image) ram.write(location, byte);
           const cpu = new Cpu6809(ram, state), before = cpu.snapshot();
-          ram.accesses.length = 0; ram.failAt = failAt;
+          ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
           const completed = failAt < 0 ? accesses.length : failAt;
           const after = { ...before, pc: wrapAddress(pc + Math.min(completed, bytes.length)),
             ...(completed >= bytes.length ? { [form.register]: wrapAddress(base + form.update), nmiArmed: form.register === "s" && form.update !== 0 } : {}),
-            ...(failAt < 0 ? { [register]: operation === "BIT" ? state[register] : result,
+            ...(failAt < 0 ? { [register]: store || operation === "BIT" ? state[register] : result,
               flags: { ...state.flags, n: result >= 128, z: result === 0, v: false } } : {}),
           };
           after.d = after.a * 256 + after.b;
@@ -2237,6 +2244,49 @@ test("6809 logical families preserve indexed addressing, source aliases, and com
           assert.deepEqual(ram.accesses, accesses.slice(0, completed));
           assert.equal(ram.attempts, failAt < 0 ? accesses.length : failAt + 1);
         }
+      }
+    }
+  }
+});
+
+test("6809 byte transfers preserve flags and completed fetches at every access failure", () => {
+  const failure = new Error("byte transfer failed");
+  class FaultRam extends ObservedRam {
+    failAt = -1; attempts = 0;
+    override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
+    override write(address: number, value: number): void { if (this.attempts++ === this.failAt) throw failure; super.write(address, value); }
+  }
+  const forms = ([
+    ["a", 0x86, [0x80], undefined, false], ["b", 0xc6, [0x80], undefined, false],
+    ["a", 0x96, [0xff], 0x56ff, false], ["b", 0xd6, [0xff], 0x56ff, false],
+    ["a", 0xb6, [0xff, 0xff], 0xffff, false], ["b", 0xf6, [0xff, 0xff], 0xffff, false],
+    ["a", 0x97, [0xff], 0x56ff, true], ["b", 0xd7, [0xff], 0x56ff, true],
+    ["a", 0xb7, [0xff, 0xff], 0xffff, true], ["b", 0xf7, [0xff, 0xff], 0xffff, true],
+  ] as const).map(([register, opcode, operands, address, store]) => ({ register, opcode, operands, address, store }));
+  for (const { opcode, register, operands, address, store } of forms) {
+    for (const pc of [0x2000, 0xfffe, 0xffff]) for (const bits of [0, 255]) for (const byte of [0, 0x80, 0xff]) {
+      const bytes = [opcode, ...operands], image = new Map<number, number>();
+      if (address !== undefined) image.set(address, byte); // Include unchanged stores and instruction/data overlap.
+      bytes.forEach((value, i) => image.set((pc + i) % 65536, value));
+      const value = store ? byte : address === undefined ? operands[0]! : image.get(address)!;
+      const accesses = [
+        ...bytes.map((value, i) => ({ kind: "read", address: (pc + i) % 65536, value })),
+        ...(address === undefined ? [] : [{ kind: store ? "write" : "read", address, value }]),
+      ];
+      for (const failAt of [-1, ...accesses.map((_, i) => i)]) {
+        const ram = new FaultRam();
+        for (const [location, value] of image) ram.write(location, value);
+        const cpu = new Cpu6809(ram, initialState({ pc, a: byte, b: byte, flags: flagsFor(bits) })), before = cpu.snapshot();
+        ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
+        const completed = failAt < 0 ? accesses.length : failAt;
+        const after = { ...before, pc: (pc + Math.min(completed, bytes.length)) % 65536,
+          ...(failAt < 0 ? { [register]: value, flags: { ...before.flags, n: value >= 128, z: value === 0, v: false } } : {}) };
+        after.d = after.a * 256 + after.b;
+        if (failAt >= 0) assert.throws(() => cpu.step(), error => error === failure);
+        else assert.deepEqual(cpu.step(), { before, after, instruction: { address: pc, bytes }, accesses, outcome: "executed" });
+        assert.deepEqual(cpu.snapshot(), after);
+        assert.deepEqual(ram.accesses, accesses.slice(0, completed));
+        assert.equal(ram.attempts, failAt < 0 ? accesses.length : failAt + 1);
       }
     }
   }

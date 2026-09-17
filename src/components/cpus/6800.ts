@@ -11,7 +11,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaOperandBindings, motorolaLogicalBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
 import { instructions as semantics } from "./generated/6800.ts";
 import { cpu6800StateDescription } from "./state/6800.ts";
 import type { Cpu6800State } from "./state/6800.ts";
@@ -38,7 +38,6 @@ export type Cpu6800InterruptRecord = StateTransition<Cpu6800Snapshot> & { readon
 );
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
-type Accumulator = "a" | "b";
 type WordRegister = "sp" | "x";
 type AddressReader = (instruction: InstructionContext) => number;
 
@@ -129,7 +128,7 @@ export class Cpu6800 {
 
   readonly #operandHandlers = motorolaOperandBindings(() => this.#state, this.#memoryModes);
 
-  // 1 r mm oooo shares the 6809's byte operations; CMP and logic have generated bodies below.
+  // 1 r mm oooo shares the 6809's byte operations; comparisons, logic, and transfers have generated bodies below.
   readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
 
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
@@ -150,8 +149,8 @@ export class Cpu6800 {
     ...instructionPattern("0001000 1", () => semantics.cba(this.#state)), // CBA
 
     // 0001011 d: d=0 transfers A to B; d=1 transfers B to A. Both update N/Z/V.
-    ...instructionPattern("0001011 0", () => this.#loadAccumulator("b", this.#state.a)), // TAB
-    ...instructionPattern("0001011 1", () => this.#loadAccumulator("a", this.#state.b)), // TBA
+    ...instructionPattern("0001011 0", () => semantics.tab(this.#state)), // TAB
+    ...instructionPattern("0001011 1", () => semantics.tba(this.#state)), // TBA
 
     ...instructionPattern("0001 1001", () => { this.#state.a = this.#alu.decimalAdjust(this.#state.a); }), // DAA
     ...instructionPattern("0001 1011", () => { this.#state.a = this.#alu.add(this.#state.a, this.#state.b); }), // ABA
@@ -192,15 +191,10 @@ export class Cpu6800 {
 
     // 1 r mm oooo: r (bit 6) selects A=0/B=1; mm (bits 5–4) selects addressing;
     // oooo (bits 3–0) selects a shared byte operation; 0011 remains undefined.
-    // Generated CMP/BIT preserve A/B; other logic writes before flags. Remaining selectors are shared.
-    ...this.#operandHandlers("1 0 mm 0001", semantics.cmpaImmediate, semantics.cmpaMemory), // CMPA
-    ...this.#operandHandlers("1 1 mm 0001", semantics.cmpbImmediate, semantics.cmpbMemory), // CMPB
-    ...motorolaLogicalBindings(semantics, this.#operandHandlers), // AND/BIT/EOR/OR on A/B
+    // CMP/BIT preserve A/B; loads/logic write before flags; stores apply flags after a successful write.
+    ...motorolaByteBindings(semantics, this.#operandHandlers), // CMP/AND/BIT/LD/ST/EOR/OR on A/B
     ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r mm ${bits}`,
       { r: ["a", "b"], m: this.#operandReaders }, ({ r, m: read }) => (instruction: InstructionContext) => apply(r, read(instruction)))),
-    // Stores have no immediate form: expand only the three address-bearing modes.
-    ...this.#memoryModes.flatMap(({ bits, address }) => opcodeFamily(`1 r ${bits} 0111`, { r: ["a", "b"] },
-      ({ r }) => (instruction: InstructionContext) => this.#storeAccumulator(r, address(instruction), instruction.writeByte))), // STAA / STAB
 
     // 10 mm 1100: compare X with a word. The original 6800 compares its bytes separately.
     ...this.#operandHandlers("10 mm 1100", semantics.cpxImmediate, semantics.cpxMemory), // CPX
@@ -240,20 +234,9 @@ export class Cpu6800 {
 
   // Loads, stores, and accumulator operations.
 
-  #loadAccumulator(register: Accumulator, value: number): void {
-    this.#state[register] = value;
-    this.#alu.test(value);
-  }
-
   #loadWord(register: WordRegister, value: number): void {
     this.#state[register] = value;
     this.#alu.test(value, 16);
-  }
-
-  #storeAccumulator(register: Accumulator, address: number, writeByte: InstructionContext["writeByte"]): void {
-    const value = this.#state[register];
-    writeByte(address, value);
-    this.#alu.test(value);
   }
 
   #storeWord(register: WordRegister, address: number, writeByte: InstructionContext["writeByte"]): void {

@@ -119,6 +119,28 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800.cmpaImmediate(m6800, { fetchByte: () => 0 });
   generated6800.cpxMemory(m6800, 0xffff, { readByte: () => 0 });
   generated6800.cba(m6800);
+  generated6800.tab(m6800);
+  generated6800.tba(m6800);
+  generated6800.ldaImmediate(m6800, { fetchByte: () => 0 });
+  generated6809.ldbImmediate(motorola, { fetchByte: () => 0 });
+  generated6800.ldbMemory(m6800, 0xffff, { readByte: () => 0 });
+  generated6809.ldaMemory(motorola, 0xffff, { readByte: () => 0 });
+  generated6800.staMemory(m6800, 0xffff, { writeByte: () => {} });
+  generated6809.stbMemory(motorola, 0xffff, { writeByte: () => {} });
+  // @ts-expect-error Resolved byte stores have no destination-read capability.
+  generated6800.stbMemory(m6800, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Store addressing is already complete, including any indirect pointer reads.
+  generated6809.staMemory(motorola, 0xffff, { fetchByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Byte stores require a write capability even when the destination is unchanged.
+  generated6809.stbMemory(motorola, 0xffff, {});
+  // @ts-expect-error Immediate byte loads have no data-memory capability.
+  generated6800.ldaImmediate(m6800, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Resolved loads cannot fetch another address.
+  generated6809.ldbMemory(motorola, 0xffff, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error TAB needs no fetching or memory context.
+  generated6800.tab(m6800, { fetchByte: () => 0 });
+  // @ts-expect-error Byte transfer bodies require the concrete CPU state.
+  generated6800.ldaImmediate(motorola, { fetchByte: () => 0 });
   generated6800.andaImmediate(m6800, { fetchByte: () => 0 });
   generated6800.orbMemory(m6800, 0xffff, { readByte: () => 0 });
   generated6809.bitbImmediate(motorola, { fetchByte: () => 0 });

@@ -3395,6 +3395,152 @@ flags "6800 logic" simultaneously {
 
 Flags preserved throughout: H, I, C.
 
+### 6800 LDAA #byte
+
+Fetch the immediate byte. Write A, then set N/Z from the captured byte and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+write A:u8 := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 LDAA memory
+
+Entry is after successful address resolution. Read the byte at that address. Write A, then set N/Z from the captured byte and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+result := byte
+write A:u8 := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 STAA memory
+
+Entry is after successful address resolution. Only then capture A. Do not read the destination; write the captured byte once, even if unchanged. Only after a successful write, set N/Z from that byte and clear V, preserving other flags. A failed write leaves flags unchanged; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+result:u8 := read A
+write memory[address] := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 LDAB #byte
+
+Fetch the immediate byte. Write B, then set N/Z from the captured byte and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+write B:u8 := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 LDAB memory
+
+Entry is after successful address resolution. Read the byte at that address. Write B, then set N/Z from the captured byte and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+result := byte
+write B:u8 := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 STAB memory
+
+Entry is after successful address resolution. Only then capture B. Do not read the destination; write the captured byte once, even if unchanged. Only after a successful write, set N/Z from that byte and clear V, preserving other flags. A failed write leaves flags unchanged; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+result:u8 := read B
+write memory[address] := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 TAB
+
+Capture A and write B, then set N/Z from that byte and clear V. Preserve other flags. No data-memory access occurs.
+
+```text
+result:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write B:u8 := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 TBA
+
+Capture B and write A, then set N/Z from that byte and clear V. Preserve other flags. No data-memory access occurs.
+
+```text
+result:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+write A:u8 := result
+flags "6800 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
 ### 6800 CMPA #byte
 
 Fetch the immediate operand. Only then read A. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
@@ -4721,6 +4867,114 @@ accumulator:u8 := read B
 result := bitOr(accumulator, operand)
 write B:u8 := result
 flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDA #byte
+
+Fetch the immediate byte. Write A, then set N/Z from the captured byte and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+write A:u8 := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDA memory
+
+Entry is after successful address resolution. Read the byte at that address. Write A, then set N/Z from the captured byte and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+result := byte
+write A:u8 := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STA memory
+
+Entry is after successful address resolution. Only then capture A. Do not read the destination; write the captured byte once, even if unchanged. Only after a successful write, set N/Z from that byte and clear V, preserving other flags. A failed write leaves flags unchanged; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+result:u8 := read A
+write memory[address] := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDB #byte
+
+Fetch the immediate byte. Write B, then set N/Z from the captured byte and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+write B:u8 := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 LDB memory
+
+Entry is after successful address resolution. Read the byte at that address. Write B, then set N/Z from the captured byte and clear V, preserving other flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+result := byte
+write B:u8 := result
+flags "6809 transfer" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 STB memory
+
+Entry is after successful address resolution. Only then capture B. Do not read the destination; write the captured byte once, even if unchanged. Only after a successful write, set N/Z from that byte and clear V, preserving other flags. A failed write leaves flags unchanged; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+result:u8 := read B
+write memory[address] := result
+flags "6809 transfer" simultaneously {
   N := topBit(result)
   Z := isZero(result)
   V := 0:flag

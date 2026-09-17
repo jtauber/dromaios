@@ -594,18 +594,26 @@ undefined address before body entry; the decoders remain CPU-specific.
 
 Logical construction shares the operand-first recipe with the 6502, selecting
 the Motorola N/Z policy with V cleared. BIT uses the same masked result for N/Z
-and omits writeback. `motorolaLogicalBindings` owns the four `oooo` selectors
-and reuses the same operand binding as comparisons for all four addressing modes.
+and omits writeback. `motorolaByteBindings` owns the generated comparison,
+logical, load, and store selectors in `1 r mm oooo`, sharing operand bindings
+across both CPUs. Stores omit the immediate binding.
 The 6800's ORAA/ORAB and the 6809's ORA/ORB retain their native display names.
 
-`motorolaAccumulatorOperations` also shares the five remaining byte-operation selectors
+Byte loads and the 6800's TAB/TBA reuse the transfer recipe, writing the
+register before N/Z/V. Byte stores resolve the address, capture A/B, and write
+once without a destination read; only a successful write applies N/Z/V.
+They share the same byte-result flag policy as logic. The original 6800 retains
+its native LDAA/LDAB and STAA/STAB names in explanations.
+
+`motorolaAccumulatorOperations` also shares the four remaining byte-arithmetic selectors
 in `1 r mm oooo`, including their accumulator writeback and flag effects.
 Its state getter and ALU callbacks are bound during construction and read only
 when an instruction executes. Each CPU supplies its own immediate and memory
 readers: in particular, the 6809 still rejects undefined indexed postbytes before
-running an operation. Stores, word loads/arithmetic, and addressing remain local.
+running an operation. Word loads/stores/arithmetic and addressing remain local.
 Matching arithmetic flag policies use the shared operations described above;
-unary, comparison, and logical semantics use generated bodies. Address and effect-order differences stay visible.
+unary, comparison, logical, and byte-transfer semantics use generated bodies.
+Address and effect-order differences stay visible.
 
 [Tests](../../tests/components/cpus/motorola.test.ts) compare encoded conditions
 with unsigned and signed arithmetic and verify preserved flags and replaced

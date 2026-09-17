@@ -319,6 +319,44 @@ for (const { name, register, opcode, mode } of storeForms) {
   });
 }
 
+test("6800 byte stores preserve flags and completed fetches at every access failure", () => {
+  const failure = new Error("byte transfer failed");
+  class FaultRam extends ObservedRam {
+    failAt = -1; attempts = 0;
+    override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
+    override write(address: number, value: number): void { if (this.attempts++ === this.failAt) throw failure; super.write(address, value); }
+  }
+  const forms = storeForms.map(({ opcode, mode }) => {
+    const operands = mode === "extended" ? [0xff, 0xff] : [0xff];
+    return { opcode, operands, address: mode === "direct" ? 0xff : mode === "indexed" ? 0xfe : 0xffff };
+  });
+  for (const { opcode, operands, address } of forms) {
+    for (const pc of [0x2000, 0xfffe, 0xffff]) for (const bits of [0, 63]) for (const byte of [0, 0x80, 0xff]) {
+      const bytes = [opcode, ...operands], image = new Map<number, number>();
+      image.set(address, byte); // Include unchanged stores and instruction/data overlap.
+      bytes.forEach((value, i) => image.set((pc + i) % 65536, value));
+      const accesses = [
+        ...bytes.map((value, i) => ({ kind: "read", address: (pc + i) % 65536, value })),
+        { kind: "write", address, value: byte },
+      ];
+      for (const failAt of [-1, ...accesses.map((_, i) => i)]) {
+        const ram = new FaultRam();
+        for (const [location, value] of image) ram.write(location, value);
+        const cpu = new Cpu6800(ram, initialState({ pc, x: 0xffff, a: byte, b: byte, flags: flags(bits) })), before = cpu.snapshot();
+        ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
+        const completed = failAt < 0 ? accesses.length : failAt;
+        const after = { ...before, pc: (pc + Math.min(completed, bytes.length)) % 65536,
+          ...(failAt < 0 ? { flags: { ...before.flags, n: byte >= 128, z: byte === 0, v: false } } : {}) };
+        if (failAt >= 0) assert.throws(() => cpu.step(), error => error === failure);
+        else assert.deepEqual(cpu.step(), { before, after, instruction: { address: pc, bytes }, accesses, outcome: "executed" });
+        assert.deepEqual(cpu.snapshot(), after);
+        assert.deepEqual(ram.accesses, accesses.slice(0, completed));
+        assert.equal(ram.attempts, failAt < 0 ? accesses.length : failAt + 1);
+      }
+    }
+  }
+});
+
 test("6800 indexed loads and stores add every unsigned displacement to X with sixteen-bit wrapping", () => {
   const ram = new ObservedRam();
   for (const [opcode, register, store] of [[0xa6, "a", false], [0xe6, "b", false], [0xa7, "a", true], [0xe7, "b", true]] as const) {
@@ -963,14 +1001,14 @@ for (const form of wordForms.filter(form => form.operation === "store" && form.m
   });
 }
 
-test("6800 comparisons and logic retain completed fetches and unchanged registers/flags at every failed read", () => {
+test("6800 comparisons, logic, and loads retain completed fetches and unchanged registers/flags at every failed read", () => {
   const failure = new Error("operand read failure");
   class FaultRam extends ObservedRam {
     failAt = -1; attempts = 0;
     override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
   }
   const forms = [
-    ...accumulatorForms.filter(form => ["cmp", "and", "bit", "xor", "or"].includes(form.operation)),
+    ...accumulatorForms.filter(form => ["cmp", "and", "bit", "load", "xor", "or"].includes(form.operation)),
     { register: "x" as const, opcodes: indexComparisons, operation: "cmp" as const },
   ];
   for (const { register, opcodes, operation } of forms) {

@@ -14,7 +14,7 @@ import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaOperandBindings, motorolaLogicalBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
 import { add, subtract } from "./alu.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
@@ -168,7 +168,7 @@ export class Cpu6809 {
   static readonly #unaryOperations = motorolaUnaryOperations(semantics);
 
   // 1 r mm oooo: r selects A/B; mm=00 immediate, 01 direct, 10 indexed, 11 extended.
-  // Byte operations are shared with the 6800; CMP and logic have generated bodies below.
+  // Byte operations are shared with the 6800; comparisons, logic, and transfers have generated bodies below.
   readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
 
   readonly #directOperandAddress: OperandReader = ({ fetchByte }) => this.#directAddress(fetchByte());
@@ -250,10 +250,9 @@ export class Cpu6809 {
     ...this.#memoryUnaryHandlers("0110", this.#indexedOperandAddress),
     ...this.#memoryUnaryHandlers("0111", this.#extendedOperandAddress),
 
-    // 1 r mm 0001: CMPA/B share all four addressing modes; r=0 selects A, r=1 selects B.
-    ...this.#operandHandlers("10 mm 0001", semantics.cmpaImmediate, semantics.cmpaMemory), // CMPA
-    ...this.#operandHandlers("11 mm 0001", semantics.cmpbImmediate, semantics.cmpbMemory), // CMPB
-    ...motorolaLogicalBindings(semantics, this.#operandHandlers), // AND/BIT/EOR/OR on A/B
+    // 1 r mm oooo: r selects A/B; mm selects immediate/direct/indexed/extended.
+    // CMP/BIT preserve A/B; loads/logic write before flags; stores apply flags after a successful write.
+    ...motorolaByteBindings(semantics, this.#operandHandlers), // CMP/AND/BIT/LD/ST/EOR/OR
 
     // 1 r 00 oooo: remaining immediate A/B operations; word families occupy the remaining slots.
     ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r 00 ${bits}`,
@@ -300,8 +299,6 @@ export class Cpu6809 {
     return this.#addressedHandlers(address, [
       ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r ${mode} ${bits}`,
         { r: ["a", "b"] }, ({ r }) => (address: number, { readByte }: InstructionContext) => apply(r, readByte(address)))),
-      ...opcodeFamily(`1 r ${mode} 0111`, { r: ["a", "b"] }, ({ r }) =>
-        (address: number, { writeByte }: InstructionContext) => this.#storeAccumulator(r, address, writeByte)), // STA/B
       ...addressPattern(`1 0 ${mode} 1101`, (address, { writeByte }) => this.#call(address, writeByte)), // JSR
     ]);
   }
@@ -385,12 +382,6 @@ export class Cpu6809 {
   }
 
   // Loads and stores.
-
-  #storeAccumulator(register: Accumulator, address: number, writeByte: InstructionContext["writeByte"]): void {
-    const value = this.#state[register];
-    writeByte(address, value);
-    this.#alu.test(value);
-  }
 
   #loadWord(register: WordRegister, value: number): void {
     this.#writeWordRegister(register, value);
