@@ -1,8 +1,9 @@
 import { cpu8008StateDescription } from "../../state/8008.ts";
-import { bitAnd, borrow, carry, concat, cpuSymbols, evenParity, flagLiteral, flagValue, literal, negative, readMemory, readRegister, readSource, value, zero } from "../model.ts";
-import type { FlagPolicy, ValueSource } from "../model.ts";
+import { addWrap, bitAnd, borrow, capture, carry, concat, cpuSymbols, evenParity, flagLiteral, flagValue, literal, negative,
+  readMemory, readRegister, readSource, subtract, updateFlags, value, writeRegister, zero } from "../model.ts";
+import type { FlagPolicy, InstructionDefinition, ValueSource } from "../model.ts";
 import { immediateByte, registerSource } from "../builders.ts";
-import { intelByteAlu } from "../intel.ts";
+import { intelAccumulatorRotate, intelByteAlu } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
@@ -17,13 +18,37 @@ const sources = [
   ["M", throughHL], ["byte", immediateByte],
 ] as const;
 
+const resultFlags: FlagPolicy = { name: "8008 result S/Z/P", parameters: { result: 8 }, unlisted: "preserve", updates: [
+  { flag: cpu.flag("s"), value: negative(value("result")) }, { flag: cpu.flag("z"), value: zero(value("result")) },
+  { flag: cpu.flag("p"), value: evenParity(value("result")) },
+] };
+
+function adjustment(mnemonic: "IN" | "DC") {
+  return Object.fromEntries((["b", "c", "d", "e", "h", "l"] as const).map(register => [
+    `${mnemonic.toLowerCase()}${register}`, defineInstruction({ cpu: cpu.declaration, name: `${mnemonic}${register.toUpperCase()}`,
+      explanation: `Read ${register.toUpperCase()}, ${mnemonic === "IN" ? "add" : "subtract"} one with byte wraparound, `
+        + "then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.",
+      steps: [readRegister("original", cpu.register(register)),
+        capture("result", (mnemonic === "IN" ? addWrap : subtract)(value("original"), literal(8, 1))),
+        updateFlags(resultFlags, { result: value("result") }), writeRegister(cpu.register(register), value("result"))],
+    }),
+  ]));
+}
+
+function rotation(name: string, direction: "left" | "right", circular: boolean): InstructionDefinition {
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: `Capture A and rotate ${direction}, inserting ${circular ? "the outgoing bit" : "the captured incoming C"}. `
+      + "Write A before replacing C with the outgoing bit. Preserve S, Z, and P; no data-memory access occurs.",
+    steps: intelAccumulatorRotate(cpu.register("a"), cpu.flag("c"), direction, circular),
+  });
+}
+
 function family(mnemonic: string, operation: IntelByteOperation, withCarry = false) {
   const adding = operation === "add", subtracting = operation === "subtract" || operation === "compare";
-  const left = value("left"), right = value("right"), result = value("result"), incoming = withCarry ? flagValue("carry") : undefined;
+  const left = value("left"), right = value("right"), incoming = withCarry ? flagValue("carry") : undefined;
   const flags: FlagPolicy = { name: `8008 ${mnemonic}`, parameters: { left: 8, right: 8, result: 8, ...(withCarry ? { carry: "flag" as const } : {}) }, unlisted: "preserve",
     updates: [
-      { flag: cpu.flag("s"), value: negative(result) }, { flag: cpu.flag("z"), value: zero(result) },
-      { flag: cpu.flag("p"), value: evenParity(result) },
+      ...resultFlags.updates,
       { flag: cpu.flag("c"), value: adding ? carry(left, right, incoming) : subtracting ? borrow(left, right, incoming) : flagLiteral(false) },
     ],
   };
@@ -41,8 +66,13 @@ function family(mnemonic: string, operation: IntelByteOperation, withCarry = fal
   ]));
 }
 
-// ooo in 10 ooo sss / 00 ooo 100 selects the family; the native two-letter stems retain Intel's mnemonics.
 export const instructions8008 = {
+  // 00 rrr 00d: rrr=001..110 selects B/C/D/E/H/L; d=0 increments, d=1 decrements.
+  ...adjustment("IN"), ...adjustment("DC"),
+  // 00 0td 010: t=0 circular, t=1 through carry; d=0 left, d=1 right.
+  rlc: rotation("RLC", "left", true), rrc: rotation("RRC", "right", true),
+  ral: rotation("RAL", "left", false), rar: rotation("RAR", "right", false),
+  // ooo in 10 ooo sss / 00 ooo 100 selects the family; retain Intel's native mnemonic stems.
   ...family("AD", "add"), // 000 ADr / ADI
   ...family("AC", "add", true), // 001 ACr / ACI
   ...family("SU", "subtract"), // 010 SUr / SUI

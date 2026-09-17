@@ -17,8 +17,6 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
-import type { ShiftResult } from "./alu.ts";
 
 export { cpu8008StateDescription } from "./state/8008.ts";
 export type { Cpu8008State, Cpu8008AddressStack, Cpu8008Flags } from "./state/8008.ts";
@@ -177,10 +175,10 @@ export class Cpu8008 {
 
     // 00 0td 010: t=0 circular, t=1 through carry; d=0 left, d=1 right.
     // Only carry changes; the four 00 1xx 010 encodings are undefined.
-    ...opcodePattern("00 000 010", () => this.#rotateAccumulator(shiftLeft(8, this.#state.a, (this.#state.a & 0x80) !== 0 ? 1 : 0))), // RLC
-    ...opcodePattern("00 001 010", () => this.#rotateAccumulator(shiftRight(8, this.#state.a, (this.#state.a & 1) !== 0 ? 1 : 0))), // RRC
-    ...opcodePattern("00 010 010", () => this.#rotateAccumulator(shiftLeft(8, this.#state.a, this.#state.flags.c ? 1 : 0))), // RAL
-    ...opcodePattern("00 011 010", () => this.#rotateAccumulator(shiftRight(8, this.#state.a, this.#state.flags.c ? 1 : 0))), // RAR
+    ...opcodePattern("00 000 010", () => semantics.rlc(this.#state)), // RLC
+    ...opcodePattern("00 001 010", () => semantics.rrc(this.#state)), // RRC
+    ...opcodePattern("00 010 010", () => semantics.ral(this.#state)), // RAL
+    ...opcodePattern("00 011 010", () => semantics.rar(this.#state)), // RAR
 
     // 00 ccc 011: conditional return; ccc = vff selects the flag and required value.
     ...opcodeFamily("00 ccc 011", { c: this.#conditions }, ({ c: condition }) => () => this.#return(condition())), // RFc / RTc
@@ -219,10 +217,10 @@ export class Cpu8008 {
   ]);
 
   #adjustHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { r: this.#byteOperands, d: [1, -1] }, ({ r: operand, d: delta }) => {
+    return opcodeFamily(pattern, { r: this.#byteOperands, d: ["in", "dc"] as const }, ({ r: operand, d: operation }) => {
       if (operand === "m") return undefined;
       if (operand === "a") return () => this.#halt();
-      return () => this.#adjustRegister(operand, delta);
+      return () => semantics[`${operation}${operand}`](this.#state);
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
@@ -270,21 +268,5 @@ export class Cpu8008 {
 
   #halt(): void {
     this.#state.halted = true;
-  }
-
-  // Arithmetic, logic, and flags.
-
-  #adjustRegister(register: Exclude<ByteOperand, "a" | "m">, delta: number): void {
-    this.#state[register] = this.#aluResult((this.#state[register] + delta) & 0xff, this.#state.flags.c);
-  }
-
-  #rotateAccumulator({ result, carry }: ShiftResult): void {
-    this.#state.a = result;
-    this.#state.flags.c = carry;
-  }
-
-  #aluResult(result: number, carry: boolean): number {
-    this.#state.flags = { s: (result & 0x80) !== 0, z: result === 0, p: evenParity8(result), c: carry };
-    return result;
   }
 }

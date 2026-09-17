@@ -4198,6 +4198,272 @@ flags "6800 comparison" simultaneously {
 
 Flags preserved throughout: H, I.
 
+### 8008 INB
+
+Read B, add one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read B
+result := addWrap(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 INC
+
+Read C, add one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read C
+result := addWrap(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 IND
+
+Read D, add one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read D
+result := addWrap(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 INE
+
+Read E, add one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read E
+result := addWrap(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 INH
+
+Read H, add one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read H
+result := addWrap(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 INL
+
+Read L, add one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read L
+result := addWrap(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 DCB
+
+Read B, subtract one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read B
+result := subtract(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 DCC
+
+Read C, subtract one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read C
+result := subtract(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 DCD
+
+Read D, subtract one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read D
+result := subtract(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 DCE
+
+Read E, subtract one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read E
+result := subtract(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 DCH
+
+Read H, subtract one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read H
+result := subtract(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 DCL
+
+Read L, subtract one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.
+
+```text
+original:u8 := read L
+result := subtract(original, 01:u8)
+flags "8008 result S/Z/P" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### 8008 RLC
+
+Capture A and rotate left, inserting the outgoing bit. Write A before replacing C with the outgoing bit. Preserve S, Z, and P; no data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftLeft(original, topBit(original))
+write A:u8 := result
+flags "8008 rotate carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, P.
+
+### 8008 RRC
+
+Capture A and rotate right, inserting the outgoing bit. Write A before replacing C with the outgoing bit. Preserve S, Z, and P; no data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftRight(original, lowBit(original))
+write A:u8 := result
+flags "8008 rotate carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, P.
+
+### 8008 RAL
+
+Capture A and rotate left, inserting the captured incoming C. Write A before replacing C with the outgoing bit. Preserve S, Z, and P; no data-memory access occurs.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftLeft(original, carry)
+write A:u8 := result
+flags "8008 rotate carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, P.
+
+### 8008 RAR
+
+Capture A and rotate right, inserting the captured incoming C. Write A before replacing C with the outgoing bit. Preserve S, Z, and P; no data-memory access occurs.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftRight(original, carry)
+write A:u8 := result
+flags "8008 rotate carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, P.
+
 ### 8008 ADA
 
 Read the operand, using only H:L's low 14 bits for memory. Read A without reading incoming flags. S/Z describe the byte result; P is even parity. C reports carry. Apply flags, then write A. Ordinary fetching advances only the selected address slot; supplied bytes preserve it. The selector and STOPPED are untouched by the body. A failed read prevents arithmetic and writeback; completed fetches remain.

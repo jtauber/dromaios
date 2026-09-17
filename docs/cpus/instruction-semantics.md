@@ -20,6 +20,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
 | 8008 AD/AC/SU/SB/ND/XR/OR/CP, every register/memory/immediate form | Reuse Intel ALU construction with S/Z/P/C, native register order, and an explicit 14-bit memory mask; retain address-slot fetching and supplied-byte rules |
+| 8008 INr/DCr and RLC/RRC/RAL/RAR | Preserve C on adjustments; share 8080 rotate construction with explicit A-before-C writeback and preserved S/Z/P |
 | 6809 CMPA/B/D/X/Y/U/S, every addressing form | Byte/word widths, D as A:B, and addressing that changes the register subsequently compared |
 | 6800 CMPA/CMPB/CPX, every addressing form, and CBA | Share comparison construction; original CPX derives N/V from high bytes without low-byte borrow, Z from the whole word, and preserves C |
 | 6502 LDA/LDX/LDY, every supported addressing form | Reuse comparison sources; delay destination and N/Z updates until the source succeeds |
@@ -64,7 +65,7 @@ The authoring layers have separate homes:
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, and byte/word-transfer construction, with explicit access and flag policies |
-| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 ALU construction with carry-before-A reads and flags-before-writeback; shared 8080/Z80 byte sources |
+| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 ALU construction with carry-before-A reads and flags-before-writeback; 8080/Z80 byte sources; 8008/8080 accumulator rotates |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8008.ts](../../src/components/cpus/semantics/definitions/8008.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -183,6 +184,14 @@ result, C reports carry/borrow, and logic clears C. AC/SB capture C before A;
 CP has no destination write. The bodies neither select nor explicitly update
 address-stack slots. Ordinary fetching advances the selected PC slot, while
 interrupt-supplied bytes preserve it. These fetch policies stay in the CPU.
+
+The 8008's twelve INr/DCr forms read the selected B/C/D/E/H/L register and
+wrap the adjustment to a byte. They apply S/Z/P before writeback, leaving C
+unread and unchanged. Its four accumulator rotates share
+`intelAccumulatorRotate` with the 8080: capture A, optionally capture incoming
+C/CY, calculate, write A, then replace carry. Circular forms use the captured
+outgoing bit without reading carry. Other flags are untouched. These bodies
+have no fetch, memory, port, or address-stack operations.
 
 `transfer(destination, source, policy?)` captures its source as `result`, writes
 the destination, and optionally applies a policy with that result parameter.
@@ -546,8 +555,14 @@ form through ordinary and supplied execution, all eight selected PC slots,
 wrapped/overlapping reads, and each failed fetch, acknowledgement, or memory
 read. They require exact completed accesses, retained STOPPED release, untouched
 other address slots, and a released boundary guard.
-All 458 earlier definitions remain structurally unchanged; the five earlier
-generated CPU modules remain byte-for-byte unchanged by the 8008 migration.
+[8008 unary probes](../../tests/components/cpus/semantics/8008-unary.test.ts)
+check register and carry capture order, adjustment flags before writeback,
+rotation carry after writeback, and untouched unrelated state. Existing CPU
+tests exhaust every byte and flag pattern for all sixteen forms. Fetch-boundary
+probes check ordinary and supplied execution in every address slot, failed
+opcode reads and acknowledgements, STOPPED release, and guard release.
+All 530 earlier definitions remain structurally unchanged by this unary
+migration; the five other generated CPU modules remain byte-for-byte identical.
 
 ## Executable generation and integration
 
@@ -616,10 +631,10 @@ shared 8080/Z80 family. The Z80 binds its 72 ordinary ALU bodies through that
 same hook, with eight further bodies serving its sixteen indexed ALU forms.
 Its prefix recognition, signed displacement calculation, PC/R updates, and
 interrupt handling remain in the CPU module.
-The 8008 independently binds all 72 native ALU forms through complete generated
-bodies. Its address-register stack, fetching, and interrupt acceptance remain
-handwritten; its old add/subtract/compare methods and accumulator-returning
-dispatch are removed. The machine parser reads its separate state schema,
+The 8008 independently binds all 72 native ALU forms, twelve register adjustments,
+and four accumulator rotates through complete generated bodies. Its address-register
+stack, fetching, and interrupt acceptance remain handwritten; all its handwritten
+arithmetic methods are removed. The machine parser reads its separate state schema,
 without depending on generated execution code.
 The 6800 and 6809 bind generated A/B and memory bodies through one
 `motorolaUnaryOperations` selector table, including TST and CLR. Each CPU's static

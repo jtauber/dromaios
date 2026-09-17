@@ -1,8 +1,8 @@
 import { cpu8080StateDescription } from "../../state/8080.ts";
-import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readRegister, readSource, updateFlags, value, writeRegister, zero } from "../model.ts";
+import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readSource, value, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
-import { registerSource, shift, transfer } from "../builders.ts";
-import { intelByteAlu, intelByteSources } from "../intel.ts";
+import { registerSource, transfer } from "../builders.ts";
+import { intelAccumulatorRotate, intelByteAlu, intelByteSources } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("8080", cpu8080StateDescription);
@@ -53,18 +53,11 @@ function logic(mnemonic: "ANA" | "XRA" | "ORA", immediate: string) {
 }
 
 function rotation(name: string, direction: "left" | "right", circular: boolean): InstructionDefinition {
-  const operation = shift(direction, circular ? "outgoing" : cpu.flag("cy"));
   return defineInstruction({
     cpu: cpu.declaration, name,
     explanation: `Capture A and rotate ${direction}, inserting ${circular ? "the outgoing bit" : "the captured incoming CY"}. `
       + "Write A before replacing CY with the outgoing bit. Preserve S, Z, AC, and P; no data-memory access occurs.",
-    steps: [
-      readRegister("original", cpu.register("a")), ...operation.steps,
-      writeRegister(cpu.register("a"), value("result")),
-      updateFlags({ name: "8080 rotate carry", parameters: { original: 8 }, unlisted: "preserve",
-        updates: [{ flag: cpu.flag("cy"), value: operation.carry }],
-      }, { original: value("original") }),
-    ],
+    steps: intelAccumulatorRotate(cpu.register("a"), cpu.flag("cy"), direction, circular),
   });
 }
 

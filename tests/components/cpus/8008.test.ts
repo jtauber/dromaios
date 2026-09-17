@@ -567,6 +567,57 @@ for (const { mnemonic, opcode, direction, throughCarry } of rotations) {
   });
 }
 
+test("8008 adjustments and rotates retain native fetch boundaries for ordinary and supplied instructions", () => {
+  const forms = [
+    ...adjustments.flatMap(({ register, increment, decrement }) => [increment, decrement].map(opcode => ({
+      opcode, effect(state: Cpu8008State): Partial<Cpu8008State> {
+        const result = (state[register] + (opcode === increment ? 1 : 255)) % 256;
+        return { [register]: result, flags: { s: result >= 128, z: result === 0,
+          p: result.toString(2).replaceAll("0", "").length % 2 === 0, c: state.flags.c } };
+      },
+    }))),
+    ...rotations.map(({ opcode, direction, throughCarry }) => ({
+      opcode, effect(state: Cpu8008State): Partial<Cpu8008State> {
+        const binary = state.a.toString(2).padStart(8, "0"), left = direction === "left";
+        const outgoing = binary[left ? 0 : 7]!, incoming = throughCarry ? String(Number(state.flags.c)) : outgoing;
+        return { a: Number.parseInt(left ? binary.slice(1) + incoming : incoming + binary.slice(0, 7), 2),
+          flags: { ...state.flags, c: outgoing === "1" } };
+      },
+    })),
+  ];
+  const failure = new Error("unary fetch failure");
+  for (const { opcode, effect } of forms) for (const external of [false, true]) for (const fail of [false, true]) {
+    for (let slot = 0; slot < 8; slot++) for (const bits of [0, 15]) {
+      let attempts = 0;
+      const attempt = () => { attempts++; if (fail) throw failure; };
+      class FaultRam extends ObservedRam {
+        override read(address: number): number { attempt(); return super.read(address); }
+      }
+      const ram = new FaultRam(0x4000), byte = bits === 0 ? 0xff : 0;
+      ram.write(0x3fff, opcode); ram.accesses.length = 0;
+      const state = atPc(0x3fff, slot, { a: bits === 0 ? 0x81 : 0x7e, b: byte, c: byte, d: byte, e: byte, h: byte, l: byte,
+        flags: flags(bits), halted: external });
+      const cpu = new Cpu8008(ram, state, {
+        readPort() { assert.fail("No port read"); }, writePort() { assert.fail("No port write"); },
+      });
+      const after = advanced(state, external || fail ? 0x3fff : 0, { halted: false, ...(fail ? {} : effect(state)) });
+      const run = () => external ? cpu.interrupt(() => { attempt(); return opcode; }) : cpu.step();
+      const accesses = external ? [{ kind: "acknowledge", value: opcode }] : [{ kind: "read", address: 0x3fff, value: opcode }];
+      if (fail) assert.throws(run, error => error === failure);
+      else {
+        const record = run();
+        assert.deepEqual(record.before, snapshot(state)); assert.deepEqual(record.after, after);
+        assert.equal(record.outcome, "executed"); assert.deepEqual(record.accesses, accesses);
+        assert.deepEqual(record.instruction, external ? { source: "interrupt", bytes: [opcode] } : { address: 0x3fff, bytes: [opcode] });
+      }
+      assert.equal(attempts, 1);
+      assert.deepEqual(cpu.snapshot(), after, `opcode=${opcode}, supplied=${external}, slot=${slot}, fail=${fail}`);
+      assert.deepEqual(ram.accesses, external || fail ? [] : accesses);
+      if (fail) { cpu.reset(); assert.equal(cpu.snapshot().pc, 0); }
+    }
+  }
+});
+
 test("8008 LMA masks all H:L combinations to 14 bits and records unchanged-value and overlapping writes", () => {
   const ram = new ObservedRam(0x4000);
   for (let h = 0; h < 256; h++) {

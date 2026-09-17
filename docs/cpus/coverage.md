@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [290](../../src/components/cpus/8008.ts) | 72 / 250 | 28.8% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [272](../../src/components/cpus/8008.ts) | 88 / 250 | 35.2% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [241](../../src/components/cpus/8080.ts) | 76 / 244 | 31.1% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [300](../../src/components/cpus/6800.ts) | 153 / 197 | 77.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [298](../../src/components/cpus/6502.ts) | 109 / 151 | 72.2% |
@@ -27,8 +27,8 @@ emulators do not count toward implementation here.
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **530 generated bodies**, of which **529 are used by CPU execution**,
-covering **702 complete opcode forms**:
+contains **546 generated bodies**, of which **545 are used by CPU execution**,
+covering **718 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -103,6 +103,11 @@ covering **702 complete opcode forms**:
   changing H or L. Comparison never writes A. Fetching and interrupt acceptance
   remain in the CPU, including the selected address slot and supplied bytes
   that leave every address register unchanged.
+  INr/DCr on B/C/D/E/H/L add twelve forms, applying S/Z/P before register
+  writeback and preserving C without reading it. RLC/RRC/RAL/RAR add four
+  forms using the same accumulator-rotate construction as the 8080: capture A,
+  read incoming C only for RAL/RAR, then write A before C. S/Z/P are preserved.
+  The last handwritten arithmetic helpers are removed; all 88 bodies are integrated.
 
 The 8088 and 68000 have no instruction bodies generated from these definitions.
 Their existing shared TypeScript helpers remain useful, but are outside this
@@ -150,26 +155,26 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,606 |
-| CPU-specific instruction definition files | 498 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,031 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,135** |
+| Eight CPU implementation files | 4,588 |
+| CPU-specific instruction definition files | 521 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,043 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,152** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 11,404 |
+| Generated CPU output, counted separately | 11,630 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Migrating the 8008 byte ALU removes its handwritten add/subtract/compare methods
-and binds complete generated bodies in place of the accumulator-returning ALU
-selector. The 8008 module shrinks by **22 lines**, partly because its state
-schema moves to a separate CPU-owned module. Definitions add **54** lines;
-other authored CPU source gains **19**, including the schema and inventory
-registration. Total authored CPU source rises from **7,084 to 7,135 lines**
-(**51 more**). The existing Intel ALU builder, semantic expressions, validator,
-and code generation are reused unchanged apart from registering the 8008 target.
-The 14-bit address mask is ordinary bitwise data. This validates a third
-consumer of the construction but does not reduce total authored source.
+Migrating the 8008's twelve register adjustments and four accumulator rotates
+removes its last three handwritten arithmetic helpers. Its module shrinks by
+**18 lines**. CPU-specific definitions gain **23** lines in total, including
+the reduction from sharing the 8080's rotate recipe; shared construction adds
+**12** lines. Total authored CPU source rises from **7,135 to 7,152 lines**
+(**17 more**). The semantic expressions, validator, and generator are unchanged.
+All 530 earlier definitions remain structurally unchanged, and the five other
+generated CPU modules remain byte-for-byte identical. The migration makes the
+flag stages inspectable and shares rotation behavior, but does not reduce total
+authored source.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

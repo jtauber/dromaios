@@ -285,7 +285,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 530);
+  assert.equal(instructionDefinitions.length, 546);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -341,5 +341,26 @@ test("8008 ALU explanations retain native mnemonics, 14-bit memory, parity, and 
     const text = description("8008", mnemonic);
     assert.match(text, /C := 0:flag/); assert.doesNotMatch(text, /:= read C/);
     assert.ok(text.indexOf("write A:u8 := result") > text.indexOf("C :="));
+  }
+});
+
+test("8008 unary explanations distinguish preserved carry from rotation carry and retain writeback order", () => {
+  for (const [name, register, operation] of [["INH", "H", "addWrap"], ["DCL", "L", "subtract"]]) {
+    const text = description("8008", name!);
+    assert.match(text, new RegExp(`result := ${operation}\\(original, 01:u8\\)`));
+    const read = text.indexOf(`original:u8 := read ${register}`), flags = text.indexOf("P := evenParity8(result)");
+    assert.ok(read >= 0 && read < flags && flags < text.indexOf(`write ${register}:u8 := result`));
+    assert.match(text, /Flags preserved throughout: C\./);
+    assert.doesNotMatch(text, /:= read C|C :=|read memory|write memory/);
+  }
+  for (const name of ["RLC", "RRC", "RAL", "RAR"]) {
+    const text = description("8008", name);
+    assert.match(text, /Flags preserved throughout: S, Z, P\./);
+    assert.ok(text.indexOf("write A:u8 := result") < text.indexOf("C :="));
+    if (name === "RAL" || name === "RAR") {
+      assert.ok(text.indexOf("original:u8 := read A") < text.indexOf("carry:flag := read C"));
+      assert.match(text, /shift(Left|Right)\(original, carry\)/);
+    } else assert.doesNotMatch(text, /:= read C/);
+    assert.doesNotMatch(text, /read memory|write memory/);
   }
 });

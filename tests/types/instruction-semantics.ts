@@ -144,6 +144,13 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   // @ts-expect-error Z80 policy fields require Z80 state.
   generatedZ80.subA(intel);
   generated8008.acA(i8008);
+  generated8008.inh(i8008);
+  generated8008.dcl(i8008);
+  generated8008.ral(i8008);
+  // @ts-expect-error Register adjustments have no fetch or memory context.
+  generated8008.inb(i8008, { fetchByte: () => 0 });
+  // @ts-expect-error Accumulator rotates have no memory context.
+  generated8008.rrc(i8008, { readByte: () => 0 });
   generated8008.sbM(i8008, { readByte: () => 0 });
   generated8008.ndi(i8008, { fetchByte: () => 0 });
   // @ts-expect-error Register bodies need no fetch or memory capability.
