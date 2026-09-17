@@ -1,7 +1,10 @@
+import { instructions as semantics } from "./generated/z80.ts";
+import { cpuZ80StateDescription } from "./state/z80.ts";
+import type { CpuZ80State, CpuZ80Flags, CpuZ80RegisterBank } from "./state/z80.ts";
 import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
-import type { ByteOperation, WordOperand } from "./8080-family.ts";
+import type { AluInstruction, ByteOperation, WordOperand } from "./8080-family.ts";
 import { flagRegister } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { signed8, readWordLE } from "./binary.ts";
@@ -13,31 +16,15 @@ import type { BytePorts, PortAccess } from "./port-access.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext } from "./instruction-context.ts";
-import { defineState, copyState, readState, unsigned, flag, boolean, choices, group } from "./state.ts";
-import type { StateValues, ReadonlyState } from "./state.js";
+import { copyState, readState } from "./state.ts";
+import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.js";
 import { add, subtract, shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
 
-const bankFields = defineState({
-  a: unsigned(8), b: unsigned(8), c: unsigned(8), d: unsigned(8), e: unsigned(8), h: unsigned(8), l: unsigned(8),
-  flags: group({ s: flag, z: flag, h: flag, pv: flag, n: flag, c: flag }),
-});
-
-/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
-export const cpuZ80StateDescription = defineState({
-  ...bankFields, alternate: group(bankFields),
-  ix: unsigned(16), iy: unsigned(16), pc: unsigned(16), sp: unsigned(16), i: unsigned(8), r: unsigned(8),
-  iff1: boolean, iff2: boolean, im: choices(0, 1, 2),
-  interruptDeferred: boolean, nmiDeferred: boolean, halted: boolean,
-});
-
-export type CpuZ80State = StateValues<typeof cpuZ80StateDescription>;
-/** The six documented flags; undocumented F bits 3 and 5 are outside this model. */
-export type CpuZ80Flags = CpuZ80State["flags"];
-
-export type CpuZ80RegisterBank = StateValues<typeof bankFields>;
+export { cpuZ80StateDescription } from "./state/z80.ts";
+export type { CpuZ80State, CpuZ80Flags, CpuZ80RegisterBank } from "./state/z80.ts";
 
 export type CpuZ80BankSnapshot = ReadonlyState<CpuZ80RegisterBank> & {
   readonly bc: number;
@@ -283,20 +270,13 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   // bbb selects a bit number; bind its mask once when constructing the CB page.
   readonly #bitMasks = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80] as const;
 
-  // ooo selects the ALU operation in both 10 ooo rrr and 11 ooo 110.
-  // Operations read live state and return the next A; CP returns A unchanged.
-  readonly #aluOperations: readonly ByteOperation[] = [
-    value => this.#add(value), // 000 ADD
-    value => this.#add(value, this.state.flags.c ? 1 : 0), // 001 ADC
-    value => this.#subtract(value), // 010 SUB
-    value => this.#subtract(value, this.state.flags.c ? 1 : 0), // 011 SBC
-    value => this.#parityResult(this.state.a & value, { h: true, c: false }), // 100 AND
-    value => this.#parityResult(this.state.a ^ value, { h: false, c: false }), // 101 XOR
-    value => this.#parityResult(this.state.a | value, { h: false, c: false }), // 110 OR
-    value => this.#compare(value), // 111 CP
-  ];
-
-  protected override readonly aluInstructions = this.#aluOperations.map(operate => this.accumulatorInstruction(operate));
+  // ooo in 10 ooo rrr / 11 ooo 110 selects the same ALU family, including DD/FD memory forms.
+  readonly #aluFamilies = ["add", "adc", "sub", "sbc", "and", "xor", "or", "cp"] as const;
+  protected override readonly aluInstructions: readonly AluInstruction[] = this.#aluFamilies.map(operation => operand => {
+    const suffix = { b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", "(hl)": "M", a: "A", immediate: "Immediate" } as const;
+    const execute = semantics[`${operation}${suffix[operand]}`];
+    return instruction => execute(this.state, instruction);
+  });
 
   // ccc=ffv: ff selects Z/C/PV/S; v is the required value, giving NZ/Z/NC/C/PO/PE/P/M.
   // Conditional JR uses just the first four tests.
@@ -414,9 +394,8 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
         ...instructionPattern(`01 ${bits} 110`, instruction => { this.state[register] = instruction.readByte(address(instruction)); }), // LD r,(IX/IY+d)
         ...instructionPattern(`01 110 ${bits}`, instruction => instruction.writeByte(address(instruction), this.state[register])), // LD (IX/IY+d),r
       ]),
-      ...opcodeFamily("10 ooo 110", { o: this.#aluOperations }, ({ o: apply }) => (instruction: InstructionContext) => {
-        this.state.a = apply(instruction.readByte(address(instruction)));
-      }), // ALU (IX/IY+d)
+      ...opcodeFamily("10 ooo 110", { o: this.#aluFamilies }, ({ o: operation }) => (instruction: InstructionContext) =>
+        semantics[`${operation}Memory`](this.state, address(instruction), instruction)), // ALU (IX/IY+d)
       ...instructionPattern("11 10 0 001", ({ readByte }) => { this.state[index] = this.stack.pop(readByte); }), // POP IX/IY
       ...instructionPattern("11 10 1 001", () => this.jump(this.state[index])), // JP (IX/IY); no displacement or target read
       ...instructionPattern("11 100 011", instruction => { this.state[index] = this.exchangeStack(this.state[index], instruction); }), // EX (SP),IX/IY
@@ -626,18 +605,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     return result;
   }
 
-  #add(value: number, carryIn: 0 | 1 = 0): number {
-    const { result, carry, halfCarry, overflow } = add(8, this.state.a, value, carryIn);
-    return this.#aluResult(result, { h: halfCarry, pv: overflow, n: false, c: carry });
-  }
-
-  #subtract(value: number, borrowIn: 0 | 1 = 0): number {
-    const { result, borrow, halfBorrow, overflow } = subtract(8, this.state.a, value, borrowIn);
-    // Z80 H and C both report borrows; N identifies subtraction.
-    return this.#aluResult(result, { h: halfBorrow, pv: overflow, n: true, c: borrow });
-  }
-
-  // Logic and CB shifts use parity; DAA restores N from its input afterward.
+  // CB shifts use parity; DAA restores N from its input afterward.
   #parityResult(result: number, { h, c }: Pick<CpuZ80Flags, "h" | "c">): number {
     return this.#aluResult(result, { h, pv: evenParity8(result), n: false, c });
   }
@@ -645,11 +613,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   #aluResult(result: number, flags: Omit<CpuZ80Flags, "s" | "z">): number {
     this.state.flags = { s: (result & 0x80) !== 0, z: result === 0, ...flags };
     return result;
-  }
-
-  #compare(value: number): number {
-    this.#subtract(value);
-    return this.state.a;
   }
 
   // Indexed memory operands. BIT reads without writing.

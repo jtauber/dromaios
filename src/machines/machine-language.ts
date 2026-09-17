@@ -9,7 +9,7 @@ import { cpu6502StateDescription } from "../components/cpus/state/6502.ts";
 import { cpu6800StateDescription } from "../components/cpus/state/6800.ts";
 import { cpu6809StateDescription } from "../components/cpus/state/6809.ts";
 import { cpu68000StateDescription } from "../components/cpus/68000.ts";
-import { cpuZ80StateDescription } from "../components/cpus/z80.ts";
+import { cpuZ80StateDescription } from "../components/cpus/state/z80.ts";
 import type { StateFields, StateField, GroupField, StateValues } from "../components/cpus/state.js";
 import type { Cpu8008State } from "../components/cpus/8008.js";
 import type { Cpu8080State } from "../components/cpus/8080.js";

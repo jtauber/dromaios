@@ -285,7 +285,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 378);
+  assert.equal(instructionDefinitions.length, 458);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -302,5 +302,27 @@ test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary car
   for (const name of ["XRA A", "ORA A"]) {
     const text = description("8080", name);
     assert.match(text, /AC := 0:flag/); assert.match(text, /CY := 0:flag/);
+  }
+});
+
+test("Z80 ALU explanations expose overflow versus parity, borrow half-carry, and resolved indexed inputs", () => {
+  const adc = description("z80", "ADC A,(HL)");
+  assert.ok(adc.indexOf("carry:flag := read C") > adc.indexOf("read memory["));
+  assert.ok(adc.indexOf("left:u8 := read A") > adc.indexOf("carry:flag := read C"));
+  assert.match(adc, /PV := addOverflow\(left, right, carry\)/);
+  assert.match(adc, /H := halfCarry4\(left, right, carry\)/);
+  const sbc = description("z80", "SBC A,n");
+  assert.match(sbc, /PV := subtractOverflow\(left, right, carry\)/);
+  assert.match(sbc, /H := halfBorrow4\(left, right, carry\)/);
+  assert.match(sbc, /N := 1:flag/);
+  const cp = description("z80", "CP memory");
+  assert.match(cp, /address:u16/); assert.match(cp, /right:u8 := read memory\[address\]/);
+  assert.doesNotMatch(cp, /fetch byte|:= read I[XY]|:= read C|write A/);
+  for (const mnemonic of ["AND", "XOR", "OR"]) {
+    const text = description("z80", `${mnemonic} B`);
+    assert.match(text, /PV := evenParity8\(result\)/);
+    assert.match(text, mnemonic === "AND" ? /H := 1:flag/ : /H := 0:flag/);
+    assert.match(text, /N := 0:flag/); assert.match(text, /C := 0:flag/);
+    assert.ok(text.indexOf("write A:u8 := result") > text.indexOf("C :="));
   }
 });

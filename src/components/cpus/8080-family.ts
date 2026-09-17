@@ -125,14 +125,6 @@ export abstract class Cpu8080Family<State extends Registers> {
     ];
   }
 
-  /** Bind an ordinary accumulator operation; a comparison can instead supply a no-write body. */
-  protected accumulatorInstruction(operate: ByteOperation): AluInstruction {
-    return operand => instruction => {
-      const value = operand === "immediate" ? instruction.fetchByte() : this.readOperand(operand, instruction);
-      this.state.a = operate(value);
-    };
-  }
-
   #transferHandler(destination: ByteOperand, source: ByteOperand): OpcodeHandler {
     // HLT / HALT replaces the memory-to-itself transfer; no data memory is accessed.
     if (destination === "(hl)" && source === "(hl)") return () => { this.state.halted = true; };

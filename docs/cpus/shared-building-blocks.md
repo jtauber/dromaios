@@ -1315,7 +1315,7 @@ the language is worth adopting.
 ### 5. Execute one slice and produce a useful second output
 
 The [current executable experiment](instruction-semantics.md#executable-generation-and-integration)
-generates and binds comparison bodies across the four CPUs, logical bodies across
+generates and binds comparison bodies across five CPUs, logical bodies across
 the 6502/6800/6809, plus their byte loads/stores and Motorola word loads/stores,
 6502 register transfers and
 6800 TAB/TBA, and 6502 shifts/rotates and byte increments/decrements. A shared
@@ -1335,7 +1335,10 @@ construction across both Motorola CPUs. D arithmetic reuses its explicit split
 writes; ABA/SBA retain their distinct register-read order. All 8080 byte ALU
 families now use generated bodies too, reusing the arithmetic recipe while
 declaring CY-before-A reads, parity, inverse subtraction half-borrow, and ANA's
-auxiliary carry rule. This expansion adds no semantic primitive.
+auxiliary carry rule. The Z80 now shares the Intel sources and ALU construction,
+with its own flag policies and resolved-memory bodies for both index registers.
+Prefix decoding and displacement resolution retain their existing boundary.
+These expansions add no semantic primitive.
 These definitions produce both execution and the explanatory listing. The
 JSR and 68000 probes below remain requirements for later vocabulary; they are
 not yet represented by this byte/word slice. Whole-model migration remains a

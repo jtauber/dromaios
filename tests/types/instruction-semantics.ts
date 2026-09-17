@@ -4,6 +4,8 @@ import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
 import { addWrap, carry, halfCarry, subtract, bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, lowByte, literal, not, readFlag, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
+import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
+import type { CpuZ80State } from "../../src/components/cpus/z80.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
 import { instructions as generated6809 } from "../../src/components/cpus/generated/6809.js";
 import { instructions as generated6800 } from "../../src/components/cpus/generated/6800.js";
@@ -89,7 +91,7 @@ export function checkInstructionSemantics(): void {
   ] };
 }
 
-export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State, motorola: Cpu6809State, m6800: Cpu6800State): void {
+export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State, motorola: Cpu6809State, m6800: Cpu6800State, z80: CpuZ80State): void {
   const readers = sourceReaders(mos);
   const address: number = readers.addresses.absoluteX({ fetchByte: () => 0 });
   const byte: number = readers.operands[3]({ fetchByte: () => 0, readByte: () => 0 });
@@ -125,6 +127,20 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6502[0x85](mos, { fetchByte: () => 0 });
   // @ts-expect-error Accumulator rotates need no memory or fetching context.
   generated6502[0x6a](mos, { fetchByte: () => 0 });
+  generatedZ80.adcA(z80);
+  generatedZ80.cpM(z80, { readByte: () => 0 });
+  generatedZ80.sbcImmediate(z80, { fetchByte: () => 0 });
+  generatedZ80.andMemory(z80, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error Z80 ALU register bodies require no context.
+  generatedZ80.addB(z80, { fetchByte: () => 0 });
+  // @ts-expect-error Indexed bodies require the resolved address, not an index selector.
+  generatedZ80.cpMemory(z80, "ix", { readByte: () => 0 });
+  // @ts-expect-error Indexed bodies do not fetch displacement again.
+  generatedZ80.adcMemory(z80, 0xffff, { readByte: () => 0, fetchByte: () => 0 });
+  // @ts-expect-error ALU memory operands never write memory.
+  generatedZ80.xorM(z80, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Z80 policy fields require Z80 state.
+  generatedZ80.subA(intel);
   generated8080.cmpB(intel);
   generated8080.ral(intel);
   generated8080.adcA(intel);

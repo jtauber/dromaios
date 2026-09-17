@@ -8047,3 +8047,1933 @@ flags "6809 comparison" simultaneously {
 ```
 
 Flags preserved throughout: E, F, H, I.
+
+### z80 ADD A,B
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "Z80 ADD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right)
+  PV := addOverflow(left, right)
+  N := 0:flag
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADD A,C
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "Z80 ADD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right)
+  PV := addOverflow(left, right)
+  N := 0:flag
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADD A,D
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "Z80 ADD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right)
+  PV := addOverflow(left, right)
+  N := 0:flag
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADD A,E
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "Z80 ADD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right)
+  PV := addOverflow(left, right)
+  N := 0:flag
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADD A,H
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "Z80 ADD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right)
+  PV := addOverflow(left, right)
+  N := 0:flag
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADD A,L
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "Z80 ADD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right)
+  PV := addOverflow(left, right)
+  N := 0:flag
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADD A,(HL)
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "Z80 ADD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right)
+  PV := addOverflow(left, right)
+  N := 0:flag
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADD A,A
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "Z80 ADD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right)
+  PV := addOverflow(left, right)
+  N := 0:flag
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADD A,n
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "Z80 ADD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right)
+  PV := addOverflow(left, right)
+  N := 0:flag
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADD A,memory
+
+Entry follows indexed address resolution. Read the byte at that captured address. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+address:u16 := input
+right:u8 := read memory[address]
+left:u8 := read A
+result := addWrap(left, right)
+flags "Z80 ADD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right)
+  PV := addOverflow(left, right)
+  N := 0:flag
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,B
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "Z80 ADC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right, carry)
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,C
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "Z80 ADC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right, carry)
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,D
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "Z80 ADC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right, carry)
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,E
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "Z80 ADC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right, carry)
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,H
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "Z80 ADC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right, carry)
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,L
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "Z80 ADC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right, carry)
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,(HL)
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "Z80 ADC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right, carry)
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,A
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "Z80 ADC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right, carry)
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,n
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "Z80 ADC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right, carry)
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC A,memory
+
+Entry follows indexed address resolution. Read the byte at that captured address. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+address:u16 := input
+right:u8 := read memory[address]
+carry:flag := read C
+left:u8 := read A
+result := addWrap(left, right, carry)
+flags "Z80 ADC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(left, right, carry)
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB B
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 SUB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB C
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 SUB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB D
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 SUB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB E
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 SUB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB H
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 SUB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB L
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 SUB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB (HL)
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 SUB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB A
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 SUB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB n
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 SUB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SUB memory
+
+Entry follows indexed address resolution. Read the byte at that captured address. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+address:u16 := input
+right:u8 := read memory[address]
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 SUB" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,B
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "Z80 SBC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right, carry)
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,C
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "Z80 SBC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right, carry)
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,D
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "Z80 SBC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right, carry)
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,E
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "Z80 SBC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right, carry)
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,H
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "Z80 SBC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right, carry)
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,L
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "Z80 SBC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right, carry)
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,(HL)
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "Z80 SBC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right, carry)
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,A
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "Z80 SBC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right, carry)
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,n
+
+Read the operand. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "Z80 SBC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right, carry)
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC A,memory
+
+Entry follows indexed address resolution. Read the byte at that captured address. Capture incoming C, then read A. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+address:u16 := input
+right:u8 := read memory[address]
+carry:flag := read C
+left:u8 := read A
+result := subtract(left, right, carry)
+flags "Z80 SBC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right, carry)
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 AND B
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; set H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "Z80 AND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 AND C
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; set H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "Z80 AND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 AND D
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; set H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "Z80 AND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 AND E
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; set H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "Z80 AND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 AND H
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; set H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "Z80 AND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 AND L
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; set H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "Z80 AND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 AND (HL)
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; set H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "Z80 AND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 AND A
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; set H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "Z80 AND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 AND n
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; set H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := bitAnd(left, right)
+flags "Z80 AND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 AND memory
+
+Entry follows indexed address resolution. Read the byte at that captured address. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; set H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+address:u16 := input
+right:u8 := read memory[address]
+left:u8 := read A
+result := bitAnd(left, right)
+flags "Z80 AND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR B
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "Z80 XOR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR C
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "Z80 XOR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR D
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "Z80 XOR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR E
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "Z80 XOR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR H
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "Z80 XOR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR L
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "Z80 XOR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR (HL)
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "Z80 XOR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR A
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "Z80 XOR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR n
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := bitXor(left, right)
+flags "Z80 XOR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 XOR memory
+
+Entry follows indexed address resolution. Read the byte at that captured address. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+address:u16 := input
+right:u8 := read memory[address]
+left:u8 := read A
+result := bitXor(left, right)
+flags "Z80 XOR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OR B
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "Z80 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OR C
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "Z80 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OR D
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "Z80 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OR E
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "Z80 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OR H
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "Z80 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OR L
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "Z80 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OR (HL)
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "Z80 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OR A
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "Z80 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OR n
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := bitOr(left, right)
+flags "Z80 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OR memory
+
+Entry follows indexed address resolution. Read the byte at that captured address. Read A without reading incoming flags. S/Z describe the byte result. P/V is even parity; clear H and clear C. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+address:u16 := input
+right:u8 := read memory[address]
+left:u8 := read A
+result := bitOr(left, right)
+flags "Z80 OR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 CP B
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then retain A without a write. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 CP C
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then retain A without a write. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 CP D
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then retain A without a write. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 CP E
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then retain A without a write. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 CP H
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then retain A without a write. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 CP L
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then retain A without a write. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 CP (HL)
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then retain A without a write. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "memory through HL" {
+  high:u8 := read H
+  low:u8 := read L
+  byte:u8 := read memory[concatHighLow(high, low)]
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 CP A
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then retain A without a write. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 CP n
+
+Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then retain A without a write. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 CP memory
+
+Entry follows indexed address resolution. Read the byte at that captured address. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte borrow. Set N. Apply flags, then retain A without a write. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.
+
+```text
+address:u16 := input
+right:u8 := read memory[address]
+left:u8 := read A
+result := subtract(left, right)
+flags "Z80 CP" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(left, right)
+  PV := subtractOverflow(left, right)
+  N := 1:flag
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.

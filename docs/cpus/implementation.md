@@ -35,7 +35,7 @@ core. Keep a CPU in one file while this organization remains easy to follow.
 ## Stored-state descriptions
 
 Each CPU module exports a `cpu…StateDescription` beside its public state
-type. For the 6502, 6800, 8080, and 6809, the declaration and derived types live in
+type. For the 6502, 6800, 8080, 6809, and Z80, the declaration and derived types live in
 CPU-owned modules under [`state/`](../../src/components/cpus/state) and are
 re-exported by the original CPU module. This lets instruction generation load
 schemas without loading execution or its generated imports. The description
@@ -185,10 +185,13 @@ the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
 The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
 operations, conditions, byte increment/decrement, addition to HL, and PSW/AF
-packing. The ALU selectors bind complete handlers: the Z80 uses the accumulator
-helper for read/operate/write instructions, while all 8080 byte ALU families
-use generated bodies with explicit source reads, flags, and writeback. CMP
-omits the destination write. These hooks keep differing flag rules explicit, including parity
+packing. Both CPUs' byte ALU selectors bind complete generated bodies with
+explicit source reads, flags, and writeback. Shared
+[Intel construction](../../src/components/cpus/semantics/intel.ts) supplies
+register/(HL)/immediate sources and carry-before-A ordering; CPU definitions
+provide flag policies. CMP/CP omit the destination write. The Z80's indexed
+ALU bodies receive the decoder's resolved address and share the same construction.
+The old accumulator wrapper is gone. These hooks keep differing flag rules explicit, including parity
 versus overflow and the opposite subtraction half-carry conventions. The shared
 code does not select behavior by checking which processor is executing.
 

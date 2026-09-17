@@ -1,25 +1,13 @@
 import { cpu8080StateDescription } from "../../state/8080.ts";
-import { bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readFlag, readMemory, readRegister, readSource, updateFlags, value, writeRegister, zero } from "../model.ts";
+import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readRegister, readSource, updateFlags, value, writeRegister, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
-import { arithmetic, compare, immediateByte, registerSource, shift, transfer } from "../builders.ts";
+import { registerSource, shift, transfer } from "../builders.ts";
+import { intelByteAlu, intelByteSources } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("8080", cpu8080StateDescription);
 
-const throughHL: ValueSource = {
-  name: "memory through HL", width: 8,
-  steps: [
-    readRegister("high", cpu.register("h")),
-    readRegister("low", cpu.register("l")),
-    readMemory("byte", concat(value("high"), value("low"))),
-  ], result: value("byte"),
-};
-
-// Shared source order: B/C/D/E/H/L/M/A, then the immediate byte. M reads H, L, then memory.
-const sources = [
-  ...(["b", "c", "d", "e", "h", "l"] as const).map(register => [register.toUpperCase(), registerSource(cpu.register(register))] as const),
-  ["M", throughHL], ["A", registerSource(cpu.register("a"))], ["byte", immediateByte],
-] as const;
+const sources = intelByteSources(cpu.register);
 
 /** S/Z/P describe the captured result; every ALU operation supplies its own CY/AC meaning. */
 function aluFlags(name: string, cy: FlagExpression, ac: FlagExpression, withCarry = false): FlagPolicy {
@@ -46,8 +34,7 @@ function binaryArithmetic(mnemonic: string, immediate: string, operation: "add" 
   const flags = aluFlags(adding ? "addition" : "subtraction", (adding ? carry : borrow)(left, right, incoming),
     adding ? halfCarry(left, right, incoming) : not(halfBorrow(left, right, incoming)), withCarry);
   return aluFamily(mnemonic, immediate, source => [
-    readSource("right", source), ...(withCarry ? [readFlag("carry", cpu.flag("cy"))] : []), readRegister("left", cpu.register("a")),
-    ...arithmetic(operation, flags, incoming), writeRegister(cpu.register("a"), value("result")),
+    readSource("right", source), ...intelByteAlu(cpu.register("a"), operation, flags, withCarry ? cpu.flag("cy") : undefined),
   ], `Read the operand, ${withCarry ? "capture incoming CY, then read A" : "then read A without reading incoming flags"}. `
     + `S/Z describe the byte result and P its even parity. CY reports ${adding ? "carry" : "borrow"}; `
     + `AC reports ${adding ? "low-nibble carry" : "the inverse low-nibble borrow"}. `
@@ -55,12 +42,11 @@ function binaryArithmetic(mnemonic: string, immediate: string, operation: "add" 
 }
 
 function logic(mnemonic: "ANA" | "XRA" | "ORA", immediate: string) {
-  const operation = { ANA: bitAnd, XRA: bitXor, ORA: bitOr }[mnemonic];
+  const operation = ({ ANA: "and", XRA: "xor", ORA: "or" } as const)[mnemonic];
   const auxiliary = mnemonic === "ANA" ? not(zero(bitAnd(bitOr(left, right), literal(8, 0x08)))) : flagLiteral(false);
   const flags = aluFlags(mnemonic, flagLiteral(false), auxiliary);
   return aluFamily(mnemonic, immediate, source => [
-    readSource("right", source), readRegister("left", cpu.register("a")), capture("result", operation(left, right)),
-    updateFlags(flags, { left, right, result: value("result") }), writeRegister(cpu.register("a"), value("result")),
+    readSource("right", source), ...intelByteAlu(cpu.register("a"), operation, flags),
   ], "Read the operand before A; do not read incoming flags. S/Z describe the byte result and P its even parity. "
     + (mnemonic === "ANA" ? "Clear CY; AC is bit 3 of the original A OR the operand. " : "Clear CY and AC. ")
     + "Apply flags before writing A. A failed operand read prevents flag updates and writeback; completed fetches remain.");
@@ -94,7 +80,7 @@ export const instructions8080 = {
   ...logic("ANA", "ANI"), // 100
   ...logic("XRA", "XRI"), // 101
   ...logic("ORA", "ORI"), // 110
-  ...aluFamily("CMP", "CPI", source => compare(cpu.register("a"), source, comparisonFlags), // 111
+  ...aluFamily("CMP", "CPI", source => [readSource("right", source), ...intelByteAlu(cpu.register("a"), "compare", comparisonFlags)], // 111
     "Retain A without a destination write. S/Z describe the byte result, P its even parity, "
       + "CY the borrow, and AC the inverse borrow at the low-nibble boundary."),
   movBA: defineInstruction({
