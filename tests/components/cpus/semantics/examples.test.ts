@@ -285,7 +285,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 798);
+  assert.equal(instructionDefinitions.length, 830);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -351,6 +351,32 @@ test("Z80 shift explanations distinguish accumulator flags from CB flags and pre
       assert.match(text, /address:u16 := input/);
       assert.equal(text.match(/:= read memory/g)?.length, 1); assert.equal(text.match(/write memory/g)?.length, 1);
       assert.doesNotMatch(text, /fetch byte|:= read (H|L|IX|IY)\b/);
+    }
+  }
+});
+
+test("Intel byte-adjustment explanations expose different half-carry rules, preserved carry, and flag-before-write order", () => {
+  for (const [cpu, increment, decrement, carry] of [["8080", "INR", "DCR", "CY"], ["z80", "INC", "DEC", "C"]] as const) {
+    for (const name of [increment, decrement]) for (const operand of ["H", "memory"]) {
+      const text = description(cpu, `${name} ${operand}`);
+      const read = text.indexOf(operand === "memory" ? "original:u8 := read memory[address]" : "original:u8 := read H");
+      const flags = text.indexOf("S := topBit(result)"), write = text.indexOf(operand === "memory" ? "write memory[address] := result" : "write H:u8 := result");
+      assert.ok(read >= 0 && read < flags && flags < write);
+      assert.ok(text.includes(`Flags preserved throughout: ${carry}.`));
+      assert.doesNotMatch(text, /:= read (CY|C|S|Z|P|AC|PV|N)\b|fetch byte/);
+      if (operand === "memory") {
+        assert.match(text, /address:u16 := input/);
+        assert.equal(text.match(/:= read memory/g)?.length, 1); assert.equal(text.match(/write memory/g)?.length, 1);
+        assert.doesNotMatch(text, /:= read (H|L|IX|IY)\b/);
+      }
+      if (cpu === "8080") {
+        assert.match(text, /P := evenParity8\(result\)/);
+        assert.match(text, name === decrement ? /AC := not\(halfBorrow4\(original, 01:u8\)\)/ : /AC := halfCarry4\(original, 01:u8\)/);
+      } else {
+        assert.match(text, name === decrement ? /H := halfBorrow4\(original, 01:u8\)/ : /H := halfCarry4\(original, 01:u8\)/);
+        assert.match(text, name === decrement ? /PV := subtractOverflow\(original, 01:u8\)/ : /PV := addOverflow\(original, 01:u8\)/);
+        assert.ok(text.includes(`N := ${name === decrement ? 1 : 0}:flag`));
+      }
     }
   }
 });

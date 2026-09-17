@@ -4,12 +4,24 @@ import { addOverflow, bitAnd, bitOr, borrow, capture, carry, cpuSymbols, evenPar
 import type { FlagPolicy, InstructionDefinition, Statement } from "../model.ts";
 import { shift } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
-import { intelAccumulatorRotate, intelByteAlu, intelByteSources } from "../intel.ts";
+import { intelAccumulatorRotate, intelByteAdjustment, intelByteAlu, intelByteSources } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("z80", cpuZ80StateDescription);
 const sources = intelByteSources(cpu.register);
+
+function adjustment(mnemonic: "INC" | "DEC") {
+  const increment = mnemonic === "INC", original = value("original"), one = literal(8, 1);
+  return intelByteAdjustment(cpu, mnemonic, increment ? 1 : -1,
+    { name: `Z80 ${mnemonic}`, parameters: { original: 8, result: 8 }, unlisted: "preserve", updates: [
+      { flag: cpu.flag("s"), value: negative(value("result")) }, { flag: cpu.flag("z"), value: zero(value("result")) },
+      { flag: cpu.flag("h"), value: (increment ? halfCarry : halfBorrow)(original, one) },
+      { flag: cpu.flag("pv"), value: (increment ? addOverflow : overflow)(original, one) },
+      { flag: cpu.flag("n"), value: flagLiteral(!increment) },
+    ] }, `${increment ? "Add" : "Subtract"} one with byte wraparound. S/Z describe the result; P/V reports signed overflow. `
+      + `H reports low-nibble ${increment ? "carry" : "borrow"}; ${increment ? "clear" : "set"} N. Preserve the alternate bank and control state.`);
+}
 
 function rotation(name: string, direction: "left" | "right", circular: boolean): InstructionDefinition {
   return defineInstruction({ cpu: cpu.declaration, name,
@@ -104,6 +116,9 @@ function family(mnemonic: string, operation: IntelByteOperation, withCarry = fal
 }
 
 export const instructionsZ80 = {
+  // 00 rrr 10d: rrr selects B/C/D/E/H/L/(HL)/A; d=0 increments, d=1 decrements.
+  // Each memory body also serves DD/FD 00 110 10d after indexed address resolution.
+  ...adjustment("INC"), ...adjustment("DEC"),
   // 00 ooo 111: ooo=000/001 rotates A circularly; 010/011 rotates through C. Preserve S/Z/PV.
   rlca: rotation("RLCA", "left", true), rrca: rotation("RRCA", "right", true),
   rla: rotation("RLA", "left", false), rra: rotation("RRA", "right", false),

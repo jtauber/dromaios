@@ -2,7 +2,7 @@ import { cpu8080StateDescription } from "../../state/8080.ts";
 import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readSource, value, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
 import { registerSource, transfer } from "../builders.ts";
-import { intelAccumulatorRotate, intelByteAlu, intelByteSources } from "../intel.ts";
+import { intelAccumulatorRotate, intelByteAdjustment, intelByteAlu, intelByteSources } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("8080", cpu8080StateDescription);
@@ -20,6 +20,17 @@ function aluFlags(name: string, cy: FlagExpression, ac: FlagExpression, withCarr
 }
 const left = value("left"), right = value("right");
 const comparisonFlags = aluFlags("comparison", borrow(left, right), not(halfBorrow(left, right)));
+
+function adjustment(mnemonic: "INR" | "DCR") {
+  const increment = mnemonic === "INR", original = value("original"), one = literal(8, 1);
+  return intelByteAdjustment(cpu, mnemonic, increment ? 1 : -1,
+    { name: `8080 ${mnemonic}`, parameters: { original: 8, result: 8 }, unlisted: "preserve", updates: [
+      { flag: cpu.flag("s"), value: negative(value("result")) }, { flag: cpu.flag("z"), value: zero(value("result")) },
+      { flag: cpu.flag("p"), value: evenParity(value("result")) },
+      { flag: cpu.flag("ac"), value: increment ? halfCarry(original, one) : not(halfBorrow(original, one)) },
+    ] }, `${increment ? "Add" : "Subtract"} one with byte wraparound. S/Z describe the result and P its even parity. `
+      + `AC reports ${increment ? "low-nibble carry" : "inverse low-nibble borrow"}.`);
+}
 
 /** Expand a complete register/memory/immediate family; the resulting definitions contain only data. */
 function aluFamily(mnemonic: string, immediate: string, steps: (source: ValueSource) => readonly Statement[], explanation: string) {
@@ -62,6 +73,8 @@ function rotation(name: string, direction: "left" | "right", circular: boolean):
 }
 
 export const instructions8080 = {
+  // 00 rrr 10d: rrr selects B/C/D/E/H/L/M/A; d=0 increments, d=1 decrements.
+  ...adjustment("INR"), ...adjustment("DCR"),
   // 00 ooo 111: ooo=000/001 selects circular left/right; 010/011 rotates through CY.
   rlc: rotation("RLC", "left", true), rrc: rotation("RRC", "right", true),
   ral: rotation("RAL", "left", false), rar: rotation("RAR", "right", false),

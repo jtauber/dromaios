@@ -6,8 +6,8 @@ import { opcodeFamily, opcodePattern } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 
 export type OpcodeHandler = (instruction: InstructionContext) => void;
-export type ByteOperation = (value: number) => number;
 type ByteOperand = "b" | "c" | "d" | "e" | "h" | "l" | "(hl)" | "a";
+export type ByteInstruction = (operand: ByteOperand) => OpcodeHandler;
 export type AluInstruction = (operand: ByteOperand | "immediate") => OpcodeHandler;
 export type WordOperand = RegisterPair | "sp" | "status";
 type Registers = Record<"a" | "b" | "c" | "d" | "e" | "h" | "l" | "pc" | "sp", number> & { halted: boolean };
@@ -25,9 +25,9 @@ export abstract class Cpu8080Family<State extends Registers> {
 
   // These hooks describe instruction differences, without imposing a common flag layout.
   protected abstract readonly aluInstructions: readonly AluInstruction[];
+  protected abstract readonly byteAdjustments: readonly ByteInstruction[];
   protected abstract readonly accumulatorOperations: readonly (() => void)[];
   protected abstract readonly conditions: readonly (() => boolean)[];
-  protected abstract adjustByte(value: number, delta: -1 | 1): number;
   protected abstract addToHl(value: number): void;
   protected abstract get statusWord(): number;
   protected abstract set statusWord(value: number);
@@ -76,8 +76,7 @@ export abstract class Cpu8080Family<State extends Registers> {
       ...opcodeFamily("00 pp q 011", { p: this.registerPairs, q: [1, -1] }, ({ p: pair, q: delta }) => () => this.writePair(pair, (this.readPair(pair) + delta) & 0xffff)), // INX/DCX / INC/DEC ss
 
       // 00 rrr zzz: rrr selects B/C/D/E/H/L/(HL)/A; zzz selects INC, DEC, or immediate LD.
-      ...this.#modifyHandlers("00 rrr 100", value => this.adjustByte(value, 1)), // INR / INC
-      ...this.#modifyHandlers("00 rrr 101", value => this.adjustByte(value, -1)), // DCR / DEC
+      ...opcodeFamily("00 rrr 10d", { r: this.byteOperands, d: this.byteAdjustments }, ({ r: operand, d: instruction }) => instruction(operand)), // d=0 INR / INC; d=1 DCR / DEC
       ...opcodeFamily("00 rrr 110", { r: this.byteOperands }, ({ r: operand }) => (instruction: InstructionContext) => this.writeOperand(operand, instruction.fetchByte(), instruction)), // MVI / LD r,n or (HL),n
 
       // 00 ooo 111: accumulator rotates, DAA, complement A, set/complement carry.
@@ -131,11 +130,6 @@ export abstract class Cpu8080Family<State extends Registers> {
     return instruction => this.writeOperand(destination, this.readOperand(source, instruction), instruction);
   }
 
-  #modifyHandlers(pattern: string, operation: ByteOperation): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { r: this.byteOperands }, ({ r: operand }) =>
-      instruction => this.modifyOperand(operand, operation, instruction));
-  }
-
   // Register operands and exchanges.
 
   protected readOperand(operand: ByteOperand, { readByte }: InstructionContext): number {
@@ -145,11 +139,6 @@ export abstract class Cpu8080Family<State extends Registers> {
   protected writeOperand(operand: ByteOperand, value: number, { writeByte }: InstructionContext): void {
     if (operand === "(hl)") writeByte(this.hl, value);
     else this.state[operand] = value;
-  }
-
-  protected modifyOperand(operand: ByteOperand, operation: ByteOperation, instruction: InstructionContext): void {
-    const value = operation(this.readOperand(operand, instruction));
-    this.writeOperand(operand, value, instruction);
   }
 
   protected readPair(pair: WordOperand): number {

@@ -185,12 +185,14 @@ the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
 The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
 operations, conditions, byte increment/decrement, addition to HL, and PSW/AF
-packing. Both CPUs' byte ALU selectors bind complete generated bodies with
+packing. Both CPUs' byte ALU and byte-adjustment selectors bind complete generated bodies with
 explicit source reads, flags, and writeback. Shared
 [Intel construction](../../src/components/cpus/semantics/intel.ts) supplies
 register/(HL)/immediate sources and carry-before-A ordering; CPU definitions
 provide flag policies. CMP/CP omit the destination write. The Z80's indexed
 ALU bodies receive the decoder's resolved address and share the same construction.
+INR/DCR and INC/DEC share read–adjust–flags–write construction with separate
+CPU flag policies; their memory bodies receive one resolved HL or indexed address.
 The old accumulator wrapper is gone. These hooks keep differing flag rules explicit, including parity
 versus overflow and the opposite subtraction half-carry conventions. The shared
 code does not select behavior by checking which processor is executing.

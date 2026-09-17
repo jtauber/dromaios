@@ -2,7 +2,7 @@ import { instructions as semantics } from "./generated/8080.ts";
 import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
-import type { AluInstruction } from "./8080-family.ts";
+import type { AluInstruction, ByteInstruction } from "./8080-family.ts";
 import { flagRegister, signZeroParity8 } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
@@ -164,6 +164,13 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
 
   // Opcode selectors and construction.
 
+  // d in 00 rrr 10d selects INR/DCR; the generated memory body receives HL once.
+  protected override readonly byteAdjustments: readonly ByteInstruction[] = (["inr", "dcr"] as const).map(operation => operand => {
+    const suffix = { b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", a: "A" } as const;
+    return operand === "(hl)" ? instruction => semantics[`${operation}Memory`](this.state, this.hl, instruction)
+      : () => semantics[`${operation}${suffix[operand]}`](this.state);
+  });
+
   // 10 ooo rrr and 11 ooo 110 share this three-bit ALU selector.
   // Complete generated bodies own source reads, flag rules, and writeback; CMP retains A.
   protected override readonly aluInstructions: readonly AluInstruction[] = ([
@@ -210,12 +217,6 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
   ]);
 
   // Arithmetic, logic, and flags.
-
-  protected override adjustByte(value: number, delta: -1 | 1): number {
-    // INR sets AC on carry out of bit 3; DCR uses the inverse low-nibble borrow. Both preserve CY.
-    const ac = delta === 1 ? (value & 0x0f) === 0x0f : (value & 0x0f) !== 0;
-    return this.#aluResult(value + delta, ac, this.state.flags.cy);
-  }
 
   protected override addToHl(value: number): void {
     const { result, carry } = add(16, this.hl, value);

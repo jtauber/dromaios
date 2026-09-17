@@ -6073,6 +6073,296 @@ flags "8008 CP" simultaneously {
 
 Flags preserved throughout: none.
 
+### 8080 INR B
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result and P its even parity. AC reports low-nibble carry. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read B
+result := addWrap(original, 01:u8)
+flags "8080 INR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := halfCarry4(original, 01:u8)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 INR C
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result and P its even parity. AC reports low-nibble carry. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read C
+result := addWrap(original, 01:u8)
+flags "8080 INR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := halfCarry4(original, 01:u8)
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 INR D
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result and P its even parity. AC reports low-nibble carry. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read D
+result := addWrap(original, 01:u8)
+flags "8080 INR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := halfCarry4(original, 01:u8)
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 INR E
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result and P its even parity. AC reports low-nibble carry. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read E
+result := addWrap(original, 01:u8)
+flags "8080 INR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := halfCarry4(original, 01:u8)
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 INR H
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result and P its even parity. AC reports low-nibble carry. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read H
+result := addWrap(original, 01:u8)
+flags "8080 INR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := halfCarry4(original, 01:u8)
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 INR L
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result and P its even parity. AC reports low-nibble carry. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read L
+result := addWrap(original, 01:u8)
+flags "8080 INR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := halfCarry4(original, 01:u8)
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 INR A
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result and P its even parity. AC reports low-nibble carry. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read A
+result := addWrap(original, 01:u8)
+flags "8080 INR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := halfCarry4(original, 01:u8)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 INR memory
+
+Read once at the resolved address. Add one with byte wraparound. S/Z describe the result and P its even parity. AC reports low-nibble carry. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := addWrap(original, 01:u8)
+flags "8080 INR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := halfCarry4(original, 01:u8)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 DCR B
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result and P its even parity. AC reports inverse low-nibble borrow. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read B
+result := subtract(original, 01:u8)
+flags "8080 DCR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := not(halfBorrow4(original, 01:u8))
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 DCR C
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result and P its even parity. AC reports inverse low-nibble borrow. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read C
+result := subtract(original, 01:u8)
+flags "8080 DCR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := not(halfBorrow4(original, 01:u8))
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 DCR D
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result and P its even parity. AC reports inverse low-nibble borrow. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read D
+result := subtract(original, 01:u8)
+flags "8080 DCR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := not(halfBorrow4(original, 01:u8))
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 DCR E
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result and P its even parity. AC reports inverse low-nibble borrow. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read E
+result := subtract(original, 01:u8)
+flags "8080 DCR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := not(halfBorrow4(original, 01:u8))
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 DCR H
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result and P its even parity. AC reports inverse low-nibble borrow. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read H
+result := subtract(original, 01:u8)
+flags "8080 DCR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := not(halfBorrow4(original, 01:u8))
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 DCR L
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result and P its even parity. AC reports inverse low-nibble borrow. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read L
+result := subtract(original, 01:u8)
+flags "8080 DCR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := not(halfBorrow4(original, 01:u8))
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 DCR A
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result and P its even parity. AC reports inverse low-nibble borrow. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read A
+result := subtract(original, 01:u8)
+flags "8080 DCR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := not(halfBorrow4(original, 01:u8))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: CY.
+
+### 8080 DCR memory
+
+Read once at the resolved address. Subtract one with byte wraparound. S/Z describe the result and P its even parity. AC reports inverse low-nibble borrow. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := subtract(original, 01:u8)
+flags "8080 DCR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := not(halfBorrow4(original, 01:u8))
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: CY.
+
 ### 8080 RLC
 
 Capture A and rotate left, inserting the outgoing bit. Write A before replacing CY with the outgoing bit. Preserve S, Z, AC, and P; no data-memory access occurs.
@@ -9922,6 +10212,312 @@ flags "6809 comparison" simultaneously {
 ```
 
 Flags preserved throughout: E, F, H, I.
+
+### z80 INC B
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble carry; clear N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read B
+result := addWrap(original, 01:u8)
+flags "Z80 INC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(original, 01:u8)
+  PV := addOverflow(original, 01:u8)
+  N := 0:flag
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 INC C
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble carry; clear N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read C
+result := addWrap(original, 01:u8)
+flags "Z80 INC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(original, 01:u8)
+  PV := addOverflow(original, 01:u8)
+  N := 0:flag
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 INC D
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble carry; clear N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read D
+result := addWrap(original, 01:u8)
+flags "Z80 INC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(original, 01:u8)
+  PV := addOverflow(original, 01:u8)
+  N := 0:flag
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 INC E
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble carry; clear N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read E
+result := addWrap(original, 01:u8)
+flags "Z80 INC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(original, 01:u8)
+  PV := addOverflow(original, 01:u8)
+  N := 0:flag
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 INC H
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble carry; clear N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read H
+result := addWrap(original, 01:u8)
+flags "Z80 INC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(original, 01:u8)
+  PV := addOverflow(original, 01:u8)
+  N := 0:flag
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 INC L
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble carry; clear N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read L
+result := addWrap(original, 01:u8)
+flags "Z80 INC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(original, 01:u8)
+  PV := addOverflow(original, 01:u8)
+  N := 0:flag
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 INC A
+
+Read the selected byte register. Add one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble carry; clear N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read A
+result := addWrap(original, 01:u8)
+flags "Z80 INC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(original, 01:u8)
+  PV := addOverflow(original, 01:u8)
+  N := 0:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 INC memory
+
+Read once at the resolved address. Add one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble carry; clear N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := addWrap(original, 01:u8)
+flags "Z80 INC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfCarry4(original, 01:u8)
+  PV := addOverflow(original, 01:u8)
+  N := 0:flag
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: C.
+
+### z80 DEC B
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble borrow; set N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read B
+result := subtract(original, 01:u8)
+flags "Z80 DEC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(original, 01:u8)
+  PV := subtractOverflow(original, 01:u8)
+  N := 1:flag
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 DEC C
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble borrow; set N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read C
+result := subtract(original, 01:u8)
+flags "Z80 DEC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(original, 01:u8)
+  PV := subtractOverflow(original, 01:u8)
+  N := 1:flag
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 DEC D
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble borrow; set N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read D
+result := subtract(original, 01:u8)
+flags "Z80 DEC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(original, 01:u8)
+  PV := subtractOverflow(original, 01:u8)
+  N := 1:flag
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 DEC E
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble borrow; set N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read E
+result := subtract(original, 01:u8)
+flags "Z80 DEC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(original, 01:u8)
+  PV := subtractOverflow(original, 01:u8)
+  N := 1:flag
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 DEC H
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble borrow; set N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read H
+result := subtract(original, 01:u8)
+flags "Z80 DEC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(original, 01:u8)
+  PV := subtractOverflow(original, 01:u8)
+  N := 1:flag
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 DEC L
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble borrow; set N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read L
+result := subtract(original, 01:u8)
+flags "Z80 DEC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(original, 01:u8)
+  PV := subtractOverflow(original, 01:u8)
+  N := 1:flag
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 DEC A
+
+Read the selected byte register. Subtract one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble borrow; set N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+original:u8 := read A
+result := subtract(original, 01:u8)
+flags "Z80 DEC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(original, 01:u8)
+  PV := subtractOverflow(original, 01:u8)
+  N := 1:flag
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: C.
+
+### z80 DEC memory
+
+Read once at the resolved address. Subtract one with byte wraparound. S/Z describe the result; P/V reports signed overflow. H reports low-nibble borrow; set N. Preserve the alternate bank and control state. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := subtract(original, 01:u8)
+flags "Z80 DEC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := halfBorrow4(original, 01:u8)
+  PV := subtractOverflow(original, 01:u8)
+  N := 1:flag
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: C.
 
 ### z80 RLCA
 

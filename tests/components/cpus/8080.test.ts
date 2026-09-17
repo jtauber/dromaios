@@ -1281,6 +1281,60 @@ for (const { name, opcodes, reference } of [
   { name: "DCR", opcodes: [0x05, 0x0d, 0x15, 0x1d, 0x25, 0x2d, 0x35, 0x3d],
     reference: (value: number) => referenceSubtraction(value, 1) },
 ]) {
+  test(`8080 ${name} retains completed effects at every ordinary and interrupt-supplied access failure`, () => {
+    const failure = new Error("adjustment access failure");
+    for (const [column, opcode] of opcodes.entries()) for (const external of [false, true]) for (const set of [false, true]) {
+      const destination = byteOperandNames[column]!, memory = destination === "m", count = memory ? 3 : 1;
+      for (const address of [0, 0xffff, 0x4000]) for (let failAt = -1; failAt < count; failAt++) {
+        let attempts = 0, running = false;
+        const completed: ({ kind: "acknowledge"; value: number } | Cpu8080MemoryAccess)[] = [];
+        const attempt = () => { if (attempts++ === failAt) throw failure; };
+        class FaultRam extends ObservedRam {
+          override read(address: number): number {
+            if (running) attempt(); const value = super.read(address);
+            if (running) completed.push({ kind: "read", address, value }); return value;
+          }
+          override write(address: number, value: number): void {
+            if (running) attempt(); super.write(address, value);
+            if (running) completed.push({ kind: "write", address, value });
+          }
+        }
+        const state = initialState({ pc: 0xffff, h: Math.floor(address / 256), l: address % 256,
+          interruptDeferred: !external, halted: external, flags: { s: set, z: set, ac: set, p: set, cy: set } });
+        const ram = new FaultRam(); ram.write(address, set ? 0x7f : 0x80);
+        if (!external) ram.write(state.pc, opcode);
+        ram.accesses.length = 0; running = true;
+        const cpu = new Cpu8080(ram, state), before = cpu.snapshot();
+        const operand = memory ? (!external && address === state.pc ? opcode : set ? 0x7f : 0x80) : state[destination];
+        const result = reference(operand), flags = { ...result.flags, cy: set };
+        const accesses = [external ? { kind: "acknowledge", value: opcode } : { kind: "read", address: state.pc, value: opcode },
+          ...(memory ? [{ kind: "read", address, value: operand }, { kind: "write", address, value: result.result }] : [])];
+        const run = () => external ? cpu.interrupt(() => {
+          attempt(); completed.push({ kind: "acknowledge", value: opcode }); return opcode;
+        }) : cpu.step();
+        if (failAt >= 0) assert.throws(run, error => error === failure);
+        else {
+          const record = run(); assert.equal(record.outcome, "executed");
+          assert.deepEqual(record.before, before); assert.deepEqual(record.accesses, accesses);
+          assert.deepEqual(record.instruction, external ? { source: "interrupt", bytes: [opcode] } : { address: state.pc, bytes: [opcode] });
+        }
+        const success = failAt < 0;
+        assert.deepEqual(cpu.snapshot(), expectedSnapshot({ ...state,
+          pc: external || failAt === 0 ? state.pc : 0, halted: false,
+          interruptEnabled: !external, interruptDeferred: !external && !success,
+          ...(success || failAt === 2 ? { flags } : {}),
+          ...(success && !memory ? { [destination]: result.result } : {}),
+        }), `${name} ${destination}, external=${external}, address=${address}, fail=${failAt}`);
+        assert.deepEqual(completed, accesses.slice(0, success ? count : failAt));
+        assert.deepEqual(ram.accesses, completed.filter(access => access.kind !== "acknowledge"));
+        assert.equal(attempts, success ? count : failAt + 1);
+        running = false;
+        if (memory) assert.equal(ram.read(address), success ? result.result : operand);
+        if (!success) { cpu.reset(); assert.equal(cpu.snapshot().pc, 0); }
+      }
+    }
+  });
+
   test(`8080 ${name} covers every destination, byte, and flag combination while preserving carry`, () => {
     const ram = new ObservedRam();
     for (const [index, opcode] of opcodes.entries()) {

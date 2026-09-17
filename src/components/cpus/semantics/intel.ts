@@ -1,6 +1,29 @@
-import { bitAnd, bitOr, bitXor, capture, concat, flagValue, readFlag, readMemory, readRegister, updateFlags, value, writeRegister } from "./model.ts";
-import type { Flag, FlagPolicy, Register, Statement, ValueSource } from "./model.ts";
+import { addWrap, bitAnd, bitOr, bitXor, capture, concat, flagValue, literal, readFlag, readMemory, readRegister, subtract, updateFlags, value, writeMemory, writeRegister } from "./model.ts";
+import type { CpuDeclaration, Flag, FlagPolicy, Register, Statement, ValueSource } from "./model.ts";
 import { arithmetic, immediateByte, registerSource, shift } from "./builders.ts";
+import { defineInstruction } from "./validate.ts";
+
+interface IntelByteCpu {
+  readonly declaration: CpuDeclaration;
+  register(field: "a" | "b" | "c" | "d" | "e" | "h" | "l"): Register;
+}
+
+/** Byte adjustments preserve carry and apply each CPU's flags before register or resolved-memory writeback. */
+export function intelByteAdjustment(cpu: IntelByteCpu, mnemonic: string, delta: -1 | 1, flags: FlagPolicy, explanation: string) {
+  return Object.fromEntries((["b", "c", "d", "e", "h", "l", "a", "memory"] as const).map(target => {
+    const memory = target === "memory";
+    return [`${mnemonic.toLowerCase()}${memory ? "Memory" : target.toUpperCase()}`, defineInstruction({
+      cpu: cpu.declaration, name: `${mnemonic} ${memory ? "memory" : target.toUpperCase()}`,
+      ...(memory ? { inputs: { address: 16 as const } } : {}),
+      explanation: (memory ? "Read once at the resolved address. " : "Read the selected byte register. ") + explanation
+        + " Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.",
+      steps: [memory ? readMemory("original", value("address")) : readRegister("original", cpu.register(target)),
+        capture("result", (delta === 1 ? addWrap : subtract)(value("original"), literal(8, 1))),
+        updateFlags(flags, { original: value("original"), result: value("result") }),
+        memory ? writeMemory(value("address"), value("result")) : writeRegister(cpu.register(target), value("result"))],
+    })];
+  }));
+}
 
 /** 8080/Z80 register-code order. Each source captures its own reads; M denotes memory through HL. */
 export function intelByteSources(register: (name: "a" | "b" | "c" | "d" | "e" | "h" | "l") => Register) {

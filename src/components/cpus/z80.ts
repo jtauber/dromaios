@@ -4,7 +4,7 @@ import type { CpuZ80State, CpuZ80Flags, CpuZ80RegisterBank } from "./state/z80.t
 import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
-import type { AluInstruction, ByteOperation, WordOperand } from "./8080-family.ts";
+import type { AluInstruction, ByteInstruction, WordOperand } from "./8080-family.ts";
 import { flagRegister } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { signed8, readWordLE } from "./binary.ts";
@@ -261,6 +261,13 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   // Opcode selectors and construction.
 
+  // d in 00 rrr 10d selects INC/DEC; the same memory bodies serve HL and resolved IX/IY operands.
+  protected override readonly byteAdjustments: readonly ByteInstruction[] = (["inc", "dec"] as const).map(operation => operand => {
+    const suffix = { b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", a: "A" } as const;
+    return operand === "(hl)" ? instruction => semantics[`${operation}Memory`](this.state, this.hl, instruction)
+      : () => semantics[`${operation}${suffix[operand]}`](this.state);
+  });
+
   // rrr selects B/C/D/E/H/L/(HL)/A; port and indexed-register forms omit rrr=110.
   readonly #byteRegisters = this.byteOperands.flatMap((register, code) => register === "(hl)" ? []
     : [{ register, bits: code.toString(2).padStart(3, "0") }]);
@@ -379,8 +386,8 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
       ...instructionPattern("00 10 0 010", ({ fetchWord, writeByte }) => this.writeMemoryWord(fetchWord(), this.state[index], writeByte)), // LD (nn),IX/IY
       ...instructionPattern("00 10 1 010", ({ fetchWord, readByte }) => { this.state[index] = this.readMemoryWord(fetchWord(), readByte); }), // LD IX/IY,(nn)
       ...opcodeFamily("00 10 q 011", { q: [1, -1] }, ({ q: delta }) => () => { this.state[index] = (this.state[index] + delta) & 0xffff; }), // INC/DEC IX/IY
-      ...instructionPattern("00 110 100", instruction => this.#modifyMemory(address(instruction), value => this.adjustByte(value, 1), instruction)), // INC (IX/IY+d)
-      ...instructionPattern("00 110 101", instruction => this.#modifyMemory(address(instruction), value => this.adjustByte(value, -1), instruction)), // DEC (IX/IY+d)
+      ...instructionPattern("00 110 100", instruction => semantics.incMemory(this.state, address(instruction), instruction)), // INC (IX/IY+d)
+      ...instructionPattern("00 110 101", instruction => semantics.decMemory(this.state, address(instruction), instruction)), // DEC (IX/IY+d)
       ...instructionPattern("00 110 110", instruction => { const target = address(instruction); instruction.writeByte(target, instruction.fetchByte()); }), // LD (IX/IY+d),n; fetch d before n
       // 01 rrr 110 / 01 110 rrr transfer to/from the seven byte registers, including real H/L.
       ...this.#byteRegisters.flatMap(({ register, bits }) => [
@@ -559,17 +566,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     flags.pv = flags.pv === evenParity8(parityOperand & 7);
   }
 
-  protected override adjustByte(value: number, delta: -1 | 1): number {
-    const result = (value + delta) & 0xff;
-    this.state.flags.s = (result & 0x80) !== 0;
-    this.state.flags.z = result === 0;
-    // INC carries out of bit 3; DEC borrows from bit 4. Both preserve C.
-    this.state.flags.h = delta === 1 ? (value & 0x0f) === 0x0f : (value & 0x0f) === 0;
-    this.state.flags.pv = value === (delta === 1 ? 0x7f : 0x80);
-    this.state.flags.n = delta === -1;
-    return result;
-  }
-
   // DAA, digit rotates, and port inputs use parity; DAA restores N from its input afterward.
   #parityResult(result: number, { h, c }: Pick<CpuZ80Flags, "h" | "c">): number {
     return this.#aluResult(result, { h, pv: evenParity8(result), n: false, c });
@@ -578,12 +574,5 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   #aluResult(result: number, flags: Omit<CpuZ80Flags, "s" | "z">): number {
     this.state.flags = { s: (result & 0x80) !== 0, z: result === 0, ...flags };
     return result;
-  }
-
-  // Indexed memory increment/decrement.
-
-  #modifyMemory(address: number, operation: ByteOperation, { readByte, writeByte }: InstructionContext): void {
-    const value = operation(readByte(address));
-    writeByte(address, value);
   }
 }
