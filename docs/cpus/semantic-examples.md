@@ -6900,6 +6900,23 @@ write C:u8 := lowByte(result)
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 INX B
+
+Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result := addWrap(original, 0001:u16)
+write B:u8 := highByte(result)
+write C:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 MVI B,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -6907,6 +6924,48 @@ Use the selected byte registers; memory uses H then L at the access point. Captu
 ```text
 result:u8 := fetch byte
 write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 DAD B
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying 8080 DAD carry. Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "8080 DAD carry" simultaneously {
+  CY := carry(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, AC, P.
+
+### 8080 DCX B
+
+Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result := subtract(original, 0001:u16)
+write B:u8 := highByte(result)
+write C:u8 := lowByte(result)
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -6938,6 +6997,23 @@ write E:u8 := lowByte(result)
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 INX D
+
+Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+result := addWrap(original, 0001:u16)
+write D:u8 := highByte(result)
+write E:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 MVI D,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -6945,6 +7021,48 @@ Use the selected byte registers; memory uses H then L at the access point. Captu
 ```text
 result:u8 := fetch byte
 write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 DAD D
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying 8080 DAD carry. Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "8080 DAD carry" simultaneously {
+  CY := carry(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, AC, P.
+
+### 8080 DCX D
+
+Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+result := subtract(original, 0001:u16)
+write D:u8 := highByte(result)
+write E:u8 := lowByte(result)
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -6997,6 +7115,23 @@ write memory[addWrap(address, 0001:u16)] := highByte(result)
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 INX H
+
+Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(original, 0001:u16)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 MVI H,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -7007,6 +7142,31 @@ write H:u8 := result
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 DAD H
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying 8080 DAD carry. Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "8080 DAD carry" simultaneously {
+  CY := carry(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, AC, P.
 
 ### 8080 LHLD nn
 
@@ -7023,6 +7183,23 @@ result:u16 := source "memory word, low byte first" {
   high:u8 := read memory[addWrap(address, 0001:u16)]
   yield concatHighLow(high, low)
 }
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 DCX H
+
+Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := subtract(original, 0001:u16)
 write H:u8 := highByte(result)
 write L:u8 := lowByte(result)
 ```
@@ -7055,6 +7232,21 @@ write SP:u16 := result
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 INX SP
+
+Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+result := addWrap(original, 0001:u16)
+write SP:u16 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 MVI M,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -7064,6 +7256,45 @@ result:u8 := fetch byte
 high:u8 := read H
 low:u8 := read L
 write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 DAD SP
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying 8080 DAD carry. Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "8080 DAD carry" simultaneously {
+  CY := carry(left, right)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, AC, P.
+
+### 8080 DCX SP
+
+Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+result := subtract(original, 0001:u16)
+write SP:u16 := result
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -11957,6 +12188,23 @@ write C:u8 := lowByte(result)
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 INC BC
+
+Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result := addWrap(original, 0001:u16)
+write B:u8 := highByte(result)
+write C:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 LD B,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -11964,6 +12212,50 @@ Use the selected byte registers; memory uses H then L at the access point. Captu
 ```text
 result:u8 := fetch byte
 write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD HL,BC
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 DEC BC
+
+Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result := subtract(original, 0001:u16)
+write B:u8 := highByte(result)
+write C:u8 := lowByte(result)
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -11995,6 +12287,23 @@ write E:u8 := lowByte(result)
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 INC DE
+
+Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+result := addWrap(original, 0001:u16)
+write D:u8 := highByte(result)
+write E:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 LD D,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -12002,6 +12311,50 @@ Use the selected byte registers; memory uses H then L at the access point. Captu
 ```text
 result:u8 := fetch byte
 write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD HL,DE
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 DEC DE
+
+Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+result := subtract(original, 0001:u16)
+write D:u8 := highByte(result)
+write E:u8 := lowByte(result)
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -12054,6 +12407,23 @@ write memory[addWrap(address, 0001:u16)] := highByte(result)
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 INC HL
+
+Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(original, 0001:u16)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 LD H,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -12064,6 +12434,33 @@ write H:u8 := result
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD HL,HL
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
 
 ### z80 LD HL,(nn)
 
@@ -12080,6 +12477,23 @@ result:u16 := source "memory word, low byte first" {
   high:u8 := read memory[addWrap(address, 0001:u16)]
   yield concatHighLow(high, low)
 }
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DEC HL
+
+Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := subtract(original, 0001:u16)
 write H:u8 := highByte(result)
 write L:u8 := lowByte(result)
 ```
@@ -12112,6 +12526,21 @@ write SP:u16 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 INC SP
+
+Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+result := addWrap(original, 0001:u16)
+write SP:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 LD (HL),n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -12121,6 +12550,47 @@ result:u8 := fetch byte
 high:u8 := read H
 low:u8 := read L
 write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD HL,SP
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 DEC SP
+
+Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+result := subtract(original, 0001:u16)
+write SP:u16 := result
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -12868,6 +13338,508 @@ result:u16 := source "HL" {
   yield concatHighLow(high, low)
 }
 write SP:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SBC HL,BC
+
+Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Subtract with word wraparound; write the destination before applying Z80 SBC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+carry:flag := read C
+result := subtract(left, right, carry)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 SBC word flags (H at bit 11)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC HL,DE
+
+Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Subtract with word wraparound; write the destination before applying Z80 SBC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+carry:flag := read C
+result := subtract(left, right, carry)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 SBC word flags (H at bit 11)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC HL,HL
+
+Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Subtract with word wraparound; write the destination before applying Z80 SBC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+carry:flag := read C
+result := subtract(left, right, carry)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 SBC word flags (H at bit 11)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 SBC HL,SP
+
+Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Subtract with word wraparound; write the destination before applying Z80 SBC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+carry:flag := read C
+result := subtract(left, right, carry)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 SBC word flags (H at bit 11)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  PV := subtractOverflow(left, right, carry)
+  N := 1:flag
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC HL,BC
+
+Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Add with word wraparound; write the destination before applying Z80 ADC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+carry:flag := read C
+result := addWrap(left, right, carry)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 ADC word flags (H at bit 11)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC HL,DE
+
+Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Add with word wraparound; write the destination before applying Z80 ADC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+carry:flag := read C
+result := addWrap(left, right, carry)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 ADC word flags (H at bit 11)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC HL,HL
+
+Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Add with word wraparound; write the destination before applying Z80 ADC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+carry:flag := read C
+result := addWrap(left, right, carry)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 ADC word flags (H at bit 11)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 ADC HL,SP
+
+Read the complete source before the destination, even when both operands name the same register. Then capture incoming carry. Add with word wraparound; write the destination before applying Z80 ADC word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+left:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+carry:flag := read C
+result := addWrap(left, right, carry)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+flags "Z80 ADC word flags (H at bit 11)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  PV := addOverflow(left, right, carry)
+  N := 0:flag
+  C := carry(left, right, carry)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### z80 ADD IX,BC
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+result := addWrap(left, right)
+write IX:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 ADD IX,DE
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+result := addWrap(left, right)
+write IX:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 ADD IX,IX
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+left:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+result := addWrap(left, right)
+write IX:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 ADD IX,SP
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+left:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+result := addWrap(left, right)
+write IX:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 INC IX
+
+Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+result := addWrap(original, 0001:u16)
+write IX:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DEC IX
+
+Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+result := subtract(original, 0001:u16)
+write IX:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 ADD IY,BC
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+result := addWrap(left, right)
+write IY:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 ADD IY,DE
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+result := addWrap(left, right)
+write IY:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 ADD IY,IY
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+left:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+result := addWrap(left, right)
+write IY:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 ADD IY,SP
+
+Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+left:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+result := addWrap(left, right)
+write IY:u16 := result
+flags "Z80 ADD word flags (H at bit 11)" simultaneously {
+  H := not(isZero(bitAnd(bitXor(bitXor(left, right), result), 1000:u16)))
+  C := carry(left, right)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 INC IY
+
+Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+result := addWrap(original, 0001:u16)
+write IY:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DEC IY
+
+Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
+
+```text
+original:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+result := subtract(original, 0001:u16)
+write IY:u16 := result
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.

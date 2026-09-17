@@ -145,6 +145,19 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generatedZ80.immediateIXWord(z80, { fetchByte: () => 0 });
   generatedZ80.loadIYWord(z80, { fetchByte: () => 0, readByte: () => 0 });
   generatedZ80.copyIXWord(z80);
+  generated8080[0x03](intel);
+  generated8080[0x09](intel);
+  generatedZ80[0x39](z80);
+  generatedZ80.adcHLBC(z80);
+  generatedZ80.sbcHLHL(z80);
+  generatedZ80.addIXIX(z80);
+  generatedZ80.decIYWord(z80);
+  // @ts-expect-error Word arithmetic needs no fetching or memory capability.
+  generated8080[0x09](intel, { fetchByte: () => 0 });
+  // @ts-expect-error Carry is read from the CPU's flags, not supplied as an operand.
+  generatedZ80.adcHLBC(z80, true);
+  // @ts-expect-error Index adjustment retains the Z80's concrete state type.
+  generatedZ80.incIXWord(intel);
   // @ts-expect-error Immediate word loads cannot read data memory.
   generated8080[0x01](intel, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error Absolute word stores fetch their own address.

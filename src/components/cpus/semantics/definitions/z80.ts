@@ -1,10 +1,10 @@
 import { cpuZ80StateDescription } from "../../state/z80.ts";
-import { addOverflow, bitAnd, bitOr, borrow, capture, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, overflow,
+import { addOverflow, bitAnd, bitOr, bitXor, borrow, capture, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, overflow,
   readMemory, readRegister, readSource, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, Statement } from "../model.ts";
 import { shift } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
-import { intelAccumulatorRotate, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelWordRegister, intelWordTransfer, intelWordTransfers } from "../intel.ts";
+import { intelAccumulatorRotate, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelWordTransfer, intelWordTransfers } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
@@ -15,6 +15,24 @@ function wordTransferName(register: string, operation: "immediate" | "load" | "s
   const name = register.toUpperCase();
   return { immediate: `LD ${name},nn`, load: `LD ${name},(nn)`, store: `LD (nn),${name}`, copy: `LD SP,${name}` }[operation];
 }
+
+function wordFlags(mnemonic: "ADD" | "ADC" | "SBC"): FlagPolicy {
+  const subtracting = mnemonic === "SBC", withCarry = mnemonic !== "ADD";
+  const left = value("left"), right = value("right"), result = value("result"), incoming = withCarry ? flagValue("carry") : undefined;
+  // At bit 12, left XOR right XOR result isolates the carry/borrow out of bit 11, including incoming C.
+  const half = not(zero(bitAnd(bitXor(bitXor(left, right), result), literal(16, 0x1000))));
+  const h = { flag: cpu.flag("h"), value: half }, c = { flag: cpu.flag("c"), value: (subtracting ? borrow : carry)(left, right, incoming) };
+  const n = { flag: cpu.flag("n"), value: flagLiteral(subtracting) };
+  return { name: `Z80 ${mnemonic} word flags (H at bit 11)`,
+    parameters: { left: 16, right: 16, result: 16, ...(withCarry ? { carry: "flag" as const } : {}) }, unlisted: "preserve",
+    updates: withCarry ? [
+      { flag: cpu.flag("s"), value: negative(result) }, { flag: cpu.flag("z"), value: zero(result) }, h,
+      { flag: cpu.flag("pv"), value: (subtracting ? overflow : addOverflow)(left, right, incoming) }, n, c,
+    ] : [h, c, n],
+  };
+}
+
+const wordAdditionFlags = wordFlags("ADD");
 
 function adjustment(mnemonic: "INC" | "DEC") {
   const increment = mnemonic === "INC", original = value("original"), one = literal(8, 1);
@@ -123,6 +141,20 @@ function family(mnemonic: string, operation: IntelByteOperation, withCarry = fal
 export const instructionsZ80 = {
   ...intelByteTransfers(cpu, "LD", "LD", "(HL)"),
   ...intelWordTransfers(cpu, wordTransferName),
+  ...intelWordArithmeticFamily(cpu, wordAdditionFlags, (register, operation) => operation === "add" ? `ADD HL,${register.toUpperCase()}`
+    : `${operation === "increment" ? "INC" : "DEC"} ${register.toUpperCase()}`),
+  // ED 01 pp q 010: pp selects BC/DE/HL/SP; q=0 subtracts with carry, q=1 adds with carry.
+  ...Object.fromEntries((["SBC", "ADC"] as const).flatMap(mnemonic => (["bc", "de", "hl", "sp"] as const).map(register =>
+    [`${mnemonic.toLowerCase()}HL${register.toUpperCase()}`, intelWordArithmetic(cpu, intelWordRegister(cpu, "hl"), intelWordRegister(cpu, register),
+      mnemonic === "SBC" ? "subtract" : "add", wordFlags(mnemonic), `${mnemonic} HL,${register.toUpperCase()}`, cpu.flag("c"))]))),
+  // DD/FD 00 pp 1 001 replaces both destination HL and pp=10 with IX/IY; 00 10 q 011 adjusts the index.
+  ...Object.fromEntries((["ix", "iy"] as const).flatMap(index => [
+    ...(["bc", "de", index, "sp"] as const).map((register): readonly [string, InstructionDefinition] => [`add${index.toUpperCase()}${register.toUpperCase()}`,
+      intelWordArithmetic(cpu, cpu.register(index), register === "ix" || register === "iy" ? cpu.register(register) : intelWordRegister(cpu, register),
+        "add", wordAdditionFlags, `ADD ${index.toUpperCase()},${register.toUpperCase()}`)]),
+    ...(["INC", "DEC"] as const).map((mnemonic): readonly [string, InstructionDefinition] => [`${mnemonic.toLowerCase()}${index.toUpperCase()}Word`,
+      intelWordAdjustment(cpu, cpu.register(index), mnemonic === "INC" ? 1 : -1, `${mnemonic} ${index.toUpperCase()}`)]),
+  ])),
   // ED 01 pp d 011: HL shares its base-page bodies; the other pairs add load/store bodies.
   ...Object.fromEntries((["bc", "de", "sp"] as const).flatMap(register => (["load", "store"] as const).map(operation =>
     [`${operation}${register.toUpperCase()}Memory`, intelWordTransfer(cpu, intelWordRegister(cpu, register), operation, wordTransferName(register, operation))]))),

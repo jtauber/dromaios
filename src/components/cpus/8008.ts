@@ -17,7 +17,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { intel8008ByteTransferForms } from "./intel-transfers.ts";
+import { intel8008ByteTransferForms } from "./intel-encodings.ts";
 
 export { cpu8008StateDescription } from "./state/8008.ts";
 export type { Cpu8008State, Cpu8008AddressStack, Cpu8008Flags } from "./state/8008.ts";

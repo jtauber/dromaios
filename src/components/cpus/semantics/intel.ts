@@ -2,8 +2,8 @@ import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagValue, 
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource } from "./model.ts";
 import { arithmetic, immediateByte, instructionSet, registerSource, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
-import { intelByteTransferForms, intelWordTransferForms } from "../intel-transfers.ts";
-import type { IntelByteOperand } from "../intel-transfers.ts";
+import { intelByteTransferForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
+import type { IntelByteOperand } from "../intel-encodings.ts";
 import { pairBytes } from "../register-pairs.ts";
 import type { RegisterPair } from "../register-pairs.ts";
 
@@ -17,6 +17,9 @@ interface IntelWordCpu extends IntelByteCpu {
 }
 type WordRegister = Register | { readonly source: ValueSource; readonly write: readonly Statement[] };
 type WordTransfer = "immediate" | "load" | "store" | "copy";
+
+const wordSource = (register: WordRegister): ValueSource => "kind" in register ? registerSource(register) : register.source;
+const wordDestination = (register: WordRegister): Register | readonly Statement[] => "kind" in register ? register : register.write;
 
 /** Pairs are views of two stored bytes, read and written high byte first. */
 export function intelWordRegister(cpu: IntelWordCpu, pair: RegisterPair | "sp"): WordRegister {
@@ -33,15 +36,15 @@ const immediateWord: ValueSource = { name: "immediate word, low byte first", wid
 
 /** Complete word transfers own operand fetching, source capture, and ordered writes; flags are never accessed. */
 export function intelWordTransfer(cpu: IntelWordCpu, register: WordRegister, operation: WordTransfer, name: string): InstructionDefinition {
-  const stored = "kind" in register, memory = operation === "load" || operation === "store";
+  const memory = operation === "load" || operation === "store";
   const address = value("address"), next = addWrap(address, literal(16, 1));
   const source: ValueSource = operation === "immediate" ? immediateWord : operation === "load"
     ? { name: "memory word, low byte first", width: 16,
       steps: [readSource("address", immediateWord), readMemory("low", address), readMemory("high", next)], result: concat(value("high"), value("low")) }
-    : stored ? registerSource(register) : register.source;
+    : wordSource(register);
   const destination = operation === "copy" ? cpu.register("sp") : operation === "store"
     ? [writeMemory(address, lowByte(value("result"))), writeMemory(next, highByte(value("result")))]
-    : stored ? register : register.write;
+    : wordDestination(register);
   return defineInstruction({ cpu: cpu.declaration, name,
     explanation: (memory ? "Fetch the complete address low byte first, then " : operation === "immediate" ? "Fetch the immediate low byte then high byte; " : "")
       + (operation === "store" ? "capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. "
@@ -56,6 +59,40 @@ export function intelWordTransfer(cpu: IntelWordCpu, register: WordRegister, ope
 export function intelWordTransfers(cpu: IntelWordCpu, names: (register: RegisterPair | "sp", operation: WordTransfer) => string) {
   return instructionSet(Object.values(intelWordTransferForms).flat().map(([opcode, { register, operation }]) =>
     [opcode, intelWordTransfer(cpu, intelWordRegister(cpu, register), operation, names(register, operation))]));
+}
+
+/** Word adjustments wrap without accessing flags; pair views keep their high-then-low order. */
+export function intelWordAdjustment(cpu: IntelWordCpu, register: WordRegister, delta: -1 | 1, name: string): InstructionDefinition {
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: `${delta === 1 ? "Add" : "Subtract"} one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.`,
+    steps: [readSource("original", wordSource(register)),
+      ...transfer(wordDestination(register), (delta === 1 ? addWrap : subtract)(value("original"), literal(16, 1)))],
+  });
+}
+
+/** Word arithmetic captures source, destination, and optional carry, then writes the word before flags. */
+export function intelWordArithmetic(cpu: IntelWordCpu, destination: WordRegister, source: WordRegister, operation: "add" | "subtract",
+  flags: FlagPolicy, name: string, incoming?: Flag): InstructionDefinition {
+  const left = value("left"), right = value("right"), carry = incoming === undefined ? undefined : flagValue("carry");
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: `Read the complete source before the destination, even when both operands name the same register. ${incoming === undefined ? "Do not read incoming flags." : "Then capture incoming carry."} `
+      + `${operation === "add" ? "Add" : "Subtract"} with word wraparound; write the destination before applying ${flags.name}. `
+      + "Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.",
+    steps: [readSource("right", wordSource(source)), readSource("left", wordSource(destination)),
+      ...(incoming === undefined ? [] : [readFlag("carry", incoming)]),
+      ...transfer(wordDestination(destination), (operation === "add" ? addWrap : subtract)(left, right, carry)),
+      updateFlags(flags, { left, right, result: value("result"), ...(carry === undefined ? {} : { carry }) })],
+  });
+}
+
+/** The shared base encodings select INX/DCX/DAD or INC/DEC/ADD HL with native names and flags. */
+export function intelWordArithmeticFamily(cpu: IntelWordCpu, flags: FlagPolicy,
+  names: (register: RegisterPair | "sp", operation: "increment" | "decrement" | "add") => string) {
+  return instructionSet(Object.values(intelWordArithmeticForms).flat().map(([opcode, { register, operation }]) => {
+    const word = intelWordRegister(cpu, register), name = names(register, operation);
+    return [opcode, operation === "add" ? intelWordArithmetic(cpu, intelWordRegister(cpu, "hl"), word, "add", flags, name)
+      : intelWordAdjustment(cpu, word, operation === "increment" ? 1 : -1, name)];
+  }));
 }
 
 /** Capture the source before writing; ordinary stores read HL after the source, indexed forms take one resolved address. */

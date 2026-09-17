@@ -20,7 +20,6 @@ import { cpu8080StateDescription } from "./state/8080.ts";
 import type { Cpu8080State } from "./state/8080.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeTable, opcodePattern } from "./opcodes.ts";
-import { add } from "./alu.ts";
 
 export { cpu8080StateDescription } from "./state/8080.ts";
 export type { Cpu8080State, Cpu8080Flags } from "./state/8080.ts";
@@ -164,7 +163,7 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
 
   // Opcode selectors and construction.
 
-  protected override readonly transfers = semantics;
+  protected override readonly generatedInstructions = semantics;
 
   // d in 00 rrr 10d selects INR/DCR; the generated memory body receives HL once.
   protected override readonly byteAdjustments: readonly ByteInstruction[] = (["inr", "dcr"] as const).map(operation => operand => {
@@ -219,12 +218,6 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
   ]);
 
   // Arithmetic, logic, and flags.
-
-  protected override addToHl(value: number): void {
-    const { result, carry } = add(16, this.hl, value);
-    this.hl = result;
-    this.state.flags.cy = carry;
-  }
 
   #decimalAdjust(): void {
     const accumulator = this.state.a;

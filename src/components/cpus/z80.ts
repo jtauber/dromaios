@@ -4,7 +4,7 @@ import type { CpuZ80State, CpuZ80Flags, CpuZ80RegisterBank } from "./state/z80.t
 import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
-import type { AluInstruction, ByteInstruction, WordOperand } from "./8080-family.ts";
+import type { AluInstruction, ByteInstruction } from "./8080-family.ts";
 import { flagRegister } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { signed8, readWordLE } from "./binary.ts";
@@ -20,7 +20,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.js";
-import { add, subtract, evenParity8 } from "./alu.ts";
+import { subtract, evenParity8 } from "./alu.ts";
 
 export { cpuZ80StateDescription } from "./state/z80.ts";
 export type { CpuZ80State, CpuZ80Flags, CpuZ80RegisterBank } from "./state/z80.ts";
@@ -65,7 +65,6 @@ interface InstructionContext extends WordInstructionContext, BytePorts {
 }
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type IndexRegister = "ix" | "iy";
-type RegisterPair = WordOperand | IndexRegister;
 type AddressedHandler = (address: number, instruction: InstructionContext) => void;
 
 // Fix the handler type once so pattern callbacks infer their instruction context.
@@ -261,7 +260,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   // Opcode selectors and construction.
 
-  protected override readonly transfers = semantics;
+  protected override readonly generatedInstructions = semantics;
 
   // d in 00 rrr 10d selects INC/DEC; the same memory bodies serve HL and resolved IX/IY operands.
   protected override readonly byteAdjustments: readonly ByteInstruction[] = (["inc", "dec"] as const).map(operation => operand => {
@@ -352,8 +351,8 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
       ...instructionPattern(`01 ${bits} 00 1`, ({ writePort }) => writePort(this.readPair("bc"), this.state[register])), // OUT (C),r; preserve flags
     ]),
     // 01 pp q 010/011: pp=BC/DE/HL/SP; q selects SBC/ADC or store/load.
-    ...opcodeFamily("01 pp q 010", { p: this.registerPairs, q: [true, false] },
-      ({ p: pair, q: subtracting }) => () => this.#wordCarry(this.readPair(pair), subtracting)), // SBC / ADC HL,ss
+    ...opcodeFamily("01 pp q 010", { p: ["BC", "DE", "HL", "SP"], q: ["sbc", "adc"] },
+      ({ p: pair, q: operation }) => () => semantics[`${operation}HL${pair}`]!(this.state)), // SBC / ADC HL,ss
     // d=0 stores, d=1 loads; ED's HL forms share the unprefixed bodies.
     ...opcodeFamily("01 pp d 011", { p: [
       [semantics.storeBCMemory, semantics.loadBCMemory], [semantics.storeDEMemory, semantics.loadDEMemory],
@@ -381,15 +380,16 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   #indexHandlers(index: IndexRegister): readonly OpcodeEntry<OpcodeHandler>[] {
     // 00 pp 1 001 replaces HL with the index in both destination and pp=10 source.
-    const pairs = ["bc", "de", index, "sp"] as const;
     const suffix = index === "ix" ? "IX" : "IY";
+    const additions = index === "ix" ? [semantics.addIXBC, semantics.addIXDE, semantics.addIXIX, semantics.addIXSP]
+      : [semantics.addIYBC, semantics.addIYDE, semantics.addIYIY, semantics.addIYSP];
     const address = ({ fetchByte }: InstructionContext): number => this.#indexedAddress(index, fetchByte());
     return [
-      ...opcodeFamily("00 pp 1 001", { p: pairs }, ({ p: pair }) => () => this.#addWord(index, this.readPair(pair))), // ADD IX/IY,pp
+      ...opcodeFamily("00 pp 1 001", { p: additions }, ({ p: execute }) => () => execute(this.state)), // ADD IX/IY,pp
       ...instructionPattern("00 10 0 001", instruction => semantics[`immediate${suffix}Word`](this.state, instruction)), // LD IX/IY,nn
       ...instructionPattern("00 10 0 010", instruction => semantics[`store${suffix}Word`](this.state, instruction)), // LD (nn),IX/IY
       ...instructionPattern("00 10 1 010", instruction => semantics[`load${suffix}Word`](this.state, instruction)), // LD IX/IY,(nn)
-      ...opcodeFamily("00 10 q 011", { q: [1, -1] }, ({ q: delta }) => () => { this.state[index] = (this.state[index] + delta) & 0xffff; }), // INC/DEC IX/IY
+      ...opcodeFamily("00 10 q 011", { q: ["inc", "dec"] }, ({ q: operation }) => () => semantics[`${operation}${suffix}Word`]!(this.state)), // INC/DEC IX/IY
       ...instructionPattern("00 110 100", instruction => semantics.incMemory(this.state, address(instruction), instruction)), // INC (IX/IY+d)
       ...instructionPattern("00 110 101", instruction => semantics.decMemory(this.state, address(instruction), instruction)), // DEC (IX/IY+d)
       ...instructionPattern("00 110 110", instruction => semantics.storeImmediateMemory(this.state, address(instruction), instruction)), // LD (IX/IY+d),n; fetch d before n
@@ -416,15 +416,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   #loadSpecial(register: "i" | "r"): void {
     this.state.a = this.#aluResult(this.state[register], { h: false, pv: this.state.iff2, n: false, c: this.state.flags.c });
-  }
-
-  protected override readPair(pair: RegisterPair): number {
-    return pair === "ix" || pair === "iy" ? this.state[pair] : super.readPair(pair);
-  }
-
-  protected override writePair(pair: RegisterPair, value: number): void {
-    if (pair === "ix" || pair === "iy") this.state[pair] = value;
-    else super.writePair(pair, value);
   }
 
   #exchangeAf(): void {
@@ -482,31 +473,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     this.state.flags.h = this.state.flags.c;
     this.state.flags.c = !this.state.flags.c;
     this.state.flags.n = false;
-  }
-
-  protected override addToHl(value: number): void {
-    this.#addWord("hl", value);
-  }
-
-  #addWord(pair: "hl" | IndexRegister, value: number): void {
-    const left = this.readPair(pair);
-    const { result, carry } = add(16, left, value);
-    this.writePair(pair, result);
-    // For this word operation H reports bit 11 to bit 12, not the shared adder's low-nibble carry.
-    this.state.flags.h = (left & 0x0fff) + (value & 0x0fff) > 0x0fff;
-    this.state.flags.c = carry;
-    this.state.flags.n = false;
-    // S/Z/PV are preserved, including when the result is zero or changes sign.
-  }
-
-  #wordCarry(value: number, subtracting: boolean): void {
-    const left = this.hl, carryIn = this.state.flags.c ? 1 : 0;
-    const arithmetic = subtracting ? subtract(16, left, value, carryIn) : add(16, left, value, carryIn);
-    const half = subtracting ? (left & 0x0fff) < (value & 0x0fff) + carryIn
-      : (left & 0x0fff) + (value & 0x0fff) + carryIn > 0x0fff;
-    this.hl = arithmetic.result;
-    this.state.flags = { s: arithmetic.result >= 0x8000, z: arithmetic.result === 0,
-      h: half, pv: arithmetic.overflow, n: subtracting, c: "borrow" in arithmetic ? arithmetic.borrow : arithmetic.carry };
   }
 
   #negate(): void {

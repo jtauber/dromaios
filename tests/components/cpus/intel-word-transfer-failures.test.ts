@@ -4,7 +4,7 @@ import { Cpu8080 } from "../../../src/components/cpus/8080.js";
 import { CpuZ80 } from "../../../src/components/cpus/z80.js";
 import type { CpuZ80InterruptAccess } from "../../../src/components/cpus/z80.js";
 import { ObservedRam } from "../../helpers/observed-ram.js";
-import { wordChanges, wordForms, wordState } from "../../helpers/intel-word-transfers.js";
+import { wordChanges, wordForms, wordState } from "../../helpers/intel-words.js";
 import { readAccess, writeAccess } from "./z80/helpers.js";
 
 for (const name of ["8080", "z80"] as const) {

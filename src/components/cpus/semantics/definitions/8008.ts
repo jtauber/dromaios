@@ -5,7 +5,7 @@ import type { FlagPolicy, InstructionDefinition, ValueSource } from "../model.ts
 import { immediateByte, instructionSet, registerSource } from "../builders.ts";
 import { intelAccumulatorRotate, intelByteAlu, intelByteTransfer } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
-import { intel8008ByteTransferForms } from "../../intel-transfers.ts";
+import { intel8008ByteTransferForms } from "../../intel-encodings.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("8008", cpu8008StateDescription);

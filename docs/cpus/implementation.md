@@ -184,7 +184,7 @@ operands, pair views, data-word accesses, stack exchanges, and 240 supported
 the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
 The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
-operations, conditions, byte/word transfers, byte increment/decrement, addition to HL, and PSW/AF
+operations, conditions, generated bodies keyed by opcode, byte increment/decrement, and PSW/AF
 packing. Both CPUs' byte ALU and byte-adjustment selectors bind complete generated bodies with
 explicit source reads, flags, and writeback. Shared
 [Intel construction](../../src/components/cpus/semantics/intel.ts) supplies
@@ -197,14 +197,15 @@ The old accumulator wrapper is gone. These hooks keep differing flag rules expli
 versus overflow and the opposite subtraction half-carry conventions. The shared
 code does not select behavior by checking which processor is executing.
 
-The shared [transfer inventory](../../src/components/cpus/intel-transfers.ts)
+The shared [encoding inventory](../../src/components/cpus/intel-encodings.ts)
 owns the `00 ddd 110` immediate and `01 ddd sss` matrix encodings. Definition
 construction and execution binding consume that same inventory; the generated
 method keys are the numeric opcodes. HALT remains explicit in the family table.
 Ordinary bodies own source reads, H/L reads at the access point, and writeback.
 Indexed Z80 bodies share construction and receive a resolved address instead.
 Both CPUs use one binder, with no separate handwritten byte-operand read/write
-helpers or per-CPU transfer dispatch tables.
+helpers or per-CPU transfer dispatch tables. The same binder serves the common
+word-arithmetic encodings `00 pp 1 001` and `00 pp q 011`.
 
 Word transfers use that same binder with their own immediate, memory, and SP-copy
 inventory. Bodies fetch complete addresses, read or write memory low byte first,
@@ -212,6 +213,15 @@ and express split-register writes explicitly. Their pair descriptions reuse the
 runtime's register-pair byte mapping. Z80 ED HL forms share their unprefixed
 bodies; IX/IY use stored word registers through the same construction. Keep
 prefix recognition and retirement in the Z80 decoder.
+
+Word arithmetic reuses those pair descriptions. INX/DCX and word INC/DEC
+never access flags. DAD and ADD capture the source before the destination;
+ADC/SBC HL then capture incoming C. All write the result before flags, unlike
+byte arithmetic. DAD updates only CY; Z80 ADD preserves S/Z/PV, while ADC/SBC
+replace them with whole-word sign, zero, and overflow. Z80 H comes from carry
+or borrow out of bit 11, expressed by bit 12 of `left XOR right XOR result`.
+The handwritten addition hook, Z80 word-arithmetic helpers, and now-unused
+IX/IY pair-read/write overrides are removed.
 
 Each concrete constructor validates and copies its state before passing that
 owned state to `super`. The base constructor binds only the state and call

@@ -20,9 +20,10 @@ const cpus: readonly { name: string; instructions: Readonly<Record<number, (stat
   { name: "8080", instructions: intel }, { name: "Z80", instructions: zilog },
 ];
 
-test("8080/Z80 base transfer definitions cover the 71 byte and seven word slots, excluding HALT", () => {
-  const expected = [...forms.map(({ opcode }) => opcode), 0x01, 0x11, 0x21, 0x31, 0x22, 0x2a, 0xf9].sort((a, b) => a - b);
-  assert.equal(new Set(expected).size, 78);
+test("8080/Z80 numeric definitions cover 78 transfer and twelve word-arithmetic slots, excluding HALT", () => {
+  const expected = [...forms.map(({ opcode }) => opcode), 0x01, 0x11, 0x21, 0x31, 0x22, 0x2a, 0xf9,
+    0x03, 0x0b, 0x09, 0x13, 0x1b, 0x19, 0x23, 0x2b, 0x29, 0x33, 0x3b, 0x39].sort((a, b) => a - b);
+  assert.equal(new Set(expected).size, 90);
   for (const definitions of [instructions8080, instructionsZ80]) {
     assert.deepEqual(Object.keys(definitions).filter(key => /^\d+$/.test(key)).map(Number).sort((a, b) => a - b), expected);
   }

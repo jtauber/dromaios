@@ -24,3 +24,10 @@ export const intelWordTransferForms = {
   memory: opcodeFamily("00 10 q 010", { q: ["store", "load"] as const }, ({ q: operation }) => ({ register: "hl" as const, operation })),
   stackPointer: opcodePattern("11 11 1 001", { register: "hl", operation: "copy" } as const),
 } as const;
+
+// 8080/Z80: pp selects BC/DE/HL/SP; adjustment q=0 increments, q=1 decrements without flag access.
+export const intelWordArithmeticForms = {
+  addition: opcodeFamily("00 pp 1 001", { p: ["bc", "de", "hl", "sp"] as const }, ({ p: register }) => ({ register, operation: "add" as const })),
+  adjustment: opcodeFamily("00 pp q 011", { p: ["bc", "de", "hl", "sp"] as const, q: ["increment", "decrement"] as const },
+    ({ p: register, q: operation }) => ({ register, operation })),
+} as const;
