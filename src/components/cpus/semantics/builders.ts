@@ -67,3 +67,14 @@ export function transfer(destination: Register, source: ValueSource, policy?: Fl
   if (policy !== undefined) steps.push(updateFlags(policy, { result: value("result") }));
   return steps;
 }
+
+/** Read the operand before the accumulator; optionally write the result, then apply its flag policy. */
+export function logical(register: Register, source: ValueSource | NumberExpression,
+  operation: (left: NumberExpression, right: NumberExpression) => NumberExpression, policy: FlagPolicy, writeBack = true): readonly Statement[] {
+  return [
+    "kind" in source ? capture("operand", source) : readSource("operand", source),
+    readRegister("accumulator", register), capture("result", operation(value("accumulator"), value("operand"))),
+    ...(writeBack ? [writeRegister(register, value("result"))] : []),
+    updateFlags(policy, { result: value("result") }),
+  ];
+}

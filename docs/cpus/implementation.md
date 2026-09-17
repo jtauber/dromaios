@@ -588,18 +588,24 @@ CPU's state explicitly.
 
 Comparison construction is also shared. Each CPU declares its compared registers
 and any special policy, including the original 6800's CPX high-byte N/V rule.
-`motorolaComparisonBindings` binds immediate and resolved-memory bodies to the
+`motorolaOperandBindings` binds immediate and resolved-memory bodies to the
 `mm` addressing field. It reads no state during construction and rejects an
 undefined address before body entry; the decoders remain CPU-specific.
 
-`motorolaAccumulatorOperations` also shares the nine remaining byte-operation selectors
+Logical construction shares the operand-first recipe with the 6502, selecting
+the Motorola N/Z policy with V cleared. BIT uses the same masked result for N/Z
+and omits writeback. `motorolaLogicalBindings` owns the four `oooo` selectors
+and reuses the same operand binding as comparisons for all four addressing modes.
+The 6800's ORAA/ORAB and the 6809's ORA/ORB retain their native display names.
+
+`motorolaAccumulatorOperations` also shares the five remaining byte-operation selectors
 in `1 r mm oooo`, including their accumulator writeback and flag effects.
 Its state getter and ALU callbacks are bound during construction and read only
 when an instruction executes. Each CPU supplies its own immediate and memory
 readers: in particular, the 6809 still rejects undefined indexed postbytes before
 running an operation. Stores, word loads/arithmetic, and addressing remain local.
 Matching arithmetic flag policies use the shared operations described above;
-unary and comparison semantics use generated bodies. Address and effect-order differences stay visible.
+unary, comparison, and logical semantics use generated bodies. Address and effect-order differences stay visible.
 
 [Tests](../../tests/components/cpus/motorola.test.ts) compare encoded conditions
 with unsigned and signed arithmetic and verify preserved flags and replaced

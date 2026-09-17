@@ -23,6 +23,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6502 LDA/LDX/LDY, every supported addressing form | Reuse comparison sources; delay destination and N/Z updates until the source succeeds |
 | 6502 STA/STX/STY, every supported addressing form | Resolve the address before capturing the source; one write without a destination read or any flag access |
 | 6502 ORA/AND/EOR and BIT, every supported addressing form | Reuse byte sources and N/Z; BIT preserves A and derives N/V from memory, separately from the masked result used for Z |
+| 6800/6809 AND/BIT/EOR/OR on A/B, every supported addressing form | Share logical construction and operand bindings; N/Z describe the result, V clears, and BIT omits writeback |
 | All six 6502 register transfers and 8080 MOV B,A | Share read/write behavior while selecting N/Z or preserving every flag; SP transfers do not access the stack |
 | All 6502 ASL/ROL/LSR/ROR forms | One resolved address, an original-value write, a captured incoming carry for rotates, and separate C and N/Z stages; accumulator forms share the operation |
 | All 6502 memory INC/DEC and INX/INY/DEX/DEY | Share wrapping byte updates while preserving C and the same memory-write boundaries |
@@ -31,7 +32,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 210 bodies. All are generated and executable; 209 are bound into their
+There are 242 bodies. All are generated and executable; 241 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other instruction families retain their existing shared helpers. This is not a
@@ -54,8 +55,8 @@ The authoring layers have separate homes:
 | Location | Responsibility |
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
-| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift recipes, N/Z policies, and checked opcode inventories |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary and comparison construction, with explicit operand-read and flag policies |
+| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical recipes, N/Z policies, and checked opcode inventories |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, and logical construction, with explicit operand-read and flag policies |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -153,13 +154,23 @@ register read and write; a failed write retains completed fetches and pointer
 reads while leaving every flag unchanged. The existing vocabulary expresses
 these effects without a new primitive, target abstraction, or compiler path.
 
-All 24 ORA/AND/EOR forms share one CPU-local construction: read the operand,
+All 24 ORA/AND/EOR forms use the shared `logical` construction: read the operand,
 capture A, combine the captured bytes, write A, then apply the existing N/Z
-policy. BIT has a separate read-only definition and named flag policy: N is
+policy. 6502 BIT has a separate read-only definition and named flag policy: N is
 memory bit 7, V is memory bit 6, and Z tests whether A AND memory is zero.
 Both BIT modes reuse the same address sources. None of these operations reads
 incoming flags or changes C/D/I; ORA/AND/EOR also preserve V. Decimal mode has
 no effect. A failed source read prevents all later register and flag updates.
+
+`logical(register, source, operation, policy, writeBack)` also serves the 6800
+and 6809. It captures a source or already-read expression before the accumulator,
+calculates the result, optionally writes it back, and applies its result policy.
+The operation constructor runs only while building data. Each Motorola CPU uses
+one shared family construction for AND/BIT/EOR/OR on A/B, with separate immediate
+and resolved-memory bodies. N/Z describe the result, V clears, and C/H/control
+flags are preserved. Motorola BIT passes `false` for writeback; unlike 6502 BIT,
+it derives N from the masked result and always clears V. The original 6800's
+ORAA/ORAB spelling is retained, while both CPUs use the same internal body keys.
 
 A `ValueSource` has a name, result width, ordered body, and pure result expression.
 Its captures live in a fresh scope; only its yielded value enters its caller's
@@ -384,6 +395,14 @@ pairs with D clear/set and verify all addressing
 forms, preserved flags, and complete access records. The CPU failure probe also
 covers both BIT forms. Type and validation checks distinguish numeric bitwise
 expressions from Boolean XOR and reject mixed operand widths.
+Motorola probes exercise every generated logical body, including read failures,
+operand-before-register capture, replaced flag objects, writeback before N/Z/V,
+and BIT without writeback. CPU tests retain their literal opcode expectations
+and bit truth tables. The 6800 failure probe covers all four addressing modes
+and every indexed offset; the 6809 checks every legal indexed postbyte, A/B/D
+offset aliases, pointer/code overlap, wrapping, and S auto-updates. Selected
+6809 auto-update and indirect forms fail at every read, retaining exact completed
+accesses. Its existing undefined-postbyte checks also cover the logical families.
 [Unary probes](../../tests/components/cpus/semantics/unary.test.ts) check every
 word value in both directions and with either incoming bit, distinguish a
 captured flag from later live-state changes, and inspect carry reads and updates
@@ -488,8 +507,8 @@ inventory contains function references only; each invocation supplies the curren
 CPU state. CPU-owned wrappers resolve one address, with the 6809 rejecting
 undefined postbytes before body entry. The handwritten unary calculations and
 memory-modification paths are gone. JMP remains a separate address operation.
-The 6800 and 6809 share one comparison-family binding, with the 6809 using it
-across its three opcode pages.
+The 6800 and 6809 share `motorolaOperandBindings` for comparison and logical
+families, with the 6809 using it across its three opcode pages for comparisons.
 Each register has an immediate body that fetches its operand and a memory body
 that receives the decoder's resolved address. This covers CMPA/B/D/X/Y/U/S in
 all four addressing modes, with no special indexed postbyte path. Unsupported
@@ -500,6 +519,12 @@ The shared accumulator table no longer includes CMP, so the 6809 no longer needs
 to filter it out. The original 6800 CPX helper is gone. Binding captures a state
 getter without reading it until execution, and resolves each memory address once
 before entering its body. Address decoding remains outside the generated definitions.
+
+`motorolaLogicalBindings` selects AND/BIT/EOR/OR and A/B from the native
+`1 r mm oooo` encoding. Each resolved-memory body serves direct, indexed, and
+extended forms, with no new addressing path. The shared handwritten accumulator
+table now contains only SUB/SBC/LD/ADC/ADD; its four logical selectors and the
+single-use load wrapper have been removed.
 
 ## Decision and next review
 
@@ -563,6 +588,14 @@ writeback. All earlier definitions and address/operand sources remain unchanged.
 The CPU module shrinks by 14 lines, while definitions and shared expression
 support add 41, a net increase of 27 authored lines. Reusing this vocabulary
 across further CPU families remains the next opportunity to reduce duplication.
+
+The 6800/6809 logical migration uses that vocabulary without further primitives
+or compiler changes. Its shared recipe also replaces the 6502's local statement
+sequence without changing any earlier definition. The former comparison-only
+binding is renamed to reflect its general immediate/resolved-memory role.
+The 32 new bodies cover 64 complete opcode forms. Shared construction, bindings,
+and CPU integration cost 41 net authored lines after removals; the footprint
+report records this increase alongside the reuse across three CPUs.
 
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve

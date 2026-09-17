@@ -2,12 +2,19 @@ import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/6502.js";
+import { instructions as m6800 } from "../../../../src/components/cpus/generated/6800.js";
+import { instructions as m6809 } from "../../../../src/components/cpus/generated/6809.js";
+import type { Cpu6800State } from "../../../../src/components/cpus/state/6800.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6809State } from "../../../../src/components/cpus/state/6809.js";
 import type { Cpu6502Flags, Cpu6502State } from "../../../../src/components/cpus/state/6502.js";
 import { bitAnd, bitOr, bitXor, cpuSymbols, literal, value, writeRegister } from "../../../../src/components/cpus/semantics/model.js";
 import type { InstructionDefinition } from "../../../../src/components/cpus/semantics/model.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
+
+type MotorolaLogicalName = `${"and" | "bit" | "eor" | "or"}${"a" | "b"}`;
+type MotorolaLogicalBodies<State> = Record<`${MotorolaLogicalName}Immediate`, (state: State, instruction: { fetchByte(): number }) => void>
+  & Record<`${MotorolaLogicalName}Memory`, (state: State, address: number, instruction: { readByte(address: number): number }) => void>;
 
 // Independent bit truth tables, rather than the JavaScript operators emitted by the generator.
 function expectedBits(operation: "and" | "or" | "xor", left: number, right: number, width: number): number {
@@ -116,4 +123,57 @@ test("all generated 6502 logical forms finish reads before A and flags, and stop
     assert.deepEqual(flags, failAt < 0
       ? { ...before, n: result === null || result >= 128, v: result === null, z: false } : before);
   }
+});
+
+test("Motorola logical bodies capture operands before A/B, use restored flags, and preserve all state on failed reads", () => {
+  function check<State extends Cpu6800State | Cpu6809State>(create: () => State, bodies: MotorolaLogicalBodies<State>): void {
+    for (const operation of ["and", "bit", "eor", "or"] as const) for (const register of ["a", "b"] as const) {
+      for (const memory of [false, true]) for (const fail of [false, true]) for (const incoming of [false, true]) {
+        const state = create(), events: string[] = [], failure = new Error("logical read failed");
+        for (const key of Object.keys(state.flags)) Reflect.set(state.flags, key, incoming);
+        const oldFlags = state.flags, before = structuredClone(state), flags = { ...state.flags };
+        const observed = new Proxy(state, {
+          get(target, key, receiver) {
+            if (key === "a" || key === "b") events.push(`read ${String(key)}`);
+            return Reflect.get(target, key, receiver);
+          },
+          set(target, key, value) {
+            assert.equal(key, register); assert.notEqual(operation, "bit", "BIT must not write a register");
+            events.push(`write ${register}`); return Reflect.set(target, key, value);
+          },
+        });
+        const read = (): number => {
+          events.push("operand");
+          if (fail) throw failure;
+          state[register] = 0x40; // The body must capture the register after reading its operand.
+          state.flags = new Proxy(flags, {
+            get() { assert.fail("Logical instructions must not read incoming flags"); },
+            set(target, key, value) { events.push(`flag ${String(key)}`); return Reflect.set(target, key, value); },
+          });
+          return 0xc0;
+        };
+        const name = `${operation}${register}` as const;
+        const run = () => memory ? bodies[`${name}Memory`](observed, 0xffff, { readByte(address) { assert.equal(address, 0xffff); return read(); } })
+          : bodies[`${name}Immediate`](observed, { fetchByte: read });
+        if (fail) {
+          assert.throws(run, error => error === failure);
+          assert.deepEqual(state, before);
+        } else {
+          run();
+          const result = expectedBits(operation === "bit" ? "and" : operation === "eor" ? "xor" : operation, 0x40, 0xc0, 8);
+          assert.equal(state[register], operation === "bit" ? 0x40 : result);
+          assert.deepEqual({ ...state, flags }, { ...before, [register]: operation === "bit" ? 0x40 : result,
+            flags: { ...before.flags, n: result >= 128, z: result === 0, v: false } });
+        }
+        assert.deepEqual(oldFlags, before.flags);
+        assert.deepEqual(events, ["operand", ...(fail ? [] : [
+          `read ${register}`, ...(operation === "bit" ? [] : [`write ${register}`]), "flag n", "flag z", "flag v",
+        ])]);
+      }
+    }
+  }
+  check((): Cpu6800State => ({ a: 0x55, b: 0xaa, x: 0, sp: 0, pc: 0, waiting: false,
+    flags: { h: true, i: true, n: true, z: true, v: true, c: true } }), m6800);
+  check((): Cpu6809State => ({ a: 0x55, b: 0xaa, x: 0, y: 0, s: 0, u: 0, dp: 0, pc: 0, waitMode: "none", nmiArmed: false,
+    flags: { e: true, f: true, h: true, i: true, n: true, z: true, v: true, c: true } }), m6809);
 });

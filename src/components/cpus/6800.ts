@@ -11,7 +11,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaComparisonBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaLogicalBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
 import { instructions as semantics } from "./generated/6800.ts";
 import { cpu6800StateDescription } from "./state/6800.ts";
 import type { Cpu6800State } from "./state/6800.ts";
@@ -127,9 +127,9 @@ export class Cpu6800 {
   // TST (1101) only reads; CLR (1111) only writes. JMP (1110) remains separate.
   static readonly #unaryOperations = motorolaUnaryOperations(semantics);
 
-  readonly #comparisonHandlers = motorolaComparisonBindings(() => this.#state, this.#memoryModes);
+  readonly #operandHandlers = motorolaOperandBindings(() => this.#state, this.#memoryModes);
 
-  // 1 r mm oooo shares the 6809's byte operations; CMP (0001) has generated bodies below.
+  // 1 r mm oooo shares the 6809's byte operations; CMP and logic have generated bodies below.
   readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
 
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
@@ -192,9 +192,10 @@ export class Cpu6800 {
 
     // 1 r mm oooo: r (bit 6) selects A=0/B=1; mm (bits 5–4) selects addressing;
     // oooo (bits 3–0) selects a shared byte operation; 0011 remains undefined.
-    // Generated CMP bodies preserve A/B; the remaining byte selectors are shared with the 6809.
-    ...this.#comparisonHandlers("1 0 mm 0001", semantics.cmpaImmediate, semantics.cmpaMemory), // CMPA
-    ...this.#comparisonHandlers("1 1 mm 0001", semantics.cmpbImmediate, semantics.cmpbMemory), // CMPB
+    // Generated CMP/BIT preserve A/B; other logic writes before flags. Remaining selectors are shared.
+    ...this.#operandHandlers("1 0 mm 0001", semantics.cmpaImmediate, semantics.cmpaMemory), // CMPA
+    ...this.#operandHandlers("1 1 mm 0001", semantics.cmpbImmediate, semantics.cmpbMemory), // CMPB
+    ...motorolaLogicalBindings(semantics, this.#operandHandlers), // AND/BIT/EOR/OR on A/B
     ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r mm ${bits}`,
       { r: ["a", "b"], m: this.#operandReaders }, ({ r, m: read }) => (instruction: InstructionContext) => apply(r, read(instruction)))),
     // Stores have no immediate form: expand only the three address-bearing modes.
@@ -202,7 +203,7 @@ export class Cpu6800 {
       ({ r }) => (instruction: InstructionContext) => this.#storeAccumulator(r, address(instruction), instruction.writeByte))), // STAA / STAB
 
     // 10 mm 1100: compare X with a word. The original 6800 compares its bytes separately.
-    ...this.#comparisonHandlers("10 mm 1100", semantics.cpxImmediate, semantics.cpxMemory), // CPX
+    ...this.#operandHandlers("10 mm 1100", semantics.cpxImmediate, semantics.cpxMemory), // CPX
 
     // 10 mm 1101: mm=00 is BSR, 10/11 are indexed/extended JSR; 01 is undefined.
     ...instructionPattern("10 00 1101", ({ fetchByte, writeByte }: InstructionContext) => this.#call(this.#relativeAddress(fetchByte()), writeByte)), // BSR rel

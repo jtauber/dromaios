@@ -119,6 +119,16 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800.cmpaImmediate(m6800, { fetchByte: () => 0 });
   generated6800.cpxMemory(m6800, 0xffff, { readByte: () => 0 });
   generated6800.cba(m6800);
+  generated6800.andaImmediate(m6800, { fetchByte: () => 0 });
+  generated6800.orbMemory(m6800, 0xffff, { readByte: () => 0 });
+  generated6809.bitbImmediate(motorola, { fetchByte: () => 0 });
+  generated6809.eoraMemory(motorola, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error A resolved logical memory body cannot fetch another address.
+  generated6809.andaMemory(motorola, 0xffff, { readByte: () => 0, fetchByte: () => 0 });
+  // @ts-expect-error Logical instructions never write memory, including BIT.
+  generated6800.bitaMemory(m6800, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Immediate logic cannot access data memory.
+  generated6800.eorbImmediate(m6800, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error CPX needs two explicit byte reads, never a write capability.
   generated6800.cpxMemory(m6800, 0xffff, { readByte: () => 0, writeByte: () => {} });
   // @ts-expect-error The address is already resolved when a memory comparison starts.

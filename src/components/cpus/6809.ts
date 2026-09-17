@@ -14,7 +14,7 @@ import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaComparisonBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaLogicalBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
 import { add, subtract } from "./alu.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
@@ -168,7 +168,7 @@ export class Cpu6809 {
   static readonly #unaryOperations = motorolaUnaryOperations(semantics);
 
   // 1 r mm oooo: r selects A/B; mm=00 immediate, 01 direct, 10 indexed, 11 extended.
-  // Byte operations are shared with the 6800; CMP (0001) has generated bodies below.
+  // Byte operations are shared with the 6800; CMP and logic have generated bodies below.
   readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
 
   readonly #directOperandAddress: OperandReader = ({ fetchByte }) => this.#directAddress(fetchByte());
@@ -184,15 +184,15 @@ export class Cpu6809 {
   // 0000..0101 = D/X/Y/U/S/PC; 1000..1011 = A/B/CC/DP; other selectors are undefined.
   readonly #transferRegisters = ["d", "x", "y", "u", "s", "pc", undefined, undefined, "a", "b", "cc", "dp"] as const;
 
-  readonly #comparisonHandlers = motorolaComparisonBindings(() => this.#state, this.#memoryModes);
+  readonly #operandHandlers = motorolaOperandBindings(() => this.#state, this.#memoryModes);
 
   // Prefix 10 selects page 2. Word encodings retain mm=00/01/10/11 addressing.
   // Transfers append 0=load/1=store; immediate stores are undefined.
   readonly #page2Handlers = opcodeTable<OpcodeHandler>([
     ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi2", instruction)), // SWI2
     ...this.#branchHandlers(({ fetchWord }) => fetchWord()).filter(([opcode]) => opcode !== 0x20), // LBRN and LBcc; LBRA has base opcode 16
-    ...this.#comparisonHandlers("10 mm 0011", semantics.cmpdImmediate, semantics.cmpdMemory), // CMPD
-    ...this.#comparisonHandlers("10 mm 1100", semantics.cmpyImmediate, semantics.cmpyMemory), // CMPY
+    ...this.#operandHandlers("10 mm 0011", semantics.cmpdImmediate, semantics.cmpdMemory), // CMPD
+    ...this.#operandHandlers("10 mm 1100", semantics.cmpyImmediate, semantics.cmpyMemory), // CMPY
     ...this.#wordHandlers([], [
       { bits: "10 mm 111", register: "y" }, // LDY / STY
       { bits: "11 mm 111", register: "s" }, // LDS / STS
@@ -201,8 +201,8 @@ export class Cpu6809 {
   // Prefix 11 selects page 3: the same comparison fields select U/S rather than D/Y.
   readonly #page3Handlers = opcodeTable<OpcodeHandler>([
     ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi3", instruction)), // SWI3
-    ...this.#comparisonHandlers("10 mm 0011", semantics.cmpuImmediate, semantics.cmpuMemory), // CMPU
-    ...this.#comparisonHandlers("10 mm 1100", semantics.cmpsImmediate, semantics.cmpsMemory), // CMPS
+    ...this.#operandHandlers("10 mm 0011", semantics.cmpuImmediate, semantics.cmpuMemory), // CMPU
+    ...this.#operandHandlers("10 mm 1100", semantics.cmpsImmediate, semantics.cmpsMemory), // CMPS
   ]);
 
   // Base opcode page; 10/11 dispatch exactly one following opcode in their own page.
@@ -251,8 +251,9 @@ export class Cpu6809 {
     ...this.#memoryUnaryHandlers("0111", this.#extendedOperandAddress),
 
     // 1 r mm 0001: CMPA/B share all four addressing modes; r=0 selects A, r=1 selects B.
-    ...this.#comparisonHandlers("10 mm 0001", semantics.cmpaImmediate, semantics.cmpaMemory), // CMPA
-    ...this.#comparisonHandlers("11 mm 0001", semantics.cmpbImmediate, semantics.cmpbMemory), // CMPB
+    ...this.#operandHandlers("10 mm 0001", semantics.cmpaImmediate, semantics.cmpaMemory), // CMPA
+    ...this.#operandHandlers("11 mm 0001", semantics.cmpbImmediate, semantics.cmpbMemory), // CMPB
+    ...motorolaLogicalBindings(semantics, this.#operandHandlers), // AND/BIT/EOR/OR on A/B
 
     // 1 r 00 oooo: remaining immediate A/B operations; word families occupy the remaining slots.
     ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r 00 ${bits}`,
@@ -263,7 +264,7 @@ export class Cpu6809 {
     ...this.#memoryModes.flatMap(({ bits, address }) => this.#memoryAccumulatorHandlers(bits, address)),
 
     // 10 mm 1100: CMPX uses immediate/direct/indexed/extended sources for mm=00/01/10/11.
-    ...this.#comparisonHandlers("10 mm 1100", semantics.cmpxImmediate, semantics.cmpxMemory), // CMPX
+    ...this.#operandHandlers("10 mm 1100", semantics.cmpxImmediate, semantics.cmpxMemory), // CMPX
 
     // 1 r mm 0011: r=0 subtracts from D, r=1 adds to D.
     ...this.#wordHandlers([

@@ -1,6 +1,6 @@
-import { addWrap, borrow, capture, concat, fetchByte, flagLiteral, literal, negative, overflow, readMemory, readRegister, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
+import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, literal, negative, overflow, readMemory, readRegister, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
-import { compare, immediateByte, negativeZeroPolicy, shift } from "./builders.ts";
+import { compare, immediateByte, logical, negativeZeroPolicy, shift } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
 
 interface MotorolaCpu {
@@ -111,4 +111,28 @@ export function motorolaComparison(cpu: MotorolaCpu, mnemonic: string, left: Reg
       steps: [...(memory ? reads : []), ...compare(left, right, flags)],
     })];
   }));
+}
+
+/** Shared A/B logical families: N/Z describe the result, V clears, and BIT omits register writeback. */
+export function motorolaLogic(cpu: MotorolaCpu, orMnemonic: "OR" | "ORA" = "OR") {
+  const nz = negativeZeroPolicy(`${cpu.declaration.name} logic`, cpu.flag("n"), cpu.flag("z"), 8);
+  const flags: FlagPolicy = { ...nz, updates: [...nz.updates, { flag: cpu.flag("v"), value: flagLiteral(false) }] };
+  return Object.fromEntries(([
+    ["and", "AND", bitAnd, true], ["bit", "BIT", bitAnd, false],
+    ["eor", "EOR", bitXor, true], ["or", orMnemonic, bitOr, true],
+  ] as const).flatMap(([key, mnemonic, operation, writeBack]) => (["a", "b"] as const).flatMap(register =>
+    (["Immediate", "Memory"] as const).map(mode => {
+      const memory = mode === "Memory", name = `${mnemonic}${register.toUpperCase()}`;
+      return [`${key}${register}${mode}`, defineInstruction({
+        cpu: cpu.declaration, name: `${name} ${memory ? "memory" : "#byte"}`,
+        ...(memory ? { inputs: { address: 16 as const } } : {}),
+        explanation: (memory ? "Entry is after successful address resolution. Read the byte at that address. " : "Fetch the immediate byte. ")
+          + `Only then read ${register.toUpperCase()} and combine the captured bytes. `
+          + (writeBack ? "Write the result before applying flags. " : "Do not write a result. ")
+          + "Set N/Z from the result and clear V, preserving C, H, and control flags. "
+          + "A failed read prevents register and flag updates; completed fetches and addressing effects remain.",
+        steps: [...(memory ? [readMemory("byte", value("address"))] : []),
+          ...logical(cpu.register(register), memory ? value("byte") : immediateByte, operation, flags, writeBack)],
+      })];
+    }))));
 }

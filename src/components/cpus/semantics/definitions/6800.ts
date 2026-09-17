@@ -2,7 +2,7 @@ import { cpu6800StateDescription } from "../../state/6800.ts";
 import { cpuSymbols, highByte, negative, overflow, subtract, value, zero } from "../model.ts";
 import type { FlagPolicy } from "../model.ts";
 import { compare, registerSource } from "../builders.ts";
-import { motorolaComparison, motorolaComparisonFlags, motorolaUnary } from "../motorola.ts";
+import { motorolaComparison, motorolaComparisonFlags, motorolaLogic, motorolaUnary } from "../motorola.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("6800", cpu6800StateDescription);
@@ -19,6 +19,7 @@ const indexComparison: FlagPolicy = {
 
 export const instructions6800 = {
   ...motorolaUnary(cpu, { clearReadsOperand: false, testClearsCarry: true, rightShiftSetsOverflow: true }),
+  ...motorolaLogic(cpu, "ORA"), // The original 6800 spells these ORAA/ORAB.
   ...motorolaComparison(cpu, "CMPA", cpu.register("a")),
   ...motorolaComparison(cpu, "CMPB", cpu.register("b")),
   ...motorolaComparison(cpu, "CPX", cpu.register("x"), indexComparison,

@@ -19,16 +19,16 @@ emulators do not count toward implementation here.
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [312](../../src/components/cpus/8008.ts) | 0 / 250 | 0% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [263](../../src/components/cpus/8080.ts) | 13 / 244 | 5.3% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [344](../../src/components/cpus/6800.ts) | 57 / 197 | 28.9% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [345](../../src/components/cpus/6800.ts) | 89 / 197 | 45.2% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [298](../../src/components/cpus/6502.ts) | 109 / 151 | 72.2% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [661](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [573](../../src/components/cpus/6809.ts) | 83 / 268 | 31.0% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [574](../../src/components/cpus/6809.ts) | 115 / 268 | 42.9% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **210 generated bodies**, of which **209 are used by CPU execution**,
-covering **262 complete opcode forms**:
+contains **242 generated bodies**, of which **241 are used by CPU execution**,
+covering **326 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -50,6 +50,9 @@ covering **262 complete opcode forms**:
   CMPA/CMPB/CPX across all four addressing modes and CBA add 13 forms from seven
   bodies. Comparison construction and address-mode bindings are shared with the
   6809; CPX supplies its own high-byte N/V, whole-word Z, and preserved-C policy.
+  AND/BIT/EOR/OR on A/B add 32 forms from 16 bodies, using shared Motorola logical
+  construction and the same immediate/resolved-memory binding as comparisons.
+  The original mnemonic spelling ORAA/ORAB is retained in explanations.
 - [6809 definitions](../../src/components/cpus/semantics/definitions/6809.ts):
   CMPA/B/D/X/Y/U/S across immediate/direct/indexed/extended addressing count as
   28 migrated forms from 14 bodies. All eleven unary operations (NEG, COM, LSR,
@@ -58,6 +61,10 @@ covering **262 complete opcode forms**:
   modes after the existing decoder supplies its resolved address, including all
   documented indexed postbytes. Comparisons read their complete operand before
   the compared register; D is explicitly read as A followed by B.
+  AND/BIT/EOR/OR on A/B add 32 forms from 16 bodies shared in construction with
+  the 6800. Both CPUs derive N/Z from the logical result, clear V, and preserve
+  C/H and control flags; BIT omits writeback. The 6809 retains its indexed
+  address updates and unsupported-postbyte rejection before body entry.
 
 The other four CPUs have no instruction bodies generated from these definitions.
 Their existing shared TypeScript helpers remain useful, but are outside this
@@ -105,24 +112,27 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,791 |
+| Eight CPU implementation files | 4,793 |
 | CPU-specific instruction definition files | 334 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,807 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,932** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,846 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,973** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 4,084 |
+| Generated CPU output, counted separately | 4,636 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Migrating ORA/AND/EOR and BIT removes their handwritten bindings and the BIT
-helper. The 6502 module loses **14 lines**, from 312 to 298; its definitions gain
-**32**, and the shared vocabulary, compiler, and reporter gain **9** for numeric
-AND/OR/XOR. Total authored CPU source rises from **6,905 to 6,932 lines**
-(**27 more**). The generation script is unchanged. This step reuses addressing
-and the N/Z policy and makes BIT's separate memory-derived flags explicit, but
-does not deliver a net source reduction. Subsequent migrations must keep
-accounting for definition and binding costs as well as the helpers they remove.
+Migrating the 6800/6809 logical families removes four shared handwritten
+selectors and their now-unnecessary load wrapper. Each CPU module gains **one
+line** for the shared logical bindings. CPU-specific definition files have no
+net change: their two new family declarations offset two lines removed by
+sharing the 6502's logical recipe. Other authored CPU source gains **39 lines**
+for shared construction and bindings, after removals. Total authored CPU source
+rises from **6,932 to 6,973 lines** (**41 more**). No semantic primitive, compiler
+path, or generation-script change is needed. This preserves existing sharing
+and reuses the logical recipe across three CPUs, but does not deliver a net
+source reduction. Subsequent migrations must keep accounting for definition
+and binding costs as well as the helpers they remove.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

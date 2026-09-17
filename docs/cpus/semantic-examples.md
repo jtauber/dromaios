@@ -3071,6 +3071,330 @@ write memory[address] := result
 
 Flags preserved throughout: H, I.
 
+### 6800 ANDA #byte
+
+Fetch the immediate byte. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 ANDA memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 ANDB #byte
+
+Fetch the immediate byte. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read B
+result := bitAnd(accumulator, operand)
+write B:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 ANDB memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read B
+result := bitAnd(accumulator, operand)
+write B:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 BITA #byte
+
+Fetch the immediate byte. Only then read A and combine the captured bytes. Do not write a result. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 BITA memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read A and combine the captured bytes. Do not write a result. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 BITB #byte
+
+Fetch the immediate byte. Only then read B and combine the captured bytes. Do not write a result. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read B
+result := bitAnd(accumulator, operand)
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 BITB memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read B and combine the captured bytes. Do not write a result. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read B
+result := bitAnd(accumulator, operand)
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 EORA #byte
+
+Fetch the immediate byte. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 EORA memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 EORB #byte
+
+Fetch the immediate byte. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read B
+result := bitXor(accumulator, operand)
+write B:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 EORB memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read B
+result := bitXor(accumulator, operand)
+write B:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 ORAA #byte
+
+Fetch the immediate byte. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 ORAA memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 ORAB #byte
+
+Fetch the immediate byte. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read B
+result := bitOr(accumulator, operand)
+write B:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
+### 6800 ORAB memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read B
+result := bitOr(accumulator, operand)
+write B:u8 := result
+flags "6800 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, C.
+
 ### 6800 CMPA #byte
 
 Fetch the immediate operand. Only then read A. Apply N/Z/V/C from subtraction, preserving H and control flags. C means borrow. Do not write a result. A failed read leaves flags unchanged; completed fetches and addressing effects remain.
@@ -4080,6 +4404,330 @@ write memory[address] := result
 ```
 
 Flags preserved throughout: E, F, H, I.
+
+### 6809 ANDA #byte
+
+Fetch the immediate byte. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 ANDA memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 ANDB #byte
+
+Fetch the immediate byte. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read B
+result := bitAnd(accumulator, operand)
+write B:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 ANDB memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read B
+result := bitAnd(accumulator, operand)
+write B:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 BITA #byte
+
+Fetch the immediate byte. Only then read A and combine the captured bytes. Do not write a result. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 BITA memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read A and combine the captured bytes. Do not write a result. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 BITB #byte
+
+Fetch the immediate byte. Only then read B and combine the captured bytes. Do not write a result. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read B
+result := bitAnd(accumulator, operand)
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 BITB memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read B and combine the captured bytes. Do not write a result. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read B
+result := bitAnd(accumulator, operand)
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 EORA #byte
+
+Fetch the immediate byte. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 EORA memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 EORB #byte
+
+Fetch the immediate byte. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read B
+result := bitXor(accumulator, operand)
+write B:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 EORB memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read B
+result := bitXor(accumulator, operand)
+write B:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 ORA #byte
+
+Fetch the immediate byte. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 ORA memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 ORB #byte
+
+Fetch the immediate byte. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read B
+result := bitOr(accumulator, operand)
+write B:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
+
+### 6809 ORB memory
+
+Entry is after successful address resolution. Read the byte at that address. Only then read B and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+operand := byte
+accumulator:u8 := read B
+result := bitOr(accumulator, operand)
+write B:u8 := result
+flags "6809 logic" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, C.
 
 ### 6809 CMPA #byte
 

@@ -3,7 +3,7 @@ import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, cpuSymbols, extend, fetchByte, literal, negative, not,
   readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
-import { compare, immediateByte, instructionSet, memorySource, negativeZeroPolicy, registerSource, shift, transfer } from "../builders.ts";
+import { compare, immediateByte, instructionSet, logical, memorySource, negativeZeroPolicy, registerSource, shift, transfer } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("6502", cpu6502StateDescription);
@@ -87,9 +87,7 @@ function logic(name: keyof typeof logicalOperations, [operand, source]: Operand)
     cpu: cpu.declaration, name: `${name} ${operand}`,
     explanation: "Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. "
       + "Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.",
-    steps: [readSource("operand", source), readRegister("accumulator", cpu.register("a")),
-      capture("result", logicalOperations[name](value("accumulator"), value("operand"))),
-      writeRegister(cpu.register("a"), value("result")), updateFlags(resultNZ, { result: value("result") })],
+    steps: logical(cpu.register("a"), source, logicalOperations[name], resultNZ),
   });
 }
 function testBits([operand, source]: Operand): InstructionDefinition {

@@ -963,13 +963,17 @@ for (const form of wordForms.filter(form => form.operation === "store" && form.m
   });
 }
 
-test("6800 comparisons retain completed fetches and unchanged flags at every failed read, including wrapped and overlapping operands", () => {
-  const failure = new Error("comparison read failure");
+test("6800 comparisons and logic retain completed fetches and unchanged registers/flags at every failed read", () => {
+  const failure = new Error("operand read failure");
   class FaultRam extends ObservedRam {
     failAt = -1; attempts = 0;
     override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
   }
-  for (const [register, opcodes] of [["a", [0x81, 0x91, 0xa1, 0xb1]], ["b", [0xc1, 0xd1, 0xe1, 0xf1]], ["x", indexComparisons]] as const) {
+  const forms = [
+    ...accumulatorForms.filter(form => ["cmp", "and", "bit", "xor", "or"].includes(form.operation)),
+    { register: "x" as const, opcodes: indexComparisons, operation: "cmp" as const },
+  ];
+  for (const { register, opcodes, operation } of forms) {
     const word = register === "x";
     for (const [mode, opcode] of opcodes.entries()) for (const pc of [0x2000, 0xfffe, 0xffff]) for (const bits of [0, 63]) {
       const cases = mode === 2 ? Array.from({ length: 256 }, (_, offset) => offset) : [mode === 1 ? 0xff : 0xffff];
@@ -982,7 +986,8 @@ test("6800 comparisons retain completed fetches and unchanged flags at every fai
         bytes.forEach((byte, i) => image.set((pc + i) % 65536, byte)); // Fetched code wins when it overlaps data.
         const operand = address === undefined ? (word ? 0x8001 : 0x80)
           : image.get(address)! * (word ? 256 : 1) + (word ? image.get((address + 1) % 65536)! : 0);
-        const expected = word ? indexComparison(before.x, operand, before.flags) : accumulatorResult("cmp", before[register], operand, before.flags).flags;
+        const expected = word ? { value: before.x, flags: indexComparison(before.x, operand, before.flags) }
+          : accumulatorResult(operation, before[register], operand, before.flags);
         const accesses = [
           ...bytes.map((value, i) => ({ kind: "read", address: (pc + i) % 65536, value })),
           ...(address === undefined ? [] : (word ? [address, (address + 1) % 65536] : [address])
@@ -997,7 +1002,7 @@ test("6800 comparisons retain completed fetches and unchanged flags at every fai
           ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
           const completed = failAt < 0 ? accesses.length : failAt;
           const after = { ...before, pc: (pc + Math.min(completed, bytes.length)) % 65536,
-            flags: failAt < 0 ? expected : before.flags };
+            ...(failAt < 0 ? { [register]: expected.value, flags: expected.flags } : {}) };
           if (failAt >= 0) assert.throws(() => cpu.step(), error => error === failure);
           else assert.deepEqual(cpu.step(), { before, after, instruction: { address: pc, bytes }, accesses, outcome: "executed" });
           assert.deepEqual(cpu.snapshot(), after, `${register}, bytes=${bytes}, failAt=${failAt}`);

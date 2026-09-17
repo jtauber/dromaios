@@ -199,11 +199,32 @@ test("6502 logic explanations separate result flags from BIT's memory bits and o
   assert.doesNotMatch(bit, /write A|write memory/);
 });
 
+test("Motorola logical explanations share result flags and distinguish BIT from 6502 memory-bit flags", () => {
+  for (const cpu of ["6800", "6809"]) {
+    for (const [name, operation] of [["ANDA", "bitAnd"], ["EORB", "bitXor"], [cpu === "6800" ? "ORAA" : "ORA", "bitOr"]]) {
+      const text = description(cpu, `${name} #byte`), register = name!.slice(-1);
+      const operand = text.indexOf("fetch byte"), read = text.indexOf(`:= read ${register}`);
+      const result = text.indexOf(`result := ${operation}(accumulator, operand)`);
+      const write = text.indexOf(`write ${register}:u8 := result`), flags = text.indexOf("N := topBit(result)");
+      assert.ok(operand >= 0 && operand < read && read < result && result < write && write < flags);
+      assert.match(text, /V := 0:flag/);
+    }
+    for (const mode of ["#byte", "memory"]) {
+      const text = description(cpu, `BITB ${mode}`);
+      assert.match(text, /N := topBit\(result\)/);
+      assert.match(text, /Z := isZero\(result\)/);
+      assert.match(text, /V := 0:flag/);
+      assert.doesNotMatch(text, /write B|write memory/);
+      assert.match(text, cpu === "6800" ? /Flags preserved throughout: H, I, C\./ : /Flags preserved throughout: E, F, H, I, C\./);
+    }
+  }
+});
+
 test("the review artifact is reproducible from the inert definitions and their accompanying prose", () => {
   const before = JSON.stringify(instructionDefinitions);
   const document = describeInstructions(instructionDefinitions);
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 210);
+  assert.equal(instructionDefinitions.length, 242);
 });
