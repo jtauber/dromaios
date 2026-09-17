@@ -82,6 +82,13 @@ then instruction definitions and their selectors. Shared recipes return data bui
 vocabulary; they add no runtime callbacks or new language primitives. The
 compiler and reporter expand their results just like directly authored bodies.
 
+Motorola comparisons, logic, loads, and arithmetic use a local `operandFamily`
+constructor for immediate and resolved-memory forms. It supplies their names,
+address inputs, and byte/word sources. Each family explicitly places the supplied
+memory reads before consuming their captured value and retains its own flag and
+writeback order. Stores remain separate because they do not read a source operand
+from the destination address.
+
 Statement constructors such as `fetchByte("low")`, `readRegister("index", X)`,
 and `writeMemory(address, byte)` return the corresponding data nodes. They do
 not execute effects or reorder statements. Their arguments retain the explicit

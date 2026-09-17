@@ -219,26 +219,23 @@ judging source reduction; all counts include comments and blank lines.
 | --- | ---: |
 | Eight CPU implementation files | 4,499 |
 | CPU-specific instruction definition files | 687 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,208 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,394** |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,199 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,385** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
 | Generated CPU output, counted separately | 18,342 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Migrating the remaining shared 8080/Z80 accumulator memory transfers adds
-12 bodies for 12 forms. The shared family core shrinks by **3 lines**, removing
-its last handwritten accumulator load/store bindings and its register-pair
-selector. CPU-specific definitions add **4** lines; shared construction and
-encodings add **23**. The eight CPU modules are unchanged. Existing pair
-views, the immediate-word source, memory sources, and the transfer recipe
-express the address-before-A order without new semantic primitives or generator
-changes. Total authored CPU source rises from **7,370 to 7,394 lines**
-(**24 more**). All 1,129 earlier definitions remain structurally unchanged,
-and the four other generated CPU modules remain byte-for-byte identical.
-This slice removes handwritten transfer bodies but does not reduce total
-authored source.
+Consolidating immediate and resolved-memory construction across Motorola
+comparisons, logic, loads, and arithmetic reduces the shared authoring module
+from **238 to 229 lines**. Operand selection, input declarations, and naming
+are shared; each family still places its reads, flag updates, and writes
+explicitly. Total authored CPU source falls from **7,394 to 7,385 lines**
+(**9 fewer**), without new semantic primitives or generator changes. All 1,141
+instruction definitions remain structurally identical; all six generated CPU
+modules and the explanatory listing remain byte-for-byte identical. Migration
+counts are unchanged.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 
