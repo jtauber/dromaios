@@ -261,7 +261,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   // Opcode selectors and construction.
 
-  protected override readonly byteTransfers = semantics;
+  protected override readonly transfers = semantics;
 
   // d in 00 rrr 10d selects INC/DEC; the same memory bodies serve HL and resolved IX/IY operands.
   protected override readonly byteAdjustments: readonly ByteInstruction[] = (["inc", "dec"] as const).map(operation => operand => {
@@ -354,10 +354,11 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     // 01 pp q 010/011: pp=BC/DE/HL/SP; q selects SBC/ADC or store/load.
     ...opcodeFamily("01 pp q 010", { p: this.registerPairs, q: [true, false] },
       ({ p: pair, q: subtracting }) => () => this.#wordCarry(this.readPair(pair), subtracting)), // SBC / ADC HL,ss
-    ...opcodeFamily("01 pp 0 011", { p: this.registerPairs }, ({ p: pair }) =>
-      ({ fetchWord, writeByte }: InstructionContext) => this.writeMemoryWord(fetchWord(), this.readPair(pair), writeByte)), // LD (nn),dd
-    ...opcodeFamily("01 pp 1 011", { p: this.registerPairs }, ({ p: pair }) =>
-      ({ fetchWord, readByte }: InstructionContext) => this.writePair(pair, this.readMemoryWord(fetchWord(), readByte))), // LD dd,(nn)
+    // d=0 stores, d=1 loads; ED's HL forms share the unprefixed bodies.
+    ...opcodeFamily("01 pp d 011", { p: [
+      [semantics.storeBCMemory, semantics.loadBCMemory], [semantics.storeDEMemory, semantics.loadDEMemory],
+      [semantics[0x22], semantics[0x2a]], [semantics.storeSPMemory, semantics.loadSPMemory],
+    ], d: [0, 1] }, ({ p: operations, d: direction }) => (instruction: InstructionContext) => operations[direction]!(this.state, instruction)), // LD (nn),dd / LD dd,(nn)
     ...instructionPattern("01 000 100", () => this.#negate()), // NEG; other ED x4 aliases are undocumented
     // 01 00 n 101: both returns restore IFF1 from IFF2; n=1 also notifies the device.
     ...instructionPattern("01 00 0 101", instruction => this.#returnFromInterrupt(false, instruction)), // RETN
@@ -381,12 +382,13 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   #indexHandlers(index: IndexRegister): readonly OpcodeEntry<OpcodeHandler>[] {
     // 00 pp 1 001 replaces HL with the index in both destination and pp=10 source.
     const pairs = ["bc", "de", index, "sp"] as const;
+    const suffix = index === "ix" ? "IX" : "IY";
     const address = ({ fetchByte }: InstructionContext): number => this.#indexedAddress(index, fetchByte());
     return [
       ...opcodeFamily("00 pp 1 001", { p: pairs }, ({ p: pair }) => () => this.#addWord(index, this.readPair(pair))), // ADD IX/IY,pp
-      ...instructionPattern("00 10 0 001", ({ fetchWord }) => { this.state[index] = fetchWord(); }), // LD IX/IY,nn
-      ...instructionPattern("00 10 0 010", ({ fetchWord, writeByte }) => this.writeMemoryWord(fetchWord(), this.state[index], writeByte)), // LD (nn),IX/IY
-      ...instructionPattern("00 10 1 010", ({ fetchWord, readByte }) => { this.state[index] = this.readMemoryWord(fetchWord(), readByte); }), // LD IX/IY,(nn)
+      ...instructionPattern("00 10 0 001", instruction => semantics[`immediate${suffix}Word`](this.state, instruction)), // LD IX/IY,nn
+      ...instructionPattern("00 10 0 010", instruction => semantics[`store${suffix}Word`](this.state, instruction)), // LD (nn),IX/IY
+      ...instructionPattern("00 10 1 010", instruction => semantics[`load${suffix}Word`](this.state, instruction)), // LD IX/IY,(nn)
       ...opcodeFamily("00 10 q 011", { q: [1, -1] }, ({ q: delta }) => () => { this.state[index] = (this.state[index] + delta) & 0xffff; }), // INC/DEC IX/IY
       ...instructionPattern("00 110 100", instruction => semantics.incMemory(this.state, address(instruction), instruction)), // INC (IX/IY+d)
       ...instructionPattern("00 110 101", instruction => semantics.decMemory(this.state, address(instruction), instruction)), // DEC (IX/IY+d)
@@ -402,7 +404,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
       ...instructionPattern("11 10 1 001", () => this.jump(this.state[index])), // JP (IX/IY); no displacement or target read
       ...instructionPattern("11 100 011", instruction => { this.state[index] = this.exchangeStack(this.state[index], instruction); }), // EX (SP),IX/IY
       ...instructionPattern("11 10 0 101", ({ writeByte }) => this.stack.push(this.state[index], writeByte)), // PUSH IX/IY
-      ...instructionPattern("11 11 1 001", () => { this.state.sp = this.state[index]; }), // LD SP,IX/IY
+      ...instructionPattern("11 11 1 001", () => semantics[`copy${suffix}Word`](this.state)), // LD SP,IX/IY
     ];
   }
 

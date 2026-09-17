@@ -4,7 +4,7 @@ import type { RegisterPair } from "./register-pairs.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { opcodeFamily, opcodePattern } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { intelByteTransferForms } from "./intel-transfers.ts";
+import { intelByteTransferForms, intelWordTransferForms } from "./intel-transfers.ts";
 
 export type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperand = "b" | "c" | "d" | "e" | "h" | "l" | "(hl)" | "a";
@@ -27,7 +27,7 @@ export abstract class Cpu8080Family<State extends Registers> {
   // These hooks describe instruction differences, without imposing a common flag layout.
   protected abstract readonly aluInstructions: readonly AluInstruction[];
   protected abstract readonly byteAdjustments: readonly ByteInstruction[];
-  protected abstract readonly byteTransfers: Readonly<Record<number, (state: State, instruction: InstructionContext) => void>>;
+  protected abstract readonly transfers: Readonly<Record<number, (state: State, instruction: InstructionContext) => void>>;
   protected abstract readonly accumulatorOperations: readonly (() => void)[];
   protected abstract readonly conditions: readonly (() => boolean)[];
   protected abstract addToHl(value: number): void;
@@ -62,15 +62,14 @@ export abstract class Cpu8080Family<State extends Registers> {
       ...instructionPattern("00 000 000", () => {}), // NOP
 
       // 00 pp q 001: pp selects BC/DE/HL/SP; q=0 loads nn, q=1 adds the pair to HL.
-      ...opcodeFamily("00 pp 0 001", { p: this.registerPairs }, ({ p: pair }) => ({ fetchWord }: InstructionContext) => this.writePair(pair, fetchWord())), // LXI / LD dd,nn
+      ...this.#transferHandlers(intelWordTransferForms.immediate), // LXI / LD dd,nn
       ...opcodeFamily("00 pp 1 001", { p: this.registerPairs }, ({ p: pair }) => () => this.addToHl(this.readPair(pair))), // DAD / ADD HL,ss
 
       // 00 pp q 010: q=0 stores, q=1 loads. pp=00/01 uses A and (BC)/(DE);
       // pp=10 uses HL and (nn), pp=11 uses A and (nn). Word operands are low byte first.
       ...opcodeFamily("00 0p 0 010", { p: this.registerPairs.slice(0, 2) }, ({ p: pair }) => ({ writeByte }: InstructionContext) => writeByte(this.readPair(pair), this.state.a)), // STAX / LD (BC)/(DE),A
       ...opcodeFamily("00 0p 1 010", { p: this.registerPairs.slice(0, 2) }, ({ p: pair }) => ({ readByte }: InstructionContext) => { this.state.a = readByte(this.readPair(pair)); }), // LDAX / LD A,(BC)/(DE)
-      ...instructionPattern("00 10 0 010", ({ fetchWord, writeByte }) => this.writeMemoryWord(fetchWord(), this.hl, writeByte)), // SHLD / LD (nn),HL
-      ...instructionPattern("00 10 1 010", ({ fetchWord, readByte }) => { this.hl = this.readMemoryWord(fetchWord(), readByte); }), // LHLD / LD HL,(nn)
+      ...this.#transferHandlers(intelWordTransferForms.memory), // SHLD/LHLD / LD (nn),HL or HL,(nn)
       ...instructionPattern("00 11 0 010", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.state.a)), // STA / LD (nn),A
       ...instructionPattern("00 11 1 010", ({ fetchWord, readByte }) => { this.state.a = readByte(fetchWord()); }), // LDA / LD A,(nn)
 
@@ -100,7 +99,7 @@ export abstract class Cpu8080Family<State extends Registers> {
       ...opcodeFamily("11 pp 0 001", { p: this.#stackPairs }, ({ p: pair }) => ({ readByte }: InstructionContext) => this.writePair(pair, this.stack.pop(readByte))), // POP
       ...instructionPattern("11 00 1 001", ({ readByte }) => this.stack.return(readByte)), // RET
       ...instructionPattern("11 10 1 001", () => this.jump(this.hl)), // PCHL / JP (HL)
-      ...instructionPattern("11 11 1 001", () => { this.state.sp = this.hl; }), // SPHL / LD SP,HL
+      ...this.#transferHandlers(intelWordTransferForms.stackPointer), // SPHL / LD SP,HL
 
       // 11 ccc 010: all eight absolute jump conditions fetch nn on both paths.
       ...opcodeFamily("11 ccc 010", { c: this.conditions }, ({ c: condition }) => ({ fetchWord }: InstructionContext) => this.jump(fetchWord(), condition())), // JMP cc / JP cc,nn
@@ -127,7 +126,7 @@ export abstract class Cpu8080Family<State extends Registers> {
   }
 
   #transferHandlers(forms: readonly OpcodeEntry<unknown>[]): readonly OpcodeEntry<OpcodeHandler>[] {
-    return forms.map(([opcode]) => [opcode, instruction => this.byteTransfers[opcode]!(this.state, instruction)]);
+    return forms.map(([opcode]) => [opcode, instruction => this.transfers[opcode]!(this.state, instruction)]);
   }
 
   // Register operands and exchanges.
@@ -167,10 +166,5 @@ export abstract class Cpu8080Family<State extends Registers> {
   protected readMemoryWord(address: number, readByte: InstructionContext["readByte"]): number {
     const low = readByte(address);
     return low | (readByte((address + 1) & 0xffff) << 8);
-  }
-
-  protected writeMemoryWord(address: number, value: number, writeByte: InstructionContext["writeByte"]): void {
-    writeByte(address, value & 0xff);
-    writeByte((address + 1) & 0xffff, value >>> 8);
   }
 }

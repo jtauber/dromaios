@@ -1,13 +1,61 @@
-import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagValue, literal, readFlag, readMemory, readRegister, subtract, updateFlags, value, writeMemory, writeRegister } from "./model.ts";
+import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagValue, highByte, literal, lowByte, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister } from "./model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource } from "./model.ts";
-import { arithmetic, immediateByte, instructionSet, registerSource, shift } from "./builders.ts";
+import { arithmetic, immediateByte, instructionSet, registerSource, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
-import { intelByteTransferForms } from "../intel-transfers.ts";
+import { intelByteTransferForms, intelWordTransferForms } from "../intel-transfers.ts";
 import type { IntelByteOperand } from "../intel-transfers.ts";
+import { pairBytes } from "../register-pairs.ts";
+import type { RegisterPair } from "../register-pairs.ts";
 
 interface IntelByteCpu {
   readonly declaration: CpuDeclaration;
   register(field: "a" | "b" | "c" | "d" | "e" | "h" | "l"): Register;
+}
+
+interface IntelWordCpu extends IntelByteCpu {
+  register(field: "a" | "b" | "c" | "d" | "e" | "h" | "l" | "sp"): Register;
+}
+type WordRegister = Register | { readonly source: ValueSource; readonly write: readonly Statement[] };
+type WordTransfer = "immediate" | "load" | "store" | "copy";
+
+/** Pairs are views of two stored bytes, read and written high byte first. */
+export function intelWordRegister(cpu: IntelWordCpu, pair: RegisterPair | "sp"): WordRegister {
+  if (pair === "sp") return cpu.register("sp");
+  const [highField, lowField] = pairBytes[pair], high = cpu.register(highField), low = cpu.register(lowField);
+  return { source: { name: pair.toUpperCase(), width: 16,
+    steps: [readRegister("high", high), readRegister("low", low)], result: concat(value("high"), value("low")) },
+    write: [writeRegister(high, highByte(value("result"))), writeRegister(low, lowByte(value("result")))],
+  };
+}
+
+const immediateWord: ValueSource = { name: "immediate word, low byte first", width: 16,
+  steps: [fetchByte("low"), fetchByte("high")], result: concat(value("high"), value("low")) };
+
+/** Complete word transfers own operand fetching, source capture, and ordered writes; flags are never accessed. */
+export function intelWordTransfer(cpu: IntelWordCpu, register: WordRegister, operation: WordTransfer, name: string): InstructionDefinition {
+  const stored = "kind" in register, memory = operation === "load" || operation === "store";
+  const address = value("address"), next = addWrap(address, literal(16, 1));
+  const source: ValueSource = operation === "immediate" ? immediateWord : operation === "load"
+    ? { name: "memory word, low byte first", width: 16,
+      steps: [readSource("address", immediateWord), readMemory("low", address), readMemory("high", next)], result: concat(value("high"), value("low")) }
+    : stored ? registerSource(register) : register.source;
+  const destination = operation === "copy" ? cpu.register("sp") : operation === "store"
+    ? [writeMemory(address, lowByte(value("result"))), writeMemory(next, highByte(value("result")))]
+    : stored ? register : register.write;
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: (memory ? "Fetch the complete address low byte first, then " : operation === "immediate" ? "Fetch the immediate low byte then high byte; " : "")
+      + (operation === "store" ? "capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. "
+        : operation === "load" ? "read memory low byte then high byte, wrapping at FFFF. Only after both reads succeed, write the destination. "
+        : operation === "copy" ? "Capture the complete source, then write SP without memory access. " : "write the destination only after both fetches succeed. ")
+      + "Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.",
+    steps: [...(operation === "store" ? [readSource("address", immediateWord)] : []), ...transfer(destination, source)],
+  });
+}
+
+/** The shared base inventory binds LXI/LHLD/SHLD/SPHL or their Z80 LD counterparts. */
+export function intelWordTransfers(cpu: IntelWordCpu, names: (register: RegisterPair | "sp", operation: WordTransfer) => string) {
+  return instructionSet(Object.values(intelWordTransferForms).flat().map(([opcode, { register, operation }]) =>
+    [opcode, intelWordTransfer(cpu, intelWordRegister(cpu, register), operation, names(register, operation))]));
 }
 
 /** Capture the source before writing; ordinary stores read HL after the source, indexed forms take one resolved address. */

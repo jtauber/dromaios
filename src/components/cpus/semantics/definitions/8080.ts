@@ -1,7 +1,7 @@
 import { cpu8080StateDescription } from "../../state/8080.ts";
 import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readSource, value, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
-import { intelAccumulatorRotate, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers } from "../intel.ts";
+import { intelAccumulatorRotate, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers, intelWordTransfers } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("8080", cpu8080StateDescription);
@@ -73,6 +73,9 @@ function rotation(name: string, direction: "left" | "right", circular: boolean):
 
 export const instructions8080 = {
   ...intelByteTransfers(cpu, "MOV", "MVI", "M"),
+  ...intelWordTransfers(cpu, (register, operation) => operation === "immediate"
+    ? `LXI ${{ bc: "B", de: "D", hl: "H", sp: "SP" }[register]},nn`
+    : { load: "LHLD nn", store: "SHLD nn", copy: "SPHL" }[operation]),
   // 00 rrr 10d: rrr selects B/C/D/E/H/L/M/A; d=0 increments, d=1 decrements.
   ...adjustment("INR"), ...adjustment("DCR"),
   // 00 ooo 111: ooo=000/001 selects circular left/right; 010/011 rotates through CY.

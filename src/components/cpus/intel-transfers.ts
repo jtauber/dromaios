@@ -1,4 +1,4 @@
-import { opcodeFamily } from "./opcodes.ts";
+import { opcodeFamily, opcodePattern } from "./opcodes.ts";
 
 export type IntelByteOperand = "a" | "b" | "c" | "d" | "e" | "h" | "l" | "m";
 
@@ -17,3 +17,10 @@ function byteTransferForms(operands: readonly IntelByteOperand[], matrix: string
 export const intelByteTransferForms = byteTransferForms(["b", "c", "d", "e", "h", "l", "m", "a"], "01 ddd sss");
 // 8008: A is selector 000, M is 111; 11 111 111 is HLT.
 export const intel8008ByteTransferForms = byteTransferForms(["a", "b", "c", "d", "e", "h", "l", "m"], "11 ddd sss");
+
+// 8080/Z80 word transfers share base encodings; q in the memory pair selects store/load.
+export const intelWordTransferForms = {
+  immediate: opcodeFamily("00 pp 0 001", { p: ["bc", "de", "hl", "sp"] as const }, ({ p: register }) => ({ register, operation: "immediate" as const })),
+  memory: opcodeFamily("00 10 q 010", { q: ["store", "load"] as const }, ({ q: operation }) => ({ register: "hl" as const, operation })),
+  stackPointer: opcodePattern("11 11 1 001", { register: "hl", operation: "copy" } as const),
+} as const;

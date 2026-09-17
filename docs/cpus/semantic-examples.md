@@ -6884,6 +6884,22 @@ flags "8008 CP" simultaneously {
 
 Flags preserved throughout: none.
 
+### 8080 LXI B,nn
+
+Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write B:u8 := highByte(result)
+write C:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 MVI B,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -6902,6 +6918,22 @@ Use the selected byte registers; memory uses H then L at the access point. Captu
 ```text
 result:u8 := fetch byte
 write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 LXI D,nn
+
+Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write D:u8 := highByte(result)
+write E:u8 := lowByte(result)
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -6928,6 +6960,43 @@ write E:u8 := result
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 LXI H,nn
+
+Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 SHLD nn
+
+Fetch the complete address low byte first, then capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+write memory[address] := lowByte(result)
+write memory[addWrap(address, 0001:u16)] := highByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 MVI H,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -6939,6 +7008,27 @@ write H:u8 := result
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 LHLD nn
+
+Fetch the complete address low byte first, then read memory low byte then high byte, wrapping at FFFF. Only after both reads succeed, write the destination. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "memory word, low byte first" {
+  address:u16 := source "immediate word, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  low:u8 := read memory[address]
+  high:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 MVI L,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -6946,6 +7036,21 @@ Use the selected byte registers; memory uses H then L at the access point. Captu
 ```text
 result:u8 := fetch byte
 write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 LXI SP,nn
+
+Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write SP:u16 := result
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -7691,6 +7796,21 @@ Use the selected byte registers; memory uses H then L at the access point. Captu
 ```text
 result:u8 := read A
 write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 SPHL
+
+Capture the complete source, then write SP without memory access. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+write SP:u16 := result
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -11821,6 +11941,22 @@ flags "6809 comparison" simultaneously {
 
 Flags preserved throughout: E, F, H, I.
 
+### z80 LD BC,nn
+
+Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write B:u8 := highByte(result)
+write C:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 LD B,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -11839,6 +11975,22 @@ Use the selected byte registers; memory uses H then L at the access point. Captu
 ```text
 result:u8 := fetch byte
 write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD DE,nn
+
+Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write D:u8 := highByte(result)
+write E:u8 := lowByte(result)
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -11865,6 +12017,43 @@ write E:u8 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 LD HL,nn
+
+Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (nn),HL
+
+Fetch the complete address low byte first, then capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+write memory[address] := lowByte(result)
+write memory[addWrap(address, 0001:u16)] := highByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 LD H,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -11876,6 +12065,27 @@ write H:u8 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 LD HL,(nn)
+
+Fetch the complete address low byte first, then read memory low byte then high byte, wrapping at FFFF. Only after both reads succeed, write the destination. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "memory word, low byte first" {
+  address:u16 := source "immediate word, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  low:u8 := read memory[address]
+  high:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 LD L,n
 
 Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -11883,6 +12093,21 @@ Use the selected byte registers; memory uses H then L at the access point. Captu
 ```text
 result:u8 := fetch byte
 write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD SP,nn
+
+Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write SP:u16 := result
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -12628,6 +12853,283 @@ Use the selected byte registers; memory uses H then L at the access point. Captu
 ```text
 result:u8 := read A
 write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD SP,HL
+
+Capture the complete source, then write SP without memory access. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+write SP:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD BC,(nn)
+
+Fetch the complete address low byte first, then read memory low byte then high byte, wrapping at FFFF. Only after both reads succeed, write the destination. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "memory word, low byte first" {
+  address:u16 := source "immediate word, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  low:u8 := read memory[address]
+  high:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write B:u8 := highByte(result)
+write C:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (nn),BC
+
+Fetch the complete address low byte first, then capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+write memory[address] := lowByte(result)
+write memory[addWrap(address, 0001:u16)] := highByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD DE,(nn)
+
+Fetch the complete address low byte first, then read memory low byte then high byte, wrapping at FFFF. Only after both reads succeed, write the destination. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "memory word, low byte first" {
+  address:u16 := source "immediate word, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  low:u8 := read memory[address]
+  high:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write D:u8 := highByte(result)
+write E:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (nn),DE
+
+Fetch the complete address low byte first, then capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+write memory[address] := lowByte(result)
+write memory[addWrap(address, 0001:u16)] := highByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD SP,(nn)
+
+Fetch the complete address low byte first, then read memory low byte then high byte, wrapping at FFFF. Only after both reads succeed, write the destination. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "memory word, low byte first" {
+  address:u16 := source "immediate word, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  low:u8 := read memory[address]
+  high:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write SP:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (nn),SP
+
+Fetch the complete address low byte first, then capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write memory[address] := lowByte(result)
+write memory[addWrap(address, 0001:u16)] := highByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD IX,nn
+
+Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write IX:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD IX,(nn)
+
+Fetch the complete address low byte first, then read memory low byte then high byte, wrapping at FFFF. Only after both reads succeed, write the destination. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "memory word, low byte first" {
+  address:u16 := source "immediate word, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  low:u8 := read memory[address]
+  high:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write IX:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (nn),IX
+
+Fetch the complete address low byte first, then capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+write memory[address] := lowByte(result)
+write memory[addWrap(address, 0001:u16)] := highByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD SP,IX
+
+Capture the complete source, then write SP without memory access. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+write SP:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD IY,nn
+
+Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write IY:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD IY,(nn)
+
+Fetch the complete address low byte first, then read memory low byte then high byte, wrapping at FFFF. Only after both reads succeed, write the destination. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "memory word, low byte first" {
+  address:u16 := source "immediate word, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  low:u8 := read memory[address]
+  high:u8 := read memory[addWrap(address, 0001:u16)]
+  yield concatHighLow(high, low)
+}
+write IY:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (nn),IY
+
+Fetch the complete address low byte first, then capture the complete source before writing memory low byte then high byte, wrapping at FFFF. Never read the destination; a failed second write retains the first. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+write memory[address] := lowByte(result)
+write memory[addWrap(address, 0001:u16)] := highByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD SP,IY
+
+Capture the complete source, then write SP without memory access. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
+
+```text
+result:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+write SP:u16 := result
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.

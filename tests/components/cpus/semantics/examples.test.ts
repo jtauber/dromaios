@@ -285,7 +285,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 1057);
+  assert.equal(instructionDefinitions.length, 1085);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -378,6 +378,34 @@ test("Intel byte-transfer explanations expose source capture, HL timing, resolve
     assert.doesNotMatch(text, /high:u8|low:u8|:= read I[XY]|:= read memory|apply flags/);
     if (operand === "n") assert.match(text, /result:u8 := fetch byte/);
     else { assert.match(text, new RegExp(`result:u8 := read ${operand}`)); assert.doesNotMatch(text, /fetch byte/); }
+  }
+});
+
+test("Intel word-transfer explanations expose little-endian memory, complete captures, split registers, and preserved flags", () => {
+  for (const [cpu, immediate, load, store, copy] of [
+    ["8080", "LXI H,nn", "LHLD nn", "SHLD nn", "SPHL"],
+    ["z80", "LD HL,nn", "LD HL,(nn)", "LD (nn),HL", "LD SP,HL"],
+  ] as const) {
+    const fetched = description(cpu, immediate), loaded = description(cpu, load), stored = description(cpu, store);
+    for (const text of [fetched, loaded, stored]) {
+      assert.match(text, /low byte first|low byte then high byte/);
+      assert.match(text, /Flags preserved throughout:/);
+      assert.doesNotMatch(text, /apply flags|address:u16 := input/);
+    }
+    assert.ok(fetched.indexOf("high:u8 := fetch byte") < fetched.indexOf("write H"));
+    assert.ok(loaded.indexOf("high:u8 := read memory") < loaded.indexOf("write H"));
+    assert.ok(loaded.indexOf("write H") < loaded.indexOf("write L"));
+    assert.ok(stored.indexOf("high:u8 := fetch byte") < stored.indexOf("high:u8 := read H"));
+    assert.ok(stored.indexOf("low:u8 := read L") < stored.indexOf("write memory"));
+    assert.match(stored, /failed second write retains the first/);
+    assert.doesNotMatch(stored, /:= read memory/);
+    const copied = description(cpu, copy);
+    assert.match(copied, /write SP:u16 := result/);
+    assert.doesNotMatch(copied, /fetch byte|:= read memory|write memory/);
+  }
+  for (const name of ["LD IX,nn", "LD IY,(nn)", "LD (nn),SP"]) {
+    const text = description("z80", name);
+    assert.doesNotMatch(text, /:= read (H|L)\b|write (H|L):/);
   }
 });
 

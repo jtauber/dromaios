@@ -136,6 +136,25 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generatedZ80.rlca(z80);
   generated8080[0x47](intel);
   generated8080[0x36](intel, { fetchByte: () => 0, writeByte: () => {} });
+  generated8080[0x01](intel, { fetchByte: () => 0 });
+  generated8080[0x22](intel, { fetchByte: () => 0, writeByte: () => {} });
+  generated8080[0x2a](intel, { fetchByte: () => 0, readByte: () => 0 });
+  generated8080[0xf9](intel);
+  generatedZ80.loadBCMemory(z80, { fetchByte: () => 0, readByte: () => 0 });
+  generatedZ80.storeSPMemory(z80, { fetchByte: () => 0, writeByte: () => {} });
+  generatedZ80.immediateIXWord(z80, { fetchByte: () => 0 });
+  generatedZ80.loadIYWord(z80, { fetchByte: () => 0, readByte: () => 0 });
+  generatedZ80.copyIXWord(z80);
+  // @ts-expect-error Immediate word loads cannot read data memory.
+  generated8080[0x01](intel, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Absolute word stores fetch their own address.
+  generated8080[0x22](intel, { writeByte: () => {} });
+  // @ts-expect-error Absolute loads cannot write memory.
+  generatedZ80.loadBCMemory(z80, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Copying an index to SP requires no instruction context.
+  generatedZ80.copyIXWord(z80, { fetchByte: () => 0 });
+  // @ts-expect-error Indexed word bodies require the Z80's concrete state.
+  generatedZ80.immediateIXWord(intel, { fetchByte: () => 0 });
   generated8008[0xc0](i8008);
   generated8008[0xef](i8008, { readByte: () => 0 });
   generated8008[0xfd](i8008, { writeByte: () => {} });

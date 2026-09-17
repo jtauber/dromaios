@@ -184,7 +184,7 @@ operands, pair views, data-word accesses, stack exchanges, and 240 supported
 the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
 The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
-operations, conditions, byte transfers, byte increment/decrement, addition to HL, and PSW/AF
+operations, conditions, byte/word transfers, byte increment/decrement, addition to HL, and PSW/AF
 packing. Both CPUs' byte ALU and byte-adjustment selectors bind complete generated bodies with
 explicit source reads, flags, and writeback. Shared
 [Intel construction](../../src/components/cpus/semantics/intel.ts) supplies
@@ -197,7 +197,7 @@ The old accumulator wrapper is gone. These hooks keep differing flag rules expli
 versus overflow and the opposite subtraction half-carry conventions. The shared
 code does not select behavior by checking which processor is executing.
 
-The shared [byte-transfer inventory](../../src/components/cpus/intel-transfers.ts)
+The shared [transfer inventory](../../src/components/cpus/intel-transfers.ts)
 owns the `00 ddd 110` immediate and `01 ddd sss` matrix encodings. Definition
 construction and execution binding consume that same inventory; the generated
 method keys are the numeric opcodes. HALT remains explicit in the family table.
@@ -205,6 +205,13 @@ Ordinary bodies own source reads, H/L reads at the access point, and writeback.
 Indexed Z80 bodies share construction and receive a resolved address instead.
 Both CPUs use one binder, with no separate handwritten byte-operand read/write
 helpers or per-CPU transfer dispatch tables.
+
+Word transfers use that same binder with their own immediate, memory, and SP-copy
+inventory. Bodies fetch complete addresses, read or write memory low byte first,
+and express split-register writes explicitly. Their pair descriptions reuse the
+runtime's register-pair byte mapping. Z80 ED HL forms share their unprefixed
+bodies; IX/IY use stored word registers through the same construction. Keep
+prefix recognition and retirement in the Z80 decoder.
 
 Each concrete constructor validates and copies its state before passing that
 owned state to `super`. The base constructor binds only the state and call

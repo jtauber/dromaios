@@ -4,12 +4,17 @@ import { addOverflow, bitAnd, bitOr, borrow, capture, carry, cpuSymbols, evenPar
 import type { FlagPolicy, InstructionDefinition, Statement } from "../model.ts";
 import { shift } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
-import { intelAccumulatorRotate, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers } from "../intel.ts";
+import { intelAccumulatorRotate, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelWordRegister, intelWordTransfer, intelWordTransfers } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("z80", cpuZ80StateDescription);
 const sources = intelByteSources(cpu.register);
+
+function wordTransferName(register: string, operation: "immediate" | "load" | "store" | "copy"): string {
+  const name = register.toUpperCase();
+  return { immediate: `LD ${name},nn`, load: `LD ${name},(nn)`, store: `LD (nn),${name}`, copy: `LD SP,${name}` }[operation];
+}
 
 function adjustment(mnemonic: "INC" | "DEC") {
   const increment = mnemonic === "INC", original = value("original"), one = literal(8, 1);
@@ -117,6 +122,13 @@ function family(mnemonic: string, operation: IntelByteOperation, withCarry = fal
 
 export const instructionsZ80 = {
   ...intelByteTransfers(cpu, "LD", "LD", "(HL)"),
+  ...intelWordTransfers(cpu, wordTransferName),
+  // ED 01 pp d 011: HL shares its base-page bodies; the other pairs add load/store bodies.
+  ...Object.fromEntries((["bc", "de", "sp"] as const).flatMap(register => (["load", "store"] as const).map(operation =>
+    [`${operation}${register.toUpperCase()}Memory`, intelWordTransfer(cpu, intelWordRegister(cpu, register), operation, wordTransferName(register, operation))]))),
+  // DD/FD replace HL with IX/IY for immediate, absolute-memory, and SP loads.
+  ...Object.fromEntries((["ix", "iy"] as const).flatMap(register => (["immediate", "load", "store", "copy"] as const).map(operation =>
+    [`${operation}${register.toUpperCase()}Word`, intelWordTransfer(cpu, cpu.register(register), operation, wordTransferName(register, operation))]))),
   // DD/FD 01 rrr 110 / 01 110 rrr: use real H/L with a resolved IX/IY address; rrr=110 is excluded.
   ...Object.fromEntries((["b", "c", "d", "e", "h", "l", "a"] as const).flatMap(register => [
     [`load${register.toUpperCase()}Memory`, intelByteTransfer(cpu, register, "m", `LD ${register.toUpperCase()},memory`, "resolved")],

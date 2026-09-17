@@ -1,7 +1,7 @@
 interface PairedBytes { b: number; c: number; d: number; e: number; h: number; l: number }
 
 // Each word is a view of its high and low stored bytes, never separate state.
-const pairBytes = { bc: ["b", "c"], de: ["d", "e"], hl: ["h", "l"] } as const;
+export const pairBytes = { bc: ["b", "c"], de: ["d", "e"], hl: ["h", "l"] } as const;
 export type RegisterPair = keyof typeof pairBytes;
 
 export function readRegisterPair(bank: Readonly<PairedBytes>, pair: RegisterPair): number {
