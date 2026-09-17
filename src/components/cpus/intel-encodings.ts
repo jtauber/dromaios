@@ -18,6 +18,13 @@ export const intelByteTransferForms = byteTransferForms(["b", "c", "d", "e", "h"
 // 8008: A is selector 000, M is 111; 11 111 111 is HLT.
 export const intel8008ByteTransferForms = byteTransferForms(["a", "b", "c", "d", "e", "h", "l", "m"], "11 ddd sss");
 
+// 00 pp q 010: pp=00/01 uses BC/DE, pp=11 fetches nn; q=0 stores A, q=1 loads A.
+// pp=10 belongs to the HL word transfers below.
+export const intelAccumulatorTransferForms = {
+  indirect: opcodeFamily("00 0p q 010", { p: ["bc", "de"] as const, q: ["store", "load"] as const }, ({ p: address, q: operation }) => ({ address, operation })),
+  absolute: opcodeFamily("00 11 q 010", { q: ["store", "load"] as const }, ({ q: operation }) => ({ address: "absolute" as const, operation })),
+} as const;
+
 // 8080/Z80 word transfers share base encodings; q in the memory pair selects store/load.
 export const intelWordTransferForms = {
   immediate: opcodeFamily("00 pp 0 001", { p: ["bc", "de", "hl", "sp"] as const }, ({ p: register }) => ({ register, operation: "immediate" as const })),

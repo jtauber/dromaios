@@ -4,7 +4,7 @@ import { addOverflow, bitAnd, bitOr, bitXor, borrow, capture, carry, cpuSymbols,
 import type { FlagPolicy, InstructionDefinition, Statement } from "../model.ts";
 import { shift } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
-import { intelAccumulatorRotate, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelWordTransfer, intelWordTransfers } from "../intel.ts";
+import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelWordTransfer, intelWordTransfers } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
@@ -140,6 +140,8 @@ function family(mnemonic: string, operation: IntelByteOperation, withCarry = fal
 
 export const instructionsZ80 = {
   ...intelByteTransfers(cpu, "LD", "LD", "(HL)"),
+  ...intelAccumulatorTransfers(cpu, (address, operation) => operation === "store" ? `LD (${address === "absolute" ? "nn" : address.toUpperCase()}),A`
+    : `LD A,(${address === "absolute" ? "nn" : address.toUpperCase()})`),
   ...intelWordTransfers(cpu, wordTransferName),
   ...intelWordArithmeticFamily(cpu, wordAdditionFlags, (register, operation) => operation === "add" ? `ADD HL,${register.toUpperCase()}`
     : `${operation === "increment" ? "INC" : "DEC"} ${register.toUpperCase()}`),

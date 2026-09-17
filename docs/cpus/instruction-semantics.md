@@ -23,6 +23,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | Z80 BIT/RES/SET, including indexed forms | Fixed bit masks; BIT reads without writeback and preserves C; RES/SET write even unchanged values without accessing flags; share CB construction and bindings with shifts |
 | 8080 INR/DCR and Z80 byte INC/DEC, including indexed forms | Share read–adjust–flags–write bodies; preserve carry; distinguish 8080 inverse half-borrow and parity from Z80 half-borrow and overflow; retain calculated flags on failed writes |
 | 8080 MOV/MVI and corresponding Z80 LD matrices, immediate and indexed forms | Share one encoding inventory for definition generation and execution binding; capture sources before writes, retain HL access timing and real indexed H/L operands, preserve every flag, and exclude HALT |
+| 8080 STAX/LDAX/STA/LDA and corresponding Z80 accumulator LD forms | Capture BC/DE or the complete immediate address before A or memory; loads write only after a successful read, stores never read the destination, and neither direction accesses flags |
 | 8080 LXI/LHLD/SHLD/SPHL and Z80 word loads/stores and SP copies, including ED and IX/IY forms | Share complete bodies with low-first fetching and memory accesses, high-first pair reads/writes, captured sources, and explicit second-byte failures; ED's HL forms reuse the unprefixed bodies |
 | 8080 INX/DCX/DAD and Z80 word INC/DEC, ADD HL/IX/IY, ADC/SBC HL | Reuse pair descriptions and native base encodings; source before destination, optional C after both; write before flags; preserve all flags on adjustments and use the bit-11 H boundary on Z80 arithmetic |
 | 8008 Lr1r2/LrM/LMr and immediate LrI/LMI | Reuse Intel transfer construction with native register selectors, matrix prefix, mnemonics, and a 14-bit memory mask; preserve full H/L bytes, source-before-address ordering, and address-slot fetching |
@@ -46,7 +47,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 1,129 bodies. All are generated, executable, and bound into their CPU's
+There are 1,141 bodies. All are generated, executable, and bound into their CPU's
 opcode table. The earlier MOV B,A test sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
@@ -785,6 +786,17 @@ there are no duplicate per-CPU transfer binding tables. HALT is an explicit
 handwritten slot. The former operand read/write helpers and transfer body are
 removed. Z80 indexed bindings retain their decoder and supply the resolved
 address to generated load/store bodies.
+Accumulator memory transfers through BC/DE and absolute addresses use the same
+inventory and binder, completing the shared ordinary byte load/store bindings.
+Their address sources are captured before A or memory: pair views read high byte
+first, while the immediate word fetches low byte first. Loads reuse `memorySource`
+and `transfer`; stores capture the address and then use `transfer` to read A and
+write memory once. No flags or alternate-bank state are accessed. The old pair
+selector is no longer needed. [Capture-order probes](../../tests/components/cpus/semantics/intel-accumulator-transfers.test.ts)
+change registers and flags during accesses to check that only the intended
+values are captured. [CPU boundary probes](../../tests/components/cpus/intel-accumulator-transfers.test.ts)
+cover ordinary and supplied bytes, overlapping code/data, wrapping fetches,
+and every failed access.
 Word bodies also own their complete immediate or absolute-address fetching.
 The shared word-store helper is removed; its word reader still serves stack
 exchange and Z80 interrupt-vector reads. ED and unprefixed HL word transfers

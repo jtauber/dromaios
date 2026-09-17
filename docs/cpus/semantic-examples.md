@@ -6900,6 +6900,25 @@ write C:u8 := lowByte(result)
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 STAX B
+
+Read BC high byte then low byte, without changing the pair. Then capture A and write once to the captured address, without reading the destination. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+address:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 INX B
 
 Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
@@ -6953,6 +6972,25 @@ flags "8080 DAD carry" simultaneously {
 
 Flags preserved throughout: S, Z, AC, P.
 
+### 8080 LDAX B
+
+Read BC high byte then low byte, without changing the pair. Read once at the captured address, then write A only after the read succeeds; do not read the previous A. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+result:u8 := source "byte at BC" {
+  address:u16 := source "BC" {
+    high:u8 := read B
+    low:u8 := read C
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 DCX B
 
 Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
@@ -6993,6 +7031,25 @@ result:u16 := source "immediate word, low byte first" {
 }
 write D:u8 := highByte(result)
 write E:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 STAX D
+
+Read DE high byte then low byte, without changing the pair. Then capture A and write once to the captured address, without reading the destination. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+address:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+result:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write memory[address] := result
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -7049,6 +7106,25 @@ flags "8080 DAD carry" simultaneously {
 ```
 
 Flags preserved throughout: S, Z, AC, P.
+
+### 8080 LDAX D
+
+Read DE high byte then low byte, without changing the pair. Read once at the captured address, then write A only after the read succeeds; do not read the previous A. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+result:u8 := source "byte at DE" {
+  address:u16 := source "DE" {
+    high:u8 := read D
+    low:u8 := read E
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
 
 ### 8080 DCX D
 
@@ -7232,6 +7308,25 @@ write SP:u16 := result
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 STA nn
+
+Fetch the complete address low byte then high byte. Then capture A and write once to the captured address, without reading the destination. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 INX SP
 
 Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
@@ -7283,6 +7378,25 @@ flags "8080 DAD carry" simultaneously {
 ```
 
 Flags preserved throughout: S, Z, AC, P.
+
+### 8080 LDA nn
+
+Fetch the complete address low byte then high byte. Read once at the captured address, then write A only after the read succeeds; do not read the previous A. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+result:u8 := source "byte at immediate word, low byte first" {
+  address:u16 := source "immediate word, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
 
 ### 8080 DCX SP
 
@@ -12188,6 +12302,25 @@ write C:u8 := lowByte(result)
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 LD (BC),A
+
+Read BC high byte then low byte, without changing the pair. Then capture A and write once to the captured address, without reading the destination. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+address:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 INC BC
 
 Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
@@ -12243,6 +12376,25 @@ flags "Z80 ADD word flags (H at bit 11)" simultaneously {
 
 Flags preserved throughout: S, Z, PV.
 
+### z80 LD A,(BC)
+
+Read BC high byte then low byte, without changing the pair. Read once at the captured address, then write A only after the read succeeds; do not read the previous A. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+result:u8 := source "byte at BC" {
+  address:u16 := source "BC" {
+    high:u8 := read B
+    low:u8 := read C
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 DEC BC
 
 Subtract one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
@@ -12283,6 +12435,25 @@ result:u16 := source "immediate word, low byte first" {
 }
 write D:u8 := highByte(result)
 write E:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (DE),A
+
+Read DE high byte then low byte, without changing the pair. Then capture A and write once to the captured address, without reading the destination. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+address:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+result:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write memory[address] := result
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -12341,6 +12512,25 @@ flags "Z80 ADD word flags (H at bit 11)" simultaneously {
 ```
 
 Flags preserved throughout: S, Z, PV.
+
+### z80 LD A,(DE)
+
+Read DE high byte then low byte, without changing the pair. Read once at the captured address, then write A only after the read succeeds; do not read the previous A. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+result:u8 := source "byte at DE" {
+  address:u16 := source "DE" {
+    high:u8 := read D
+    low:u8 := read E
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 DEC DE
 
@@ -12526,6 +12716,25 @@ write SP:u16 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 LD (nn),A
+
+Fetch the complete address low byte then high byte. Then capture A and write once to the captured address, without reading the destination. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+address:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+result:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 INC SP
 
 Add one with word wraparound. Capture the complete register before writing it; pairs read and write high byte first. Do not access flags, memory, alternate banks, or control state.
@@ -12579,6 +12788,25 @@ flags "Z80 ADD word flags (H at bit 11)" simultaneously {
 ```
 
 Flags preserved throughout: S, Z, PV.
+
+### z80 LD A,(nn)
+
+Fetch the complete address low byte then high byte. Read once at the captured address, then write A only after the read succeeds; do not read the previous A. Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.
+
+```text
+result:u8 := source "byte at immediate word, low byte first" {
+  address:u16 := source "immediate word, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 DEC SP
 

@@ -134,6 +134,20 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generatedZ80.sbcImmediate(z80, { fetchByte: () => 0 });
   generatedZ80.andMemory(z80, 0xffff, { readByte: () => 0 });
   generatedZ80.rlca(z80);
+  generated8080[0x02](intel, { writeByte: () => {} });
+  generated8080[0x1a](intel, { readByte: () => 0 });
+  generatedZ80[0x32](z80, { fetchByte: () => 0, writeByte: () => {} });
+  generatedZ80[0x3a](z80, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Pair-indirect stores have no destination-read capability.
+  generated8080[0x12](intel, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Pair-indirect loads do not fetch an address.
+  generatedZ80[0x0a](z80, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Absolute stores must fetch both address bytes.
+  generated8080[0x32](intel, { writeByte: () => {} });
+  // @ts-expect-error Absolute loads have no data-memory write capability.
+  generatedZ80[0x3a](z80, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Generated accumulator transfers retain the concrete CPU state.
+  generated8080[0x02](z80, { writeByte: () => {} });
   generated8080[0x47](intel);
   generated8080[0x36](intel, { fetchByte: () => 0, writeByte: () => {} });
   generated8080[0x01](intel, { fetchByte: () => 0 });

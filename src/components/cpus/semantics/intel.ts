@@ -1,8 +1,8 @@
 import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagValue, highByte, literal, lowByte, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister } from "./model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource } from "./model.ts";
-import { arithmetic, immediateByte, instructionSet, registerSource, shift, transfer } from "./builders.ts";
+import { arithmetic, immediateByte, instructionSet, memorySource, registerSource, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
-import { intelByteTransferForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
+import { intelAccumulatorTransferForms, intelByteTransferForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
 import type { IntelByteOperand } from "../intel-encodings.ts";
 import { pairBytes } from "../register-pairs.ts";
 import type { RegisterPair } from "../register-pairs.ts";
@@ -122,6 +122,22 @@ export function intelByteTransfers(cpu: IntelByteCpu, move: string, immediate: s
   const operand = (name: IntelByteOperand | "immediate") => name === "m" ? memory : name === "immediate" ? "n" : name.toUpperCase();
   return instructionSet([...intelByteTransferForms.immediate, ...intelByteTransferForms.matrix].map(([opcode, { destination, source }]) =>
     [opcode, intelByteTransfer(cpu, destination, source, `${source === "immediate" ? immediate : move} ${operand(destination)},${operand(source)}`)]));
+}
+
+/** Accumulator memory transfers capture BC/DE or the complete immediate address before accessing A. */
+export function intelAccumulatorTransfers(cpu: IntelWordCpu, names: (address: "bc" | "de" | "absolute", operation: "load" | "store") => string) {
+  return instructionSet(Object.values(intelAccumulatorTransferForms).flat().map(([opcode, { address, operation }]) => {
+    const addressSource = address === "absolute" ? immediateWord : wordSource(intelWordRegister(cpu, address)), accumulator = cpu.register("a");
+    return [opcode, defineInstruction({ cpu: cpu.declaration, name: names(address, operation),
+      explanation: (address === "absolute" ? "Fetch the complete address low byte then high byte. " : `Read ${address.toUpperCase()} high byte then low byte, without changing the pair. `)
+        + (operation === "store" ? "Then capture A and write once to the captured address, without reading the destination. "
+          : "Read once at the captured address, then write A only after the read succeeds; do not read the previous A. ")
+        + "Preserve flags, alternate banks, and control state without accessing them. A failed access stops later effects; completed fetches remain.",
+      steps: operation === "store" ? [readSource("address", addressSource),
+        ...transfer([writeMemory(value("address"), value("result"))], registerSource(accumulator))]
+        : transfer(accumulator, memorySource(addressSource)),
+    })];
+  }));
 }
 
 /** Byte adjustments preserve carry and apply each CPU's flags before register or resolved-memory writeback. */

@@ -206,6 +206,11 @@ Indexed Z80 bodies share construction and receive a resolved address instead.
 Both CPUs use one binder, with no separate handwritten byte-operand read/write
 helpers or per-CPU transfer dispatch tables. The same binder serves the common
 word-arithmetic encodings `00 pp 1 001` and `00 pp q 011`.
+The accumulator memory slots in `00 pp q 010` share that inventory and binder:
+BC/DE addresses read high byte first; absolute addresses fetch low byte first.
+These stores capture the address before A. Loads write A only after a successful
+memory read. Both directions avoid flag access; the family no longer needs a
+separate register-pair selector for them.
 
 Word transfers use that same binder with their own immediate, memory, and SP-copy
 inventory. Bodies fetch complete addresses, read or write memory low byte first,

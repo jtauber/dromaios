@@ -4,7 +4,7 @@ import type { RegisterPair } from "./register-pairs.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { opcodeFamily, opcodePattern } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { intelByteTransferForms, intelWordArithmeticForms, intelWordTransferForms } from "./intel-encodings.ts";
+import { intelAccumulatorTransferForms, intelByteTransferForms, intelWordArithmeticForms, intelWordTransferForms } from "./intel-encodings.ts";
 
 export type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperand = "b" | "c" | "d" | "e" | "h" | "l" | "(hl)" | "a";
@@ -44,8 +44,7 @@ export abstract class Cpu8080Family<State extends Registers> {
 
   // rrr/ddd/sss select B/C/D/E/H/L/(HL)/A; the 8080 calls (HL) M.
   protected readonly byteOperands = ["b", "c", "d", "e", "h", "l", "(hl)", "a"] as const;
-  // pp selects BC/DE/HL/SP. Stack operations replace SP with PSW (8080) or AF (Z80).
-  protected readonly registerPairs = ["bc", "de", "hl", "sp"] as const;
+  // Stack pp selects BC/DE/HL/status: PSW on the 8080, AF on the Z80.
   readonly #stackPairs = ["bc", "de", "hl", "status"] as const;
 
   // Called by each CPU only after its operation and condition fields have initialized.
@@ -66,11 +65,9 @@ export abstract class Cpu8080Family<State extends Registers> {
 
       // 00 pp q 010: q=0 stores, q=1 loads. pp=00/01 uses A and (BC)/(DE);
       // pp=10 uses HL and (nn), pp=11 uses A and (nn). Word operands are low byte first.
-      ...opcodeFamily("00 0p 0 010", { p: this.registerPairs.slice(0, 2) }, ({ p: pair }) => ({ writeByte }: InstructionContext) => writeByte(this.readPair(pair), this.state.a)), // STAX / LD (BC)/(DE),A
-      ...opcodeFamily("00 0p 1 010", { p: this.registerPairs.slice(0, 2) }, ({ p: pair }) => ({ readByte }: InstructionContext) => { this.state.a = readByte(this.readPair(pair)); }), // LDAX / LD A,(BC)/(DE)
+      ...this.#generatedHandlers(intelAccumulatorTransferForms.indirect), // STAX/LDAX / LD (BC)/(DE),A or A,(BC)/(DE)
       ...this.#generatedHandlers(intelWordTransferForms.memory), // SHLD/LHLD / LD (nn),HL or HL,(nn)
-      ...instructionPattern("00 11 0 010", ({ fetchWord, writeByte }) => writeByte(fetchWord(), this.state.a)), // STA / LD (nn),A
-      ...instructionPattern("00 11 1 010", ({ fetchWord, readByte }) => { this.state.a = readByte(fetchWord()); }), // LDA / LD A,(nn)
+      ...this.#generatedHandlers(intelAccumulatorTransferForms.absolute), // STA/LDA / LD (nn),A or A,(nn)
 
       // 00 pp q 011: q=0 increments, q=1 decrements the selected word pair; preserve every flag.
       ...this.#generatedHandlers(intelWordArithmeticForms.adjustment), // INX/DCX / INC/DEC ss
