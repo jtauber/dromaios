@@ -221,11 +221,13 @@ therefore keep their existing execution contract. Both expose `snapshot`,
 adds no public controls or mutable state access. This shallow hierarchy expresses
 the 8080/Z80 relationship and is not a requirement for other processors.
 
-The 8008 reuses the same `intelByteAlu` construction without inheriting this
-execution core. Its definitions keep native A/B/C/D/E/H/L/M sources, a `3FFF`
-mask on memory addresses, and S/Z/P/C policies. Its own opcode table binds all
-72 ALU bodies; fetching retains the selected address-register PC and interrupt
-supplied-byte rules.
+The 8008 reuses the same `intelByteAlu` and `intelByteTransfer` construction
+without inheriting this execution core. Its definitions keep native
+A/B/C/D/E/H/L/M sources, a `3FFF` mask on memory addresses, and S/Z/P/C policies.
+Its own opcode table binds the generated bodies; transfer definitions and
+bindings consume one native encoding inventory with the `11 ddd sss` matrix
+and an explicit HLT exception. Fetching retains the selected address-register
+PC and interrupt supplied-byte rules.
 
 ## Shared execution records
 

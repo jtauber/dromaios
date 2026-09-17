@@ -136,6 +136,20 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generatedZ80.rlca(z80);
   generated8080[0x47](intel);
   generated8080[0x36](intel, { fetchByte: () => 0, writeByte: () => {} });
+  generated8008[0xc0](i8008);
+  generated8008[0xef](i8008, { readByte: () => 0 });
+  generated8008[0xfd](i8008, { writeByte: () => {} });
+  generated8008[0x3e](i8008, { fetchByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error 8008 HLT is outside the transfer matrix.
+  generated8008[0xff](i8008);
+  // @ts-expect-error 8008 self-transfers need no context.
+  generated8008[0xc0](i8008, { fetchByte: () => 0 });
+  // @ts-expect-error LMI requires a write capability.
+  generated8008[0x3e](i8008, { fetchByte: () => 0 });
+  // @ts-expect-error LMI cannot read the destination.
+  generated8008[0x3e](i8008, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Transfers require the 8008's concrete address-stack state.
+  generated8008[0xc0](intel);
   generatedZ80[0x66](z80, { readByte: () => 0 });
   generatedZ80.loadHMemory(z80, 0xffff, { readByte: () => 0 });
   generatedZ80.storeLMemory(z80, 0xffff, { writeByte: () => {} });

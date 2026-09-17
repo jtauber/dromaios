@@ -12,13 +12,16 @@ interface IntelByteCpu {
 
 /** Capture the source before writing; ordinary stores read HL after the source, indexed forms take one resolved address. */
 export function intelByteTransfer(cpu: IntelByteCpu, destination: IntelByteOperand, source: IntelByteOperand | "immediate",
-  name: string, resolved = false): InstructionDefinition {
+  name: string, addressing: "hl" | "resolved" | { readonly mask: number } = "hl"): InstructionDefinition {
   if (destination === "m" && source === "m") throw new Error("The memory-to-memory slot belongs to HALT.");
+  const resolved = addressing === "resolved";
   const hl = [readRegister("high", cpu.register("h")), readRegister("low", cpu.register("l"))];
-  const address = resolved ? value("address") : concat(value("high"), value("low"));
+  const pair = concat(value("high"), value("low"));
+  const address = resolved ? value("address") : typeof addressing === "object" ? bitAnd(pair, literal(16, addressing.mask)) : pair;
   return defineInstruction({ cpu: cpu.declaration, name,
     ...(resolved ? { inputs: { address: 16 as const } } : {}),
     explanation: (resolved ? "Entry follows indexed address resolution; use that captured address. " : "Use the selected byte registers; memory uses H then L at the access point. ")
+      + (typeof addressing === "object" ? `Mask the memory address to ${addressing.mask.toString(16).toUpperCase()}, preserving the full H and L registers. ` : "")
       + "Capture the source before writing the destination, including self-transfers and unchanged writes. "
       + "Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.",
     steps: [

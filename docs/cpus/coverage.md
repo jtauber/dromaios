@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [272](../../src/components/cpus/8008.ts) | 88 / 250 | 35.2% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [263](../../src/components/cpus/8008.ts) | 159 / 250 | 63.6% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [244](../../src/components/cpus/8080.ts) | 163 / 244 | 66.8% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [300](../../src/components/cpus/6800.ts) | 153 / 197 | 77.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [298](../../src/components/cpus/6502.ts) | 109 / 151 | 72.2% |
@@ -27,8 +27,8 @@ emulators do not count toward implementation here.
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **986 generated bodies**, all used by CPU execution,
-covering **1,240 complete opcode forms**:
+contains **1,057 generated bodies**, all used by CPU execution,
+covering **1,311 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -134,7 +134,14 @@ covering **1,240 complete opcode forms**:
   writeback and preserving C without reading it. RLC/RRC/RAL/RAR add four
   forms using the same accumulator-rotate construction as the 8080: capture A,
   read incoming C only for RAL/RAR, then write A before C. S/Z/P are preserved.
-  The last handwritten arithmetic helpers are removed; all 88 bodies are integrated.
+  All 63 register/memory transfers and eight immediate loads add 71 bodies using
+  shared Intel transfer construction, with native A/B/C/D/E/H/L/M selectors,
+  `11 ddd sss` matrix encodings, and a `3FFF` address mask. Stores capture the
+  source or fetch the immediate before reading H/L; masking never narrows the
+  stored register bytes. Transfers do not access flags or control state.
+  Definition generation and execution consume the same native opcode inventory;
+  HLT remains explicit. Handwritten arithmetic and operand read/write helpers
+  are removed; all 159 bodies are integrated.
 
 The 8088 and 68000 have no instruction bodies generated from these definitions.
 Their existing shared TypeScript helpers remain useful, but are outside this
@@ -182,27 +189,26 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,547 |
-| CPU-specific instruction definition files | 630 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,088 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,265** |
+| Eight CPU implementation files | 4,538 |
+| CPU-specific instruction definition files | 633 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,096 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,267** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 16,594 |
+| Generated CPU output, counted separately | 17,050 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Migrating the 8080/Z80 byte-transfer matrices, immediate loads, and Z80 indexed
-transfers adds 172 forms using 157 bodies, incorporating the earlier MOV B,A
-sample. The shared 8080-family core shrinks by **9 lines** after removing its
-operand read/write helpers and handwritten transfer body. CPU modules add **4**
-lines, CPU-specific definitions add **3**, and shared construction plus the
-encoding inventory add **42**. There are no new semantic primitives or generator
-changes. Total authored CPU source rises from **7,225 to 7,265 lines** (**40 more**).
-The other 829 earlier definitions remain structurally unchanged, and the four
-other generated CPU modules remain byte-for-byte identical. One encoding
-inventory now drives both definition generation and ordinary execution bindings,
-but this migration does not reduce total authored source.
+Migrating the 8008 byte-transfer matrix and immediate loads adds 71 bodies and
+forms as a third consumer of shared Intel transfer construction. Its CPU module
+shrinks by **9 lines**, removing handwritten operand read/write and transfer
+helpers. CPU-specific definitions add **3** lines; shared construction and the
+native encoding inventory add **8**. There are no new semantic primitives or
+generator changes. Total authored CPU source rises from **7,265 to 7,267 lines**
+(**2 more**). All 986 earlier definitions remain structurally unchanged, and
+the five other generated CPU modules remain byte-for-byte identical. The native
+inventory drives both definition generation and execution bindings; the shared
+recipe now expresses the 8008's address mask explicitly.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

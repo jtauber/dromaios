@@ -17,6 +17,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
+import { intel8008ByteTransferForms } from "./intel-transfers.ts";
 
 export { cpu8008StateDescription } from "./state/8008.ts";
 export type { Cpu8008State, Cpu8008AddressStack, Cpu8008Flags } from "./state/8008.ts";
@@ -190,7 +191,7 @@ export class Cpu8008 {
     ...opcodeFamily("00 vvv 101", { v: [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] }, ({ v: address }) => () => this.#call(address)), // RST
 
     // 00 rrr 110: rrr (bits 5..3) selects the destination, including memory at rrr=111.
-    ...opcodeFamily("00 rrr 110", { r: this.#byteOperands }, ({ r: operand }) => (instruction: InstructionContext) => this.#writeOperand(operand, instruction.fetchByte(), instruction)), // LrI n / LMI n
+    ...this.#transferHandlers(intel8008ByteTransferForms.immediate), // LrI n / LMI n
 
     // 00 xxx 111: RET. Bits 5–3 are don't-care bits: all eight encodings return.
     ...opcodePattern("00 xxx 111", () => this.#return()), // RET
@@ -212,8 +213,9 @@ export class Cpu8008 {
     ...opcodeFamily("10 ooo sss", { o: this.#aluInstructions, s: this.#byteOperands }, ({ o: instruction, s: source }) => instruction(source)), // ADr / ACr / SUr / SBr / NDr / XRr / ORr / CPr (including M)
 
     // 11 ddd sss: ddd (bits 5..3) selects destination; sss (bits 2..0) selects source.
-    // 11 111 111 is HLT, not LMM; the binding handles this exception without a data access.
-    ...opcodeFamily("11 ddd sss", { d: this.#byteOperands, s: this.#byteOperands }, ({ d: destination, s: source }) => this.#transferHandler(destination, source)), // Lr1r2 / LrM / LMr / HLT
+    // 11 111 111 is HLT, not LMM; it performs no data access.
+    ...this.#transferHandlers(intel8008ByteTransferForms.matrix), // Lr1r2 / LrM / LMr
+    ...opcodePattern("11 111 111", () => this.#halt()), // HLT
   ]);
 
   #adjustHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -224,26 +226,15 @@ export class Cpu8008 {
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
+  #transferHandlers(forms: readonly (readonly [number, unknown])[]): readonly OpcodeEntry<OpcodeHandler>[] {
+    const transfers: Readonly<Record<number, (state: Cpu8008State, instruction: InstructionContext) => void>> = semantics;
+    return forms.map(([opcode]) => [opcode, instruction => transfers[opcode]!(this.#state, instruction)]);
+  }
+
   #portHandler(port: number): OpcodeHandler {
     return port < 8
       ? ({ readPort }) => { this.#state.a = readPort(port); }
       : ({ writePort }) => writePort(port, this.#state.a);
-  }
-
-  #transferHandler(destination: ByteOperand, source: ByteOperand): OpcodeHandler {
-    if (destination === "m" && source === "m") return () => this.#halt();
-    return instruction => this.#writeOperand(destination, this.#readOperand(source, instruction), instruction);
-  }
-
-  // Addressing and loads.
-
-  #readOperand(operand: ByteOperand, { readByte }: InstructionContext): number {
-    return operand === "m" ? readByte(this.#hl & 0x3fff) : this.#state[operand];
-  }
-
-  #writeOperand(operand: ByteOperand, value: number, { writeByte }: InstructionContext): void {
-    if (operand === "m") writeByte(this.#hl & 0x3fff, value);
-    else this.#state[operand] = value;
   }
 
   // Control flow.

@@ -4198,6 +4198,817 @@ flags "6800 comparison" simultaneously {
 
 Flags preserved throughout: H, I.
 
+### 8008 LAI n
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LBI n
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LCI n
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LDI n
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LEI n
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LHI n
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LLI n
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LMI n
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+high:u8 := read H
+low:u8 := read L
+write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LAA
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LAB
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LAC
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LAD
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LAE
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LAH
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LAL
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LAM
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LBA
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LBB
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LBC
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LBD
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LBE
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LBH
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LBL
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LBM
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LCA
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LCB
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LCC
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LCD
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LCE
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LCH
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LCL
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LCM
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LDA
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LDB
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LDC
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LDD
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LDE
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LDH
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LDL
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LDM
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LEA
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LEB
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LEC
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LED
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LEE
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LEH
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LEL
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LEM
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LHA
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LHB
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LHC
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LHD
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LHE
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LHH
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LHL
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LHM
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LLA
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LLB
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LLC
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LLD
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LLE
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LLH
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LLL
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LLM
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[bitAnd(concatHighLow(high, low), 3FFF:u16)]
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LMA
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+high:u8 := read H
+low:u8 := read L
+write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LMB
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+high:u8 := read H
+low:u8 := read L
+write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LMC
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+high:u8 := read H
+low:u8 := read L
+write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LMD
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+high:u8 := read H
+low:u8 := read L
+write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LME
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+high:u8 := read H
+low:u8 := read L
+write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LMH
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+high:u8 := read H
+low:u8 := read L
+write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 LML
+
+Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+high:u8 := read H
+low:u8 := read L
+write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 INB
 
 Read B, add one with byte wraparound, then set S/Z and even parity P before writing the register. Preserve C without reading it. No data-memory access occurs.

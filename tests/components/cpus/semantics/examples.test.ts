@@ -285,7 +285,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 986);
+  assert.equal(instructionDefinitions.length, 1057);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -379,6 +379,25 @@ test("Intel byte-transfer explanations expose source capture, HL timing, resolve
     if (operand === "n") assert.match(text, /result:u8 := fetch byte/);
     else { assert.match(text, new RegExp(`result:u8 := read ${operand}`)); assert.doesNotMatch(text, /fetch byte/); }
   }
+});
+
+test("8008 transfer explanations retain native mnemonics and explicit 14-bit memory masking", () => {
+  for (const register of ["H", "L"]) {
+    const loaded = description("8008", `L${register}M`), stored = description("8008", `LM${register}`);
+    assert.ok(loaded.indexOf("read memory") < loaded.indexOf(`write ${register}:u8 := result`));
+    assert.ok(stored.indexOf(`result:u8 := read ${register}`) < stored.indexOf("high:u8 := read H"));
+    for (const text of [loaded, stored, description("8008", "LMI n")]) {
+      assert.match(text, /bitAnd\(concatHighLow\(high, low\), 3FFF:u16\)/);
+      assert.match(text, /preserving the full H and L registers/);
+      assert.match(text, /Flags preserved throughout: /);
+      assert.doesNotMatch(text, /apply flags|address:u16 := input/);
+    }
+    assert.doesNotMatch(stored, /:= read memory/);
+  }
+  const immediate = description("8008", "LMI n");
+  assert.ok(immediate.indexOf("fetch byte") < immediate.indexOf("read H"));
+  assert.doesNotMatch(immediate, /:= read memory/);
+  assert.doesNotMatch(description("8008", "LAA"), /:= read memory|write memory|fetch byte/);
 });
 
 test("Intel byte-adjustment explanations expose different half-carry rules, preserved carry, and flag-before-write order", () => {

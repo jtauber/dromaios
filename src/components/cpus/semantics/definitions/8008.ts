@@ -2,9 +2,10 @@ import { cpu8008StateDescription } from "../../state/8008.ts";
 import { addWrap, bitAnd, borrow, capture, carry, concat, cpuSymbols, evenParity, flagLiteral, flagValue, literal, negative,
   readMemory, readRegister, readSource, subtract, updateFlags, value, writeRegister, zero } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, ValueSource } from "../model.ts";
-import { immediateByte, registerSource } from "../builders.ts";
-import { intelAccumulatorRotate, intelByteAlu } from "../intel.ts";
+import { immediateByte, instructionSet, registerSource } from "../builders.ts";
+import { intelAccumulatorRotate, intelByteAlu, intelByteTransfer } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
+import { intel8008ByteTransferForms } from "../../intel-transfers.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("8008", cpu8008StateDescription);
@@ -67,6 +68,8 @@ function family(mnemonic: string, operation: IntelByteOperation, withCarry = fal
 }
 
 export const instructions8008 = {
+  ...instructionSet([...intel8008ByteTransferForms.immediate, ...intel8008ByteTransferForms.matrix].map(([opcode, { destination, source }]) =>
+    [opcode, intelByteTransfer(cpu, destination, source, `L${destination.toUpperCase()}${source === "immediate" ? "I n" : source.toUpperCase()}`, { mask: 0x3fff })])),
   // 00 rrr 00d: rrr=001..110 selects B/C/D/E/H/L; d=0 increments, d=1 decrements.
   ...adjustment("IN"), ...adjustment("DC"),
   // 00 0td 010: t=0 circular, t=1 through carry; d=0 left, d=1 right.

@@ -119,11 +119,11 @@ export const instructionsZ80 = {
   ...intelByteTransfers(cpu, "LD", "LD", "(HL)"),
   // DD/FD 01 rrr 110 / 01 110 rrr: use real H/L with a resolved IX/IY address; rrr=110 is excluded.
   ...Object.fromEntries((["b", "c", "d", "e", "h", "l", "a"] as const).flatMap(register => [
-    [`load${register.toUpperCase()}Memory`, intelByteTransfer(cpu, register, "m", `LD ${register.toUpperCase()},memory`, true)],
-    [`store${register.toUpperCase()}Memory`, intelByteTransfer(cpu, "m", register, `LD memory,${register.toUpperCase()}`, true)],
+    [`load${register.toUpperCase()}Memory`, intelByteTransfer(cpu, register, "m", `LD ${register.toUpperCase()},memory`, "resolved")],
+    [`store${register.toUpperCase()}Memory`, intelByteTransfer(cpu, "m", register, `LD memory,${register.toUpperCase()}`, "resolved")],
   ])),
   // DD/FD 00 110 110: the decoder fetches d and resolves the address before the body fetches n.
-  storeImmediateMemory: intelByteTransfer(cpu, "m", "immediate", "LD memory,n", true),
+  storeImmediateMemory: intelByteTransfer(cpu, "m", "immediate", "LD memory,n", "resolved"),
   // 00 rrr 10d: rrr selects B/C/D/E/H/L/(HL)/A; d=0 increments, d=1 decrements.
   // Each memory body also serves DD/FD 00 110 10d after indexed address resolution.
   ...adjustment("INC"), ...adjustment("DEC"),

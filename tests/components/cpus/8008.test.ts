@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Cpu8008 } from "../../../src/components/cpus/8008.js";
-import type { Cpu8008AddressStack, Cpu8008Flags, Cpu8008MemoryAccess, Cpu8008Snapshot, Cpu8008State } from "../../../src/components/cpus/8008.js";
+import type { Cpu8008AddressStack, Cpu8008Flags, Cpu8008InterruptAccess, Cpu8008MemoryAccess, Cpu8008Snapshot, Cpu8008State } from "../../../src/components/cpus/8008.js";
 import type { PortAccess } from "../../../src/components/cpus/port-access.ts";
 import { runCpu } from "../../../src/runtime/run-cpu.js";
 import { Ram } from "../../../src/components/memory/ram.js";
@@ -246,6 +246,68 @@ for (const [opcode, register] of [
     }
   });
 }
+
+test("8008 transfers retain completed effects at every ordinary or supplied-byte failure, across all address slots and aliases", () => {
+  const forms = [
+    ...transferRows.flatMap(({ destination, opcodes }) => opcodes.flatMap((opcode, column) => opcode === 0xff ? []
+      : [{ bytes: [opcode], destination, source: transferColumns[column]! }])),
+    ...[0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x36, 0x3e].map((opcode, column) =>
+      ({ bytes: [opcode, 0xa5], destination: transferColumns[column]!, source: "immediate" as const })),
+  ];
+  assert.equal(forms.length, 71);
+  const failure = new Error("8008 transfer failure");
+  for (const { bytes, destination, source } of forms) for (const external of [false, true]) {
+    for (let slot = 0; slot < 8; slot++) for (const address of [0, 0x3fff, 0x1234]) {
+      const count = bytes.length + Number(source === "m" || destination === "m");
+      for (let failAt = -1; failAt < count; failAt++) {
+        let attempts = 0, running = false;
+        const completed: Cpu8008InterruptAccess[] = [];
+        const attempt = () => { if (attempts++ === failAt) throw failure; };
+        class FaultRam extends ObservedRam {
+          override read(address: number): number {
+            if (running) attempt(); const value = super.read(address);
+            if (running) completed.push({ kind: "read", address, value }); return value;
+          }
+          override write(address: number, value: number): void {
+            if (running) attempt(); super.write(address, value);
+            if (running) completed.push({ kind: "write", address, value });
+          }
+        }
+        const state = atPc(0x3fff, slot, { h: Math.floor(address / 256) + (slot % 4) * 64, l: address % 256,
+          flags: flags(slot * 2 + Number(external)), halted: external });
+        const ram = new FaultRam(0x4000), original = source === "immediate" ? 0xa5 : source === "m" ? 0x81 : state[source];
+        ram.write(address, original); // Stores include unchanged writes; fetch overlap can replace this byte.
+        if (!external) bytes.forEach((value, index) => ram.write((0x3fff + index) % 16384, value));
+        const memoryBefore = ram.read(address), value = source === "m" ? memoryBefore : original;
+        ram.accesses.length = 0; running = true;
+        const cpu = new Cpu8008(ram, state), before = cpu.snapshot();
+        const accesses: Cpu8008InterruptAccess[] = [
+          ...bytes.map((value, index) => external ? { kind: "acknowledge" as const, value }
+            : { kind: "read" as const, address: (0x3fff + index) % 16384, value }),
+          ...(source === "m" ? [{ kind: "read" as const, address, value }]
+            : destination === "m" ? [{ kind: "write" as const, address, value }] : []),
+        ];
+        const run = () => {
+          let next = 0;
+          return external ? cpu.interrupt(() => { attempt(); const value = bytes[next++]!; completed.push({ kind: "acknowledge", value }); return value; }) : cpu.step();
+        };
+        const success = failAt < 0, fetched = success ? bytes.length : Math.min(failAt, bytes.length);
+        const after = advanced(state, external ? 0x3fff : (0x3fff + fetched) % 16384,
+          { halted: false, ...(success && destination !== "m" ? { [destination]: value } : {}) });
+        if (success) assert.deepEqual(run(), { before, after, accesses, outcome: "executed",
+          instruction: external ? { source: "interrupt", bytes } : { address: 0x3fff, bytes } });
+        else assert.throws(run, error => error === failure);
+        assert.deepEqual(cpu.snapshot(), after, `opcode=${bytes[0]}, external=${external}, slot=${slot}, address=${address}, failure=${failAt}`);
+        assert.deepEqual(completed, accesses.slice(0, success ? count : failAt));
+        assert.deepEqual(ram.accesses, completed.filter(access => access.kind !== "acknowledge"));
+        assert.equal(attempts, success ? count : failAt + 1);
+        running = false;
+        assert.equal(ram.read(address), success && destination === "m" ? value : memoryBefore);
+        if (!success) { cpu.reset(); assert.equal(cpu.snapshot().pc, 0); }
+      }
+    }
+  }
+});
 
 for (const { destination, opcodes } of transferRows) {
   test(`8008 transfers into ${destination.toUpperCase()} cover every source, byte, and flag pattern, including self-transfers and HLT`, () => {
