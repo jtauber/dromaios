@@ -29,7 +29,7 @@ export function intelByteAlu(accumulator: Register, operation: IntelByteOperatio
   ];
 }
 
-/** 8008/8080 accumulator rotates write A before carry and preserve every other flag. */
+/** Accumulator rotates write A before carry; callers may append other flag updates. */
 export function intelAccumulatorRotate(accumulator: Register, carry: Flag, direction: "left" | "right", circular: boolean): readonly Statement[] {
   const operation = shift(direction, circular ? "outgoing" : carry);
   return [

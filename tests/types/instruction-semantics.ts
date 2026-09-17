@@ -133,6 +133,17 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generatedZ80.cpM(z80, { readByte: () => 0 });
   generatedZ80.sbcImmediate(z80, { fetchByte: () => 0 });
   generatedZ80.andMemory(z80, 0xffff, { readByte: () => 0 });
+  generatedZ80.rlca(z80);
+  generatedZ80.rlH(z80);
+  generatedZ80.sraMemory(z80, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Accumulator rotates require no context.
+  generatedZ80.rra(z80, { fetchByte: () => 0 });
+  // @ts-expect-error Register shifts require no memory context.
+  generatedZ80.srlL(z80, { readByte: () => 0 });
+  // @ts-expect-error Memory shifts require both transfers, even when the result is unchanged.
+  generatedZ80.rlcMemory(z80, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error Memory shifts consume a resolved address without fetching displacement again.
+  generatedZ80.rrMemory(z80, 0xffff, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
   // @ts-expect-error Z80 ALU register bodies require no context.
   generatedZ80.addB(z80, { fetchByte: () => 0 });
   // @ts-expect-error Indexed bodies require the resolved address, not an index selector.

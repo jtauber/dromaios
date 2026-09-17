@@ -9923,6 +9923,1227 @@ flags "6809 comparison" simultaneously {
 
 Flags preserved throughout: E, F, H, I.
 
+### z80 RLCA
+
+Capture A and rotate left, inserting the outgoing bit. Write A before replacing C, then clear N/H. Preserve S/Z/PV, the alternate bank, and control state. No data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftLeft(original, topBit(original))
+write A:u8 := result
+flags "z80 rotate carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+flags "Z80 accumulator rotate N/H" simultaneously {
+  N := 0:flag
+  H := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 RRCA
+
+Capture A and rotate right, inserting the outgoing bit. Write A before replacing C, then clear N/H. Preserve S/Z/PV, the alternate bank, and control state. No data-memory access occurs.
+
+```text
+original:u8 := read A
+result := shiftRight(original, lowBit(original))
+write A:u8 := result
+flags "z80 rotate carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+flags "Z80 accumulator rotate N/H" simultaneously {
+  N := 0:flag
+  H := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 RLA
+
+Capture A and rotate left, inserting incoming C captured after A. Write A before replacing C, then clear N/H. Preserve S/Z/PV, the alternate bank, and control state. No data-memory access occurs.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftLeft(original, carry)
+write A:u8 := result
+flags "z80 rotate carry" simultaneously {
+  C := topBit(original)
+} // Preserve unlisted flags.
+flags "Z80 accumulator rotate N/H" simultaneously {
+  N := 0:flag
+  H := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 RRA
+
+Capture A and rotate right, inserting incoming C captured after A. Write A before replacing C, then clear N/H. Preserve S/Z/PV, the alternate bank, and control state. No data-memory access occurs.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftRight(original, carry)
+write A:u8 := result
+flags "z80 rotate carry" simultaneously {
+  C := lowBit(original)
+} // Preserve unlisted flags.
+flags "Z80 accumulator rotate N/H" simultaneously {
+  N := 0:flag
+  H := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
+
+### z80 RLC B
+
+Read the selected byte register. Shift left, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read B
+result := shiftLeft(original, topBit(original))
+flags "Z80 RLC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RLC C
+
+Read the selected byte register. Shift left, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read C
+result := shiftLeft(original, topBit(original))
+flags "Z80 RLC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RLC D
+
+Read the selected byte register. Shift left, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read D
+result := shiftLeft(original, topBit(original))
+flags "Z80 RLC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RLC E
+
+Read the selected byte register. Shift left, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read E
+result := shiftLeft(original, topBit(original))
+flags "Z80 RLC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RLC H
+
+Read the selected byte register. Shift left, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read H
+result := shiftLeft(original, topBit(original))
+flags "Z80 RLC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RLC L
+
+Read the selected byte register. Shift left, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read L
+result := shiftLeft(original, topBit(original))
+flags "Z80 RLC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RLC A
+
+Read the selected byte register. Shift left, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read A
+result := shiftLeft(original, topBit(original))
+flags "Z80 RLC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RLC memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Shift left, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := shiftLeft(original, topBit(original))
+flags "Z80 RLC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RRC B
+
+Read the selected byte register. Shift right, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read B
+result := shiftRight(original, lowBit(original))
+flags "Z80 RRC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RRC C
+
+Read the selected byte register. Shift right, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read C
+result := shiftRight(original, lowBit(original))
+flags "Z80 RRC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RRC D
+
+Read the selected byte register. Shift right, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read D
+result := shiftRight(original, lowBit(original))
+flags "Z80 RRC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RRC E
+
+Read the selected byte register. Shift right, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read E
+result := shiftRight(original, lowBit(original))
+flags "Z80 RRC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RRC H
+
+Read the selected byte register. Shift right, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read H
+result := shiftRight(original, lowBit(original))
+flags "Z80 RRC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RRC L
+
+Read the selected byte register. Shift right, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read L
+result := shiftRight(original, lowBit(original))
+flags "Z80 RRC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RRC A
+
+Read the selected byte register. Shift right, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read A
+result := shiftRight(original, lowBit(original))
+flags "Z80 RRC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RRC memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Shift right, inserting the outgoing bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := shiftRight(original, lowBit(original))
+flags "Z80 RRC" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RL B
+
+Read the selected byte register. After the operand read, capture C and shift left through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read B
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "Z80 RL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RL C
+
+Read the selected byte register. After the operand read, capture C and shift left through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read C
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "Z80 RL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RL D
+
+Read the selected byte register. After the operand read, capture C and shift left through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read D
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "Z80 RL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RL E
+
+Read the selected byte register. After the operand read, capture C and shift left through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read E
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "Z80 RL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RL H
+
+Read the selected byte register. After the operand read, capture C and shift left through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read H
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "Z80 RL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RL L
+
+Read the selected byte register. After the operand read, capture C and shift left through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read L
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "Z80 RL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RL A
+
+Read the selected byte register. After the operand read, capture C and shift left through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "Z80 RL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RL memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. After the operand read, capture C and shift left through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+carry:flag := read C
+result := shiftLeft(original, carry)
+flags "Z80 RL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RR B
+
+Read the selected byte register. After the operand read, capture C and shift right through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read B
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "Z80 RR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RR C
+
+Read the selected byte register. After the operand read, capture C and shift right through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read C
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "Z80 RR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RR D
+
+Read the selected byte register. After the operand read, capture C and shift right through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read D
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "Z80 RR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RR E
+
+Read the selected byte register. After the operand read, capture C and shift right through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read E
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "Z80 RR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RR H
+
+Read the selected byte register. After the operand read, capture C and shift right through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read H
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "Z80 RR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RR L
+
+Read the selected byte register. After the operand read, capture C and shift right through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read L
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "Z80 RR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RR A
+
+Read the selected byte register. After the operand read, capture C and shift right through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read A
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "Z80 RR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 RR memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. After the operand read, capture C and shift right through it. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+carry:flag := read C
+result := shiftRight(original, carry)
+flags "Z80 RR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SLA B
+
+Read the selected byte register. Shift left, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read B
+result := shiftLeft(original, 0:flag)
+flags "Z80 SLA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SLA C
+
+Read the selected byte register. Shift left, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read C
+result := shiftLeft(original, 0:flag)
+flags "Z80 SLA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SLA D
+
+Read the selected byte register. Shift left, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read D
+result := shiftLeft(original, 0:flag)
+flags "Z80 SLA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SLA E
+
+Read the selected byte register. Shift left, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read E
+result := shiftLeft(original, 0:flag)
+flags "Z80 SLA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SLA H
+
+Read the selected byte register. Shift left, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read H
+result := shiftLeft(original, 0:flag)
+flags "Z80 SLA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SLA L
+
+Read the selected byte register. Shift left, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read L
+result := shiftLeft(original, 0:flag)
+flags "Z80 SLA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SLA A
+
+Read the selected byte register. Shift left, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read A
+result := shiftLeft(original, 0:flag)
+flags "Z80 SLA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SLA memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Shift left, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := shiftLeft(original, 0:flag)
+flags "Z80 SLA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := topBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRA B
+
+Read the selected byte register. Shift right, inserting the original sign bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read B
+result := shiftRight(original, topBit(original))
+flags "Z80 SRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRA C
+
+Read the selected byte register. Shift right, inserting the original sign bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read C
+result := shiftRight(original, topBit(original))
+flags "Z80 SRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRA D
+
+Read the selected byte register. Shift right, inserting the original sign bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read D
+result := shiftRight(original, topBit(original))
+flags "Z80 SRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRA E
+
+Read the selected byte register. Shift right, inserting the original sign bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read E
+result := shiftRight(original, topBit(original))
+flags "Z80 SRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRA H
+
+Read the selected byte register. Shift right, inserting the original sign bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read H
+result := shiftRight(original, topBit(original))
+flags "Z80 SRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRA L
+
+Read the selected byte register. Shift right, inserting the original sign bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read L
+result := shiftRight(original, topBit(original))
+flags "Z80 SRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRA A
+
+Read the selected byte register. Shift right, inserting the original sign bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read A
+result := shiftRight(original, topBit(original))
+flags "Z80 SRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRA memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Shift right, inserting the original sign bit. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := shiftRight(original, topBit(original))
+flags "Z80 SRA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRL B
+
+Read the selected byte register. Shift right, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read B
+result := shiftRight(original, 0:flag)
+flags "Z80 SRL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRL C
+
+Read the selected byte register. Shift right, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read C
+result := shiftRight(original, 0:flag)
+flags "Z80 SRL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write C:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRL D
+
+Read the selected byte register. Shift right, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read D
+result := shiftRight(original, 0:flag)
+flags "Z80 SRL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write D:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRL E
+
+Read the selected byte register. Shift right, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read E
+result := shiftRight(original, 0:flag)
+flags "Z80 SRL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write E:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRL H
+
+Read the selected byte register. Shift right, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read H
+result := shiftRight(original, 0:flag)
+flags "Z80 SRL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write H:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRL L
+
+Read the selected byte register. Shift right, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read L
+result := shiftRight(original, 0:flag)
+flags "Z80 SRL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write L:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRL A
+
+Read the selected byte register. Shift right, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+original:u8 := read A
+result := shiftRight(original, 0:flag)
+flags "Z80 SRL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 SRL memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Shift right, inserting zero. Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := shiftRight(original, 0:flag)
+flags "Z80 SRL" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := lowBit(original)
+} // Preserve unlisted flags.
+write memory[address] := result
+```
+
+Flags preserved throughout: none.
+
 ### z80 ADD A,B
 
 Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.

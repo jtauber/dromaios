@@ -285,7 +285,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 546);
+  assert.equal(instructionDefinitions.length, 606);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -324,6 +324,34 @@ test("Z80 ALU explanations expose overflow versus parity, borrow half-carry, and
     assert.match(text, mnemonic === "AND" ? /H := 1:flag/ : /H := 0:flag/);
     assert.match(text, /N := 0:flag/); assert.match(text, /C := 0:flag/);
     assert.ok(text.indexOf("write A:u8 := result") > text.indexOf("C :="));
+  }
+});
+
+test("Z80 shift explanations distinguish accumulator flags from CB flags and preserve read/flag/write order", () => {
+  for (const name of ["RLCA", "RRCA", "RLA", "RRA"]) {
+    const text = description("z80", name);
+    assert.match(text, /Flags preserved throughout: S, Z, PV\./);
+    const write = text.indexOf("write A:u8 := result"), carry = text.indexOf("C :=");
+    assert.ok(write >= 0 && write < carry && carry < text.indexOf("N := 0:flag"));
+    assert.ok(text.indexOf("N := 0:flag") < text.indexOf("H := 0:flag"));
+    if (name === "RLA" || name === "RRA") assert.ok(text.indexOf("read A") < text.indexOf("carry:flag := read C"));
+    else assert.doesNotMatch(text, /:= read C/);
+  }
+  for (const name of ["RLC", "RRC", "RL", "RR", "SLA", "SRA", "SRL"]) for (const target of ["B", "memory"]) {
+    const text = description("z80", `${name} ${target}`), memory = target === "memory";
+    const read = text.indexOf(memory ? "original:u8 := read memory[address]" : "original:u8 := read B");
+    const flags = text.indexOf("S := topBit(result)"), write = text.indexOf(memory ? "write memory[address] := result" : "write B:u8 := result");
+    assert.ok(read >= 0 && read < flags && flags < write);
+    assert.match(text, /PV := evenParity8\(result\)/); assert.match(text, /Flags preserved throughout: none\./);
+    if (name === "RL" || name === "RR") assert.ok(read < text.indexOf("carry:flag := read C") && text.indexOf("carry:flag := read C") < flags);
+    else assert.doesNotMatch(text, /:= read C/);
+    if (name === "SRA") assert.match(text, /shiftRight\(original, topBit\(original\)\)/);
+    if (name === "SLA" || name === "SRL") assert.match(text, /shift(Left|Right)\(original, 0:flag\)/);
+    if (memory) {
+      assert.match(text, /address:u16 := input/);
+      assert.equal(text.match(/:= read memory/g)?.length, 1); assert.equal(text.match(/write memory/g)?.length, 1);
+      assert.doesNotMatch(text, /fetch byte|:= read (H|L|IX|IY)\b/);
+    }
   }
 });
 

@@ -20,8 +20,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.js";
-import { add, subtract, shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
-import type { ShiftResult } from "./alu.ts";
+import { add, subtract, evenParity8 } from "./alu.ts";
 
 export { cpuZ80StateDescription } from "./state/z80.ts";
 export type { CpuZ80State, CpuZ80Flags, CpuZ80RegisterBank } from "./state/z80.ts";
@@ -285,10 +284,10 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   // 00 ooo 111: accumulator/carry operations, in encoded order.
   protected override readonly accumulatorOperations: readonly (() => void)[] = [
-    () => this.#rotateAccumulator(shiftLeft(8, this.state.a, (this.state.a & 0x80) !== 0 ? 1 : 0)), // 000 RLCA
-    () => this.#rotateAccumulator(shiftRight(8, this.state.a, (this.state.a & 1) !== 0 ? 1 : 0)), // 001 RRCA
-    () => this.#rotateAccumulator(shiftLeft(8, this.state.a, this.state.flags.c ? 1 : 0)), // 010 RLA
-    () => this.#rotateAccumulator(shiftRight(8, this.state.a, this.state.flags.c ? 1 : 0)), // 011 RRA
+    () => semantics.rlca(this.state), // 000 RLCA
+    () => semantics.rrca(this.state), // 001 RRCA
+    () => semantics.rla(this.state), // 010 RLA
+    () => semantics.rra(this.state), // 011 RRA
     () => this.#decimalAdjust(), // 100 DAA
     () => this.#complementAccumulator(), // 101 CPL
     () => this.#setCarry(), // 110 SCF
@@ -314,26 +313,32 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   // CB's xx yyy rrr: xx=00 selects a shift; xx=01/10/11 selects BIT/RES/SET.
   // yyy is the shift selector for xx=00, otherwise the bit number; rrr selects B/C/D/E/H/L/(HL)/A.
-  // Share the 31 operations with indexed CB, whose documented forms fix rrr=110 (memory).
-  readonly #cbOperations: readonly CbOperation[] = [
-    { bits: "00 000", apply: value => this.#shiftLeft(value, (value & 0x80) !== 0 ? 1 : 0), writes: true }, // RLC
-    { bits: "00 001", apply: value => this.#shiftRight(value, (value & 1) !== 0 ? 1 : 0), writes: true }, // RRC
-    { bits: "00 010", apply: value => this.#shiftLeft(value, this.state.flags.c ? 1 : 0), writes: true }, // RL
-    { bits: "00 011", apply: value => this.#shiftRight(value, this.state.flags.c ? 1 : 0), writes: true }, // RR
-    { bits: "00 100", apply: value => this.#shiftLeft(value, 0), writes: true }, // SLA
-    { bits: "00 101", apply: value => this.#shiftRight(value, (value & 0x80) !== 0 ? 1 : 0), writes: true }, // SRA
-    // 00 110 is undocumented SLL.
-    { bits: "00 111", apply: value => this.#shiftRight(value, 0), writes: true }, // SRL
-    ...this.#bitMasks.flatMap((mask, bit): CbOperation[] => [
-      { bits: `01 ${bit.toString(2).padStart(3, "0")}`, apply: value => { this.#testBit(mask, value); return value; }, writes: false }, // BIT b
-      { bits: `10 ${bit.toString(2).padStart(3, "0")}`, apply: value => value & ~mask, writes: true }, // RES b
-      { bits: `11 ${bit.toString(2).padStart(3, "0")}`, apply: value => value | mask, writes: true }, // SET b
-    ]),
-  ];
-  readonly #cbOpcodeHandlers = opcodeTable<OpcodeHandler>(this.#cbOperations.flatMap(({ bits, apply, writes }) =>
-    opcodeFamily(`${bits} rrr`, { r: this.byteOperands }, ({ r: operand }) => instruction => this.modifyOperand(operand, apply, instruction, writes))));
-  readonly #indexedCbHandlers = opcodeTable<AddressedHandler>(this.#cbOperations.flatMap(({ bits, apply, writes }) =>
-    opcodePattern<AddressedHandler>(`${bits} 110`, (address, instruction) => this.#modifyMemory(address, apply, instruction, writes))));
+  // Indexed CB fixes rrr=110 (memory); each generated shift body receives one resolved address.
+  readonly #cbShifts = [
+    { bits: "000", name: "rlc" }, { bits: "001", name: "rrc" },
+    { bits: "010", name: "rl" }, { bits: "011", name: "rr" },
+    { bits: "100", name: "sla" }, { bits: "101", name: "sra" },
+    // yyy=110 is undocumented SLL.
+    { bits: "111", name: "srl" },
+  ] as const;
+  readonly #cbBitOperations = this.#bitMasks.flatMap((mask, bit): CbOperation[] => [
+    { bits: `01 ${bit.toString(2).padStart(3, "0")}`, apply: value => { this.#testBit(mask, value); return value; }, writes: false }, // BIT b
+    { bits: `10 ${bit.toString(2).padStart(3, "0")}`, apply: value => value & ~mask, writes: true }, // RES b
+    { bits: `11 ${bit.toString(2).padStart(3, "0")}`, apply: value => value | mask, writes: true }, // SET b
+  ]);
+  readonly #cbOpcodeHandlers = opcodeTable<OpcodeHandler>([
+    ...this.#cbShifts.flatMap(({ bits, name }) => opcodeFamily(`00 ${bits} rrr`,
+      { r: ["B", "C", "D", "E", "H", "L", "Memory", "A"] as const }, ({ r: target }): OpcodeHandler => target === "Memory"
+        ? instruction => semantics[`${name}Memory`](this.state, this.hl, instruction) : () => semantics[`${name}${target}`](this.state))),
+    ...this.#cbBitOperations.flatMap(({ bits, apply, writes }) =>
+      opcodeFamily(`${bits} rrr`, { r: this.byteOperands }, ({ r: operand }): OpcodeHandler => instruction => this.modifyOperand(operand, apply, instruction, writes))),
+  ]);
+  readonly #indexedCbHandlers = opcodeTable<AddressedHandler>([
+    ...this.#cbShifts.flatMap(({ bits, name }) =>
+      opcodePattern<AddressedHandler>(`00 ${bits} 110`, (address, instruction) => semantics[`${name}Memory`](this.state, address, instruction))),
+    ...this.#cbBitOperations.flatMap(({ bits, apply, writes }) =>
+      opcodePattern<AddressedHandler>(`${bits} 110`, (address, instruction) => this.#modifyMemory(address, apply, instruction, writes))),
+  ]);
 
   // DD/FD share one documented page, selecting IX/IY. No ignored-prefix or IXH/IYL aliases.
   readonly #ixOpcodeHandlers = opcodeTable<OpcodeHandler>(this.#indexHandlers("ix"));
@@ -453,23 +458,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   }
 
   // Arithmetic, logic, and flags.
-
-  #shiftLeft(value: number, incomingBit: 0 | 1): number {
-    const { result, carry } = shiftLeft(8, value, incomingBit);
-    return this.#parityResult(result, { h: false, c: carry });
-  }
-
-  #shiftRight(value: number, incomingBit: 0 | 1): number {
-    const { result, carry } = shiftRight(8, value, incomingBit);
-    return this.#parityResult(result, { h: false, c: carry });
-  }
-
-  #rotateAccumulator({ result, carry }: ShiftResult): void {
-    this.state.a = result;
-    this.state.flags.c = carry;
-    this.state.flags.h = this.state.flags.n = false;
-    // Unlike CB rotates, these four instructions preserve S/Z/PV.
-  }
 
   #decimalAdjust(): void {
     const { a, flags } = this.state;
@@ -605,7 +593,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     return result;
   }
 
-  // CB shifts use parity; DAA restores N from its input afterward.
+  // DAA, digit rotates, and port inputs use parity; DAA restores N from its input afterward.
   #parityResult(result: number, { h, c }: Pick<CpuZ80Flags, "h" | "c">): number {
     return this.#aluResult(result, { h, pv: evenParity8(result), n: false, c });
   }

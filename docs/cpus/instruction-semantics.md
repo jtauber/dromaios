@@ -19,6 +19,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
+| Z80 accumulator rotates and all documented CB shifts/rotates, including indexed forms | Preserve S/Z/PV on accumulator rotates; derive them for CB operations; share each memory body across HL/IX/IY, with flags before writeback and explicit failure boundaries |
 | 8008 AD/AC/SU/SB/ND/XR/OR/CP, every register/memory/immediate form | Reuse Intel ALU construction with S/Z/P/C, native register order, and an explicit 14-bit memory mask; retain address-slot fetching and supplied-byte rules |
 | 8008 INr/DCr and RLC/RRC/RAL/RAR | Preserve C on adjustments; share 8080 rotate construction with explicit A-before-C writeback and preserved S/Z/P |
 | 6809 CMPA/B/D/X/Y/U/S, every addressing form | Byte/word widths, D as A:B, and addressing that changes the register subsequently compared |
@@ -65,7 +66,7 @@ The authoring layers have separate homes:
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, and byte/word-transfer construction, with explicit access and flag policies |
-| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 ALU construction with carry-before-A reads and flags-before-writeback; 8080/Z80 byte sources; 8008/8080 accumulator rotates |
+| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 ALU construction with carry-before-A reads and flags-before-writeback; 8080/Z80 byte sources; shared accumulator rotates with CPU-specific additional flag stages |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8008.ts](../../src/components/cpus/semantics/definitions/8008.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -175,6 +176,17 @@ sets H only for AND, and clears N/C. The Z80 supplies a resolved address to its
 eight indexed bodies, each shared by IX and IY. They read that address once
 before the ALU construction, without fetching displacement or touching either
 index register again. No general indexed-addressing primitive is needed.
+
+The Z80 also reuses `intelAccumulatorRotate` unchanged for RLCA/RRCA/RLA/RRA,
+appending N/H clearing after A and C writeback. S/Z/PV remain unchanged. Its CB
+RLC/RRC/RL/RR/SLA/SRA/SRL definitions use the existing `shift` recipe with their
+own result S/Z/parity policy, cleared H/N, and outgoing C. Registers are read
+once; memory bodies receive one resolved address shared by (HL), (IX+d), and
+(IY+d). Only RL/RR read C, after the operand. Flags precede the result write,
+including unchanged-value writes. A failed read prevents flags and writeback;
+a failed write retains the calculated flags. Prefix decoding and refresh
+increments remain outside the generated body, including the non-M1 displacement
+and final opcode bytes in DD/FD CB sequences. The undocumented SLL row is omitted.
 
 The 8008 is a third consumer of `intelByteAlu`, with no change to that builder.
 Its own source inventory follows A/B/C/D/E/H/L/M. Memory concatenates captured
@@ -545,6 +557,18 @@ deferred-interrupt retirement, guard release, and every signed displacement at
 both address-space boundaries. Existing byte-pair, alternate-bank, and paired
 8080/Z80 expectations remain independent of the definitions.
 
+[Z80 shift probes](../../tests/components/cpus/semantics/z80-shifts.test.ts)
+check all sixty new bodies, operand-before-carry capture, the two flag schedules,
+current flags after memory callbacks, captured addresses, and untouched alternate
+and control state. [Failure probes](../../tests/components/cpus/z80/shift-failures.test.ts)
+exercise all 74 forms through ordinary and IM 0 execution, failing every opcode
+read, acknowledgement, data read, and result write. They retain exact completed
+accesses, flags before a failed write, PC/R decoding boundaries, acceptance and
+retirement effects, code/data overlap, and guard release. Existing independent
+CB and indexed tests continue to exhaust byte values, flags, and signed
+displacements. All 546 earlier definitions are structurally unchanged, and the
+five other generated CPU modules are byte-for-byte identical.
+
 [8008 ALU probes](../../tests/components/cpus/semantics/8008-alu.test.ts) check
 every generated body, all four high-bit aliases of H:L, distinct A-as-source
 and accumulator captures, current flags after successful operand callbacks,
@@ -629,6 +653,9 @@ byte increment/decrement families, plus all six register transfers. The 8080 use
 named bodies for all 72 byte ALU bindings and four accumulator rotates in the
 shared 8080/Z80 family. The Z80 binds its 72 ordinary ALU bodies through that
 same hook, with eight further bodies serving its sixteen indexed ALU forms.
+It binds four generated accumulator rotates through the shared family hook,
+and all 70 CB shift/rotate forms through its ordinary and indexed CB tables.
+Seven resolved-memory bodies each serve HL, IX, and IY after address resolution.
 Its prefix recognition, signed displacement calculation, PC/R updates, and
 interrupt handling remain in the CPU module.
 The 8008 independently binds all 72 native ALU forms, twelve register adjustments,

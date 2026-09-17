@@ -21,14 +21,14 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [241](../../src/components/cpus/8080.ts) | 76 / 244 | 31.1% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [300](../../src/components/cpus/6800.ts) | 153 / 197 | 77.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [298](../../src/components/cpus/6502.ts) | 109 / 151 | 72.2% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [624](../../src/components/cpus/z80.ts) | 88 / 698 | 12.6% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [612](../../src/components/cpus/z80.ts) | 162 / 698 | 23.2% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [513](../../src/components/cpus/6809.ts) | 204 / 268 | 76.1% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **546 generated bodies**, of which **545 are used by CPU execution**,
-covering **718 complete opcode forms**:
+contains **606 generated bodies**, of which **605 are used by CPU execution**,
+covering **792 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -95,6 +95,14 @@ covering **718 complete opcode forms**:
   declaring its own P/V, H, N, and C policies. Prefix decoding, displacement
   fetching, address wrapping, and R updates remain in the CPU. Generated bodies
   preserve the alternate bank and control state; CP never writes A.
+  RLCA/RRCA/RLA/RRA add four forms using the shared Intel accumulator-rotate
+  recipe, followed by N/H clearing; S/Z/PV are preserved. All seven documented
+  CB shift/rotate families add 70 register, (HL), (IX+d), and (IY+d) forms from
+  56 bodies. Each resolved-memory body serves all three memory operands.
+  CB forms derive S/Z/PV from the result, clear H/N, and set outgoing C before
+  writeback. Failed reads leave flags unchanged; failed writes retain calculated
+  flags. The three handwritten shift/rotate helpers are removed. The Z80 now
+  integrates 140 bodies covering 162 complete forms.
 - [8008 definitions](../../src/components/cpus/semantics/definitions/8008.ts):
   All 72 byte ALU forms are integrated: AD/AC/SU/SB/ND/XR/OR/CP with each
   register, memory, and immediate source. The existing Intel ALU construction
@@ -155,26 +163,24 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,588 |
-| CPU-specific instruction definition files | 521 |
+| Eight CPU implementation files | 4,576 |
+| CPU-specific instruction definition files | 572 |
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,043 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,152** |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,191** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 11,630 |
+| Generated CPU output, counted separately | 12,944 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Migrating the 8008's twelve register adjustments and four accumulator rotates
-removes its last three handwritten arithmetic helpers. Its module shrinks by
-**18 lines**. CPU-specific definitions gain **23** lines in total, including
-the reduction from sharing the 8080's rotate recipe; shared construction adds
-**12** lines. Total authored CPU source rises from **7,135 to 7,152 lines**
-(**17 more**). The semantic expressions, validator, and generator are unchanged.
-All 530 earlier definitions remain structurally unchanged, and the five other
-generated CPU modules remain byte-for-byte identical. The migration makes the
-flag stages inspectable and shares rotation behavior, but does not reduce total
-authored source.
+Migrating the Z80's four accumulator rotates and seventy CB shift/rotate forms
+removes three handwritten helpers. Its module shrinks by **12 lines**;
+CPU-specific definitions add **51** lines. Existing shift and accumulator-rotate
+construction is reused without new primitives or generator changes. Total authored
+CPU source rises from **7,152 to 7,191 lines** (**39 more**). All 546 earlier
+definitions remain structurally unchanged, and the five other generated CPU
+modules remain byte-for-byte identical. Shared memory bodies and explicit flag
+stages improve reuse and inspection, but do not reduce total authored source.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 
@@ -1524,7 +1530,8 @@ Stack operations, calls/returns, and the bit-count example complete the Z80
 All eight byte ALU operations use the register/memory pattern `10 ooo rrr`
 and immediate pattern `11 ooo 110`. The `ooo` selector follows the rows below;
 `rrr` selects B/C/D/E/H/L/(HL)/A. Register and `(HL)` forms are one byte;
-immediate forms are two bytes. Indexed ALU forms remain unsupported.
+immediate forms are two bytes. Indexed ALU forms use a DD/FD prefix and signed
+displacement, for three bytes total; their encodings appear below.
 
 | Operation | B | C | D | E | H | L | `(HL)` | A | Immediate |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
