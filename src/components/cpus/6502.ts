@@ -126,9 +126,6 @@ export class Cpu6502 {
       ...instructionPattern("010 000 00", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
       ...instructionPattern("011 000 00", ({ readByte }) => this.#return(readByte)), // RTS
 
-      // cc=00, bbb=001: aaa=001 selects BIT zero page.
-      ...instructionPattern("001 001 00", instruction => this.#testBits(instruction.readByte(addresses.zeroPage(instruction)))), // BIT zp
-
       // cc=00, bbb=010: 0rp 010 00. r (bit 6) selects status (0)/A (1); p (bit 5) selects push (0)/pull (1).
       ...instructionPattern("00 0 010 00", ({ writeByte }) => this.#pushByte(packedFlags.encode(this.#state.flags) | 0x10, writeByte)), // PHP
       ...instructionPattern("00 1 010 00", ({ readByte }) => { this.#state.flags = packedFlags.decode(this.#pullByte(readByte)); }), // PLP
@@ -136,8 +133,7 @@ export class Cpu6502 {
       ...instructionPattern("01 1 010 00", ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte))), // PLA
       // TAY and DEY/INY/INX are generated.
 
-      // cc=00, bbb=011: aaa=001 selects BIT, 010/011 JMP absolute/indirect.
-      ...instructionPattern("001 011 00", instruction => this.#testBits(instruction.readByte(addresses.absolute(instruction)))), // BIT addr
+      // cc=00, bbb=011: aaa=010/011 selects JMP absolute/indirect; BIT is generated.
       ...instructionPattern("010 011 00", instruction => this.#jump(addresses.absolute(instruction))), // JMP addr
       ...instructionPattern("011 011 00", instruction => this.#jump(this.#readPageWrappedPointer(addresses.absolute(instruction), instruction.readByte))), // JMP (addr)
 
@@ -158,10 +154,7 @@ export class Cpu6502 {
       ...opcodeFamily("11v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.d = v; }), // CLD/SED
 
       // cc=01: aaa selects ORA, AND, EOR, ADC, STA, LDA, CMP, SBC in that order.
-      // Remaining read families use the generated bbb operand readers; STA/LDA/CMP are generated.
-      ...this.#accumulatorHandlers("000 bbb 01", value => this.#loadRegister("a", this.#state.a | value)), // ORA
-      ...this.#accumulatorHandlers("001 bbb 01", value => this.#loadRegister("a", this.#state.a & value)), // AND
-      ...this.#accumulatorHandlers("010 bbb 01", value => this.#loadRegister("a", this.#state.a ^ value)), // EOR
+      // Only ADC/SBC remain handwritten, using the generated bbb operand readers.
       ...this.#accumulatorHandlers("011 bbb 01", value => this.#addWithCarry(value)), // ADC
       ...this.#accumulatorHandlers("111 bbb 01", value => this.#subtractWithCarry(value)), // SBC
 
@@ -261,13 +254,6 @@ export class Cpu6502 {
 
   #setNegativeZero(value: number): void {
     Object.assign(this.#state.flags, negativeZero(8, value));
-  }
-
-  #testBits(value: number): void {
-    // BIT copies N/V from memory, independently of the masked value used for Z.
-    this.#state.flags.n = (value & 0x80) !== 0;
-    this.#state.flags.v = (value & 0x40) !== 0;
-    this.#state.flags.z = (this.#state.a & value) === 0;
   }
 
   #addWithCarry(value: number): void {

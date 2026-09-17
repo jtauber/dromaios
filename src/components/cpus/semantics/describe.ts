@@ -15,8 +15,9 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "high-byte": return `highByte(${number(expr.value, parameters)})`;
       case "shift-left": case "shift-right":
         return `${expr.kind === "shift-left" ? "shiftLeft" : "shiftRight"}(${number(expr.value, parameters)}, ${flag(expr.incoming, parameters)})`;
-      case "subtract": case "add-wrap": case "concat": {
-        const operation = { subtract: "subtract", "add-wrap": "addWrap", concat: "concatHighLow" }[expr.kind];
+      case "subtract": case "add-wrap": case "concat": case "bit-and": case "bit-or": case "bit-xor": {
+        const operation = { subtract: "subtract", "add-wrap": "addWrap", concat: "concatHighLow",
+          "bit-and": "bitAnd", "bit-or": "bitOr", "bit-xor": "bitXor" }[expr.kind];
         return `${operation}(${number(expr.left, parameters)}, ${number(expr.right, parameters)})`;
       }
     }

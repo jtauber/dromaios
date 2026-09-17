@@ -53,7 +53,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
       case "shift-left": case "shift-right":
         flagExpression(expr.incoming, scope, where);
         return expression(expr.value, scope, where);
-      case "subtract": case "add-wrap": case "concat": {
+      case "subtract": case "add-wrap": case "concat": case "bit-and": case "bit-or": case "bit-xor": {
         const left = expression(expr.left, scope, where), right = expression(expr.right, scope, where);
         if (left !== right) fail(where, "operands must have equal widths; conversions are explicit");
         if (expr.kind !== "concat") return left;

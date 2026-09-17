@@ -12,7 +12,7 @@ export type NumberExpression =
   | { readonly kind: "value"; readonly name: string }
   | { readonly kind: "literal"; readonly width: Width; readonly value: number }
   | { readonly kind: "high-byte"; readonly value: NumberExpression }
-  | { readonly kind: "subtract" | "add-wrap" | "concat"; readonly left: NumberExpression; readonly right: NumberExpression }
+  | { readonly kind: "subtract" | "add-wrap" | "concat" | "bit-and" | "bit-or" | "bit-xor"; readonly left: NumberExpression; readonly right: NumberExpression }
   | { readonly kind: "shift-left" | "shift-right"; readonly value: NumberExpression; readonly incoming: FlagExpression }
   | { readonly kind: "extend"; readonly value: NumberExpression; readonly width: Width };
 export type FlagExpression =
@@ -84,6 +84,9 @@ export const value = (name: string): NumberExpression => ({ kind: "value", name 
 export const literal = (width: Width, value: number): NumberExpression => ({ kind: "literal", width, value });
 export const subtract = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "subtract", left, right });
 export const addWrap = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "add-wrap", left, right });
+export const bitAnd = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "bit-and", left, right });
+export const bitOr = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "bit-or", left, right });
+export const bitXor = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "bit-xor", left, right });
 export const concat = (high: NumberExpression, low: NumberExpression): NumberExpression => ({ kind: "concat", left: high, right: low });
 export const highByte = (value: NumberExpression): NumberExpression => ({ kind: "high-byte", value });
 export const extend = (value: NumberExpression, width: Width): NumberExpression => ({ kind: "extend", value, width });

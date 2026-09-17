@@ -1997,7 +1997,7 @@ test("6502 memory loads of X/Y use their specified index and replace only N/Z fo
   }
 });
 
-test("6502 loads, logic, arithmetic, and comparisons change results only after every source read succeeds", () => {
+test("6502 loads, logic, BIT, arithmetic, and comparisons change results only after every source read succeeds", () => {
   const failure = new Error("operand source read failed");
   class FailingRam extends ObservedRam {
     failAt = -1;
@@ -2013,6 +2013,7 @@ test("6502 loads, logic, arithmetic, and comparisons change results only after e
     ...[...accumulatorForms, ...arithmeticForms].flatMap(family => family.opcodes.map((opcode, index) => ({ opcode, fixture: operandFixtures[index]! }))),
     ...registerMemoryForms.flatMap(form => "load" in form ? [{ opcode: form.load, fixture: form.fixture }] : []),
     ...[0xa2, 0xa0].map(opcode => ({ opcode, fixture: operandFixtures[2]! })), // LDX/LDY immediate
+    { opcode: 0x24, fixture: operandFixtures[1]! }, { opcode: 0x2c, fixture: operandFixtures[3]! }, // BIT zp/absolute
   ];
   for (const { opcode, fixture } of forms) {
     const bytes = [opcode, ...(fixture.address === null ? [0] : fixture.bytes)];

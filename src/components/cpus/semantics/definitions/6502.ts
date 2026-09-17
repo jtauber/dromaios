@@ -1,7 +1,7 @@
 import { cpu6502StateDescription } from "../../state/6502.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
-import { addWrap, borrow, capture, concat, cpuSymbols, extend, fetchByte, literal, not,
-  readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister } from "../model.ts";
+import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, cpuSymbols, extend, fetchByte, literal, negative, not,
+  readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
 import { compare, immediateByte, instructionSet, memorySource, negativeZeroPolicy, registerSource, shift, transfer } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
@@ -48,6 +48,14 @@ const comparisonFlags: FlagPolicy = {
   ...resultNZ, name: "6502 comparison", parameters: { left: 8, right: 8, result: 8 },
   updates: [...resultNZ.updates, { flag: cpu.flag("c"), value: not(borrow(value("left"), value("right"))) }],
 };
+const bitFlags: FlagPolicy = {
+  name: "6502 BIT", parameters: { accumulator: 8, operand: 8 }, unlisted: "preserve", updates: [
+    { flag: cpu.flag("n"), value: negative(value("operand")) },
+    { flag: cpu.flag("v"), value: not(zero(bitAnd(value("operand"), literal(8, 0x40)))) },
+    { flag: cpu.flag("z"), value: zero(bitAnd(value("accumulator"), value("operand"))) },
+  ],
+};
+const logicalOperations = { ORA: bitOr, AND: bitAnd, EOR: bitXor };
 
 function comparison(register: "a" | "x" | "y", [operand, source]: Operand): InstructionDefinition {
   return defineInstruction({
@@ -72,6 +80,25 @@ function store(register: "a" | "x" | "y", [operand, address]: Operand): Instruct
       + "Write that byte once, even if unchanged, without reading the destination. Preserve every flag. "
       + "A failed access prevents later effects; completed fetches and pointer reads remain.",
     steps: [readSource("address", address), readRegister("byte", cpu.register(register)), writeMemory(value("address"), value("byte"))],
+  });
+}
+function logic(name: keyof typeof logicalOperations, [operand, source]: Operand): InstructionDefinition {
+  return defineInstruction({
+    cpu: cpu.declaration, name: `${name} ${operand}`,
+    explanation: "Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. "
+      + "Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.",
+    steps: [readSource("operand", source), readRegister("accumulator", cpu.register("a")),
+      capture("result", logicalOperations[name](value("accumulator"), value("operand"))),
+      writeRegister(cpu.register("a"), value("result")), updateFlags(resultNZ, { result: value("result") })],
+  });
+}
+function testBits([operand, source]: Operand): InstructionDefinition {
+  return defineInstruction({
+    cpu: cpu.declaration, name: `BIT ${operand}`,
+    explanation: "Read memory before capturing A. Copy N/V from memory bits 7/6; set Z from A AND memory. "
+      + "Preserve A, C, D, and I. Decimal mode has no effect. A failed read leaves every flag unchanged.",
+    steps: [readSource("operand", source), readRegister("accumulator", cpu.register("a")),
+      updateFlags(bitFlags, { accumulator: value("accumulator"), operand: value("operand") })],
   });
 }
 function registerTransfer(name: string, from: "a" | "x" | "y" | "sp", to: "a" | "x" | "y" | "sp", policy?: FlagPolicy): InstructionDefinition {
@@ -114,7 +141,7 @@ function updateByte(name: string, target: Register | ValueSource, operation: rea
   });
 }
 
-// aaa bbb cc: cc=01, aaa=100/101/110 selects STA/LDA/CMP; bbb selects addressing in numeric order.
+// aaa bbb cc: cc=01, aaa selects ORA/AND/EOR/ADC/STA/LDA/CMP/SBC; bbb selects addressing in numeric order.
 // bbb=010 has no address: reads fetch an immediate byte, while STA omits that encoding.
 const accumulatorAddresses: readonly (Operand | undefined)[] = [
   ["(zero page,X)", addresses.indexedIndirect], ["zero page", addresses.zeroPage],
@@ -144,10 +171,15 @@ const modifyOperands: readonly Operand[] = [
 
 // These patterns generate both instruction bodies and their execution bindings.
 export const instructions6502 = instructionSet([
+  ...opcodeFamily("000 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("ORA", b)),
+  ...opcodeFamily("001 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("AND", b)),
+  ...opcodeFamily("010 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("EOR", b)),
   ...opcodeFamily("100 bbb 01", { b: accumulatorAddresses }, ({ b }) => b)
     .flatMap(([opcode, address]) => address === undefined ? [] : [[opcode, store("a", address)] as const]),
   ...opcodeFamily("101 bbb 01", { b: accumulatorOperands }, ({ b }) => load("a", b)),
   ...opcodeFamily("110 bbb 01", { b: accumulatorOperands }, ({ b }) => comparison("a", b)),
+  // cc=00, aaa=001 selects BIT; bbb=001/011 selects zero page/absolute. No immediate or indexed form.
+  ...opcodeFamily("001 0b1 00", { b: [["zero page", memorySource(addresses.zeroPage)], ["absolute", memorySource(addresses.absolute)]] }, ({ b }) => testBits(b)),
   // 11r bbb 00: r selects Y/X; bbb=000/001/011 selects immediate/zero page/absolute.
   ...opcodeFamily("11r 000 00", { r: indexRegisters }, ({ r }) => comparison(r, ["#byte", immediateByte])),
   ...opcodeFamily("11r 001 00", { r: indexRegisters }, ({ r }) => comparison(r, ["zero page", memorySource(addresses.zeroPage)])),

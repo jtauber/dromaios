@@ -18,6 +18,59 @@ MOV B,A remains an executable comparison sample outside the 8080 opcode table.
 
 ## Examples
 
+### 6502 ORA (zero page,X)
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at indexed indirect (zero page,X)" {
+  address:u16 := source "indexed indirect (zero page,X)" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    pointer := addWrap(offset, index)
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    yield base
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 ORA zero page
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 ASL zero page
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -42,6 +95,26 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 ORA #byte
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 ASL A
 
 Read A before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -60,6 +133,31 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 ORA absolute
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
 
 ### 6502 ASL absolute
 
@@ -86,6 +184,60 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 ORA (zero page),Y
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at indirect indexed (zero page),Y" {
+  address:u16 := source "indirect indexed (zero page),Y" {
+    offset:u8 := fetch byte
+    pointer := offset
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    index:u8 := read Y
+    yield addWrap(base, zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 ORA zero page,X
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at zero page indexed by X" {
+  address:u16 := source "zero page indexed by X" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    yield zeroExtend16(addWrap(offset, index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 ASL zero page,X
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -110,6 +262,58 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 ORA absolute,Y
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at absolute indexed by Y" {
+  address:u16 := source "absolute indexed by Y" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read Y
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 ORA absolute,X
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at absolute indexed by X" {
+  address:u16 := source "absolute indexed by X" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read X
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitOr(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
 
 ### 6502 ASL absolute,X
 
@@ -137,6 +341,82 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 AND (zero page,X)
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at indexed indirect (zero page,X)" {
+  address:u16 := source "indexed indirect (zero page,X)" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    pointer := addWrap(offset, index)
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    yield base
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 BIT zero page
+
+Read memory before capturing A. Copy N/V from memory bits 7/6; set Z from A AND memory. Preserve A, C, D, and I. Decimal mode has no effect. A failed read leaves every flag unchanged.
+
+```text
+operand:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+flags "6502 BIT" simultaneously {
+  N := topBit(operand)
+  V := not(isZero(bitAnd(operand, 40:u8)))
+  Z := isZero(bitAnd(accumulator, operand))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: D, I, C.
+
+### 6502 AND zero page
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 ROL zero page
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -162,6 +442,26 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 AND #byte
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 ROL A
 
 Read A before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -181,6 +481,55 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 BIT absolute
+
+Read memory before capturing A. Copy N/V from memory bits 7/6; set Z from A AND memory. Preserve A, C, D, and I. Decimal mode has no effect. A failed read leaves every flag unchanged.
+
+```text
+operand:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+flags "6502 BIT" simultaneously {
+  N := topBit(operand)
+  V := not(isZero(bitAnd(operand, 40:u8)))
+  Z := isZero(bitAnd(accumulator, operand))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: D, I, C.
+
+### 6502 AND absolute
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
 
 ### 6502 ROL absolute
 
@@ -208,6 +557,60 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 AND (zero page),Y
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at indirect indexed (zero page),Y" {
+  address:u16 := source "indirect indexed (zero page),Y" {
+    offset:u8 := fetch byte
+    pointer := offset
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    index:u8 := read Y
+    yield addWrap(base, zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 AND zero page,X
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at zero page indexed by X" {
+  address:u16 := source "zero page indexed by X" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    yield zeroExtend16(addWrap(offset, index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 ROL zero page,X
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -233,6 +636,58 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 AND absolute,Y
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at absolute indexed by Y" {
+  address:u16 := source "absolute indexed by Y" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read Y
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 AND absolute,X
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at absolute indexed by X" {
+  address:u16 := source "absolute indexed by X" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read X
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitAnd(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
 
 ### 6502 ROL absolute,X
 
@@ -261,6 +716,59 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 EOR (zero page,X)
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at indexed indirect (zero page,X)" {
+  address:u16 := source "indexed indirect (zero page,X)" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    pointer := addWrap(offset, index)
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    yield base
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 EOR zero page
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 LSR zero page
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -285,6 +793,26 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 EOR #byte
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 LSR A
 
 Read A before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -303,6 +831,31 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 EOR absolute
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
 
 ### 6502 LSR absolute
 
@@ -329,6 +882,60 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 EOR (zero page),Y
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at indirect indexed (zero page),Y" {
+  address:u16 := source "indirect indexed (zero page),Y" {
+    offset:u8 := fetch byte
+    pointer := offset
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    index:u8 := read Y
+    yield addWrap(base, zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 EOR zero page,X
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at zero page indexed by X" {
+  address:u16 := source "zero page indexed by X" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    yield zeroExtend16(addWrap(offset, index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
 ### 6502 LSR zero page,X
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -353,6 +960,58 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 EOR absolute,Y
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at absolute indexed by Y" {
+  address:u16 := source "absolute indexed by Y" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read Y
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
+
+### 6502 EOR absolute,X
+
+Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
+
+```text
+operand:u8 := source "byte at absolute indexed by X" {
+  address:u16 := source "absolute indexed by X" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read X
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+accumulator:u8 := read A
+result := bitXor(accumulator, operand)
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
 
 ### 6502 LSR absolute,X
 

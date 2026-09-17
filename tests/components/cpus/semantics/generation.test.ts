@@ -43,6 +43,13 @@ test("all generated modules reproduce from definitions without changing them", (
 test("6502 families generate exactly the migrated encodings, including opposite-index transfers and omitted store modes", () => {
   // Explicit opcode expectations are independent of the authored bit-pattern expansion.
   const expected = {
+    0x01: "ORA (zero page,X)", 0x05: "ORA zero page", 0x09: "ORA #byte", 0x0d: "ORA absolute",
+    0x11: "ORA (zero page),Y", 0x15: "ORA zero page,X", 0x19: "ORA absolute,Y", 0x1d: "ORA absolute,X",
+    0x21: "AND (zero page,X)", 0x25: "AND zero page", 0x29: "AND #byte", 0x2d: "AND absolute",
+    0x31: "AND (zero page),Y", 0x35: "AND zero page,X", 0x39: "AND absolute,Y", 0x3d: "AND absolute,X",
+    0x41: "EOR (zero page,X)", 0x45: "EOR zero page", 0x49: "EOR #byte", 0x4d: "EOR absolute",
+    0x51: "EOR (zero page),Y", 0x55: "EOR zero page,X", 0x59: "EOR absolute,Y", 0x5d: "EOR absolute,X",
+    0x24: "BIT zero page", 0x2c: "BIT absolute",
     0x8a: "TXA", 0x98: "TYA", 0x9a: "TXS", 0xa8: "TAY", 0xaa: "TAX", 0xba: "TSX",
     0x0a: "ASL A", 0x06: "ASL zero page", 0x0e: "ASL absolute", 0x16: "ASL zero page,X", 0x1e: "ASL absolute,X",
     0x2a: "ROL A", 0x26: "ROL zero page", 0x2e: "ROL absolute", 0x36: "ROL zero page,X", 0x3e: "ROL absolute,X",

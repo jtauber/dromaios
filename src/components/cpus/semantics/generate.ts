@@ -39,6 +39,11 @@ export function generateInstructions(cpu: "6502" | "6800" | "8080" | "6809", def
           const operand = number(expr.value, scope), operation = helper(expr.kind === "shift-left" ? "shiftLeft" : "shiftRight");
           return { code: `${operation}(${operand.type}, ${operand.code}, (${flag(expr.incoming, scope)}) ? 1 : 0).result`, type: operand.type };
         }
+        case "bit-and": case "bit-or": case "bit-xor": {
+          const left = number(expr.left, scope), right = number(expr.right, scope);
+          const operator = { "bit-and": "&", "bit-or": "|", "bit-xor": "^" }[expr.kind];
+          return { code: `(${left.code} ${operator} ${right.code})`, type: left.type };
+        }
         case "subtract": case "add-wrap": case "concat": {
           const left = number(expr.left, scope), right = number(expr.right, scope);
           if (expr.kind === "concat") return { code: `((${left.code} << 8) | ${right.code})`, type: 16 };

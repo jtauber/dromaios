@@ -1,6 +1,6 @@
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { cpuSymbols, flagValue, highByte, literal, not, readFlag, shiftLeft, value, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, literal, not, readFlag, shiftLeft, value, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
@@ -32,6 +32,13 @@ export function checkInstructionSemantics(): void {
   shiftLeft(value("byte"), flagValue("carry"));
   xor(flagValue("carry"), zero(value("byte")));
   highByte(value("word"));
+  bitAnd(bitOr(value("byte"), literal(8, 0)), bitXor(value("byte"), literal(8, 255)));
+  // @ts-expect-error Numeric AND cannot accept Boolean flags.
+  bitAnd(flagValue("carry"), value("byte"));
+  // @ts-expect-error Numeric OR cannot implicitly read a register.
+  bitOr(value("byte"), mos.register("a"));
+  // @ts-expect-error Numeric XOR is distinct from Boolean XOR.
+  bitXor(value("byte"), flagValue("carry"));
   // @ts-expect-error Byte extraction requires a numeric expression, not a live register.
   highByte(mos.register("pc"));
   // @ts-expect-error Flags cannot be word operands.
@@ -72,6 +79,15 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6502[0x9a](mos);
   generated6502[0x6a](mos);
   generated6502[0xe8](mos);
+  generated6502[0x09](mos, { fetchByte: () => 0 });
+  generated6502[0x31](mos, { fetchByte: () => 0, readByte: () => 0 });
+  generated6502[0x2c](mos, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Immediate EOR cannot access data memory.
+  generated6502[0x49](mos, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error BIT needs the memory operand, not just its address.
+  generated6502[0x24](mos, { fetchByte: () => 0 });
+  // @ts-expect-error Logical instructions cannot write data memory.
+  generated6502[0x05](mos, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
   generated6502[0x8d](mos, { fetchByte: () => 0, writeByte: () => {} });
   generated6502[0x96](mos, { fetchByte: () => 0, writeByte: () => {} });
   generated6502[0x91](mos, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
