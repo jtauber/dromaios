@@ -4,7 +4,7 @@ import type { RegisterPair } from "./register-pairs.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { opcodeFamily, opcodePattern } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { intelAccumulatorTransferForms, intelByteTransferForms, intelWordArithmeticForms, intelWordTransferForms } from "./intel-encodings.ts";
+import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelWordArithmeticForms, intelWordTransferForms } from "./intel-encodings.ts";
 
 export type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperand = "b" | "c" | "d" | "e" | "h" | "l" | "(hl)" | "a";
@@ -103,8 +103,7 @@ export abstract class Cpu8080Family<State extends Registers> {
       // 11 yyy 011: absolute jump, extensions/I/O, stack exchange, DE/HL exchange, DI/EI.
       // Each CPU owns extension decoding, port I/O, and interrupt controls.
       ...instructionPattern("11 000 011", ({ fetchWord }) => this.jump(fetchWord())), // JMP / JP nn
-      ...instructionPattern("11 100 011", instruction => { this.hl = this.exchangeStack(this.hl, instruction); }), // XTHL / EX (SP),HL
-      ...instructionPattern("11 101 011", () => this.#exchangeDeHl()), // XCHG / EX DE,HL
+      ...this.#generatedHandlers(intelExchangeForms), // 11 10 m 011: m=0 XTHL / EX (SP),HL; m=1 XCHG / EX DE,HL
 
       // 11 ccc 100: conditional calls always fetch nn, then push only on a taken path.
       ...opcodeFamily("11 ccc 100", { c: this.conditions }, ({ c: condition }) => ({ fetchWord, writeByte }: InstructionContext) => this.stack.call(fetchWord(), writeByte, condition())), // CALL cc,nn
@@ -125,7 +124,7 @@ export abstract class Cpu8080Family<State extends Registers> {
     return forms.map(([opcode]) => [opcode, instruction => this.generatedInstructions[opcode]!(this.state, instruction)]);
   }
 
-  // Register operands and exchanges.
+  // Register operands.
 
   protected readPair(pair: WordOperand): number {
     if (pair === "sp") return this.state.sp;
@@ -137,20 +136,6 @@ export abstract class Cpu8080Family<State extends Registers> {
     if (pair === "sp") this.state.sp = value;
     else if (pair === "status") this.statusWord = value;
     else writeRegisterPair(this.state, pair, value);
-  }
-
-  #exchangeDeHl(): void {
-    [this.state.d, this.state.h] = [this.state.h, this.state.d];
-    [this.state.e, this.state.l] = [this.state.l, this.state.e];
-  }
-
-  protected exchangeStack(previous: number, { readByte, writeByte }: InstructionContext): number {
-    const { sp } = this.state;
-    const value = this.readMemoryWord(sp, readByte);
-    // XTHL / EX reads low/high, then writes high/low, leaving SP fixed.
-    writeByte((sp + 1) & 0xffff, previous >>> 8);
-    writeByte(sp, previous & 0xff);
-    return value;
   }
 
   protected jump(address: number, take = true): void {

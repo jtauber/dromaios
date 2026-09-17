@@ -402,7 +402,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
         semantics[`${operation}Memory`](this.state, address(instruction), instruction)), // ALU (IX/IY+d)
       ...instructionPattern("11 10 0 001", ({ readByte }) => { this.state[index] = this.stack.pop(readByte); }), // POP IX/IY
       ...instructionPattern("11 10 1 001", () => this.jump(this.state[index])), // JP (IX/IY); no displacement or target read
-      ...instructionPattern("11 100 011", instruction => { this.state[index] = this.exchangeStack(this.state[index], instruction); }), // EX (SP),IX/IY
+      ...instructionPattern("11 100 011", instruction => semantics[`exchange${suffix}Word`](this.state, instruction)), // EX (SP),IX/IY
       ...instructionPattern("11 10 0 101", ({ writeByte }) => this.stack.push(this.state[index], writeByte)), // PUSH IX/IY
       ...instructionPattern("11 11 1 001", () => semantics[`copy${suffix}Word`](this.state)), // LD SP,IX/IY
     ];

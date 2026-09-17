@@ -279,13 +279,29 @@ test("Motorola word-transfer explanations expose byte order, captured stores, D 
   }
 });
 
+test("Intel exchange explanations expose captured registers and addresses, read/write order, and preserved flags", () => {
+  for (const [cpu, name, register] of [["8080", "XTHL", "H"], ["z80", "EX (SP),HL", "H"],
+    ["z80", "EX (SP),IX", "IX"], ["z80", "EX (SP),IY", "IY"]] as const) {
+    const text = description(cpu, name), body = text.split("```text\n")[1]!.split("\n```")[0]!;
+    const ordered = [`read ${register}`, "read SP", "read memory[address]", "read memory[addWrap(address, 0001:u16)]",
+      "write memory[addWrap(address, 0001:u16)]", "write memory[address]", `write ${register}`].map(part => body.indexOf(part));
+    assert.ok(ordered.every((position, index) => position >= 0 && (index === 0 || position > ordered[index - 1]!)));
+    assert.doesNotMatch(body, /fetch byte|write SP|:flag := read/);
+    assert.match(text, /A failed access prevents register writeback and retains completed memory writes/);
+    assert.match(text, cpu === "8080" ? /Flags preserved throughout: S, Z, AC, P, CY\./ : /Flags preserved throughout: S, Z, H, PV, N, C\./);
+  }
+  for (const [cpu, name] of [["8080", "XCHG"], ["z80", "EX DE,HL"]] as const) {
+    assert.doesNotMatch(description(cpu, name), /fetch byte|read memory|write memory|simultaneously/);
+  }
+});
+
 test("the review artifact is reproducible from the inert definitions and their accompanying prose", () => {
   const before = JSON.stringify(instructionDefinitions);
   const document = describeInstructions(instructionDefinitions);
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 1141);
+  assert.equal(instructionDefinitions.length, 1147);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {

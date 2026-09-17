@@ -8145,6 +8145,45 @@ write A:u8 := result
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 XTHL
+
+Capture the complete register, then SP. Read memory low byte then high byte, wrapping at FFFF. Write the original register high byte then low byte to those captured addresses, even if unchanged. Only after both writes succeed, replace the register with the captured memory word; pairs read and write high byte first. A failed access prevents register writeback and retains completed memory writes. Never write SP or access flags, alternate banks, or control state.
+
+```text
+original:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+address:u16 := read SP
+low:u8 := read memory[address]
+high:u8 := read memory[addWrap(address, 0001:u16)]
+write memory[addWrap(address, 0001:u16)] := highByte(original)
+write memory[address] := lowByte(original)
+result := concatHighLow(high, low)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 XCHG
+
+Capture H then D, write D then H; capture L then E, write E then L. Preserve all other registers, flags, alternate banks, and control state without accessing them. No memory access occurs.
+
+```text
+h:u8 := read H
+d:u8 := read D
+write D:u8 := h
+write H:u8 := d
+l:u8 := read L
+e:u8 := read E
+write E:u8 := l
+write L:u8 := e
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 SPHL
 
 Capture the complete source, then write SP without memory access. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
@@ -13555,6 +13594,45 @@ write A:u8 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 EX (SP),HL
+
+Capture the complete register, then SP. Read memory low byte then high byte, wrapping at FFFF. Write the original register high byte then low byte to those captured addresses, even if unchanged. Only after both writes succeed, replace the register with the captured memory word; pairs read and write high byte first. A failed access prevents register writeback and retains completed memory writes. Never write SP or access flags, alternate banks, or control state.
+
+```text
+original:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+address:u16 := read SP
+low:u8 := read memory[address]
+high:u8 := read memory[addWrap(address, 0001:u16)]
+write memory[addWrap(address, 0001:u16)] := highByte(original)
+write memory[address] := lowByte(original)
+result := concatHighLow(high, low)
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 EX DE,HL
+
+Capture H then D, write D then H; capture L then E, write E then L. Preserve all other registers, flags, alternate banks, and control state without accessing them. No memory access occurs.
+
+```text
+h:u8 := read H
+d:u8 := read D
+write D:u8 := h
+write H:u8 := d
+l:u8 := read L
+e:u8 := read E
+write E:u8 := l
+write L:u8 := e
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 LD SP,HL
 
 Capture the complete source, then write SP without memory access. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
@@ -14330,6 +14408,46 @@ result:u16 := source "register IY" {
   yield contents
 }
 write SP:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 EX (SP),IX
+
+Capture the complete register, then SP. Read memory low byte then high byte, wrapping at FFFF. Write the original register high byte then low byte to those captured addresses, even if unchanged. Only after both writes succeed, replace the register with the captured memory word; pairs read and write high byte first. A failed access prevents register writeback and retains completed memory writes. Never write SP or access flags, alternate banks, or control state.
+
+```text
+original:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+address:u16 := read SP
+low:u8 := read memory[address]
+high:u8 := read memory[addWrap(address, 0001:u16)]
+write memory[addWrap(address, 0001:u16)] := highByte(original)
+write memory[address] := lowByte(original)
+result := concatHighLow(high, low)
+write IX:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 EX (SP),IY
+
+Capture the complete register, then SP. Read memory low byte then high byte, wrapping at FFFF. Write the original register high byte then low byte to those captured addresses, even if unchanged. Only after both writes succeed, replace the register with the captured memory word; pairs read and write high byte first. A failed access prevents register writeback and retains completed memory writes. Never write SP or access flags, alternate banks, or control state.
+
+```text
+original:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+address:u16 := read SP
+low:u8 := read memory[address]
+high:u8 := read memory[addWrap(address, 0001:u16)]
+write memory[addWrap(address, 0001:u16)] := highByte(original)
+write memory[address] := lowByte(original)
+result := concatHighLow(high, low)
+write IY:u16 := result
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.

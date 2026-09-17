@@ -38,3 +38,6 @@ export const intelWordArithmeticForms = {
   adjustment: opcodeFamily("00 pp q 011", { p: ["bc", "de", "hl", "sp"] as const, q: ["increment", "decrement"] as const },
     ({ p: register, q: operation }) => ({ register, operation })),
 } as const;
+
+// 11 10 m 011: m=0 exchanges HL with (SP); m=1 exchanges DE with HL.
+export const intelExchangeForms = opcodeFamily("11 10 m 011", { m: ["stack", "register"] as const }, ({ m: operation }) => operation);

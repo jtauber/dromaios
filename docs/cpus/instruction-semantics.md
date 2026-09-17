@@ -26,6 +26,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 8080 STAX/LDAX/STA/LDA and corresponding Z80 accumulator LD forms | Capture BC/DE or the complete immediate address before A or memory; loads write only after a successful read, stores never read the destination, and neither direction accesses flags |
 | 8080 LXI/LHLD/SHLD/SPHL and Z80 word loads/stores and SP copies, including ED and IX/IY forms | Share complete bodies with low-first fetching and memory accesses, high-first pair reads/writes, captured sources, and explicit second-byte failures; ED's HL forms reuse the unprefixed bodies |
 | 8080 INX/DCX/DAD and Z80 word INC/DEC, ADD HL/IX/IY, ADC/SBC HL | Reuse pair descriptions and native base encodings; source before destination, optional C after both; write before flags; preserve all flags on adjustments and use the bit-11 H boundary on Z80 arithmetic |
+| 8080 XTHL/XCHG and Z80 EX DE,HL and EX (SP),HL/IX/IY | Capture the register before SP; read memory low/high, write high/low, then replace the register; preserve completed writes on failure, SP, and flags; register-only exchanges swap high bytes before low bytes |
 | 8008 Lr1r2/LrM/LMr and immediate LrI/LMI | Reuse Intel transfer construction with native register selectors, matrix prefix, mnemonics, and a 14-bit memory mask; preserve full H/L bytes, source-before-address ordering, and address-slot fetching |
 | 8008 AD/AC/SU/SB/ND/XR/OR/CP, every register/memory/immediate form | Reuse Intel ALU construction with S/Z/P/C, native register order, and an explicit 14-bit memory mask; retain address-slot fetching and supplied-byte rules |
 | 8008 INr/DCr and RLC/RRC/RAL/RAR | Preserve C on adjustments; share 8080 rotate construction with explicit A-before-C writeback and preserved S/Z/P |
@@ -47,7 +48,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 1,141 bodies. All are generated, executable, and bound into their CPU's
+There are 1,147 bodies. All are generated, executable, and bound into their CPU's
 opcode table. The earlier MOV B,A test sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
@@ -72,8 +73,8 @@ The authoring layers have separate homes:
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, and byte/word-transfer construction, with explicit access and flag policies |
-| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers and arithmetic, and explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
-| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 load and 8080/Z80 transfer and word-arithmetic encoding inventories consumed by definition construction and runtime binding; HALT omitted |
+| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers, arithmetic, and exchanges, and explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
+| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 load and 8080/Z80 transfer, word-arithmetic, and exchange encoding inventories consumed by definition construction and runtime binding; HALT omitted |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8008.ts](../../src/components/cpus/semantics/definitions/8008.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -787,7 +788,7 @@ and all 310 documented CB forms through unified ordinary and indexed CB bindings
 Thirty-one resolved-memory bodies each serve HL, IX, and IY after address resolution.
 Its prefix recognition, signed displacement calculation, PC/R updates, and
 interrupt handling remain in the CPU module.
-The shared 8080/Z80 transfer and word-arithmetic inventory supplies both definition keys and ordinary
+The shared 8080/Z80 transfer, word-arithmetic, and exchange inventory supplies both definition keys and ordinary
 binding opcodes. Each CPU exposes its generated bodies to one family binder;
 there are no duplicate per-CPU transfer binding tables. HALT is an explicit
 handwritten slot. The former operand read/write helpers and transfer body are
@@ -805,8 +806,8 @@ values are captured. [CPU boundary probes](../../tests/components/cpus/intel-acc
 cover ordinary and supplied bytes, overlapping code/data, wrapping fetches,
 and every failed access.
 Word bodies also own their complete immediate or absolute-address fetching.
-The shared word-store helper is removed; its word reader still serves stack
-exchange and Z80 interrupt-vector reads. ED and unprefixed HL word transfers
+The shared word-store helper is removed; its word reader still serves Z80
+interrupt-vector reads. ED and unprefixed HL word transfers
 share bodies; IX/IY word transfers use the same construction with stored words.
 The same pair descriptions and transfer recipe now serve all 44 word-arithmetic
 forms. Source and destination are captured separately even when they alias;
@@ -822,6 +823,15 @@ check ordered register and flag accesses against independent integer arithmetic.
 [CPU boundary tests](../../tests/components/cpus/intel-word-arithmetic.test.ts)
 exercise all encodings through ordinary and supplied-byte execution, including
 failed prefix fetches, PC/R wraparound, and interrupt retirement.
+The six exchange bodies reuse stored words and pair views. XTHL and EX (SP)
+capture the register before SP, read low/high, write high/low, and replace the
+register only after both writes succeed. XCHG and EX DE,HL swap D/H before E/L.
+Both handwritten exchange helpers are removed; SP and flags are never written.
+[Generated-body probes](../../tests/components/cpus/semantics/intel-exchanges.test.ts)
+change live state during memory accesses to check captured sources and addresses.
+[CPU boundary tests](../../tests/components/cpus/intel-exchanges.test.ts) cover all
+six encodings, ordinary and supplied instructions, wrapping, code overlap, and
+every failed access, including retention of the first write if the second fails.
 The 8008 independently binds all 72 native ALU forms, twelve register adjustments,
 four accumulator rotates, and 71 byte transfers through complete generated bodies.
 Its native transfer inventory supplies both definition keys and binding opcodes,
@@ -969,7 +979,7 @@ fetching and stack writes, but adding that vocabulary alone would not establish
 a source-reduction benefit.
 
 General addressing decoders (such as the full 6809 postbyte decoder), general
-register-view declarations, branches, loops, stack bodies, instruction rejection, pending
+register-view declarations, branches, loops, push/pop/call/return bodies, instruction rejection, pending
 commits, and exception delivery are not represented here. The 6502 JSR and 68000
 MOVE traces still challenge later ordering vocabulary. The 6507 address-projection
 and 4004 nibble/interface probes remain acceptance requirements, not capabilities

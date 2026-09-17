@@ -18,17 +18,17 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [263](../../src/components/cpus/8008.ts) | 159 / 250 | 63.6% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [237](../../src/components/cpus/8080.ts) | 188 / 244 | 77.0% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [237](../../src/components/cpus/8080.ts) | 190 / 244 | 77.9% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [300](../../src/components/cpus/6800.ts) | 153 / 197 | 77.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [298](../../src/components/cpus/6502.ts) | 109 / 151 | 72.2% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [548](../../src/components/cpus/z80.ts) | 584 / 698 | 83.7% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [548](../../src/components/cpus/z80.ts) | 588 / 698 | 84.2% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [513](../../src/components/cpus/6809.ts) | 204 / 268 | 76.1% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **1,141 generated bodies**, all used by CPU execution,
-covering **1,397 complete opcode forms**:
+contains **1,147 generated bodies**, all used by CPU execution,
+covering **1,403 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -64,7 +64,10 @@ covering **1,397 complete opcode forms**:
   add six accumulator-transfer bodies, sharing construction and encodings with
   the Z80. They capture the complete address before reading A or memory;
   stores never read the destination and loads write A only after a successful
-  read. Flags are never accessed. All 188 bodies are integrated.
+  read. Flags are never accessed. XTHL/XCHG add two exchange bodies shared with
+  the Z80. XTHL captures HL before SP, reads low/high, writes high/low, then
+  replaces HL only after both writes succeed; SP and flags are unchanged.
+  XCHG swaps D/H before E/L without memory or flag access. All 190 bodies are integrated.
 - [6800 definitions](../../src/components/cpus/semantics/definitions/6800.ts):
   All eleven unary operations on A/B and indexed/extended memory count as 44
   migrated forms. Their 33 bodies use the same
@@ -149,7 +152,11 @@ covering **1,397 complete opcode forms**:
   read high byte first; absolute addresses fetch low byte first. Stores capture
   A after the address, while loads preserve A on a failed read. Both directions
   preserve flags and alternate banks without accessing them.
-  The Z80 integrates 493 bodies covering 584 forms.
+  EX DE,HL and EX (SP),HL/IX/IY add four bodies using shared Intel exchange
+  construction. Stack exchanges capture the register before SP, read low/high,
+  write high/low, and replace the register only after both writes succeed.
+  Failed writes retain completed memory effects; SP, flags, and alternate banks
+  are untouched. The Z80 integrates 497 bodies covering 588 forms.
 - [8008 definitions](../../src/components/cpus/semantics/definitions/8008.ts):
   All 72 byte ALU forms are integrated: AD/AC/SU/SB/ND/XR/OR/CP with each
   register, memory, and immediate source. The existing Intel ALU construction
@@ -218,24 +225,25 @@ judging source reduction; all counts include comments and blank lines.
 | Scope | Lines |
 | --- | ---: |
 | Eight CPU implementation files | 4,499 |
-| CPU-specific instruction definition files | 687 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,199 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,385** |
+| CPU-specific instruction definition files | 692 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,215 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,406** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 18,342 |
+| Generated CPU output, counted separately | 18,426 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Consolidating immediate and resolved-memory construction across Motorola
-comparisons, logic, loads, and arithmetic reduces the shared authoring module
-from **238 to 229 lines**. Operand selection, input declarations, and naming
-are shared; each family still places its reads, flag updates, and writes
-explicitly. Total authored CPU source falls from **7,394 to 7,385 lines**
-(**9 fewer**), without new semantic primitives or generator changes. All 1,141
-instruction definitions remain structurally identical; all six generated CPU
-modules and the explanatory listing remain byte-for-byte identical. Migration
-counts are unchanged.
+Migrating the shared 8080/Z80 exchanges adds six bodies for six forms and
+removes the handwritten DE/HL and stack-exchange helpers. The shared family
+core shrinks by **15 lines**; CPU-specific definitions add **5**, and shared
+construction and encodings add **31**. The eight CPU modules keep the same
+line counts. Existing register views and ordered statements express the
+capture, access, and writeback boundaries without new semantic primitives or
+generator changes. Total authored CPU source rises from **7,385 to 7,406 lines**
+(**21 more**). All 1,141 earlier definitions remain structurally unchanged;
+the four other generated CPU modules remain byte-for-byte identical. This
+slice makes exchange ordering inspectable but does not reduce total authored source.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

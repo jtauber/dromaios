@@ -179,7 +179,7 @@ universal CPU base class, or definition language.
 
 [`Cpu8080Family`](../../src/components/cpus/8080-family.ts) is an internal abstract
 base for the sibling `Cpu8080` and `CpuZ80` classes. It owns the common register
-operands, pair views, data-word accesses, stack exchanges, and 240 supported
+operands, pair views, data-word accesses, and 240 supported
 8080 encodings. Its bit-pattern table gives both CPUs' mnemonics. The Z80 adds
 the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
@@ -228,12 +228,18 @@ or borrow out of bit 11, expressed by bit 12 of `left XOR right XOR result`.
 The handwritten addition hook, Z80 word-arithmetic helpers, and now-unused
 IX/IY pair-read/write overrides are removed.
 
+The `11 10 m 011` exchange inventory uses the same binder: m=0 selects
+XTHL / EX (SP),HL, and m=1 selects XCHG / EX DE,HL. The stack-exchange
+construction also serves IX/IY. Bodies capture the complete register before SP,
+read low/high, write high/low, then replace the register only after both writes
+succeed. Register-only exchanges swap D/H before E/L. The two handwritten
+exchange helpers are removed; these bodies never write SP or access flags.
+
 Each concrete constructor validates and copies its state before passing that
 owned state to `super`. The base constructor binds only the state and call
 stack. The concrete CPU initializes its operation and condition selectors
 before calling `baseInstructions()` to construct its table; the base constructor
-must never call that builder or a CPU hook. Z80 pair access extends the common
-views with IX/IY. CPU-specific helpers stay in `#` methods except for the required overrides;
+must never call that builder or a CPU hook. CPU-specific helpers stay in `#` methods except for the required overrides;
 protected members form the internal TypeScript inheritance boundary.
 
 State descriptions, public snapshots, reset, instruction fetching, and step

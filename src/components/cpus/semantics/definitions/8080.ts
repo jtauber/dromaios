@@ -1,7 +1,7 @@
 import { cpu8080StateDescription } from "../../state/8080.ts";
 import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readSource, value, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
-import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers, intelWordArithmeticFamily, intelWordTransfers } from "../intel.ts";
+import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers, intelExchanges, intelWordArithmeticFamily, intelWordTransfers } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("8080", cpu8080StateDescription);
@@ -78,6 +78,7 @@ export const instructions8080 = {
   ...intelWordTransfers(cpu, (register, operation) => operation === "immediate"
     ? `LXI ${{ bc: "B", de: "D", hl: "H", sp: "SP" }[register]},nn`
     : { load: "LHLD nn", store: "SHLD nn", copy: "SPHL" }[operation]),
+  ...intelExchanges(cpu, operation => operation === "stack" ? "XTHL" : "XCHG"),
   ...intelWordArithmeticFamily(cpu, { name: "8080 DAD carry", parameters: { left: 16, right: 16, result: 16 }, unlisted: "preserve",
     updates: [{ flag: cpu.flag("cy"), value: carry(left, right) }] },
     (register, operation) => `${{ increment: "INX", decrement: "DCX", add: "DAD" }[operation]} ${{ bc: "B", de: "D", hl: "H", sp: "SP" }[register]}`),

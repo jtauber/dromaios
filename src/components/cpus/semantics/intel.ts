@@ -2,7 +2,7 @@ import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagValue, 
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource } from "./model.ts";
 import { arithmetic, immediateByte, instructionSet, memorySource, registerSource, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
-import { intelAccumulatorTransferForms, intelByteTransferForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
+import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
 import type { IntelByteOperand } from "../intel-encodings.ts";
 import { pairBytes } from "../register-pairs.ts";
 import type { RegisterPair } from "../register-pairs.ts";
@@ -59,6 +59,34 @@ export function intelWordTransfer(cpu: IntelWordCpu, register: WordRegister, ope
 export function intelWordTransfers(cpu: IntelWordCpu, names: (register: RegisterPair | "sp", operation: WordTransfer) => string) {
   return instructionSet(Object.values(intelWordTransferForms).flat().map(([opcode, { register, operation }]) =>
     [opcode, intelWordTransfer(cpu, intelWordRegister(cpu, register), operation, names(register, operation))]));
+}
+
+/** Stack exchange captures the register and SP before reading low/high, then writing high/low. SP is unchanged. */
+export function intelStackExchange(cpu: IntelWordCpu, register: WordRegister, name: string): InstructionDefinition {
+  const address = value("address"), next = addWrap(address, literal(16, 1));
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: "Capture the complete register, then SP. Read memory low byte then high byte, wrapping at FFFF. "
+      + "Write the original register high byte then low byte to those captured addresses, even if unchanged. "
+      + "Only after both writes succeed, replace the register with the captured memory word; pairs read and write high byte first. "
+      + "A failed access prevents register writeback and retains completed memory writes. Never write SP or access flags, alternate banks, or control state.",
+    steps: [readSource("original", wordSource(register)), readRegister("address", cpu.register("sp")),
+      readMemory("low", address), readMemory("high", next),
+      writeMemory(next, highByte(value("original"))), writeMemory(address, lowByte(value("original"))),
+      ...transfer(wordDestination(register), concat(value("high"), value("low")))],
+  });
+}
+
+/** XTHL/XCHG and the corresponding Z80 exchanges share their native encodings and ordered effects. */
+export function intelExchanges(cpu: IntelWordCpu, names: (operation: "stack" | "register") => string) {
+  return instructionSet(intelExchangeForms.map(([opcode, operation]) => [opcode, operation === "stack"
+    ? intelStackExchange(cpu, intelWordRegister(cpu, "hl"), names(operation))
+    : defineInstruction({ cpu: cpu.declaration, name: names(operation),
+      explanation: "Capture H then D, write D then H; capture L then E, write E then L. "
+        + "Preserve all other registers, flags, alternate banks, and control state without accessing them. No memory access occurs.",
+      steps: ([["d", "h"], ["e", "l"]] as const).flatMap(([left, right]) => [
+        readRegister(right, cpu.register(right)), readRegister(left, cpu.register(left)),
+        writeRegister(cpu.register(left), value(right)), writeRegister(cpu.register(right), value(left))]),
+    })]));
 }
 
 /** Word adjustments wrap without accessing flags; pair views keep their high-then-low order. */

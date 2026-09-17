@@ -54,6 +54,26 @@ export function wordChanges(fields: WordFields, value: number) {
   return fields.length === 1 ? { [fields[0]]: value } : { [fields[0]]: Math.floor(value / 256), [fields[1]]: value % 256 };
 }
 
+interface ExchangeForm {
+  readonly bytes: readonly number[];
+  readonly fields: WordFields;
+  readonly stack: boolean;
+  readonly execute: Execute;
+}
+
+function baseExchanges(instructions: Readonly<Record<0xe3 | 0xeb, Execute>>): ExchangeForm[] {
+  return [
+    { bytes: [0xe3], fields: ["h", "l"], stack: true, execute: instructions[0xe3] },
+    { bytes: [0xeb], fields: ["h", "l"], stack: false, execute: instructions[0xeb] },
+  ];
+}
+export const exchangeForms: Readonly<Record<"8080" | "z80", readonly ExchangeForm[]>> = {
+  "8080": baseExchanges(intel),
+  z80: [...baseExchanges(zilog),
+    { bytes: [0xdd, 0xe3], fields: ["ix"], stack: true, execute: zilog.exchangeIXWord },
+    { bytes: [0xfd, 0xe3], fields: ["iy"], stack: true, execute: zilog.exchangeIYWord }],
+};
+
 export interface WordArithmeticForm {
   readonly bytes: readonly number[];
   readonly destination: WordFields;
