@@ -67,7 +67,6 @@ type OpcodeHandler = (instruction: InstructionContext) => void;
 type IndexRegister = "ix" | "iy";
 type RegisterPair = WordOperand | IndexRegister;
 type AddressedHandler = (address: number, instruction: InstructionContext) => void;
-type CbOperation = { readonly bits: string; readonly apply: ByteOperation; readonly writes: boolean };
 
 // Fix the handler type once so pattern callbacks infer their instruction context.
 const instructionPattern = opcodePattern<OpcodeHandler>;
@@ -266,9 +265,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   readonly #byteRegisters = this.byteOperands.flatMap((register, code) => register === "(hl)" ? []
     : [{ register, bits: code.toString(2).padStart(3, "0") }]);
 
-  // bbb selects a bit number; bind its mask once when constructing the CB page.
-  readonly #bitMasks = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80] as const;
-
   // ooo in 10 ooo rrr / 11 ooo 110 selects the same ALU family, including DD/FD memory forms.
   readonly #aluFamilies = ["add", "adc", "sub", "sbc", "and", "xor", "or", "cp"] as const;
   protected override readonly aluInstructions: readonly AluInstruction[] = this.#aluFamilies.map(operation => operand => {
@@ -313,32 +309,24 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   // CB's xx yyy rrr: xx=00 selects a shift; xx=01/10/11 selects BIT/RES/SET.
   // yyy is the shift selector for xx=00, otherwise the bit number; rrr selects B/C/D/E/H/L/(HL)/A.
-  // Indexed CB fixes rrr=110 (memory); each generated shift body receives one resolved address.
-  readonly #cbShifts = [
-    { bits: "000", name: "rlc" }, { bits: "001", name: "rrc" },
-    { bits: "010", name: "rl" }, { bits: "011", name: "rr" },
-    { bits: "100", name: "sla" }, { bits: "101", name: "sra" },
+  // Indexed CB fixes rrr=110 (memory); each generated memory body receives one resolved address.
+  readonly #cbOperations = [
+    { bits: "00 000", name: "rlc" }, { bits: "00 001", name: "rrc" },
+    { bits: "00 010", name: "rl" }, { bits: "00 011", name: "rr" },
+    { bits: "00 100", name: "sla" }, { bits: "00 101", name: "sra" },
     // yyy=110 is undocumented SLL.
-    { bits: "111", name: "srl" },
+    { bits: "00 111", name: "srl" },
+    ...([0, 1, 2, 3, 4, 5, 6, 7] as const).flatMap(bit => [
+      { bits: `01 ${bit.toString(2).padStart(3, "0")}`, name: `bit${bit}` as const },
+      { bits: `10 ${bit.toString(2).padStart(3, "0")}`, name: `res${bit}` as const },
+      { bits: `11 ${bit.toString(2).padStart(3, "0")}`, name: `set${bit}` as const },
+    ]),
   ] as const;
-  readonly #cbBitOperations = this.#bitMasks.flatMap((mask, bit): CbOperation[] => [
-    { bits: `01 ${bit.toString(2).padStart(3, "0")}`, apply: value => { this.#testBit(mask, value); return value; }, writes: false }, // BIT b
-    { bits: `10 ${bit.toString(2).padStart(3, "0")}`, apply: value => value & ~mask, writes: true }, // RES b
-    { bits: `11 ${bit.toString(2).padStart(3, "0")}`, apply: value => value | mask, writes: true }, // SET b
-  ]);
-  readonly #cbOpcodeHandlers = opcodeTable<OpcodeHandler>([
-    ...this.#cbShifts.flatMap(({ bits, name }) => opcodeFamily(`00 ${bits} rrr`,
-      { r: ["B", "C", "D", "E", "H", "L", "Memory", "A"] as const }, ({ r: target }): OpcodeHandler => target === "Memory"
-        ? instruction => semantics[`${name}Memory`](this.state, this.hl, instruction) : () => semantics[`${name}${target}`](this.state))),
-    ...this.#cbBitOperations.flatMap(({ bits, apply, writes }) =>
-      opcodeFamily(`${bits} rrr`, { r: this.byteOperands }, ({ r: operand }): OpcodeHandler => instruction => this.modifyOperand(operand, apply, instruction, writes))),
-  ]);
-  readonly #indexedCbHandlers = opcodeTable<AddressedHandler>([
-    ...this.#cbShifts.flatMap(({ bits, name }) =>
-      opcodePattern<AddressedHandler>(`00 ${bits} 110`, (address, instruction) => semantics[`${name}Memory`](this.state, address, instruction))),
-    ...this.#cbBitOperations.flatMap(({ bits, apply, writes }) =>
-      opcodePattern<AddressedHandler>(`${bits} 110`, (address, instruction) => this.#modifyMemory(address, apply, instruction, writes))),
-  ]);
+  readonly #cbOpcodeHandlers = opcodeTable<OpcodeHandler>(this.#cbOperations.flatMap(({ bits, name }) => opcodeFamily(`${bits} rrr`,
+    { r: ["B", "C", "D", "E", "H", "L", "Memory", "A"] as const }, ({ r: target }): OpcodeHandler => target === "Memory"
+      ? instruction => semantics[`${name}Memory`](this.state, this.hl, instruction) : () => semantics[`${name}${target}`](this.state))));
+  readonly #indexedCbHandlers = opcodeTable<AddressedHandler>(this.#cbOperations.flatMap(({ bits, name }) =>
+    opcodePattern<AddressedHandler>(`${bits} 110`, (address, instruction) => semantics[`${name}Memory`](this.state, address, instruction))));
 
   // DD/FD share one documented page, selecting IX/IY. No ignored-prefix or IXH/IYL aliases.
   readonly #ixOpcodeHandlers = opcodeTable<OpcodeHandler>(this.#indexHandlers("ix"));
@@ -571,17 +559,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     flags.pv = flags.pv === evenParity8(parityOperand & 7);
   }
 
-  #testBit(mask: number, value: number): void {
-    const tested = value & mask;
-    // The manual leaves S/PV unspecified. Model the observed Z80 behavior: S from bit 7, PV = Z.
-    this.state.flags.s = (tested & 0x80) !== 0;
-    this.state.flags.z = tested === 0;
-    this.state.flags.h = true;
-    this.state.flags.pv = tested === 0;
-    this.state.flags.n = false;
-    // BIT preserves C; RES and SET preserve every flag.
-  }
-
   protected override adjustByte(value: number, delta: -1 | 1): number {
     const result = (value + delta) & 0xff;
     this.state.flags.s = (result & 0x80) !== 0;
@@ -603,10 +580,10 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     return result;
   }
 
-  // Indexed memory operands. BIT reads without writing.
+  // Indexed memory increment/decrement.
 
-  #modifyMemory(address: number, operation: ByteOperation, { readByte, writeByte }: InstructionContext, writes = true): void {
+  #modifyMemory(address: number, operation: ByteOperation, { readByte, writeByte }: InstructionContext): void {
     const value = operation(readByte(address));
-    if (writes) writeByte(address, value);
+    writeByte(address, value);
   }
 }

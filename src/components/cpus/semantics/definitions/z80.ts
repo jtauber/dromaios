@@ -1,7 +1,7 @@
 import { cpuZ80StateDescription } from "../../state/z80.ts";
-import { addOverflow, borrow, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, negative, overflow,
+import { addOverflow, bitAnd, bitOr, borrow, capture, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, overflow,
   readMemory, readRegister, readSource, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
-import type { FlagPolicy, InstructionDefinition } from "../model.ts";
+import type { FlagPolicy, InstructionDefinition, Statement } from "../model.ts";
 import { shift } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
 import { intelAccumulatorRotate, intelByteAlu, intelByteSources } from "../intel.ts";
@@ -22,6 +22,21 @@ function rotation(name: string, direction: "left" | "right", circular: boolean):
   });
 }
 
+/** CB bodies read once; memory uses a resolved address, and BIT omits writeback entirely. */
+function cbFamily(mnemonic: string, steps: readonly Statement[], explanation: string, bit?: number, writeBack = true) {
+  return Object.fromEntries((["b", "c", "d", "e", "h", "l", "a", "memory"] as const).map(target => {
+    const memory = target === "memory";
+    const accesses = writeBack ? "one read and one write, even if the byte is unchanged" : "one read without writing";
+    return [`${mnemonic.toLowerCase()}${bit ?? ""}${memory ? "Memory" : target.toUpperCase()}`, defineInstruction({
+      cpu: cpu.declaration, name: `${mnemonic} ${bit === undefined ? "" : `${bit},`}${memory ? "memory" : target.toUpperCase()}`,
+      ...(memory ? { inputs: { address: 16 as const } } : {}),
+      explanation: (memory ? `Use the resolved HL or indexed address for ${accesses}. ` : "Read the selected byte register. ") + explanation,
+      steps: [memory ? readMemory("original", value("address")) : readRegister("original", cpu.register(target)),
+        ...steps, ...(writeBack ? [memory ? writeMemory(value("address"), value("result")) : writeRegister(cpu.register(target), value("result"))] : [])],
+    })];
+  }));
+}
+
 function shiftFamily(mnemonic: string, direction: "left" | "right", incoming: ShiftInput = "zero") {
   const operation = shift(direction, incoming);
   const flags: FlagPolicy = { name: `Z80 ${mnemonic}`, parameters: { original: 8, result: 8 }, unlisted: "preserve", updates: [
@@ -29,21 +44,31 @@ function shiftFamily(mnemonic: string, direction: "left" | "right", incoming: Sh
     { flag: cpu.flag("h"), value: flagLiteral(false) }, { flag: cpu.flag("pv"), value: evenParity(value("result")) },
     { flag: cpu.flag("n"), value: flagLiteral(false) }, { flag: cpu.flag("c"), value: operation.carry },
   ] };
-  return Object.fromEntries((["b", "c", "d", "e", "h", "l", "a", "memory"] as const).map(target => {
-    const memory = target === "memory";
-    return [`${mnemonic.toLowerCase()}${memory ? "Memory" : target.toUpperCase()}`, defineInstruction({
-      cpu: cpu.declaration, name: `${mnemonic} ${memory ? "memory" : target.toUpperCase()}`,
-      ...(memory ? { inputs: { address: 16 as const } } : {}),
-      explanation: (memory ? "Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. " : "Read the selected byte register. ")
-        + (typeof incoming === "string" ? `Shift ${direction}, inserting ${incoming === "outgoing" ? "the outgoing bit" : incoming === "sign" ? "the original sign bit" : "zero"}. `
-          : `After the operand read, capture C and shift ${direction} through it. `)
-        + "Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. "
-        + "Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.",
-      steps: [memory ? readMemory("original", value("address")) : readRegister("original", cpu.register(target)),
-        ...operation.steps, updateFlags(flags, { original: value("original"), result: value("result") }),
-        memory ? writeMemory(value("address"), value("result")) : writeRegister(cpu.register(target), value("result"))],
-    })];
-  }));
+  return cbFamily(mnemonic, [...operation.steps, updateFlags(flags, { original: value("original"), result: value("result") })],
+    (typeof incoming === "string" ? `Shift ${direction}, inserting ${incoming === "outgoing" ? "the outgoing bit" : incoming === "sign" ? "the original sign bit" : "zero"}. `
+      : `After the operand read, capture C and shift ${direction} through it. `)
+    + "Set S/Z and even parity P/V, clear H/N, and copy the outgoing bit to C before writing the result. "
+    + "Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; a failed write retains the calculated flags.");
+}
+
+const bitFlags: FlagPolicy = { name: "Z80 BIT", parameters: { result: 8 }, unlisted: "preserve", updates: [
+  // The model follows observed S/PV behavior: only bit 7 can set S, and PV equals Z.
+  { flag: cpu.flag("s"), value: negative(value("result")) }, { flag: cpu.flag("z"), value: zero(value("result")) },
+  { flag: cpu.flag("h"), value: flagLiteral(true) }, { flag: cpu.flag("pv"), value: zero(value("result")) },
+  { flag: cpu.flag("n"), value: flagLiteral(false) },
+] };
+
+function bitFamily(mnemonic: "BIT" | "RES" | "SET") {
+  return Object.fromEntries(Array.from({ length: 8 }, (_, bit) => {
+    const mask = 1 << bit, testing = mnemonic === "BIT";
+    // BIT isolates its bit; RES ANDs with its byte complement; SET ORs with the mask.
+    const result = (mnemonic === "SET" ? bitOr : bitAnd)(value("original"), literal(8, mnemonic === "RES" ? 0xff ^ mask : mask));
+    return Object.entries(cbFamily(mnemonic, [capture("result", result),
+      ...(testing ? [updateFlags(bitFlags, { result: value("result") })] : [])],
+      (testing ? `Test bit ${bit} without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. `
+        : `${mnemonic === "RES" ? "Clear" : "Set"} bit ${bit} and write the result, even if unchanged. Do not read or write flags. `)
+      + "Preserve the alternate bank and control state. A failed read prevents later effects.", bit, !testing));
+  }).flat());
 }
 
 // ooo selects ADD/ADC/SUB/SBC/AND/XOR/OR/CP in the unprefixed and DD/FD ALU families.
@@ -91,6 +116,8 @@ export const instructionsZ80 = {
   ...shiftFamily("SLA", "left"), // 100
   ...shiftFamily("SRA", "right", "sign"), // 101
   ...shiftFamily("SRL", "right"), // 111
+  // CB xx bbb rrr: xx=01/10/11 selects BIT/RES/SET; bbb selects bit 0..7.
+  ...bitFamily("BIT"), ...bitFamily("RES"), ...bitFamily("SET"),
   // ooo in 10 ooo rrr / 11 ooo 110 selects the same byte ALU family.
   ...family("ADD", "add"), // 000
   ...family("ADC", "add", true), // 001

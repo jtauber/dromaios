@@ -11144,6 +11144,2718 @@ write memory[address] := result
 
 Flags preserved throughout: none.
 
+### z80 BIT 0,B
+
+Read the selected byte register. Test bit 0 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, 01:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 0,C
+
+Read the selected byte register. Test bit 0 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, 01:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 0,D
+
+Read the selected byte register. Test bit 0 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, 01:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 0,E
+
+Read the selected byte register. Test bit 0 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, 01:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 0,H
+
+Read the selected byte register. Test bit 0 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, 01:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 0,L
+
+Read the selected byte register. Test bit 0 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, 01:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 0,A
+
+Read the selected byte register. Test bit 0 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, 01:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 0,memory
+
+Use the resolved HL or indexed address for one read without writing. Test bit 0 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, 01:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 1,B
+
+Read the selected byte register. Test bit 1 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, 02:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 1,C
+
+Read the selected byte register. Test bit 1 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, 02:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 1,D
+
+Read the selected byte register. Test bit 1 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, 02:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 1,E
+
+Read the selected byte register. Test bit 1 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, 02:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 1,H
+
+Read the selected byte register. Test bit 1 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, 02:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 1,L
+
+Read the selected byte register. Test bit 1 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, 02:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 1,A
+
+Read the selected byte register. Test bit 1 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, 02:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 1,memory
+
+Use the resolved HL or indexed address for one read without writing. Test bit 1 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, 02:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 2,B
+
+Read the selected byte register. Test bit 2 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, 04:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 2,C
+
+Read the selected byte register. Test bit 2 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, 04:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 2,D
+
+Read the selected byte register. Test bit 2 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, 04:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 2,E
+
+Read the selected byte register. Test bit 2 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, 04:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 2,H
+
+Read the selected byte register. Test bit 2 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, 04:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 2,L
+
+Read the selected byte register. Test bit 2 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, 04:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 2,A
+
+Read the selected byte register. Test bit 2 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, 04:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 2,memory
+
+Use the resolved HL or indexed address for one read without writing. Test bit 2 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, 04:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 3,B
+
+Read the selected byte register. Test bit 3 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, 08:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 3,C
+
+Read the selected byte register. Test bit 3 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, 08:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 3,D
+
+Read the selected byte register. Test bit 3 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, 08:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 3,E
+
+Read the selected byte register. Test bit 3 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, 08:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 3,H
+
+Read the selected byte register. Test bit 3 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, 08:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 3,L
+
+Read the selected byte register. Test bit 3 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, 08:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 3,A
+
+Read the selected byte register. Test bit 3 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, 08:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 3,memory
+
+Use the resolved HL or indexed address for one read without writing. Test bit 3 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, 08:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 4,B
+
+Read the selected byte register. Test bit 4 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, 10:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 4,C
+
+Read the selected byte register. Test bit 4 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, 10:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 4,D
+
+Read the selected byte register. Test bit 4 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, 10:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 4,E
+
+Read the selected byte register. Test bit 4 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, 10:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 4,H
+
+Read the selected byte register. Test bit 4 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, 10:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 4,L
+
+Read the selected byte register. Test bit 4 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, 10:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 4,A
+
+Read the selected byte register. Test bit 4 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, 10:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 4,memory
+
+Use the resolved HL or indexed address for one read without writing. Test bit 4 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, 10:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 5,B
+
+Read the selected byte register. Test bit 5 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, 20:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 5,C
+
+Read the selected byte register. Test bit 5 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, 20:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 5,D
+
+Read the selected byte register. Test bit 5 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, 20:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 5,E
+
+Read the selected byte register. Test bit 5 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, 20:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 5,H
+
+Read the selected byte register. Test bit 5 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, 20:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 5,L
+
+Read the selected byte register. Test bit 5 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, 20:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 5,A
+
+Read the selected byte register. Test bit 5 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, 20:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 5,memory
+
+Use the resolved HL or indexed address for one read without writing. Test bit 5 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, 20:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 6,B
+
+Read the selected byte register. Test bit 6 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, 40:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 6,C
+
+Read the selected byte register. Test bit 6 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, 40:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 6,D
+
+Read the selected byte register. Test bit 6 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, 40:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 6,E
+
+Read the selected byte register. Test bit 6 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, 40:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 6,H
+
+Read the selected byte register. Test bit 6 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, 40:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 6,L
+
+Read the selected byte register. Test bit 6 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, 40:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 6,A
+
+Read the selected byte register. Test bit 6 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, 40:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 6,memory
+
+Use the resolved HL or indexed address for one read without writing. Test bit 6 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, 40:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 7,B
+
+Read the selected byte register. Test bit 7 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, 80:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 7,C
+
+Read the selected byte register. Test bit 7 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, 80:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 7,D
+
+Read the selected byte register. Test bit 7 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, 80:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 7,E
+
+Read the selected byte register. Test bit 7 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, 80:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 7,H
+
+Read the selected byte register. Test bit 7 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, 80:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 7,L
+
+Read the selected byte register. Test bit 7 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, 80:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 7,A
+
+Read the selected byte register. Test bit 7 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, 80:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 BIT 7,memory
+
+Use the resolved HL or indexed address for one read without writing. Test bit 7 without writing the operand. Z/PV indicate a clear bit; S is set only for a set bit 7. Set H and clear N; preserve C without reading it. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, 80:u8)
+flags "Z80 BIT" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 1:flag
+  PV := isZero(result)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: C.
+
+### z80 RES 0,B
+
+Read the selected byte register. Clear bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, FE:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 0,C
+
+Read the selected byte register. Clear bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, FE:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 0,D
+
+Read the selected byte register. Clear bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, FE:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 0,E
+
+Read the selected byte register. Clear bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, FE:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 0,H
+
+Read the selected byte register. Clear bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, FE:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 0,L
+
+Read the selected byte register. Clear bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, FE:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 0,A
+
+Read the selected byte register. Clear bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, FE:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 0,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Clear bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, FE:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 1,B
+
+Read the selected byte register. Clear bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, FD:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 1,C
+
+Read the selected byte register. Clear bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, FD:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 1,D
+
+Read the selected byte register. Clear bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, FD:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 1,E
+
+Read the selected byte register. Clear bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, FD:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 1,H
+
+Read the selected byte register. Clear bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, FD:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 1,L
+
+Read the selected byte register. Clear bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, FD:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 1,A
+
+Read the selected byte register. Clear bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, FD:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 1,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Clear bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, FD:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 2,B
+
+Read the selected byte register. Clear bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, FB:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 2,C
+
+Read the selected byte register. Clear bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, FB:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 2,D
+
+Read the selected byte register. Clear bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, FB:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 2,E
+
+Read the selected byte register. Clear bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, FB:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 2,H
+
+Read the selected byte register. Clear bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, FB:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 2,L
+
+Read the selected byte register. Clear bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, FB:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 2,A
+
+Read the selected byte register. Clear bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, FB:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 2,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Clear bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, FB:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 3,B
+
+Read the selected byte register. Clear bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, F7:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 3,C
+
+Read the selected byte register. Clear bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, F7:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 3,D
+
+Read the selected byte register. Clear bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, F7:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 3,E
+
+Read the selected byte register. Clear bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, F7:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 3,H
+
+Read the selected byte register. Clear bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, F7:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 3,L
+
+Read the selected byte register. Clear bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, F7:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 3,A
+
+Read the selected byte register. Clear bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, F7:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 3,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Clear bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, F7:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 4,B
+
+Read the selected byte register. Clear bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, EF:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 4,C
+
+Read the selected byte register. Clear bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, EF:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 4,D
+
+Read the selected byte register. Clear bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, EF:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 4,E
+
+Read the selected byte register. Clear bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, EF:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 4,H
+
+Read the selected byte register. Clear bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, EF:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 4,L
+
+Read the selected byte register. Clear bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, EF:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 4,A
+
+Read the selected byte register. Clear bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, EF:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 4,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Clear bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, EF:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 5,B
+
+Read the selected byte register. Clear bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, DF:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 5,C
+
+Read the selected byte register. Clear bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, DF:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 5,D
+
+Read the selected byte register. Clear bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, DF:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 5,E
+
+Read the selected byte register. Clear bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, DF:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 5,H
+
+Read the selected byte register. Clear bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, DF:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 5,L
+
+Read the selected byte register. Clear bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, DF:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 5,A
+
+Read the selected byte register. Clear bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, DF:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 5,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Clear bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, DF:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 6,B
+
+Read the selected byte register. Clear bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, BF:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 6,C
+
+Read the selected byte register. Clear bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, BF:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 6,D
+
+Read the selected byte register. Clear bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, BF:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 6,E
+
+Read the selected byte register. Clear bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, BF:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 6,H
+
+Read the selected byte register. Clear bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, BF:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 6,L
+
+Read the selected byte register. Clear bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, BF:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 6,A
+
+Read the selected byte register. Clear bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, BF:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 6,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Clear bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, BF:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 7,B
+
+Read the selected byte register. Clear bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitAnd(original, 7F:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 7,C
+
+Read the selected byte register. Clear bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitAnd(original, 7F:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 7,D
+
+Read the selected byte register. Clear bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitAnd(original, 7F:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 7,E
+
+Read the selected byte register. Clear bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitAnd(original, 7F:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 7,H
+
+Read the selected byte register. Clear bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitAnd(original, 7F:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 7,L
+
+Read the selected byte register. Clear bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitAnd(original, 7F:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 7,A
+
+Read the selected byte register. Clear bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitAnd(original, 7F:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RES 7,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Clear bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitAnd(original, 7F:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 0,B
+
+Read the selected byte register. Set bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitOr(original, 01:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 0,C
+
+Read the selected byte register. Set bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitOr(original, 01:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 0,D
+
+Read the selected byte register. Set bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitOr(original, 01:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 0,E
+
+Read the selected byte register. Set bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitOr(original, 01:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 0,H
+
+Read the selected byte register. Set bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitOr(original, 01:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 0,L
+
+Read the selected byte register. Set bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitOr(original, 01:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 0,A
+
+Read the selected byte register. Set bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitOr(original, 01:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 0,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Set bit 0 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitOr(original, 01:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 1,B
+
+Read the selected byte register. Set bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitOr(original, 02:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 1,C
+
+Read the selected byte register. Set bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitOr(original, 02:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 1,D
+
+Read the selected byte register. Set bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitOr(original, 02:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 1,E
+
+Read the selected byte register. Set bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitOr(original, 02:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 1,H
+
+Read the selected byte register. Set bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitOr(original, 02:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 1,L
+
+Read the selected byte register. Set bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitOr(original, 02:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 1,A
+
+Read the selected byte register. Set bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitOr(original, 02:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 1,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Set bit 1 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitOr(original, 02:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 2,B
+
+Read the selected byte register. Set bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitOr(original, 04:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 2,C
+
+Read the selected byte register. Set bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitOr(original, 04:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 2,D
+
+Read the selected byte register. Set bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitOr(original, 04:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 2,E
+
+Read the selected byte register. Set bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitOr(original, 04:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 2,H
+
+Read the selected byte register. Set bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitOr(original, 04:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 2,L
+
+Read the selected byte register. Set bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitOr(original, 04:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 2,A
+
+Read the selected byte register. Set bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitOr(original, 04:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 2,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Set bit 2 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitOr(original, 04:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 3,B
+
+Read the selected byte register. Set bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitOr(original, 08:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 3,C
+
+Read the selected byte register. Set bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitOr(original, 08:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 3,D
+
+Read the selected byte register. Set bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitOr(original, 08:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 3,E
+
+Read the selected byte register. Set bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitOr(original, 08:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 3,H
+
+Read the selected byte register. Set bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitOr(original, 08:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 3,L
+
+Read the selected byte register. Set bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitOr(original, 08:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 3,A
+
+Read the selected byte register. Set bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitOr(original, 08:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 3,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Set bit 3 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitOr(original, 08:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 4,B
+
+Read the selected byte register. Set bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitOr(original, 10:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 4,C
+
+Read the selected byte register. Set bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitOr(original, 10:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 4,D
+
+Read the selected byte register. Set bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitOr(original, 10:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 4,E
+
+Read the selected byte register. Set bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitOr(original, 10:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 4,H
+
+Read the selected byte register. Set bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitOr(original, 10:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 4,L
+
+Read the selected byte register. Set bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitOr(original, 10:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 4,A
+
+Read the selected byte register. Set bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitOr(original, 10:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 4,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Set bit 4 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitOr(original, 10:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 5,B
+
+Read the selected byte register. Set bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitOr(original, 20:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 5,C
+
+Read the selected byte register. Set bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitOr(original, 20:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 5,D
+
+Read the selected byte register. Set bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitOr(original, 20:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 5,E
+
+Read the selected byte register. Set bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitOr(original, 20:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 5,H
+
+Read the selected byte register. Set bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitOr(original, 20:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 5,L
+
+Read the selected byte register. Set bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitOr(original, 20:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 5,A
+
+Read the selected byte register. Set bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitOr(original, 20:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 5,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Set bit 5 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitOr(original, 20:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 6,B
+
+Read the selected byte register. Set bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitOr(original, 40:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 6,C
+
+Read the selected byte register. Set bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitOr(original, 40:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 6,D
+
+Read the selected byte register. Set bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitOr(original, 40:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 6,E
+
+Read the selected byte register. Set bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitOr(original, 40:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 6,H
+
+Read the selected byte register. Set bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitOr(original, 40:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 6,L
+
+Read the selected byte register. Set bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitOr(original, 40:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 6,A
+
+Read the selected byte register. Set bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitOr(original, 40:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 6,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Set bit 6 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitOr(original, 40:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 7,B
+
+Read the selected byte register. Set bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read B
+result := bitOr(original, 80:u8)
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 7,C
+
+Read the selected byte register. Set bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read C
+result := bitOr(original, 80:u8)
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 7,D
+
+Read the selected byte register. Set bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read D
+result := bitOr(original, 80:u8)
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 7,E
+
+Read the selected byte register. Set bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read E
+result := bitOr(original, 80:u8)
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 7,H
+
+Read the selected byte register. Set bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read H
+result := bitOr(original, 80:u8)
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 7,L
+
+Read the selected byte register. Set bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read L
+result := bitOr(original, 80:u8)
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 7,A
+
+Read the selected byte register. Set bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+original:u8 := read A
+result := bitOr(original, 80:u8)
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SET 7,memory
+
+Use the resolved HL or indexed address for one read and one write, even if the byte is unchanged. Set bit 7 and write the result, even if unchanged. Do not read or write flags. Preserve the alternate bank and control state. A failed read prevents later effects.
+
+```text
+address:u16 := input
+original:u8 := read memory[address]
+result := bitOr(original, 80:u8)
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 ADD A,B
 
 Read the operand. Read A without reading incoming flags. S/Z describe the byte result. P/V is signed overflow; H and C report low-nibble and byte carry. Clear N. Apply flags, then write A. Preserve the alternate bank and control state. A failed read prevents flag updates and writeback; completed decoding and fetching remain.

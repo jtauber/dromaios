@@ -136,6 +136,19 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generatedZ80.rlca(z80);
   generatedZ80.rlH(z80);
   generatedZ80.sraMemory(z80, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  generatedZ80.bit7H(z80);
+  generatedZ80.res0L(z80);
+  generatedZ80.set3A(z80);
+  generatedZ80.bit7Memory(z80, 0xffff, { readByte: () => 0 });
+  generatedZ80.res0Memory(z80, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error BIT memory bodies do not write memory.
+  generatedZ80.bit0Memory(z80, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error RES must write even when the selected bit is already clear.
+  generatedZ80.res7Memory(z80, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error SET consumes a resolved address without fetching a displacement.
+  generatedZ80.set0Memory(z80, 0xffff, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
+  // @ts-expect-error BIT register bodies require no memory context.
+  generatedZ80.bit0B(z80, { readByte: () => 0 });
   // @ts-expect-error Accumulator rotates require no context.
   generatedZ80.rra(z80, { fetchByte: () => 0 });
   // @ts-expect-error Register shifts require no memory context.

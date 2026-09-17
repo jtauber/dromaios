@@ -147,9 +147,9 @@ export abstract class Cpu8080Family<State extends Registers> {
     else this.state[operand] = value;
   }
 
-  protected modifyOperand(operand: ByteOperand, operation: ByteOperation, instruction: InstructionContext, writes = true): void {
+  protected modifyOperand(operand: ByteOperand, operation: ByteOperation, instruction: InstructionContext): void {
     const value = operation(this.readOperand(operand, instruction));
-    if (writes) this.writeOperand(operand, value, instruction);
+    this.writeOperand(operand, value, instruction);
   }
 
   protected readPair(pair: WordOperand): number {

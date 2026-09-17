@@ -285,7 +285,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 606);
+  assert.equal(instructionDefinitions.length, 798);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {
@@ -351,6 +351,33 @@ test("Z80 shift explanations distinguish accumulator flags from CB flags and pre
       assert.match(text, /address:u16 := input/);
       assert.equal(text.match(/:= read memory/g)?.length, 1); assert.equal(text.match(/write memory/g)?.length, 1);
       assert.doesNotMatch(text, /fetch byte|:= read (H|L|IX|IY)\b/);
+    }
+  }
+});
+
+test("Z80 bit explanations expose fixed masks, BIT's preserved carry, and flag-free RES/SET writeback", () => {
+  const masks = ["01", "02", "04", "08", "10", "20", "40", "80"];
+  const complements = ["FE", "FD", "FB", "F7", "EF", "DF", "BF", "7F"];
+  for (let bit = 0; bit < 8; bit++) for (const target of ["B", "memory"]) {
+    const tested = description("z80", `BIT ${bit},${target}`);
+    assert.ok(tested.includes(`result := bitAnd(original, ${masks[bit]}:u8)`));
+    assert.match(tested, /S := topBit\(result\)/); assert.match(tested, /Z := isZero\(result\)/);
+    assert.match(tested, /PV := isZero\(result\)/); assert.match(tested, /H := 1:flag/); assert.match(tested, /N := 0:flag/);
+    assert.match(tested, /Flags preserved throughout: C\./);
+    assert.doesNotMatch(tested, /write B|write memory|:= read C|C :=/);
+    for (const mnemonic of ["RES", "SET"]) {
+      const text = description("z80", `${mnemonic} ${bit},${target}`);
+      assert.ok(text.includes(`result := ${mnemonic === "RES" ? "bitAnd" : "bitOr"}(original, ${mnemonic === "RES" ? complements[bit] : masks[bit]}:u8)`));
+      assert.ok(text.indexOf("result :=") < text.indexOf(target === "memory" ? "write memory[address] := result" : "write B:u8 := result"));
+      assert.match(text, /Flags preserved throughout: S, Z, H, PV, N, C\./);
+      assert.doesNotMatch(text, /apply flags|:= read (S|Z|H|PV|N|C)\b/);
+    }
+    for (const mnemonic of ["BIT", "RES", "SET"]) {
+      const text = description("z80", `${mnemonic} ${bit},${target}`);
+      if (target === "memory") {
+        assert.match(text, /address:u16 := input/); assert.equal(text.match(/:= read memory/g)?.length, 1);
+        assert.doesNotMatch(text, /fetch byte|:= read (H|L|IX|IY)\b/);
+      }
     }
   }
 });

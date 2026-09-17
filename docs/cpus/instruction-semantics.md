@@ -20,6 +20,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
 | Z80 accumulator rotates and all documented CB shifts/rotates, including indexed forms | Preserve S/Z/PV on accumulator rotates; derive them for CB operations; share each memory body across HL/IX/IY, with flags before writeback and explicit failure boundaries |
+| Z80 BIT/RES/SET, including indexed forms | Fixed bit masks; BIT reads without writeback and preserves C; RES/SET write even unchanged values without accessing flags; share CB construction and bindings with shifts |
 | 8008 AD/AC/SU/SB/ND/XR/OR/CP, every register/memory/immediate form | Reuse Intel ALU construction with S/Z/P/C, native register order, and an explicit 14-bit memory mask; retain address-slot fetching and supplied-byte rules |
 | 8008 INr/DCr and RLC/RRC/RAL/RAR | Preserve C on adjustments; share 8080 rotate construction with explicit A-before-C writeback and preserved S/Z/P |
 | 6809 CMPA/B/D/X/Y/U/S, every addressing form | Byte/word widths, D as A:B, and addressing that changes the register subsequently compared |
@@ -40,7 +41,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 530 bodies. All are generated and executable; 529 are bound into their
+There are 798 bodies. All are generated and executable; 797 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other instruction families retain their existing shared helpers. This is not a
@@ -187,6 +188,16 @@ including unchanged-value writes. A failed read prevents flags and writeback;
 a failed write retains the calculated flags. Prefix decoding and refresh
 increments remain outside the generated body, including the non-M1 displacement
 and final opcode bytes in DD/FD CB sequences. The undocumented SLL row is omitted.
+
+BIT/RES/SET use the same CPU-local `cbFamily` construction for a single register
+or resolved-memory read and optional writeback. Each bit's mask is a literal in
+the expanded definition. BIT isolates the selected bit, omits writeback, and
+sets Z/PV when that bit is clear; S follows masked bit 7, H is set, N is cleared,
+and C is preserved without reading it. This retains the model's observed S/PV
+policy. RES ANDs with the complemented byte mask; SET ORs with the mask. Both
+write even an unchanged result and never access flags. Their 192 bodies cover
+240 forms: each of the 24 memory bodies serves HL, IX, and IY. No new semantic
+primitive or generator path is needed.
 
 The 8008 is a third consumer of `intelByteAlu`, with no change to that builder.
 Its own source inventory follows A/B/C/D/E/H/L/M. Memory concatenates captured
@@ -558,15 +569,19 @@ both address-space boundaries. Existing byte-pair, alternate-bank, and paired
 8080/Z80 expectations remain independent of the definitions.
 
 [Z80 shift probes](../../tests/components/cpus/semantics/z80-shifts.test.ts)
-check all sixty new bodies, operand-before-carry capture, the two flag schedules,
+check all sixty rotate/shift bodies, operand-before-carry capture, the two flag schedules,
 current flags after memory callbacks, captured addresses, and untouched alternate
-and control state. [Failure probes](../../tests/components/cpus/z80/shift-failures.test.ts)
-exercise all 74 forms through ordinary and IM 0 execution, failing every opcode
+and control state. [Z80 bit probes](../../tests/components/cpus/semantics/z80-bits.test.ts)
+check all 192 BIT/RES/SET bodies, one operand read, no BIT write, no incoming
+flag reads, and no RES/SET flag access. Memory callbacks replace flag storage
+and change address registers to check live flags and the captured address.
+[Failure probes](../../tests/components/cpus/z80/cb-failures.test.ts)
+exercise all 314 accumulator-rotate and CB forms through ordinary and IM 0 execution, failing every opcode
 read, acknowledgement, data read, and result write. They retain exact completed
 accesses, flags before a failed write, PC/R decoding boundaries, acceptance and
 retirement effects, code/data overlap, and guard release. Existing independent
 CB and indexed tests continue to exhaust byte values, flags, and signed
-displacements. All 546 earlier definitions are structurally unchanged, and the
+displacements. All 606 definitions preceding the bit migration are structurally unchanged, and the
 five other generated CPU modules are byte-for-byte identical.
 
 [8008 ALU probes](../../tests/components/cpus/semantics/8008-alu.test.ts) check
@@ -654,8 +669,8 @@ named bodies for all 72 byte ALU bindings and four accumulator rotates in the
 shared 8080/Z80 family. The Z80 binds its 72 ordinary ALU bodies through that
 same hook, with eight further bodies serving its sixteen indexed ALU forms.
 It binds four generated accumulator rotates through the shared family hook,
-and all 70 CB shift/rotate forms through its ordinary and indexed CB tables.
-Seven resolved-memory bodies each serve HL, IX, and IY after address resolution.
+and all 310 documented CB forms through unified ordinary and indexed CB bindings.
+Thirty-one resolved-memory bodies each serve HL, IX, and IY after address resolution.
 Its prefix recognition, signed displacement calculation, PC/R updates, and
 interrupt handling remain in the CPU module.
 The 8008 independently binds all 72 native ALU forms, twelve register adjustments,
