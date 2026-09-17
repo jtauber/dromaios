@@ -134,6 +134,20 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generatedZ80.sbcImmediate(z80, { fetchByte: () => 0 });
   generatedZ80.andMemory(z80, 0xffff, { readByte: () => 0 });
   generatedZ80.rlca(z80);
+  generated8080[0x47](intel);
+  generated8080[0x36](intel, { fetchByte: () => 0, writeByte: () => {} });
+  generatedZ80[0x66](z80, { readByte: () => 0 });
+  generatedZ80.loadHMemory(z80, 0xffff, { readByte: () => 0 });
+  generatedZ80.storeLMemory(z80, 0xffff, { writeByte: () => {} });
+  generatedZ80.storeImmediateMemory(z80, 0xffff, { fetchByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error HALT is deliberately outside the generated transfer matrix.
+  generated8080[0x76](intel);
+  // @ts-expect-error Register transfers need no instruction context.
+  generated8080[0x47](intel, { readByte: () => 0 });
+  // @ts-expect-error Immediate stores do not read the destination.
+  generated8080[0x36](intel, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Indexed register stores do not fetch a displacement inside the body.
+  generatedZ80.storeLMemory(z80, 0xffff, { writeByte: () => {}, fetchByte: () => 0 });
   generated8080.inrH(intel);
   generated8080.dcrMemory(intel, 0xffff, { readByte: () => 0, writeByte: () => {} });
   generatedZ80.incH(z80);

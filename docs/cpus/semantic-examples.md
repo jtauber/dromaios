@@ -6073,6 +6073,817 @@ flags "8008 CP" simultaneously {
 
 Flags preserved throughout: none.
 
+### 8080 MVI B,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MVI C,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MVI D,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MVI E,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MVI H,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MVI L,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MVI M,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MVI A,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV B,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV B,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV B,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV B,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV B,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV B,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV B,M
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV B,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV C,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV C,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV C,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV C,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV C,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV C,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV C,M
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV C,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV D,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV D,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV D,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV D,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV D,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV D,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV D,M
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV D,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV E,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV E,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV E,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV E,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV E,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV E,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV E,M
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV E,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV H,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV H,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV H,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV H,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV H,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV H,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV H,M
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV H,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV L,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV L,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV L,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV L,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV L,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV L,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV L,M
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV L,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV M,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV M,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV M,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV M,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV M,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV M,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV M,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV A,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV A,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV A,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV A,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV A,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV A,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV A,M
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 MOV A,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 INR B
 
 Read the selected byte register. Add one with byte wraparound. S/Z describe the result and P its even parity. AC reports low-nibble carry. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
@@ -8105,20 +8916,6 @@ flags "8080 comparison" simultaneously {
 ```
 
 Flags preserved throughout: none.
-
-### 8080 MOV B,A
-
-Capture A and write B. No flag-update statement occurs, so every flag is preserved.
-
-```text
-result:u8 := source "register A" {
-  contents:u8 := read A
-  yield contents
-}
-write B:u8 := result
-```
-
-Flags preserved throughout: S, Z, AC, P, CY.
 
 ### 6809 NEGA
 
@@ -10212,6 +11009,997 @@ flags "6809 comparison" simultaneously {
 ```
 
 Flags preserved throughout: E, F, H, I.
+
+### z80 LD B,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (HL),n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,n
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := fetch byte
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD B,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD B,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD B,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD B,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD B,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD B,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD B,(HL)
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD B,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,(HL)
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,(HL)
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,(HL)
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,(HL)
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,(HL)
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (HL),B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (HL),C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (HL),D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (HL),E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (HL),H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (HL),L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD (HL),A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+high:u8 := read H
+low:u8 := read L
+write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,B
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read B
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,C
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read C
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,D
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read D
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,E
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read E
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,H
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read H
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,L
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read L
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,(HL)
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+high:u8 := read H
+low:u8 := read L
+result:u8 := read memory[concatHighLow(high, low)]
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,A
+
+Use the selected byte registers; memory uses H then L at the access point. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+result:u8 := read A
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD B,memory
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read memory[address]
+write B:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD memory,B
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read B
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD C,memory
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read memory[address]
+write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD memory,C
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read C
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD D,memory
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read memory[address]
+write D:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD memory,D
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read D
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD E,memory
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read memory[address]
+write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD memory,E
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read E
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD H,memory
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read memory[address]
+write H:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD memory,H
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read H
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD L,memory
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read memory[address]
+write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD memory,L
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read L
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD A,memory
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read memory[address]
+write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD memory,A
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := read A
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 LD memory,n
+
+Entry follows indexed address resolution; use that captured address. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
+
+```text
+address:u16 := input
+result:u8 := fetch byte
+write memory[address] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
 
 ### z80 INC B
 

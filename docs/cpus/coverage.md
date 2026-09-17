@@ -18,17 +18,17 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [272](../../src/components/cpus/8008.ts) | 88 / 250 | 35.2% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [242](../../src/components/cpus/8080.ts) | 92 / 244 | 37.7% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [244](../../src/components/cpus/8080.ts) | 163 / 244 | 66.8% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [300](../../src/components/cpus/6800.ts) | 153 / 197 | 77.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [298](../../src/components/cpus/6502.ts) | 109 / 151 | 72.2% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [578](../../src/components/cpus/z80.ts) | 422 / 698 | 60.5% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [580](../../src/components/cpus/z80.ts) | 523 / 698 | 74.9% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [513](../../src/components/cpus/6809.ts) | 204 / 268 | 76.1% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **830 generated bodies**, of which **829 are used by CPU execution**,
-covering **1,068 complete opcode forms**:
+contains **986 generated bodies**, all used by CPU execution,
+covering **1,240 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -47,9 +47,12 @@ covering **1,068 complete opcode forms**:
   writeback; CMP never writes A. INR/DCR add all 16 register/memory forms,
   sharing adjustment construction with the Z80. They preserve CY without reading
   it, derive S/Z/P from the result, and use carry/inverse borrow for AC.
-  Flags precede writeback, so a failed memory write retains them. All 92 bodies
-  are integrated; MOV B,A remains a separate generated test sample and does not
-  count toward migration.
+  Flags precede writeback, so a failed memory write retains them.
+  All 63 MOV and eight MVI forms add 71 bodies sharing transfer construction
+  and an encoding inventory with the Z80. Sources are captured before writes;
+  memory destinations read H/L after the source or immediate fetch. Transfers
+  never access flags. MOV B,A is now part of this production family, with no
+  separate test-only body. All 163 bodies are integrated.
 - [6800 definitions](../../src/components/cpus/semantics/definitions/6800.ts):
   All eleven unary operations on A/B and indexed/extended memory count as 44
   migrated forms. Their 33 bodies use the same
@@ -114,7 +117,11 @@ covering **1,068 complete opcode forms**:
   construction. The two memory bodies serve HL, IX, and IY at a resolved address.
   They preserve C, set H from carry/borrow, derive P/V from signed overflow, and
   apply flags before writeback. The handwritten adjustment and indexed memory
-  wrappers are removed. The Z80 now integrates 348 bodies covering 422 complete forms.
+  wrappers are removed. The 63 byte-transfer matrix slots and eight immediate
+  loads add 71 bodies shared in construction and binding with the 8080. Fifteen
+  resolved-memory transfer bodies cover 30 further IX/IY forms, retaining real
+  H/L operands and displacement-before-immediate order. The memory-to-memory
+  slot remains handwritten HALT. The Z80 integrates 434 bodies covering 523 forms.
 - [8008 definitions](../../src/components/cpus/semantics/definitions/8008.ts):
   All 72 byte ALU forms are integrated: AD/AC/SU/SB/ND/XR/OR/CP with each
   register, memory, and immediate source. The existing Intel ALU construction
@@ -175,25 +182,27 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,543 |
-| CPU-specific instruction definition files | 627 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,055 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,225** |
+| Eight CPU implementation files | 4,547 |
+| CPU-specific instruction definition files | 630 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,088 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,265** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 15,600 |
+| Generated CPU output, counted separately | 16,594 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Migrating 8080 INR/DCR and Z80 byte INC/DEC adds 36 forms from 32 bodies and
-removes their handwritten adjustment and memory-modification helpers. The CPU
-modules shrink by **10 lines combined**, and the shared 8080-family core by
-**11**. CPU-specific definitions add **28** lines and shared construction adds
-**23**, with no new semantic primitives or generator changes. Total authored
-CPU source rises from **7,195 to 7,225 lines** (**30 more**). All 798 earlier
-definitions remain structurally unchanged, and the four other generated CPU
-modules remain byte-for-byte identical. Explicit flag policies and shared body
-construction simplify the execution paths, but do not reduce total authored source.
+Migrating the 8080/Z80 byte-transfer matrices, immediate loads, and Z80 indexed
+transfers adds 172 forms using 157 bodies, incorporating the earlier MOV B,A
+sample. The shared 8080-family core shrinks by **9 lines** after removing its
+operand read/write helpers and handwritten transfer body. CPU modules add **4**
+lines, CPU-specific definitions add **3**, and shared construction plus the
+encoding inventory add **42**. There are no new semantic primitives or generator
+changes. Total authored CPU source rises from **7,225 to 7,265 lines** (**40 more**).
+The other 829 earlier definitions remain structurally unchanged, and the four
+other generated CPU modules remain byte-for-byte identical. One encoding
+inventory now drives both definition generation and ordinary execution bindings,
+but this migration does not reduce total authored source.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

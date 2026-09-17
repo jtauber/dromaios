@@ -298,7 +298,7 @@ test("generated comparison never writes its destination, and captures it after s
 test("generated transfers capture their source and differ only in the declared flag effects", () => {
   const m = mosState(), i = intelState();
   m.a = i.a = 0x80;
-  mos[0xaa](m); intel.movBA(i);
+  mos[0xaa](m); intel[0x47](i);
   assert.equal(m.x, 0x80); assert.equal(i.b, 0x80);
   assert.deepEqual(m.flags, { n: true, z: false, c: true, v: true, d: true, i: true });
   assert.deepEqual(i.flags, intelState().flags);

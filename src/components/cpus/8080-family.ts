@@ -4,6 +4,7 @@ import type { RegisterPair } from "./register-pairs.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { opcodeFamily, opcodePattern } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
+import { intelByteTransferForms } from "./intel-transfers.ts";
 
 export type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperand = "b" | "c" | "d" | "e" | "h" | "l" | "(hl)" | "a";
@@ -26,6 +27,7 @@ export abstract class Cpu8080Family<State extends Registers> {
   // These hooks describe instruction differences, without imposing a common flag layout.
   protected abstract readonly aluInstructions: readonly AluInstruction[];
   protected abstract readonly byteAdjustments: readonly ByteInstruction[];
+  protected abstract readonly byteTransfers: Readonly<Record<number, (state: State, instruction: InstructionContext) => void>>;
   protected abstract readonly accumulatorOperations: readonly (() => void)[];
   protected abstract readonly conditions: readonly (() => boolean)[];
   protected abstract addToHl(value: number): void;
@@ -77,15 +79,15 @@ export abstract class Cpu8080Family<State extends Registers> {
 
       // 00 rrr zzz: rrr selects B/C/D/E/H/L/(HL)/A; zzz selects INC, DEC, or immediate LD.
       ...opcodeFamily("00 rrr 10d", { r: this.byteOperands, d: this.byteAdjustments }, ({ r: operand, d: instruction }) => instruction(operand)), // d=0 INR / INC; d=1 DCR / DEC
-      ...opcodeFamily("00 rrr 110", { r: this.byteOperands }, ({ r: operand }) => (instruction: InstructionContext) => this.writeOperand(operand, instruction.fetchByte(), instruction)), // MVI / LD r,n or (HL),n
+      ...this.#transferHandlers(intelByteTransferForms.immediate), // 00 rrr 110: MVI / LD r,n or (HL),n
 
       // 00 ooo 111: accumulator rotates, DAA, complement A, set/complement carry.
       // Each CPU supplies the operations because their flag effects differ.
       ...opcodeFamily("00 ooo 111", { o: this.accumulatorOperations }, ({ o: operate }) => operate),
 
       // 01 ddd sss: ddd (bits 5..3) selects destination; sss (bits 2..0) selects source.
-      // 01 110 110 is HALT, not LD (HL),(HL); the binding handles this exception.
-      ...opcodeFamily("01 ddd sss", { d: this.byteOperands, s: this.byteOperands }, ({ d: destination, s: source }) => this.#transferHandler(destination, source)), // MOV / LD; HLT / HALT
+      ...this.#transferHandlers(intelByteTransferForms.matrix), // MOV / LD; excludes memory-to-memory
+      ...instructionPattern("01 110 110", () => { this.state.halted = true; }), // HLT / HALT; no data access
 
       // 10 ooo rrr: ooo selects ADD/ADC/SUB/SBC/AND/XOR/OR/CP; rrr selects B/C/D/E/H/L/(HL)/A.
       ...opcodeFamily("10 ooo rrr", { o: this.aluInstructions, r: this.byteOperands }, ({ o: instruction, r: operand }) => instruction(operand)), // ALU r / ALU (HL)
@@ -124,22 +126,11 @@ export abstract class Cpu8080Family<State extends Registers> {
     ];
   }
 
-  #transferHandler(destination: ByteOperand, source: ByteOperand): OpcodeHandler {
-    // HLT / HALT replaces the memory-to-itself transfer; no data memory is accessed.
-    if (destination === "(hl)" && source === "(hl)") return () => { this.state.halted = true; };
-    return instruction => this.writeOperand(destination, this.readOperand(source, instruction), instruction);
+  #transferHandlers(forms: readonly OpcodeEntry<unknown>[]): readonly OpcodeEntry<OpcodeHandler>[] {
+    return forms.map(([opcode]) => [opcode, instruction => this.byteTransfers[opcode]!(this.state, instruction)]);
   }
 
   // Register operands and exchanges.
-
-  protected readOperand(operand: ByteOperand, { readByte }: InstructionContext): number {
-    return operand === "(hl)" ? readByte(this.hl) : this.state[operand];
-  }
-
-  protected writeOperand(operand: ByteOperand, value: number, { writeByte }: InstructionContext): void {
-    if (operand === "(hl)") writeByte(this.hl, value);
-    else this.state[operand] = value;
-  }
 
   protected readPair(pair: WordOperand): number {
     if (pair === "sp") return this.state.sp;

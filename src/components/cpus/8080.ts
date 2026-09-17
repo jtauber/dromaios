@@ -164,6 +164,8 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
 
   // Opcode selectors and construction.
 
+  protected override readonly byteTransfers = semantics;
+
   // d in 00 rrr 10d selects INR/DCR; the generated memory body receives HL once.
   protected override readonly byteAdjustments: readonly ByteInstruction[] = (["inr", "dcr"] as const).map(operation => operand => {
     const suffix = { b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", a: "A" } as const;

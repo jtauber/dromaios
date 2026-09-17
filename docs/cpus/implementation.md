@@ -184,7 +184,7 @@ operands, pair views, data-word accesses, stack exchanges, and 240 supported
 the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
 The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
-operations, conditions, byte increment/decrement, addition to HL, and PSW/AF
+operations, conditions, byte transfers, byte increment/decrement, addition to HL, and PSW/AF
 packing. Both CPUs' byte ALU and byte-adjustment selectors bind complete generated bodies with
 explicit source reads, flags, and writeback. Shared
 [Intel construction](../../src/components/cpus/semantics/intel.ts) supplies
@@ -196,6 +196,15 @@ CPU flag policies; their memory bodies receive one resolved HL or indexed addres
 The old accumulator wrapper is gone. These hooks keep differing flag rules explicit, including parity
 versus overflow and the opposite subtraction half-carry conventions. The shared
 code does not select behavior by checking which processor is executing.
+
+The shared [byte-transfer inventory](../../src/components/cpus/intel-transfers.ts)
+owns the `00 ddd 110` immediate and `01 ddd sss` matrix encodings. Definition
+construction and execution binding consume that same inventory; the generated
+method keys are the numeric opcodes. HALT remains explicit in the family table.
+Ordinary bodies own source reads, H/L reads at the access point, and writeback.
+Indexed Z80 bodies share construction and receive a resolved address instead.
+Both CPUs use one binder, with no separate handwritten byte-operand read/write
+helpers or per-CPU transfer dispatch tables.
 
 Each concrete constructor validates and copies its state before passing that
 owned state to `super`. The base constructor binds only the state and call

@@ -261,6 +261,8 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   // Opcode selectors and construction.
 
+  protected override readonly byteTransfers = semantics;
+
   // d in 00 rrr 10d selects INC/DEC; the same memory bodies serve HL and resolved IX/IY operands.
   protected override readonly byteAdjustments: readonly ByteInstruction[] = (["inc", "dec"] as const).map(operation => operand => {
     const suffix = { b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", a: "A" } as const;
@@ -270,7 +272,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   // rrr selects B/C/D/E/H/L/(HL)/A; port and indexed-register forms omit rrr=110.
   readonly #byteRegisters = this.byteOperands.flatMap((register, code) => register === "(hl)" ? []
-    : [{ register, bits: code.toString(2).padStart(3, "0") }]);
+    : [{ register, suffix: ({ b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", a: "A" } as const)[register], bits: code.toString(2).padStart(3, "0") }]);
 
   // ooo in 10 ooo rrr / 11 ooo 110 selects the same ALU family, including DD/FD memory forms.
   readonly #aluFamilies = ["add", "adc", "sub", "sbc", "and", "xor", "or", "cp"] as const;
@@ -388,11 +390,11 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
       ...opcodeFamily("00 10 q 011", { q: [1, -1] }, ({ q: delta }) => () => { this.state[index] = (this.state[index] + delta) & 0xffff; }), // INC/DEC IX/IY
       ...instructionPattern("00 110 100", instruction => semantics.incMemory(this.state, address(instruction), instruction)), // INC (IX/IY+d)
       ...instructionPattern("00 110 101", instruction => semantics.decMemory(this.state, address(instruction), instruction)), // DEC (IX/IY+d)
-      ...instructionPattern("00 110 110", instruction => { const target = address(instruction); instruction.writeByte(target, instruction.fetchByte()); }), // LD (IX/IY+d),n; fetch d before n
+      ...instructionPattern("00 110 110", instruction => semantics.storeImmediateMemory(this.state, address(instruction), instruction)), // LD (IX/IY+d),n; fetch d before n
       // 01 rrr 110 / 01 110 rrr transfer to/from the seven byte registers, including real H/L.
-      ...this.#byteRegisters.flatMap(({ register, bits }) => [
-        ...instructionPattern(`01 ${bits} 110`, instruction => { this.state[register] = instruction.readByte(address(instruction)); }), // LD r,(IX/IY+d)
-        ...instructionPattern(`01 110 ${bits}`, instruction => instruction.writeByte(address(instruction), this.state[register])), // LD (IX/IY+d),r
+      ...this.#byteRegisters.flatMap(({ suffix, bits }) => [
+        ...instructionPattern(`01 ${bits} 110`, instruction => semantics[`load${suffix}Memory`](this.state, address(instruction), instruction)), // LD r,(IX/IY+d)
+        ...instructionPattern(`01 110 ${bits}`, instruction => semantics[`store${suffix}Memory`](this.state, address(instruction), instruction)), // LD (IX/IY+d),r
       ]),
       ...opcodeFamily("10 ooo 110", { o: this.#aluFamilies }, ({ o: operation }) => (instruction: InstructionContext) =>
         semantics[`${operation}Memory`](this.state, address(instruction), instruction)), // ALU (IX/IY+d)
