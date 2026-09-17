@@ -26,6 +26,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800/6809 AND/BIT/EOR/OR on A/B, every supported addressing form | Share logical construction and operand bindings; N/Z describe the result, V clears, and BIT omits writeback |
 | 6800/6809 byte loads and stores, every supported addressing form | Share N/Z with V cleared; stores capture A/B after addressing, never read the destination, and apply flags only after a successful write |
 | 6800 word loads/stores for X/SP and 6809 word loads/stores for D/X/Y/U/S | Share byte/word transfer construction; high byte first, flags after both writes, explicit D split writes and LDS NMI arming |
+| 6800/6809 ADD/ADC/SUB/SBC on A/B, 6800 ABA/SBA, and 6809 ADDD/SUBD | Share binary arithmetic with explicit carry/borrow input; apply flags before writeback, update H only for byte addition, and expose D split writes |
 | 6800 TAB/TBA | Reuse the transfer recipe and Motorola byte-result policy, writing the destination before flags |
 | All six 6502 register transfers and 8080 MOV B,A | Share read/write behavior while selecting N/Z or preserving every flag; SP transfers do not access the stack |
 | All 6502 ASL/ROL/LSR/ROR forms | One resolved address, an original-value write, a captured incoming carry for rotates, and separate C and N/Z stages; accumulator forms share the operation |
@@ -35,14 +36,14 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
 
-There are 277 bodies. All are generated and executable; 276 are bound into their
+There are 315 bodies. All are generated and executable; 314 are bound into their
 CPU's opcode table. MOV B,A remains a generated transfer test: adding a dispatch
 hook for that one sample would complicate the shared 8080/Z80 transfer family.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
 extended forms, including all legal indexed postbytes. The 6800 memory
-comparisons, logic, and byte/word transfers likewise serve direct/indexed/extended
+comparisons, logic, arithmetic, and byte/word transfers likewise serve direct/indexed/extended
 forms, while its unary operations have indexed/extended forms. Both decoders
 remain handwritten. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
@@ -59,8 +60,8 @@ The authoring layers have separate homes:
 | Location | Responsibility |
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
-| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical recipes, N/Z policies, and checked opcode inventories |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, and byte/word-transfer construction, with explicit access and flag policies |
+| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, and byte/word-transfer construction, with explicit access and flag policies |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -92,7 +93,7 @@ Current symbols cover stored unsigned byte/word registers, the `flags`
 group, and top-level Boolean control latches; general declarations for slices, register views, and banks remain future
 work. Composed reads already use ordinary sources: 8080 HL is explicitly read
 as H then L, and the 6809's D as A then B, before combining the bytes.
-Compound transfer destinations use explicit ordered statements consuming
+Compound transfer and arithmetic destinations use explicit ordered statements consuming
 `result`: LDD writes A then B using `highByte`/`lowByte`; LDS writes S then
 `writeLatch(cpu.latch("nmiArmed"), true)`. A latch is distinct from an architectural
 flag. The current latch vocabulary supports constant Boolean writes only.
@@ -113,6 +114,9 @@ are captured values supplied at entry, before any body statement, and belong
 to the body's initial scope. Their names and widths are validated, and a later
 capture cannot redefine them. Sources and flag policies retain their separate
 closed scopes; a policy receives an input only through an explicit argument.
+Policy parameters may declare `8`, `16`, or `"flag"`; numeric and Boolean
+arguments remain distinct and are evaluated once before any flag assignments.
+Passing captured carry into a policy never reads live C again.
 This lets a body consume a resolved address without hiding address calculation
 inside a callback or pretending it is a new memory-access primitive.
 
@@ -133,6 +137,19 @@ width, with C meaning borrow. The original 6800 CPX instead supplies a named
 policy using `highByte(left)` and `highByte(right)` for N/V, whole-word subtraction
 for Z, and no C assignment. Its explanation accompanies the policy in the 6800
 definition. CBA uses the same `compare` recipe with B as its register source.
+
+`arithmetic(operation, policy, incoming?)` consumes captured `left` and `right`,
+optionally reads the incoming flag, captures `result`, and applies the policy.
+Writeback remains a separate stage. `motorolaArithmetic` supplies N/Z/V/C at the
+operand width, with C meaning carry for addition and borrow for subtraction.
+Only byte addition replaces H; subtraction and word arithmetic preserve it.
+`motorolaArithmeticFamily` reads the full immediate or resolved-memory operand
+before A/B or the D view, then captures incoming C for ADC/SBC. ADD/SUB and
+ADDD/SUBD never read incoming C. Flags precede destination writes, including
+D's explicit A-then-B writes. ABA/SBA supply their own A-then-B operand reads
+and use the same calculation/policy construction. Failed operand reads retain
+completed fetching and address updates, without arithmetic or writeback.
+Decimal adjustment remains outside this binary arithmetic family.
 
 `transfer(destination, source, policy?)` captures its source as `result`, writes
 the destination, and optionally applies a policy with that result parameter.
@@ -260,8 +277,8 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `flagValue(name)` | An already captured Boolean flag in the current lexical scope |
 | `flagLiteral(value)` | A Boolean constant; never a numeric zero or one |
 | `literal(width, value)` | An unsigned constant that fits the width |
-| `subtract(left, right)` | Binary subtraction modulo `2^width`, with no input borrow |
-| `addWrap(left, right)` | Addition modulo `2^width` |
+| `subtract(left, right, incoming?)` | Binary `left - right - incoming` modulo `2^width`; omitted incoming borrow is zero |
+| `addWrap(left, right, incoming?)` | Binary `left + right + incoming` modulo `2^width`; omitted incoming carry is zero |
 | `bitAnd(left, right)`, `bitOr(left, right)`, `bitXor(left, right)` | Bitwise AND, OR, and exclusive OR on equal-width unsigned numbers, preserving that width; distinct from Boolean `xor` |
 | `concat(high, low)` | Two bytes combined as `high * 256 + low`, yielding a word |
 | `highByte(value)`, `lowByte(value)` | Extract bits 15–8 or 7–0 of a captured word as a byte; byte operands and live register symbols are rejected |
@@ -272,13 +289,19 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `lowBit(value)` | Whether bit 0 is set |
 | `zero(value)` | Whether the unsigned value is zero |
 | `evenParity(value)` | Whether a byte has an even population count, including zero |
-| `borrow(left, right)` | Whether unsigned `left < right` |
-| `halfBorrow(left, right)` | Whether `(left mod 16) < (right mod 16)`, at either supported width |
-| `overflow(left, right)` | Whether signed subtraction falls outside the signed range at that width |
+| `borrow(left, right, incoming?)` | Whether unsigned `left - right - incoming` is negative |
+| `halfBorrow(left, right, incoming?)` | Whether `(left mod 16) - (right mod 16) - incoming` is negative, at either supported width |
+| `overflow(left, right, incoming?)` | Whether signed `left - right - incoming` falls outside the signed range at that width |
+| `carry(left, right, incoming?)` | Whether unsigned `left + right + incoming` reaches `2^width` |
+| `halfCarry(left, right, incoming?)` | Whether `(left mod 16) + (right mod 16) + incoming` reaches 16, at either supported width |
+| `addOverflow(left, right, incoming?)` | Whether signed `left + right + incoming` falls outside the signed range at that width |
 | `not(value)` | Boolean negation |
 | `xor(left, right)` | Boolean exclusive OR; true exactly when its two Boolean operands differ |
 
-Binary arithmetic and bitwise operands must have equal widths. Shift operands have distinct
+Binary arithmetic and bitwise operands must have equal widths. Optional arithmetic
+inputs are Boolean expressions, contributing zero or one; omission means zero.
+Carry/borrow/overflow use the original operands and input bit, never an already
+wrapped `right + incoming`. These expressions perform no flag reads or writes. Shift operands have distinct
 roles: a byte/word value and a Boolean incoming bit; shifts do not update flags.
 These arithmetic meanings correspond
 to existing [ALU](../../src/components/cpus/alu.ts) contracts; generated code
@@ -449,6 +472,16 @@ and require its capture only after the last successful read. These cover every
 register in immediate and memory bodies, D's A-then-B read order, and failures
 before either operand byte completes.
 
+[Arithmetic probes](../../tests/components/cpus/semantics/arithmetic.test.ts)
+check every byte pair with both input bits, word boundaries, and Boolean policy
+argument substitution against independent signed/unsigned calculations. They
+verify complete-operand-before-register reads, single carry captures only for
+ADC/SBC, current flag objects, flags before writeback, and failure at each read.
+CPU tests retain exhaustive arithmetic expectations and now include these
+families in their wrapping, overlap, index-update, and access-failure probes.
+All 277 earlier definitions remain structurally unchanged; the 6502 and 8080
+generated modules remain byte-for-byte unchanged by this migration.
+
 ## Executable generation and integration
 
 [generateInstructions](../../src/components/cpus/semantics/generate.ts) validates
@@ -469,7 +502,7 @@ arguments are captured once, then all flag results are computed before any flag
 assignment. No reads, writes, or policies move across one another. Widths select
 the existing ALU helper arguments and sign bits. Widening a known unsigned byte
 requires no JavaScript arithmetic. The output is deliberately unoptimized:
-repeated subtraction facts remain separate calls rather than introducing an
+repeated arithmetic facts remain separate calls rather than introducing an
 optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces

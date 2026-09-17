@@ -571,13 +571,10 @@ family relationships. The 6800, 6809, and 68000 share the T/F, HI/LS, CC/CS,
 NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition tests. The opcode tables retain
 the 6800's absent BRN and the 68000 branch family's BSR exception.
 
-`motorolaByteAlu` shares the remaining 6800/6809 byte addition, subtraction,
-and decimal-adjust behavior. It receives
-a flag getter and reads it only during execution, so restoring CC cannot leave
-operations attached to an old flag object. Addition replaces H; subtraction
-preserves it under the existing model contracts. Unnamed flags are preserved.
-Decimal adjustment uses the original A/H/C, preserves H, and clears undefined
-V under the shared model policy.
+`motorolaDecimalAdjust` takes the original byte and current flags directly.
+It uses the original A/H/C, preserves H and control flags, and clears undefined
+V under the shared model policy. Binary addition and subtraction now use
+[shared definitions](../../src/components/cpus/semantics/motorola.ts).
 The [shared unary definitions](../../src/components/cpus/semantics/motorola.ts)
 express NEG/COM/shifts/rotates/INC/DEC/TST/CLR once. Each CPU declares whether
 CLR reads its operand, TST clears C, and right shifts set V=N XOR C. The
@@ -595,7 +592,7 @@ undefined address before body entry; the decoders remain CPU-specific.
 Logical construction shares the operand-first recipe with the 6502, selecting
 the Motorola N/Z policy with V cleared. BIT uses the same masked result for N/Z
 and omits writeback. `motorolaByteBindings` owns the generated comparison,
-logical, load, and store selectors in `1 r mm oooo`, sharing operand bindings
+arithmetic, logical, load, and store selectors in `1 r mm oooo`, sharing operand bindings
 across both CPUs. Stores omit the immediate binding.
 The 6800's ORAA/ORAB and the 6809's ORA/ORB retain their native display names.
 
@@ -613,21 +610,21 @@ register write followed by NMI arming. `lowByte` and schema-checked `writeLatch`
 keep these effects visible in generated code and explanations. The old word
 load/store helpers and shared runtime result-flag helper have no remaining callers.
 
-`motorolaAccumulatorOperations` also shares the four remaining byte-arithmetic selectors
-in `1 r mm oooo`, including their accumulator writeback and flag effects.
-Its state getter and ALU callbacks are bound during construction and read only
-when an instruction executes. Each CPU supplies its own immediate and memory
-readers: in particular, the 6809 still rejects undefined indexed postbytes before
-running an operation. Word arithmetic and addressing remain local; the 6809's
-word-arithmetic adapters reuse the same operand bindings as generated bodies.
-Matching arithmetic flag policies use the shared operations described above;
-unary, comparison, logical, and byte/word-transfer semantics use generated bodies.
-Address and effect-order differences stay visible.
+`motorolaArithmetic` constructs the binary result and explicit flag stage;
+`motorolaArithmeticFamily` schedules operand reads, the accumulator, optional
+incoming C, and register writeback. Byte addition replaces H; subtraction and
+word arithmetic preserve it. Flags precede writeback, including the 6809's
+explicit A-then-B writes for D. ABA/SBA supply A-then-B reads separately.
+All byte arithmetic uses `motorolaByteBindings`; ADDD/SUBD use the existing
+operand bindings. The old accumulator-operation table, byte-operand readers,
+and word-arithmetic helpers have no remaining callers. Address decoders still
+reject undefined indexed postbytes before body entry.
 
 [Tests](../../tests/components/cpus/motorola.test.ts) compare encoded conditions
-with unsigned and signed arithmetic and verify preserved flags and replaced
-flag objects. The existing exhaustive CPU tests independently check arithmetic
-and all addressing forms. Sharing these behaviors does not imply that all
+with unsigned and signed arithmetic and verify preserved flags.
+[Generated-body tests](../../tests/components/cpus/semantics/arithmetic.test.ts)
+verify captured carry, replaced flag objects, and flags before writeback. The
+existing exhaustive CPU tests independently check arithmetic and all addressing forms. Sharing these behaviors does not imply that all
 Motorola instructions or flag rules agree.
 
 ## Verify a reorganization

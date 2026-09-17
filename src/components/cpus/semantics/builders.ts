@@ -1,4 +1,4 @@
-import { capture, fetchByte, flagLiteral, flagValue, lowBit, negative, readFlag, readMemory, readRegister, readSource,
+import { addWrap, capture, fetchByte, flagLiteral, flagValue, lowBit, negative, readFlag, readMemory, readRegister, readSource,
   shiftLeft, shiftRight, subtract, updateFlags, value, writeRegister, zero } from "./model.ts";
 import type { Flag, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
 import type { InstructionDefinition } from "./model.ts";
@@ -76,5 +76,15 @@ export function logical(register: Register, source: ValueSource | NumberExpressi
     readRegister("accumulator", register), capture("result", operation(value("accumulator"), value("operand"))),
     ...(writeBack ? [writeRegister(register, value("result"))] : []),
     updateFlags(policy, { result: value("result") }),
+  ];
+}
+
+/** Consume captured left/right operands, sample optional carry, then compute the result and flags. Writeback is separate. */
+export function arithmetic(operation: "add" | "subtract", policy: FlagPolicy, incoming?: Flag): readonly Statement[] {
+  const left = value("left"), right = value("right"), carry = incoming === undefined ? undefined : flagValue("carry");
+  return [
+    ...(incoming === undefined ? [] : [readFlag("carry", incoming)]),
+    capture("result", (operation === "add" ? addWrap : subtract)(left, right, carry)),
+    updateFlags(policy, { left, right, result: value("result"), ...(carry === undefined ? {} : { carry }) }),
   ];
 }

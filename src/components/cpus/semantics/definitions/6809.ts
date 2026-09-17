@@ -2,7 +2,7 @@ import { cpu6809StateDescription } from "../../state/6809.ts";
 import { concat, cpuSymbols, highByte, lowByte, readRegister, value, writeLatch, writeRegister } from "../model.ts";
 import type { ValueSource } from "../model.ts";
 import { registerSource } from "../builders.ts";
-import { motorolaTransfers, motorolaComparison, motorolaLogic, motorolaUnary } from "../motorola.ts";
+import { motorolaByteArithmetic, motorolaArithmeticFamily, motorolaTransfers, motorolaComparison, motorolaLogic, motorolaUnary } from "../motorola.ts";
 
 const cpu = cpuSymbols("6809", cpu6809StateDescription);
 
@@ -13,15 +13,20 @@ const d: ValueSource = {
   result: concat(value("high"), value("low")),
 };
 
+const writableD = { source: d,
+  write: [writeRegister(cpu.register("a"), highByte(value("result"))), writeRegister(cpu.register("b"), lowByte(value("result")))],
+  explanation: "Write D as A then B",
+};
+
 export const instructions6809 = {
   ...motorolaUnary(cpu, { clearReadsOperand: true, testClearsCarry: false, rightShiftSetsOverflow: false }),
   ...motorolaLogic(cpu),
+  ...motorolaByteArithmetic(cpu),
+  ...motorolaArithmeticFamily(cpu, "SUBD", writableD, "subtract"),
+  ...motorolaArithmeticFamily(cpu, "ADDD", writableD, "add"),
   ...Object.fromEntries((["a", "b", "x", "y", "u"] as const).flatMap(register =>
     Object.entries(motorolaTransfers(cpu, register.toUpperCase(), cpu.register(register))))),
-  ...motorolaTransfers(cpu, "D", { source: d,
-    write: [writeRegister(cpu.register("a"), highByte(value("result"))), writeRegister(cpu.register("b"), lowByte(value("result")))],
-    explanation: "Write D as A then B",
-  }),
+  ...motorolaTransfers(cpu, "D", writableD),
   ...motorolaTransfers(cpu, "S", { source: registerSource(cpu.register("s")),
     write: [writeRegister(cpu.register("s"), value("result")), writeLatch(cpu.latch("nmiArmed"), true)],
     explanation: "Write S and arm NMI",

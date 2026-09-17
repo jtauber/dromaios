@@ -1,4 +1,4 @@
-import type { Flag, FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueType, Width } from "./model.ts";
+import type { Expression, Flag, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueType, Width } from "./model.ts";
 
 /** Own and freeze a validated definition. Captures and source scopes are instruction-local. */
 export function defineInstruction(definition: InstructionDefinition): InstructionDefinition {
@@ -30,7 +30,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
     const flags = cpu.state.flags;
     if (ref.cpu !== cpu.name || flags?.kind !== "group" || flags.fields[ref.field]?.kind !== "flag") fail(where, `unknown flag ${ref.cpu}.${ref.field}`);
   }
-  function expression(expr: NumberExpression, scope: ReadonlyMap<string, ValueType>, where: string): Width {
+  function expression(expr: Expression, scope: ReadonlyMap<string, ValueType>, where: string): Width {
     switch (expr.kind) {
       case "value": {
         const type = scope.get(expr.name) ?? fail(where, `value ${expr.name} has not been captured in this scope`);
@@ -56,6 +56,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
       case "subtract": case "add-wrap": case "concat": case "bit-and": case "bit-or": case "bit-xor": {
         const left = expression(expr.left, scope, where), right = expression(expr.right, scope, where);
         if (left !== right) fail(where, "operands must have equal widths; conversions are explicit");
+        if ((expr.kind === "subtract" || expr.kind === "add-wrap") && expr.incoming !== undefined) flagExpression(expr.incoming, scope, where);
         if (expr.kind !== "concat") return left;
         if (left !== 8) fail(where, "concatenation requires two bytes, high then low");
         return 16;
@@ -63,7 +64,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
       default: return fail(where, "unknown numeric expression");
     }
   }
-  function flagExpression(expr: FlagExpression, scope: ReadonlyMap<string, ValueType>, where: string): void {
+  function flagExpression(expr: Expression, scope: ReadonlyMap<string, ValueType>, where: string): void {
     switch (expr.kind) {
       case "flag-value":
         if (scope.get(expr.name) !== "flag") fail(where, `flag ${expr.name} has not been captured in this scope`);
@@ -78,19 +79,21 @@ export function validateInstruction(definition: InstructionDefinition): void {
         if (expr.kind === "even-parity" && bits !== 8) fail(where, "even parity requires a byte");
         return;
       }
-      case "borrow": case "half-borrow": case "subtract-overflow":
+      case "borrow": case "half-borrow": case "subtract-overflow": case "carry": case "half-carry": case "add-overflow":
         if (expression(expr.left, scope, where) !== expression(expr.right, scope, where)) fail(where, "flag operands must have equal widths");
+        if (expr.incoming !== undefined) flagExpression(expr.incoming, scope, where);
         return;
       default: fail(where, "unknown flag expression");
     }
   }
-  function policy(policy: FlagPolicy, args: Readonly<Record<string, NumberExpression>>, scope: ReadonlyMap<string, ValueType>, where: string): void {
-    const parameters = new Map<string, Width>();
+  function policy(policy: FlagPolicy, args: Readonly<Record<string, Expression>>, scope: ReadonlyMap<string, ValueType>, where: string): void {
+    const parameters = new Map<string, ValueType>();
     if (policy.unlisted !== "preserve") fail(where, "unlisted flags must be preserved");
     for (const [name, bits] of Object.entries(policy.parameters)) {
       identifier(name, where);
-      parameters.set(name, width(bits, where));
+      parameters.set(name, bits === "flag" ? "flag" : width(bits, where));
       if (!Object.hasOwn(args, name)) fail(where, `missing argument ${name}`);
+      else if (bits === "flag") flagExpression(args[name]!, scope, where);
       else if (expression(args[name]!, scope, where) !== bits) fail(where, `argument ${name} must have width ${bits}`);
     }
     for (const name of Object.keys(args)) if (!parameters.has(name)) fail(where, `unknown argument ${name}`);

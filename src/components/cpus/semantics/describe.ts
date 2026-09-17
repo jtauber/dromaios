@@ -1,4 +1,4 @@
-import type { FlagExpression, InstructionDefinition, NumberExpression, Statement } from "./model.ts";
+import type { Expression, FlagExpression, InstructionDefinition, Statement } from "./model.ts";
 import { validateInstruction } from "./validate.ts";
 
 /** Expand every source and flag policy from its represented meaning, without running any effects. */
@@ -6,7 +6,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
   validateInstruction(definition);
   const lines: string[] = [];
   const changed = new Set<string>();
-  function number(expr: NumberExpression, parameters: Readonly<Record<string, NumberExpression>> = {}): string {
+  function number(expr: Expression, parameters: Readonly<Record<string, Expression>> = {}): string {
     switch (expr.kind) {
       // Arguments are in the caller's scope: substitution happens once, never recursively by name.
       case "value": return Object.hasOwn(parameters, expr.name) ? number(parameters[expr.name]!) : expr.name;
@@ -19,20 +19,27 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "subtract": case "add-wrap": case "concat": case "bit-and": case "bit-or": case "bit-xor": {
         const operation = { subtract: "subtract", "add-wrap": "addWrap", concat: "concatHighLow",
           "bit-and": "bitAnd", "bit-or": "bitOr", "bit-xor": "bitXor" }[expr.kind];
-        return `${operation}(${number(expr.left, parameters)}, ${number(expr.right, parameters)})`;
+        return `${operation}(${number(expr.left, parameters)}, ${number(expr.right, parameters)}${
+          expr.kind === "subtract" || expr.kind === "add-wrap" ? incoming(expr.incoming, parameters) : ""})`;
       }
+      default: throw new Error("Expected a validated numeric expression.");
     }
   }
-  function flag(expr: FlagExpression, parameters: Readonly<Record<string, NumberExpression>>): string {
+  function incoming(expr: FlagExpression | undefined, parameters: Readonly<Record<string, Expression>>): string {
+    return expr === undefined ? "" : `, ${flag(expr, parameters)}`;
+  }
+  function flag(expr: Expression, parameters: Readonly<Record<string, Expression>>): string {
     switch (expr.kind) {
-      case "flag-value": return expr.name;
+      case "flag-value": return Object.hasOwn(parameters, expr.name) ? flag(parameters[expr.name]!, {}) : expr.name;
       case "flag-literal": return expr.value ? "1:flag" : "0:flag";
       case "not": return `not(${flag(expr.value, parameters)})`;
       case "xor": return `xor(${flag(expr.left, parameters)}, ${flag(expr.right, parameters)})`;
       case "negative": case "low-bit": case "zero": case "even-parity":
         return `${{ negative: "topBit", "low-bit": "lowBit", zero: "isZero", "even-parity": "evenParity8" }[expr.kind]}(${number(expr.value, parameters)})`;
-      case "borrow": case "half-borrow": case "subtract-overflow":
-        return `${{ borrow: "borrow", "half-borrow": "halfBorrow4", "subtract-overflow": "subtractOverflow" }[expr.kind]}(${number(expr.left, parameters)}, ${number(expr.right, parameters)})`;
+      case "borrow": case "half-borrow": case "subtract-overflow": case "carry": case "half-carry": case "add-overflow":
+        return `${{ borrow: "borrow", "half-borrow": "halfBorrow4", "subtract-overflow": "subtractOverflow",
+          carry: "carry", "half-carry": "halfCarry4", "add-overflow": "addOverflow" }[expr.kind]}(${number(expr.left, parameters)}, ${number(expr.right, parameters)}${incoming(expr.incoming, parameters)})`;
+      default: throw new Error("Expected a validated flag expression.");
     }
   }
   function body(steps: readonly Statement[], indent = ""): void {

@@ -1,4 +1,4 @@
-import { add, subtract } from "./alu.ts";
+import { add } from "./alu.ts";
 import { negativeZero } from "./flags.ts";
 import type { ArithmeticWidth, AdditionResult, SubtractionResult } from "./alu.ts";
 import type { ByteMemory } from "./memory-access.ts";
@@ -29,37 +29,15 @@ export function motorolaArithmeticFlags(width: ArithmeticWidth, facts: AdditionR
     c: "carry" in facts ? facts.carry : facts.borrow };
 }
 
-/**
- * Byte arithmetic shared by the 6800 and 6809. Read the current flag object at execution
- * so restoring CC cannot leave operations attached to the previous object. Construction reads nothing.
- * These operations preserve H except for addition, and preserve flags they do not name.
- */
-export function motorolaByteAlu(readFlags: () => ConditionCodes & { h: boolean }) {
-  return {
-    add(left: number, right: number, carryIn: 0 | 1 = 0): number {
-      const flags = readFlags();
-      const facts = add(8, left, right, carryIn);
-      Object.assign(flags, motorolaArithmeticFlags(8, facts), { h: facts.halfCarry });
-      return facts.result;
-    },
-    subtract(left: number, right: number, borrowIn: 0 | 1 = 0): number {
-      const flags = readFlags();
-      const facts = subtract(8, left, right, borrowIn);
-      Object.assign(flags, motorolaArithmeticFlags(8, facts));
-      return facts.result;
-    },
-    decimalAdjust(value: number): number {
-      const flags = readFlags();
-      // Both corrections use the original byte and flags, before either nibble changes.
-      const low = (value & 0x0f) > 9 || flags.h ? 0x06 : 0;
-      const high = value > 0x99 || flags.c ? 0x60 : 0;
-      const { result, carry } = add(8, value, low + high);
-      Object.assign(flags, negativeZero(8, result));
-      flags.v = false; // Explicit model policy for the hardware-undefined V; preserve H.
-      flags.c = flags.c || carry;
-      return result;
-    },
-  };
+/** Decimal correction uses the original byte and H/C; preserve H and the control flags. */
+export function motorolaDecimalAdjust(value: number, flags: ConditionCodes & { h: boolean }): number {
+  const low = (value & 0x0f) > 9 || flags.h ? 0x06 : 0;
+  const high = value > 0x99 || flags.c ? 0x60 : 0;
+  const { result, carry } = add(8, value, low + high);
+  Object.assign(flags, negativeZero(8, result));
+  flags.v = false; // Explicit model policy for the hardware-undefined V.
+  flags.c = flags.c || carry;
+  return result;
 }
 
 type UnaryName = "neg" | "com" | "lsr" | "ror" | "asr" | "asl" | "rol" | "dec" | "inc" | "tst" | "clr";
@@ -97,7 +75,7 @@ export function motorolaOperandBindings<State>(readState: () => State,
   ];
 }
 
-type ByteReadName = "cmp" | "and" | "bit" | "ld" | "eor" | "or";
+type ByteReadName = "sub" | "sbc" | "adc" | "add" | "cmp" | "and" | "bit" | "ld" | "eor" | "or";
 type ByteBodies<State> = Readonly<Record<`${ByteReadName}${"a" | "b"}Immediate`, (state: State, instruction: WordInstructionContext) => void>
   & Record<`${ByteReadName | "st"}${"a" | "b"}Memory`, (state: State, address: number, instruction: ByteMemory) => void>>;
 
@@ -105,25 +83,10 @@ type ByteBodies<State> = Readonly<Record<`${ByteReadName}${"a" | "b"}Immediate`,
 export function motorolaByteBindings<State>(bodies: ByteBodies<State>, bind: ReturnType<typeof motorolaOperandBindings<State>>) {
   return (["a", "b"] as const).flatMap((register, r) => [
     ...([
-      ["0001", "cmp"], ["0100", "and"], ["0101", "bit"], ["0110", "ld"],
-      ["1000", "eor"], ["1010", "or"],
+      ["0000", "sub"], ["0001", "cmp"], ["0010", "sbc"],
+      ["0100", "and"], ["0101", "bit"], ["0110", "ld"],
+      ["1000", "eor"], ["1001", "adc"], ["1010", "or"], ["1011", "add"],
     ] as const).flatMap(([bits, name]) => bind(`1 ${r} mm ${bits}`, bodies[`${name}${register}Immediate`], bodies[`${name}${register}Memory`])),
     ...bind(`1 ${r} mm 0111`, undefined, bodies[`st${register}Memory`]), // Stores have no immediate form.
   ]);
-}
-
-type Accumulator = "a" | "b";
-interface AccumulatorState { a: number; b: number; flags: { c: boolean } }
-type AccumulatorOperation = { readonly bits: string; readonly apply: (register: Accumulator, value: number) => void };
-
-/** Remaining 6800/6809 byte-arithmetic selectors; generated comparisons, logic, and transfers bind separately. */
-export function motorolaAccumulatorOperations(readState: () => AccumulatorState, alu: ReturnType<typeof motorolaByteAlu>): readonly AccumulatorOperation[] {
-  // 1 r mm oooo: r selects A/B, mm selects addressing, and these rows select oooo.
-  // Construct only closures here: CPU state is not available until its constructor runs.
-  return [
-    { bits: "0000", apply: (r, value) => { readState()[r] = alu.subtract(readState()[r], value); } }, // SUBA/B
-    { bits: "0010", apply: (r, value) => { readState()[r] = alu.subtract(readState()[r], value, readState().flags.c ? 1 : 0); } }, // SBCA/B
-    { bits: "1001", apply: (r, value) => { readState()[r] = alu.add(readState()[r], value, readState().flags.c ? 1 : 0); } }, // ADCA/B
-    { bits: "1011", apply: (r, value) => { readState()[r] = alu.add(readState()[r], value); } }, // ADDA/B
-  ];
 }

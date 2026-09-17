@@ -3071,6 +3071,366 @@ write memory[address] := result
 
 Flags preserved throughout: H, I.
 
+### 6800 SUBA #byte
+
+Fetch the immediate operand. Only then read A. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "6800 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SUBA memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read A. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read A
+result := subtract(left, right)
+flags "6800 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCA #byte
+
+Fetch the immediate operand. Only then read A. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCA memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read A. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read A
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ADCA #byte
+
+Fetch the immediate operand. Only then read A. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
+### 6800 ADCA memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read A. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read A
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
+### 6800 ADDA #byte
+
+Fetch the immediate operand. Only then read A. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "6800 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right)
+  C := carry(left, right)
+  H := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
+### 6800 ADDA memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read A. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read A
+result := addWrap(left, right)
+flags "6800 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right)
+  C := carry(left, right)
+  H := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
+### 6800 SUBB #byte
+
+Fetch the immediate operand. Only then read B. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+result := subtract(left, right)
+flags "6800 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SUBB memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read B. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read B
+result := subtract(left, right)
+flags "6800 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCB #byte
+
+Fetch the immediate operand. Only then read B. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 SBCB memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read B. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read B
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6800 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 ADCB #byte
+
+Fetch the immediate operand. Only then read B. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
+
+### 6800 ADCB memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read B. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read B
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6800 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
+
+### 6800 ADDB #byte
+
+Fetch the immediate operand. Only then read B. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+result := addWrap(left, right)
+flags "6800 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right)
+  C := carry(left, right)
+  H := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
+
+### 6800 ADDB memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read B. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read B
+result := addWrap(left, right)
+flags "6800 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right)
+  C := carry(left, right)
+  H := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: I.
+
 ### 6800 ANDA #byte
 
 Fetch the immediate byte. Only then read A and combine the captured bytes. Write the result before applying flags. Set N/Z from the result and clear V, preserving C, H, and control flags. A failed read prevents register and flag updates; completed fetches and addressing effects remain.
@@ -3777,6 +4137,45 @@ flags "6800 CPX high-byte N/V and whole-word Z" simultaneously {
 ```
 
 Flags preserved throughout: H, I, C.
+
+### 6800 ABA
+
+Read A then B and ignore incoming C. Set N/Z/V/C from the binary result, with C meaning carry; set H from the low-nibble carry. Preserve I. Write A after flags; B is unchanged. No data-memory access occurs.
+
+```text
+left:u8 := read A
+right:u8 := read B
+result := addWrap(left, right)
+flags "6800 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right)
+  C := carry(left, right)
+  H := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: I.
+
+### 6800 SBA
+
+Read A then B and ignore incoming C. Set N/Z/V/C from the binary result, with C meaning borrow; preserve H. Preserve I. Write A after flags; B is unchanged. No data-memory access occurs.
+
+```text
+left:u8 := read A
+right:u8 := read B
+result := subtract(left, right)
+flags "6800 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
 
 ### 6800 CBA
 
@@ -4988,6 +5387,476 @@ flags "6809 logic" simultaneously {
 ```
 
 Flags preserved throughout: E, F, H, I, C.
+
+### 6809 SUBA #byte
+
+Fetch the immediate operand. Only then read A. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := subtract(left, right)
+flags "6809 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 SUBA memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read A. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read A
+result := subtract(left, right)
+flags "6809 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 SBCA #byte
+
+Fetch the immediate operand. Only then read A. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6809 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 SBCA memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read A. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read A
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6809 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 ADCA #byte
+
+Fetch the immediate operand. Only then read A. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6809 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, I.
+
+### 6809 ADCA memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read A. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read A
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6809 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, I.
+
+### 6809 ADDA #byte
+
+Fetch the immediate operand. Only then read A. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+result := addWrap(left, right)
+flags "6809 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right)
+  C := carry(left, right)
+  H := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, I.
+
+### 6809 ADDA memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read A. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write A after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read A
+result := addWrap(left, right)
+flags "6809 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right)
+  C := carry(left, right)
+  H := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, I.
+
+### 6809 SUBB #byte
+
+Fetch the immediate operand. Only then read B. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+result := subtract(left, right)
+flags "6809 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 SUBB memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read B. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read B
+result := subtract(left, right)
+flags "6809 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 SBCB #byte
+
+Fetch the immediate operand. Only then read B. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6809 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 SBCB memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read B. Capture C as the incoming borrow. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read B
+carry:flag := read C
+result := subtract(left, right, carry)
+flags "6809 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right, carry)
+  C := borrow(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 ADCB #byte
+
+Fetch the immediate operand. Only then read B. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6809 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, I.
+
+### 6809 ADCB memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read B. Capture C as the incoming carry. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read B
+carry:flag := read C
+result := addWrap(left, right, carry)
+flags "6809 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right, carry)
+  C := carry(left, right, carry)
+  H := halfCarry4(left, right, carry)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, I.
+
+### 6809 ADDB #byte
+
+Fetch the immediate operand. Only then read B. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read B
+result := addWrap(left, right)
+flags "6809 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right)
+  C := carry(left, right)
+  H := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, I.
+
+### 6809 ADDB memory
+
+Entry is after successful address resolution. Read the operand at that address. Only then read B. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Set H from the low-nibble carry. Preserve control flags. Write B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+byte:u8 := read memory[address]
+right := byte
+left:u8 := read B
+result := addWrap(left, right)
+flags "6809 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right)
+  C := carry(left, right)
+  H := halfCarry4(left, right)
+} // Preserve unlisted flags.
+write B:u8 := result
+```
+
+Flags preserved throughout: E, F, I.
+
+### 6809 SUBD #word
+
+Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read D from A:B. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write D as A then B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+result := subtract(left, right)
+flags "6809 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := highByte(result)
+write B:u8 := lowByte(result)
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 SUBD memory
+
+Entry is after successful address resolution. Read the operand at that address. Read high byte then low byte, wrapping at FFFF. Only then read D from A:B. Ignore incoming C. Apply N/Z/V/C from subtraction; C means borrow. Preserve H. Preserve control flags. Write D as A then B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+high:u8 := read memory[address]
+low:u8 := read memory[addWrap(address, 0001:u16)]
+right := concatHighLow(high, low)
+left:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+result := subtract(left, right)
+flags "6809 subtract" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := subtractOverflow(left, right)
+  C := borrow(left, right)
+} // Preserve unlisted flags.
+write A:u8 := highByte(result)
+write B:u8 := lowByte(result)
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 ADDD #word
+
+Fetch the immediate operand. Read high byte then low byte, wrapping at FFFF. Only then read D from A:B. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Preserve H. Preserve control flags. Write D as A then B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+right:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+flags "6809 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right)
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := highByte(result)
+write B:u8 := lowByte(result)
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 ADDD memory
+
+Entry is after successful address resolution. Read the operand at that address. Read high byte then low byte, wrapping at FFFF. Only then read D from A:B. Ignore incoming C. Apply N/Z/V/C from addition; C means carry. Preserve H. Preserve control flags. Write D as A then B after flags. A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.
+
+```text
+address:u16 := input
+high:u8 := read memory[address]
+low:u8 := read memory[addWrap(address, 0001:u16)]
+right := concatHighLow(high, low)
+left:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+result := addWrap(left, right)
+flags "6809 add" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := addOverflow(left, right)
+  C := carry(left, right)
+} // Preserve unlisted flags.
+write A:u8 := highByte(result)
+write B:u8 := lowByte(result)
+```
+
+Flags preserved throughout: E, F, H, I.
 
 ### 6809 LDA #byte
 

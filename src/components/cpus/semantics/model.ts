@@ -8,12 +8,19 @@ export interface Flag { readonly kind: "flag"; readonly cpu: string; readonly fi
 export interface Latch { readonly kind: "latch"; readonly cpu: string; readonly field: string }
 export interface CpuDeclaration { readonly name: string; readonly state: StateFields }
 
+interface ArithmeticOperands {
+  readonly left: NumberExpression;
+  readonly right: NumberExpression;
+  readonly incoming?: FlagExpression;
+}
+
 /** Expressions use captured values only; reading live state requires a statement. */
 export type NumberExpression =
   | { readonly kind: "value"; readonly name: string }
   | { readonly kind: "literal"; readonly width: Width; readonly value: number }
   | { readonly kind: "high-byte" | "low-byte"; readonly value: NumberExpression }
-  | { readonly kind: "subtract" | "add-wrap" | "concat" | "bit-and" | "bit-or" | "bit-xor"; readonly left: NumberExpression; readonly right: NumberExpression }
+  | ({ readonly kind: "subtract" | "add-wrap" } & ArithmeticOperands)
+  | { readonly kind: "concat" | "bit-and" | "bit-or" | "bit-xor"; readonly left: NumberExpression; readonly right: NumberExpression }
   | { readonly kind: "shift-left" | "shift-right"; readonly value: NumberExpression; readonly incoming: FlagExpression }
   | { readonly kind: "extend"; readonly value: NumberExpression; readonly width: Width };
 export type FlagExpression =
@@ -22,11 +29,12 @@ export type FlagExpression =
   | { readonly kind: "not"; readonly value: FlagExpression }
   | { readonly kind: "xor"; readonly left: FlagExpression; readonly right: FlagExpression }
   | { readonly kind: "negative" | "low-bit" | "zero" | "even-parity"; readonly value: NumberExpression }
-  | { readonly kind: "borrow" | "half-borrow" | "subtract-overflow"; readonly left: NumberExpression; readonly right: NumberExpression };
+  | ({ readonly kind: "borrow" | "half-borrow" | "subtract-overflow" | "carry" | "half-carry" | "add-overflow" } & ArithmeticOperands);
+export type Expression = NumberExpression | FlagExpression;
 
 export interface FlagPolicy {
   readonly name: string;
-  readonly parameters: Readonly<Record<string, Width>>;
+  readonly parameters: Readonly<Record<string, ValueType>>;
   readonly updates: readonly { readonly flag: Flag; readonly value: FlagExpression }[];
   readonly unlisted: "preserve";
 }
@@ -50,7 +58,7 @@ export type Statement =
   | { readonly kind: "write-register"; readonly register: Register; readonly value: NumberExpression }
   | { readonly kind: "write-latch"; readonly latch: Latch; readonly value: boolean }
   | { readonly kind: "write-memory"; readonly address: NumberExpression; readonly value: NumberExpression }
-  | { readonly kind: "update-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, NumberExpression>> };
+  | { readonly kind: "update-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, Expression>> };
 export interface InstructionDefinition {
   readonly name: string;
   readonly cpu: CpuDeclaration;
@@ -87,10 +95,14 @@ export function cpuSymbols<const Fields extends StateFields & { flags: GroupFiel
 }
 
 // Typed constructors keep authored formulas legible; their results contain only data.
+function arithmetic<Kind extends NumberExpression["kind"] | FlagExpression["kind"]>(kind: Kind,
+  left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): { readonly kind: Kind } & ArithmeticOperands {
+  return { kind, left, right, ...(incoming === undefined ? {} : { incoming }) };
+}
 export const value = (name: string): NumberExpression => ({ kind: "value", name });
 export const literal = (width: Width, value: number): NumberExpression => ({ kind: "literal", width, value });
-export const subtract = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "subtract", left, right });
-export const addWrap = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "add-wrap", left, right });
+export const subtract = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): NumberExpression => arithmetic("subtract", left, right, incoming);
+export const addWrap = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): NumberExpression => arithmetic("add-wrap", left, right, incoming);
 export const bitAnd = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "bit-and", left, right });
 export const bitOr = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "bit-or", left, right });
 export const bitXor = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "bit-xor", left, right });
@@ -108,9 +120,13 @@ export const zero = (value: NumberExpression): FlagExpression => ({ kind: "zero"
 export const evenParity = (value: NumberExpression): FlagExpression => ({ kind: "even-parity", value });
 export const not = (value: FlagExpression): FlagExpression => ({ kind: "not", value });
 export const xor = (left: FlagExpression, right: FlagExpression): FlagExpression => ({ kind: "xor", left, right });
-export const borrow = (left: NumberExpression, right: NumberExpression): FlagExpression => ({ kind: "borrow", left, right });
-export const halfBorrow = (left: NumberExpression, right: NumberExpression): FlagExpression => ({ kind: "half-borrow", left, right });
-export const overflow = (left: NumberExpression, right: NumberExpression): FlagExpression => ({ kind: "subtract-overflow", left, right });
+export const borrow = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): FlagExpression => arithmetic("borrow", left, right, incoming);
+export const halfBorrow = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): FlagExpression => arithmetic("half-borrow", left, right, incoming);
+export const overflow = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): FlagExpression => arithmetic("subtract-overflow", left, right, incoming);
+
+export const carry = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): FlagExpression => arithmetic("carry", left, right, incoming);
+export const halfCarry = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): FlagExpression => arithmetic("half-carry", left, right, incoming);
+export const addOverflow = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): FlagExpression => arithmetic("add-overflow", left, right, incoming);
 
 // Statement constructors describe effects; they never perform them. Array order is execution order.
 export const capture = (name: string, value: NumberExpression): Statement => ({ kind: "capture", name, value });
@@ -122,4 +138,4 @@ export const readSource = (name: string, source: ValueSource): Statement => ({ k
 export const writeRegister = (register: Register, value: NumberExpression): Statement => ({ kind: "write-register", register, value });
 export const writeLatch = (latch: Latch, value: boolean): Statement => ({ kind: "write-latch", latch, value });
 export const writeMemory = (address: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-memory", address, value });
-export const updateFlags = (policy: FlagPolicy, args: Readonly<Record<string, NumberExpression>>): Statement => ({ kind: "update-flags", policy, arguments: args });
+export const updateFlags = (policy: FlagPolicy, args: Readonly<Record<string, Expression>>): Statement => ({ kind: "update-flags", policy, arguments: args });

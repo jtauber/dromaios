@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { cpu6502StateDescription } from "../../../../src/components/cpus/6502.js";
 import { cpu6809StateDescription } from "../../../../src/components/cpus/6809.js";
-import { addWrap, bitAnd, bitOr, bitXor, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, highByte, lowByte, literal, readFlag, readMemory, shiftLeft, value, writeLatch, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
-import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";
+import { addOverflow, borrow, carry, halfBorrow, halfCarry, overflow, subtract, updateFlags, addWrap, bitAnd, bitOr, bitXor, capture, concat, cpuSymbols, evenParity, extend, flagLiteral, flagValue, highByte, lowByte, literal, readFlag, readMemory, shiftLeft, value, writeLatch, xor, zero } from "../../../../src/components/cpus/semantics/model.js";
+import type { Expression, FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement } from "../../../../src/components/cpus/semantics/model.js";
 import { defineInstruction } from "../../../../src/components/cpus/semantics/validate.js";
 
 const mos = cpuSymbols("6502", cpu6502StateDescription), motorola = cpuSymbols("6809", cpu6809StateDescription);
@@ -219,4 +219,32 @@ test("definitions reject hidden host behavior, instances, and recursive data", (
   cycle.self = cycle;
   assert.throws(() => defineInstruction(cycle as unknown as InstructionDefinition), /cannot contain cycles/);
   assert.equal(called, false);
+});
+
+test("arithmetic carry inputs and flag-policy parameters require explicitly captured Booleans", () => {
+  for (const operation of [addWrap, subtract]) {
+    define([readFlag("carry", mos.flag("c")), capture("result", operation(literal(8, 0xff), literal(8, 1), flagValue("carry")))]);
+    assert.throws(() => define([capture("result", operation(literal(8, 1), literal(8, 2), flagValue("carry")))]), /not been captured/);
+    assert.throws(() => define([capture("carry", literal(8, 1)), capture("result", operation(literal(8, 1), literal(8, 2), flagValue("carry")))]), /not been captured/);
+    assert.throws(() => define([capture("result", operation(literal(8, 1), literal(8, 2), literal(8, 1) as unknown as FlagExpression))]), /unknown flag expression/);
+  }
+  for (const operation of [carry, halfCarry, addOverflow, borrow, halfBorrow, overflow]) {
+    const flags: FlagPolicy = { name: "arithmetic", parameters: { incoming: "flag" }, unlisted: "preserve", updates: [
+      { flag: mos.flag("c"), value: operation(literal(16, 0xffff), literal(16, 0), flagValue("incoming")) },
+    ] };
+    define([readFlag("carry", mos.flag("c")), updateFlags(flags, { incoming: flagValue("carry") })]);
+    define([updateFlags(flags, { incoming: flagLiteral(true) })]);
+    for (const [args, message] of [
+      [{}, /missing argument/], [{ incoming: literal(8, 1) }, /unknown flag expression/],
+      [{ incoming: flagValue("missing") }, /not been captured/],
+      [{ incoming: flagLiteral(false), extra: flagLiteral(true) }, /unknown argument/],
+    ] satisfies [Record<string, Expression>, RegExp][]) assert.throws(() => define([updateFlags(flags, args)]), message);
+    for (const invalid of [operation(literal(8, 1), literal(16, 1)), operation(literal(8, 1), literal(8, 1), flagValue("missing")),
+      operation(literal(8, 1), literal(8, 1), value("incoming") as unknown as FlagExpression)]) {
+      assert.throws(() => define([updateFlags({ ...flags, updates: [{ flag: mos.flag("c"), value: invalid }] }, { incoming: flagLiteral(false) })]),
+        /equal widths|not been captured|unknown flag expression/);
+    }
+    assert.throws(() => define([updateFlags({ ...flags, updates: [{ flag: mos.flag("c"), value: zero(value("incoming")) }] }, { incoming: flagLiteral(false) })]), /is a flag, not a number/);
+  }
+  assert.throws(() => define([updateFlags(policy, { byte: flagLiteral(false) })]), /unknown numeric expression/);
 });

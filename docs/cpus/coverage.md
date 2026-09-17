@@ -19,16 +19,16 @@ emulators do not count toward implementation here.
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [312](../../src/components/cpus/8008.ts) | 0 / 250 | 0% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [263](../../src/components/cpus/8080.ts) | 13 / 244 | 5.3% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [310](../../src/components/cpus/6800.ts) | 119 / 197 | 60.4% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [300](../../src/components/cpus/6800.ts) | 153 / 197 | 77.7% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [298](../../src/components/cpus/6502.ts) | 109 / 151 | 72.2% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [661](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [543](../../src/components/cpus/6809.ts) | 164 / 268 | 61.2% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [513](../../src/components/cpus/6809.ts) | 204 / 268 | 76.1% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **277 generated bodies**, of which **276 are used by CPU execution**,
-covering **405 complete opcode forms**:
+contains **315 generated bodies**, of which **314 are used by CPU execution**,
+covering **479 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -58,6 +58,9 @@ covering **405 complete opcode forms**:
   before N/Z/V; stores apply these flags only after a successful memory write.
   LDS/LDX and STS/STX add 14 word forms from six bodies using the same transfer
   construction, with high-byte-first accesses and flags after both writes.
+  ADD/ADC/SUB/SBC on A/B add 32 forms from 16 shared binary-arithmetic bodies;
+  ABA/SBA add two more bodies and forms. Flags precede register writeback.
+  Byte addition replaces H; subtraction preserves it.
 - [6809 definitions](../../src/components/cpus/semantics/definitions/6809.ts):
   CMPA/B/D/X/Y/U/S across immediate/direct/indexed/extended addressing count as
   28 migrated forms from 14 bodies. All eleven unary operations (NEG, COM, LSR,
@@ -77,6 +80,9 @@ covering **405 complete opcode forms**:
   D is read and written explicitly as A then B; a successful LDS writes S and
   arms NMI before applying flags. Failed second reads preserve destination
   registers; failed second writes retain the first byte but preserve flags.
+  ADD/ADC/SUB/SBC on A/B and ADDD/SUBD add 40 forms from 20 shared arithmetic
+  bodies. ADC/SBC capture incoming C after the operand and accumulator reads.
+  Word arithmetic preserves H and writes D as A then B after applying N/Z/V/C.
 
 The other four CPUs have no instruction bodies generated from these definitions.
 Their existing shared TypeScript helpers remain useful, but are outside this
@@ -124,28 +130,27 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,727 |
-| CPU-specific instruction definition files | 357 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,912 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **6,996** |
+| Eight CPU implementation files | 4,687 |
+| CPU-specific instruction definition files | 373 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 1,968 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,028** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 5,193 |
+| Generated CPU output, counted separately | 6,093 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-Migrating all Motorola word loads/stores extends the byte-transfer construction
-and removes both CPUs' word-load/store helpers, the 6800 word operand/register
-arrays, the 6809 word-register reader, and the shared runtime result-flag helper.
-The remaining 6809 word arithmetic reuses the existing operand bindings.
-CPU modules shrink by **40 lines**; CPU-specific definitions gain **13**, and
-other authored CPU source gains **28** after removals. Total authored CPU source
-rises from **6,995 to 6,996 lines** (**one more**). This includes low-byte
-extraction and constant control-latch writes with validation, generation, and
-explanation. D's split writes and LDS's NMI arming remain explicit CPU-owned
-statements. The step replaces duplicated behavior and completes both transfer
-families with almost no net source growth; it does not yet establish a larger
-source reduction.
+Migrating Motorola binary arithmetic removes the shared runtime accumulator
+operation table, the 6800 byte-operand readers, and the 6809 memory-arithmetic,
+word-binding, and word-arithmetic helpers. Decimal adjustment remains a small
+shared function taking the current flags directly. CPU modules shrink by
+**40 lines**; CPU-specific definitions gain **16**, and other authored CPU
+source gains **56** after removals. Total authored CPU source rises from
+**6,996 to 7,028 lines** (**32 more**). This includes optional carry/borrow
+inputs, addition flag expressions, Boolean policy parameters, validation,
+generation, explanation, and shared byte/word arithmetic construction.
+The migration retires old paths and makes flag/writeback order explicit,
+but the added vocabulary still outweighs the source removed in this step.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

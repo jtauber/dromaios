@@ -1,4 +1,4 @@
-import type { FlagExpression, InstructionDefinition, NumberExpression, SourceDefinitions, Statement, ValueType, Width } from "./model.ts";
+import type { Expression, FlagExpression, InstructionDefinition, NumberExpression, SourceDefinitions, Statement, ValueType, Width } from "./model.ts";
 import { readSource, value } from "./model.ts";
 import { defineInstruction } from "./validate.ts";
 import { opcodeTable } from "../opcodes.ts";
@@ -29,7 +29,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8080" | "6809", def
     const field = (name: string): string => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
     const comment = (text: string): void => { emit(`// ${JSON.stringify(text)}`); };
 
-    function number(expr: NumberExpression, scope: Scope): CapturedNumber {
+    function number(expr: Expression, scope: Scope): CapturedNumber {
       switch (expr.kind) {
         case "value": return scope.get(expr.name)! as CapturedNumber; // Validation has resolved names and types.
         case "literal": return { code: `0x${expr.value.toString(16)}`, type: expr.width };
@@ -45,15 +45,19 @@ export function generateInstructions(cpu: "6502" | "6800" | "8080" | "6809", def
           const operator = { "bit-and": "&", "bit-or": "|", "bit-xor": "^" }[expr.kind];
           return { code: `(${left.code} ${operator} ${right.code})`, type: left.type };
         }
-        case "subtract": case "add-wrap": case "concat": {
+        case "concat": return { code: `((${number(expr.left, scope).code} << 8) | ${number(expr.right, scope).code})`, type: 16 };
+        case "subtract": case "add-wrap": {
           const left = number(expr.left, scope), right = number(expr.right, scope);
-          if (expr.kind === "concat") return { code: `((${left.code} << 8) | ${right.code})`, type: 16 };
           const operation = helper(expr.kind === "subtract" ? "subtract" : "add");
-          return { code: `${operation}(${left.type}, ${left.code}, ${right.code}).result`, type: left.type };
+          return { code: `${operation}(${left.type}, ${left.code}, ${right.code}${incoming(expr.incoming, scope)}).result`, type: left.type };
         }
+        default: throw new Error("Expected a validated numeric expression.");
       }
     }
-    function flag(expr: FlagExpression, scope: Scope): string {
+    function incoming(expr: FlagExpression | undefined, scope: Scope): string {
+      return expr === undefined ? "" : `, (${flag(expr, scope)}) ? 1 : 0`;
+    }
+    function flag(expr: Expression, scope: Scope): string {
       switch (expr.kind) {
         case "flag-value": return scope.get(expr.name)!.code;
         case "flag-literal": return String(expr.value);
@@ -65,11 +69,14 @@ export function generateInstructions(cpu: "6502" | "6800" | "8080" | "6809", def
           if (expr.kind === "zero") return `${value.code} === 0`;
           return `${helper("evenParity8")}(${value.code})`;
         }
-        case "borrow": case "half-borrow": case "subtract-overflow": {
+        case "borrow": case "half-borrow": case "subtract-overflow": case "carry": case "half-carry": case "add-overflow": {
           const left = number(expr.left, scope), right = number(expr.right, scope);
-          const property = { borrow: "borrow", "half-borrow": "halfBorrow", "subtract-overflow": "overflow" }[expr.kind];
-          return `${helper("subtract")}(${left.type}, ${left.code}, ${right.code}).${property}`;
+          const property = { borrow: "borrow", "half-borrow": "halfBorrow", "subtract-overflow": "overflow",
+            carry: "carry", "half-carry": "halfCarry", "add-overflow": "overflow" }[expr.kind];
+          const operation = ["carry", "half-carry", "add-overflow"].includes(expr.kind) ? "add" : "subtract";
+          return `${helper(operation)}(${left.type}, ${left.code}, ${right.code}${incoming(expr.incoming, scope)}).${property}`;
         }
+        default: throw new Error("Expected a validated flag expression.");
       }
     }
     function body(steps: readonly Statement[], scope: Map<string, CapturedValue>): void {
@@ -96,7 +103,9 @@ export function generateInstructions(cpu: "6502" | "6800" | "8080" | "6809", def
             // Arguments are pure expressions in the caller's scope. Evaluate once, before the policy.
             const parameters = new Map<string, CapturedValue>();
             for (const name of Object.keys(step.policy.parameters)) {
-              const argument = number(step.arguments[name]!, scope), code = local(name);
+              const expr = step.arguments[name]!;
+              const argument = step.policy.parameters[name] === "flag" ? { code: flag(expr, scope), type: "flag" as const } : number(expr, scope);
+              const code = local(name);
               emit(`const ${code} = ${argument.code};`);
               parameters.set(name, { code, type: argument.type });
             }

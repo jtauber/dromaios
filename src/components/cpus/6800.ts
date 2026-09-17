@@ -11,7 +11,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaDecimalAdjust, motorolaConditionPairs } from "./motorola.ts";
 import { instructions as semantics } from "./generated/6800.ts";
 import { cpu6800StateDescription } from "./state/6800.ts";
 import type { Cpu6800State } from "./state/6800.ts";
@@ -48,7 +48,6 @@ export class Cpu6800 {
   readonly #ram: Ram;
   readonly #state: Cpu6800State;
   readonly #atBoundary = executionBoundary("6800 step, reset, and interrupt calls must not be reentrant.");
-  readonly #alu = motorolaByteAlu(() => this.#state.flags);
 
   constructor(ram: Ram, initialState: Cpu6800Snapshot) {
     if (ram.size !== 0x10000) throw new RangeError("The 6800 model requires exactly 64 KiB of RAM.");
@@ -111,19 +110,11 @@ export class Cpu6800 {
     { bits: "10", address: ({ fetchByte }) => this.#indexedAddress(fetchByte()) }, // Indexed, unsigned offset
     { bits: "11", address: ({ fetchWord }) => fetchWord() }, // Extended
   ];
-  readonly #operandReaders: readonly ((instruction: InstructionContext) => number)[] = [
-    ({ fetchByte }) => fetchByte(),
-    ...this.#memoryModes.map(({ address }) => (instruction: InstructionContext) => instruction.readByte(address(instruction))),
-  ];
-
   // 01 tt oooo: tt=00 A, 01 B, 10 indexed, 11 extended; oooo selects the operation.
   // TST (1101) only reads; CLR (1111) only writes. JMP (1110) remains separate.
   static readonly #unaryOperations = motorolaUnaryOperations(semantics);
 
   readonly #operandHandlers = motorolaOperandBindings(() => this.#state, this.#memoryModes);
-
-  // 1 r mm oooo shares the 6809's byte operations; comparisons, logic, and transfers have generated bodies below.
-  readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
 
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     ...instructionPattern("0000 0001", () => {}), // NOP
@@ -139,15 +130,15 @@ export class Cpu6800 {
     ...opcodeFamily("00001 11 v", { v: [false, true] }, ({ v: value }) => () => { this.#state.flags.i = value; }), // CLI / SEI
 
     // 0001000 c: subtract B from A; c=1 compares without replacing A. Both ignore incoming carry.
-    ...instructionPattern("0001000 0", () => { this.#state.a = this.#alu.subtract(this.#state.a, this.#state.b); }), // SBA
+    ...instructionPattern("0001000 0", () => semantics.sba(this.#state)), // SBA
     ...instructionPattern("0001000 1", () => semantics.cba(this.#state)), // CBA
 
     // 0001011 d: d=0 transfers A to B; d=1 transfers B to A. Both update N/Z/V.
     ...instructionPattern("0001011 0", () => semantics.tab(this.#state)), // TAB
     ...instructionPattern("0001011 1", () => semantics.tba(this.#state)), // TBA
 
-    ...instructionPattern("0001 1001", () => { this.#state.a = this.#alu.decimalAdjust(this.#state.a); }), // DAA
-    ...instructionPattern("0001 1011", () => { this.#state.a = this.#alu.add(this.#state.a, this.#state.b); }), // ABA
+    ...instructionPattern("0001 1001", () => { this.#state.a = motorolaDecimalAdjust(this.#state.a, this.#state.flags); }), // DAA
+    ...instructionPattern("0001 1011", () => semantics.aba(this.#state)), // ABA
 
     // 0010 ttt p: bits 3..1 select a condition; bit 0 selects it (0) or its inverse (1).
     // ttt=000 has only BRA. The original 6800 leaves 21 unused; it has no BRN.
@@ -185,10 +176,9 @@ export class Cpu6800 {
 
     // 1 r mm oooo: r (bit 6) selects A=0/B=1; mm (bits 5–4) selects addressing;
     // oooo (bits 3–0) selects a shared byte operation; 0011 remains undefined.
-    // CMP/BIT preserve A/B; loads/logic write before flags; stores apply flags after a successful write.
-    ...motorolaByteBindings(semantics, this.#operandHandlers), // CMP/AND/BIT/LD/ST/EOR/OR on A/B
-    ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r mm ${bits}`,
-      { r: ["a", "b"], m: this.#operandReaders }, ({ r, m: read }) => (instruction: InstructionContext) => apply(r, read(instruction)))),
+    // CMP/BIT preserve A/B; arithmetic sets flags before writeback; loads/logic write before flags.
+    // Stores apply flags after a successful write.
+    ...motorolaByteBindings(semantics, this.#operandHandlers), // SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD on A/B
 
     // 10 mm 1100: compare X with a word. The original 6800 compares its bytes separately.
     ...this.#operandHandlers("10 mm 1100", semantics.cpxImmediate, semantics.cpxMemory), // CPX

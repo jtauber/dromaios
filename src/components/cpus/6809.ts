@@ -14,8 +14,7 @@ import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaAccumulatorOperations, motorolaByteAlu, motorolaConditionPairs, motorolaArithmeticFlags } from "./motorola.ts";
-import { add, subtract } from "./alu.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaDecimalAdjust, motorolaConditionPairs } from "./motorola.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
 export type { Cpu6809State, Cpu6809Flags } from "./state/6809.ts";
@@ -49,7 +48,6 @@ type OperandReader = (instruction: InstructionContext) => number;
 type AddressReader = (instruction: InstructionContext) => number | undefined;
 type WordRegister = "d" | "x" | "y" | "u" | "s" | "pc";
 type TransferRegister = WordRegister | Accumulator | "cc" | "dp";
-type WordOperation = { readonly bits: string; readonly apply: (value: number) => void };
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
@@ -72,7 +70,6 @@ export class Cpu6809 {
   readonly #ram: Ram;
   readonly #state: Cpu6809State;
   readonly #atBoundary = executionBoundary("6809 step, reset, and interrupt calls must not be reentrant.");
-  readonly #alu = motorolaByteAlu(() => this.#state.flags);
 
   constructor(ram: Ram, initialState: Omit<Cpu6809Snapshot, "d">) {
     if (ram.size !== 0x10000) {
@@ -162,10 +159,7 @@ export class Cpu6809 {
   // TST (1101) never writes. JMP (1110) changes PC and stays outside this inventory.
   static readonly #unaryOperations = motorolaUnaryOperations(semantics);
 
-  // 1 r mm oooo: r selects A/B; mm=00 immediate, 01 direct, 10 indexed, 11 extended.
-  // Byte operations are shared with the 6800; comparisons, logic, and transfers have generated bodies below.
-  readonly #accumulatorOperations = motorolaAccumulatorOperations(() => this.#state, this.#alu);
-
+  // mm in 1 r mm oooo: 00 is immediate; the other modes resolve a data address.
   readonly #directOperandAddress: OperandReader = ({ fetchByte }) => this.#directAddress(fetchByte());
   readonly #indexedOperandAddress: AddressReader = instruction => this.#indexedAddress(instruction);
   readonly #extendedOperandAddress: OperandReader = ({ fetchWord }) => fetchWord();
@@ -212,7 +206,7 @@ export class Cpu6809 {
     ...instructionPattern("0001 0110", ({ fetchWord }) => { this.#state.pc = this.#relativeAddress(fetchWord()); }), // LBRA rel16
     ...instructionPattern("0001 0111", ({ fetchWord, writeByte }) => this.#call(this.#relativeAddress(fetchWord()), writeByte)), // LBSR rel16
 
-    ...instructionPattern("0001 1001", () => { this.#state.a = this.#alu.decimalAdjust(this.#state.a); }), // DAA
+    ...instructionPattern("0001 1001", () => { this.#state.a = motorolaDecimalAdjust(this.#state.a, this.#state.flags); }), // DAA
     ...instructionPattern("0001 1010", ({ fetchByte }) => this.#writeTransferRegister("cc", packedFlags.encode(this.#state.flags) | fetchByte())), // ORCC
     ...instructionPattern("0001 1100", ({ fetchByte }) => this.#writeTransferRegister("cc", packedFlags.encode(this.#state.flags) & fetchByte())), // ANDCC
     ...instructionPattern("0001 1101", () => this.#signExtend()), // SEX
@@ -246,25 +240,21 @@ export class Cpu6809 {
     ...this.#memoryUnaryHandlers("0111", this.#extendedOperandAddress),
 
     // 1 r mm oooo: r selects A/B; mm selects immediate/direct/indexed/extended.
-    // CMP/BIT preserve A/B; loads/logic write before flags; stores apply flags after a successful write.
-    ...motorolaByteBindings(semantics, this.#operandHandlers), // CMP/AND/BIT/LD/ST/EOR/OR
+    // CMP/BIT preserve A/B; arithmetic sets flags before writeback; loads/logic write before flags.
+    // Stores apply flags after a successful write.
+    ...motorolaByteBindings(semantics, this.#operandHandlers), // SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD
 
-    // 1 r 00 oooo: remaining immediate A/B operations; word families occupy the remaining slots.
-    ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r 00 ${bits}`,
-      { r: ["a", "b"] }, ({ r }) => ({ fetchByte }: InstructionContext) => apply(r, fetchByte()))),
-    ...instructionPattern("1 0 00 1101", ({ fetchByte, writeByte }) => this.#call(this.#relativeAddress(signed8(fetchByte())), writeByte)), // BSR rel8
-
-    // 1 r mm oooo: the same operation selectors with a resolved memory address.
-    ...this.#memoryModes.flatMap(({ bits, address }) => this.#memoryAccumulatorHandlers(bits, address)),
+    // 10 mm 1101: mm=00 is BSR; the other modes are JSR.
+    ...instructionPattern("10 00 1101", ({ fetchByte, writeByte }) => this.#call(this.#relativeAddress(signed8(fetchByte())), writeByte)), // BSR rel8
+    ...this.#memoryModes.flatMap(({ bits, address }) => this.#addressedHandlers(address,
+      addressPattern(`10 ${bits} 1101`, (address, { writeByte }) => this.#call(address, writeByte)))), // JSR
 
     // 10 mm 1100: CMPX uses immediate/direct/indexed/extended sources for mm=00/01/10/11.
     ...this.#operandHandlers("10 mm 1100", semantics.cmpxImmediate, semantics.cmpxMemory), // CMPX
 
     // 1 r mm 0011: r=0 subtracts from D, r=1 adds to D.
-    ...this.#wordHandlers([
-      { bits: "10 mm 0011", apply: value => this.#wordArithmetic("subtract", value) }, // SUBD
-      { bits: "11 mm 0011", apply: value => this.#wordArithmetic("add", value) }, // ADDD
-    ]),
+    ...this.#operandHandlers("10 mm 0011", semantics.subdImmediate, semantics.subdMemory), // SUBD
+    ...this.#operandHandlers("11 mm 0011", semantics.adddImmediate, semantics.adddMemory), // ADDD
 
     // 1 r mm 11tt: tt=00/01 select D load/store for r=1; tt=10/11 select X (r=0) or U (r=1).
     ...this.#operandHandlers("11 mm 1100", semantics.lddImmediate, semantics.lddMemory), // LDD
@@ -292,20 +282,6 @@ export class Cpu6809 {
         (address, instruction) => memory(this.#state, address, instruction))),
       ...addressPattern(`${prefix} 1110`, address => { this.#state.pc = address; }), // JMP
     ]);
-  }
-
-  #memoryAccumulatorHandlers(mode: "01" | "10" | "11", address: AddressReader): readonly OpcodeEntry<OpcodeHandler>[] {
-    return this.#addressedHandlers(address, [
-      ...this.#accumulatorOperations.flatMap(({ bits, apply }) => opcodeFamily(`1 r ${mode} ${bits}`,
-        { r: ["a", "b"] }, ({ r }) => (address: number, { readByte }: InstructionContext) => apply(r, readByte(address)))),
-      ...addressPattern(`1 0 ${mode} 1101`, (address, { writeByte }) => this.#call(address, writeByte)), // JSR
-    ]);
-  }
-
-  #wordHandlers(operations: readonly WordOperation[]): readonly OpcodeEntry<OpcodeHandler>[] {
-    return operations.flatMap(({ bits, apply }) => this.#operandHandlers(bits,
-      (_, { fetchWord }) => apply(fetchWord()),
-      (_, address, { readByte }) => apply(this.#readWord(address, readByte))));
   }
 
   #addressedHandlers(resolve: AddressReader, entries: readonly OpcodeEntry<AddressedHandler>[]): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -511,12 +487,6 @@ export class Cpu6809 {
   }
 
   // Arithmetic and CPU-specific flag effects.
-
-  #wordArithmetic(operation: "add" | "subtract", value: number): void {
-    const arithmetic = operation === "add" ? add(16, this.#d, value) : subtract(16, this.#d, value);
-    Object.assign(this.#state.flags, motorolaArithmeticFlags(16, arithmetic));
-    this.#writeWordRegister("d", arithmetic.result);
-  }
 
   #signExtend(): void {
     this.#state.a = this.#state.b < 0x80 ? 0 : 0xff;

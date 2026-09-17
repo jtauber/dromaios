@@ -1041,14 +1041,14 @@ test("6800 word transfers retain completed fetches and writes, delaying register
   }
 });
 
-test("6800 comparisons, logic, and loads retain completed fetches and unchanged registers/flags at every failed read", () => {
+test("6800 arithmetic, comparisons, logic, and loads retain completed fetches and unchanged registers/flags at every failed read", () => {
   const failure = new Error("operand read failure");
   class FaultRam extends ObservedRam {
     failAt = -1; attempts = 0;
     override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
   }
   const forms = [
-    ...accumulatorForms.filter(form => ["cmp", "and", "bit", "load", "xor", "or"].includes(form.operation)),
+    ...accumulatorForms,
     { register: "x" as const, opcodes: indexComparisons, operation: "cmp" as const },
   ];
   for (const { register, opcodes, operation } of forms) {

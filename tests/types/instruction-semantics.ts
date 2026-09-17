@@ -1,7 +1,7 @@
 import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, lowByte, literal, not, readFlag, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { addWrap, carry, halfCarry, subtract, bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, lowByte, literal, not, readFlag, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
@@ -31,6 +31,14 @@ export function checkInstructionSemantics(): void {
   not(value("byte"));
   readFlag("carry", mos.flag("c"));
   shiftLeft(value("byte"), flagValue("carry"));
+  addWrap(value("left"), value("right"), flagValue("carry"));
+  subtract(value("left"), value("right"), flagValue("borrow"));
+  // @ts-expect-error Numeric bits are not Boolean carry inputs.
+  addWrap(value("left"), value("right"), literal(8, 1));
+  // @ts-expect-error Live flags must be captured before use in arithmetic facts.
+  carry(value("left"), value("right"), mos.flag("c"));
+  // @ts-expect-error Arithmetic flags require numeric operands.
+  halfCarry(flagValue("carry"), value("right"));
   xor(flagValue("carry"), zero(value("byte")));
   highByte(value("word"));
   lowByte(value("word"));
@@ -153,6 +161,20 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6800.stxMemory(m6800, 0xffff, {});
   // @ts-expect-error Word bodies retain the concrete CPU state.
   generated6800.ldsImmediate(motorola, { fetchByte: () => 0 });
+  generated6800.aba(m6800);
+  generated6800.adcaImmediate(m6800, { fetchByte: () => 0 });
+  generated6809.sbcbMemory(motorola, 0xffff, { readByte: () => 0 });
+  generated6809.adddMemory(motorola, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error Word arithmetic fetches explicit high/low bytes, not an opaque word source.
+  generated6809.subdImmediate(motorola, { fetchWord: () => 0 });
+  // @ts-expect-error Resolved arithmetic cannot fetch another address.
+  generated6800.subaMemory(m6800, 0xffff, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Arithmetic bodies never write data memory.
+  generated6809.adcbMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error SBA has no fetching or memory capability.
+  generated6800.sba(m6800, { fetchByte: () => 0 });
+  // @ts-expect-error Arithmetic retains each CPU's concrete state.
+  generated6800.addaImmediate(motorola, { fetchByte: () => 0 });
   generated6800.tab(m6800);
   generated6800.tba(m6800);
   generated6800.ldaImmediate(m6800, { fetchByte: () => 0 });

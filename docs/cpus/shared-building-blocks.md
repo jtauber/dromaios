@@ -1329,7 +1329,10 @@ read as A followed by B. The 6800 shares that construction and binding for its
 complete comparison family, with a separate CPX policy for high-byte N/V,
 whole-word Z, and preserved C. Shared byte/word transfer construction retains
 high-byte-first word accesses and flags only after both writes; the 6809's D
-split writes and LDS NMI arming are explicit statements.
+split writes and LDS NMI arming are explicit statements. Binary arithmetic now
+shares carry/borrow inputs, width-specific flag policies, and flags-before-writeback
+construction across both Motorola CPUs. D arithmetic reuses its explicit split
+writes; ABA/SBA retain their distinct register-read order.
 These definitions produce both execution and the explanatory listing. The
 JSR and 68000 probes below remain requirements for later vocabulary; they are
 not yet represented by this byte/word slice. Whole-model migration remains a

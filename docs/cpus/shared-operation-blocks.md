@@ -15,7 +15,7 @@ introduced here. The pure flag helpers remain in use.
 | --- | --- | --- |
 | `negativeZero(width, value)` | Pure N/Z updates for an unsigned result already reduced to 8, 16, or 32 bits | 6502 results; Motorola byte/word/long results; the S/Z portion of 8080 results |
 | `signZeroParity8(value)` | Pure S/Z/P updates; P is even byte parity | 8080 arithmetic, logic, and comparison |
-| `motorolaArithmeticFlags(width, facts)` | Pure NZVC updates from addition/subtraction facts; C means carry or borrow respectively | 6800/6809 byte ALU, 6809 word arithmetic/comparison, 68000 comparison/subtraction |
+| `motorolaArithmeticFlags(width, facts)` | Pure NZVC updates from addition/subtraction facts; C means carry or borrow respectively | 68000 arithmetic/comparison; the 6800/6809 now express their policies in generated definitions |
 
 Flag calculations live in [flags.ts](../../src/components/cpus/flags.ts) and
 [motorola.ts](../../src/components/cpus/motorola.ts). They return fresh objects

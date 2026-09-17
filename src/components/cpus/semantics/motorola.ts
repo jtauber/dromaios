@@ -1,12 +1,12 @@
-import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, highByte, literal, lowByte, negative, overflow, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
+import { addOverflow, addWrap, carry, halfCarry, flagValue, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, highByte, literal, lowByte, negative, overflow, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
-import { compare, immediateByte, logical, negativeZeroPolicy, shift, transfer } from "./builders.ts";
+import { arithmetic, compare, immediateByte, logical, negativeZeroPolicy, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
 
 interface MotorolaCpu {
   readonly declaration: CpuDeclaration;
   register(field: "a" | "b"): Register;
-  flag(field: "n" | "z" | "v" | "c"): Flag;
+  flag(field: "n" | "z" | "v" | "c" | "h"): Flag;
 }
 interface UnaryPolicy {
   readonly clearReadsOperand: boolean;
@@ -149,10 +149,10 @@ export function motorolaLogic(cpu: MotorolaCpu, orMnemonic: "OR" | "ORA" = "OR")
 }
 
 // A compound destination supplies explicit writes consuming "result", rather than a hidden runtime setter.
-type TransferRegister = Register | { readonly source: ValueSource; readonly write: readonly Statement[]; readonly explanation: string };
+type WritableRegister = Register | { readonly source: ValueSource; readonly write: readonly Statement[]; readonly explanation: string };
 
 /** Byte/word loads and stores share ordering; CPU-owned declarations expose compound register writes. */
-export function motorolaTransfers(cpu: MotorolaCpu, suffix: string, register: TransferRegister,
+export function motorolaTransfers(cpu: MotorolaCpu, suffix: string, register: WritableRegister,
   mnemonics: readonly [string, string] = ["LD", "ST"]) {
   const stored = "kind" in register, width = stored ? register.width : register.source.width, word = width === 16;
   const flags = motorolaResultFlags(cpu, "transfer", width), unit = word ? "word" : "byte";
@@ -187,4 +187,52 @@ export function motorolaTransfers(cpu: MotorolaCpu, suffix: string, register: Tr
         updateFlags(flags, { result: value("result") })],
     })] as const,
   ]);
+}
+
+/** Binary arithmetic consumes left/right, applies NZVC (and byte-addition H), and leaves writeback to the caller. */
+export function motorolaArithmetic(cpu: MotorolaCpu, operation: "add" | "subtract", width: Width, withCarry = false): readonly Statement[] {
+  const adding = operation === "add", left = value("left"), right = value("right");
+  const incoming = withCarry ? flagValue("carry") : undefined;
+  const nz = negativeZeroPolicy(`${cpu.declaration.name} ${operation}`, cpu.flag("n"), cpu.flag("z"), width);
+  const flags: FlagPolicy = { ...nz, parameters: { left: width, right: width, result: width, ...(withCarry ? { carry: "flag" as const } : {}) },
+    updates: [...nz.updates,
+      { flag: cpu.flag("v"), value: (adding ? addOverflow : overflow)(left, right, incoming) },
+      { flag: cpu.flag("c"), value: (adding ? carry : borrow)(left, right, incoming) },
+      ...(adding && width === 8 ? [{ flag: cpu.flag("h"), value: halfCarry(left, right, incoming) }] : []),
+    ],
+  };
+  return arithmetic(operation, flags, withCarry ? cpu.flag("c") : undefined);
+}
+
+/** Immediate and resolved-memory arithmetic share operand-first reads, flags, then explicit register writeback. */
+export function motorolaArithmeticFamily(cpu: MotorolaCpu, mnemonic: string, register: WritableRegister,
+  operation: "add" | "subtract", withCarry = false) {
+  const stored = "kind" in register, width = stored ? register.width : register.source.width, word = width === 16;
+  return Object.fromEntries((["Immediate", "Memory"] as const).map(mode => {
+    const memory = mode === "Memory", operand = memoryOperand(width);
+    return [`${mnemonic.toLowerCase()}${mode}`, defineInstruction({
+      cpu: cpu.declaration, name: `${mnemonic} ${memory ? "memory" : word ? "#word" : "#byte"}`,
+      ...(memory ? { inputs: { address: 16 as const } } : {}),
+      explanation: (memory ? "Entry is after successful address resolution. Read the operand at that address. " : "Fetch the immediate operand. ")
+        + (word ? "Read high byte then low byte, wrapping at FFFF. " : "")
+        + `Only then read ${stored ? register.field.toUpperCase() : register.source.name}. `
+        + (withCarry ? `Capture C as the incoming ${operation === "add" ? "carry" : "borrow"}. ` : "Ignore incoming C. ")
+        + `Apply N/Z/V/C from ${operation === "add" ? "addition" : "subtraction"}; C means ${operation === "add" ? "carry" : "borrow"}. `
+        + (operation === "add" && !word ? "Set H from the low-nibble carry. " : "Preserve H. ")
+        + `Preserve control flags. ${stored ? `Write ${register.field.toUpperCase()}` : register.explanation} after flags. `
+        + "A failed read prevents arithmetic and writeback; completed fetches and addressing effects remain.",
+      steps: [...(memory ? [...operand.steps, capture("right", operand.result)] : [readSource("right", word ? immediateWord : immediateByte)]),
+        stored ? readRegister("left", register) : readSource("left", register.source),
+        ...motorolaArithmetic(cpu, operation, width, withCarry),
+        ...(stored ? [writeRegister(register, value("result"))] : register.write)],
+    })];
+  }));
+}
+
+/** A/B share SUB, SBC, ADC, and ADD; CPU opcode bindings supply their addressing modes. */
+export function motorolaByteArithmetic(cpu: MotorolaCpu) {
+  return Object.fromEntries((["a", "b"] as const).flatMap(register => ([
+    ["SUB", "subtract", false], ["SBC", "subtract", true], ["ADC", "add", true], ["ADD", "add", false],
+  ] as const).flatMap(([mnemonic, operation, withCarry]) =>
+    Object.entries(motorolaArithmeticFamily(cpu, `${mnemonic}${register.toUpperCase()}`, cpu.register(register), operation, withCarry)))));
 }

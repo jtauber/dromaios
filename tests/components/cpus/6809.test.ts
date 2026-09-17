@@ -2194,7 +2194,7 @@ test("6809 memory unary operations and byte comparisons retain exactly completed
   }
 });
 
-test("6809 logic, loads, and stores preserve indexed addressing and completed effects on access failure", () => {
+test("6809 arithmetic, comparisons, logic, loads, and stores preserve indexed addressing and completed effects on access failure", () => {
   const failure = new Error("indexed operand access failed");
   class FaultRam extends ObservedRam {
     failAt = -1; attempts = 0;
@@ -2202,8 +2202,7 @@ test("6809 logic, loads, and stores preserve indexed addressing and completed ef
     override write(address: number, value: number): void { if (this.attempts++ === this.failAt) throw failure; super.write(address, value); }
   }
   const forms = [
-    ...accumulatorForms.filter(([name]) => ["AND", "BIT", "LD", "EOR", "OR"].includes(name))
-      .map(([operation, register, , , opcode]) => ({ operation, register, opcode })),
+    ...accumulatorForms.map(([operation, register, , , opcode]) => ({ operation, register, opcode })),
     { operation: "ST", register: "a", opcode: 0xa7 }, { operation: "ST", register: "b", opcode: 0xe7 },
   ] as const;
   for (const { operation, register, opcode } of forms) {
@@ -2218,7 +2217,9 @@ test("6809 logic, loads, and stores preserve indexed addressing and completed ef
         if (form.indirect) { image.set(pointer, 0x40); image.set(wrapAddress(pointer + 1), 0); }
         bytes.forEach((byte, offset) => image.set(wrapAddress(pc + offset), byte));
         const address = form.indirect ? image.get(pointer)! * 256 + image.get(wrapAddress(pointer + 1))! : pointer;
-        const operand = image.get(address) ?? 0, result = store ? state[register] : byteLogic(operation, state[register], operand);
+        const operand = image.get(address) ?? 0;
+        const arithmetic = ["SUB", "CMP", "SBC", "ADC", "ADD"].includes(operation) ? byteArithmetic(operation, state[register], operand, state.flags) : undefined;
+        const result = store ? state[register] : arithmetic?.result ?? byteLogic(operation, state[register], operand);
         const accesses = [
           ...bytes.map((value, offset) => ({ kind: "read", address: wrapAddress(pc + offset), value })),
           ...(form.indirect ? [pointer, wrapAddress(pointer + 1)].map(address => ({ kind: "read", address, value: image.get(address)! })) : []),
@@ -2234,8 +2235,8 @@ test("6809 logic, loads, and stores preserve indexed addressing and completed ef
           const completed = failAt < 0 ? accesses.length : failAt;
           const after = { ...before, pc: wrapAddress(pc + Math.min(completed, bytes.length)),
             ...(completed >= bytes.length ? { [form.register]: wrapAddress(base + form.update), nmiArmed: form.register === "s" && form.update !== 0 } : {}),
-            ...(failAt < 0 ? { [register]: store || operation === "BIT" ? state[register] : result,
-              flags: { ...state.flags, n: result >= 128, z: result === 0, v: false } } : {}),
+            ...(failAt < 0 ? { [register]: store || operation === "BIT" || operation === "CMP" ? state[register] : result,
+              flags: arithmetic?.flags ?? { ...state.flags, n: result >= 128, z: result === 0, v: false } } : {}),
           };
           after.d = after.a * 256 + after.b;
           if (failAt >= 0) assert.throws(() => cpu.step(), error => error === failure);
@@ -2914,13 +2915,13 @@ test("6809 implements all 268 documented forms and rejects all other encodings o
   }
 });
 
-test("6809 word comparisons retain completed fetches and index updates at every failed operand or pointer read", () => {
+test("6809 word arithmetic and comparisons retain completed fetches and index updates at every failed operand or pointer read", () => {
   const failure = new Error("comparison read failed");
   class FaultRam extends ObservedRam {
     failAt = -1; attempts = 0;
     override read(address: number): number { if (this.attempts++ === this.failAt) throw failure; return super.read(address); }
   }
-  for (const form of additionalWords.filter(form => form.operation === "compare")) {
+  for (const form of additionalWords.filter(form => ["add", "subtract", "compare"].includes(form.operation))) {
     const [immediate, direct, indexed, extended] = form.opcodes;
     const cases: readonly { bytes: readonly number[]; state: Partial<Cpu6809State>; address?: number;
       indirect?: boolean; update?: Partial<Cpu6809State> }[] = [
@@ -2959,8 +2960,8 @@ test("6809 word comparisons retain completed fetches and index updates at every 
         const cpu = new Cpu6809(ram, state), before = cpu.snapshot();
         ram.accesses.length = 0; ram.attempts = 0; ram.failAt = failAt;
         const completed = failAt < 0 ? accesses.length : failAt;
-        const after = { ...before, ...(completed >= bytes.length ? update : {}),
-          pc: wrapAddress(state.pc + Math.min(completed, bytes.length)), flags: failAt < 0 ? expected.flags : before.flags };
+        const after = snapshotOf({ ...(failAt < 0 ? expected : state), ...(completed >= bytes.length ? update : {}),
+          pc: wrapAddress(state.pc + Math.min(completed, bytes.length)) });
         if (failAt >= 0) assert.throws(() => cpu.step(), error => error === failure);
         else assert.deepEqual(cpu.step(), { before, after, instruction: { address: state.pc, bytes }, accesses, outcome: "executed" });
         assert.deepEqual(cpu.snapshot(), after, `${form.name}, bytes=${bytes}, failAt=${failAt}`);
