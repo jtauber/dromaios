@@ -190,8 +190,8 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     ...this.baseInstructions(),
     // 1101 d 011: d=0 outputs A; d=1 inputs A. The next byte selects the port.
-    ...instructionPattern("1101 0 011", ({ fetchByte, writePort }) => writePort(fetchByte(), this.state.a)), // OUT
-    ...instructionPattern("1101 1 011", ({ fetchByte, readPort }) => { this.state.a = readPort(fetchByte()); }), // IN
+    ...instructionPattern("1101 0 011", instruction => semantics.output(this.state, instruction)), // OUT
+    ...instructionPattern("1101 1 011", instruction => semantics.input(this.state, instruction)), // IN
     // 1111 e 011: e selects interrupt enable; EI inhibits acceptance through the next instruction.
     ...instructionPattern("1111 0 011", () => { this.state.interruptEnabled = false; }), // DI
     ...instructionPattern("1111 1 011", ({ deferInterrupt }) => { this.state.interruptEnabled = true; deferInterrupt(); }), // EI

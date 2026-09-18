@@ -13,7 +13,7 @@ import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js
 import { cpuZ80StateDescription } from "../../src/components/cpus/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { deferInterrupt, divide, iterate, reject, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { readPort, writePort, deferInterrupt, divide, iterate, reject, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
@@ -787,4 +787,32 @@ export function check8088ArithmeticTypes(state: Cpu8088State, intel: Cpu8080Stat
   const success: undefined = arithmetic8088.DIV_8_0(state);
   // @ts-expect-error Bodies retain concrete CPU state.
   arithmetic8088.MUL_16_0(intel);
+}
+
+export function checkPortTypes(small: Cpu8008StoredState, intel: Cpu8080State, z80: CpuZ80State, x86: Cpu8088State): void {
+  generated8008[0x41]!(small, { readPort: () => 0 });
+  generated8080.input(intel, { fetchByte: () => 0, readPort: () => 0 });
+  generatedZ80.inputA!(z80, { readPort: () => 0 });
+  generatedZ80.inir(z80, { readPort: () => 0, writeByte: () => {} });
+  generatedZ80.otir(z80, { readByte: () => 0, writePort: () => {} });
+  generated8088[0xec](x86, { readPort: () => 0 });
+  generated8088[0xe7](x86, { fetchByte: () => 0, writePort: () => {} });
+  readPort("byte", literal(16, 0xffff));
+  writePort(literal(16, 0), literal(8, 0xff));
+  // @ts-expect-error Port addresses are captured numeric expressions, not flags.
+  readPort("byte", flagValue("carry"));
+  // @ts-expect-error Output values are data, not device callbacks.
+  writePort(literal(16, 0), () => 0);
+  // @ts-expect-error Memory access cannot substitute for port input.
+  generated8088[0xec](x86, { readByte: () => 0 });
+  // @ts-expect-error DX input never fetches an immediate or writes a port.
+  generated8088[0xec](x86, { readPort: () => 0, fetchByte: () => 0, writePort: () => {} });
+  // @ts-expect-error Immediate output requires a fetch capability.
+  generated8080.output(intel, { writePort: () => {} });
+  // @ts-expect-error One repeated input iteration writes memory and does not output a port.
+  generatedZ80.inir(z80, { readPort: () => 0, writePort: () => {} });
+  // @ts-expect-error Register port input cannot write memory.
+  generatedZ80.inputA!(z80, { readPort: () => 0, writeByte: () => {} });
+  // @ts-expect-error Output retains its concrete CPU state.
+  generated8080.output(x86, { fetchByte: () => 0, writePort: () => {} });
 }

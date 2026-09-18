@@ -1,3 +1,5 @@
+import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
+import { noPorts } from "../../../helpers/no-ports.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8008.js";
@@ -23,7 +25,7 @@ const forms = [
   ...[0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x36, 0x3e].map((opcode, destination) =>
     ({ opcode, destination: operands[destination]!, source: "immediate" as const })),
 ];
-const transfers: Readonly<Record<number, (state: Cpu8008StoredState, context: ByteInstructionContext) => void>> = instructions;
+const transfers: Readonly<Record<number, (state: Cpu8008StoredState, context: ByteInstructionContext & BytePorts) => void>> = instructions;
 
 test("8008 generated transfers cover the native 71 slots, excluding every HLT encoding", () => {
   const expected = forms.map(({ opcode }) => opcode).sort((a, b) => a - b);
@@ -57,7 +59,7 @@ test("8008 generated transfers capture full-byte sources, mask addresses at the 
             return Reflect.set(target, key, contents);
           },
         });
-        const run = () => transfers[opcode]!(observed, {
+        const run = () => transfers[opcode]!(observed, { ...noPorts,
           fetchByte() { assert.equal(source, "immediate"); events.push("fetch"); attempt(); change(); return value; },
           readByte(address) { assert.equal(source, "m"); assert.equal(address, sourceAddress); events.push("read memory"); attempt(); change(); return value; },
           writeByte(address, contents) {

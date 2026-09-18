@@ -76,12 +76,14 @@ export type Statement =
   | { readonly kind: "read-latch"; readonly name: string; readonly latch: Latch }
   | { readonly kind: "exchange-flags"; readonly left: FlagGroup; readonly right: FlagGroup }
   | { readonly kind: "fetch-byte"; readonly name: string }
+  | { readonly kind: "read-port"; readonly name: string; readonly port: NumberExpression }
   | { readonly kind: "read-memory"; readonly name: string; readonly address: AddressExpression }
   | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource }
   | { readonly kind: "write-register"; readonly register: Register; readonly value: NumberExpression }
   | { readonly kind: "write-element"; readonly array: RegisterArray; readonly index: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "defer-interrupt"; readonly scope: "intr" | "all" }
   | { readonly kind: "write-latch"; readonly latch: Latch; readonly value: boolean }
+  | { readonly kind: "write-port"; readonly port: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "write-memory"; readonly address: AddressExpression; readonly value: NumberExpression }
   | { readonly kind: "update-flags" | "replace-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, Expression>> };
 export interface InstructionDefinition {
@@ -214,3 +216,7 @@ export const replaceFlags = (policy: FlagPolicy, args: Readonly<Record<string, E
 
 /** Request 8088 recognition inhibition at successful retirement; the boundary owns its stored latches. */
 export const deferInterrupt = (scope: "intr" | "all"): Statement => ({ kind: "defer-interrupt", scope });
+
+/** Port space is distinct from RAM: a word address selects one byte transfer. */
+export const readPort = (name: string, port: NumberExpression): Statement => ({ kind: "read-port", name, port });
+export const writePort = (port: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-port", port, value });

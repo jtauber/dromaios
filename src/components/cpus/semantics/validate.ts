@@ -223,6 +223,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
           return;
         }
         case "fetch-byte": captured = 8; break;
+        case "read-port": expect(step.port, 16); captured = 8; break;
         case "read-memory": address(step.address, scope, where); captured = 8; break;
         case "read-source": {
           const local = new Map<string, ValueType>();
@@ -241,6 +242,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
           latch(step.latch, where);
           if (typeof step.value !== "boolean") fail(where, "control latch value must be Boolean");
           return;
+        case "write-port": expect(step.port, 16); expect(step.value, 8); return;
         case "write-memory": address(step.address, scope, where); expect(step.value, 8); return;
         case "update-flags": case "replace-flags":
           policy(step.policy, step.arguments, scope, `${where} / policy ${step.policy.name}`);

@@ -4,7 +4,7 @@ import { opcodeFamily } from "../../opcodes.ts";
 import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, deferInterrupt, evenParity, extend, flagLiteral, flagValue, halfBorrow, halfCarry,
   divide, fetchByte, highByte, iterate, literal, lowByte, multiply, negative, not, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, reject, select, shiftBits, signExtend, subtract, truncate, updateFlags, value, writeLatch, writeMemory, writeRegister, when, xor, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
-import { arithmetic, atLeast, byteRegisterView, immediateByte, instructionSet, registerView, shift, transfer } from "../builders.ts";
+import { arithmetic, atLeast, byteRegisterView, immediateByte, instructionSet, registerView, registerSource, shift, transfer } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
 import { immediateWord } from "../intel.ts";
 import { flagInstruction, flagPolicy, packedStatus, restoreStatus, updateStatus } from "../status.ts";
@@ -12,6 +12,7 @@ import { defineInstruction } from "../validate.ts";
 import { choose, conditional, flagCondition, relativeBranchSteps } from "../control-flow.ts";
 import { segmentedWordStack, stackPush, stackPop } from "../stack.ts";
 import type { Condition } from "../control-flow.ts";
+import { portTransfer } from "../ports.ts";
 
 const cpu = cpuSymbols("8088", cpu8088StateDescription);
 const registers = [
@@ -247,6 +248,11 @@ export const instructions8088 = instructionSet([
     steps: [...returnSteps(true, literal(16, 0)), ...restoreFlagsSteps()] })],
   // 1101 010d: d=0 AAM/1 AAD; only the documented second byte 0A is accepted.
   ...opcodeFamily("1101 010 d", { d: [false, true] }, ({ d }) => radixAdjustment(d)),
+  // 1110 r 1 d w: r=0 immediate port/1 DX; d=0 IN/1 OUT; w=0 AL/1 AX.
+  ...opcodeFamily("1110 r 1 d w", { r: [false, true], d: [false, true], w: registers }, ({ r: useDx, d: output, w }) =>
+    portTransfer(cpu.declaration, output ? `OUT ${useDx ? "DX" : "n"},${w[0]!.name}` : `IN ${w[0]!.name},${useDx ? "DX" : "n"}`,
+      useDx ? registerSource(cpu.register("dx")) : { name: "zero-extended immediate port", width: 16,
+        steps: [fetchByte("port")], result: extend(value("port"), 16) }, w[0]!.view, output)),
   // 1110 00cc: cc=00 LOOPNE, 01 LOOPE, 10 LOOP decrement CX; 11 JCXZ only tests it.
   ...opcodeFamily("1110 00 cc", { c: ["LOOPNE", "LOOPE", "LOOP", "JCXZ"] }, ({ c: name }) => defineInstruction({
     cpu: cpu.declaration, name: `${name} rel8`,

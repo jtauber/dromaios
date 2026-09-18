@@ -88,11 +88,13 @@ export function describeInstruction(definition: InstructionDefinition): string {
           break;
         }
         case "fetch-byte": emit(`${step.name}:u8 := fetch byte`); break;
+        case "read-port": emit(`${step.name}:u8 := read port[${number(step.port)}]`); break;
         case "read-memory": emit(`${step.name}:u8 := read memory[${address(step.address)}]`); break;
         case "write-register": emit(`write ${bank(step.register)}${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}`); break;
         case "write-element": emit(`write ${step.array.field.toUpperCase()}[${number(step.index)}]:u${step.array.width} := ${number(step.value)}`); break;
         case "defer-interrupt": emit("request " + (step.scope === "intr" ? "INTR" : "all interrupt") + " deferral at successful retirement"); break;
         case "write-latch": emit(`write ${step.latch.field}:boolean := ${step.value}`); break;
+        case "write-port": emit(`write port[${number(step.port)}] := ${number(step.value)}`); break;
         case "write-memory": emit(`write memory[${address(step.address)}] := ${number(step.value)}`); break;
         case "read-source":
           emit(`${step.name}:u${step.source.width} := source "${step.source.name}" {`);

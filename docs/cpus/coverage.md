@@ -17,19 +17,19 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [234](../../src/components/cpus/8008.ts) | 218 / 250 | 87.2% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [199](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [228](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [199](../../src/components/cpus/8080.ts) | 242 / 244 | 99.2% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [260](../../src/components/cpus/6800.ts) | 194 / 197 | 98.5% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [162](../../src/components/cpus/6502.ts) | 149 / 151 | 98.7% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [443](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [402](../../src/components/cpus/z80.ts) | 691 / 698 | 99.0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [385](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [668](../../src/components/cpus/8088.ts) | 271 / 291 | 93.1% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [621](../../src/components/cpus/8088.ts) | 279 / 291 | 95.9% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **4,196 generated bodies**, all used by CPU execution,
+contains **4,262 generated bodies**, all used by CPU execution,
 including two shared 6809 interrupt-frame helpers and one 8088 word-push helper.
-They cover **2,001 complete opcode forms**:
+They cover **2,067 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -88,7 +88,9 @@ They cover **2,001 complete opcode forms**:
   through instruction fetching. DAA, CMA/STC/CMC, NOP/HLT, and PUSH/POP PSW
   add eight bodies. PSW shares its reserved-bit layout with runtime encoding;
   POP replaces A then the complete flags only after both reads succeed.
-  All 240 bodies are integrated; only IN/OUT and DI/EI remain handwritten.
+  IN/OUT add two bodies using shared port-transfer construction, with the
+  immediate port fetched before A is read or written. All 242 bodies are
+  integrated; only DI/EI remain handwritten.
 - [6800 definitions](../../src/components/cpus/semantics/definitions/6800.ts):
   All eleven unary operations on A/B and indexed/extended memory count as 44
   migrated forms. Their 33 bodies use the same
@@ -234,9 +236,12 @@ They cover **2,001 complete opcode forms**:
   and search bodies perform one iteration per step: capture BC after the read,
   retain live pair updates, then conditionally rewind PC for refetching.
   Constant logical shifts describe nibble movement directly. These 17 forms
-  complete ordinary instruction migration. The Z80 integrates 576 bodies
-  covering 667 forms; its 24 I/O and seven interrupt-related forms remain
-  handwritten.
+  complete ordinary instruction migration. All 24 I/O forms now add generated
+  bodies: immediate ports capture old A before fetching, register ports use BC,
+  and block I/O preserves B decrement between the read and write. Repeated
+  forms transfer one byte per step, then rewind PC and correct H/PV as required.
+  The Z80 integrates 600 bodies covering 691 forms; seven interrupt-related
+  forms remain handwritten.
 - [8008 definitions](../../src/components/cpus/semantics/definitions/8008.ts):
   All 72 byte ALU forms are integrated: AD/AC/SU/SB/ND/XR/OR/CP with each
   register, memory, and immediate source. The existing Intel ALU construction
@@ -262,8 +267,10 @@ They cover **2,001 complete opcode forms**:
   three-bit selector and write the next physical address slot; returns only
   decrement the selector, retaining every slot. Untaken paths never read the
   selector or access the array. Generated bodies leave fetch-time PC advancement
-  and supplied-byte behavior with the core. All 218 ordinary forms are migrated;
-  only the 32 port instructions remain handwritten.
+  and supplied-byte behavior with the core. INP/OUT add all 32 port forms,
+  using encoded input selectors 0..7 and output selectors 8..31 without flag
+  access. All 250 documented forms are migrated. Fetching, reset, and external
+  interrupt acceptance remain CPU-owned.
 
 - [8088 definitions](../../src/components/cpus/semantics/definitions/8088.ts):
   Sixteen immediate MOV forms, sixteen accumulator ADD/OR/ADC/SBB/AND/SUB/XOR/CMP
@@ -345,8 +352,11 @@ They cover **2,001 complete opcode forms**:
   intermediates where needed; checked division returns a named outcome before
   writeback, with the original 8088 signed minimum rejected explicitly. Decimal
   adjustment retains short-circuit flag reads and its original-chip thresholds.
-  All **271 forms** are integrated. The remaining 20 are IN/OUT, ESC, WAIT,
-  and INT3/INT/INTO; interrupt delivery and retirement remain CPU-owned.
+  IN/OUT add all eight forms with immediate or DX addressing and AL/AX operands.
+  Word transfers use low then high bytes, wrapping the second port within 16
+  bits. Input commits only after all reads; byte input preserves live AH.
+  All **279 forms** are integrated. The remaining twelve are eight ESC forms,
+  WAIT, and INT3/INT/INTO; interrupt delivery and retirement remain CPU-owned.
 
 The 68000 has no instruction bodies generated from these definitions.
 Its existing shared TypeScript helpers remain useful, but are outside this
@@ -394,33 +404,32 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,695 |
-| CPU-specific instruction definition files | 1,620 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,088 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,403** |
+| Eight CPU implementation files | 3,601 |
+| CPU-specific instruction definition files | 1,702 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,130 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,433** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 90,600 |
+| Generated CPU output, counted separately | 91,663 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The remaining ordinary 8088 arithmetic adds **330 bodies for 42 forms**:
-252 shift/rotate specializations, 72 multiply/divide specializations, and six
-numeric decimal/ASCII bodies. These reuse resolved operands, byte views,
-result flags, and shared one-bit shift construction. The language gains unsigned
-32-bit values, full byte/word products, checked division, bounded iteration,
-and named outcomes; interrupt delivery stays in the CPU boundary.
+The port-I/O migration adds **66 bodies for 66 forms** across the 8008, 8080,
+Z80, and 8088. Two new byte-port effects share capability inference, validation,
+and explanation. A common transfer recipe captures an address before accessing
+an operand and supports low-first word transfers. Z80 input flags and block-I/O
+sequencing remain explicit CPU definitions.
 
-The 8088 module shrinks from **783 to 668 lines** (**115 fewer**), removing
-its one-bit operation table, handwritten arithmetic/decimal helpers, result-flag
-helper, and runtime memory-operand/write-word wrappers. Definitions add **112
-net lines**, and other authored CPU source adds **104**. Total authored CPU
-source rises from **8,302 to 8,403 lines** (**101 more**). Generated output grows
-by **10,235 lines**. This is a reduction in the CPU module, not total maintained
-source; the shared language additions are included in the accounting.
-All **3,866** earlier instruction definitions and twelve unchanged generated
-modules retain their prior contents. The numeric 8088 module gains six bodies;
-the arithmetic module is new generated output.
+The main CPU modules lose **94 lines**: six from the 8008, 41 from the Z80,
+and 47 from the 8088. The 8080 retains its size while replacing inline effects
+with generated calls. Removed code includes the handwritten port helpers,
+Z80 block-I/O flag helpers, and the 8088's last runtime register-operand wrapper.
+Definitions add **82 net lines** and shared support adds **42**. Total authored
+CPU source rises from **8,403 to 8,433 lines** (**30 more**); generated output
+adds **1,063 lines**. The new shared effects are included in this accounting.
+All **4,196** earlier definitions remain structurally unchanged, and ten
+unaffected generated modules remain byte-identical. Only the four port-using
+CPU modules gain generated bodies.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

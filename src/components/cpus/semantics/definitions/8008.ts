@@ -2,12 +2,13 @@ import { cpu8008StateDescription } from "../../state/8008.ts";
 import { addWrap, bitAnd, borrow, capture, carry, concat, cpuSymbols, evenParity, extend, fetchByte, flagLiteral, flagValue, literal, negative,
   readMemory, readRegister, readSource, subtract, truncate, updateFlags, value, writeElement, writeLatch, writeRegister, zero } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
-import { immediateByte, instructionSet, registerSource } from "../builders.ts";
+import { immediateByte, instructionSet, registerSource, registerView } from "../builders.ts";
 import { intelAccumulatorRotate, intelByteAlu, intelByteTransfer } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
-import { intel8008ByteTransferForms, intel8008ControlForms as controlForms } from "../../intel-encodings.ts";
+import { intel8008PortForms, intel8008ByteTransferForms, intel8008ControlForms as controlForms } from "../../intel-encodings.ts";
 import { conditional, flagCondition } from "../control-flow.ts";
 import { defineInstruction } from "../validate.ts";
+import { portTransfer } from "../ports.ts";
 
 const cpu = cpuSymbols("8008", cpu8008StateDescription);
 const addressStack = cpu.array("addressStack"), stackIndex = cpu.register("stackIndex");
@@ -112,6 +113,9 @@ const controlInstructions = instructionSet([
 
 export const instructions8008 = {
   ...controlInstructions,
+  ...instructionSet(intel8008PortForms.map(([opcode, port]) => [opcode,
+    portTransfer(cpu.declaration, `${port < 8 ? "INP" : "OUT"} ${port}`, { name: "encoded port selector", width: 16,
+      steps: [], result: literal(16, port) }, registerView(cpu.register("a")), port >= 8)])),
   ...instructionSet([...intel8008ByteTransferForms.immediate, ...intel8008ByteTransferForms.matrix].map(([opcode, { destination, source }]) =>
     [opcode, intelByteTransfer(cpu, destination, source, `L${destination.toUpperCase()}${source === "immediate" ? "I n" : source.toUpperCase()}`, { mask: 0x3fff })])),
   // 00 rrr 00d: rrr=001..110 selects B/C/D/E/H/L; d=0 increments, d=1 decrements.

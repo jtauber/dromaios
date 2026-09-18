@@ -1,6 +1,6 @@
 import { instructions as semantics } from "./generated/z80.ts";
 import { cpuZ80StateDescription } from "./state/z80.ts";
-import type { CpuZ80State, CpuZ80Flags, CpuZ80RegisterBank } from "./state/z80.ts";
+import type { CpuZ80State, CpuZ80RegisterBank } from "./state/z80.ts";
 import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
 import { callStack16LE } from "./call-stack.ts";
@@ -20,7 +20,6 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.js";
-import { evenParity8 } from "./alu.ts";
 
 export { cpuZ80StateDescription } from "./state/z80.ts";
 export type { CpuZ80State, CpuZ80Flags, CpuZ80RegisterBank } from "./state/z80.ts";
@@ -258,7 +257,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   // rrr selects B/C/D/E/H/L/(HL)/A; port and indexed-register forms omit rrr=110.
   readonly #byteRegisters = this.byteOperands.flatMap((register, code) => register === "(hl)" ? []
-    : [{ register, suffix: ({ b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", a: "A" } as const)[register], bits: code.toString(2).padStart(3, "0") }]);
+    : [{ suffix: ({ b: "B", c: "C", d: "D", e: "E", h: "H", l: "L", a: "A" } as const)[register], bits: code.toString(2).padStart(3, "0") }]);
 
   // ooo in 10 ooo rrr / 11 ooo 110 selects the same ALU family, including DD/FD memory forms.
   readonly #aluFamilies = ["add", "adc", "sub", "sbc", "and", "xor", "or", "cp"] as const;
@@ -290,8 +289,8 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     ...opcodeFamily("00 1cc 000", { c: [semantics.jrNZ, semantics.jrZ, semantics.jrNC, semantics.jrC] },
       ({ c: execute }) => (instruction: InstructionContext) => execute(this.state, instruction)), // JR NZ/Z/NC/C,e
     // 11 01 d 011: d=0 outputs, d=1 inputs; old A supplies address bits 15..8.
-    ...instructionPattern("11 01 0 011", ({ fetchByte, writePort }) => writePort((this.state.a << 8) | fetchByte(), this.state.a)), // OUT (n),A
-    ...instructionPattern("11 01 1 011", ({ fetchByte, readPort }) => { this.state.a = readPort((this.state.a << 8) | fetchByte()); }), // IN A,(n); preserve all flags
+    ...instructionPattern("11 01 0 011", instruction => semantics.output(this.state, instruction)), // OUT (n),A
+    ...instructionPattern("11 01 1 011", instruction => semantics.input(this.state, instruction)), // IN A,(n); preserve all flags
     ...instructionPattern("11 01 1 001", () => semantics.exchangeGeneralBanks(this.state)), // EXX
     // 11 11 e 011: e selects DI/EI; EI inhibits IRQ through the following instruction.
     ...instructionPattern("11 11 0 011", () => { this.state.iff1 = this.state.iff2 = false; }), // DI
@@ -327,11 +326,9 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   readonly #edOpcodeHandlers = opcodeTable<OpcodeHandler>([
     // 01 rrr 00 d: rrr selects a register; d=0 inputs, d=1 outputs through old BC.
     // rrr=110 is undocumented IN (C)/OUT (C),0 and is deliberately omitted.
-    ...this.#byteRegisters.flatMap(({ register, bits }) => [
-      ...instructionPattern(`01 ${bits} 00 0`, ({ readPort }) => {
-        this.state[register] = this.#parityResult(readPort(this.readPair("bc")), { h: false, c: this.state.flags.c });
-      }), // IN r,(C); update S/Z/H/PV/N and preserve C
-      ...instructionPattern(`01 ${bits} 00 1`, ({ writePort }) => writePort(this.readPair("bc"), this.state[register])), // OUT (C),r; preserve flags
+    ...this.#byteRegisters.flatMap(({ suffix, bits }) => [
+      ...instructionPattern(`01 ${bits} 00 0`, instruction => semantics[`input${suffix}`]!(this.state, instruction)), // IN r,(C)
+      ...instructionPattern(`01 ${bits} 00 1`, instruction => semantics[`output${suffix}`]!(this.state, instruction)), // OUT (C),r
     ]),
     // 01 pp q 010/011: pp=BC/DE/HL/SP; q selects SBC/ADC or store/load.
     ...opcodeFamily("01 pp q 010", { p: ["BC", "DE", "HL", "SP"], q: ["sbc", "adc"] },
@@ -360,8 +357,11 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     ], d: [0, 1], c: [0, 1] }, ({ r: directions, d: direction, c: operation }) =>
       (instruction: InstructionContext) => directions[direction]![operation]!(this.state, instruction)), // LDI/R, LDD/R, CPI/R, CPD/R
     // 101 r d 01 o: r repeats, d=0 increments/1 decrements HL, o=0 inputs/1 outputs.
-    ...opcodeFamily("101 r d 01 o", { r: [false, true], d: [1, -1], o: [false, true] },
-      ({ r: repeat, d: delta, o: output }) => (instruction: InstructionContext) => this.#blockIo(delta, output, repeat, instruction)), // INI/R, IND/R, OUTI/OTIR, OUTD/OTDR
+    ...opcodeFamily("101 r d 01 o", { r: [
+      [[semantics.ini, semantics.outi], [semantics.ind, semantics.outd]],
+      [[semantics.inir, semantics.otir], [semantics.indr, semantics.otdr]],
+    ], d: [0, 1], o: [0, 1] }, ({ r: directions, d: direction, o: operation }) =>
+      (instruction: InstructionContext) => directions[direction]![operation]!(this.state, instruction)), // INI/R, IND/R, OUTI/OTIR, OUTD/OTDR
   ]);
 
   #indexHandlers(index: IndexRegister): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -398,46 +398,5 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   #indexedAddress(index: IndexRegister, displacement: number): number {
     return (this.state[index] + signed8(displacement)) & 0xffff;
-  }
-
-  // Block I/O: inputs use BC before decrementing B; outputs use BC afterward.
-
-  #blockIo(delta: -1 | 1, output: boolean, repeat: boolean, { readByte, writeByte, readPort, writePort }: InstructionContext): void {
-    const address = this.hl;
-    const value = output ? readByte(address) : readPort(this.readPair("bc"));
-    this.state.b = (this.state.b - 1) & 0xff;
-    if (output) writePort(this.readPair("bc"), value);
-    else writeByte(address, value);
-    this.hl = (address + delta) & 0xffff;
-    // NMOS block flags: input adds adjusted C; output adds L after HL changes.
-    const sum = value + (output ? this.state.l : (this.state.c + delta) & 0xff);
-    const carry = sum > 0xff;
-    this.#aluResult(this.state.b, { h: carry, pv: evenParity8((sum & 7) ^ this.state.b), n: value >= 0x80, c: carry });
-    if (repeat && this.state.b !== 0) {
-      this.state.pc = (this.state.pc - 2) & 0xffff;
-      this.#blockIoRepeatFlags();
-    }
-  }
-
-  #blockIoRepeatFlags(): void {
-    // The repeat phase also changes H/PV; snapshots expose this between iterations.
-    const { b, flags } = this.state;
-    let parityOperand = b;
-    if (flags.c) {
-      parityOperand += flags.n ? -1 : 1;
-      flags.h = (b & 0x0f) === (flags.n ? 0 : 0x0f);
-    }
-    // Even adjustment parity preserves P/V; odd parity inverts it.
-    flags.pv = flags.pv === evenParity8(parityOperand & 7);
-  }
-
-  // Port inputs use parity.
-  #parityResult(result: number, { h, c }: Pick<CpuZ80Flags, "h" | "c">): number {
-    return this.#aluResult(result, { h, pv: evenParity8(result), n: false, c });
-  }
-
-  #aluResult(result: number, flags: Omit<CpuZ80Flags, "s" | "z">): number {
-    this.state.flags = { s: (result & 0x80) !== 0, z: result === 0, ...flags };
-    return result;
   }
 }

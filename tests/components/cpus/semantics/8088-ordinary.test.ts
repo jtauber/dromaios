@@ -1,3 +1,5 @@
+import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
+import { noPorts } from "../../../helpers/no-ports.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions, opcodeEntries } from "../../../../src/components/cpus/generated/8088.js";
@@ -7,7 +9,7 @@ import { describeInstruction } from "../../../../src/components/cpus/semantics/d
 import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js";
 import { address, aluResult, byteMoves, flags, initialState, registerValue, replaceRegister, unaryForms, words } from "../8088/helpers.js";
 
-type Context = { deferInterrupt(scope: "intr" | "all"): void; fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void };
+type Context = BytePorts & { deferInterrupt(scope: "intr" | "all"): void; fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void };
 type Body = (state: Cpu8088State, context: Context) => void;
 type MemoryBody = (state: Cpu8088State, segment: number, offset: number, context: Context) => void;
 const bodies: Readonly<Partial<Record<number, Body>>> = instructions;
@@ -29,7 +31,7 @@ const unaryCases = unaryForms.flatMap(([operation]) => ([8, 16] as const).flatMa
 
 test("8088 ordinary inventory adds exactly 32 opcode bodies and 72 specializations for eight unary forms", () => {
   assert.equal(Object.keys(names).length, 32);
-  assert.equal(Object.keys(instructions8088).length, 131);
+  assert.equal(Object.keys(instructions8088).length, 139);
   assert.deepEqual(Object.fromEntries(Object.entries(instructions8088).filter(([opcode]) => Number(opcode) in names).map(([opcode, d]) => [opcode, d.name])), names);
   const forbidden = new Proxy(initialState(), { get() { assert.fail("Binding must not read state"); } });
   assert.deepEqual(opcodeEntries(forbidden).map(([opcode]) => opcode), Object.keys(instructions8088).map(Number));
@@ -69,7 +71,7 @@ function checkFailures(before: Cpu8088State, initialBytes: Map<number, number>, 
     const effect = (name: string) => { events.push(name); if (events.length - 1 === failAt) throw failure; };
     let fetched = 0;
     const invoke = () => run(observed(state, effect), {
-      deferInterrupt() { assert.fail("Unexpected deferral"); },
+      ...noPorts, deferInterrupt() { assert.fail("Unexpected deferral"); },
       fetchByte() { effect("fetch"); assert.ok(fetched < 2); return [0x80, 0xff][fetched++]!; },
       readByte(a) { effect("read memory " + a); assert.ok(bytes.has(a)); return bytes.get(a)!; },
       writeByte(a, byte) { effect("write memory " + a); bytes.set(a, byte); },
@@ -155,7 +157,7 @@ test("8088 branch bodies observe flags, CX and IP after fetches, skip unnecessar
       events.push(name);
       if (name === "read flag " + (opcode < 0x7e ? "cf" : "zf")) state.ip = 0xffff;
       if (name === "read flag sf" || name === "read flag of" || (opcode < 0x7e && name === "read flag zf")) assert.fail("short-circuited flag read");
-    }), { fetchByte() { state.flags = flags(511); return 2; }, readByte() { assert.fail(); }, writeByte() { assert.fail(); }, deferInterrupt() { assert.fail(); } });
+    }), { ...noPorts, fetchByte() { state.flags = flags(511); return 2; }, readByte() { assert.fail(); }, writeByte() { assert.fail(); }, deferInterrupt() { assert.fail(); } });
     assert.equal(state.ip, opcode % 2 ? 0xffff : 1);
     assert.equal(events.includes("read ip"), opcode % 2 === 0);
   }
@@ -165,7 +167,7 @@ test("8088 branch bodies observe flags, CX and IP after fetches, skip unnecessar
     bodies[opcode]!(observed(state, name => {
       if (name === "read cx" && ++countReads === 2) state.cx = 0;
       if (name === "read flag zf") assert.fail("zero counter must skip ZF");
-    }), { fetchByte() { state.cx = 7; return 2; }, readByte() { assert.fail(); }, writeByte() { assert.fail(); }, deferInterrupt() { assert.fail(); } });
+    }), { ...noPorts, fetchByte() { state.cx = 7; return 2; }, readByte() { assert.fail(); }, writeByte() { assert.fail(); }, deferInterrupt() { assert.fail(); } });
     assert.equal(countReads, 2); assert.equal(state.cx, 0); assert.equal(state.ip, 0x100);
   }
   const state = initialState({ cx: 1, ip: 0 });

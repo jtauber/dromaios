@@ -10,8 +10,6 @@ import type { WordInstructionContext, InterruptDeferralContext } from "./instruc
 import { copyState, readState } from "./state.ts";
 import { cpu8088StateDescription, cpu8088StatusWord } from "./state/8088.ts";
 import type { Cpu8088State, Cpu8088Flags } from "./state/8088.ts";
-import { byteRegisters8088, wordRegisters8088 } from "./8088-registers.ts";
-import type { ByteRegister8088 } from "./8088-registers.ts";
 import { instructions as semantics, opcodeEntries } from "./generated/8088.ts";
 import { instructions as transfers } from "./generated/8088-transfers.ts";
 import { instructions as alu } from "./generated/8088-alu.ts";
@@ -122,12 +120,6 @@ type UnaryOperation = "INC" | "DEC" | "NOT" | "NEG";
 type SegmentRegister = "es" | "cs" | "ss" | "ds";
 type StringOperation = "move" | "compare" | "store" | "load" | "scan";
 interface MemoryAddress { readonly segment: number; readonly offset: number }
-
-// Register access for the remaining port-transfer path.
-interface Operand {
-  readonly read: () => number;
-  readonly write: (value: number) => void;
-}
 
 // Definitions specialize register selectors; memory bodies take one captured segment and offset.
 const resolvedOperands = { ...transfers, ...alu };
@@ -354,19 +346,10 @@ export class Cpu8088 {
     // Higher-priority delivery must not discard a single-step trap already owed at this boundary.
   }
 
-  // Register views. Byte writes replace only the selected half of the stored word.
-
-  #writeByteRegister({ word, shift }: ByteRegister8088, value: number): void {
-    const mask = 0xff << shift;
-    this.#state[word] = (this.#state[word] & ~mask) | (value << shift);
-  }
-
   // Opcode selectors and construction. Arrays follow encoded register order.
 
   readonly #segmentRegisters = ["es", "cs", "ss", "ds"] as const;
   readonly #segmentOverrides = opcodeTable<SegmentRegister>(opcodeFamily("001 ss 110", { s: this.#segmentRegisters }, ({ s }) => s));
-  readonly #wordRegisters = wordRegisters8088;
-  readonly #byteRegisters = byteRegisters8088;
   readonly #operandWidths = [8, 16] as const;
 
   // ModR/M mm ggg rrr: memory bases selected by rrr. BP selects SS; other bases use DS.
@@ -438,10 +421,6 @@ export class Cpu8088 {
       // 1101 1ooo + mm ppp rrr: ooo:ppp is the six-bit external opcode; mm/rrr selects its source.
       ...opcodeFamily("1101 1ooo", { o: [0, 1, 2, 3, 4, 5, 6, 7] }, ({ o }) => (instruction: InstructionContext) => this.#escape(o, instruction)), // ESC
 
-      // 1110 r 1 d w: r=0 immediate port/1 DX; d=0 IN/1 OUT; w=0 AL/1 AX.
-      ...opcodeFamily("1110 r 1 d w", { r: [false, true], d: [false, true], w: this.#operandWidths },
-        ({ r: useDx, d: output, w: width }) => (instruction: InstructionContext) => this.#transferPort(width, output, useDx ? this.#state.dx : instruction.fetchByte(), instruction)), // IN/OUT AL/AX,n/DX
-
       // 1111 011w: ModR/M mm ooo rrr selects TEST, unused /1, NOT, NEG, MUL, IMUL, DIV, IDIV.
       ...opcodeFamily("1111 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#unary(width, instruction)), // TEST/NOT/NEG/MUL/IMUL/DIV/IDIV r/m
       // 1111 111w: /0..1 adjusts either width; /2..6 accepts only words for CALL/JMP/PUSH.
@@ -474,32 +453,6 @@ export class Cpu8088 {
     if (!high && resuming) this.#state.ip = (this.#state.ip + 1) & 0xffff;
     // TEST release defers recognition through the next instruction (normally ESC); busy polls allow entry.
     if (!high) deferInterrupt("all");
-  }
-
-  #transferPort(width: OperandWidth, output: boolean, port: number, { readPort, writePort }: BytePorts): void {
-    const accumulator = this.#registerOperand(width, 0);
-    // The 8088 transfers low then high bytes, wrapping within its unsegmented 16-bit port space.
-    if (output) {
-      const value = accumulator.read();
-      writePort(port, value & 0xff);
-      if (width === 16) writePort((port + 1) & 0xffff, value >>> 8);
-    } else {
-      const low = readPort(port);
-      const value = width === 8 ? low : low | (readPort((port + 1) & 0xffff) << 8);
-      accumulator.write(value); // Commit IN only after every byte has been read successfully.
-    }
-  }
-
-  #registerOperand(width: OperandWidth, selector: number): Operand {
-    if (width === 8) {
-      const register = this.#byteRegisters[selector]!;
-      return {
-        read: () => (this.#state[register.word] >>> register.shift) & 0xff,
-        write: value => this.#writeByteRegister(register, value),
-      };
-    }
-    const register = this.#wordRegisters[selector]!;
-    return { read: () => this.#state[register], write: value => { this.#state[register] = value; } };
   }
 
   // Memory-only callers reject mod=11 before asking for an effective address.

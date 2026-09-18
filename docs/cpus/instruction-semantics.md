@@ -71,8 +71,8 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 4,196 generated, executable bodies. All serve CPU execution;
-4,193 are bound through opcode or postbyte selection. Two shared 6809 frame
+There are 4,262 generated, executable bodies. All serve CPU execution;
+4,259 are bound through opcode or postbyte selection. Two shared 6809 frame
 helpers serve interrupt entry and return; one 8088 word-push helper serves entry.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
@@ -84,6 +84,40 @@ forms, while its unary operations have indexed/extended forms. Both decoders
 remain handwritten. The existing
 [boundary probes](boundary-probes.md#existing-models-executable-evidence) and
 independent CPU tests are the behavioral baseline.
+
+## Shared port I/O
+
+The four CPUs with separate port space now use the same `read-port` and
+`write-port` effects. Each effect transfers one byte at an unsigned 16-bit port
+address. Narrow selectors widen explicitly; word transfers expand into two
+byte effects with visible ordering and wrapping. Device validation and access
+recording still use the cores' existing `recordPorts` callbacks.
+
+[Port-transfer construction](../../src/components/cpus/semantics/ports.ts)
+captures the complete address before reading an output operand or starting
+input. Outputs capture the whole operand before the first write; inputs commit
+the register/view only after every read succeeds. This serves all 8008 and 8080
+ports, Z80 immediate I/O and register output, and all 8088 byte/word I/O.
+Address sources expose the difference between an encoded 8008 selector, an
+8080 immediate port, Z80 old-A-high/immediate-low, BC, and 8088 immediate/DX.
+The 8088 byte view preserves live AH after a device callback.
+
+Z80 register input captures C after the port read, replaces the complete flag
+object, then writes the register. Block input uses BC before decrementing B;
+block output uses BC after the decrement. Both retain the decrement if their
+write fails, and update captured HL only after success. Their definitions
+retain the NMOS H/C/PV/N rules and the repeat phase's H/PV corrections.
+Repeated I/O executes one transfer and rewinds PC for the next step to refetch
+both opcode bytes. Refresh and instruction retirement remain in the CPU.
+
+The [independent port-definition tests](../../tests/components/cpus/semantics/ports.test.ts)
+check all 66 forms against imperative effect schedules, injecting failure at
+every observed state/flag/bus effect and changing live state during callbacks.
+They also check exact inventories, port widths, lexical scopes, descriptions,
+and capability inference. Existing CPU tests retain exhaustive byte/count/flag
+expectations, port records, wrapping, disconnections, malformed devices,
+supplied instructions, and guard release. [Type checks](../../tests/types/instruction-semantics.ts)
+keep port and memory capabilities distinct.
 
 ## Representation and authoring
 
@@ -98,10 +132,11 @@ The authoring layers have separate homes:
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, construction-time register views, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
 | [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, and returns with explicit operand/condition/stack order |
+| [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, and complete push/pop instruction construction |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, byte/word-transfer, branch, and subroutine construction, with explicit access and flag policies |
 | [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
-| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 transfer/control and 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted, with 8008 HALT defined separately |
+| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 transfer/control/port and 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted, with 8008 HALT defined separately |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
 | [mos.ts](../../src/components/cpus/semantics/mos.ts) | NMOS ADC/SBC binary facts, decimal digit correction, and distinct flag/write stages |
@@ -968,11 +1003,13 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `read-latch` | Read a declared Boolean control latch now, capturing it as a Boolean for conditions or flag policies |
 | `exchange-flags` | Capture the right complete flag object, then the left; assign left, then right, without inspecting or copying their bits |
 | `fetch-byte` | Request one byte from the instruction context's fetch interface and capture it after success |
+| `read-port` | Read one byte from a captured 16-bit port address, separately from memory; capture it after success |
 | `read-memory` | Read one byte at an explicit word address; capture it after success |
 | `write-register` | Replace the stored register with an equal-width unsigned value |
 | `write-element` | Replace one register-array slot with an equal-width value; do not read its old contents |
 | `write-latch` | Assign a Boolean constant to a declared top-level control latch; performs no read |
 | `defer-interrupt` | Request `intr` or `all` recognition inhibition through the 8088 context; the boundary commits it at successful retirement |
+| `write-port` | Write one byte to a captured 16-bit port address; no implicit memory access or flag update |
 | `write-memory` | Write one byte at an explicit word address, including unchanged values |
 | `read-source` | Expand and perform the named source body once in its own scope, then capture its result |
 | `update-flags` | Bind a named policy's pure parameters and apply its assignments at this point |
@@ -994,7 +1031,7 @@ A conditional block inherits its parent's captured numbers and flags. Its local
 captures cannot escape the block or shadow inherited names; separate sibling
 blocks may reuse local names. Source and flag-policy scopes remain closed,
 even inside conditionals. Validation checks untaken bodies too, and capability
-inference includes their possible fetches, reads, writes, and deferral requests.
+inference includes their possible fetches, memory/port reads and writes, and deferral requests.
 
 Iteration bodies inherit their enclosing scope, plus their current value. Local
 captures cannot escape or shadow that value, and the yielded result must retain
@@ -1308,7 +1345,8 @@ CPU state type (the 8008 uses `Cpu8008StoredState`, with owned mutable address
 slots, rather than its readonly constructor-input array), followed by any numeric inputs
 in declaration order, then only the callbacks their statements use, expressed
 as a `Pick<ByteInstructionContext, ...>`, extended with
-`InterruptDeferralContext` only when the body can request deferral. For example,
+`BytePorts` when it accesses port space and `InterruptDeferralContext` when it
+can request deferral. Each `Pick` still exposes only the used callbacks. For example,
 `rolMemory(state, address, { readByte, writeByte })` cannot fetch operands or
 resolve the address again. Bindings must supply unsigned integers fitting the
 declared widths; the generated internal functions do not coerce or validate
@@ -1446,8 +1484,8 @@ three halt encodings. The control-flow inventory serves construction and binding
 without separate opcode lists. Calls advance the selector modulo eight before
 writing the new 14-bit target; returns only decrement it. Targets are fetched
 before conditions, and untaken paths never access the selector or array.
-Fetching, reset, port access, and interrupt acceptance remain handwritten;
-all ordinary instruction bodies are generated. The machine parser reads its separate state schema,
+Its 32 INP/OUT bodies complete migration of all documented forms. Fetching,
+reset, port recording, and interrupt acceptance remain handwritten. The machine parser reads its separate state schema,
 without depending on generated execution code.
 The 6800 and 6809 bind generated A/B and memory bodies through one
 `motorolaUnaryOperations` selector table, including TST and CLR. Each CPU's static

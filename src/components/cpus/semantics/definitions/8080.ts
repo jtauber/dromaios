@@ -1,12 +1,16 @@
 import { cpu8080StateDescription, cpu8080Status } from "../../state/8080.ts";
-import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readSource, value, zero } from "../model.ts";
+import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, extend, fetchByte, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readSource, value, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
 import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers, intelExchanges, intelJumps, intelRegisterStacks, intelStatusInstructions, intelSubroutines, intelWordArithmeticFamily, intelWordTransfers } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
+import { registerView } from "../builders.ts";
+import { portTransfer } from "../ports.ts";
 
 const cpu = cpuSymbols("8080", cpu8080StateDescription);
 const conditions = (["z", "cy", "p", "s"] as const).map(flag => cpu.flag(flag));
 
+const immediatePort: ValueSource = { name: "zero-extended immediate port", width: 16,
+  steps: [fetchByte("port")], result: extend(value("port"), 16) };
 const sources = intelByteSources(cpu.register);
 
 /** S/Z/P describe the captured result; every ALU operation supplies its own CY/AC meaning. */
@@ -73,6 +77,8 @@ function rotation(name: string, direction: "left" | "right", circular: boolean):
 }
 
 export const instructions8080 = {
+  input: portTransfer(cpu.declaration, "IN n", immediatePort, registerView(cpu.register("a")), false),
+  output: portTransfer(cpu.declaration, "OUT n", immediatePort, registerView(cpu.register("a")), true),
   ...intelStatusInstructions(cpu, cpu8080Status, "8080"),
   ...intelRegisterStacks(cpu, (register, operation) => `${operation.toUpperCase()} ${register[0]!.toUpperCase()}`),
   ...intelSubroutines(cpu, conditions, {

@@ -17,7 +17,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { intel8008ByteTransferForms, intel8008ControlForms as controlForms } from "./intel-encodings.ts";
+import { intel8008PortForms, intel8008ByteTransferForms, intel8008ControlForms as controlForms } from "./intel-encodings.ts";
 
 export { cpu8008StateDescription } from "./state/8008.ts";
 export type { Cpu8008State, Cpu8008AddressStack, Cpu8008Flags } from "./state/8008.ts";
@@ -202,7 +202,7 @@ export class Cpu8008 {
 
     // 01 ppppp 1: bits 5..1 select the port. ppppp = rrmmm: rr=00 inputs 0..7;
     // rr=01/10/11 outputs 8..31. INP replaces A; OUT sends A; both preserve flags.
-    ...opcodeFamily("01 ppppp 1", { p: Array.from({ length: 32 }, (_, port) => port) }, ({ p: port }) => this.#portHandler(port)), // INP / OUT
+    ...this.#instructionHandlers(intel8008PortForms), // INP / OUT
 
     // 10 ooo sss: ooo (bits 5..3) selects the operation; sss (bits 2..0) selects A/B/C/D/E/H/L/M.
     ...opcodeFamily("10 ooo sss", { o: this.#aluInstructions, s: this.#byteOperands }, ({ o: instruction, s: source }) => instruction(source)), // ADr / ACr / SUr / SBr / NDr / XRr / ORr / CPr (including M)
@@ -224,11 +224,5 @@ export class Cpu8008 {
   #instructionHandlers(forms: readonly (readonly [number, unknown])[]): readonly OpcodeEntry<OpcodeHandler>[] {
     const instructions: Readonly<Record<number, (state: Cpu8008StoredState, instruction: InstructionContext) => void>> = semantics;
     return forms.map(([opcode]) => [opcode, instruction => instructions[opcode]!(this.#state, instruction)]);
-  }
-
-  #portHandler(port: number): OpcodeHandler {
-    return port < 8
-      ? ({ readPort }) => { this.#state.a = readPort(port); }
-      : ({ writePort }) => writePort(port, this.#state.a);
   }
 }

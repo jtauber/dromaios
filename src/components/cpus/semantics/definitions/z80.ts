@@ -1,14 +1,15 @@
 import { cpuZ80StateDescription, cpuZ80Status } from "../../state/z80.ts";
-import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, cpuSymbols, evenParity, exchangeFlags, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, overflow,
-  readFlag, readLatch, readMemory, readRegister, readSource, replaceFlags, shiftBits, subtract, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
-import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement } from "../model.ts";
-import { immediateByte, registerSource, shift } from "../builders.ts";
+import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, evenParity, exchangeFlags, fetchByte, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, overflow,
+  readFlag, readLatch, readMemory, readPort, readRegister, readSource, replaceFlags, select, shiftBits, subtract, updateFlags, value, when, writeMemory, writePort, writeRegister, xor, zero } from "../model.ts";
+import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
+import { immediateByte, registerSource, registerView, shift } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
 import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelExchanges, intelJumps, intelRegisterStacks, intelStackTransfer, intelStatusInstructions, intelSubroutines, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelPairView, intelWordTransfer, intelWordTransfers } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 import { flagPolicy } from "../status.ts";
-import { flagCondition, jump, relativeBranch } from "../control-flow.ts";
+import { choose, flagCondition, jump, relativeBranch } from "../control-flow.ts";
+import { portTransfer } from "../ports.ts";
 
 const cpu = cpuSymbols("z80", cpuZ80StateDescription);
 const conditions = (["z", "c", "pv", "s"] as const).map(flag => cpu.flag(flag));
@@ -17,6 +18,10 @@ const sources = intelByteSources(cpu.register);
 
 const alternate = cpu.bank("alternate");
 const bc = intelPairView(cpu, "bc"), de = intelPairView(cpu, "de"), hl = intelPairView(cpu, "hl");
+
+// Immediate I/O captures A for address bits 15..8 before fetching the low byte.
+const immediatePort: ValueSource = { name: "old A and immediate port byte", width: 16,
+  steps: [readRegister("high", cpu.register("a")), fetchByte("low")], result: concat(value("high"), value("low")) };
 
 // These bodies replace the complete flag object; any accumulator write follows that replacement.
 function resultFlags(name: string, parameters: FlagPolicy["parameters"], updates: Readonly<Record<string, FlagExpression>>) {
@@ -215,7 +220,68 @@ function family(mnemonic: string, operation: IntelByteOperation, withCarry = fal
   }));
 }
 
+function registerInput(register: "a" | "b" | "c" | "d" | "e" | "h" | "l") {
+  const name = `IN ${register.toUpperCase()},(C)`;
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: "Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.",
+    steps: [readSource("port", bc.source), readPort("result", value("port")), readFlag("carry", cpu.flag("c")),
+      replaceFlags(resultFlags(name, { carry: "flag" }, { h: flagLiteral(false), pv: evenParity(value("result")), n: flagLiteral(false), c: flagValue("carry") }),
+        { result: value("result"), carry: flagValue("carry") }), writeRegister(cpu.register(register), value("result"))],
+  });
+}
+
+// The repeat phase corrects H/PV after PC rewinds; snapshots expose these flags between iterations.
+function blockIoRepeatFlags(): readonly Statement[] {
+  const parity = (operand: NumberExpression) => [readFlag("parity", cpu.flag("pv")),
+    updateFlags(flagPolicy(cpu, "repeat parity correction", { parity: "flag", operand: 8 },
+      { pv: not(xor(flagValue("parity"), evenParity(bitAnd(value("operand"), literal(8, 7))))) }),
+      { parity: flagValue("parity"), operand })];
+  return [readRegister("repeatCounter", cpu.register("b")), ...choose(flagCondition(cpu.flag("c"), true), [
+    readFlag("subtract", cpu.flag("n")),
+    capture("adjusted", select(flagValue("subtract"), subtract(value("repeatCounter"), literal(8, 1)), addWrap(value("repeatCounter"), literal(8, 1)))),
+    readFlag("halfSubtract", cpu.flag("n")),
+    updateFlags(flagPolicy(cpu, "repeat half-carry correction", { repeatCounter: 8, subtract: "flag" },
+      { h: zero(bitXor(bitAnd(value("repeatCounter"), literal(8, 15)), select(flagValue("subtract"), literal(8, 0), literal(8, 15)))) }),
+      { repeatCounter: value("repeatCounter"), subtract: flagValue("halfSubtract") }), ...parity(value("adjusted")),
+  ], parity(value("repeatCounter")))];
+}
+
+function blockIo(delta: -1 | 1, output: boolean, repeat: boolean) {
+  const name = output ? `${repeat ? "OT" : "OUT"}${delta === 1 ? "I" : "D"}${repeat ? "R" : ""}` : `IN${delta === 1 ? "I" : "D"}${repeat ? "R" : ""}`;
+  const adjusted = (n: NumberExpression, width: 8 | 16) => (delta === 1 ? addWrap : subtract)(n, literal(width, 1));
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: "Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. "
+      + "Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. "
+      + "Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. "
+      + (repeat ? "If live B is nonzero, rewind live PC by two, then correct H/PV for the repeat phase. The next step refetches both opcodes." : "Do not access PC or apply repeat corrections."),
+    steps: [readSource("address", hl.source), ...(output ? [readMemory("byte", value("address"))]
+      : [readSource("inputPort", bc.source), readPort("byte", value("inputPort"))]),
+      readRegister("counter", cpu.register("b")), writeRegister(cpu.register("b"), subtract(value("counter"), literal(8, 1))),
+      ...(output ? [readSource("outputPort", bc.source), writePort(value("outputPort"), value("byte"))] : [writeMemory(value("address"), value("byte"))]),
+      ...hl.write(adjusted(value("address"), 16)), readRegister("addend", cpu.register(output ? "l" : "c")),
+      capture("right", output ? value("addend") : adjusted(value("addend"), 8)),
+      readRegister("result", cpu.register("b")), readRegister("parityCounter", cpu.register("b")),
+      replaceFlags(resultFlags(name, { byte: 8, right: 8, parityCounter: 8 }, {
+        h: carry(value("byte"), value("right")), c: carry(value("byte"), value("right")), n: negative(value("byte")),
+        pv: evenParity(bitXor(bitAnd(addWrap(value("byte"), value("right")), literal(8, 7)), value("parityCounter"))),
+      }), { result: value("result"), byte: value("byte"), right: value("right"), parityCounter: value("parityCounter") }),
+      ...(repeat ? [readRegister("remaining", cpu.register("b")), when(not(zero(value("remaining"))), [
+        readRegister("pc", cpu.register("pc")), writeRegister(cpu.register("pc"), subtract(value("pc"), literal(16, 2))), ...blockIoRepeatFlags(),
+      ])] : [])],
+  });
+}
+
 export const instructionsZ80 = {
+  input: portTransfer(cpu.declaration, "IN A,(n)", immediatePort, registerView(cpu.register("a")), false),
+  output: portTransfer(cpu.declaration, "OUT (n),A", immediatePort, registerView(cpu.register("a")), true),
+  // ED 01 rrr 00d: omit undocumented rrr=110; d=0 inputs, d=1 outputs through BC.
+  ...Object.fromEntries((["b", "c", "d", "e", "h", "l", "a"] as const).flatMap(register => [
+    [`input${register.toUpperCase()}`, registerInput(register)],
+    [`output${register.toUpperCase()}`, portTransfer(cpu.declaration, `OUT (C),${register.toUpperCase()}`, bc.source, registerView(cpu.register(register)), true)],
+  ])),
+  // ED 101 r d 01o: r repeats, d decrements rather than increments HL, o selects output.
+  ini: blockIo(1, false, false), ind: blockIo(-1, false, false), inir: blockIo(1, false, true), indr: blockIo(-1, false, true),
+  outi: blockIo(1, true, false), outd: blockIo(-1, true, false), otir: blockIo(1, true, true), otdr: blockIo(-1, true, true),
   exchangeAf: exchangeBank(true), exchangeGeneralBanks: exchangeBank(false),
   loadAFromI: specialTransfer("i", true), loadAFromR: specialTransfer("r", true),
   loadIFromA: specialTransfer("i", false), loadRFromA: specialTransfer("r", false),

@@ -1,3 +1,5 @@
+import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
+import { noPorts } from "../../../helpers/no-ports.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8008.js";
@@ -30,8 +32,8 @@ const forms: readonly Form[] = [
   ...[0x00, 0x01, 0xff].map(opcode => ({ opcode, operation: "halt" as const })),
 ];
 const definitions: Readonly<Record<number, InstructionDefinition>> = instructions8008;
-const execute: Readonly<Record<number, (state: Cpu8008StoredState, instruction: ByteInstructionContext) => void>> = instructions;
-const noAccess: ByteInstructionContext = {
+const execute: Readonly<Record<number, (state: Cpu8008StoredState, instruction: ByteInstructionContext & BytePorts) => void>> = instructions;
+const noAccess: ByteInstructionContext & BytePorts = { ...noPorts,
   fetchByte() { assert.fail("Unexpected fetch"); }, readByte() { assert.fail("Unexpected data read"); }, writeByte() { assert.fail("Unexpected data write"); },
 };
 function initialState(slot = 7, bits = 0): Cpu8008StoredState {
@@ -40,14 +42,14 @@ function initialState(slot = 7, bits = 0): Cpu8008StoredState {
     addressStack: [0x111, 0x222, 0x333, 0x444, 0x555, 0x666, 0x777, 0x3fff], stackIndex: slot, halted: Boolean(bits & 8) };
 }
 
-test("8008 migration contains all 59 control forms and exactly 218 ordinary forms", () => {
+test("8008 migration contains all 59 control forms and all 250 documented forms", () => {
   assert.equal(forms.length, 59);
   assert.equal(new Set(forms.map(form => form.opcode)).size, 59);
-  assert.equal(Object.keys(instructions8008).length, 218);
+  assert.equal(Object.keys(instructions8008).length, 250);
   const migrated = Object.keys(instructions8008).filter(key => /^\d+$/.test(key)).map(Number);
-  // Numeric keys also cover the 71 byte transfers. ALU/unary bodies retain named keys.
+  // Numeric keys also cover 71 byte transfers and 32 port transfers. ALU/unary bodies retain named keys.
   const transfers = [...Array.from({ length: 63 }, (_, index) => 0xc0 + index), 0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x36, 0x3e];
-  assert.deepEqual(migrated.sort((a, b) => a - b), [...transfers, ...forms.map(form => form.opcode)].sort((a, b) => a - b));
+  assert.deepEqual(migrated.sort((a, b) => a - b), [...transfers, ...Array.from({ length: 32 }, (_, p) => 0x41 + p * 2), ...forms.map(form => form.opcode)].sort((a, b) => a - b));
 });
 
 test("8008 generated control bodies preserve every physical slot except a taken target, for all selectors and flag patterns", () => {

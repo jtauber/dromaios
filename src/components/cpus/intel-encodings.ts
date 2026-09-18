@@ -18,6 +18,9 @@ export const intelByteTransferForms = byteTransferForms(["b", "c", "d", "e", "h"
 // 8008: A is selector 000, M is 111; 11 111 111 is HLT.
 export const intel8008ByteTransferForms = byteTransferForms(["a", "b", "c", "d", "e", "h", "l", "m"], "11 ddd sss");
 
+// 01 ppppp 1: rrmmm selects input ports 0..7 and output ports 8..31.
+export const intel8008PortForms = opcodeFamily("01 ppppp 1", { p: Array.from({ length: 32 }, (_, port) => port) }, ({ p }) => p);
+
 // 8008 ccc=vff: v requires false/true; ff selects C/Z/S/P. xxx denotes ignored bits.
 export const intel8008ControlForms = {
   halt: [...opcodePattern("00 000 00x", undefined), ...opcodePattern("11 111 111", undefined)],

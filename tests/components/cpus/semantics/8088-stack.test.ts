@@ -1,3 +1,5 @@
+import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
+import { noPorts } from "../../../helpers/no-ports.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions, opcodeEntries } from "../../../../src/components/cpus/generated/8088.js";
@@ -16,7 +18,7 @@ import { address, flags, initialState, words } from "../8088/helpers.js";
 type Register = typeof words[number] | "cs" | "ss" | "ds" | "es" | "ip";
 type Operation = "PUSH" | "POP" | "PUSHF" | "POPF" | "CALL" | "JMP" | "RET";
 interface Form { key: number | string; operation: Operation; register?: Register; memory?: true; far?: true; relative?: true; discard?: true }
-type Context = { fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void; deferInterrupt(scope: "intr" | "all"): void };
+type Context = BytePorts & { fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void; deferInterrupt(scope: "intr" | "all"): void };
 type Body = (state: Cpu8088State, context: Context) => void;
 type MemoryBody = (state: Cpu8088State, segment: number, offset: number, context: Context) => void;
 const bodies: Readonly<Partial<Record<number, Body>>> = instructions;
@@ -53,7 +55,7 @@ function execute(form: Form, state: Cpu8088State, segment: number, offset: numbe
 test("8088 stack definitions add exactly 32 encoded bodies, 22 resolved bodies, and one shared interrupt push", () => {
   const opcodes = forms.filter(f => typeof f.key === "number").map(f => f.key);
   const keys = forms.filter(f => typeof f.key === "string").map(f => f.key).sort();
-  assert.equal(opcodes.length, 32); assert.equal(keys.length, 23); assert.equal(Object.keys(instructions8088).length, 131);
+  assert.equal(opcodes.length, 32); assert.equal(keys.length, 23); assert.equal(Object.keys(instructions8088).length, 139);
   assert.ok(opcodes.every(key => key in instructions8088));
   assert.deepEqual(Object.keys(stack8088).sort(), keys); assert.deepEqual(Object.keys(stack).sort(), keys);
   const forbidden = new Proxy(initialState(), { get() { assert.fail("Binding must not read state"); } });
@@ -146,7 +148,7 @@ test("every 8088 stack/control body retains exact read/write/deferral ordering a
       let fetched = 0;
       const run = () => execute(form, observed(state, effect), segment, offset, {
         fetchByte() { effect(["fetch"]); return immediate[fetched++]!; },
-        readByte(a) { effect(["read memory " + a]); assert.ok(bytes.has(a)); return bytes.get(a)!; },
+        ...noPorts, readByte(a) { effect(["read memory " + a]); assert.ok(bytes.has(a)); return bytes.get(a)!; },
         writeByte(a, byte) { effect(["write memory " + a, byte]); bytes.set(a, byte); },
         deferInterrupt(scope) { effect(["defer " + scope]); deferred.push(scope); },
       });

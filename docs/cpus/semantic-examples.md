@@ -6371,6 +6371,20 @@ when not(condition) {
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 INP 0
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0000:u16
+}
+low:u8 := read port[port]
+write A:u8 := low
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 CFC
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6392,6 +6406,20 @@ when not(condition) {
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 INP 1
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0001:u16
+}
+low:u8 := read port[port]
+write A:u8 := low
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JMP
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6404,6 +6432,20 @@ target:u14 := source "14-bit target, low byte first" {
 }
 slot:u3 := read STACKINDEX
 write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 INP 2
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0002:u16
+}
+low:u8 := read port[port]
+write A:u8 := low
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6426,6 +6468,20 @@ write ADDRESSSTACK[next]:u14 := target
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 INP 3
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0003:u16
+}
+low:u8 := read port[port]
+write A:u8 := low
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JFZ
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6441,6 +6497,20 @@ when not(condition) {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 INP 4
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0004:u16
+}
+low:u8 := read port[port]
+write A:u8 := low
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6466,6 +6536,20 @@ when not(condition) {
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 INP 5
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0005:u16
+}
+low:u8 := read port[port]
+write A:u8 := low
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JMP
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6478,6 +6562,20 @@ target:u14 := source "14-bit target, low byte first" {
 }
 slot:u3 := read STACKINDEX
 write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 INP 6
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0006:u16
+}
+low:u8 := read port[port]
+write A:u8 := low
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6500,6 +6598,20 @@ write ADDRESSSTACK[next]:u14 := target
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 INP 7
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0007:u16
+}
+low:u8 := read port[port]
+write A:u8 := low
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JFS
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6515,6 +6627,23 @@ when not(condition) {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 8
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0008:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6540,6 +6669,23 @@ when not(condition) {
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 OUT 9
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0009:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JMP
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6552,6 +6698,23 @@ target:u14 := source "14-bit target, low byte first" {
 }
 slot:u3 := read STACKINDEX
 write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 10
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 000A:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6574,6 +6737,23 @@ write ADDRESSSTACK[next]:u14 := target
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 OUT 11
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 000B:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JFP
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6589,6 +6769,23 @@ when not(condition) {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 12
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 000C:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6614,6 +6811,23 @@ when not(condition) {
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 OUT 13
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 000D:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JMP
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6626,6 +6840,23 @@ target:u14 := source "14-bit target, low byte first" {
 }
 slot:u3 := read STACKINDEX
 write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 14
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 000E:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6648,6 +6879,23 @@ write ADDRESSSTACK[next]:u14 := target
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 OUT 15
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 000F:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JTC
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6663,6 +6911,23 @@ when condition {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 16
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0010:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6688,6 +6953,23 @@ when condition {
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 OUT 17
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0011:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JMP
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6700,6 +6982,23 @@ target:u14 := source "14-bit target, low byte first" {
 }
 slot:u3 := read STACKINDEX
 write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 18
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0012:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6722,6 +7021,23 @@ write ADDRESSSTACK[next]:u14 := target
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 OUT 19
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0013:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JTZ
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6737,6 +7053,23 @@ when condition {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 20
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0014:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6762,6 +7095,23 @@ when condition {
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 OUT 21
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0015:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JMP
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6774,6 +7124,23 @@ target:u14 := source "14-bit target, low byte first" {
 }
 slot:u3 := read STACKINDEX
 write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 22
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0016:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6796,6 +7163,23 @@ write ADDRESSSTACK[next]:u14 := target
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 OUT 23
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0017:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JTS
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6811,6 +7195,23 @@ when condition {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 24
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0018:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6836,6 +7237,23 @@ when condition {
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 OUT 25
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 0019:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JMP
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6848,6 +7266,23 @@ target:u14 := source "14-bit target, low byte first" {
 }
 slot:u3 := read STACKINDEX
 write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 26
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 001A:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6870,6 +7305,23 @@ write ADDRESSSTACK[next]:u14 := target
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 OUT 27
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 001B:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JTP
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6885,6 +7337,23 @@ when condition {
   slot:u3 := read STACKINDEX
   write ADDRESSSTACK[slot]:u14 := target
 }
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 28
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 001C:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6910,6 +7379,23 @@ when condition {
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 OUT 29
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 001D:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 JMP
 
 Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
@@ -6922,6 +7408,23 @@ target:u14 := source "14-bit target, low byte first" {
 }
 slot:u3 := read STACKINDEX
 write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 30
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 001E:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6940,6 +7443,23 @@ slot:u3 := read STACKINDEX
 next := low3(addWrap(zeroExtend8(slot), 01:u8))
 write STACKINDEX:u3 := next
 write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 OUT 31
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "encoded port selector" {
+  yield 001F:u16
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -11997,6 +12517,39 @@ write PC:u16 := target
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 IN n
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "zero-extended immediate port" {
+  port:u8 := fetch byte
+  yield zeroExtend16(port)
+}
+low:u8 := read port[port]
+write A:u8 := low
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 OUT n
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "zero-extended immediate port" {
+  port:u8 := fetch byte
+  yield zeroExtend16(port)
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 INR B
 
 Read the selected byte register. Add one with byte wraparound. S/Z describe the result and P its even parity. AC reports low-nibble carry. Apply flags before writing the result; preserve carry without reading it. A failed read prevents later effects; a failed write retains calculated flags.
@@ -16901,6 +17454,75 @@ when isZero(remaining) {
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
+### 8088 IN AL,n
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "zero-extended immediate port" {
+  port:u8 := fetch byte
+  yield zeroExtend16(port)
+}
+low:u8 := read port[port]
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), low)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IN AX,n
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer low then high bytes, wrapping the second port within 16 bits. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "zero-extended immediate port" {
+  port:u8 := fetch byte
+  yield zeroExtend16(port)
+}
+low:u8 := read port[port]
+high:u8 := read port[addWrap(port, 0001:u16)]
+write AX:u16 := concatHighLow(high, low)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 OUT n,AL
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "zero-extended immediate port" {
+  port:u8 := fetch byte
+  yield zeroExtend16(port)
+}
+contents:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 OUT n,AX
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer low then high bytes, wrapping the second port within 16 bits. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "zero-extended immediate port" {
+  port:u8 := fetch byte
+  yield zeroExtend16(port)
+}
+contents:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write port[port] := lowByte(contents)
+write port[addWrap(port, 0001:u16)] := highByte(contents)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 8088 CALL rel16
 
 Fetch the complete displacement before capturing and pushing return IP. Only after both writes add the displacement to live IP with word wrapping. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
@@ -16972,6 +17594,75 @@ offset:u8 := source "immediate byte" {
 }
 pc:u16 := read IP
 write IP:u16 := addWrap(pc, signExtend16(offset))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IN AL,DX
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+low:u8 := read port[port]
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), low)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IN AX,DX
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer low then high bytes, wrapping the second port within 16 bits. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+low:u8 := read port[port]
+high:u8 := read port[addWrap(port, 0001:u16)]
+write AX:u16 := concatHighLow(high, low)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 OUT DX,AL
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+contents:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 OUT DX,AX
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer low then high bytes, wrapping the second port within 16 bits. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+contents:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write port[port] := lowByte(contents)
+write port[addWrap(port, 0001:u16)] := highByte(contents)
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
@@ -90879,6 +91570,745 @@ write PC:u16 := target
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IN A,(n)
+
+Capture the port address before accessing the operand. Complete all input reads before writing the operand; byte views preserve their live other half. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "old A and immediate port byte" {
+  high:u8 := read A
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+low:u8 := read port[port]
+write A:u8 := low
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 OUT (n),A
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "old A and immediate port byte" {
+  high:u8 := read A
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IN B,(C)
+
+Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result:u8 := read port[port]
+carry:flag := read C
+replace flags "IN B,(C)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := carry
+} // Replace the complete flag object.
+write B:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OUT (C),B
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+contents:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IN C,(C)
+
+Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result:u8 := read port[port]
+carry:flag := read C
+replace flags "IN C,(C)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := carry
+} // Replace the complete flag object.
+write C:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OUT (C),C
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+contents:u8 := source "register C" {
+  contents:u8 := read C
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IN D,(C)
+
+Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result:u8 := read port[port]
+carry:flag := read C
+replace flags "IN D,(C)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := carry
+} // Replace the complete flag object.
+write D:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OUT (C),D
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+contents:u8 := source "register D" {
+  contents:u8 := read D
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IN E,(C)
+
+Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result:u8 := read port[port]
+carry:flag := read C
+replace flags "IN E,(C)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := carry
+} // Replace the complete flag object.
+write E:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OUT (C),E
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+contents:u8 := source "register E" {
+  contents:u8 := read E
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IN H,(C)
+
+Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result:u8 := read port[port]
+carry:flag := read C
+replace flags "IN H,(C)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := carry
+} // Replace the complete flag object.
+write H:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OUT (C),H
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+contents:u8 := source "register H" {
+  contents:u8 := read H
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IN L,(C)
+
+Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result:u8 := read port[port]
+carry:flag := read C
+replace flags "IN L,(C)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := carry
+} // Replace the complete flag object.
+write L:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OUT (C),L
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+contents:u8 := source "register L" {
+  contents:u8 := read L
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IN A,(C)
+
+Read old BC, then input one byte. Only after the read succeeds capture live C, replace S/Z/parity with H/N cleared, and write the selected register. Preserve captured C. A failed input prevents flag and register writes.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+result:u8 := read port[port]
+carry:flag := read C
+replace flags "IN A,(C)" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := 0:flag
+  PV := evenParity8(result)
+  N := 0:flag
+  C := carry
+} // Replace the complete flag object.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
+### z80 OUT (C),A
+
+Capture the port address before accessing the operand. Capture the complete operand before any output. A failed write retains any earlier output. Transfer one byte. Preserve flags. Failed accesses stop later effects; completed effects remain.
+
+```text
+port:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+contents:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write port[port] := contents
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 INI
+
+Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. Do not access PC or apply repeat corrections.
+
+```text
+address:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+inputPort:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+byte:u8 := read port[inputPort]
+counter:u8 := read B
+write B:u8 := subtract(counter, 01:u8)
+write memory[address] := byte
+write H:u8 := highByte(addWrap(address, 0001:u16))
+write L:u8 := lowByte(addWrap(address, 0001:u16))
+addend:u8 := read C
+right := addWrap(addend, 01:u8)
+result:u8 := read B
+parityCounter:u8 := read B
+replace flags "INI" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := carry(byte, right)
+  C := carry(byte, right)
+  N := topBit(byte)
+  PV := evenParity8(bitXor(bitAnd(addWrap(byte, right), 07:u8), parityCounter))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### z80 IND
+
+Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. Do not access PC or apply repeat corrections.
+
+```text
+address:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+inputPort:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+byte:u8 := read port[inputPort]
+counter:u8 := read B
+write B:u8 := subtract(counter, 01:u8)
+write memory[address] := byte
+write H:u8 := highByte(subtract(address, 0001:u16))
+write L:u8 := lowByte(subtract(address, 0001:u16))
+addend:u8 := read C
+right := subtract(addend, 01:u8)
+result:u8 := read B
+parityCounter:u8 := read B
+replace flags "IND" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := carry(byte, right)
+  C := carry(byte, right)
+  N := topBit(byte)
+  PV := evenParity8(bitXor(bitAnd(addWrap(byte, right), 07:u8), parityCounter))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### z80 INIR
+
+Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. If live B is nonzero, rewind live PC by two, then correct H/PV for the repeat phase. The next step refetches both opcodes.
+
+```text
+address:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+inputPort:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+byte:u8 := read port[inputPort]
+counter:u8 := read B
+write B:u8 := subtract(counter, 01:u8)
+write memory[address] := byte
+write H:u8 := highByte(addWrap(address, 0001:u16))
+write L:u8 := lowByte(addWrap(address, 0001:u16))
+addend:u8 := read C
+right := addWrap(addend, 01:u8)
+result:u8 := read B
+parityCounter:u8 := read B
+replace flags "INIR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := carry(byte, right)
+  C := carry(byte, right)
+  N := topBit(byte)
+  PV := evenParity8(bitXor(bitAnd(addWrap(byte, right), 07:u8), parityCounter))
+} // Replace the complete flag object.
+remaining:u8 := read B
+when not(isZero(remaining)) {
+  pc:u16 := read PC
+  write PC:u16 := subtract(pc, 0002:u16)
+  repeatCounter:u8 := read B
+  condition:flag := read C
+  when condition {
+    subtract:flag := read N
+    adjusted := select(subtract, subtract(repeatCounter, 01:u8), addWrap(repeatCounter, 01:u8))
+    halfSubtract:flag := read N
+    flags "repeat half-carry correction" simultaneously {
+      H := isZero(bitXor(bitAnd(repeatCounter, 0F:u8), select(halfSubtract, 00:u8, 0F:u8)))
+    } // Preserve unlisted flags.
+    parity:flag := read PV
+    flags "repeat parity correction" simultaneously {
+      PV := not(xor(parity, evenParity8(bitAnd(adjusted, 07:u8))))
+    } // Preserve unlisted flags.
+  }
+  when not(condition) {
+    parity:flag := read PV
+    flags "repeat parity correction" simultaneously {
+      PV := not(xor(parity, evenParity8(bitAnd(repeatCounter, 07:u8))))
+    } // Preserve unlisted flags.
+  }
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 INDR
+
+Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. If live B is nonzero, rewind live PC by two, then correct H/PV for the repeat phase. The next step refetches both opcodes.
+
+```text
+address:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+inputPort:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+byte:u8 := read port[inputPort]
+counter:u8 := read B
+write B:u8 := subtract(counter, 01:u8)
+write memory[address] := byte
+write H:u8 := highByte(subtract(address, 0001:u16))
+write L:u8 := lowByte(subtract(address, 0001:u16))
+addend:u8 := read C
+right := subtract(addend, 01:u8)
+result:u8 := read B
+parityCounter:u8 := read B
+replace flags "INDR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := carry(byte, right)
+  C := carry(byte, right)
+  N := topBit(byte)
+  PV := evenParity8(bitXor(bitAnd(addWrap(byte, right), 07:u8), parityCounter))
+} // Replace the complete flag object.
+remaining:u8 := read B
+when not(isZero(remaining)) {
+  pc:u16 := read PC
+  write PC:u16 := subtract(pc, 0002:u16)
+  repeatCounter:u8 := read B
+  condition:flag := read C
+  when condition {
+    subtract:flag := read N
+    adjusted := select(subtract, subtract(repeatCounter, 01:u8), addWrap(repeatCounter, 01:u8))
+    halfSubtract:flag := read N
+    flags "repeat half-carry correction" simultaneously {
+      H := isZero(bitXor(bitAnd(repeatCounter, 0F:u8), select(halfSubtract, 00:u8, 0F:u8)))
+    } // Preserve unlisted flags.
+    parity:flag := read PV
+    flags "repeat parity correction" simultaneously {
+      PV := not(xor(parity, evenParity8(bitAnd(adjusted, 07:u8))))
+    } // Preserve unlisted flags.
+  }
+  when not(condition) {
+    parity:flag := read PV
+    flags "repeat parity correction" simultaneously {
+      PV := not(xor(parity, evenParity8(bitAnd(repeatCounter, 07:u8))))
+    } // Preserve unlisted flags.
+  }
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 OUTI
+
+Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. Do not access PC or apply repeat corrections.
+
+```text
+address:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+byte:u8 := read memory[address]
+counter:u8 := read B
+write B:u8 := subtract(counter, 01:u8)
+outputPort:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+write port[outputPort] := byte
+write H:u8 := highByte(addWrap(address, 0001:u16))
+write L:u8 := lowByte(addWrap(address, 0001:u16))
+addend:u8 := read L
+right := addend
+result:u8 := read B
+parityCounter:u8 := read B
+replace flags "OUTI" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := carry(byte, right)
+  C := carry(byte, right)
+  N := topBit(byte)
+  PV := evenParity8(bitXor(bitAnd(addWrap(byte, right), 07:u8), parityCounter))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### z80 OUTD
+
+Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. Do not access PC or apply repeat corrections.
+
+```text
+address:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+byte:u8 := read memory[address]
+counter:u8 := read B
+write B:u8 := subtract(counter, 01:u8)
+outputPort:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+write port[outputPort] := byte
+write H:u8 := highByte(subtract(address, 0001:u16))
+write L:u8 := lowByte(subtract(address, 0001:u16))
+addend:u8 := read L
+right := addend
+result:u8 := read B
+parityCounter:u8 := read B
+replace flags "OUTD" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := carry(byte, right)
+  C := carry(byte, right)
+  N := topBit(byte)
+  PV := evenParity8(bitXor(bitAnd(addWrap(byte, right), 07:u8), parityCounter))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### z80 OTIR
+
+Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. If live B is nonzero, rewind live PC by two, then correct H/PV for the repeat phase. The next step refetches both opcodes.
+
+```text
+address:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+byte:u8 := read memory[address]
+counter:u8 := read B
+write B:u8 := subtract(counter, 01:u8)
+outputPort:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+write port[outputPort] := byte
+write H:u8 := highByte(addWrap(address, 0001:u16))
+write L:u8 := lowByte(addWrap(address, 0001:u16))
+addend:u8 := read L
+right := addend
+result:u8 := read B
+parityCounter:u8 := read B
+replace flags "OTIR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := carry(byte, right)
+  C := carry(byte, right)
+  N := topBit(byte)
+  PV := evenParity8(bitXor(bitAnd(addWrap(byte, right), 07:u8), parityCounter))
+} // Replace the complete flag object.
+remaining:u8 := read B
+when not(isZero(remaining)) {
+  pc:u16 := read PC
+  write PC:u16 := subtract(pc, 0002:u16)
+  repeatCounter:u8 := read B
+  condition:flag := read C
+  when condition {
+    subtract:flag := read N
+    adjusted := select(subtract, subtract(repeatCounter, 01:u8), addWrap(repeatCounter, 01:u8))
+    halfSubtract:flag := read N
+    flags "repeat half-carry correction" simultaneously {
+      H := isZero(bitXor(bitAnd(repeatCounter, 0F:u8), select(halfSubtract, 00:u8, 0F:u8)))
+    } // Preserve unlisted flags.
+    parity:flag := read PV
+    flags "repeat parity correction" simultaneously {
+      PV := not(xor(parity, evenParity8(bitAnd(adjusted, 07:u8))))
+    } // Preserve unlisted flags.
+  }
+  when not(condition) {
+    parity:flag := read PV
+    flags "repeat parity correction" simultaneously {
+      PV := not(xor(parity, evenParity8(bitAnd(repeatCounter, 07:u8))))
+    } // Preserve unlisted flags.
+  }
+}
+```
+
+Flags preserved throughout: none.
+
+### z80 OTDR
+
+Perform one byte transfer per step. Capture HL; input uses BC before decrementing B, output uses BC afterward. Decrement live B after the first read, then perform the write. A failed write retains the decrement but prevents HL and flag changes. Advance captured HL with word wraparound. H/C report carry from the byte plus adjusted C (input) or updated L (output); S/Z use live B, N the transferred sign, PV parity of the sum's low three bits XOR live B. If live B is nonzero, rewind live PC by two, then correct H/PV for the repeat phase. The next step refetches both opcodes.
+
+```text
+address:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+byte:u8 := read memory[address]
+counter:u8 := read B
+write B:u8 := subtract(counter, 01:u8)
+outputPort:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+write port[outputPort] := byte
+write H:u8 := highByte(subtract(address, 0001:u16))
+write L:u8 := lowByte(subtract(address, 0001:u16))
+addend:u8 := read L
+right := addend
+result:u8 := read B
+parityCounter:u8 := read B
+replace flags "OTDR" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := carry(byte, right)
+  C := carry(byte, right)
+  N := topBit(byte)
+  PV := evenParity8(bitXor(bitAnd(addWrap(byte, right), 07:u8), parityCounter))
+} // Replace the complete flag object.
+remaining:u8 := read B
+when not(isZero(remaining)) {
+  pc:u16 := read PC
+  write PC:u16 := subtract(pc, 0002:u16)
+  repeatCounter:u8 := read B
+  condition:flag := read C
+  when condition {
+    subtract:flag := read N
+    adjusted := select(subtract, subtract(repeatCounter, 01:u8), addWrap(repeatCounter, 01:u8))
+    halfSubtract:flag := read N
+    flags "repeat half-carry correction" simultaneously {
+      H := isZero(bitXor(bitAnd(repeatCounter, 0F:u8), select(halfSubtract, 00:u8, 0F:u8)))
+    } // Preserve unlisted flags.
+    parity:flag := read PV
+    flags "repeat parity correction" simultaneously {
+      PV := not(xor(parity, evenParity8(bitAnd(adjusted, 07:u8))))
+    } // Preserve unlisted flags.
+  }
+  when not(condition) {
+    parity:flag := read PV
+    flags "repeat parity correction" simultaneously {
+      PV := not(xor(parity, evenParity8(bitAnd(repeatCounter, 07:u8))))
+    } // Preserve unlisted flags.
+  }
+}
+```
+
+Flags preserved throughout: none.
 
 ### z80 EX AF,AF′
 
