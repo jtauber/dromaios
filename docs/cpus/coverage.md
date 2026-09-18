@@ -23,13 +23,13 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [162](../../src/components/cpus/6502.ts) | 149 / 151 | 98.7% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [443](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [385](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [805](../../src/components/cpus/8088.ts) | 210 / 291 | 72.2% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [783](../../src/components/cpus/8088.ts) | 229 / 291 | 78.7% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **3,726 generated bodies**, all used by CPU execution,
+contains **3,866 generated bodies**, all used by CPU execution,
 including two shared 6809 interrupt-frame helpers and one 8088 word-push helper.
-They cover **1,940 complete opcode forms**:
+They cover **1,959 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -314,8 +314,8 @@ They cover **1,940 complete opcode forms**:
   selector rejection, and retirement remain CPU-owned; the old unary-operation,
   branch-condition, adjustment, addition, jump, and loop paths are removed.
   PUSH/POP of registers, segments, memory, and FLAGS; near/far CALL and RET;
-  and the remaining indirect/far JMP add 38 complete forms, reaching
-  **210 migrated forms**. Their 54 instruction bodies share a segmented word
+  and the remaining indirect/far JMP add 38 complete forms.
+  Their 54 instruction bodies share a segmented word
   stack: decrement SP once before a push, capture SS:SP for both byte accesses,
   and increment live SP only after a complete pop. PUSH SP captures its
   decremented value; POP SP replaces the incremented pointer. Far calls read the
@@ -323,8 +323,19 @@ They cover **1,940 complete opcode forms**:
   after a complete read and requests INTR deferral only when IF becomes set;
   segment pops request all-interrupt deferral. The boundary commits these
   requests only at successful retirement. One additional word-push helper
-  serves interrupt entry; IRET composes RETF and POPF but remains outside the
-  complete-form count. Handwritten stack/call/return/FLAGS helpers are removed.
+  serves interrupt entry. Handwritten stack/call/return/FLAGS helpers are removed.
+  Segment MOV, LEA, LES/LDS, and XLAT add six forms using 89 specialized bodies.
+  LES/LDS share complete far-pointer reads with CALL/JMP but write the general
+  register before the segment and never request inhibition. XLAT preserves
+  live AH after its table read. Ten byte/word string forms add 48 bodies for
+  ordinary, repeated, and overridden sources. Zero repeated counts skip all
+  operand effects; each nonempty invocation performs one element, then reads
+  DF and advances live indices before decrementing and rereading CX. CMPS/SCAS
+  reuse subtraction flags and test the new ZF only when CX remains nonzero.
+  Prefix fetching and interrupt boundaries remain in the CPU. CLI/STI and IRET
+  add three generated opcode bodies; IRET shares the complete return and FLAGS
+  sequences and now earns full migration credit. These 19 forms bring the
+  total to **229 migrated forms**, with no new primitive or compiler support.
 
 The 68000 has no instruction bodies generated from these definitions.
 Its existing shared TypeScript helpers remain useful, but are outside this
@@ -372,32 +383,32 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,832 |
-| CPU-specific instruction definition files | 1,395 |
+| Eight CPU implementation files | 3,810 |
+| CPU-specific instruction definition files | 1,508 |
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,984 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,211** |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,302** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 78,040 |
+| Generated CPU output, counted separately | 80,365 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The 8088 stack and remaining control-flow migration adds **54 instruction bodies
-for 38 forms**, plus one internal word-push helper shared with interrupt entry.
-Segmented word-stack construction and word-sized status packing share the
-existing instruction vocabulary. A checked `deferInterrupt` effect requests
-recognition inhibition at successful retirement; it does not write stored
-boundary latches itself.
+The remaining 8088 transfers, strings, CLI/STI, and IRET add **140 bodies for
+19 forms**: 89 resolved/addressing bodies, 48 string variants, and three numeric
+opcode bodies. Strings share segmented operands, byte views, and subtraction
+flags. Far-pointer reads and FLAGS restoration are shared with the earlier
+control-flow and stack definitions. No primitive, validator, compiler, or
+runtime-interface extension is needed.
 
-The 8088 module shrinks from **882 to 805 lines** (**77 fewer**), removing its
-handwritten stack, call/return, far-transfer, and FLAGS-restoration helpers.
-Definitions add **95 net lines** and other authored CPU source adds **48**.
-Total authored CPU source rises from **8,145 to 8,211 lines** (**66 more**).
-Generated output grows by **787 lines**. This change reduces the CPU module
-but does not yet reduce total maintained source.
-All **3,671** earlier instruction definitions and nine unchanged generated
-modules retain their prior contents; the numeric 8088 module gains its new
-bodies and bindings, and a new resolved stack/control module is generated.
+The 8088 module shrinks from **805 to 783 lines** (**22 fewer**), removing its
+string execution body, subtraction helper, segment-load helper, and handwritten
+CLI/STI/IRET behavior. Definitions add **113 net lines**; other authored CPU
+source is unchanged. Total authored CPU source rises from **8,211 to 8,302
+lines** (**91 more**). Generated output grows by **2,325 lines**. This change
+reduces the CPU module but does not reduce total maintained source.
+All **3,726** earlier instruction definitions and ten unchanged generated
+modules retain their prior contents. The numeric 8088 module gains its three
+bodies; addressing and string modules are new generated output.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

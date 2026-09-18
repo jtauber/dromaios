@@ -21,6 +21,8 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 8088 ModR/M and immediate ALU/TEST | Reuse resolved operands and accumulator arithmetic; source before destination before CF; sign-extended immediates; flags before partial writes; CMP/TEST without operand writes |
 | 8088 INC/DEC/NOT/NEG, Jcc/LOOP/JCXZ/relative JMP, sign extension, status, and halt | Restore captured CF before unary writeback; short-circuit conditions; decrement before testing CX; partial status updates and live AL preservation; CPU-owned retirement |
 | 8088 PUSH/POP, near/far CALL and RET, indirect/far JMP | Segmented word stacks; pointer/source capture ordering; full FLAGS replacement; explicit interrupt-deferral requests committed at retirement |
+| 8088 segment MOV, LEA, LES/LDS, XLAT, CLI/STI, and IRET | Resolved transfers, complete pointer capture, live AH, and shared return/FLAGS/deferral sequences |
+| 8088 MOVS/CMPS/STOS/LODS/SCAS, with legal repeats and source overrides | Zero-count guard; captured addresses; subtraction flags; live DF/indices/count; one element and conditional prefix-start rewind |
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
@@ -68,8 +70,8 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 3,726 generated, executable bodies. All serve CPU execution;
-3,723 are bound through opcode or postbyte selection. Two shared 6809 frame
+There are 3,866 generated, executable bodies. All serve CPU execution;
+3,863 are bound through opcode or postbyte selection. Two shared 6809 frame
 helpers serve interrupt entry and return; one 8088 word-push helper serves entry.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
@@ -650,8 +652,8 @@ the request visible to both execution generation and explanation.
 
 These definitions cover 38 complete forms with 54 instruction bodies. A
 separate generated word-push helper removes the runtime stack implementation
-from interrupt entry too. IRET reuses RETF followed by POPF; it still has a
-handwritten composition and earns no complete-form credit in this batch.
+from interrupt entry too. IRET now composes those same return and FLAGS
+statements in its own definition, as described below.
 
 [Definition probes](../../tests/components/cpus/semantics/8088-stack.test.ts)
 independently specify every body's state, memory, and deferral order, fail each
@@ -661,6 +663,55 @@ cover all 38 forms with prefixes, wrapped fetches and stacks, overlapping
 pointers, every failed byte access, rejection, and guard release. Existing CPU
 stack and interrupt tests remain independent checks. Generated types expose
 only each body's required byte accesses and deferral capability.
+
+## 8088 remaining transfers and string elements
+
+Segment MOV bodies receive a decoded register or captured memory address.
+They capture the complete source before writing; a segment load then requests
+all-interrupt deferral. LEA writes only the resolved offset. LES/LDS share the
+far-pointer read sequence with indirect far CALL/JMP, capturing all four bytes
+before writing the general register and then the segment. They do not request
+MOV/POP's recognition delay. XLAT reads BX, then AL, wraps their sum, selects
+DS or the already captured override, and reads one byte. Its AL write preserves
+the live AH after that access.
+
+The [string definitions](../../src/components/cpus/semantics/definitions/8088.ts)
+specialize byte/word width, operation, repetition condition, and source override.
+Each body performs one element. Plain forms do not read CX or IP. Repeated
+forms first read CX; zero skips the entire operand/flag/index sequence.
+
+For nonempty operations, capture source segment/SI and fixed destination ES/DI
+before any data access, retaining even unused operand coordinates from the
+existing schedule. MOVS captures the whole source before writing; STOS captures
+AL/AX; LODS preserves live AH on byte writes. CMPS reads source then destination,
+while SCAS reads AL/AX then destination. Both reuse subtraction CF/AF/OF/ZF/SF/PF
+construction without operand writeback. Word offsets wrap before projection.
+
+Only after data and flag effects read DF, derive the signed byte/word delta,
+and advance live SI then DI as required. Repeats then decrement live CX and
+reread it. Only a nonzero count permits CMPS/SCAS to read their new ZF; REP
+transfers never read ZF. A continuing iteration writes the supplied prefix-start
+IP. The next CPU step refetches prefixes and operands, preserving snapshot
+resumption, code/data overlap, and interrupt boundaries. REPNE remains invalid
+for MOVS/STOS/LODS, rejected in the decoder before any body effects.
+
+CLI clears IF without a read or deferral. STI reads IF, requests INTR deferral
+only when clear, then sets it. IRET expands the same complete far return and
+FLAGS restoration used by RETF/POPF. A failure reading FLAGS retains the already
+restored IP/CS and completed SP changes; retirement still samples the original
+TF. No new primitive or runtime callback is required for these instructions.
+
+Together these add 19 forms through 140 bodies: 89 addressing/transfer choices,
+48 string choices, and three numeric opcode bodies. The
+[definition probes](../../tests/components/cpus/semantics/8088-strings.test.ts)
+check every body's ordered effects, failure at each effect, callback changes,
+all incoming string flag patterns, and empty/one/multiple repeat counts.
+[CPU failure probes](../../tests/components/cpus/8088/segmented-failures.test.ts)
+cover all 19 forms, prefix precedence, wrapping, overlap, failed accesses,
+rejection before body entry, retirement, and guard release. Existing
+[string tests](../../tests/components/cpus/8088/strings.test.ts) check refetching
+and snapshot resumption. Generated types admit only each body's required
+numeric inputs and memory/deferral capabilities.
 
 ## Z80 banks, special registers, and repeated blocks
 
@@ -1226,7 +1277,8 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,8008,8080,8088,6809,z80}.ts` and
-`8088-transfers.ts`, `8088-alu.ts`, `8088-unary.ts`, and `8088-stack.ts`. The separate 8088
+`8088-transfers.ts`, `8088-alu.ts`, `8088-unary.ts`, `8088-stack.ts`,
+`8088-addressing.ts`, and `8088-strings.ts`. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
 Regenerate with `npm run generate:cpus`;

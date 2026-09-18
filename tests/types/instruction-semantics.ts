@@ -1,3 +1,5 @@
+import { instructions as addressing8088 } from "../../src/components/cpus/generated/8088-addressing.js";
+import { instructions as strings8088 } from "../../src/components/cpus/generated/8088-strings.js";
 import { instructions as stack8088 } from "../../src/components/cpus/generated/8088-stack.js";
 import { instructions as unary8088 } from "../../src/components/cpus/generated/8088-unary.js";
 import { instructions as alu8088 } from "../../src/components/cpus/generated/8088-alu.js";
@@ -706,4 +708,45 @@ export function check8088StackTypes(state: Cpu8088State, intel: Cpu8080State): v
   stack8088.pushWord(state, () => 0, { writeByte: () => {} });
   // @ts-expect-error Generated stack bodies retain the concrete CPU state.
   stack8088.PUSH_memory(intel, 0, 0, { readByte: () => 0, writeByte: () => {} });
+}
+
+
+export function check8088AddressingAndStringTypes(state: Cpu8088State, intel: Cpu8080State): void {
+  addressing8088.segment_load_ss_0(state, { deferInterrupt: () => {} });
+  addressing8088.segment_store_cs_memory(state, 0xffff, 0xffff, { writeByte: () => {} });
+  addressing8088.LEA_0(state, 0xffff);
+  addressing8088.LES_0(state, 0xffff, 0xffff, { readByte: () => 0 });
+  addressing8088.XLAT(state, { readByte: () => 0 });
+  addressing8088.XLAT_override(state, 0xffff, { readByte: () => 0 });
+  generated8088[0xfa](state);
+  generated8088[0xfb](state, { deferInterrupt: () => {} });
+  generated8088[0xcf](state, { readByte: () => 0, deferInterrupt: () => {} });
+  strings8088.move_8(state, { readByte: () => 0, writeByte: () => {} });
+  strings8088.store_16_override(state, 0xffff, { writeByte: () => {} });
+  strings8088.compare_16_repne(state, 0xffff, { readByte: () => 0 });
+  strings8088.load_8_repe_override(state, 0xffff, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error Segment loads cannot omit their retirement request.
+  addressing8088.segment_load_ss_0(state);
+  // @ts-expect-error Segment stores cannot read their memory destination.
+  addressing8088.segment_store_cs_memory(state, 0, 0, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error LEA never accesses memory.
+  addressing8088.LEA_0(state, 0, { readByte: () => 0 });
+  // @ts-expect-error LES has no segment-MOV inhibition effect.
+  addressing8088.LES_0(state, 0, 0, { readByte: () => 0, deferInterrupt: () => {} });
+  // @ts-expect-error A plain XLAT has no override input.
+  addressing8088.XLAT(state, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error CLI has no deferral effect.
+  generated8088[0xfa](state, { deferInterrupt: () => {} });
+  // @ts-expect-error IRET needs a deferral capability as well as stack reads.
+  generated8088[0xcf](state, { readByte: () => 0 });
+  // @ts-expect-error REPNE has no documented MOVS form.
+  strings8088.move_8_repne(state, 0, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Comparisons never write memory.
+  strings8088.compare_16_repne(state, 0, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Repeated bodies take a captured prefix-start IP, not a fetch callback.
+  strings8088.load_8_repe(state, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error A completed string body cannot deliver interrupts or fetch the next iteration.
+  strings8088.store_8(state, { writeByte: () => {}, fetchByte: () => 0 });
+  // @ts-expect-error Bodies retain their concrete CPU state.
+  strings8088.move_8(intel, { readByte: () => 0, writeByte: () => {} });
 }

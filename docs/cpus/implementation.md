@@ -661,6 +661,15 @@ CPU-owned layout. Keep segment-pop and POPF recognition requests as explicit
 `deferInterrupt` effects; they queue work for successful retirement rather than
 writing stored boundary latches during the body.
 
+String bodies specialize legal repeat modes and segment overrides at construction.
+Keep zero-count checks before operand capture; capture source/destination
+coordinates before access, but read DF and the live indices afterward.
+Reuse subtraction flags for CMPS/SCAS. Repeated forms decrement and reread CX,
+then test ZF only when required, and rewind to the supplied prefix-start IP.
+Keep each body to one element; refetching, rejection, and retirement remain
+CPU responsibilities. IRET composes the same return and FLAGS statements
+used by RETF/POPF, retaining their separate commit points.
+
 ## Shared arithmetic
 
 The [ALU helpers](../../src/components/cpus/alu.ts) express arithmetic facts

@@ -29,7 +29,7 @@ const unaryCases = unaryForms.flatMap(([operation]) => ([8, 16] as const).flatMa
 
 test("8088 ordinary inventory adds exactly 32 opcode bodies and 72 specializations for eight unary forms", () => {
   assert.equal(Object.keys(names).length, 32);
-  assert.equal(Object.keys(instructions8088).length, 122);
+  assert.equal(Object.keys(instructions8088).length, 125);
   assert.deepEqual(Object.fromEntries(Object.entries(instructions8088).filter(([opcode]) => Number(opcode) in names).map(([opcode, d]) => [opcode, d.name])), names);
   const forbidden = new Proxy(initialState(), { get() { assert.fail("Binding must not read state"); } });
   assert.deepEqual(opcodeEntries(forbidden).map(([opcode]) => opcode), Object.keys(instructions8088).map(Number));

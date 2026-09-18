@@ -16295,6 +16295,63 @@ write SP:u16 := addWrap(discardPointer, 0000:u16)
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
+### 8088 IRET
+
+Pop IP and CS before committing either target, then pop FLAGS and apply POPF's IF-transition deferral. Failed FLAGS reads retain the completed far return. Retirement samples the original TF. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+targetIP:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+targetCS:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write IP:u16 := targetIP
+write CS:u16 := targetCS
+discardPointer:u16 := read SP
+write SP:u16 := addWrap(discardPointer, 0000:u16)
+status:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+oldIF:flag := read IF
+when not(oldIF) {
+  when not(isZero(bitAnd(status, 0200:u16))) {
+    request INTR deferral at successful retirement
+  }
+}
+replace flags "restore packed status" simultaneously {
+  CF := not(isZero(bitAnd(status, 0001:u16)))
+  PF := not(isZero(bitAnd(status, 0004:u16)))
+  AF := not(isZero(bitAnd(status, 0010:u16)))
+  ZF := not(isZero(bitAnd(status, 0040:u16)))
+  SF := not(isZero(bitAnd(status, 0080:u16)))
+  TF := not(isZero(bitAnd(status, 0100:u16)))
+  IF := not(isZero(bitAnd(status, 0200:u16)))
+  DF := not(isZero(bitAnd(status, 0400:u16)))
+  OF := not(isZero(bitAnd(status, 0800:u16)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
 ### 8088 LOOPNE rel8
 
 Fetch the displacement first. LOOP variants decrement CX, reread it, and skip ZF when it is zero; LOOP never reads ZF. JCXZ reads CX once without decrementing. Only a taken path reads and writes IP, with word wrapping. Preserve every flag.
@@ -16500,6 +16557,34 @@ flags "STC" simultaneously {
 ```
 
 Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CLI
+
+Clear IF without reading flags or requesting deferral. Preserve every other flag.
+
+```text
+flags "CLI" simultaneously {
+  IF := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, DF, OF.
+
+### 8088 STI
+
+Read IF and request INTR deferral only when it was clear, then set IF. The boundary commits inhibition at successful retirement.
+
+```text
+enabled:flag := read IF
+when not(enabled) {
+  request INTR deferral at successful retirement
+}
+flags "STI" simultaneously {
+  IF := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, DF, OF.
 
 ### 8088 CLD
 
@@ -68765,6 +68850,2896 @@ write IP:u16 := targetOffset
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,ES (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read ES
+write AX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV ES,AX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write ES:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,ES (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read ES
+write CX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV ES,CX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write ES:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,ES (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read ES
+write DX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV ES,DX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write ES:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,ES (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read ES
+write BX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV ES,BX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write ES:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,ES (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read ES
+write SP:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV ES,SP (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write ES:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,ES (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read ES
+write BP:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV ES,BP (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write ES:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,ES (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read ES
+write SI:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV ES,SI (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write ES:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,ES (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read ES
+write DI:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV ES,DI (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write ES:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],ES (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+contents:u16 := read ES
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV ES,word [segment:offset] (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+contentsLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+contentsHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+contents := concatHighLow(contentsHigh, contentsLow)
+write ES:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,CS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read CS
+write AX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,CS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read CS
+write CX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,CS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read CS
+write DX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,CS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read CS
+write BX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,CS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read CS
+write SP:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,CS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read CS
+write BP:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,CS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read CS
+write SI:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,CS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read CS
+write DI:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],CS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+contents:u16 := read CS
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,SS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read SS
+write AX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SS,AX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write SS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,SS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read SS
+write CX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SS,CX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write SS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,SS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read SS
+write DX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SS,DX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write SS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,SS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read SS
+write BX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SS,BX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write SS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,SS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read SS
+write SP:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SS,SP (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write SS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,SS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read SS
+write BP:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SS,BP (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write SS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,SS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read SS
+write SI:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SS,SI (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write SS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,SS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read SS
+write DI:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SS,DI (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write SS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],SS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+contents:u16 := read SS
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SS,word [segment:offset] (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+contentsLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+contentsHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+contents := concatHighLow(contentsHigh, contentsLow)
+write SS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,DS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read DS
+write AX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DS,AX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write DS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,DS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read DS
+write CX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DS,CX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write DS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,DS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read DS
+write DX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DS,DX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write DS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,DS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read DS
+write BX:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DS,BX (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write DS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,DS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read DS
+write SP:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DS,SP (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write DS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,DS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read DS
+write BP:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DS,BP (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write DS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,DS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read DS
+write SI:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DS,SI (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write DS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,DS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := read DS
+write DI:u16 := contents
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DS,DI (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+contents:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write DS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],DS (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Capture the segment before writing the destination. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+contents:u16 := read DS
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(contents)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(contents)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DS,word [segment:offset] (resolved)
+
+Resolve the operand before reading the source. Transfer the complete word low byte first with logical offset wrapping. Write the segment, then request all-interrupt inhibition at successful retirement. Preserve flags. Failed effects retain completed byte transfers and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+contentsLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+contentsHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+contents := concatHighLow(contentsHigh, contentsLow)
+write DS:u16 := contents
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LEA AX,m (resolved)
+
+Write the decoder's captured effective offset without accessing data memory, flags, or segments.
+
+```text
+offset:u16 := input
+write AX:u16 := offset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LES AX,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write AX:u16 := targetOffset
+write ES:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LDS AX,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write AX:u16 := targetOffset
+write DS:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LEA CX,m (resolved)
+
+Write the decoder's captured effective offset without accessing data memory, flags, or segments.
+
+```text
+offset:u16 := input
+write CX:u16 := offset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LES CX,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write CX:u16 := targetOffset
+write ES:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LDS CX,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write CX:u16 := targetOffset
+write DS:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LEA DX,m (resolved)
+
+Write the decoder's captured effective offset without accessing data memory, flags, or segments.
+
+```text
+offset:u16 := input
+write DX:u16 := offset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LES DX,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write DX:u16 := targetOffset
+write ES:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LDS DX,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write DX:u16 := targetOffset
+write DS:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LEA BX,m (resolved)
+
+Write the decoder's captured effective offset without accessing data memory, flags, or segments.
+
+```text
+offset:u16 := input
+write BX:u16 := offset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LES BX,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write BX:u16 := targetOffset
+write ES:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LDS BX,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write BX:u16 := targetOffset
+write DS:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LEA SP,m (resolved)
+
+Write the decoder's captured effective offset without accessing data memory, flags, or segments.
+
+```text
+offset:u16 := input
+write SP:u16 := offset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LES SP,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write SP:u16 := targetOffset
+write ES:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LDS SP,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write SP:u16 := targetOffset
+write DS:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LEA BP,m (resolved)
+
+Write the decoder's captured effective offset without accessing data memory, flags, or segments.
+
+```text
+offset:u16 := input
+write BP:u16 := offset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LES BP,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write BP:u16 := targetOffset
+write ES:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LDS BP,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write BP:u16 := targetOffset
+write DS:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LEA SI,m (resolved)
+
+Write the decoder's captured effective offset without accessing data memory, flags, or segments.
+
+```text
+offset:u16 := input
+write SI:u16 := offset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LES SI,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write SI:u16 := targetOffset
+write ES:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LDS SI,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write SI:u16 := targetOffset
+write DS:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LEA DI,m (resolved)
+
+Write the decoder's captured effective offset without accessing data memory, flags, or segments.
+
+```text
+offset:u16 := input
+write DI:u16 := offset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LES DI,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write DI:u16 := targetOffset
+write ES:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LDS DI,m (resolved)
+
+Read the complete far pointer: offset low/high, then segment low/high, wrapping each logical offset. Only after all four reads write the general register, then the segment. Preserve flags and recognition delays.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write DI:u16 := targetOffset
+write DS:u16 := targetSegment
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XLAT
+
+Read BX then AL and wrap their sum before selecting DS or the captured override. Read one table byte, then replace AL while preserving live AH. Preserve flags; a failed read leaves AX unchanged.
+
+```text
+base:u16 := read BX
+index:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+offset := addWrap(base, zeroExtend16(index))
+segment:u16 := read DS
+contents:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), contents)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XLAT (segment override)
+
+Read BX then AL and wrap their sum before selecting DS or the captured override. Read one table byte, then replace AL while preserving live AH. Preserve flags; a failed read leaves AX unchanged.
+
+```text
+segment:u16 := input
+base:u16 := read BX
+index:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+offset := addWrap(base, zeroExtend16(index))
+contents:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), contents)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOVSB
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+sourceSegment:u16 := read DS
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contents:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := contents
+backward:flag := read DF
+delta := select(backward, FFFF:u16, 0001:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOVSB (segment override)
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+sourceSegment := segment
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contents:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := contents
+backward:flag := read DF
+delta := select(backward, FFFF:u16, 0001:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP MOVSB
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contents:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := contents
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP MOVSB (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contents:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := contents
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOVSW
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+sourceSegment:u16 := read DS
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contentsLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+contentsHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+contents := concatHighLow(contentsHigh, contentsLow)
+write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := lowByte(contents)
+write memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)] := highByte(contents)
+backward:flag := read DF
+delta := select(backward, FFFE:u16, 0002:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOVSW (segment override)
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+sourceSegment := segment
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contentsLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+contentsHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+contents := concatHighLow(contentsHigh, contentsLow)
+write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := lowByte(contents)
+write memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)] := highByte(contents)
+backward:flag := read DF
+delta := select(backward, FFFE:u16, 0002:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP MOVSW
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contentsLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  contentsHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+  contents := concatHighLow(contentsHigh, contentsLow)
+  write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := lowByte(contents)
+  write memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)] := highByte(contents)
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP MOVSW (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contentsLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  contentsHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+  contents := concatHighLow(contentsHigh, contentsLow)
+  write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := lowByte(contents)
+  write memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)] := highByte(contents)
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CMPSB
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+sourceSegment:u16 := read DS
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+left:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+backward:flag := read DF
+delta := select(backward, FFFF:u16, 0001:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 CMPSB (segment override)
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+sourceSegment := segment
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+left:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+backward:flag := read DF
+delta := select(backward, FFFF:u16, 0001:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPE CMPSB
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(result)
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when condition {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPE CMPSB (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(result)
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when condition {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPNE CMPSB
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(result)
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when not(condition) {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPNE CMPSB (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(result)
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when not(condition) {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 CMPSW
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+sourceSegment:u16 := read DS
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+leftLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+backward:flag := read DF
+delta := select(backward, FFFE:u16, 0002:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 CMPSW (segment override)
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+sourceSegment := segment
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+leftLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+backward:flag := read DF
+delta := select(backward, FFFE:u16, 0002:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPE CMPSW
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  leftLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  leftHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+  left := concatHighLow(leftHigh, leftLow)
+  rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+  right := concatHighLow(rightHigh, rightLow)
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(lowByte(result))
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when condition {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPE CMPSW (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  leftLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  leftHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+  left := concatHighLow(leftHigh, leftLow)
+  rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+  right := concatHighLow(rightHigh, rightLow)
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(lowByte(result))
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when condition {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPNE CMPSW
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  leftLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  leftHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+  left := concatHighLow(leftHigh, leftLow)
+  rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+  right := concatHighLow(rightHigh, rightLow)
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(lowByte(result))
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when not(condition) {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPNE CMPSW (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  leftLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  leftHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+  left := concatHighLow(leftHigh, leftLow)
+  rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+  right := concatHighLow(rightHigh, rightLow)
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(lowByte(result))
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when not(condition) {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 STOSB
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+sourceSegment:u16 := read DS
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contents:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := contents
+backward:flag := read DF
+delta := select(backward, FFFF:u16, 0001:u16)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 STOSB (segment override)
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+sourceSegment := segment
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contents:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := contents
+backward:flag := read DF
+delta := select(backward, FFFF:u16, 0001:u16)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP STOSB
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contents:u8 := source "low byte of register AX" {
+    word:u16 := read AX
+    yield lowByte(word)
+  }
+  write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := contents
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP STOSB (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contents:u8 := source "low byte of register AX" {
+    word:u16 := read AX
+    yield lowByte(word)
+  }
+  write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := contents
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 STOSW
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+sourceSegment:u16 := read DS
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contents:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := lowByte(contents)
+write memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)] := highByte(contents)
+backward:flag := read DF
+delta := select(backward, FFFE:u16, 0002:u16)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 STOSW (segment override)
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+sourceSegment := segment
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contents:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := lowByte(contents)
+write memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)] := highByte(contents)
+backward:flag := read DF
+delta := select(backward, FFFE:u16, 0002:u16)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP STOSW
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contents:u16 := source "register AX" {
+    contents:u16 := read AX
+    yield contents
+  }
+  write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := lowByte(contents)
+  write memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)] := highByte(contents)
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP STOSW (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contents:u16 := source "register AX" {
+    contents:u16 := read AX
+    yield contents
+  }
+  write memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)] := lowByte(contents)
+  write memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)] := highByte(contents)
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LODSB
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+sourceSegment:u16 := read DS
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contents:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), contents)
+backward:flag := read DF
+delta := select(backward, FFFF:u16, 0001:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LODSB (segment override)
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+sourceSegment := segment
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contents:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), contents)
+backward:flag := read DF
+delta := select(backward, FFFF:u16, 0001:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP LODSB
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contents:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  preservedWord:u16 := read AX
+  write AX:u16 := concatHighLow(highByte(preservedWord), contents)
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP LODSB (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contents:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  preservedWord:u16 := read AX
+  write AX:u16 := concatHighLow(highByte(preservedWord), contents)
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LODSW
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+sourceSegment:u16 := read DS
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contentsLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+contentsHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+contents := concatHighLow(contentsHigh, contentsLow)
+write AX:u16 := contents
+backward:flag := read DF
+delta := select(backward, FFFE:u16, 0002:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LODSW (segment override)
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+sourceSegment := segment
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+contentsLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+contentsHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+contents := concatHighLow(contentsHigh, contentsLow)
+write AX:u16 := contents
+backward:flag := read DF
+delta := select(backward, FFFE:u16, 0002:u16)
+si:u16 := read SI
+write SI:u16 := addWrap(si, delta)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP LODSW
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contentsLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  contentsHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+  contents := concatHighLow(contentsHigh, contentsLow)
+  write AX:u16 := contents
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 REP LODSW (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Preserve flags and capture sources before writes; byte loads preserve live AH. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  contentsLow:u8 := read memory[projectAddress(sourceSegment * 16 + sourceOffset, 20 bits)]
+  contentsHigh:u8 := read memory[projectAddress(sourceSegment * 16 + addWrap(sourceOffset, 0001:u16), 20 bits)]
+  contents := concatHighLow(contentsHigh, contentsLow)
+  write AX:u16 := contents
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  si:u16 := read SI
+  write SI:u16 := addWrap(si, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    write IP:u16 := startIP
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 SCASB
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+sourceSegment:u16 := read DS
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+backward:flag := read DF
+delta := select(backward, FFFF:u16, 0001:u16)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SCASB (segment override)
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+sourceSegment := segment
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+backward:flag := read DF
+delta := select(backward, FFFF:u16, 0001:u16)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPE SCASB
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u8 := source "low byte of register AX" {
+    word:u16 := read AX
+    yield lowByte(word)
+  }
+  right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(result)
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when condition {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPE SCASB (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u8 := source "low byte of register AX" {
+    word:u16 := read AX
+    yield lowByte(word)
+  }
+  right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(result)
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when condition {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPNE SCASB
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u8 := source "low byte of register AX" {
+    word:u16 := read AX
+    yield lowByte(word)
+  }
+  right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(result)
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when not(condition) {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPNE SCASB (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u8 := source "low byte of register AX" {
+    word:u16 := read AX
+    yield lowByte(word)
+  }
+  right:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(result)
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFF:u16, 0001:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when not(condition) {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SCASW
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+sourceSegment:u16 := read DS
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+backward:flag := read DF
+delta := select(backward, FFFE:u16, 0002:u16)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SCASW (segment override)
+
+Do not access CX or IP. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+sourceSegment := segment
+sourceOffset:u16 := read SI
+destinationSegment:u16 := read ES
+destinationOffset:u16 := read DI
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+backward:flag := read DF
+delta := select(backward, FFFE:u16, 0002:u16)
+di:u16 := read DI
+write DI:u16 := addWrap(di, delta)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPE SCASW
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u16 := source "register AX" {
+    contents:u16 := read AX
+    yield contents
+  }
+  rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+  right := concatHighLow(rightHigh, rightLow)
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(lowByte(result))
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when condition {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPE SCASW (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u16 := source "register AX" {
+    contents:u16 := read AX
+    yield contents
+  }
+  rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+  right := concatHighLow(rightHigh, rightLow)
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(lowByte(result))
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when condition {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPNE SCASW
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment:u16 := read DS
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u16 := source "register AX" {
+    contents:u16 := read AX
+    yield contents
+  }
+  rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+  right := concatHighLow(rightHigh, rightLow)
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(lowByte(result))
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when not(condition) {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 REPNE SCASW (segment override)
+
+Read CX first; zero skips all operand, flag, and index effects. Capture the source segment/SI and fixed ES/DI before accessing data, even when only one operand is used. Transfer words low byte first, wrapping offsets before physical projection. Read the left operand before the destination; update subtraction CF/AF/OF/ZF/SF/PF in that order. After the data effects, read DF and advance the live indices, SI before DI when both apply. Decrement live CX, reread it, and only when nonzero test the new ZF if comparing. Rewind IP to the supplied prefix start only when repeating. One body performs one element; the CPU boundary owns retirement, interrupts, and the next prefix fetch. Failed effects retain completed changes.
+
+```text
+segment:u16 := input
+startIP:u16 := input
+initialCount:u16 := read CX
+when not(isZero(initialCount)) {
+  sourceSegment := segment
+  sourceOffset:u16 := read SI
+  destinationSegment:u16 := read ES
+  destinationOffset:u16 := read DI
+  left:u16 := source "register AX" {
+    contents:u16 := read AX
+    yield contents
+  }
+  rightLow:u8 := read memory[projectAddress(destinationSegment * 16 + destinationOffset, 20 bits)]
+  rightHigh:u8 := read memory[projectAddress(destinationSegment * 16 + addWrap(destinationOffset, 0001:u16), 20 bits)]
+  right := concatHighLow(rightHigh, rightLow)
+  result := subtract(left, right)
+  flags "8088 subtract" simultaneously {
+    CF := borrow(left, right)
+    AF := halfBorrow4(left, right)
+    OF := subtractOverflow(left, right)
+    ZF := isZero(result)
+    SF := topBit(result)
+    PF := evenParity8(lowByte(result))
+  } // Preserve unlisted flags.
+  backward:flag := read DF
+  delta := select(backward, FFFE:u16, 0002:u16)
+  di:u16 := read DI
+  write DI:u16 := addWrap(di, delta)
+  count:u16 := read CX
+  write CX:u16 := subtract(count, 0001:u16)
+  remaining:u16 := read CX
+  when not(isZero(remaining)) {
+    condition:flag := read ZF
+    when not(condition) {
+      write IP:u16 := startIP
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF.
 
 ### 6809 NOP
 

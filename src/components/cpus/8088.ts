@@ -17,10 +17,12 @@ import { instructions as transfers } from "./generated/8088-transfers.ts";
 import { instructions as alu } from "./generated/8088-alu.ts";
 import { instructions as unary } from "./generated/8088-unary.ts";
 import { instructions as stack } from "./generated/8088-stack.ts";
+import { instructions as addressing } from "./generated/8088-addressing.ts";
+import { instructions as strings } from "./generated/8088-strings.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { subtract, shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
+import { shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
 import type { ShiftResult } from "./alu.ts";
 import { checkUnsigned } from "../validation.ts";
 
@@ -154,6 +156,22 @@ const stackRegisters: Readonly<Record<`${"CALL" | "JMP"}_${number}`,
   (state: Cpu8088State, instruction: ByteMemory) => void>> = stack;
 const stackMemory: Readonly<Record<`${StackOperation}_memory`,
   (state: Cpu8088State, segment: number, offset: number, instruction: ByteMemory) => void>> = stack;
+
+type SegmentMove = `segment_${"load" | "store"}_${"es" | "cs" | "ss" | "ds"}`;
+const segmentRegisters: Readonly<Partial<Record<`${SegmentMove}_${number}`,
+  (state: Cpu8088State, instruction: InstructionContext) => void>>> = addressing;
+const addressMemory: Readonly<Partial<Record<`${SegmentMove}_memory` | `${"LES" | "LDS"}_${number}`,
+  (state: Cpu8088State, segment: number, offset: number, instruction: InstructionContext) => void>>> = addressing;
+const effectiveOffsets: Readonly<Record<`LEA_${number}`, (state: Cpu8088State, offset: number) => void>> = addressing;
+
+type StringKey = `${StringOperation}_${OperandWidth}`;
+const plainStrings: Readonly<Record<StringKey, (state: Cpu8088State, instruction: ByteMemory) => void>> = strings;
+const overriddenStrings: Readonly<Record<`${StringKey}_override`,
+  (state: Cpu8088State, segment: number, instruction: ByteMemory) => void>> = strings;
+const repeatedStrings: Readonly<Partial<Record<`${StringKey}_${"repe" | "repne"}`,
+  (state: Cpu8088State, startIP: number, instruction: ByteMemory) => void>>> = strings;
+const overriddenRepeatedStrings: Readonly<Partial<Record<`${StringKey}_${"repe" | "repne"}_override`,
+  (state: Cpu8088State, segment: number, startIP: number, instruction: ByteMemory) => void>>> = strings;
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
@@ -332,12 +350,6 @@ export class Cpu8088 {
     // Higher-priority delivery must not discard a single-step trap already owed at this boundary.
   }
 
-  #loadSegment(segment: SegmentRegister, value: number, instruction: InstructionContext): void {
-    this.#state[segment] = value;
-    // Original 8088 MOV/POP inhibits all interrupt recognition for EVERY segment, not only SS.
-    instruction.deferInterrupt("all");
-  }
-
   // Register views. Byte writes replace only the selected half of the stored word.
 
   #writeByteRegister({ word, shift }: ByteRegister8088, value: number): void {
@@ -424,14 +436,10 @@ export class Cpu8088 {
       // 1100 010s loads a far pointer into a general register and ES (s=0) or DS (s=1).
       ...opcodeFamily("1100 010 s", { s: ["es", "ds"] }, ({ s: segment }) => (instruction: InstructionContext) => this.#loadAddress(segment, instruction)), // LES / LDS
 
-      // 1100 11tt: tt=00 breakpoint, 01 immediate type, 10 overflow, 11 interrupt return.
+      // 1100 11tt: tt=00 breakpoint, 01 immediate type, 10 overflow; IRET is generated.
       ...instructionPattern("1100 1100", ({ interrupt }) => interrupt(3)), // INT3
       ...instructionPattern("1100 1101", ({ fetchByte, interrupt }) => interrupt(fetchByte())), // INT n
       ...instructionPattern("1100 1110", ({ interrupt }) => { if (this.#state.flags.of) interrupt(4); }), // INTO
-      ...instructionPattern("1100 1111", instruction => {
-        semantics[0xcb](this.#state, instruction); // RETF
-        semantics[0x9d](this.#state, instruction); // POPF
-      }), // IRET
 
       // 1100 011w + mm 000 rrr: immediate MOV; every other operation selector is unused.
       ...opcodeFamily("1100 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#moveImmediate(width, instruction)), // MOV r/m,n
@@ -454,12 +462,6 @@ export class Cpu8088 {
       // 1111 111w: /0..1 adjusts either width; /2..6 accepts only words for CALL/JMP/PUSH.
       ...opcodeFamily("1111 111 w", { w: this.#operandWidths },
         ({ w: width }) => (instruction: InstructionContext) => this.#adjustOrWordGroup(width, instruction)),
-
-      // 1111 101v: v writes IF; only a 0-to-1 transition defers INTR through the next instruction.
-      ...opcodeFamily("1111 101 v", { v: [false, true] }, ({ v: enabled }) => (instruction: InstructionContext) => {
-        if (enabled && !this.#state.flags.if) instruction.deferInterrupt("intr");
-        this.#state.flags.if = enabled;
-      }), // CLI/STI
     ];
   }
 
@@ -569,55 +571,40 @@ export class Cpu8088 {
   }
 
   #moveSegment(toSegment: boolean, instruction: InstructionContext): Rejection | void {
-    const modRM = instruction.fetchByte(), selector = (modRM >>> 3) & 7;
-    const segment = this.#segmentRegisters[selector];
+    const modRM = instruction.fetchByte(), segment = this.#segmentRegisters[(modRM >>> 3) & 7];
     if (!segment || (toSegment && segment === "cs")) return "opcode";
-    const operand = this.#registerMemoryOperand(16, modRM, instruction);
-    if (toSegment) this.#loadSegment(segment, operand.read(), instruction);
-    else operand.write(this.#state[segment]);
+    const operation = `segment_${toSegment ? "load" : "store"}_${segment}` as const;
+    if (modRM >= 0xc0) segmentRegisters[`${operation}_${modRM & 7}`]!(this.#state, instruction);
+    else {
+      const { segment, offset } = this.#effectiveAddress(modRM, instruction);
+      addressMemory[`${operation}_memory`]!(this.#state, segment, offset, instruction);
+    }
   }
 
   #loadAddress(segment: "es" | "ds" | undefined, instruction: InstructionContext): Rejection | void {
     const modRM = instruction.fetchByte();
     if (modRM >= 0xc0) return "opcode";
-    const register = this.#wordRegisters[(modRM >>> 3) & 7]!;
-    const address = this.#effectiveAddress(modRM, instruction);
-    if (segment === undefined) this.#state[register] = address.offset; // LEA performs no data read.
-    else {
-      const pointer = this.#readPointer(address, instruction.readByte);
-      this.#state[register] = pointer.offset;
-      this.#state[segment] = pointer.segment;
-    }
+    const register = (modRM >>> 3) & 7, address = this.#effectiveAddress(modRM, instruction);
+    if (segment === undefined) effectiveOffsets[`LEA_${register}`]!(this.#state, address.offset);
+    else addressMemory[`${segment === "es" ? "LES" : "LDS"}_${register}`]!(this.#state, address.segment, address.offset, instruction);
   }
 
   #translate(instruction: InstructionContext): void {
-    const offset = (this.#state.bx + (this.#state.ax & 0xff)) & 0xffff;
-    this.#registerOperand(8, 0).write(instruction.readByte(physicalAddress(instruction.segment ?? this.#state.ds, offset)));
+    if (instruction.segment === undefined) addressing.XLAT(this.#state, instruction);
+    else addressing.XLAT_override(this.#state, instruction.segment, instruction);
   }
 
-  // String primitives perform one element per step; repeats refetch their prefixes on the next step.
-
+  // Prefix selection stays in the decoder; generated string bodies execute one element per step.
   #string(operation: StringOperation, width: OperandWidth, instruction: InstructionContext): Rejection | void {
-    const { repeat } = instruction;
-    const compares = operation === "compare" || operation === "scan";
-    if (repeat === false && !compares) return "opcode"; // REPNE is documented for CMPS/SCAS.
-    if (repeat !== undefined && this.#state.cx === 0) return;
-    const source = this.#memoryOperand(width, instruction.segment ?? this.#state.ds, this.#state.si, instruction);
-    const destination = this.#memoryOperand(width, this.#state.es, this.#state.di, instruction);
-    const accumulator = this.#registerOperand(width, 0);
-    switch (operation) {
-      case "move": destination.write(source.read()); break;
-      case "compare": this.#subtract(width, source.read(), destination.read()); break;
-      case "store": destination.write(accumulator.read()); break;
-      case "load": accumulator.write(source.read()); break;
-      case "scan": this.#subtract(width, accumulator.read(), destination.read()); break;
-    }
-    const delta = (this.#state.flags.df ? -1 : 1) * (width / 8);
-    if (operation === "move" || operation === "compare" || operation === "load") this.#state.si = (this.#state.si + delta) & 0xffff;
-    if (operation !== "load") this.#state.di = (this.#state.di + delta) & 0xffff;
-    if (repeat !== undefined) {
-      this.#state.cx = (this.#state.cx - 1) & 0xffff;
-      if (this.#state.cx !== 0 && (!compares || this.#state.flags.zf === repeat)) this.#state.ip = instruction.startIp;
+    const { repeat, segment, startIp } = instruction, key = `${operation}_${width}` as const;
+    if (repeat === false && operation !== "compare" && operation !== "scan") return "opcode";
+    if (repeat === undefined) {
+      if (segment === undefined) plainStrings[key](this.#state, instruction);
+      else overriddenStrings[`${key}_override`](this.#state, segment, instruction);
+    } else {
+      const repeated = `${key}_${repeat ? "repe" : "repne"}` as const;
+      if (segment === undefined) repeatedStrings[repeated]!(this.#state, startIp, instruction);
+      else overriddenRepeatedStrings[`${repeated}_override`]!(this.#state, segment, startIp, instruction);
     }
   }
 
@@ -765,15 +752,6 @@ export class Cpu8088 {
     this.#state.ax = beforeDivision ? ((this.#state.ax >>> 8) * 10 + low) & 0xff
       : (Math.trunc(low / 10) << 8) | (low % 10);
     this.#setResultFlags(8, this.#state.ax & 0xff); // CF/AF/OF are undefined and preserved.
-  }
-
-  #subtract(width: OperandWidth, left: number, right: number): number {
-    const { result, borrow, halfBorrow, overflow } = subtract(width, left, right);
-    this.#state.flags.cf = borrow;
-    this.#state.flags.af = halfBorrow;
-    this.#state.flags.of = overflow;
-    this.#setResultFlags(width, result);
-    return result;
   }
 
   #setResultFlags(width: OperandWidth, result: number): void {

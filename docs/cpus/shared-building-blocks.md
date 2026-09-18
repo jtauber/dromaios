@@ -1374,6 +1374,11 @@ adjustment per word and captured SS:SP for both bytes. Far transfers expose
 complete target capture and CS-then-live-IP pushes. Word FLAGS reuse the status
 layout, while a checked boundary effect makes POPF/segment-pop deferral requests
 inspectable; the CPU still commits inhibition only at successful retirement.
+Remaining segment/address transfers and string instructions now use these
+same definitions. String bodies reuse segmented operands and subtraction,
+perform one element, and conditionally rewind to the prefix-start IP after
+live index/count updates. CLI/STI and IRET reuse deferral and return/FLAGS
+construction; none of these additions requires a new language primitive.
 ModR/M resolution and retirement remain outside the bodies. The 68000 probes below remain
 requirements for later vocabulary. Whole-model migration remains a separate decision.
 
