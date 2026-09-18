@@ -15,6 +15,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
   if (bindOpcodes) opcodeTable(Object.entries(definitions).map(([opcode, definition]) => [Number(opcode), definition]));
   const stateType = `Cpu${cpu === "z80" ? "Z80" : cpu}${cpu === "8008" ? "Stored" : ""}State`;
   const helpers = new Set<string>();
+  const outcomes = new Set<string>();
   let needsContext = bindOpcodes;
   let needsDeferral = false;
   function compile(name: string, input: InstructionDefinition, result?: NumberExpression): string {
@@ -22,6 +23,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
     if (definition.cpu.name !== cpu) throw new Error(`${name}: expected a ${cpu} definition.`);
     const lines: string[] = [];
     const capabilities = new Set<Capability>();
+    const rejections = new Set<string>();
     let nextValue = 0;
     const indent = result ? "      " : "  ";
     let depth = "";
@@ -32,6 +34,10 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
     const field = (name: string): string => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
     const bank = (ref: { readonly bank?: string }): string => `state${ref.bank === undefined ? "" : field(ref.bank)}`;
     const comment = (text: string): void => { emit(`// ${JSON.stringify(text)}`); };
+    const reject = (reason: string): string => { rejections.add(reason); outcomes.add(reason); return `return ${JSON.stringify(reason)};`; };
+    const signed = (operand: CapturedNumber): string => `((${operand.code} ^ ${2 ** (operand.type - 1)}) - ${2 ** (operand.type - 1)})`;
+    const integer = (operand: CapturedNumber, isSigned: boolean): string => !isSigned ? operand.code
+      : operand.type === 32 ? `(${operand.code} | 0)` : signed(operand);
 
     function number(expr: Expression, scope: Scope): CapturedNumber {
       switch (expr.kind) {
@@ -46,8 +52,8 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
         case "extend": return { code: number(expr.value, scope).code, type: expr.width };
         case "truncate": return { code: `(${number(expr.value, scope).code} & 0x${(2 ** expr.width - 1).toString(16)})`, type: expr.width };
         case "sign-extend": {
-          const operand = number(expr.value, scope), sign = 2 ** (operand.type - 1);
-          return { code: `(((${operand.code} ^ ${sign}) - ${sign}) & ${2 ** expr.width - 1})`, type: expr.width };
+          const operand = number(expr.value, scope);
+          return { code: expr.width === 32 ? `(${signed(operand)} >>> 0)` : `(${signed(operand)} & ${2 ** expr.width - 1})`, type: expr.width };
         }
         case "shift-left": case "shift-right": {
           const operand = number(expr.value, scope), operation = helper(expr.kind === "shift-left" ? "shiftLeft" : "shiftRight");
@@ -55,16 +61,26 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
         }
         case "shift-bits": {
           const operand = number(expr.value, scope);
-          return { code: expr.direction === "right" ? `(${operand.code} >>> ${expr.count})`
+          return { code: expr.count === 32 ? "0" : expr.direction === "right" ? `(${operand.code} >>> ${expr.count})`
+            : operand.type === 32 ? `((${operand.code} << ${expr.count}) >>> 0)`
             : `((${operand.code} << ${expr.count}) & 0x${(2 ** operand.type - 1).toString(16)})`, type: operand.type };
         }
         case "bit-and": case "bit-or": case "bit-xor": {
           const left = number(expr.left, scope), right = number(expr.right, scope);
           const operator = { "bit-and": "&", "bit-or": "|", "bit-xor": "^" }[expr.kind];
-          return { code: `(${left.code} ${operator} ${right.code})`, type: left.type };
+          const code = `(${left.code} ${operator} ${right.code})`;
+          return { code: left.type === 32 ? `(${code} >>> 0)` : code, type: left.type };
         }
-        case "concat": return { code: `((${number(expr.left, scope).code} << 8) | ${number(expr.right, scope).code})`, type: 16 };
-        case "multiply": return { code: `(${number(expr.left, scope).code} * ${number(expr.right, scope).code})`, type: 16 };
+        case "concat": {
+          const high = number(expr.left, scope), low = number(expr.right, scope);
+          return high.type === 8 ? { code: `((${high.code} << 8) | ${low.code})`, type: 16 }
+            : { code: `(${high.code} * 0x10000 + ${low.code})`, type: 32 };
+        }
+        case "multiply": {
+          const left = number(expr.left, scope), right = number(expr.right, scope), width = left.type === 8 ? 16 : 32;
+          const product = `(${integer(left, expr.signed ?? false)} * ${integer(right, expr.signed ?? false)})`;
+          return { code: expr.signed ? `(${product} ${width === 32 ? ">>> 0" : "& 0xffff"})` : product, type: width };
+        }
         case "subtract": case "add-wrap": {
           const left = number(expr.left, scope), right = number(expr.right, scope);
           const operation = helper(expr.kind === "subtract" ? "subtract" : "add");
@@ -116,6 +132,37 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
             depth = depth.slice(0, -2);
             emit("}");
             continue;
+          case "iterate": {
+            const count = local("count"), current = local(step.name), index = local("iteration");
+            const initial = number(step.initial, scope), inner = new Map(scope);
+            emit(`const ${count} = ${number(step.count, scope).code};`);
+            emit(`let ${current} = ${initial.code};`);
+            emit(`for (let ${index} = 0; ${index} < ${count}; ${index}++) {`);
+            depth += "  ";
+            inner.set(step.name, { code: current, type: initial.type });
+            body(step.steps, inner);
+            emit(`${current} = ${number(step.result, inner).code};`);
+            depth = depth.slice(0, -2);
+            emit("}");
+            scope.set(step.name, { code: current, type: initial.type });
+            continue;
+          }
+          case "reject": emit(reject(step.reason)); continue;
+          case "divide": {
+            const dividend = number(step.dividend, scope), divisor = number(step.divisor, scope);
+            const left = local("dividend"), right = local("divisor"), quotient = local("quotient");
+            const modulus = 2 ** divisor.type, limit = step.signed ? modulus / 2 : modulus;
+            emit(`const ${left} = ${integer(dividend, step.signed)};`);
+            emit(`const ${right}: number = ${integer(divisor, step.signed)};`);
+            emit(`const ${quotient} = Math.trunc(${left} / ${right});`);
+            emit(`if (${right} === 0 || ${quotient} < ${step.signed ? -limit : 0} || ${quotient} >= ${limit}) ${reject(step.onError)}`);
+            for (const [name, code] of [[step.quotient, quotient], [step.remainder, `(${left} % ${right})`]] as const) {
+              const captured = local(name);
+              emit(`const ${captured} = ${code} & ${modulus - 1};`);
+              scope.set(name, { code: captured, type: divisor.type });
+            }
+            continue;
+          }
           case "capture": captured = number(step.value, scope); break;
           case "read-register": captured = { code: `${bank(step.register)}${field(step.register.field)}`, type: step.register.width }; break;
           case "read-element": captured = { code: `state${field(step.array.field)}[${number(step.index, scope).code}]!`, type: step.array.width }; break;
@@ -186,7 +233,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
     if (capabilities.size) parameters.push(`instruction: Pick<ByteInstructionContext${defers ? " & InterruptDeferralContext" : ""}, ${[...capabilities].map(name => JSON.stringify(name)).join(" | ")}>`);
     const key = bindOpcodes && !result ? `0x${Number(name).toString(16).padStart(2, "0")}` : JSON.stringify(name);
     return `${indent}// ${JSON.stringify(`${cpu} ${definition.name}`)}\n`
-      + `${indent}${key}(${parameters.join(", ")}): ${result ? "number" : "void"} {\n${lines.join("\n")}\n${indent}},`;
+      + `${indent}${key}(${parameters.join(", ")}): ${result ? "number" : ["void", ...[...rejections].map(reason => JSON.stringify(reason))].join(" | ")} {\n${lines.join("\n")}\n${indent}},`;
   }
   const methods = Object.entries(definitions).map(([name, definition]) => compile(name, definition));
   const readers = sources ? Object.entries(sources.groups).map(([group, members]) => {
@@ -201,6 +248,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
   if (bindOpcodes) imports.push('import type { OpcodeEntry } from "../opcodes.ts";');
   if (helpers.size) imports.push(`import { ${[...helpers].sort().join(", ")} } from "../alu.ts";`);
   const boundContext = `ByteInstructionContext${needsDeferral ? " & InterruptDeferralContext" : ""}`;
+  const outcome = ["void", ...[...outcomes].map(reason => JSON.stringify(reason))].join(" | ");
   return `// Generated by scripts/generate-cpu-semantics.ts; edit semantics/definitions/${cpu}.ts instead.\n`
     + `${imports.join("\n")}\n\nexport const instructions = {\n${methods.join("\n\n")}\n};\n`
     + (sources ? `\n/** Bind reusable sources; fetching and memory access occur only when a reader is called. */
@@ -209,8 +257,8 @@ export function sourceReaders(state: ${stateType}) {
 }\n` : "")
     + (bindOpcodes ? `
 /** Bind this CPU instance's state without performing any instruction effects. */
-export function opcodeEntries(state: ${stateType}): readonly OpcodeEntry<(instruction: ${boundContext}) => void>[] {
-  return Object.entries(instructions).map(([opcode, execute]: [string, (state: ${stateType}, instruction: ${boundContext}) => void]) =>
+export function opcodeEntries(state: ${stateType}): readonly OpcodeEntry<(instruction: ${boundContext}) => ${outcome}>[] {
+  return Object.entries(instructions).map(([opcode, execute]: [string, (state: ${stateType}, instruction: ${boundContext}) => ${outcome}]) =>
     [Number(opcode), instruction => execute(state, instruction)]);
 }
 ` : "");

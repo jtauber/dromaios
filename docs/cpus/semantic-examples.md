@@ -11,8 +11,10 @@ Bodies begin after opcode selection. Motorola memory bodies receive a resolved
 address from the existing decoder. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; a source
-block has its own scope. Conditional blocks inherit outer captures; local captures
-do not escape. Untaken blocks have no effects. All expressions in one flag update are evaluated before
+block has its own scope. Conditional and bounded iteration blocks inherit outer
+captures; local captures do not escape. Each iteration sees its own current value.
+Untaken blocks and zero iterations have no effects. Named outcomes end the body.
+All expressions in one flag update are evaluated before
 any of its assignments. On an effect failure, completed effects remain and no
 later statement runs. See the contract for which bodies are bound to CPU opcodes.
 
@@ -14448,6 +14450,166 @@ write AX:u16 := result
 
 Flags preserved throughout: TF, IF, DF.
 
+### 8088 DAA
+
+Capture AL first and retain short-circuit AF/CF reads. The original 8088 high-digit threshold is 9F when AF is set, otherwise 99. Apply AF then CF, write AL preserving live AH, then ZF/SF/PF; preserve OF and control flags.
+
+```text
+original:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+when not(borrow(bitAnd(original, 0F:u8), 0A:u8)) {
+  highAF:flag := read AF
+  when not(borrow(original, select(highAF, A0:u8, 9A:u8))) {
+    result := addWrap(original, 66:u8)
+    flags "decimal correction" simultaneously {
+      AF := 1:flag
+      CF := 1:flag
+    } // Preserve unlisted flags.
+    preservedWord:u16 := read AX
+    write AX:u16 := concatHighLow(highByte(preservedWord), result)
+    flags "decimal result" simultaneously {
+      ZF := isZero(result)
+      SF := topBit(result)
+      PF := evenParity8(result)
+    } // Preserve unlisted flags.
+  }
+  when not(not(borrow(original, select(highAF, A0:u8, 9A:u8)))) {
+    highCF:flag := read CF
+    when highCF {
+      result := addWrap(original, 66:u8)
+      flags "decimal correction" simultaneously {
+        AF := 1:flag
+        CF := 1:flag
+      } // Preserve unlisted flags.
+      preservedWord:u16 := read AX
+      write AX:u16 := concatHighLow(highByte(preservedWord), result)
+      flags "decimal result" simultaneously {
+        ZF := isZero(result)
+        SF := topBit(result)
+        PF := evenParity8(result)
+      } // Preserve unlisted flags.
+    }
+    when not(highCF) {
+      result := addWrap(original, 06:u8)
+      flags "decimal correction" simultaneously {
+        AF := 1:flag
+        CF := 0:flag
+      } // Preserve unlisted flags.
+      preservedWord:u16 := read AX
+      write AX:u16 := concatHighLow(highByte(preservedWord), result)
+      flags "decimal result" simultaneously {
+        ZF := isZero(result)
+        SF := topBit(result)
+        PF := evenParity8(result)
+      } // Preserve unlisted flags.
+    }
+  }
+}
+when not(not(borrow(bitAnd(original, 0F:u8), 0A:u8))) {
+  lowAF:flag := read AF
+  when lowAF {
+    highAF:flag := read AF
+    when not(borrow(original, select(highAF, A0:u8, 9A:u8))) {
+      result := addWrap(original, 66:u8)
+      flags "decimal correction" simultaneously {
+        AF := 1:flag
+        CF := 1:flag
+      } // Preserve unlisted flags.
+      preservedWord:u16 := read AX
+      write AX:u16 := concatHighLow(highByte(preservedWord), result)
+      flags "decimal result" simultaneously {
+        ZF := isZero(result)
+        SF := topBit(result)
+        PF := evenParity8(result)
+      } // Preserve unlisted flags.
+    }
+    when not(not(borrow(original, select(highAF, A0:u8, 9A:u8)))) {
+      highCF:flag := read CF
+      when highCF {
+        result := addWrap(original, 66:u8)
+        flags "decimal correction" simultaneously {
+          AF := 1:flag
+          CF := 1:flag
+        } // Preserve unlisted flags.
+        preservedWord:u16 := read AX
+        write AX:u16 := concatHighLow(highByte(preservedWord), result)
+        flags "decimal result" simultaneously {
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+      when not(highCF) {
+        result := addWrap(original, 06:u8)
+        flags "decimal correction" simultaneously {
+          AF := 1:flag
+          CF := 0:flag
+        } // Preserve unlisted flags.
+        preservedWord:u16 := read AX
+        write AX:u16 := concatHighLow(highByte(preservedWord), result)
+        flags "decimal result" simultaneously {
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+    }
+  }
+  when not(lowAF) {
+    highAF:flag := read AF
+    when not(borrow(original, select(highAF, A0:u8, 9A:u8))) {
+      result := addWrap(original, 60:u8)
+      flags "decimal correction" simultaneously {
+        AF := 0:flag
+        CF := 1:flag
+      } // Preserve unlisted flags.
+      preservedWord:u16 := read AX
+      write AX:u16 := concatHighLow(highByte(preservedWord), result)
+      flags "decimal result" simultaneously {
+        ZF := isZero(result)
+        SF := topBit(result)
+        PF := evenParity8(result)
+      } // Preserve unlisted flags.
+    }
+    when not(not(borrow(original, select(highAF, A0:u8, 9A:u8)))) {
+      highCF:flag := read CF
+      when highCF {
+        result := addWrap(original, 60:u8)
+        flags "decimal correction" simultaneously {
+          AF := 0:flag
+          CF := 1:flag
+        } // Preserve unlisted flags.
+        preservedWord:u16 := read AX
+        write AX:u16 := concatHighLow(highByte(preservedWord), result)
+        flags "decimal result" simultaneously {
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+      when not(highCF) {
+        result := addWrap(original, 00:u8)
+        flags "decimal correction" simultaneously {
+          AF := 0:flag
+          CF := 0:flag
+        } // Preserve unlisted flags.
+        preservedWord:u16 := read AX
+        write AX:u16 := concatHighLow(highByte(preservedWord), result)
+        flags "decimal result" simultaneously {
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF, OF.
+
 ### 8088 SUB AL,n
 
 Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
@@ -14503,6 +14665,166 @@ write AX:u16 := result
 ```
 
 Flags preserved throughout: TF, IF, DF.
+
+### 8088 DAS
+
+Capture AL first and retain short-circuit AF/CF reads. The original 8088 high-digit threshold is 9F when AF is set, otherwise 99. Apply AF then CF, write AL preserving live AH, then ZF/SF/PF; preserve OF and control flags.
+
+```text
+original:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+when not(borrow(bitAnd(original, 0F:u8), 0A:u8)) {
+  highAF:flag := read AF
+  when not(borrow(original, select(highAF, A0:u8, 9A:u8))) {
+    result := subtract(original, 66:u8)
+    flags "decimal correction" simultaneously {
+      AF := 1:flag
+      CF := 1:flag
+    } // Preserve unlisted flags.
+    preservedWord:u16 := read AX
+    write AX:u16 := concatHighLow(highByte(preservedWord), result)
+    flags "decimal result" simultaneously {
+      ZF := isZero(result)
+      SF := topBit(result)
+      PF := evenParity8(result)
+    } // Preserve unlisted flags.
+  }
+  when not(not(borrow(original, select(highAF, A0:u8, 9A:u8)))) {
+    highCF:flag := read CF
+    when highCF {
+      result := subtract(original, 66:u8)
+      flags "decimal correction" simultaneously {
+        AF := 1:flag
+        CF := 1:flag
+      } // Preserve unlisted flags.
+      preservedWord:u16 := read AX
+      write AX:u16 := concatHighLow(highByte(preservedWord), result)
+      flags "decimal result" simultaneously {
+        ZF := isZero(result)
+        SF := topBit(result)
+        PF := evenParity8(result)
+      } // Preserve unlisted flags.
+    }
+    when not(highCF) {
+      result := subtract(original, 06:u8)
+      flags "decimal correction" simultaneously {
+        AF := 1:flag
+        CF := 0:flag
+      } // Preserve unlisted flags.
+      preservedWord:u16 := read AX
+      write AX:u16 := concatHighLow(highByte(preservedWord), result)
+      flags "decimal result" simultaneously {
+        ZF := isZero(result)
+        SF := topBit(result)
+        PF := evenParity8(result)
+      } // Preserve unlisted flags.
+    }
+  }
+}
+when not(not(borrow(bitAnd(original, 0F:u8), 0A:u8))) {
+  lowAF:flag := read AF
+  when lowAF {
+    highAF:flag := read AF
+    when not(borrow(original, select(highAF, A0:u8, 9A:u8))) {
+      result := subtract(original, 66:u8)
+      flags "decimal correction" simultaneously {
+        AF := 1:flag
+        CF := 1:flag
+      } // Preserve unlisted flags.
+      preservedWord:u16 := read AX
+      write AX:u16 := concatHighLow(highByte(preservedWord), result)
+      flags "decimal result" simultaneously {
+        ZF := isZero(result)
+        SF := topBit(result)
+        PF := evenParity8(result)
+      } // Preserve unlisted flags.
+    }
+    when not(not(borrow(original, select(highAF, A0:u8, 9A:u8)))) {
+      highCF:flag := read CF
+      when highCF {
+        result := subtract(original, 66:u8)
+        flags "decimal correction" simultaneously {
+          AF := 1:flag
+          CF := 1:flag
+        } // Preserve unlisted flags.
+        preservedWord:u16 := read AX
+        write AX:u16 := concatHighLow(highByte(preservedWord), result)
+        flags "decimal result" simultaneously {
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+      when not(highCF) {
+        result := subtract(original, 06:u8)
+        flags "decimal correction" simultaneously {
+          AF := 1:flag
+          CF := 0:flag
+        } // Preserve unlisted flags.
+        preservedWord:u16 := read AX
+        write AX:u16 := concatHighLow(highByte(preservedWord), result)
+        flags "decimal result" simultaneously {
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+    }
+  }
+  when not(lowAF) {
+    highAF:flag := read AF
+    when not(borrow(original, select(highAF, A0:u8, 9A:u8))) {
+      result := subtract(original, 60:u8)
+      flags "decimal correction" simultaneously {
+        AF := 0:flag
+        CF := 1:flag
+      } // Preserve unlisted flags.
+      preservedWord:u16 := read AX
+      write AX:u16 := concatHighLow(highByte(preservedWord), result)
+      flags "decimal result" simultaneously {
+        ZF := isZero(result)
+        SF := topBit(result)
+        PF := evenParity8(result)
+      } // Preserve unlisted flags.
+    }
+    when not(not(borrow(original, select(highAF, A0:u8, 9A:u8)))) {
+      highCF:flag := read CF
+      when highCF {
+        result := subtract(original, 60:u8)
+        flags "decimal correction" simultaneously {
+          AF := 0:flag
+          CF := 1:flag
+        } // Preserve unlisted flags.
+        preservedWord:u16 := read AX
+        write AX:u16 := concatHighLow(highByte(preservedWord), result)
+        flags "decimal result" simultaneously {
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+      when not(highCF) {
+        result := subtract(original, 00:u8)
+        flags "decimal correction" simultaneously {
+          AF := 0:flag
+          CF := 0:flag
+        } // Preserve unlisted flags.
+        preservedWord:u16 := read AX
+        write AX:u16 := concatHighLow(highByte(preservedWord), result)
+        flags "decimal result" simultaneously {
+          ZF := isZero(result)
+          SF := topBit(result)
+          PF := evenParity8(result)
+        } // Preserve unlisted flags.
+      }
+    }
+  }
+}
+```
+
+Flags preserved throughout: TF, IF, DF, OF.
 
 ### 8088 XOR AL,n
 
@@ -14560,6 +14882,47 @@ write AX:u16 := result
 
 Flags preserved throughout: TF, IF, DF.
 
+### 8088 AAA
+
+Capture AL first and retain short-circuit AF/CF reads. Capture AH separately; adjust each byte independently, mask AL to its low nibble, write AX, then CF and AF. Preserve undefined result flags.
+
+```text
+original:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+high:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+when not(borrow(bitAnd(original, 0F:u8), 0A:u8)) {
+  write AX:u16 := concatHighLow(addWrap(high, 01:u8), bitAnd(addWrap(original, 06:u8), 0F:u8))
+  flags "unpacked adjustment" simultaneously {
+    CF := 1:flag
+    AF := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(not(borrow(bitAnd(original, 0F:u8), 0A:u8))) {
+  lowAF:flag := read AF
+  when lowAF {
+    write AX:u16 := concatHighLow(addWrap(high, 01:u8), bitAnd(addWrap(original, 06:u8), 0F:u8))
+    flags "unpacked adjustment" simultaneously {
+      CF := 1:flag
+      AF := 1:flag
+    } // Preserve unlisted flags.
+  }
+  when not(lowAF) {
+    write AX:u16 := concatHighLow(addWrap(high, 00:u8), bitAnd(addWrap(original, 00:u8), 0F:u8))
+    flags "unpacked adjustment" simultaneously {
+      CF := 0:flag
+      AF := 0:flag
+    } // Preserve unlisted flags.
+  }
+}
+```
+
+Flags preserved throughout: PF, ZF, SF, TF, IF, DF, OF.
+
 ### 8088 CMP AL,n
 
 Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Do not write the accumulator. A failed fetch prevents all body effects; completed fetches and IP changes remain.
@@ -14612,6 +14975,47 @@ flags "8088 subtract" simultaneously {
 ```
 
 Flags preserved throughout: TF, IF, DF.
+
+### 8088 AAS
+
+Capture AL first and retain short-circuit AF/CF reads. Capture AH separately; adjust each byte independently, mask AL to its low nibble, write AX, then CF and AF. Preserve undefined result flags.
+
+```text
+original:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+high:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+when not(borrow(bitAnd(original, 0F:u8), 0A:u8)) {
+  write AX:u16 := concatHighLow(subtract(high, 01:u8), bitAnd(subtract(original, 06:u8), 0F:u8))
+  flags "unpacked adjustment" simultaneously {
+    CF := 1:flag
+    AF := 1:flag
+  } // Preserve unlisted flags.
+}
+when not(not(borrow(bitAnd(original, 0F:u8), 0A:u8))) {
+  lowAF:flag := read AF
+  when lowAF {
+    write AX:u16 := concatHighLow(subtract(high, 01:u8), bitAnd(subtract(original, 06:u8), 0F:u8))
+    flags "unpacked adjustment" simultaneously {
+      CF := 1:flag
+      AF := 1:flag
+    } // Preserve unlisted flags.
+  }
+  when not(lowAF) {
+    write AX:u16 := concatHighLow(subtract(high, 00:u8), bitAnd(subtract(original, 00:u8), 0F:u8))
+    flags "unpacked adjustment" simultaneously {
+      CF := 0:flag
+      AF := 0:flag
+    } // Preserve unlisted flags.
+  }
+}
+```
+
+Flags preserved throughout: PF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 INC AX
 
@@ -16351,6 +16755,67 @@ replace flags "restore packed status" simultaneously {
 ```
 
 Flags preserved throughout: none.
+
+### 8088 AAM
+
+Fetch and require the documented 0A radix before reading AX. Divide AL by ten, storing the quotient in AH and remainder in AL. After writing AX, reread AL for ZF/SF/PF. Preserve undefined CF/AF/OF and control flags.
+
+```text
+radix:u8 := fetch byte
+when not(isZero(subtract(radix, 0A:u8))) {
+  return outcome "opcode"; no later effects
+}
+low:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+quotient, remainder := divideUnsigned(zeroExtend16(low), 0A:u8)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := concatHighLow(quotient, remainder)
+result:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+flags "radix result" simultaneously {
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: CF, AF, TF, IF, DF, OF.
+
+### 8088 AAD
+
+Fetch and require the documented 0A radix before reading AX. Capture AL, then live AH; combine AH * 10 + AL modulo 256 and clear AH. After writing AX, reread AL for ZF/SF/PF. Preserve undefined CF/AF/OF and control flags.
+
+```text
+radix:u8 := fetch byte
+when not(isZero(subtract(radix, 0A:u8))) {
+  return outcome "opcode"; no later effects
+}
+low:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+high:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+write AX:u16 := zeroExtend16(low8(addWrap(multiplyUnsigned(high, 0A:u8), zeroExtend16(low))))
+result:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+flags "radix result" simultaneously {
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: CF, AF, TF, IF, DF, OF.
 
 ### 8088 LOOPNE rel8
 
@@ -71741,6 +72206,10248 @@ when not(isZero(initialCount)) {
 
 Flags preserved throughout: TF, IF, DF.
 
+### 8088 ROL AL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL AL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR AL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR AL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL AL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL AL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR AL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR AL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL AL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL AL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR AL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR AL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR AL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR AL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL AL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(low8(shiftBitsRight(product, 8))))
+  CF := not(isZero(low8(shiftBitsRight(product, 8))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL AL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+  CF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV AL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV AL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 80:u8)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL CL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL CL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR CL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR CL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL CL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL CL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR CL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR CL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL CL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL CL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR CL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR CL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR CL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR CL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL CL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(low8(shiftBitsRight(product, 8))))
+  CF := not(isZero(low8(shiftBitsRight(product, 8))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL CL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+  CF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV CL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV CL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 80:u8)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL DL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL DL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR DL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR DL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL DL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL DL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR DL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR DL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL DL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL DL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR DL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR DL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR DL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR DL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL DL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(low8(shiftBitsRight(product, 8))))
+  CF := not(isZero(low8(shiftBitsRight(product, 8))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL DL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+  CF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV DL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV DL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 80:u8)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL BL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL BL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR BL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR BL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL BL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL BL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR BL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR BL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL BL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL BL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR BL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR BL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR BL,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR BL,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL BL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(low8(shiftBitsRight(product, 8))))
+  CF := not(isZero(low8(shiftBitsRight(product, 8))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL BL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+  CF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV BL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV BL (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 80:u8)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL AH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL AH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR AH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR AH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL AH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL AH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR AH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR AH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL AH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL AH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR AH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR AH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR AH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR AH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL AH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(low8(shiftBitsRight(product, 8))))
+  CF := not(isZero(low8(shiftBitsRight(product, 8))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL AH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+  CF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV AH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV AH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 80:u8)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL CH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL CH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR CH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR CH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL CH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL CH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR CH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR CH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL CH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL CH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR CH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR CH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR CH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR CH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL CH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(low8(shiftBitsRight(product, 8))))
+  CF := not(isZero(low8(shiftBitsRight(product, 8))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL CH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+  CF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV CH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV CH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 80:u8)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL DH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL DH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR DH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR DH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL DH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL DH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR DH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR DH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL DH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL DH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR DH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR DH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR DH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR DH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL DH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(low8(shiftBitsRight(product, 8))))
+  CF := not(isZero(low8(shiftBitsRight(product, 8))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL DH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+  CF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV DH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV DH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 80:u8)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL BH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL BH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR BH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR BH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL BH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL BH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR BH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR BH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL BH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL BH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR BH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR BH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR BH,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR BH,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(shifted, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL BH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(low8(shiftBitsRight(product, 8))))
+  CF := not(isZero(low8(shiftBitsRight(product, 8))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL BH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+  CF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV BH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV BH (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+dividend:u16 := read AX
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 80:u8)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL byte [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL byte [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR byte [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR byte [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL byte [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL byte [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR byte [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR byte [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL byte [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL byte [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR byte [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR byte [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR byte [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(shifted)
+  AF := 0:flag
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR byte [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(shifted)
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL byte [segment:offset] (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+segment:u16 := input
+offset:u16 := input
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(low8(shiftBitsRight(product, 8))))
+  CF := not(isZero(low8(shiftBitsRight(product, 8))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL byte [segment:offset] (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+segment:u16 := input
+offset:u16 := input
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+accumulator:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := product
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+  CF := not(isZero(bitXor(product, signExtend16(low8(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV byte [segment:offset] (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+segment:u16 := input
+offset:u16 := input
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+dividend:u16 := read AX
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV byte [segment:offset] (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+segment:u16 := input
+offset:u16 := input
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+dividend:u16 := read AX
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 80:u8)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := concatHighLow(remainder, quotient)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL AX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL AX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR AX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR AX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL AX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL AX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR AX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR AX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL AX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL AX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR AX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR AX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR AX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR AX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write AX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL AX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(low16(shiftBitsRight(product, 16))))
+  CF := not(isZero(low16(shiftBitsRight(product, 16))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL AX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+  CF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV AX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV AX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 8000:u16)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL CX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL CX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR CX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR CX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL CX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL CX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR CX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR CX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL CX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL CX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR CX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR CX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR CX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR CX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write CX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL CX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(low16(shiftBitsRight(product, 16))))
+  CF := not(isZero(low16(shiftBitsRight(product, 16))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL CX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+  CF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV CX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV CX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 8000:u16)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL DX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL DX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR DX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR DX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL DX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL DX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR DX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR DX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL DX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL DX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR DX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR DX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR DX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR DX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write DX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL DX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(low16(shiftBitsRight(product, 16))))
+  CF := not(isZero(low16(shiftBitsRight(product, 16))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL DX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+  CF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV DX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV DX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 8000:u16)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL BX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL BX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR BX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR BX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL BX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL BX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR BX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR BX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL BX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL BX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR BX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR BX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR BX,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR BX,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write BX:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL BX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(low16(shiftBitsRight(product, 16))))
+  CF := not(isZero(low16(shiftBitsRight(product, 16))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL BX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+  CF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV BX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV BX (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 8000:u16)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL SP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL SP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR SP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR SP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL SP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL SP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR SP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR SP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL SP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL SP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR SP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR SP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR SP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR SP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write SP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL SP (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(low16(shiftBitsRight(product, 16))))
+  CF := not(isZero(low16(shiftBitsRight(product, 16))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL SP (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+  CF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV SP (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV SP (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 8000:u16)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL BP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL BP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR BP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR BP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL BP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL BP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR BP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR BP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL BP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL BP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR BP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR BP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR BP,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR BP,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write BP:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL BP (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(low16(shiftBitsRight(product, 16))))
+  CF := not(isZero(low16(shiftBitsRight(product, 16))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL BP (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+  CF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV BP (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV BP (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 8000:u16)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL SI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL SI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR SI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR SI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL SI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL SI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR SI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR SI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL SI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL SI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR SI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR SI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR SI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR SI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write SI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL SI (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(low16(shiftBitsRight(product, 16))))
+  CF := not(isZero(low16(shiftBitsRight(product, 16))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL SI (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+  CF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV SI (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV SI (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 8000:u16)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL DI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL DI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR DI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR DI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL DI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL DI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR DI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR DI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL DI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL DI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR DI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR DI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR DI,1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count := 01:u8
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR DI,CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write DI:u16 := shifted
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL DI (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(low16(shiftBitsRight(product, 16))))
+  CF := not(isZero(low16(shiftBitsRight(product, 16))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL DI (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+  CF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV DI (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV DI (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 8000:u16)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ROL word [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROL word [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR word [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 ROR word [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, lowBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL word [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCL word [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftLeft(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR word [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 RCR word [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  carry:flag := read CF
+  result := shiftRight(original, carry)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 SHL word [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHL word [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftLeft(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := topBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR word [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SHR word [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, 0:flag)
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR word [segment:offset],1 (resolved)
+
+Read the resolved operand and move it one bit. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count := 01:u8
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+flags "shift result" simultaneously {
+  ZF := isZero(shifted)
+  SF := topBit(shifted)
+  PF := evenParity8(lowByte(shifted))
+  AF := 0:flag
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SAR word [segment:offset],CL (resolved)
+
+Capture the full eight-bit CL count before reading the resolved operand. Each iteration moves one bit and writes CF; through-carry forms reread CF each time. Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.
+
+```text
+segment:u16 := input
+offset:u16 := input
+count:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+shifted := operand
+iterate count times with shifted {
+  original := shifted
+  result := shiftRight(original, topBit(original))
+  flags "outgoing shift bit" simultaneously {
+    CF := lowBit(original)
+  } // Preserve unlisted flags.
+  yield result as the next shifted
+} // Zero iterations retain the initial value and perform no body effects.
+when isZero(subtract(count, 01:u8)) {
+  flags "one-bit overflow" simultaneously {
+    OF := topBit(bitXor(operand, shifted))
+  } // Preserve unlisted flags.
+}
+when not(isZero(count)) {
+  flags "shift result" simultaneously {
+    ZF := isZero(shifted)
+    SF := topBit(shifted)
+    PF := evenParity8(lowByte(shifted))
+    AF := 0:flag
+  } // Preserve unlisted flags.
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(shifted)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(shifted)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MUL word [segment:offset] (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+segment:u16 := input
+offset:u16 := input
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplyUnsigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(low16(shiftBitsRight(product, 16))))
+  CF := not(isZero(low16(shiftBitsRight(product, 16))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 IMUL word [segment:offset] (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags.
+
+```text
+segment:u16 := input
+offset:u16 := input
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+accumulator:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+product := multiplySigned(accumulator, operand)
+write AX:u16 := low16(product)
+write DX:u16 := low16(shiftBitsRight(product, 16))
+flags "product overflow" simultaneously {
+  OF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+  CF := not(isZero(bitXor(product, signExtend32(low16(product)))))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF.
+
+### 8088 DIV word [segment:offset] (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+segment:u16 := input
+offset:u16 := input
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideUnsigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 IDIV word [segment:offset] (resolved)
+
+Read the complete resolved source before the accumulator, retaining low-first segmented reads. Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes.
+
+```text
+segment:u16 := input
+offset:u16 := input
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+high:u16 := read DX
+low:u16 := read AX
+dividend := concatHighLow(high, low)
+quotient, remainder := divideSigned(dividend, operand)
+// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.
+// Zero divisor or quotient overflow returns "divide-error" before any later effect.
+when isZero(bitXor(quotient, 8000:u16)) {
+  return outcome "divide-error"; no later effects
+}
+write AX:u16 := quotient
+write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 6809 NOP
 
 No effects after opcode fetching.
@@ -71785,7 +82492,7 @@ Multiply unsigned A by unsigned B. Write the complete product into D as A then B
 ```text
 left:u8 := read A
 right:u8 := read B
-product := multiplyUnsigned8(left, right)
+product := multiplyUnsigned(left, right)
 write A:u8 := highByte(product)
 write B:u8 := lowByte(product)
 flags "MUL Z/C" simultaneously {

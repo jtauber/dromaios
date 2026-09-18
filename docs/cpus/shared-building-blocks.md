@@ -1379,6 +1379,11 @@ same definitions. String bodies reuse segmented operands and subtraction,
 perform one element, and conditionally rewind to the prefix-start IP after
 live index/count updates. CLI/STI and IRET reuse deferral and return/FLAGS
 construction; none of these additions requires a new language primitive.
+The remaining ordinary arithmetic now uses bounded numeric iteration around
+the shared one-bit shift recipe, unsigned 32-bit intermediates, complete
+byte/word products, checked division, and named outcomes. These expose per-bit
+carry updates and failures before writeback without moving exception delivery
+into the generator. Decimal adjustments retain explicit original-chip policies.
 ModR/M resolution and retirement remain outside the bodies. The 68000 probes below remain
 requirements for later vocabulary. Whole-model migration remains a separate decision.
 

@@ -23,13 +23,13 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [162](../../src/components/cpus/6502.ts) | 149 / 151 | 98.7% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [443](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [385](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [783](../../src/components/cpus/8088.ts) | 229 / 291 | 78.7% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [668](../../src/components/cpus/8088.ts) | 271 / 291 | 93.1% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **3,866 generated bodies**, all used by CPU execution,
+contains **4,196 generated bodies**, all used by CPU execution,
 including two shared 6809 interrupt-frame helpers and one 8088 word-push helper.
-They cover **1,959 complete opcode forms**:
+They cover **2,001 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -336,6 +336,17 @@ They cover **1,959 complete opcode forms**:
   add three generated opcode bodies; IRET shares the complete return and FLAGS
   sequences and now earns full migration credit. These 19 forms bring the
   total to **229 migrated forms**, with no new primitive or compiler support.
+  Shifts and rotates add 28 forms; MUL/IMUL/DIV/IDIV add eight; the six decimal
+  and ASCII adjustments complete the ordinary arithmetic migration. Their 324
+  resolved-operand specializations and six numeric bodies reuse byte views,
+  segmented memory, result flags, and the shared one-bit shift recipe. A bounded
+  iteration keeps full CL counts and per-bit CF effects explicit, including
+  unchanged-value writes at count zero. Full products use unsigned 32-bit
+  intermediates where needed; checked division returns a named outcome before
+  writeback, with the original 8088 signed minimum rejected explicitly. Decimal
+  adjustment retains short-circuit flag reads and its original-chip thresholds.
+  All **271 forms** are integrated. The remaining 20 are IN/OUT, ESC, WAIT,
+  and INT3/INT/INTO; interrupt delivery and retirement remain CPU-owned.
 
 The 68000 has no instruction bodies generated from these definitions.
 Its existing shared TypeScript helpers remain useful, but are outside this
@@ -383,32 +394,33 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,810 |
-| CPU-specific instruction definition files | 1,508 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,984 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,302** |
+| Eight CPU implementation files | 3,695 |
+| CPU-specific instruction definition files | 1,620 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,088 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,403** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 80,365 |
+| Generated CPU output, counted separately | 90,600 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The remaining 8088 transfers, strings, CLI/STI, and IRET add **140 bodies for
-19 forms**: 89 resolved/addressing bodies, 48 string variants, and three numeric
-opcode bodies. Strings share segmented operands, byte views, and subtraction
-flags. Far-pointer reads and FLAGS restoration are shared with the earlier
-control-flow and stack definitions. No primitive, validator, compiler, or
-runtime-interface extension is needed.
+The remaining ordinary 8088 arithmetic adds **330 bodies for 42 forms**:
+252 shift/rotate specializations, 72 multiply/divide specializations, and six
+numeric decimal/ASCII bodies. These reuse resolved operands, byte views,
+result flags, and shared one-bit shift construction. The language gains unsigned
+32-bit values, full byte/word products, checked division, bounded iteration,
+and named outcomes; interrupt delivery stays in the CPU boundary.
 
-The 8088 module shrinks from **805 to 783 lines** (**22 fewer**), removing its
-string execution body, subtraction helper, segment-load helper, and handwritten
-CLI/STI/IRET behavior. Definitions add **113 net lines**; other authored CPU
-source is unchanged. Total authored CPU source rises from **8,211 to 8,302
-lines** (**91 more**). Generated output grows by **2,325 lines**. This change
-reduces the CPU module but does not reduce total maintained source.
-All **3,726** earlier instruction definitions and ten unchanged generated
-modules retain their prior contents. The numeric 8088 module gains its three
-bodies; addressing and string modules are new generated output.
+The 8088 module shrinks from **783 to 668 lines** (**115 fewer**), removing
+its one-bit operation table, handwritten arithmetic/decimal helpers, result-flag
+helper, and runtime memory-operand/write-word wrappers. Definitions add **112
+net lines**, and other authored CPU source adds **104**. Total authored CPU
+source rises from **8,302 to 8,403 lines** (**101 more**). Generated output grows
+by **10,235 lines**. This is a reduction in the CPU module, not total maintained
+source; the shared language additions are included in the accounting.
+All **3,866** earlier instruction definitions and twelve unchanged generated
+modules retain their prior contents. The numeric 8088 module gains six bodies;
+the arithmetic module is new generated output.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

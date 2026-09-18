@@ -100,7 +100,7 @@ test("unsigned multiplication is a pure byte-by-byte operation with a full word 
   const define = (expression: NumberExpression) => defineInstruction({ cpu: cpu.declaration, name: "product", explanation: "Product validation.",
     steps: [capture("product", expression), writeRegister(cpu.register("x"), value("product"))] });
   define(multiply(literal(8, 255), literal(8, 255)));
-  for (const width of [3, 14, 16] as const) assert.throws(() => define(multiply(literal(width, 1), literal(width, 2))), /requires two unsigned bytes/);
+  for (const width of [3, 14, 32] as const) assert.throws(() => define(multiply(literal(width, 1), literal(width, 2))), /requires two bytes or two words/);
   for (const bad of [multiply(literal(8, 1), literal(16, 2)), multiply(value("missing"), literal(8, 1)),
     multiply(flagLiteral(true) as unknown as NumberExpression, literal(8, 1)), multiply(literal(8, 256), literal(8, 1)),
     multiply(literal(32 as Width, 1), literal(32 as Width, 1))]) assert.throws(() => define(bad));
@@ -113,7 +113,7 @@ test("unsigned multiplication is a pure byte-by-byte operation with a full word 
     assert.equal(actual.a, Math.floor(product / 256)); assert.equal(actual.b, product % 256);
     assert.deepEqual(actual.flags, { ...flags(0xab), z: product === 0, c: Math.floor(product / 128) % 2 === 1 });
   }
-  assert.match(describeInstruction(instructions6809.mul!), /product := multiplyUnsigned8\(left, right\)/);
+  assert.match(describeInstruction(instructions6809.mul!), /product := multiplyUnsigned\(left, right\)/);
 });
 
 test("6809 inherent and resolved-address bodies expose their read, write, and flag stages", () => {

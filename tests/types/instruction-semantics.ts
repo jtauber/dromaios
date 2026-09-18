@@ -1,5 +1,6 @@
 import { instructions as addressing8088 } from "../../src/components/cpus/generated/8088-addressing.js";
 import { instructions as strings8088 } from "../../src/components/cpus/generated/8088-strings.js";
+import { instructions as arithmetic8088 } from "../../src/components/cpus/generated/8088-arithmetic.js";
 import { instructions as stack8088 } from "../../src/components/cpus/generated/8088-stack.js";
 import { instructions as unary8088 } from "../../src/components/cpus/generated/8088-unary.js";
 import { instructions as alu8088 } from "../../src/components/cpus/generated/8088-alu.js";
@@ -12,7 +13,7 @@ import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js
 import { cpuZ80StateDescription } from "../../src/components/cpus/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { deferInterrupt, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { deferInterrupt, divide, iterate, reject, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
@@ -105,8 +106,9 @@ export function checkInstructionSemantics(): void {
   and(flagValue("carry"), value("byte"));
   // @ts-expect-error Signed widening cannot accept flags.
   signExtend(flagValue("carry"), 16);
-  // @ts-expect-error Long values are outside the current vocabulary.
   signExtend(value("byte"), 32);
+  // @ts-expect-error Quad words are outside the current vocabulary.
+  signExtend(value("byte"), 64);
   highByte(value("word"));
   lowByte(value("word"));
   const motorola = cpuSymbols("6809", cpu6809StateDescription);
@@ -144,8 +146,9 @@ export function checkInstructionSemantics(): void {
   shiftLeft(value("byte"), literal(8, 1));
   // @ts-expect-error A captured flag cannot be the numeric shift operand.
   shiftLeft(flagValue("carry"), flagValue("carry"));
-  // @ts-expect-error This vocabulary covers 8- and 16-bit values.
   literal(32, 0);
+  // @ts-expect-error Quad words are outside the current vocabulary.
+  literal(64, 0);
   // @ts-expect-error Immediate values cannot be register destinations.
   const destination: Statement = { kind: "write-register", register: literal(8, 0), value: value("byte") };
   // @ts-expect-error Sources are structured bodies, not effectful callbacks.
@@ -749,4 +752,39 @@ export function check8088AddressingAndStringTypes(state: Cpu8088State, intel: Cp
   strings8088.store_8(state, { writeByte: () => {}, fetchByte: () => 0 });
   // @ts-expect-error Bodies retain their concrete CPU state.
   strings8088.move_8(intel, { readByte: () => 0, writeByte: () => {} });
+}
+
+export function check8088ArithmeticTypes(state: Cpu8088State, intel: Cpu8080State): void {
+  arithmetic8088.shift_0_cl_8_1(state);
+  arithmetic8088.shift_7_one_16_memory(state, 0, 0, { readByte: () => 0, writeByte: () => {} });
+  arithmetic8088.IMUL_16_memory(state, 0, 0, { readByte: () => 0 });
+  const outcome: "divide-error" | void = arithmetic8088.IDIV_16_2(state);
+  const radix: "opcode" | "divide-error" | void = generated8088[0xd4](state, { fetchByte: () => 10 });
+  void outcome; void radix;
+  iterate("current", literal(8, 3), literal(16, 0), [], value("current"));
+  divide({ quotient: "q", remainder: "r", dividend: value("wide"), divisor: value("word"), signed: true, onError: "divide-error" });
+  reject("opcode");
+  multiply(value("left"), value("right"), true);
+  // @ts-expect-error Iteration bodies are ordered statements, not host callbacks.
+  iterate("current", literal(8, 3), literal(16, 0), () => {}, value("current"));
+  // @ts-expect-error A Boolean flag is not a numeric repetition count.
+  iterate("current", flagValue("count"), literal(16, 0), [], value("current"));
+  // @ts-expect-error Signedness is explicit Boolean data.
+  multiply(value("left"), value("right"), "signed");
+  // @ts-expect-error Outcome names are data, not exception callbacks.
+  reject(() => {});
+  // @ts-expect-error /6 remains undocumented.
+  arithmetic8088.shift_6_one_8_0(state);
+  // @ts-expect-error Shifts need their write capability even with a zero count.
+  arithmetic8088.shift_4_cl_16_memory(state, 0, 0, { readByte: () => 0 });
+  // @ts-expect-error Multiply cannot write its memory operand.
+  arithmetic8088.MUL_8_memory(state, 0, 0, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Division returns an outcome; it never delivers an interrupt itself.
+  arithmetic8088.DIV_16_memory(state, 0, 0, { readByte: () => 0, interrupt: () => {} });
+  // @ts-expect-error Register arithmetic has no fetch or memory capability.
+  arithmetic8088.IMUL_8_0(state, { fetchByte: () => 0 });
+  // @ts-expect-error The divide-error outcome cannot be silently narrowed to success.
+  const success: undefined = arithmetic8088.DIV_8_0(state);
+  // @ts-expect-error Bodies retain concrete CPU state.
+  arithmetic8088.MUL_16_0(intel);
 }

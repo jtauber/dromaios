@@ -53,7 +53,7 @@ function execute(form: Form, state: Cpu8088State, segment: number, offset: numbe
 test("8088 stack definitions add exactly 32 encoded bodies, 22 resolved bodies, and one shared interrupt push", () => {
   const opcodes = forms.filter(f => typeof f.key === "number").map(f => f.key);
   const keys = forms.filter(f => typeof f.key === "string").map(f => f.key).sort();
-  assert.equal(opcodes.length, 32); assert.equal(keys.length, 23); assert.equal(Object.keys(instructions8088).length, 125);
+  assert.equal(opcodes.length, 32); assert.equal(keys.length, 23); assert.equal(Object.keys(instructions8088).length, 131);
   assert.ok(opcodes.every(key => key in instructions8088));
   assert.deepEqual(Object.keys(stack8088).sort(), keys); assert.deepEqual(Object.keys(stack).sort(), keys);
   const forbidden = new Proxy(initialState(), { get() { assert.fail("Binding must not read state"); } });

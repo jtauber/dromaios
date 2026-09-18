@@ -40,7 +40,7 @@ test("captures are immutable, ordered, scoped, and available only after their de
 test("widths require explicit widening, matching arithmetic operands, byte memory, and word addresses", () => {
   for (const expr of [
     literal(8, -1), literal(8, 256), literal(16, 65536), literal(8, 1.5), literal(8, NaN),
-    addWrap(literal(8, 1), literal(16, 1)), concat(literal(16, 1), literal(16, 2)),
+    addWrap(literal(8, 1), literal(16, 1)), concat(literal(32, 1), literal(32, 2)),
     extend(literal(16, 1), 8), extend(literal(8, 1), 8),
   ]) assert.throws(() => define([{ kind: "capture", name: "test", value: expr }]), /literal|width|concatenation|widen/);
   for (const step of [
@@ -66,7 +66,7 @@ test("instruction inputs are immutable typed captures in the body, not implicit 
   ] satisfies [Statement[], RegExp][]) assert.throws(() => defineInstruction({ ...base, steps }), message);
   assert.throws(() => defineInstruction({ ...base, inputs: { address: 8 }, steps: [readMemory("byte", value("address"))] }), /expected 16-bit value/);
   assert.throws(() => defineInstruction({ ...base, inputs: { "bad-name": 16 }, steps: [] }), /inputs: invalid value name/);
-  assert.throws(() => defineInstruction({ ...base, inputs: { address: 32 }, steps: [] } as unknown as InstructionDefinition), /inputs: expected width/);
+  assert.throws(() => defineInstruction({ ...base, inputs: { address: 64 }, steps: [] } as unknown as InstructionDefinition), /inputs: expected width/);
   const inputs = { address: 16 as const };
   const owned = defineInstruction({ ...base, inputs, steps: [] });
   assert.notEqual(owned.inputs, inputs);

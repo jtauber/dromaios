@@ -2,9 +2,10 @@ import { cpu8088StateDescription, cpu8088Status, cpu8088StatusWord } from "../..
 import { byteRegisters8088, wordRegisters8088 } from "../../8088-registers.ts";
 import { opcodeFamily } from "../../opcodes.ts";
 import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, deferInterrupt, evenParity, extend, flagLiteral, flagValue, halfBorrow, halfCarry,
-  highByte, literal, lowByte, negative, not, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, select, signExtend, subtract, updateFlags, value, writeLatch, writeMemory, writeRegister, when, xor, zero } from "../model.ts";
+  divide, fetchByte, highByte, iterate, literal, lowByte, multiply, negative, not, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, reject, select, shiftBits, signExtend, subtract, truncate, updateFlags, value, writeLatch, writeMemory, writeRegister, when, xor, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
-import { arithmetic, byteRegisterView, immediateByte, instructionSet, registerView, transfer } from "../builders.ts";
+import { arithmetic, atLeast, byteRegisterView, immediateByte, instructionSet, registerView, shift, transfer } from "../builders.ts";
+import type { ShiftInput } from "../builders.ts";
 import { immediateWord } from "../intel.ts";
 import { flagInstruction, flagPolicy, packedStatus, restoreStatus, updateStatus } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
@@ -125,6 +126,49 @@ function restoreFlagsSteps(): readonly Statement[] {
     restoreStatus(cpu, cpu8088StatusWord, value("status"))];
 }
 
+function decimalAdjustment(subtracting: boolean, unpacked: boolean): InstructionDefinition {
+  const operation = subtracting ? subtract : addWrap;
+  const finish = (low: boolean, high = false): readonly Statement[] => unpacked ? [
+    writeRegister(cpu.register("ax"), concat(operation(value("high"), literal(8, low ? 1 : 0)),
+      bitAnd(operation(value("original"), literal(8, low ? 6 : 0)), literal(8, 15)))),
+    updateFlags(flagPolicy(cpu, "unpacked adjustment", {}, { cf: flagLiteral(low), af: flagLiteral(low) }), {}),
+  ] : [
+    capture("result", operation(value("original"), literal(8, (low ? 6 : 0) + (high ? 0x60 : 0)))),
+    updateFlags(flagPolicy(cpu, "decimal correction", {}, { af: flagLiteral(low), cf: flagLiteral(high) }), {}),
+    ...registers[0][0]!.view.write(value("result")),
+    updateFlags(flagPolicy(cpu, "decimal result", { result: 8 }, resultFlags(8)), { result: value("result") }),
+  ];
+  const adjusted = (low: boolean) => unpacked ? finish(low) : choose({
+    steps: [readFlag("highAF", cpu.flag("af"))],
+    test: atLeast(value("original"), select(flagValue("highAF"), literal(8, 0xa0), literal(8, 0x9a))),
+  }, finish(low, true), choose({ steps: [readFlag("highCF", cpu.flag("cf"))], test: flagValue("highCF") }, finish(low, true), finish(low)));
+  return defineInstruction({ cpu: cpu.declaration, name: unpacked ? (subtracting ? "AAS" : "AAA") : (subtracting ? "DAS" : "DAA"),
+    explanation: "Capture AL first and retain short-circuit AF/CF reads. " + (unpacked
+      ? "Capture AH separately; adjust each byte independently, mask AL to its low nibble, write AX, then CF and AF. Preserve undefined result flags."
+      : "The original 8088 high-digit threshold is 9F when AF is set, otherwise 99. Apply AF then CF, write AL preserving live AH, then ZF/SF/PF; preserve OF and control flags."),
+    steps: [readSource("original", registers[0][0]!.view.source), ...(unpacked ? [readSource("high", registers[0][4]!.view.source)] : []),
+      ...choose({ steps: [], test: atLeast(bitAnd(value("original"), literal(8, 15)), literal(8, 10)) }, adjusted(true),
+        choose({ steps: [readFlag("lowAF", cpu.flag("af"))], test: flagValue("lowAF") }, adjusted(true), adjusted(false)))],
+  });
+}
+
+function radixAdjustment(beforeDivision: boolean): InstructionDefinition {
+  return defineInstruction({ cpu: cpu.declaration, name: beforeDivision ? "AAD" : "AAM",
+    explanation: "Fetch and require the documented 0A radix before reading AX. " + (beforeDivision
+      ? "Capture AL, then live AH; combine AH * 10 + AL modulo 256 and clear AH. "
+      : "Divide AL by ten, storing the quotient in AH and remainder in AL. ")
+      + "After writing AX, reread AL for ZF/SF/PF. Preserve undefined CF/AF/OF and control flags.",
+    steps: [fetchByte("radix"), when(not(zero(subtract(value("radix"), literal(8, 10)))), [reject("opcode")]),
+      readSource("low", registers[0][0]!.view.source), ...(beforeDivision ? [
+        readSource("high", registers[0][4]!.view.source),
+        writeRegister(cpu.register("ax"), extend(truncate(addWrap(multiply(value("high"), literal(8, 10)), extend(value("low"), 16)), 8), 16)),
+      ] : [divide({ quotient: "quotient", remainder: "remainder", dividend: extend(value("low"), 16), divisor: literal(8, 10), signed: false, onError: "divide-error" }),
+        writeRegister(cpu.register("ax"), concat(value("quotient"), value("remainder")))]),
+      readSource("result", registers[0][0]!.view.source),
+      updateFlags(flagPolicy(cpu, "radix result", { result: 8 }, resultFlags(8)), { result: value("result") })],
+  });
+}
+
 // Numeric keys are the encoding authority for both generated bodies and runtime bindings.
 export const instructions8088 = instructionSet([
   // 000 ss 11p: ss=ES/CS/SS/DS; p=0 PUSH, p=1 POP, with POP CS undocumented.
@@ -133,6 +177,8 @@ export const instructions8088 = instructionSet([
   [0x07, popSegment("es")], [0x17, popSegment("ss")], [0x1f, popSegment("ds")],
   // 00 ooo 10 w: ooo selects ADD/OR/ADC/SBB/AND/SUB/XOR/CMP; w=0 AL, w=1 AX.
   ...opcodeFamily("00 ooo 10 w", { o: operations, w: widths }, ({ o, w }) => accumulator(o, w)),
+  // 001 u s 111: u=0 packed (DAA/DAS), u=1 unpacked (AAA/AAS); s=0 add/1 subtract.
+  ...opcodeFamily("001 u s 111", { u: [false, true], s: [false, true] }, ({ u, s }) => decimalAdjustment(s, u)),
   // 0100 d rrr: d=0 INC, d=1 DEC; rrr selects AX/CX/DX/BX/SP/BP/SI/DI.
   ...opcodeFamily("0100 d rrr", { d: [false, true], r: wordRegisters8088 }, ({ d: decrement, r: register }) => defineInstruction({
     cpu: cpu.declaration, name: `${decrement ? "DEC" : "INC"} ${register.toUpperCase()}`,
@@ -199,6 +245,8 @@ export const instructions8088 = instructionSet([
   [0xcf, defineInstruction({ cpu: cpu.declaration, name: "IRET",
     explanation: "Pop IP and CS before committing either target, then pop FLAGS and apply POPF's IF-transition deferral. Failed FLAGS reads retain the completed far return. Retirement samples the original TF. " + stack.explanation,
     steps: [...returnSteps(true, literal(16, 0)), ...restoreFlagsSteps()] })],
+  // 1101 010d: d=0 AAM/1 AAD; only the documented second byte 0A is accepted.
+  ...opcodeFamily("1101 010 d", { d: [false, true] }, ({ d }) => radixAdjustment(d)),
   // 1110 00cc: cc=00 LOOPNE, 01 LOOPE, 10 LOOP decrement CX; 11 JCXZ only tests it.
   ...opcodeFamily("1110 00 cc", { c: ["LOOPNE", "LOOPE", "LOOP", "JCXZ"] }, ({ c: name }) => defineInstruction({
     cpu: cpu.declaration, name: `${name} rel8`,
@@ -355,6 +403,70 @@ export const unary8088: Readonly<Record<string, InstructionDefinition>> = Object
           ...operand.write(value("result"), "preservedWord")],
     }),
   ]))));
+
+// D0-D3 + mm ooo rrr: each selector describes a single bit movement; /6 is undocumented.
+const shiftOperations: readonly (readonly [string, "left" | "right", ShiftInput] | undefined)[] = [
+  ["ROL", "left", "outgoing"],     // 000: rotate the outgoing bit into bit 0.
+  ["ROR", "right", "outgoing"],    // 001: rotate the outgoing bit into the top bit.
+  ["RCL", "left", cpu.flag("cf")], // 010: insert live carry at bit 0.
+  ["RCR", "right", cpu.flag("cf")], // 011: insert live carry at the top bit.
+  ["SHL", "left", "zero"],         // 100: shift in zero at bit 0.
+  ["SHR", "right", "zero"],        // 101: shift in zero at the top bit.
+  undefined,                     // 110: undocumented.
+  ["SAR", "right", "sign"],        // 111: preserve the sign bit.
+];
+
+function shiftedOperand(width: 8 | 16, selector: number, useCL: boolean, operand: OperandDefinition): InstructionDefinition {
+  const [name, direction, incoming] = shiftOperations[selector]!, bit = shift(direction, incoming);
+  const result = [updateFlags(flagPolicy(cpu, "shift result", { result: width }, { ...resultFlags(width), af: flagLiteral(false) }), { result: value("shifted") })];
+  return defineInstruction({ cpu: cpu.declaration, name: `${name} ${operand.name},${useCL ? "CL" : "1"} (resolved)`,
+    ...(operand.memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
+    explanation: (useCL ? "Capture the full eight-bit CL count before reading the resolved operand. " : "Read the resolved operand and move it one bit. ")
+      + "Each iteration moves one bit and writes CF; through-carry forms reread CF each time. "
+      + "Only count one updates OF, from the changed sign bit. Nonzero shifts set ZF/SF/PF and clear undefined AF; rotates preserve them. "
+      + "Count zero still reads and writes the unchanged operand, preserving all flags. Write back after flags, retaining live byte halves and completed memory writes on failure.",
+    steps: [...(useCL ? [readSource("count", registers[0][1]!.view.source)] : [capture("count", literal(8, 1))]), ...operand.read("operand"),
+      iterate("shifted", value("count"), value("operand"), [capture("original", value("shifted")), ...bit.steps,
+        updateFlags(flagPolicy(cpu, "outgoing shift bit", { original: width }, { cf: bit.carry }), { original: value("original") })], value("result")),
+      when(zero(subtract(value("count"), literal(8, 1))), [updateFlags(flagPolicy(cpu, "one-bit overflow", { before: width, after: width },
+        { of: negative(bitXor(value("before"), value("after"))) }), { before: value("operand"), after: value("shifted") })]),
+      ...(selector < 4 ? [] : useCL ? [when(not(zero(value("count"))), result)] : result),
+      ...operand.write(value("shifted"), "preservedWord")],
+  });
+}
+
+function productOrQuotient(width: 8 | 16, operation: "MUL" | "IMUL" | "DIV" | "IDIV", operand: OperandDefinition): InstructionDefinition {
+  const signed = operation.startsWith("I"), dividing = operation.endsWith("DIV"), wide = width === 8 ? 16 : 32;
+  const low = (contents: NumberExpression) => truncate(contents, width);
+  const high = (contents: NumberExpression) => truncate(shiftBits(contents, "right", width), width);
+  const product = value("product"), overflow = signed ? not(zero(bitXor(product, signExtend(low(product), wide)))) : not(zero(high(product)));
+  return defineInstruction({ cpu: cpu.declaration, name: `${operation} ${operand.name} (resolved)`,
+    ...(operand.memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
+    explanation: "Read the complete resolved source before the accumulator, retaining low-first segmented reads. " + (dividing
+      ? "Divide AX or DX:AX with a quotient truncated toward zero and a remainder following the dividend sign. Reject zero divisors and overflow before register writes; original signed 8088 division also rejects the most negative quotient. Write AL/AH or AX then DX; preserve every flag. The CPU boundary delivers divide-error outcomes."
+      : "Form the complete signed/unsigned product. Write AX, then DX for words, then OF and CF according to whether the product fits the original operand width. Preserve all other flags."),
+    steps: [...operand.read("operand"), ...(dividing ? [
+      ...(width === 8 ? [readRegister("dividend", cpu.register("ax"))] : [readRegister("high", cpu.register("dx")), readRegister("low", cpu.register("ax")), capture("dividend", concat(value("high"), value("low")))]),
+      divide({ quotient: "quotient", remainder: "remainder", dividend: value("dividend"), divisor: value("operand"), signed, onError: "divide-error" }),
+      ...(signed ? [when(zero(bitXor(value("quotient"), literal(width, 2 ** (width - 1)))), [reject("divide-error")])] : []),
+      writeRegister(cpu.register("ax"), width === 8 ? concat(value("remainder"), value("quotient")) : value("quotient")),
+      ...(width === 16 ? [writeRegister(cpu.register("dx"), value("remainder"))] : []),
+    ] : [readSource("accumulator", registers[width === 8 ? 0 : 1][0]!.view.source), capture("product", multiply(value("accumulator"), value("operand"), signed)),
+      writeRegister(cpu.register("ax"), width === 8 ? product : low(product)), ...(width === 16 ? [writeRegister(cpu.register("dx"), high(product))] : []),
+      updateFlags(flagPolicy(cpu, "product overflow", { product: wide }, { of: overflow, cf: overflow }), { product })])],
+  });
+}
+
+/** 1101 00vw shifts and 1111 011w /4-7 products/quotients share resolved register and memory operands. */
+export const arithmetic8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(widths.flatMap(width =>
+  [...registerOperands(width), memoryOperand(width)].flatMap((operand, r) => {
+    const target = `${width}_${operand.memory ? "memory" : r}`;
+    return [
+      ...shiftOperations.flatMap((operation, selector) => operation ? [false, true].map(useCL =>
+        [`shift_${selector}_${useCL ? "cl" : "one"}_${target}`, shiftedOperand(width, selector, useCL, operand)]) : []),
+      ...(["MUL", "IMUL", "DIV", "IDIV"] as const).map(operation => [`${operation}_${target}`, productOrQuotient(width, operation, operand)]),
+    ];
+  })));
 
 
 /** Resolved stack/control operands; register PUSH/POP reuse their short-encoding bodies. */

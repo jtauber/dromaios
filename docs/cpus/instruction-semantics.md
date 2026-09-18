@@ -23,6 +23,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 8088 PUSH/POP, near/far CALL and RET, indirect/far JMP | Segmented word stacks; pointer/source capture ordering; full FLAGS replacement; explicit interrupt-deferral requests committed at retirement |
 | 8088 segment MOV, LEA, LES/LDS, XLAT, CLI/STI, and IRET | Resolved transfers, complete pointer capture, live AH, and shared return/FLAGS/deferral sequences |
 | 8088 MOVS/CMPS/STOS/LODS/SCAS, with legal repeats and source overrides | Zero-count guard; captured addresses; subtraction flags; live DF/indices/count; one element and conditional prefix-start rewind |
+| 8088 shifts, rotates, multiply/divide, and decimal/ASCII adjustments | Full CL counts with ordered per-bit effects; complete products; explicit division outcomes before writes; short-circuit decimal flags and original-chip limits |
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
@@ -70,8 +71,8 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 3,866 generated, executable bodies. All serve CPU execution;
-3,863 are bound through opcode or postbyte selection. Two shared 6809 frame
+There are 4,196 generated, executable bodies. All serve CPU execution;
+4,193 are bound through opcode or postbyte selection. Two shared 6809 frame
 helpers serve interrupt entry and return; one 8088 word-push helper serves entry.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
@@ -547,11 +548,11 @@ MOV, XCHG, ALU, and register TEST share one CPU-owned ModR/M binding. The
 decoder resolves memory once and rejects unused immediate selectors before
 fetching a displacement. F6/F7 /0 enters immediate TEST's complete generated
 body; /1 remains unsupported, /2 and /3 enter generated NOT/NEG bodies, and
-multiply/divide retain their existing paths. Prefix rejection, fetching, and
+multiply/divide enter the generated arithmetic bodies described below. Prefix rejection, fetching, and
 retirement remain outside the bodies.
 The handwritten ALU function table, operand-pair/application wrappers, immediate
-reader/TEST wrapper, and logical-flag helper are removed. The remaining subtraction
-helper serves string comparisons.
+reader/TEST wrapper, and logical-flag helper are removed. String comparisons
+now share the same generated subtraction construction.
 
 [Definition probes](../../tests/components/cpus/semantics/8088-alu.test.ts)
 check the entire specialization inventory, every effect and partial failure,
@@ -713,6 +714,46 @@ rejection before body entry, retirement, and guard release. Existing
 and snapshot resumption. Generated types admit only each body's required
 numeric inputs and memory/deferral capabilities.
 
+## 8088 remaining ordinary arithmetic
+
+All 28 shift/rotate forms, eight multiply/divide forms, and six decimal/ASCII
+adjustments now use generated bodies. Register and resolved-memory forms share
+operand construction with earlier arithmetic; no runtime operand closure is
+needed for these instructions.
+
+The shift family reuses the shared one-bit recipe inside `iterate`. Its byte
+count is captured from CL before reading the operand and is never masked to
+five bits. Each iteration has an immutable current value, applies one shift,
+and writes CF; RCL/RCR reread CF at the next iteration. Zero iterations still
+lead to an unchanged operand write. OF changes only for count one; nonzero
+shifts apply ZF/SF/PF then clear undefined AF, while rotates preserve those
+flags. A failed memory write retains the completed flag changes.
+
+`multiply` now accepts equal byte or word operands and optional signed
+interpretation, yielding the full double-width unsigned bit pattern. Word
+products and DX:AX use 32-bit intermediates. These remain exact JavaScript
+numbers; bitwise operations explicitly restore unsigned results. `divide`
+checks zero and quotient overflow before publishing its quotient and remainder.
+The 8088 definition adds a separate rejection of the most negative signed
+quotient. Named outcomes return to the CPU, which retains vector delivery,
+stacking, recognition, and retirement. Generated bodies never invoke a hidden
+interrupt callback.
+
+DAA/DAS keep their AF-dependent original-chip high-digit threshold and
+short-circuit flag reads. AAA/AAS adjust the two bytes separately. AAM/AAD
+reject any second byte except 0A before reading AX; both reread AL after
+writeback for result flags. Undefined flags retain the existing model policy.
+
+[Arithmetic probes](../../tests/components/cpus/semantics/8088-arithmetic.test.ts)
+check every body against independent schedules, every failed effect, all decimal
+byte/flag inputs, and callbacks that change live registers or carry.
+[Language probes](../../tests/components/cpus/semantics/wide-arithmetic.test.ts)
+check lexical scopes, unsigned 32-bit results, BigInt product/division oracles,
+bounded iteration, and early outcomes. [CPU boundary tests](../../tests/components/cpus/8088/arithmetic-failures.test.ts)
+exercise every arithmetic group with wrapping, overlapping code/data, prefixes,
+zero-count writes, and failures during divide-error entry. Existing exhaustive
+CPU arithmetic tests retain their independent instruction expectations.
+
 ## Z80 banks, special registers, and repeated blocks
 
 EXX exchanges B/C/D/E/H/L one byte at a time; EX AF,AF′ exchanges A, then the
@@ -850,12 +891,12 @@ check results, effect stages, callback changes, and failures independently.
 
 ## Primitive meanings
 
-This vocabulary supports unsigned **3-, 8-, 14-, and 16-bit values**,
+This vocabulary supports unsigned **3-, 8-, 14-, 16-, and 32-bit values**,
 **Boolean flag/latch captures**, constant **control-latch writes**, explicit
 **interrupt-deferral requests**, and **byte memory addresses** expressed as
 16-bit values or explicit physical projections.
 The narrow widths describe the 8008 selector and physical
-address registers; arithmetic and shifts still require 8- or 16-bit operands. Widths are decimal;
+address registers; arithmetic and shifts require 8-, 16-, or 32-bit operands. Widths are decimal;
 numeric literals in expanded listings are hexadecimal, while flag constants
 are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 
@@ -869,24 +910,24 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `subtract(left, right, incoming?)` | Binary `left - right - incoming` modulo `2^width`; omitted incoming borrow is zero |
 | `addWrap(left, right, incoming?)` | Binary `left + right + incoming` modulo `2^width`; omitted incoming carry is zero |
 | `bitAnd(left, right)`, `bitOr(left, right)`, `bitXor(left, right)` | Bitwise AND, OR, and exclusive OR on equal-width unsigned numbers, preserving that width; distinct from Boolean `xor` |
-| `multiply(left, right)` | Unsigned byte-by-byte multiplication yielding the complete 16-bit product; non-byte operands are rejected |
-| `concat(high, low)` | Two bytes combined as `high * 256 + low`, yielding a word |
+| `multiply(left, right, signed?)` | Equal byte or word operands; optional two’s-complement interpretation; yields the complete unsigned bit pattern at double width (16 or 32 bits) |
+| `concat(high, low)` | Equal byte or word halves combined high first, yielding an unsigned word or double word |
 | `highByte(value)`, `lowByte(value)` | Extract bits 15–8 or 7–0 of a captured word as a byte; byte operands and live register symbols are rejected |
 | `extend(value, width)` | Unsigned widening; narrowing and equal-width conversions are rejected |
 | `truncate(value, width)` | Keep the low bits at a strictly narrower supported width; writes never narrow implicitly |
 | `signExtend(value, width)` | Widen the two's-complement value, returning an unsigned bit pattern at the new width; `80:u8` becomes `FF80:u16`; narrowing and equal-width conversions are rejected |
 | `shiftLeft(value, incoming)` | Shift left once at the operand's width, discard the outgoing high bit, and insert the Boolean incoming bit at bit 0 |
 | `shiftRight(value, incoming)` | Shift right once at the operand's width, discard bit 0, and insert the Boolean incoming bit at the high bit |
-| `shiftBits(value, direction, count)` | Logical left/right shift of a byte or word by a constant integer from zero through its width; zero-fill, retain the original width, discard shifted-out bits, and do not read or write carry |
+| `shiftBits(value, direction, count)` | Logical left/right shift of a byte, word, or double word by a constant integer from zero through its width; zero-fill, retain the original width, discard shifted-out bits, and do not read or write carry |
 | `negative(value)` | Whether the top bit at the value's width is set |
 | `lowBit(value)` | Whether bit 0 is set |
 | `zero(value)` | Whether the unsigned value is zero |
 | `evenParity(value)` | Whether a byte has an even population count, including zero |
 | `borrow(left, right, incoming?)` | Whether unsigned `left - right - incoming` is negative |
-| `halfBorrow(left, right, incoming?)` | Whether `(left mod 16) - (right mod 16) - incoming` is negative, at either arithmetic width |
+| `halfBorrow(left, right, incoming?)` | Whether `(left mod 16) - (right mod 16) - incoming` is negative, at the selected arithmetic width |
 | `overflow(left, right, incoming?)` | Whether signed `left - right - incoming` falls outside the signed range at that width |
 | `carry(left, right, incoming?)` | Whether unsigned `left + right + incoming` reaches `2^width` |
-| `halfCarry(left, right, incoming?)` | Whether `(left mod 16) + (right mod 16) + incoming` reaches 16, at either arithmetic width |
+| `halfCarry(left, right, incoming?)` | Whether `(left mod 16) + (right mod 16) + incoming` reaches 16, at the selected arithmetic width |
 | `addOverflow(left, right, incoming?)` | Whether signed `left + right + incoming` falls outside the signed range at that width |
 | `not(value)` | Boolean negation |
 | `xor(left, right)` | Boolean exclusive OR; true exactly when its two Boolean operands differ |
@@ -910,12 +951,12 @@ three bits. Bitwise operations and top-bit/zero tests also accept narrow values.
 inputs are Boolean expressions, contributing zero or one; omission means zero.
 Carry/borrow/overflow use the original operands and input bit, never an already
 wrapped `right + incoming`. These expressions perform no flag reads or writes. Shift operands have distinct
-roles: a byte/word value and a Boolean incoming bit; shifts do not update flags.
+roles: an unsigned arithmetic value and a Boolean incoming bit; shifts do not update flags.
 These arithmetic meanings correspond
 to existing [ALU](../../src/components/cpus/alu.ts) contracts; generated code
 uses those helpers for arithmetic facts and parity. Numeric bitwise expressions
-compile to parenthesized JavaScript operators; the supported widths
-keep their results unsigned without extra masking. The reporter uses explanatory spellings
+compile to parenthesized JavaScript operators; 32-bit results use an unsigned
+conversion, and shifting by the full width produces zero rather than a masked count. The reporter uses explanatory spellings
 such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 
 | Statement | Ordered effect or capture |
@@ -937,6 +978,9 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `update-flags` | Bind a named policy's pure parameters and apply its assignments at this point |
 | `replace-flags` | Bind and evaluate a complete flag policy, then assign a fresh flag object; reject policies missing any stored flag |
 | `when` | Evaluate a Boolean condition; execute the nested ordered statements only if true, with no body effects otherwise |
+| `iterate` | Capture a byte count and initial numeric value; perform 0–255 ordered iterations with a fresh immutable current value in each iteration, then capture the final value under its name |
+| `divide` | Divide a double-width dividend by a byte/word divisor with explicit signedness; truncate toward zero, retain dividend sign on the remainder, and capture both results at divisor width; zero or overflow returns the named `onError` outcome |
+| `reject` | Return a named outcome immediately from the complete instruction body; preserve completed effects and perform no later statement |
 
 The current cores still own fetch-cursor behavior, PC commitment, access
 recording, exception handling, and instruction boundaries. In particular,
@@ -951,6 +995,21 @@ captures cannot escape the block or shadow inherited names; separate sibling
 blocks may reuse local names. Source and flag-policy scopes remain closed,
 even inside conditionals. Validation checks untaken bodies too, and capability
 inference includes their possible fetches, reads, writes, and deferral requests.
+
+Iteration bodies inherit their enclosing scope, plus their current value. Local
+captures cannot escape or shadow that value, and the yielded result must retain
+the initial width. Zero iterations perform no body effects and yield the initial
+value. This is a bounded numeric fold, not a whole-string execution loop; REP
+and Z80 repeated blocks still retire one element per CPU step.
+
+Division accepts signed ranges including the ordinary most-negative value;
+CPU-specific restrictions are explicit later conditions. Its quotient and
+remainder are unsigned bit patterns at the divisor width and enter scope only
+on success. A rejection inside a conditional or iteration returns from the
+complete instruction. Sources cannot contain division or rejection: they must
+yield a value. Validation checks every nested path, including zero-count bodies.
+Generated methods and opcode bindings expose their possible named outcomes in
+their return types, while successful paths retain `void`.
 
 Statements execute in their listed order under this contract. A failed
 effect stops the body; prior completed effects remain. There is no implicit
@@ -1265,8 +1324,11 @@ assignment. No reads, writes, or policies move across one another. Widths select
 the existing ALU helper arguments and sign bits. Widening a known unsigned value
 requires no JavaScript arithmetic; signed widening replicates the sign bit and
 returns the wider unsigned pattern. Narrowing emits an explicit low-bit mask.
-Unsigned byte multiplication emits JavaScript multiplication with a word result;
-no truncation or ALU helper is needed. Constant logical shifts emit unsigned
+Byte/word multiplication emits exact JavaScript multiplication, interpreting
+signed operands when requested and preserving the full unsigned result.
+Checked division emits a quotient range check before its named captures.
+Bounded iteration emits a local accumulator and a loop with a once-captured
+count; each body scope sees only that iteration’s value. Constant logical shifts emit unsigned
 right shifts or masked left shifts, with counts checked against the operand width.
 Bank references emit direct, safely quoted properties as needed. Flag exchange
 emits two captured references followed by two assignments; it never packs or
@@ -1278,7 +1340,7 @@ optimization pass into this review.
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,8008,8080,8088,6809,z80}.ts` and
 `8088-transfers.ts`, `8088-alu.ts`, `8088-unary.ts`, `8088-stack.ts`,
-`8088-addressing.ts`, and `8088-strings.ts`. The separate 8088
+`8088-addressing.ts`, `8088-strings.ts`, and `8088-arithmetic.ts`. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
 Regenerate with `npm run generate:cpus`;
@@ -1527,9 +1589,10 @@ status stacks also use generated bodies; the runtime call stack is private to
 the Z80's interrupt paths. Total source accounting remains in the
 [footprint report](coverage.md#source-footprint).
 
-General addressing decoders (such as the full 6809 postbyte decoder), loops,
-wider register masks, instruction rejection, pending commits, and exception
-delivery are not represented here. Register views and byte-mask stacks now have
+General addressing decoders (such as the full 6809 postbyte decoder), unbounded
+loops, wider register masks, pending commits, and exception delivery are not
+represented here. Bounded numeric iteration and named instruction outcomes now
+serve 8088 arithmetic without moving CPU boundaries into the language. Register views and byte-mask stacks now have
 construction recipes, but no new runtime or primitive representation. The 68000 MOVE traces still challenge later ordering vocabulary. The 6507 address-projection
 and 4004 nibble/interface probes remain acceptance requirements, not capabilities
-of this byte/word slice.
+of this instruction-definition slice.

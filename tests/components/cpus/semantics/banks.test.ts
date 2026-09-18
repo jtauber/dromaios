@@ -91,7 +91,7 @@ test("constant logical shifts retain width and reject invalid directions, counts
   }
   for (const count of [-1, 9, 1.5, NaN, Infinity]) assert.throws(() => define([capture("result", shiftBits(literal(8, 1), "left", count))]), /constant count/);
   assert.throws(() => define([capture("result", shiftBits(literal(8, 1), "rotate" as "left", 1))]), /direction/);
-  for (const width of [3, 14] as const) assert.throws(() => define([capture("result", shiftBits(literal(width, 1), "left", 1))]), /8- or 16-bit/);
+  for (const width of [3, 14] as const) assert.throws(() => define([capture("result", shiftBits(literal(width, 1), "left", 1))]), /8-, 16-, or 32-bit/);
   assert.throws(() => define([capture("result", shiftBits(flagLiteral(true) as unknown as NumberExpression, "left", 1))]));
   assert.throws(() => define([writeRegister(cpu.register("a"), shiftBits(literal(16, 1), "left", 1))]), /expected 8-bit/);
 });

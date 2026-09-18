@@ -14,11 +14,11 @@ export function validateInstruction(definition: InstructionDefinition): void {
   const prefix = `${cpu.name} ${definition.name}`;
   const fail = (where: string, message: string): never => { throw new Error(`${prefix} / ${where}: ${message}`); };
   const width = (bits: number, where: string): Width => {
-    if (!isWidth(bits)) return fail(where, "expected width 3, 8, 14, or 16");
+    if (!isWidth(bits)) return fail(where, "expected width 3, 8, 14, 16, or 32");
     return bits;
   };
   const arithmeticWidth = (bits: Width, where: string): Width => {
-    if (bits !== 8 && bits !== 16) fail(where, "arithmetic requires an 8- or 16-bit operand; widen narrow values explicitly");
+    if (bits !== 8 && bits !== 16 && bits !== 32) fail(where, "arithmetic requires an 8-, 16-, or 32-bit operand; widen narrow values explicitly");
     return bits;
   };
   const identifier = (name: string, where: string): void => {
@@ -110,12 +110,13 @@ export function validateInstruction(definition: InstructionDefinition): void {
           if (expr.incoming !== undefined) flagExpression(expr.incoming, scope, where);
         }
         if (expr.kind === "multiply") {
-          if (left !== 8) fail(where, "multiplication requires two unsigned bytes and yields a word");
-          return 16;
+          if (left !== 8 && left !== 16) fail(where, "multiplication requires two bytes or two words and yields double width");
+          if (expr.signed !== undefined && typeof expr.signed !== "boolean") fail(where, "multiplication signedness must be Boolean");
+          return left === 8 ? 16 : 32;
         }
         if (expr.kind !== "concat") return left;
-        if (left !== 8) fail(where, "concatenation requires two bytes, high then low");
-        return 16;
+        if (left !== 8 && left !== 16) fail(where, "concatenation requires two bytes or two words, high then low");
+        return left === 8 ? 16 : 32;
       }
       default: return fail(where, "unknown numeric expression");
     }
@@ -169,19 +170,48 @@ export function validateInstruction(definition: InstructionDefinition): void {
       if (!Number.isInteger(expr.addressBits) || expr.addressBits < 1 || expr.addressBits > 32) fail(where, "physical address width must be a constant from 1 through 32");
     } else if (expression(expr, scope, where) !== 16) fail(where, "expected 16-bit value");
   }
-  function steps(body: readonly Statement[], scope: Map<string, ValueType>, parent: string): void {
+  function steps(body: readonly Statement[], scope: Map<string, ValueType>, parent: string, allowRejection = true): void {
     body.forEach((step, index) => {
       const where = `${parent} / ${index + 1} ${step.kind}`;
       const number = (expr: NumberExpression): Width => expression(expr, scope, where);
       const expect = (expr: NumberExpression, bits: Width): void => {
         if (number(expr) !== bits) fail(where, `expected ${bits}-bit value`);
       };
+      const bind = (name: string, type: ValueType): void => {
+        identifier(name, where);
+        if (scope.has(name)) fail(where, `duplicate capture ${name}`);
+        scope.set(name, type);
+      };
+      const rejection = (reason: string): void => {
+        if (!allowRejection) fail(where, "value sources cannot reject an instruction");
+        if (typeof reason !== "string" || !/^[a-z][a-z0-9-]*$/.test(reason)) fail(where, "invalid rejection reason");
+      };
       let captured: ValueType;
       switch (step.kind) {
         case "when":
           flagExpression(step.condition, scope, where);
-          steps(step.steps, new Map(scope), where);
+          steps(step.steps, new Map(scope), where, allowRejection);
           return;
+        case "iterate": {
+          expect(step.count, 8);
+          const initial = number(step.initial), local = new Map(scope);
+          identifier(step.name, where);
+          if (scope.has(step.name)) fail(where, `duplicate capture ${step.name}`);
+          local.set(step.name, initial);
+          steps(step.steps, local, where, allowRejection);
+          if (expression(step.result, local, where) !== initial) fail(where, "iteration result must retain its initial width");
+          bind(step.name, initial);
+          return;
+        }
+        case "reject": rejection(step.reason); return;
+        case "divide": {
+          rejection(step.onError);
+          const divisor = number(step.divisor), dividend = number(step.dividend);
+          if ((divisor !== 8 && divisor !== 16) || dividend !== 2 * divisor) fail(where, "division requires a double-width dividend and a byte or word divisor");
+          if (typeof step.signed !== "boolean") fail(where, "division signedness must be Boolean");
+          bind(step.quotient, divisor); bind(step.remainder, divisor);
+          return;
+        }
         case "capture": captured = number(step.value); break;
         case "read-register": captured = register(step.register, where); break;
         case "read-element": captured = element(step.array, step.index, scope, where); break;
@@ -196,7 +226,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
         case "read-memory": address(step.address, scope, where); captured = 8; break;
         case "read-source": {
           const local = new Map<string, ValueType>();
-          steps(step.source.steps, local, `${where} / source ${step.source.name}`);
+          steps(step.source.steps, local, `${where} / source ${step.source.name}`, false);
           captured = expression(step.source.result, local, where);
           if (captured !== width(step.source.width, where)) fail(where, "source result width does not match its declaration");
           break;
@@ -223,9 +253,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
           return;
         default: return fail(where, "unknown statement");
       }
-      identifier(step.name, where);
-      if (scope.has(step.name)) fail(where, `duplicate capture ${step.name}`);
-      scope.set(step.name, captured);
+      bind(step.name, captured);
     });
   }
   const inputs = new Map<string, ValueType>();

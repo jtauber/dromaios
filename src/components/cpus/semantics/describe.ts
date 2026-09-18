@@ -21,8 +21,9 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "shift-left": case "shift-right":
         return `${expr.kind === "shift-left" ? "shiftLeft" : "shiftRight"}(${number(expr.value, parameters)}, ${flag(expr.incoming, parameters)})`;
       case "shift-bits": return `shiftBits${expr.direction === "left" ? "Left" : "Right"}(${number(expr.value, parameters)}, ${expr.count})`;
-      case "subtract": case "add-wrap": case "concat": case "multiply": case "bit-and": case "bit-or": case "bit-xor": {
-        const operation = { subtract: "subtract", "add-wrap": "addWrap", concat: "concatHighLow", multiply: "multiplyUnsigned8",
+      case "multiply": return `multiply${expr.signed ? "Signed" : "Unsigned"}(${number(expr.left, parameters)}, ${number(expr.right, parameters)})`;
+      case "subtract": case "add-wrap": case "concat": case "bit-and": case "bit-or": case "bit-xor": {
+        const operation = { subtract: "subtract", "add-wrap": "addWrap", concat: "concatHighLow",
           "bit-and": "bitAnd", "bit-or": "bitOr", "bit-xor": "bitXor" }[expr.kind];
         return `${operation}(${number(expr.left, parameters)}, ${number(expr.right, parameters)}${
           expr.kind === "subtract" || expr.kind === "add-wrap" ? incoming(expr.incoming, parameters) : ""})`;
@@ -61,6 +62,19 @@ export function describeInstruction(definition: InstructionDefinition): string {
           emit(`when ${flag(step.condition, {})} {`);
           body(step.steps, indent + "  ");
           emit("}");
+          break;
+        case "iterate":
+          emit(`${step.name} := ${number(step.initial)}`);
+          emit(`iterate ${number(step.count)} times with ${step.name} {`);
+          body(step.steps, indent + "  ");
+          emit(`  yield ${number(step.result)} as the next ${step.name}`);
+          emit("} // Zero iterations retain the initial value and perform no body effects.");
+          break;
+        case "reject": emit(`return outcome ${JSON.stringify(step.reason)}; no later effects`); break;
+        case "divide":
+          emit(`${step.quotient}, ${step.remainder} := divide${step.signed ? "Signed" : "Unsigned"}(${number(step.dividend)}, ${number(step.divisor)})`);
+          emit(`// Truncate quotient toward zero; remainder follows dividend sign. Both results have divisor width.`);
+          emit(`// Zero divisor or quotient overflow returns ${JSON.stringify(step.onError)} before any later effect.`);
           break;
         case "capture": emit(`${step.name} := ${number(step.value)}`); break;
         case "read-register": emit(`${step.name}:u${step.register.width} := read ${bank(step.register)}${step.register.field.toUpperCase()}`); break;
@@ -121,8 +135,10 @@ Bodies begin after opcode selection. Motorola memory bodies receive a resolved
 address from the existing decoder. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; a source
-block has its own scope. Conditional blocks inherit outer captures; local captures
-do not escape. Untaken blocks have no effects. All expressions in one flag update are evaluated before
+block has its own scope. Conditional and bounded iteration blocks inherit outer
+captures; local captures do not escape. Each iteration sees its own current value.
+Untaken blocks and zero iterations have no effects. Named outcomes end the body.
+All expressions in one flag update are evaluated before
 any of its assignments. On an effect failure, completed effects remain and no
 later statement runs. See the contract for which bodies are bound to CPU opcodes.
 

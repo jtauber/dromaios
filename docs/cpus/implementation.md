@@ -670,6 +670,15 @@ Keep each body to one element; refetching, rejection, and retirement remain
 CPU responsibilities. IRET composes the same return and FLAGS statements
 used by RETF/POPF, retaining their separate commit points.
 
+For multi-bit shifts, use bounded `iterate` around the shared one-bit recipe.
+Capture the count before the operand, retain per-iteration carry effects, and
+keep final flags and writeback outside the fold. This does not merge repeated
+string instructions into a single CPU step. Use full-width `multiply` and
+checked `divide` for double-width intermediates; narrow only at the documented
+write. Division and explicit `reject` statements return named outcomes to the
+CPU boundary, which continues to own exception delivery. Keep processor-specific
+quotient limits and undefined-flag policies visible in the definitions.
+
 ## Shared arithmetic
 
 The [ALU helpers](../../src/components/cpus/alu.ts) express arithmetic facts

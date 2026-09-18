@@ -1,8 +1,8 @@
 import type { ArrayField, GroupField, StateFields, UnsignedField } from "../state.ts";
 
-// Byte/word operands plus the 8008's narrow selector and physical address registers.
-export type Width = 3 | 8 | 14 | 16;
-export const isWidth = (bits: number): bits is Width => bits === 3 || bits === 8 || bits === 14 || bits === 16;
+// Unsigned bit vectors, including double-word intermediates and the 8008's narrow selectors.
+export type Width = 3 | 8 | 14 | 16 | 32;
+export const isWidth = (bits: number): bits is Width => bits === 3 || bits === 8 || bits === 14 || bits === 16 || bits === 32;
 export type ValueType = Width | "flag";
 export interface Register { readonly kind: "register"; readonly cpu: string; readonly field: string; readonly width: Width; readonly bank?: string }
 export interface FlagGroup { readonly kind: "flag-group"; readonly cpu: string; readonly bank?: string }
@@ -24,7 +24,8 @@ export type NumberExpression =
   | { readonly kind: "literal"; readonly width: Width; readonly value: number }
   | { readonly kind: "high-byte" | "low-byte"; readonly value: NumberExpression }
   | ({ readonly kind: "subtract" | "add-wrap" } & ArithmeticOperands)
-  | { readonly kind: "concat" | "multiply" | "bit-and" | "bit-or" | "bit-xor"; readonly left: NumberExpression; readonly right: NumberExpression }
+  | { readonly kind: "concat" | "bit-and" | "bit-or" | "bit-xor"; readonly left: NumberExpression; readonly right: NumberExpression }
+  | { readonly kind: "multiply"; readonly left: NumberExpression; readonly right: NumberExpression; readonly signed?: boolean }
   | { readonly kind: "shift-left" | "shift-right"; readonly value: NumberExpression; readonly incoming: FlagExpression }
   | { readonly kind: "shift-bits"; readonly value: NumberExpression; readonly direction: "left" | "right"; readonly count: number }
   | { readonly kind: "extend" | "sign-extend" | "truncate"; readonly value: NumberExpression; readonly width: Width };
@@ -65,6 +66,9 @@ export interface SourceDefinitions {
 }
 export type Statement =
   | { readonly kind: "when"; readonly condition: FlagExpression; readonly steps: readonly Statement[] }
+  | { readonly kind: "iterate"; readonly name: string; readonly count: NumberExpression; readonly initial: NumberExpression; readonly steps: readonly Statement[]; readonly result: NumberExpression }
+  | { readonly kind: "reject"; readonly reason: string }
+  | { readonly kind: "divide"; readonly quotient: string; readonly remainder: string; readonly dividend: NumberExpression; readonly divisor: NumberExpression; readonly signed: boolean; readonly onError: string }
   | { readonly kind: "capture"; readonly name: string; readonly value: NumberExpression }
   | { readonly kind: "read-register"; readonly name: string; readonly register: Register }
   | { readonly kind: "read-element"; readonly name: string; readonly array: RegisterArray; readonly index: NumberExpression }
@@ -152,7 +156,8 @@ export const bitAnd = (left: NumberExpression, right: NumberExpression): NumberE
 export const bitOr = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "bit-or", left, right });
 export const bitXor = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "bit-xor", left, right });
 export const concat = (high: NumberExpression, low: NumberExpression): NumberExpression => ({ kind: "concat", left: high, right: low });
-export const multiply = (left: NumberExpression, right: NumberExpression): NumberExpression => ({ kind: "multiply", left, right });
+export const multiply = (left: NumberExpression, right: NumberExpression, signed?: boolean): NumberExpression =>
+  ({ kind: "multiply", left, right, ...(signed === undefined ? {} : { signed }) });
 export const highByte = (value: NumberExpression): NumberExpression => ({ kind: "high-byte", value });
 export const lowByte = (value: NumberExpression): NumberExpression => ({ kind: "low-byte", value });
 export const extend = (value: NumberExpression, width: Width): NumberExpression => ({ kind: "extend", value, width });
@@ -184,6 +189,13 @@ export const projectAddress = (base: NumberExpression, offset: NumberExpression,
 
 // Statement constructors describe effects; they never perform them. Array order is execution order.
 export const when = (condition: FlagExpression, steps: readonly Statement[]): Statement => ({ kind: "when", condition, steps });
+/** Fold a byte count of iterations over an immutable per-iteration value; publish the final value under name. */
+export const iterate = (name: string, count: NumberExpression, initial: NumberExpression, steps: readonly Statement[], result: NumberExpression): Statement =>
+  ({ kind: "iterate", name, count, initial, steps, result });
+/** End this body with a named outcome; the CPU boundary decides how to deliver it. */
+export const reject = (reason: string): Statement => ({ kind: "reject", reason });
+/** Divide a double-width dividend by a byte/word; reject zero divisors and quotients outside the divisor width. */
+export const divide = (division: Omit<Extract<Statement, { kind: "divide" }>, "kind">): Statement => ({ kind: "divide", ...division });
 export const capture = (name: string, value: NumberExpression): Statement => ({ kind: "capture", name, value });
 export const fetchByte = (name: string): Statement => ({ kind: "fetch-byte", name });
 export const readRegister = (name: string, register: Register): Statement => ({ kind: "read-register", name, register });

@@ -19,11 +19,10 @@ import { instructions as unary } from "./generated/8088-unary.ts";
 import { instructions as stack } from "./generated/8088-stack.ts";
 import { instructions as addressing } from "./generated/8088-addressing.ts";
 import { instructions as strings } from "./generated/8088-strings.ts";
+import { instructions as arithmetic } from "./generated/8088-arithmetic.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { shiftLeft, shiftRight, evenParity8 } from "./alu.ts";
-import type { ShiftResult } from "./alu.ts";
 import { checkUnsigned } from "../validation.ts";
 
 export { cpu8088StateDescription } from "./state/8088.ts";
@@ -123,9 +122,8 @@ type UnaryOperation = "INC" | "DEC" | "NOT" | "NEG";
 type SegmentRegister = "es" | "cs" | "ss" | "ds";
 type StringOperation = "move" | "compare" | "store" | "load" | "scan";
 interface MemoryAddress { readonly segment: number; readonly offset: number }
-type ShiftOperation = (width: OperandWidth, value: number) => ShiftResult;
 
-// An instruction-local operand: memory closures capture one resolved segment and offset.
+// Register access for the remaining port-transfer path.
 interface Operand {
   readonly read: () => number;
   readonly write: (value: number) => void;
@@ -138,7 +136,7 @@ const memoryOperations: Readonly<Partial<Record<`${"load" | "store" | "exchangeM
   (state: Cpu8088State, segment: number, offset: number, instruction: ByteMemory) => void>>> = resolvedOperands;
 const memoryImmediates: Readonly<Record<`immediate_${OperandWidth}`,
   (state: Cpu8088State, segment: number, offset: number, instruction: InstructionContext) => void>> = transfers;
-const opcodeBodies: Readonly<Partial<Record<number, (state: Cpu8088State, instruction: InstructionContext) => void>>> = semantics;
+const opcodeBodies: Readonly<Partial<Record<number, (state: Cpu8088State, instruction: InstructionContext) => Rejection | void>>> = semantics;
 
 // 00 ooo ... and ModR/M mm ooo rrr share this operation field.
 const aluOperations = ["ADD", "OR", "ADC", "SBB", "AND", "SUB", "XOR", "CMP"] as const;
@@ -150,6 +148,12 @@ const immediateMemoryAlu: Readonly<Partial<Record<`${AluOperation}_${"immediate"
 const unaryRegister: Readonly<Record<`${UnaryOperation}_${OperandWidth}_${number}`, (state: Cpu8088State) => void>> = unary;
 const unaryMemory: Readonly<Record<`${UnaryOperation}_${OperandWidth}_memory`,
   (state: Cpu8088State, segment: number, offset: number, instruction: ByteMemory) => void>> = unary;
+
+type ArithmeticOperation = "MUL" | "IMUL" | "DIV" | "IDIV" | `shift_${number}_${"one" | "cl"}`;
+const arithmeticRegisters: Readonly<Record<`${ArithmeticOperation}_${OperandWidth}_${number}`,
+  (state: Cpu8088State) => Rejection | void>> = arithmetic;
+const arithmeticMemory: Readonly<Record<`${ArithmeticOperation}_${OperandWidth}_memory`,
+  (state: Cpu8088State, segment: number, offset: number, instruction: ByteMemory) => Rejection | void>> = arithmetic;
 
 type StackOperation = "PUSH" | "POP" | "CALL" | "CALL_far" | "JMP" | "JMP_far";
 const stackRegisters: Readonly<Record<`${"CALL" | "JMP"}_${number}`,
@@ -365,19 +369,6 @@ export class Cpu8088 {
   readonly #byteRegisters = byteRegisters8088;
   readonly #operandWidths = [8, 16] as const;
 
-  // D0–D3: mm ooo rrr selects the one-bit operation. /6 is undocumented.
-  // The inserted bit is the outgoing bit (rotate), CF (through carry), zero, or sign.
-  readonly #shiftOperations: readonly (ShiftOperation | undefined)[] = [
-    (width, value) => shiftLeft(width, value, (value & 2 ** (width - 1)) !== 0 ? 1 : 0), // 000: ROL
-    (width, value) => shiftRight(width, value, (value & 1) !== 0 ? 1 : 0), // 001: ROR
-    (width, value) => shiftLeft(width, value, this.#state.flags.cf ? 1 : 0), // 010: RCL
-    (width, value) => shiftRight(width, value, this.#state.flags.cf ? 1 : 0), // 011: RCR
-    (width, value) => shiftLeft(width, value, 0), // 100: SHL (SAL)
-    (width, value) => shiftRight(width, value, 0), // 101: SHR
-    undefined, // 110: undocumented
-    (width, value) => shiftRight(width, value, (value & 2 ** (width - 1)) !== 0 ? 1 : 0), // 111: SAR
-  ];
-
   // ModR/M mm ggg rrr: memory bases selected by rrr. BP selects SS; other bases use DS.
   // mm=00/01/10 adds no/signed-byte/word displacement; mm=11 selects a register.
   // The mm=00, rrr=110 exception is a direct word offset in DS, not [BP].
@@ -405,10 +396,6 @@ export class Cpu8088 {
       // 00 ooo 0 d w: ooo selects ADD/OR/ADC/SBB/AND/SUB/XOR/CMP above; w=0 byte, w=1 word.
       // ModR/M mm ggg rrr supplies operands; d=0 selects the r/m destination, d=1 register ggg.
       ...opcodeFamily("00 ooo 0 d w", { o: aluOperations, d: [false, true], w: this.#operandWidths }, ({ o: operation, d: toRegister, w: width }) => (instruction: InstructionContext) => this.#binary(operation, width, toRegister, instruction)), // ALU r/m,r / r,r/m
-
-      // 001 u s 111: u=0 packed decimal (DAA/DAS), u=1 unpacked (AAA/AAS); s=0 add/1 subtract.
-      ...opcodeFamily("001 0 s 111", { s: [false, true] }, ({ s: subtracting }) => () => this.#decimalAdjust(subtracting)),
-      ...opcodeFamily("001 1 s 111", { s: [false, true] }, ({ s: subtracting }) => () => this.#asciiAdjust(subtracting)),
 
       // 1000 00 s w + mm ooo rrr: immediate ALU; s=1 allows only ADD/ADC/SBB/SUB/CMP.
       // w=0 uses a byte; w=1 uses a word for s=0 or a sign-extended byte for s=1.
@@ -446,8 +433,6 @@ export class Cpu8088 {
       // 1101 00vw + mm ooo rrr: v=0 shifts once, v=1 uses all eight bits of CL; w selects byte/word.
       ...opcodeFamily("1101 00 v w", { v: [false, true], w: this.#operandWidths }, ({ v: useCL, w: width }) => (instruction: InstructionContext) => this.#shift(width, useCL, instruction)), // ROL/ROR/RCL/RCR/SHL/SHR/SAR
 
-      // 1101 010d: AAM/AAD have a documented fixed second byte 0A, not a general radix operand.
-      ...opcodeFamily("1101 010 d", { d: [false, true] }, ({ d: beforeDivision }) => (instruction: InstructionContext) => this.#adjustRadix(beforeDivision, instruction)),
       ...instructionPattern("1101 0111", instruction => this.#translate(instruction)), // XLAT
 
       // 1101 1ooo + mm ppp rrr: ooo:ppp is the six-bit external opcode; mm/rrr selects its source.
@@ -517,12 +502,6 @@ export class Cpu8088 {
     return { read: () => this.#state[register], write: value => { this.#state[register] = value; } };
   }
 
-  #registerMemoryOperand(width: OperandWidth, modRM: number, instruction: InstructionContext): Operand {
-    if (modRM >= 0xc0) return this.#registerOperand(width, modRM & 7);
-    const { segment, offset } = this.#effectiveAddress(modRM, instruction);
-    return this.#memoryOperand(width, segment, offset, instruction);
-  }
-
   // Memory-only callers reject mod=11 before asking for an effective address.
   #effectiveAddress(modRM: number, { fetchByte, fetchWord, segment }: InstructionContext): MemoryAddress {
     const mode = modRM >>> 6, selector = modRM & 7;
@@ -530,16 +509,6 @@ export class Cpu8088 {
     const base = direct ? { segment: this.#state.ds, offset: 0 } : this.#memoryBases[selector]!();
     const displacement = direct || mode === 2 ? fetchWord() : mode === 1 ? signed8(fetchByte()) : 0;
     return { segment: segment ?? base.segment, offset: (base.offset + displacement) & 0xffff };
-  }
-
-  #memoryOperand(width: OperandWidth, segment: number, offset: number, { readByte, writeByte }: InstructionContext): Operand {
-    return width === 8 ? {
-      read: () => readByte(physicalAddress(segment, offset)),
-      write: value => writeByte(physicalAddress(segment, offset), value),
-    } : {
-      read: () => this.#readMemoryWord(segment, offset, readByte),
-      write: value => this.#writeMemoryWord(segment, offset, value, writeByte),
-    };
   }
 
   #binary(operation: BinaryOperation, width: OperandWidth, toRegister: boolean, instruction: InstructionContext): void {
@@ -659,8 +628,7 @@ export class Cpu8088 {
     if (selector === 0) return this.#immediateAlu("TEST", width, modRM, false, instruction);
     if (selector === 1) return "opcode";
     if (selector < 4) return this.#modify(selector === 2 ? "NOT" : "NEG", width, modRM, instruction);
-    const value = this.#registerMemoryOperand(width, modRM, instruction).read(), signed = Boolean(selector & 1);
-    return selector < 6 ? this.#multiply(width, value, signed) : this.#divide(width, value, signed);
+    return this.#arithmeticOperand((["MUL", "IMUL", "DIV", "IDIV"] as const)[selector - 4]!, width, modRM, instruction);
   }
 
   #modify(operation: UnaryOperation, width: OperandWidth, modRM: number, instruction: InstructionContext): void {
@@ -672,93 +640,15 @@ export class Cpu8088 {
   }
 
   #shift(width: OperandWidth, useCL: boolean, instruction: InstructionContext): Rejection | void {
-    const modRM = instruction.fetchByte();
-    const selector = (modRM >>> 3) & 7;
-    const operation = this.#shiftOperations[selector];
-    if (!operation) return "opcode";
-    const operand = this.#registerMemoryOperand(width, modRM, instruction);
-    // Capture CL before writing any destination, including CL or CX itself. The 8088 does not mask it to five bits.
-    const count = useCL ? this.#state.cx & 0xff : 1;
-    const value = operand.read();
-    let result = value;
-    for (let bit = 0; bit < count; bit++) {
-      const shifted = operation(width, result);
-      result = shifted.result;
-      this.#state.flags.cf = shifted.carry;
-    }
-    // Only a one-bit operation defines OF; preserve its incoming value for larger counts.
-    if (count === 1) this.#state.flags.of = ((value ^ result) & 2 ** (width - 1)) !== 0;
-    // 000–011 are rotates; only the shift selectors 100/101/111 replace result flags.
-    if (count > 0 && selector >= 4) {
-      this.#setResultFlags(width, result);
-      this.#state.flags.af = false; // Undefined after shifts; deterministic, as for logic.
-    }
-    // At this instruction-level boundary even count zero reads and writes the unchanged operand, preserving flags.
-    operand.write(result);
+    const modRM = instruction.fetchByte(), selector = (modRM >>> 3) & 7;
+    if (selector === 6) return "opcode";
+    return this.#arithmeticOperand(`shift_${selector}_${useCL ? "cl" : "one"}`, width, modRM, instruction);
   }
 
-  #multiply(width: OperandWidth, value: number, signed: boolean): void {
-    const modulus = 2 ** width, sign = modulus / 2;
-    const accumulator = this.#state.ax % modulus;
-    const left = signed && accumulator >= sign ? accumulator - modulus : accumulator;
-    const right = signed && value >= sign ? value - modulus : value;
-    const product = left * right; // Even a 16-bit product is exact as a JavaScript number.
-    this.#state.ax = product & 0xffff;
-    if (width === 16) this.#state.dx = (product >>> 16) & 0xffff;
-    this.#state.flags.cf = this.#state.flags.of = signed ? product < -sign || product >= sign : product >= modulus;
-    // Other arithmetic flags are undefined on hardware; preserve them under the model policy.
-  }
-
-  #divide(width: OperandWidth, value: number, signed: boolean): Rejection | void {
-    const modulus = 2 ** width, sign = modulus / 2;
-    // Multiplication, rather than a signed bitwise OR, preserves an unsigned DX:AX dividend.
-    const raw = width === 8 ? this.#state.ax : this.#state.dx * 0x10000 + this.#state.ax;
-    const dividend = signed && raw >= modulus * modulus / 2 ? raw - modulus * modulus : raw;
-    const divisor = signed && value >= sign ? value - modulus : value;
-    const quotient = Math.trunc(dividend / divisor);
-    // The original 8088 rejects the most negative quotient too: -128 / -32768 are divide errors.
-    if (value === 0 || (signed ? quotient <= -sign || quotient >= sign : quotient >= modulus)) return "divide-error";
-    const remainder = dividend % divisor;
-    if (width === 8) this.#state.ax = ((remainder & 0xff) << 8) | (quotient & 0xff);
-    else { this.#state.ax = quotient & 0xffff; this.#state.dx = remainder & 0xffff; }
-    // Every arithmetic flag is undefined after division; preserve all flags.
-  }
-
-  #decimalAdjust(subtracting: boolean): void {
-    const value = this.#state.ax & 0xff, flags = this.#state.flags;
-    // Original 8088 hardware uses 9F, rather than 99, as the high-digit threshold when AF was set.
-    const low = (value & 0x0f) > 9 || flags.af, high = value > (flags.af ? 0x9f : 0x99) || flags.cf;
-    const correction = (low ? 6 : 0) + (high ? 0x60 : 0);
-    const result = (value + (subtracting ? -correction : correction)) & 0xff;
-    flags.af = low;
-    flags.cf = high;
-    this.#registerOperand(8, 0).write(result);
-    this.#setResultFlags(8, result); // OF is undefined and preserved.
-  }
-
-  #asciiAdjust(subtracting: boolean): void {
-    const value = this.#state.ax & 0xff, high = this.#state.ax >>> 8;
-    const adjust = (value & 0x0f) > 9 || this.#state.flags.af;
-    const delta = adjust ? (subtracting ? -1 : 1) : 0;
-    // On the original 8088 the byte adjustments are separate: no extra AL carry/borrow enters AH.
-    this.#state.ax = (((high + delta) & 0xff) << 8) | ((value + 6 * delta) & 0x0f);
-    this.#state.flags.af = this.#state.flags.cf = adjust;
-    // OF/SF/ZF/PF are undefined and preserved.
-  }
-
-  #adjustRadix(beforeDivision: boolean, { fetchByte }: InstructionContext): Rejection | void {
-    if (fetchByte() !== 0x0a) return "opcode";
-    const low = this.#state.ax & 0xff;
-    this.#state.ax = beforeDivision ? ((this.#state.ax >>> 8) * 10 + low) & 0xff
-      : (Math.trunc(low / 10) << 8) | (low % 10);
-    this.#setResultFlags(8, this.#state.ax & 0xff); // CF/AF/OF are undefined and preserved.
-  }
-
-  #setResultFlags(width: OperandWidth, result: number): void {
-    this.#state.flags.zf = result === 0;
-    this.#state.flags.sf = (result & (width === 8 ? 0x80 : 0x8000)) !== 0;
-    // Parity is defined by the low byte even for word operations.
-    this.#state.flags.pf = evenParity8(result & 0xff);
+  #arithmeticOperand(operation: ArithmeticOperation, width: OperandWidth, modRM: number, instruction: InstructionContext): Rejection | void {
+    if (modRM >= 0xc0) return arithmeticRegisters[`${operation}_${width}_${modRM & 7}`]!(this.#state);
+    const { segment, offset } = this.#effectiveAddress(modRM, instruction);
+    return arithmeticMemory[`${operation}_${width}_memory`]!(this.#state, segment, offset, instruction);
   }
 
   // Memory words. Each byte uses a wrapping 16-bit offset within its segment;
@@ -774,10 +664,5 @@ export class Cpu8088 {
     const low = readByte(physicalAddress(segment, offset));
     const high = readByte(physicalAddress(segment, (offset + 1) & 0xffff));
     return low | (high << 8);
-  }
-
-  #writeMemoryWord(segment: number, offset: number, value: number, writeByte: InstructionContext["writeByte"]): void {
-    writeByte(physicalAddress(segment, offset), value & 0xff);
-    writeByte(physicalAddress(segment, (offset + 1) & 0xffff), value >>> 8);
   }
 }
