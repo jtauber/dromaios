@@ -23,13 +23,13 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [162](../../src/components/cpus/6502.ts) | 149 / 151 | 98.7% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [443](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [385](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [975](../../src/components/cpus/8088.ts) | 70 / 291 | 24.1% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [953](../../src/components/cpus/8088.ts) | 132 / 291 | 45.4% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **1,936 generated bodies**, all used by CPU execution,
+contains **3,567 generated bodies**, all used by CPU execution,
 including two shared 6809 interrupt-frame helpers. They cover
-**1,800 complete opcode forms**:
+**1,862 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -281,7 +281,7 @@ including two shared 6809 interrupt-frame helpers. They cover
   generate their bindings, sharing register selectors with runtime operands.
   The accumulator-dispatch and register-adjustment wrappers are removed.
   ModR/M MOV in both directions, ModR/M XCHG, absolute accumulator MOV, and
-  immediate r/m MOV add twelve complete forms: 70 migrated in total.
+  immediate r/m MOV add twelve complete forms.
   Their 306 specialized bodies cover every register pair and reuse resolved
   memory bodies across addressing modes; immediate register choices reuse the
   earlier bodies. The decoder supplies a captured segment and offset. Each
@@ -290,6 +290,17 @@ including two shared 6809 interrupt-frame helpers. They cover
   r/m before the register and writes r/m first. Failed second accesses retain
   completed effects. Prefix handling, ModR/M resolution, rejection, segmented
   fetching, and retirement remain in the CPU.
+  All 32 register/memory ALU forms, 26 immediate r/m ALU forms, and four
+  register/immediate TEST forms add 62 more: **132 migrated forms** in total.
+  Their 1,631 specialized bodies reuse the transfer operands and accumulator
+  arithmetic/flag construction, with no new primitive or compiler support.
+  Sources are captured before destinations; ADC/SBB then read CF. Immediate
+  words fetch completely before the destination read, including explicit byte
+  sign extension for 83. Flags precede writeback, so a failed memory write
+  retains them and any completed byte write. CMP/TEST never write operands.
+  One ModR/M binding now selects MOV, XCHG, ALU, and TEST bodies. The old ALU
+  function table, operand-pair/apply wrappers, immediate TEST wrapper, immediate
+  reader, and runtime logical-flag helper are removed.
 
 The 68000 has no instruction bodies generated from these definitions.
 Its existing shared TypeScript helpers remain useful, but are outside this
@@ -337,30 +348,29 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,002 |
-| CPU-specific instruction definition files | 1,172 |
+| Eight CPU implementation files | 3,980 |
+| CPU-specific instruction definition files | 1,217 |
 | Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,916 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,090** |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,113** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 29,968 |
+| Generated CPU output, counted separately | 75,112 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The segmented 8088 transfer migration adds **306 bodies for twelve forms**.
-Register pairs specialize during construction; memory bodies share captured
-segment/offset inputs across addressing modes. Address projection is a distinct
-memory-address expression, keeping physical bus width separate from ALU widths.
-Byte views reuse the existing read/extract/concatenate/write construction.
+The 8088 ALU/TEST migration adds **1,631 bodies for 62 forms**, sharing the
+existing resolved operands and accumulator arithmetic/flag construction.
+MOV/XCHG/ALU/TEST also share their ModR/M decode binding. No primitive,
+validator, or compiler changes are needed.
 
-The 8088 module grows from **963 to 975 lines** (**12 more**) because its
-replacement decode bindings now select generated register or memory bodies.
-CPU-specific definitions add **57 lines** and other authored source adds **30**.
-Total authored CPU source rises from **7,991 to 8,090 lines** (**99 more**).
-This establishes explicit segmented-memory meaning and removes handwritten
-MOV/XCHG bodies; it does not yet reduce source. Generated output grows by
-**3,224 lines**. All **1,630** earlier definitions and seven earlier generated
-modules remain unchanged.
+The 8088 module shrinks from **975 to 953 lines** (**22 fewer**), removing its
+handwritten ALU dispatch/application and logical-flag paths. Definitions add
+**45 net lines**; shared source is unchanged. Total authored CPU source rises
+from **8,090 to 8,113 lines** (**23 more**). Generated output grows by
+**45,144 lines**, reflecting the explicit specialization of operations, widths,
+and register choices; this is expansion, not maintained source reduction.
+All **1,936** earlier definitions and eight earlier generated modules remain
+unchanged, including the accumulator bodies whose construction is now shared.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

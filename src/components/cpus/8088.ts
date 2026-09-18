@@ -15,6 +15,7 @@ import { byteRegisters8088, wordRegisters8088 } from "./8088-registers.ts";
 import type { ByteRegister8088, WordRegister8088 as WordRegister } from "./8088-registers.ts";
 import { instructions as semantics, opcodeEntries } from "./generated/8088.ts";
 import { instructions as transfers } from "./generated/8088-transfers.ts";
+import { instructions as alu } from "./generated/8088-alu.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
@@ -114,7 +115,8 @@ interface InstructionContext extends WordInstructionContext, BytePorts {
 type Rejection = "opcode" | "divide-error";
 type OpcodeHandler = (instruction: InstructionContext) => Rejection | void;
 type OperandWidth = 8 | 16;
-type AluOperation = (width: OperandWidth, left: number, right: number) => number | void;
+type AluOperation = typeof aluOperations[number] | "TEST";
+type BinaryOperation = AluOperation | "move" | "exchange";
 type OperandOperation = (width: OperandWidth, operand: Operand, instruction: InstructionContext) => Rejection | void;
 type SegmentRegister = "es" | "cs" | "ss" | "ds";
 type StringOperation = "move" | "compare" | "store" | "load" | "scan";
@@ -128,12 +130,20 @@ interface Operand {
 }
 
 // Definitions specialize register selectors; memory bodies take one captured segment and offset.
-const registerTransfers: Readonly<Record<`${"move" | "exchange"}_${OperandWidth}_${number}_${number}`, (state: Cpu8088State) => void>> = transfers;
-const memoryTransfers: Readonly<Record<`${"load" | "store" | "exchangeMemory"}_${OperandWidth}_${number}`,
-  (state: Cpu8088State, segment: number, offset: number, instruction: ByteMemory) => void>> = transfers;
+const resolvedOperands = { ...transfers, ...alu };
+const registerOperations: Readonly<Record<`${BinaryOperation}_${OperandWidth}_${number}_${number}`, (state: Cpu8088State) => void>> = resolvedOperands;
+const memoryOperations: Readonly<Partial<Record<`${"load" | "store" | "exchangeMemory" | `${AluOperation}_${"fromMemory" | "toMemory"}`}_${OperandWidth}_${number}`,
+  (state: Cpu8088State, segment: number, offset: number, instruction: ByteMemory) => void>>> = resolvedOperands;
 const memoryImmediates: Readonly<Record<`immediate_${OperandWidth}`,
   (state: Cpu8088State, segment: number, offset: number, instruction: InstructionContext) => void>> = transfers;
 const registerImmediates: Readonly<Partial<Record<number, (state: Cpu8088State, instruction: InstructionContext) => void>>> = semantics;
+
+// 00 ooo ... and ModR/M mm ooo rrr share this operation field.
+const aluOperations = ["ADD", "OR", "ADC", "SBB", "AND", "SUB", "XOR", "CMP"] as const;
+const immediateRegisterAlu: Readonly<Partial<Record<`${AluOperation}_${"immediate" | "signed"}_${OperandWidth}_${number}`,
+  (state: Cpu8088State, instruction: InstructionContext) => void>>> = alu;
+const immediateMemoryAlu: Readonly<Partial<Record<`${AluOperation}_${"immediate" | "signed"}_${OperandWidth}_memory`,
+  (state: Cpu8088State, segment: number, offset: number, instruction: InstructionContext) => void>>> = alu;
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
 const statusBits = { cf: 0, pf: 2, af: 4, zf: 6, sf: 7 } as const;
@@ -343,23 +353,9 @@ export class Cpu8088 {
   readonly #byteRegisters = byteRegisters8088;
   readonly #operandWidths = [8, 16] as const;
 
-  // 00 ooo ... and ModR/M mm ooo rrr share the same operation field.
-  // Returning no value means CMP updates flags without a destination write.
-  readonly #aluOperations: readonly AluOperation[] = [
-    (width, left, right) => this.#add(width, left, right), // 000: ADD
-    (width, left, right) => this.#logic(width, left | right), // 001: OR
-    (width, left, right) => this.#add(width, left, right, this.#state.flags.cf ? 1 : 0), // 010: ADC
-    (width, left, right) => this.#subtract(width, left, right, this.#state.flags.cf ? 1 : 0), // 011: SBB
-    (width, left, right) => this.#logic(width, left & right), // 100: AND
-    (width, left, right) => this.#subtract(width, left, right), // 101: SUB
-    (width, left, right) => this.#logic(width, left ^ right), // 110: XOR
-    (width, left, right) => { this.#subtract(width, left, right); }, // 111: CMP
-  ];
-  readonly #test: AluOperation = (width, left, right) => { this.#logic(width, left & right); };
-
   // F6/F7: mm ooo rrr selects TEST, unused /1, NOT, NEG, MUL, IMUL, DIV, IDIV.
   readonly #unaryOperations: readonly (OperandOperation | undefined)[] = [
-    (width, operand, instruction) => this.#testImmediate(width, operand, instruction), // 000: TEST r/m,n
+    undefined, // 000: TEST r/m,n enters a complete generated body in #unary.
     undefined, // 001: undocumented TEST alias
     (width, operand) => operand.write(operand.read() ^ (2 ** width - 1)), // 010: NOT
     (width, operand) => operand.write(this.#subtract(width, 0, operand.read())), // 011: NEG
@@ -425,7 +421,7 @@ export class Cpu8088 {
       ...opcodeEntries(this.#state),
       // 00 ooo 0 d w: ooo selects ADD/OR/ADC/SBB/AND/SUB/XOR/CMP above; w=0 byte, w=1 word.
       // ModR/M mm ggg rrr supplies operands; d=0 selects the r/m destination, d=1 register ggg.
-      ...opcodeFamily("00 ooo 0 d w", { o: this.#aluOperations, d: [false, true], w: this.#operandWidths }, ({ o: operation, d: toRegister, w: width }) => (instruction: InstructionContext) => this.#aluRegisterMemory(operation, width, toRegister, instruction)), // ALU r/m,r / r,r/m
+      ...opcodeFamily("00 ooo 0 d w", { o: aluOperations, d: [false, true], w: this.#operandWidths }, ({ o: operation, d: toRegister, w: width }) => (instruction: InstructionContext) => this.#binary(operation, width, toRegister, instruction)), // ALU r/m,r / r,r/m
 
       // 000 ss 11p: ss selects ES/CS/SS/DS; p=0 PUSH, p=1 POP. POP CS is undocumented.
       ...opcodeFamily("000 ss 110", { s: this.#segmentRegisters }, ({ s }) => ({ writeByte }: InstructionContext) => this.#pushWord(this.#state[s], writeByte)),
@@ -449,11 +445,11 @@ export class Cpu8088 {
       // w=0 uses a byte; w=1 uses a word for s=0 or a sign-extended byte for s=1.
       ...opcodeFamily("1000 00 s w", { s: [false, true], w: this.#operandWidths }, ({ s: shortImmediate, w: width }) => (instruction: InstructionContext) => this.#aluImmediate(width, shortImmediate, instruction)), // ALU r/m,n
       // 1000 010w + mm ggg rrr: AND flags without a write; ggg is the source register.
-      ...opcodeFamily("1000 010 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#aluRegisterMemory(this.#test, width, false, instruction)), // TEST r/m,r
+      ...opcodeFamily("1000 010 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#binary("TEST", width, false, instruction)), // TEST r/m,r
       // 1000 011w + mm ggg rrr: exchange the original operands, even when registers alias.
-      ...opcodeFamily("1000 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#transfer(width, "exchange", instruction)), // XCHG r/m,r
+      ...opcodeFamily("1000 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#binary("exchange", width, false, instruction)), // XCHG r/m,r
       // 1000 10 d w + mm ggg rrr: d=0 writes r/m, d=1 writes register ggg; no flags change.
-      ...opcodeFamily("1000 10 d w", { d: [false, true], w: this.#operandWidths }, ({ d: toRegister, w: width }) => (instruction: InstructionContext) => this.#transfer(width, toRegister ? "load" : "store", instruction)), // MOV r/m,r / r,r/m
+      ...opcodeFamily("1000 10 d w", { d: [false, true], w: this.#operandWidths }, ({ d: toRegister, w: width }) => (instruction: InstructionContext) => this.#binary("move", width, toRegister, instruction)), // MOV r/m,r / r,r/m
 
       // 1000 11 d 0 + mm 0ss rrr moves segment registers; loading CS is undocumented.
       ...opcodeFamily("1000 11 d 0", { d: [false, true] }, ({ d: toSegment }) => (instruction: InstructionContext) => this.#moveSegment(toSegment, instruction)), // MOV r/m16,Sreg / Sreg,r/m16
@@ -521,7 +517,7 @@ export class Cpu8088 {
       ...instructionPattern("1110 1011", ({ fetchByte }) => this.#jump(signed8(fetchByte()))), // JMP rel8
 
       // 1111 011w / 1111 111w: ModR/M's ooo selects the supported unary/adjust operations above.
-      ...opcodeFamily("1111 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#operandGroup(width, this.#unaryOperations, instruction)), // TEST/NOT/NEG/MUL/IMUL/DIV/IDIV r/m
+      ...opcodeFamily("1111 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#unary(width, instruction)), // TEST/NOT/NEG/MUL/IMUL/DIV/IDIV r/m
       ...instructionPattern("1111 1110", instruction => this.#operandGroup(8, this.#adjustOperations, instruction)), // INC/DEC r/m8
       ...instructionPattern("1111 1111", instruction => this.#wordGroup(instruction)), // INC/DEC/CALL/JMP/PUSH r/m16
 
@@ -585,10 +581,6 @@ export class Cpu8088 {
     return operation(width, this.#registerMemoryOperand(width, modRM, instruction), instruction);
   }
 
-  #fetchImmediate(width: OperandWidth, instruction: InstructionContext): number {
-    return width === 8 ? instruction.fetchByte() : instruction.fetchWord();
-  }
-
   #registerOperand(width: OperandWidth, selector: number): Operand {
     if (width === 8) {
       const register = this.#byteRegisters[selector]!;
@@ -626,21 +618,16 @@ export class Cpu8088 {
     };
   }
 
-  #registerMemoryOperands(width: OperandWidth, toRegister: boolean, instruction: InstructionContext): readonly [Operand, Operand] {
-    const modRM = instruction.fetchByte();
-    const register = this.#registerOperand(width, (modRM >>> 3) & 7);
-    const memoryOrRegister = this.#registerMemoryOperand(width, modRM, instruction);
-    return toRegister ? [register, memoryOrRegister] : [memoryOrRegister, register];
-  }
-
-  #transfer(width: OperandWidth, operation: "load" | "store" | "exchange", instruction: InstructionContext): void {
+  #binary(operation: BinaryOperation, width: OperandWidth, toRegister: boolean, instruction: InstructionContext): void {
     const modRM = instruction.fetchByte(), register = (modRM >>> 3) & 7, rm = modRM & 7;
     if (modRM >= 0xc0) {
-      const [destination, source] = operation === "load" ? [register, rm] : [rm, register];
-      registerTransfers[`${operation === "exchange" ? "exchange" : "move"}_${width}_${destination}_${source}`]!(this.#state);
+      const [destination, source] = toRegister ? [register, rm] : [rm, register];
+      registerOperations[`${operation}_${width}_${destination}_${source}`]!(this.#state);
     } else {
       const { segment, offset } = this.#effectiveAddress(modRM, instruction);
-      memoryTransfers[`${operation === "exchange" ? "exchangeMemory" : operation}_${width}_${register}`]!(this.#state, segment, offset, instruction);
+      const body = operation === "move" ? (toRegister ? "load" : "store") : operation === "exchange" ? "exchangeMemory"
+        : `${operation}_${toRegister ? "fromMemory" : "toMemory"}` as const;
+      memoryOperations[`${body}_${width}_${register}`]!(this.#state, segment, offset, instruction);
     }
   }
 
@@ -656,7 +643,7 @@ export class Cpu8088 {
 
   #moveAbsolute(width: OperandWidth, toAccumulator: boolean, instruction: InstructionContext): void {
     const offset = instruction.fetchWord(), segment = instruction.segment ?? this.#state.ds;
-    memoryTransfers[`${toAccumulator ? "load" : "store"}_${width}_0`]!(this.#state, segment, offset, instruction);
+    memoryOperations[`${toAccumulator ? "load" : "store"}_${width}_0`]!(this.#state, segment, offset, instruction);
   }
 
   #moveSegment(toSegment: boolean, instruction: InstructionContext): Rejection | void {
@@ -805,25 +792,28 @@ export class Cpu8088 {
 
   // Arithmetic and flags.
 
-  #aluRegisterMemory(operation: AluOperation, width: OperandWidth, toRegister: boolean, instruction: InstructionContext): void {
-    const [destination, source] = this.#registerMemoryOperands(width, toRegister, instruction);
-    this.#applyAlu(operation, width, destination, source.read());
-  }
-
   #aluImmediate(width: OperandWidth, shortImmediate: boolean, instruction: InstructionContext): Rejection | void {
-    const modRM = instruction.fetchByte();
-    const selector = (modRM >>> 3) & 7;
+    const modRM = instruction.fetchByte(), selector = (modRM >>> 3) & 7;
     // Intel's 1979 table leaves /1, /4, and /6 unused for both 82 and 83.
     if (shortImmediate && (selector === 1 || selector === 4 || selector === 6)) return "opcode";
-    const destination = this.#registerMemoryOperand(width, modRM, instruction);
-    const value = width === 8 ? instruction.fetchByte()
-      : shortImmediate ? signed8(instruction.fetchByte()) & 0xffff : instruction.fetchWord();
-    this.#applyAlu(this.#aluOperations[selector]!, width, destination, value);
+    this.#immediateAlu(aluOperations[selector]!, width, modRM, shortImmediate && width === 16, instruction);
   }
 
-  #applyAlu(operation: AluOperation, width: OperandWidth, destination: Operand, value: number): void {
-    const result = operation(width, destination.read(), value);
-    if (result !== undefined) destination.write(result);
+  #immediateAlu(operation: AluOperation, width: OperandWidth, modRM: number, signed: boolean, instruction: InstructionContext): void {
+    const source = signed ? "signed" : "immediate";
+    if (modRM >= 0xc0) immediateRegisterAlu[`${operation}_${source}_${width}_${modRM & 7}`]!(this.#state, instruction);
+    else {
+      const { segment, offset } = this.#effectiveAddress(modRM, instruction);
+      immediateMemoryAlu[`${operation}_${source}_${width}_memory`]!(this.#state, segment, offset, instruction);
+    }
+  }
+
+  #unary(width: OperandWidth, instruction: InstructionContext): Rejection | void {
+    const modRM = instruction.fetchByte(), selector = (modRM >>> 3) & 7;
+    if (selector === 0) return this.#immediateAlu("TEST", width, modRM, false, instruction);
+    const operation = this.#unaryOperations[selector];
+    if (!operation) return "opcode";
+    return operation(width, this.#registerMemoryOperand(width, modRM, instruction), instruction);
   }
 
   #adjust(width: OperandWidth, value: number, decrement: boolean): number {
@@ -831,10 +821,6 @@ export class Cpu8088 {
     const result = decrement ? this.#subtract(width, value, 1) : this.#add(width, value, 1);
     this.#state.flags.cf = carry;
     return result;
-  }
-
-  #testImmediate(width: OperandWidth, operand: Operand, instruction: InstructionContext): void {
-    this.#applyAlu(this.#test, width, operand, this.#fetchImmediate(width, instruction));
   }
 
   #shift(width: OperandWidth, useCL: boolean, instruction: InstructionContext): Rejection | void {
@@ -934,14 +920,6 @@ export class Cpu8088 {
     this.#state.flags.cf = borrow;
     this.#state.flags.af = halfBorrow;
     this.#state.flags.of = overflow;
-    this.#setResultFlags(width, result);
-    return result;
-  }
-
-  #logic(width: OperandWidth, result: number): number {
-    this.#state.flags.cf = this.#state.flags.of = false;
-    // Intel leaves AF undefined for logic; clear it deterministically, matching the hardware fixtures.
-    this.#state.flags.af = false;
     this.#setResultFlags(width, result);
     return result;
   }

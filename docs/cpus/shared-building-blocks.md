@@ -1362,8 +1362,10 @@ existing word reads, byte extraction, and concatenation, capturing the retained
 half at writeback. Definitions generate their own opcode bindings. ModR/M
 MOV/XCHG and absolute MOV transfers now also use resolved bodies: captured segment/offset
 inputs and a distinct physical-address projection keep logical byte progression
-before bus mapping explicit. Register choices specialize during construction;
-ModR/M resolution and retirement remain outside the bodies. The 68000 probes below remain
+before bus mapping explicit. ALU/TEST now share these operands, the accumulator
+arithmetic/flag recipe, and the MOV/XCHG ModR/M binding. Register choices
+specialize during construction; flags precede writeback, and comparisons omit
+it. ModR/M resolution and retirement remain outside the bodies. The 68000 probes below remain
 requirements for later vocabulary. Whole-model migration remains a separate decision.
 
 The 6502 now authors these migrated instructions as encoding families and

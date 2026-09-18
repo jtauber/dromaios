@@ -6,7 +6,7 @@ import { instructions as mos, opcodeEntries } from "../../../../src/components/c
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
-import { instructions6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister, value, writeLatch, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
@@ -38,6 +38,7 @@ test("all generated modules reproduce from definitions without changing them", (
     assert.equal(JSON.stringify(definitions), before);
   }
   assert.equal(generateInstructions("8088", transfers8088), readFileSync("src/components/cpus/generated/8088-transfers.ts", "utf8"));
+  assert.equal(generateInstructions("8088", alu8088), readFileSync("src/components/cpus/generated/8088-alu.ts", "utf8"));
   assert.throws(() => generateInstructions("8080", instructions6502), /expected a 8080 definition/);
 });
 

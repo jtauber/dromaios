@@ -1,3 +1,4 @@
+import { instructions as alu8088 } from "../../src/components/cpus/generated/8088-alu.js";
 import { instructions as transfers8088 } from "../../src/components/cpus/generated/8088-transfers.js";
 import { instructions as generated8088, opcodeEntries as opcodeEntries8088 } from "../../src/components/cpus/generated/8088.js";
 import { cpu8088StateDescription } from "../../src/components/cpus/state/8088.js";
@@ -613,4 +614,25 @@ export function check8088TransferTypes(state: Cpu8088State, intel: Cpu8080State)
   transfers8088.immediate_16(state, 0xffff, 0xffff, { writeByte: () => {} });
   // @ts-expect-error Resolved transfer bodies retain concrete 8088 state.
   transfers8088.exchange_8_0_4(intel);
+}
+
+export function check8088AluTypes(state: Cpu8088State, intel: Cpu8080State): void {
+  alu8088.ADD_8_0_4(state);
+  alu8088.ADC_fromMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0 });
+  alu8088.CMP_toMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0 });
+  alu8088.TEST_immediate_16_memory(state, 0xffff, 0xffff, { fetchByte: () => 0, readByte: () => 0 });
+  alu8088.SBB_signed_16_4(state, { fetchByte: () => 0 });
+  alu8088.ADD_immediate_8_memory(state, 0xffff, 0xffff, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error A register-pair body has no context.
+  alu8088.ADD_8_0_4(state, {});
+  // @ts-expect-error CMP cannot write its memory operand.
+  alu8088.CMP_toMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Immediate TEST must fetch before reading its destination.
+  alu8088.TEST_immediate_16_memory(state, 0xffff, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error Memory arithmetic requires writing as well as reading.
+  alu8088.ADD_toMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error 8088 generated bodies retain their concrete CPU state.
+  alu8088.ADD_8_0_4(intel);
+  // @ts-expect-error The original chip has no sign-extended immediate OR.
+  alu8088.OR_signed_16_0(state, { fetchByte: () => 0 });
 }

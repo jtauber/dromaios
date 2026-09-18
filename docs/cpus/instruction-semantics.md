@@ -18,6 +18,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | --- | --- |
 | 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
 | 8088 ModR/M MOV/XCHG, absolute accumulator MOV, and immediate r/m MOV | Resolved segment/offset inputs; byte-offset wrap before physical projection; complete source capture and low-first partial writes |
+| 8088 ModR/M and immediate ALU/TEST | Reuse resolved operands and accumulator arithmetic; source before destination before CF; sign-extended immediates; flags before partial writes; CMP/TEST without operand writes |
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
@@ -65,8 +66,8 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 1,936 generated, executable bodies. All serve CPU execution;
-1,934 are bound through opcode or postbyte selection, and two are shared 6809
+There are 3,567 generated, executable bodies. All serve CPU execution;
+3,565 are bound through opcode or postbyte selection, and two are shared 6809
 frame helpers called by interrupt entry and return. The earlier MOV B,A test
 sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
@@ -520,6 +521,42 @@ cover all twelve forms with prefixes, wrapping fetch/data addresses, overlapping
 code, retained partial writes and inhibition, and guard release. C6/C7 reject
 nonzero operation extensions before fetching displacements or immediates;
 REP/REPNE rejection and retirement remain with the existing CPU boundary.
+
+### Resolved arithmetic, logic, and TEST
+
+The same register and memory operand construction now serves all eight ModR/M
+ALU operations, both full-width immediate groups, the documented 82/83 operation
+selectors, and register/immediate TEST. Their 1,631 specialized bodies cover
+62 complete forms. The 82 byte forms reuse ordinary immediate bodies; 83
+explicitly sign-extends its fetched byte to a word. TEST omits the nonexistent
+memory-source direction; sign-extended forms omit logical operations.
+
+All forms capture the complete source before reading the destination, then
+ADC/SBB read CF. The shared `aluSteps` recipe also constructs the earlier
+accumulator forms without changing their expanded definitions. Arithmetic
+updates CF/AF/OF, then ZF/SF/PF; logical operations clear OF/CF/AF before the
+result flags. Word PF uses only the low byte. CMP/TEST stop after flags; other
+operations write afterward, preserving a byte register's live other half.
+A failed memory write retains the new flags and any earlier byte write.
+
+MOV, XCHG, ALU, and register TEST share one CPU-owned ModR/M binding. The
+decoder resolves memory once and rejects unused immediate selectors before
+fetching a displacement. F6/F7 /0 enters immediate TEST's complete generated
+body; /1 remains unsupported, and other unary operations retain their existing
+paths. Prefix rejection, fetching, and retirement remain outside the bodies.
+The handwritten ALU function table, operand-pair/application wrappers, immediate
+reader/TEST wrapper, and logical-flag helper are removed. Addition/subtraction
+helpers still serve unmigrated unary and string operations.
+
+[Definition probes](../../tests/components/cpus/semantics/8088-alu.test.ts)
+check the entire specialization inventory, every effect and partial failure,
+aliased registers, replaced flag objects, live byte halves, and fixed addresses
+across callbacks. [CPU boundary probes](../../tests/components/cpus/8088/alu-failures.test.ts)
+cover all 62 forms, prefixes, wrapped fetches and data, every failed byte,
+retained flags and partial writes, successful retirement, and unused-selector
+rejection. Existing independent CPU tests cover every addressing/register
+choice, signed-byte values, overlapping code/data, and arithmetic boundaries.
+Generated context types give CMP/TEST no write capability.
 
 ## Z80 banks, special registers, and repeated blocks
 
@@ -1082,8 +1119,8 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,8008,8080,8088,6809,z80}.ts` and
-`8088-transfers.ts`. The separate 8088 transfer module contains specialized
-resolved bodies; its numeric opcode module retains automatic bindings.
+`8088-transfers.ts` and `8088-alu.ts`. The separate 8088 operand modules contain
+specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
 Regenerate with `npm run generate:cpus`;
 `npm run build` generates these bodies and the machine factories automatically.

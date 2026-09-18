@@ -16,8 +16,8 @@ test("native CPU generation bootstraps without generated files and removes obsol
   const run = () => {
     const result = spawnSync(process.execPath, [join(directory, "scripts/generate-cpu-semantics.ts")], { cwd: tmpdir(), encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(readdirSync(output).sort(), ["6502.ts", "6800.ts", "6809.ts", "8008.ts", "8080.ts", "8088-transfers.ts", "8088.ts", "z80.ts"]);
-    for (const cpu of ["6502", "6800", "6809", "8008", "8080", "8088-transfers", "8088", "z80"]) {
+    assert.deepEqual(readdirSync(output).sort(), ["6502.ts", "6800.ts", "6809.ts", "8008.ts", "8080.ts", "8088-alu.ts", "8088-transfers.ts", "8088.ts", "z80.ts"]);
+    for (const cpu of ["6502", "6800", "6809", "8008", "8080", "8088-alu", "8088-transfers", "8088", "z80"]) {
       assert.equal(readFileSync(join(output, `${cpu}.ts`), "utf8"), readFileSync(`src/components/cpus/generated/${cpu}.ts`, "utf8"));
     }
   };
