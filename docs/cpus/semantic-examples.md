@@ -20,6 +20,12891 @@ later statement runs. See the contract for which bodies are bound to CPU opcodes
 
 ## Examples
 
+### 68000 MOVE.B D0,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low8(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D1,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low8(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D2,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low8(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D3,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low8(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D4,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low8(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D5,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low8(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D6,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low8(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D7,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low8(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D0,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low8(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D1,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low8(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D2,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low8(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D3,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low8(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D4,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low8(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D5,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low8(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D6,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low8(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D7,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low8(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D0,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low8(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D1,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low8(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D2,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low8(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D3,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low8(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D4,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low8(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D5,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low8(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D6,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low8(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D7,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low8(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D0,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low8(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D1,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low8(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D2,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low8(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D3,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low8(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D4,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low8(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D5,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low8(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D6,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low8(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D7,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low8(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D0,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low8(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D1,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low8(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D2,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low8(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D3,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low8(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D4,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low8(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D5,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low8(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D6,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low8(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D7,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low8(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D0,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low8(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D1,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low8(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D2,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low8(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D3,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low8(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D4,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low8(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D5,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low8(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D6,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low8(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D7,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low8(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D0,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low8(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D1,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low8(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D2,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low8(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D3,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low8(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D4,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low8(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D5,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low8(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D6,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low8(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D7,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low8(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D0,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low8(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D1,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low8(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D2,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low8(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D3,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low8(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D4,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low8(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D5,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low8(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D6,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low8(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D7,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low8(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D0,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D1,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D2,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D3,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D4,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D5,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D6,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D7,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A0,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A1,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A2,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A3,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A4,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A5,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A6,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := source
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A7,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write D0:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write D0:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L D0,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D1,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D2,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D3,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D4,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D5,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D6,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D7,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A0,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A1,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A2,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A3,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A4,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A5,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A6,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := source
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A7,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write A0:u32 := result
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write A0:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L D0,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D1,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D2,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D3,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D4,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D5,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D6,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D7,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A0,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A1,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A2,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A3,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A4,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A5,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A6,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := source
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A7,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write D1:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write D1:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L D0,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D1,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D2,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D3,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D4,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D5,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D6,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D7,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A0,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A1,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A2,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A3,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A4,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A5,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A6,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := source
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A7,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write A1:u32 := result
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write A1:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L D0,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D1,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D2,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D3,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D4,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D5,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D6,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D7,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A0,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A1,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A2,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A3,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A4,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A5,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A6,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := source
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A7,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write D2:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write D2:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L D0,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D1,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D2,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D3,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D4,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D5,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D6,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D7,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A0,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A1,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A2,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A3,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A4,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A5,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A6,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := source
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A7,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write A2:u32 := result
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write A2:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L D0,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D1,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D2,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D3,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D4,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D5,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D6,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D7,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A0,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A1,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A2,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A3,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A4,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A5,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A6,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := source
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A7,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write D3:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write D3:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L D0,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D1,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D2,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D3,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D4,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D5,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D6,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D7,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A0,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A1,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A2,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A3,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A4,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A5,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A6,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := source
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A7,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write A3:u32 := result
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write A3:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L D0,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D1,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D2,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D3,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D4,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D5,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D6,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D7,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A0,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A1,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A2,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A3,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A4,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A5,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A6,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := source
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A7,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write D4:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write D4:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L D0,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D1,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D2,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D3,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D4,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D5,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D6,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D7,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A0,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A1,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A2,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A3,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A4,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A5,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A6,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := source
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A7,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write A4:u32 := result
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write A4:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L D0,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D1,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D2,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D3,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D4,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D5,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D6,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D7,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A0,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A1,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A2,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A3,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A4,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A5,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A6,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := source
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A7,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write D5:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write D5:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L D0,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D1,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D2,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D3,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D4,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D5,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D6,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D7,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A0,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A1,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A2,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A3,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A4,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A5,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A6,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := source
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A7,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write A5:u32 := result
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write A5:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L D0,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D1,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D2,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D3,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D4,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D5,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D6,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D7,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A0,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A1,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A2,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A3,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A4,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A5,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A6,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := source
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A7,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write D6:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write D6:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L D0,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D1,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D2,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D3,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D4,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D5,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D6,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D7,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A0,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A1,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A2,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A3,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A4,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A5,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A6,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := source
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A7,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write A6:u32 := result
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write A6:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L D0,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D1,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D2,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D3,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D4,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D5,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D6,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D7,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A0,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A1,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A2,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A3,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A4,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A5,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A6,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := source
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A7,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  write D7:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  write D7:u32 := result
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L D0,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D1,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D2,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D3,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D4,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D5,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D6,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L D7,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A0,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A1,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A2,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A3,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A4,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A5,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A6,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := source
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L A7,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  destinationSupervisor:flag := read S
+  when destinationSupervisor {
+    write SSP:u32 := result
+  }
+  when not(destinationSupervisor) {
+    write USP:u32 := result
+  }
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  destinationSupervisor:flag := read S
+  when destinationSupervisor {
+    write SSP:u32 := result
+  }
+  when not(destinationSupervisor) {
+    write USP:u32 := result
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W D0,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D1,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D2,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D3,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D4,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D5,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D6,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D7,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A0,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A1,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A2,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A3,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A4,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A5,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A6,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := low16(source)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A7,D0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W D0,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D1,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D2,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D3,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D4,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D5,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D6,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D7,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A0,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A1,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A2,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A3,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A4,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A5,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A6,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := low16(source)
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A7,A0
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  write A0:u32 := signExtend32(result)
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  write A0:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W D0,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D1,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D2,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D3,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D4,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D5,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D6,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D7,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A0,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A1,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A2,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A3,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A4,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A5,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A6,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := low16(source)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A7,D1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W D0,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D1,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D2,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D3,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D4,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D5,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D6,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D7,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A0,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A1,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A2,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A3,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A4,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A5,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A6,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := low16(source)
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A7,A1
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  write A1:u32 := signExtend32(result)
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  write A1:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W D0,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D1,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D2,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D3,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D4,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D5,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D6,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D7,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A0,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A1,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A2,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A3,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A4,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A5,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A6,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := low16(source)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A7,D2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W D0,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D1,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D2,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D3,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D4,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D5,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D6,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D7,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A0,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A1,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A2,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A3,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A4,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A5,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A6,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := low16(source)
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A7,A2
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  write A2:u32 := signExtend32(result)
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  write A2:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W D0,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D1,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D2,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D3,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D4,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D5,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D6,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D7,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A0,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A1,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A2,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A3,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A4,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A5,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A6,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := low16(source)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A7,D3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W D0,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D1,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D2,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D3,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D4,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D5,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D6,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D7,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A0,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A1,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A2,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A3,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A4,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A5,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A6,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := low16(source)
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A7,A3
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  write A3:u32 := signExtend32(result)
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  write A3:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W D0,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D1,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D2,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D3,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D4,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D5,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D6,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D7,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A0,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A1,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A2,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A3,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A4,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A5,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A6,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := low16(source)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A7,D4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W D0,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D1,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D2,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D3,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D4,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D5,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D6,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D7,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A0,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A1,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A2,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A3,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A4,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A5,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A6,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := low16(source)
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A7,A4
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  write A4:u32 := signExtend32(result)
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  write A4:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W D0,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D1,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D2,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D3,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D4,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D5,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D6,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D7,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A0,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A1,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A2,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A3,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A4,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A5,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A6,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := low16(source)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A7,D5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W D0,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D1,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D2,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D3,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D4,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D5,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D6,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D7,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A0,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A1,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A2,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A3,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A4,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A5,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A6,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := low16(source)
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A7,A5
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  write A5:u32 := signExtend32(result)
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  write A5:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W D0,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D1,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D2,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D3,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D4,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D5,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D6,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D7,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A0,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A1,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A2,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A3,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A4,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A5,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A6,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := low16(source)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A7,D6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W D0,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D1,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D2,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D3,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D4,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D5,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D6,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D7,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A0,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A1,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A2,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A3,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A4,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A5,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A6,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := low16(source)
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A7,A6
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  write A6:u32 := signExtend32(result)
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  write A6:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W D0,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D0
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D1,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D1
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D2,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D2
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D3,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D3
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D4,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D4
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D5,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D5
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D6,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D6
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D7,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read D7
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A0,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A0
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A1,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A1
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A2,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A2
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A3,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A3
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A4,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A4
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A5,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A5
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A6,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+source:u32 := read A6
+result := low16(source)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A7,D7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Preserve the current upper portion on byte/word writes. Write the destination before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W D0,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D0
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D1,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D1
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D2,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D2
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D3,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D3
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D4,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D4
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D5,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D5
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D6,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D6
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W D7,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read D7
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A0,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A0
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A1,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A1
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A2,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A2
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A3,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A3
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A4,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A4
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A5,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A5
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A6,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+source:u32 := read A6
+result := low16(source)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W A7,A7
+
+Capture the source before resolving the destination. A7 selects SSP when S is set and USP otherwise. Replace the complete address register, sign-extending a word. Preserve every flag.
+
+```text
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  destinationSupervisor:flag := read S
+  when destinationSupervisor {
+    write SSP:u32 := signExtend32(result)
+  }
+  when not(destinationSupervisor) {
+    write USP:u32 := signExtend32(result)
+  }
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  destinationSupervisor:flag := read S
+  when destinationSupervisor {
+    write SSP:u32 := signExtend32(result)
+  }
+  when not(destinationSupervisor) {
+    write USP:u32 := signExtend32(result)
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 SWAP D0
+
+Read Dn once and exchange its high and low words. Set N/Z and clear V/C before writing Dn; preserve X/T/S.
+
+```text
+original:u32 := read D0
+result := bitOr(shiftBitsLeft(original, 16), shiftBitsRight(original, 16))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write D0:u32 := result
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 SWAP D1
+
+Read Dn once and exchange its high and low words. Set N/Z and clear V/C before writing Dn; preserve X/T/S.
+
+```text
+original:u32 := read D1
+result := bitOr(shiftBitsLeft(original, 16), shiftBitsRight(original, 16))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write D1:u32 := result
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 SWAP D2
+
+Read Dn once and exchange its high and low words. Set N/Z and clear V/C before writing Dn; preserve X/T/S.
+
+```text
+original:u32 := read D2
+result := bitOr(shiftBitsLeft(original, 16), shiftBitsRight(original, 16))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write D2:u32 := result
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 SWAP D3
+
+Read Dn once and exchange its high and low words. Set N/Z and clear V/C before writing Dn; preserve X/T/S.
+
+```text
+original:u32 := read D3
+result := bitOr(shiftBitsLeft(original, 16), shiftBitsRight(original, 16))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write D3:u32 := result
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 SWAP D4
+
+Read Dn once and exchange its high and low words. Set N/Z and clear V/C before writing Dn; preserve X/T/S.
+
+```text
+original:u32 := read D4
+result := bitOr(shiftBitsLeft(original, 16), shiftBitsRight(original, 16))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write D4:u32 := result
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 SWAP D5
+
+Read Dn once and exchange its high and low words. Set N/Z and clear V/C before writing Dn; preserve X/T/S.
+
+```text
+original:u32 := read D5
+result := bitOr(shiftBitsLeft(original, 16), shiftBitsRight(original, 16))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write D5:u32 := result
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 SWAP D6
+
+Read Dn once and exchange its high and low words. Set N/Z and clear V/C before writing Dn; preserve X/T/S.
+
+```text
+original:u32 := read D6
+result := bitOr(shiftBitsLeft(original, 16), shiftBitsRight(original, 16))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write D6:u32 := result
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 SWAP D7
+
+Read Dn once and exchange its high and low words. Set N/Z and clear V/C before writing Dn; preserve X/T/S.
+
+```text
+original:u32 := read D7
+result := bitOr(shiftBitsLeft(original, 16), shiftBitsRight(original, 16))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+write D7:u32 := result
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.W D0
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D0
+result := signExtend16(low8(original))
+write D0:u32 := bitOr(bitAnd(original, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.W D1
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D1
+result := signExtend16(low8(original))
+write D1:u32 := bitOr(bitAnd(original, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.W D2
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D2
+result := signExtend16(low8(original))
+write D2:u32 := bitOr(bitAnd(original, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.W D3
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D3
+result := signExtend16(low8(original))
+write D3:u32 := bitOr(bitAnd(original, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.W D4
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D4
+result := signExtend16(low8(original))
+write D4:u32 := bitOr(bitAnd(original, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.W D5
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D5
+result := signExtend16(low8(original))
+write D5:u32 := bitOr(bitAnd(original, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.W D6
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D6
+result := signExtend16(low8(original))
+write D6:u32 := bitOr(bitAnd(original, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.W D7
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D7
+result := signExtend16(low8(original))
+write D7:u32 := bitOr(bitAnd(original, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.L D0
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D0
+result := signExtend32(low16(original))
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.L D1
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D1
+result := signExtend32(low16(original))
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.L D2
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D2
+result := signExtend32(low16(original))
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.L D3
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D3
+result := signExtend32(low16(original))
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.L D4
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D4
+result := signExtend32(low16(original))
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.L D5
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D5
+result := signExtend32(low16(original))
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.L D6
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D6
+result := signExtend32(low16(original))
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXT.L D7
+
+Read Dn once. Sign-extend its byte to a word or its word to a long. EXT.W preserves the captured upper word. Write Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+original:u32 := read D7
+result := signExtend32(low16(original))
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 EXG D0,D0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read D0
+write D0:u32 := right
+write D0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,D1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read D1
+write D0:u32 := right
+write D1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,D2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read D2
+write D0:u32 := right
+write D2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,D3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read D3
+write D0:u32 := right
+write D3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,D4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read D4
+write D0:u32 := right
+write D4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,D5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read D5
+write D0:u32 := right
+write D5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,D6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read D6
+write D0:u32 := right
+write D6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,D7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read D7
+write D0:u32 := right
+write D7:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A0,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A0
+right:u32 := read A0
+write A0:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A0,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A0
+right:u32 := read A1
+write A0:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A0,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A0
+right:u32 := read A2
+write A0:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A0,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A0
+right:u32 := read A3
+write A0:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A0,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A0
+right:u32 := read A4
+write A0:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A0,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A0
+right:u32 := read A5
+write A0:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A0,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A0
+right:u32 := read A6
+write A0:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A0,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read A0
+  right:u32 := read SSP
+  write A0:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read A0
+  right:u32 := read USP
+  write A0:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read A0
+write D0:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read A1
+write D0:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read A2
+write D0:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read A3
+write D0:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read A4
+write D0:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read A5
+write D0:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D0
+right:u32 := read A6
+write D0:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D0,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read D0
+  right:u32 := read SSP
+  write D0:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read D0
+  right:u32 := read USP
+  write D0:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,D0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read D0
+write D1:u32 := right
+write D0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,D1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read D1
+write D1:u32 := right
+write D1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,D2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read D2
+write D1:u32 := right
+write D2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,D3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read D3
+write D1:u32 := right
+write D3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,D4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read D4
+write D1:u32 := right
+write D4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,D5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read D5
+write D1:u32 := right
+write D5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,D6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read D6
+write D1:u32 := right
+write D6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,D7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read D7
+write D1:u32 := right
+write D7:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A1,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A1
+right:u32 := read A0
+write A1:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A1,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A1
+right:u32 := read A1
+write A1:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A1,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A1
+right:u32 := read A2
+write A1:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A1,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A1
+right:u32 := read A3
+write A1:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A1,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A1
+right:u32 := read A4
+write A1:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A1,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A1
+right:u32 := read A5
+write A1:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A1,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A1
+right:u32 := read A6
+write A1:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A1,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read A1
+  right:u32 := read SSP
+  write A1:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read A1
+  right:u32 := read USP
+  write A1:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read A0
+write D1:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read A1
+write D1:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read A2
+write D1:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read A3
+write D1:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read A4
+write D1:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read A5
+write D1:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D1
+right:u32 := read A6
+write D1:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D1,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read D1
+  right:u32 := read SSP
+  write D1:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read D1
+  right:u32 := read USP
+  write D1:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,D0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read D0
+write D2:u32 := right
+write D0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,D1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read D1
+write D2:u32 := right
+write D1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,D2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read D2
+write D2:u32 := right
+write D2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,D3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read D3
+write D2:u32 := right
+write D3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,D4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read D4
+write D2:u32 := right
+write D4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,D5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read D5
+write D2:u32 := right
+write D5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,D6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read D6
+write D2:u32 := right
+write D6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,D7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read D7
+write D2:u32 := right
+write D7:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A2,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A2
+right:u32 := read A0
+write A2:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A2,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A2
+right:u32 := read A1
+write A2:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A2,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A2
+right:u32 := read A2
+write A2:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A2,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A2
+right:u32 := read A3
+write A2:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A2,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A2
+right:u32 := read A4
+write A2:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A2,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A2
+right:u32 := read A5
+write A2:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A2,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A2
+right:u32 := read A6
+write A2:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A2,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read A2
+  right:u32 := read SSP
+  write A2:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read A2
+  right:u32 := read USP
+  write A2:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read A0
+write D2:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read A1
+write D2:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read A2
+write D2:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read A3
+write D2:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read A4
+write D2:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read A5
+write D2:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D2
+right:u32 := read A6
+write D2:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D2,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read D2
+  right:u32 := read SSP
+  write D2:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read D2
+  right:u32 := read USP
+  write D2:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,D0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read D0
+write D3:u32 := right
+write D0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,D1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read D1
+write D3:u32 := right
+write D1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,D2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read D2
+write D3:u32 := right
+write D2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,D3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read D3
+write D3:u32 := right
+write D3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,D4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read D4
+write D3:u32 := right
+write D4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,D5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read D5
+write D3:u32 := right
+write D5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,D6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read D6
+write D3:u32 := right
+write D6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,D7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read D7
+write D3:u32 := right
+write D7:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A3,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A3
+right:u32 := read A0
+write A3:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A3,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A3
+right:u32 := read A1
+write A3:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A3,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A3
+right:u32 := read A2
+write A3:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A3,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A3
+right:u32 := read A3
+write A3:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A3,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A3
+right:u32 := read A4
+write A3:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A3,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A3
+right:u32 := read A5
+write A3:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A3,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A3
+right:u32 := read A6
+write A3:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A3,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read A3
+  right:u32 := read SSP
+  write A3:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read A3
+  right:u32 := read USP
+  write A3:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read A0
+write D3:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read A1
+write D3:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read A2
+write D3:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read A3
+write D3:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read A4
+write D3:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read A5
+write D3:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D3
+right:u32 := read A6
+write D3:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D3,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read D3
+  right:u32 := read SSP
+  write D3:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read D3
+  right:u32 := read USP
+  write D3:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,D0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read D0
+write D4:u32 := right
+write D0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,D1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read D1
+write D4:u32 := right
+write D1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,D2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read D2
+write D4:u32 := right
+write D2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,D3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read D3
+write D4:u32 := right
+write D3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,D4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read D4
+write D4:u32 := right
+write D4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,D5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read D5
+write D4:u32 := right
+write D5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,D6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read D6
+write D4:u32 := right
+write D6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,D7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read D7
+write D4:u32 := right
+write D7:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A4,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A4
+right:u32 := read A0
+write A4:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A4,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A4
+right:u32 := read A1
+write A4:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A4,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A4
+right:u32 := read A2
+write A4:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A4,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A4
+right:u32 := read A3
+write A4:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A4,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A4
+right:u32 := read A4
+write A4:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A4,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A4
+right:u32 := read A5
+write A4:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A4,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A4
+right:u32 := read A6
+write A4:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A4,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read A4
+  right:u32 := read SSP
+  write A4:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read A4
+  right:u32 := read USP
+  write A4:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read A0
+write D4:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read A1
+write D4:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read A2
+write D4:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read A3
+write D4:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read A4
+write D4:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read A5
+write D4:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D4
+right:u32 := read A6
+write D4:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D4,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read D4
+  right:u32 := read SSP
+  write D4:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read D4
+  right:u32 := read USP
+  write D4:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,D0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read D0
+write D5:u32 := right
+write D0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,D1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read D1
+write D5:u32 := right
+write D1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,D2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read D2
+write D5:u32 := right
+write D2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,D3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read D3
+write D5:u32 := right
+write D3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,D4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read D4
+write D5:u32 := right
+write D4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,D5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read D5
+write D5:u32 := right
+write D5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,D6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read D6
+write D5:u32 := right
+write D6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,D7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read D7
+write D5:u32 := right
+write D7:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A5,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A5
+right:u32 := read A0
+write A5:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A5,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A5
+right:u32 := read A1
+write A5:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A5,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A5
+right:u32 := read A2
+write A5:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A5,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A5
+right:u32 := read A3
+write A5:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A5,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A5
+right:u32 := read A4
+write A5:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A5,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A5
+right:u32 := read A5
+write A5:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A5,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A5
+right:u32 := read A6
+write A5:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A5,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read A5
+  right:u32 := read SSP
+  write A5:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read A5
+  right:u32 := read USP
+  write A5:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read A0
+write D5:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read A1
+write D5:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read A2
+write D5:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read A3
+write D5:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read A4
+write D5:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read A5
+write D5:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D5
+right:u32 := read A6
+write D5:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D5,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read D5
+  right:u32 := read SSP
+  write D5:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read D5
+  right:u32 := read USP
+  write D5:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,D0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read D0
+write D6:u32 := right
+write D0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,D1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read D1
+write D6:u32 := right
+write D1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,D2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read D2
+write D6:u32 := right
+write D2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,D3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read D3
+write D6:u32 := right
+write D3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,D4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read D4
+write D6:u32 := right
+write D4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,D5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read D5
+write D6:u32 := right
+write D5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,D6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read D6
+write D6:u32 := right
+write D6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,D7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read D7
+write D6:u32 := right
+write D7:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A6,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A6
+right:u32 := read A0
+write A6:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A6,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A6
+right:u32 := read A1
+write A6:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A6,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A6
+right:u32 := read A2
+write A6:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A6,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A6
+right:u32 := read A3
+write A6:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A6,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A6
+right:u32 := read A4
+write A6:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A6,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A6
+right:u32 := read A5
+write A6:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A6,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read A6
+right:u32 := read A6
+write A6:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A6,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read A6
+  right:u32 := read SSP
+  write A6:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read A6
+  right:u32 := read USP
+  write A6:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read A0
+write D6:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read A1
+write D6:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read A2
+write D6:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read A3
+write D6:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read A4
+write D6:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read A5
+write D6:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D6
+right:u32 := read A6
+write D6:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D6,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read D6
+  right:u32 := read SSP
+  write D6:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read D6
+  right:u32 := read USP
+  write D6:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,D0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read D0
+write D7:u32 := right
+write D0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,D1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read D1
+write D7:u32 := right
+write D1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,D2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read D2
+write D7:u32 := right
+write D2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,D3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read D3
+write D7:u32 := right
+write D3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,D4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read D4
+write D7:u32 := right
+write D4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,D5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read D5
+write D7:u32 := right
+write D5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,D6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read D6
+write D7:u32 := right
+write D6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,D7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read D7
+write D7:u32 := right
+write D7:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A7,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+leftSupervisor:flag := read S
+when leftSupervisor {
+  left:u32 := read SSP
+  right:u32 := read A0
+  write SSP:u32 := right
+  write A0:u32 := left
+}
+when not(leftSupervisor) {
+  left:u32 := read USP
+  right:u32 := read A0
+  write USP:u32 := right
+  write A0:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A7,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+leftSupervisor:flag := read S
+when leftSupervisor {
+  left:u32 := read SSP
+  right:u32 := read A1
+  write SSP:u32 := right
+  write A1:u32 := left
+}
+when not(leftSupervisor) {
+  left:u32 := read USP
+  right:u32 := read A1
+  write USP:u32 := right
+  write A1:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A7,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+leftSupervisor:flag := read S
+when leftSupervisor {
+  left:u32 := read SSP
+  right:u32 := read A2
+  write SSP:u32 := right
+  write A2:u32 := left
+}
+when not(leftSupervisor) {
+  left:u32 := read USP
+  right:u32 := read A2
+  write USP:u32 := right
+  write A2:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A7,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+leftSupervisor:flag := read S
+when leftSupervisor {
+  left:u32 := read SSP
+  right:u32 := read A3
+  write SSP:u32 := right
+  write A3:u32 := left
+}
+when not(leftSupervisor) {
+  left:u32 := read USP
+  right:u32 := read A3
+  write USP:u32 := right
+  write A3:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A7,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+leftSupervisor:flag := read S
+when leftSupervisor {
+  left:u32 := read SSP
+  right:u32 := read A4
+  write SSP:u32 := right
+  write A4:u32 := left
+}
+when not(leftSupervisor) {
+  left:u32 := read USP
+  right:u32 := read A4
+  write USP:u32 := right
+  write A4:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A7,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+leftSupervisor:flag := read S
+when leftSupervisor {
+  left:u32 := read SSP
+  right:u32 := read A5
+  write SSP:u32 := right
+  write A5:u32 := left
+}
+when not(leftSupervisor) {
+  left:u32 := read USP
+  right:u32 := read A5
+  write USP:u32 := right
+  write A5:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A7,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+leftSupervisor:flag := read S
+when leftSupervisor {
+  left:u32 := read SSP
+  right:u32 := read A6
+  write SSP:u32 := right
+  write A6:u32 := left
+}
+when not(leftSupervisor) {
+  left:u32 := read USP
+  right:u32 := read A6
+  write USP:u32 := right
+  write A6:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG A7,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+leftSupervisor:flag := read S
+when leftSupervisor {
+  rightSupervisor:flag := read S
+  when rightSupervisor {
+    left:u32 := read SSP
+    right:u32 := read SSP
+    write SSP:u32 := right
+    write SSP:u32 := left
+  }
+  when not(rightSupervisor) {
+    left:u32 := read SSP
+    right:u32 := read USP
+    write SSP:u32 := right
+    write USP:u32 := left
+  }
+}
+when not(leftSupervisor) {
+  rightSupervisor:flag := read S
+  when rightSupervisor {
+    left:u32 := read USP
+    right:u32 := read SSP
+    write USP:u32 := right
+    write SSP:u32 := left
+  }
+  when not(rightSupervisor) {
+    left:u32 := read USP
+    right:u32 := read USP
+    write USP:u32 := right
+    write USP:u32 := left
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,A0
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read A0
+write D7:u32 := right
+write A0:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,A1
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read A1
+write D7:u32 := right
+write A1:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,A2
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read A2
+write D7:u32 := right
+write A2:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,A3
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read A3
+write D7:u32 := right
+write A3:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,A4
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read A4
+write D7:u32 := right
+write A4:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,A5
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read A5
+write D7:u32 := right
+write A5:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,A6
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+left:u32 := read D7
+right:u32 := read A6
+write D7:u32 := right
+write A6:u32 := left
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 EXG D7,A7
+
+Resolve both register identities, including A7's active stack bank, before reading either value. Capture both originals before writing left then right. Preserve every flag, including when both operands name the same register.
+
+```text
+rightSupervisor:flag := read S
+when rightSupervisor {
+  left:u32 := read D7
+  right:u32 := read SSP
+  write D7:u32 := right
+  write SSP:u32 := left
+}
+when not(rightSupervisor) {
+  left:u32 := read D7
+  right:u32 := read USP
+  write D7:u32 := right
+  write USP:u32 := left
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEQ #n,D0
+
+Sign-extend the operation word's immediate byte to a long. Replace Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+immediate:u8 := input
+result := signExtend32(immediate)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEQ #n,D1
+
+Sign-extend the operation word's immediate byte to a long. Replace Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+immediate:u8 := input
+result := signExtend32(immediate)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEQ #n,D2
+
+Sign-extend the operation word's immediate byte to a long. Replace Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+immediate:u8 := input
+result := signExtend32(immediate)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEQ #n,D3
+
+Sign-extend the operation word's immediate byte to a long. Replace Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+immediate:u8 := input
+result := signExtend32(immediate)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEQ #n,D4
+
+Sign-extend the operation word's immediate byte to a long. Replace Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+immediate:u8 := input
+result := signExtend32(immediate)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEQ #n,D5
+
+Sign-extend the operation word's immediate byte to a long. Replace Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+immediate:u8 := input
+result := signExtend32(immediate)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEQ #n,D6
+
+Sign-extend the operation word's immediate byte to a long. Replace Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+immediate:u8 := input
+result := signExtend32(immediate)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEQ #n,D7
+
+Sign-extend the operation word's immediate byte to a long. Replace Dn before setting N/Z and clearing V/C; preserve X/T/S.
+
+```text
+immediate:u8 := input
+result := signExtend32(immediate)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
 ### 6502 BRK
 
 Fetch padding before saving PC; stack B set. Push PC high then live PC low, then packed status with old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.

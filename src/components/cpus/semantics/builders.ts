@@ -9,8 +9,8 @@ import type { OpcodeEntry } from "../opcodes.ts";
 export interface AccumulatorCpu { readonly declaration: CpuDeclaration; register(field: "a"): Register; flag(field: string): Flag }
 
 /** Check encoding collisions before making the generator's inventory of defined entries. */
-export function instructionSet(entries: readonly OpcodeEntry<InstructionDefinition>[]): Readonly<Record<string, InstructionDefinition>> {
-  opcodeTable(entries);
+export function instructionSet(entries: readonly OpcodeEntry<InstructionDefinition>[], width: 8 | 16 = 8): Readonly<Record<string, InstructionDefinition>> {
+  opcodeTable(entries, width);
   return Object.freeze(Object.fromEntries(entries));
 }
 

@@ -35,7 +35,7 @@ core. Keep a CPU in one file while this organization remains easy to follow.
 ## Stored-state descriptions
 
 Each CPU module exports a `cpu…StateDescription` beside its public state
-type. For the 6502, 6800, 8008, 8080, 8088, 6809, and Z80, the declaration and derived types live in
+type. For all eight CPUs, the declaration and derived types live in
 CPU-owned modules under [`state/`](../../src/components/cpus/state) and are
 re-exported by the original CPU module. This lets instruction generation load
 schemas without loading execution or its generated imports. The description
@@ -144,6 +144,18 @@ Keep address and operand sources there too: all instructions now
 expand them into complete generated bodies. Standalone source generation remains
 a test of the same compiler. Address sources stop before the final data read, allowing stores and memory modifiers to preserve their own access order.
 Keep instruction-specific exceptions, such as indirect JMP's page wrap, explicit.
+
+For migrated 68000 register instructions, patterns likewise live beside their
+[definitions](../../src/components/cpus/semantics/definitions/68000.ts).
+`instructionSet(entries, 16)` checks the word-sized encoding inventory. The core
+adds generated entries to its shared static table, passing the executing CPU's
+state to each body; it excludes those slots from the handwritten MOVE builder.
+MOVEQ retains its embedded-byte selector and supplies the immediate to one
+parameterized body per destination. Literal values do not multiply coverage.
+A7 selection expands into explicit S tests and SSP/USP branches at each operand's
+turn. Byte/word data writes preserve the live upper portion, while EXT.W uses
+its captured original. Keep SWAP's flags-before-write order distinct from
+MOVE/MOVEQ/EXT's write-before-flags order.
 
 The complete support inventory belongs in [CPU implementation coverage](coverage.md).
 This guide describes organization and does not replace the model contracts or

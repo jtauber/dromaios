@@ -24,13 +24,14 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [548](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1305](../../src/components/cpus/68000.ts) | 800 / 36,029 | 2.2% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **4,290 generated bodies**, all used by CPU execution,
+contains **5,090 generated bodies**, all used by CPU execution,
 including 6502/6800/8088 entry helpers, a 6809 frame-push helper, and 8088 WAIT
-resumption. They cover **2,099 complete opcode forms**. All six 8-bit CPUs and
-the 8088 now have complete instruction-definition migration:
+resumption. They cover **2,899 complete opcode forms**. All six 8-bit CPUs and
+the 8088 now have complete instruction-definition migration. The current
+family inventory is:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -377,9 +378,21 @@ the 8088 now have complete instruction-definition migration:
   Device adapters retain validation, detached requests, and access recording;
   recognition and retirement remain CPU-owned.
 
-The 68000 has no instruction bodies generated from these definitions.
-Its existing shared TypeScript helpers remain useful, but are outside this
-migration count. The [current review](instruction-semantics.md#decision-and-next-review)
+- [68000 definitions](../../src/components/cpus/semantics/definitions/68000.ts):
+  The first **800 forms** comprise 576 register-only MOVE/MOVEA forms, eight
+  MOVEQ destinations, sixteen EXT forms, eight SWAP forms, and all 192 EXG
+  pairs. MOVEQ's embedded immediate byte is a parameter: its 2,048 operation
+  words count as eight forms. In total the bodies serve **2,840 operation words**.
+  Byte/word data writes retain the live upper portion; EXT.W retains its
+  captured upper word. MOVEA.W sign-extends and preserves every flag.
+  A7 resolves to SSP/USP at each operand's turn without reading the inactive
+  stack. EXG resolves both identities and captures both originals before either
+  write. MOVE/MOVEQ/EXT write before N/Z/V/C; SWAP applies flags first. X/T/S
+  remain untouched. The existing conditional, width, transfer, and flag
+  vocabulary suffices; no semantic primitive is added. Memory MOVE/MOVEA and
+  the remaining families still use handwritten bodies.
+
+The [current review](instruction-semantics.md#decision-and-next-review)
 focuses on complete operation families, explicit carry and writeback stages,
 and the total authored source needed to share these definitions across CPUs.
 
@@ -423,33 +436,30 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,393 |
-| CPU-specific instruction definition files | 1,844 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,277 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,514** |
+| Eight CPU implementation files | 3,354 |
+| CPU-specific instruction definition files | 1,950 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,295 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,599** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 92,818 |
+| Generated CPU output, counted separately | 103,175 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The final 8088 migration completes **12 opcode forms** with six instruction
-bodies: INT3/INT/INTO, WAIT, and two resolved ESC paths. Two more bodies share
-interrupt entry and resume WAIT; the obsolete standalone word-push body is
-removed: **seven net new bodies**. The compiler adds explicit TEST, ESC, and
-completed-delivery effects and consolidates context selection into one capability
-mapping. Pin validation, request detachment, and recording live in a small
-[device adapter](../../src/components/cpus/8088-external.ts).
+The first 68000 migration adds **800 bodies** for **800 documented forms**.
+Its existing 32-bit operations and conditional statements express partial data
+registers and the active A7 bank. MOVEQ uses eight bodies with an immediate input,
+so generation does not duplicate each destination for 256 byte values. Shared
+construction gains an optional 16-bit opcode width for collision checks; the
+state declaration moves to a CPU-owned module to break the generation dependency.
 
-The 8088 module loses **73 lines**, including interrupt entry, WAIT state
-transitions, ESC delivery, and its last word/pointer memory readers. Definitions
-add **53 net lines** and supporting source adds **82**, including the adapter.
-Total authored CPU source rises from **8,452 to 8,514 lines** (**62 more**);
-generated output adds **254 lines**. This completes seven CPUs' instruction
-migration; the total maintained source still grows in this batch.
-All **4,282 retained earlier definitions** remain structurally unchanged; the
-only removed definition is the internal 8088 word push. Thirteen unaffected
-generated modules remain byte-identical, including every 8-bit CPU module.
+The 68000 module falls from **1,344 to 1,305 lines** (**39 fewer**), retiring its
+EXT, SWAP, MOVEQ, and exchange helpers. Definitions add **106 lines** and other
+CPU source adds **18**, including the extracted schema. Total authored CPU source
+rises from **8,514 to 8,599 lines** (**85 more**); generated output adds **10,357**.
+This is a migration and clarity improvement, not an overall source reduction.
+All **4,290 earlier definitions** remain structurally unchanged, and all sixteen
+previously generated modules remain byte-identical.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

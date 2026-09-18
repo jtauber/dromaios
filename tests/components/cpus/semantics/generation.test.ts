@@ -6,7 +6,7 @@ import { instructions as mos, opcodeEntries } from "../../../../src/components/c
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
-import { instructions6502, interrupts6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions68000, quick68000, instructions6502, interrupts6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister, value, writeLatch, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
@@ -30,13 +30,14 @@ function motorolaState(): Cpu6809State {
 }
 
 test("all generated modules reproduce from definitions without changing them", () => {
-  for (const [cpu, definitions] of [["6502", instructions6502], ["6800", instructions6800], ["8008", instructions8008], ["8080", instructions8080], ["8088", instructions8088], ["6809", instructions6809], ["z80", instructionsZ80]] as const) {
+  for (const [cpu, definitions] of [["68000", instructions68000], ["6502", instructions6502], ["6800", instructions6800], ["8008", instructions8008], ["8080", instructions8080], ["8088", instructions8088], ["6809", instructions6809], ["z80", instructionsZ80]] as const) {
     const before = JSON.stringify(definitions);
     const source = generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502" || cpu === "8088", sources: cpu === "6502" ? sources6502 : undefined });
     assert.equal(source, readFileSync(`src/components/cpus/generated/${cpu}.ts`, "utf8"));
     assert.equal(generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502" || cpu === "8088", sources: cpu === "6502" ? sources6502 : undefined }), source);
     assert.equal(JSON.stringify(definitions), before);
   }
+  assert.equal(generateInstructions("68000", quick68000), readFileSync("src/components/cpus/generated/68000-quick.ts", "utf8"));
   assert.equal(generateInstructions("6502", interrupts6502), readFileSync("src/components/cpus/generated/6502-interrupts.ts", "utf8"));
   assert.equal(generateInstructions("8088", transfers8088), readFileSync("src/components/cpus/generated/8088-transfers.ts", "utf8"));
   assert.equal(generateInstructions("8088", alu8088), readFileSync("src/components/cpus/generated/8088-alu.ts", "utf8"));

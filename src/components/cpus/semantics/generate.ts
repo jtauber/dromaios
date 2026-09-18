@@ -9,10 +9,10 @@ type Scope = ReadonlyMap<string, CapturedValue>;
 type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti" | "reportInterrupt" | "readTest" | "sendEscape";
 
 /** Compile the bounded experiment to ordinary typed statements, without executing any effects. */
-export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8088" | "6809" | "z80", definitions: Readonly<Record<string, InstructionDefinition>>,
+export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "8080" | "8088" | "6809" | "z80", definitions: Readonly<Record<string, InstructionDefinition>>,
   { bindOpcodes = false, sources }: { bindOpcodes?: boolean; sources?: SourceDefinitions } = {}): string {
   // Numeric definition keys are the opcode authority when generating execution bindings.
-  if (bindOpcodes) opcodeTable(Object.entries(definitions).map(([opcode, definition]) => [Number(opcode), definition]));
+  if (bindOpcodes) opcodeTable(Object.entries(definitions).map(([opcode, definition]) => [Number(opcode), definition]), cpu === "68000" ? 16 : 8);
   const stateType = `Cpu${cpu === "z80" ? "Z80" : cpu}${cpu === "8008" ? "Stored" : ""}State`;
   const helpers = new Set<string>();
   const outcomes = new Set<string>();

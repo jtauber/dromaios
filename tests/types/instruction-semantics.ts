@@ -1,3 +1,7 @@
+import { instructions as generated68000 } from "../../src/components/cpus/generated/68000.js";
+import { instructions as quick68000 } from "../../src/components/cpus/generated/68000-quick.js";
+import { cpu68000StateDescription } from "../../src/components/cpus/state/68000.js";
+import type { Cpu68000State } from "../../src/components/cpus/68000.js";
 import { instructions as control8088 } from "../../src/components/cpus/generated/8088-control.js";
 import { instructions as addressing8088 } from "../../src/components/cpus/generated/8088-addressing.js";
 import { instructions as strings8088 } from "../../src/components/cpus/generated/8088-strings.js";
@@ -31,6 +35,22 @@ import type { Cpu8080State } from "../../src/components/cpus/8080.js";
 import type { Cpu6809State } from "../../src/components/cpus/6809.js";
 
 // Compiled, never called: names come from CPU schemas; reads, expressions, and writes have distinct roles.
+export function check68000RegisterTypes(state: Cpu68000State, other: Cpu8088State): void {
+  const cpu = cpuSymbols("68000", cpu68000StateDescription);
+  cpu.register("d7"); cpu.register("usp"); cpu.register("ssp"); cpu.flag("s");
+  generated68000[0x3e4f](state); quick68000.d0(state, 0x80);
+  // @ts-expect-error A7 is derived from USP/SSP, not a stored field.
+  cpu.register("a7");
+  // @ts-expect-error The supervisor bit is a flag, not a numeric register.
+  cpu.register("s");
+  // @ts-expect-error Register-only bodies require no memory or decoder callbacks.
+  generated68000[0x3000](state, { readByte: () => 0 });
+  // @ts-expect-error MOVEQ requires the decoded immediate input.
+  quick68000.d0(state);
+  // @ts-expect-error Generated state remains CPU-specific.
+  generated68000[0x3000](other);
+}
+
 export function checkInstructionSemantics(): void {
   const mos = cpuSymbols("6502", cpu6502StateDescription), intel = cpuSymbols("8080", cpu8080StateDescription);
   const z80 = cpuSymbols("z80", cpuZ80StateDescription), alternate = z80.bank("alternate");

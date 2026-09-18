@@ -3,7 +3,7 @@
 This implements the bounded executable review in
 [stage 5 of the shared-building-blocks proposal](shared-building-blocks.md#5-execute-one-slice-and-produce-a-useful-second-output).
 Typed definitions drive validation, a reproducible [expanded listing](semantic-examples.md),
-and generated TypeScript instruction bodies used by the 6502, 6800, 8008, 8080, 8088, 6809, and Z80.
+and generated TypeScript instruction bodies used by all eight initial CPU models.
 The public execution interfaces and supported opcode inventories are unchanged.
 
 The experiment asks whether an instruction's meaning can be described clearly
@@ -16,6 +16,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 
 | Definitions | What they challenge |
 | --- | --- |
+| 68000 register MOVE/MOVEA, MOVEQ, EXT, SWAP, and EXG | Byte/word views of 32-bit data registers; sign extension; active SSP/USP selection at each operand stage; preserved flags and instruction-specific write ordering |
 | 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
 | 8088 ModR/M MOV/XCHG, absolute accumulator MOV, and immediate r/m MOV | Resolved segment/offset inputs; byte-offset wrap before physical projection; complete source capture and low-first partial writes |
 | 8088 ModR/M and immediate ALU/TEST | Reuse resolved operands and accumulator arithmetic; source before destination before CF; sign-extended immediates; flags before partial writes; CMP/TEST without operand writes |
@@ -71,12 +72,12 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 4,290 generated, executable bodies. All serve CPU execution;
-4,285 are bound through opcode or postbyte selection. Five boundary helpers
+There are 5,090 generated, executable bodies. All serve CPU execution;
+5,085 are bound through opcode or postbyte selection. Five boundary helpers
 serve 6502/6800/8088 entry, 6809 frame pushing, and 8088 WAIT resumption.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 All six 8-bit CPUs and the 8088 have complete instruction-definition migration;
-the 68000 remains unmigrated. Bodies start after opcode selection. Each 6809 memory
+the 68000 has its first 800 documented forms migrated. Bodies start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
 extended forms, including all legal indexed postbytes. The 6800 memory
 comparisons, logic, arithmetic, and byte/word transfers likewise serve direct/indexed/extended
@@ -1476,9 +1477,9 @@ repeated arithmetic facts remain separate calls rather than introducing an
 optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
-`src/components/cpus/generated/{6502,6800,8008,8080,8088,6809,z80}.ts` and
-`8088-transfers.ts`, `8088-alu.ts`, `8088-unary.ts`, `8088-stack.ts`,
-`8088-addressing.ts`, `8088-strings.ts`, and `8088-arithmetic.ts`. The separate 8088
+`src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
+`6502-interrupts.ts`, `68000-quick.ts`, and the separate 8088 transfer, ALU, unary,
+stack, addressing, string, arithmetic, and control modules. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
 Regenerate with `npm run generate:cpus`;
@@ -1487,7 +1488,7 @@ The source-only check and ordinary compilation both type-check the generated
 bodies. Reproducibility tests compare every module with fresh output and run the
 native generator in a clean temporary tree from another working directory.
 
-The seven CPU-owned state declarations now live under
+All eight CPU-owned state declarations now live under
 [`src/components/cpus/state/`](../../src/components/cpus/state), re-exported
 through their original CPU modules. This lets definitions and generation load
 schemas without importing execution or requiring generated files to exist.
@@ -1507,6 +1508,15 @@ bound handlers accept the shared byte instruction context, with deferral when
 the module requires it. Automatic opcode
 bindings reject definitions with numeric inputs, since they cannot supply
 those values; such bodies require an explicit CPU-owned binding.
+
+The 68000 keeps its static dispatch table. Its numeric register definitions
+supply 792 entries directly, while eight MOVEQ bodies receive the decoded
+immediate byte. Together these cover 800 documented forms and 2,840 operation
+words. No new semantic primitive is needed: existing truncation, sign extension,
+bitwise expressions, conditional statements, transfer construction, and flag
+policies express the register behavior. Conditional A7 selection accesses only
+the chosen stored stack pointer. A separate state-schema module lets generation
+bootstrap without loading the 68000 core or its generated imports.
 
 The generator's `sources` option also emits `sourceReaders(state)`. These readers
 use the same validation, lexical scopes, and statement compiler as instruction

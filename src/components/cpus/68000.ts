@@ -5,28 +5,19 @@ import { signed8 } from "./binary.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess, RecordedMemory } from "./memory-access.ts";
-import { defineState, copyState, readState, unsigned, flag, boolean, group, namedChoices } from "./state.ts";
-import type { StateValues, ReadonlyState } from "./state.js";
+import { copyState, readState } from "./state.ts";
+import type { ReadonlyState } from "./state.ts";
+import { cpu68000StateDescription } from "./state/68000.ts";
+import type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
+export { cpu68000StateDescription } from "./state/68000.ts";
+export type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
+import { instructions as generated } from "./generated/68000.ts";
+import { instructions as quick } from "./generated/68000-quick.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { flagRegister, negativeZero } from "./flags.ts";
 import { motorolaConditions, motorolaArithmeticFlags } from "./motorola.ts";
 import { add, subtract, shiftLeft, shiftRight } from "./alu.ts";
-
-/** Stored fields and constraints shared by construction, snapshots, and machine parsing. */
-export const cpu68000StateDescription = defineState({
-  d0: unsigned(32), d1: unsigned(32), d2: unsigned(32), d3: unsigned(32),
-  d4: unsigned(32), d5: unsigned(32), d6: unsigned(32), d7: unsigned(32),
-  a0: unsigned(32), a1: unsigned(32), a2: unsigned(32), a3: unsigned(32),
-  a4: unsigned(32), a5: unsigned(32), a6: unsigned(32),
-  usp: unsigned(32), ssp: unsigned(32), pc: unsigned(32), ir: unsigned(16), interruptMask: unsigned(3),
-  halted: boolean, faulted: boolean, tracePending: boolean,
-  entry: group({ kind: namedChoices("none", "reset", "fault", "exception", "trap"), vector: unsigned(8) }),
-  flags: group({ x: flag, n: flag, z: flag, v: flag, c: flag, t: flag, s: flag }),
-});
-
-export type Cpu68000State = StateValues<typeof cpu68000StateDescription>;
-export type Cpu68000Flags = Cpu68000State["flags"];
 
 export type Cpu68000Snapshot = ReadonlyState<Cpu68000State> & {
   /** Active stack pointer: SSP in supervisor mode, USP in user mode. */
@@ -395,6 +386,9 @@ export class Cpu68000 {
   // The shared Motorola table orders T/F, HI/LS, CC/CS, NE/EQ, VC/VS, PL/MI, GE/LT, GT/LE.
   // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
   static readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
+    // Register transfers, EXT/SWAP, and EXG own their patterns in semantics/definitions/68000.ts.
+    ...Object.entries(generated).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> =>
+      [Number(opcode), cpu => execute(cpu.#state)]),
     // Immediate ALU: 0000 ooo 0 ss mmm rrr. ooo selects the operation below;
     // ss=00 byte, 01 word, 10 long (11 reserved); mmm rrr selects a data-alterable EA.
     // An, PC-relative, and immediate destinations are excluded, including CCR/SR encodings.
@@ -453,10 +447,6 @@ export class Cpu68000 {
     // TAS's forbidden immediate slot is the explicit ILLEGAL instruction.
     ...opcodePattern("0100 1010 1111 1100", (): Cpu68000Exception => "illegal-instruction"), // ILLEGAL
 
-    // Register-only slots beside PEA and MOVEM. EXT.W extends byte to word; EXT.L extends word to long.
-    ...opcodeFamily("0100 1000 01 000 rrr", { r: this.#dataRegisters }, ({ r }) => (cpu: Cpu68000) => cpu.#swapWords(r)), // SWAP Dn
-    ...opcodeFamily("0100 1000 1 s 000 rrr", { s: [16, 32] as const, r: this.#dataRegisters }, ({ s, r }) => (cpu: Cpu68000) => cpu.#extend(r, s)), // EXT.W/L Dn
-
     // Control EAs: mmm rrr permits (An), displacement/index, absolute, and PC-relative;
     // register-direct, postincrement, predecrement, and immediate are excluded.
     // 0100 aaa 111 mmm rrr: aaa selects the address register receiving the EA itself.
@@ -510,7 +500,7 @@ export class Cpu68000 {
 
     // 0111 rrr 0 iiiiiiii: rrr selects Dn; i is the signed immediate byte, extended to a long.
     // Bit 8 must be zero. Immediate values select handlers but do not add coverage forms.
-    ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => (cpu: Cpu68000) => cpu.#loadQuickRegister(register, value)), // MOVEQ #n,Dn
+    ...opcodeFamily("0111 rrr 0 iiiiiiii", { r: this.#dataRegisters, i: this.#immediateBytes }, ({ r: register, i: value }) => (cpu: Cpu68000) => quick[register](cpu.#state, value)), // MOVEQ #n,Dn
 
     // Data ALU: oooo rrr d ss mmm eee. rrr selects Dn; ss=00 byte, 01 word, 10 long.
     // d=0 reads EA into arithmetic/logic on Dn; d=1 reads/modifies/writes EA using Dn.
@@ -548,10 +538,6 @@ export class Cpu68000 {
     // ddd is destination, rrr source; m=0 Dn,Dn, m=1 -(An),-(An). Both consume X and accumulate Z.
     ...this.#decimalHandlers("1000 ddd 10000 m rrr", -1), // SBCD
     ...this.#decimalHandlers("1100 ddd 10000 m rrr", 1), // ABCD
-    // EXG: 1100 ddd 1 ooooo rrr; ooooo=01000 Dn/Dn, 01001 An/An, 10001 Dn/An; no flags change.
-    ...this.#exchangeHandlers("1100 ddd 1 01000 rrr", "data", "data"), // EXG Dn,Dn
-    ...this.#exchangeHandlers("1100 ddd 1 01001 rrr", "address", "address"), // EXG An,An
-    ...this.#exchangeHandlers("1100 ddd 1 10001 rrr", "data", "address"), // EXG Dn,An
 
     // Address ALU: oooo rrr s11 mmm eee. rrr selects An; s=0 signed word, 1 long source.
     // Every source EA is legal. The operation is always 32-bit; only CMPA changes flags.
@@ -613,6 +599,7 @@ export class Cpu68000 {
   static #moveHandlers(pattern: string, size: OperandSize): readonly OpcodeEntry<OpcodeHandler>[] {
     const codes = this.#selectors;
     return opcodeFamily(pattern, { d: codes, m: codes, s: codes, r: codes }, ({ d, m, s, r }) => {
+      if (s < 2 && m < 2) return undefined; // Register-only forms belong to generated definitions.
       // Mode 111: sources allow absolute word/long, PC displacement/index, and immediate;
       // destinations allow only absolute word/long. Byte transfers cannot read or write An.
       if ((s === 7 && r > 4) || (m === 7 && d > 1) || (size === 8 && (s === 1 || m === 1))) return undefined;
@@ -734,14 +721,6 @@ export class Cpu68000 {
     const apply: AluOperation = (cpu, _size, left, right) => cpu.#decimal(left, right, direction);
     return opcodeFamily(pattern, { d: this.#selectors, m: [0, 4], r: this.#selectors }, ({ d, m: mode, r }) =>
       (cpu: Cpu68000, instruction: InstructionContext) => cpu.#pairedAlu(8, mode, r, mode, d, apply, instruction));
-  }
-
-  static #exchangeHandlers(pattern: string, leftBank: "data" | "address", rightBank: "data" | "address"): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { d: this.#selectors, r: this.#selectors }, ({ d, r }) => (cpu: Cpu68000) => {
-      const left = leftBank === "data" ? Cpu68000.#dataRegisters[d]! : cpu.#addressRegister(d);
-      const right = rightBank === "data" ? Cpu68000.#dataRegisters[r]! : cpu.#addressRegister(r);
-      [cpu.#state[left], cpu.#state[right]] = [cpu.#state[right], cpu.#state[left]];
-    });
   }
 
   static #addressAluHandlers(pattern: string, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -994,24 +973,6 @@ export class Cpu68000 {
     const address = (this.#state[this.#addressRegister(code)] + (instruction.fetchWord() << 16 >> 16)) >>> 0;
     if (store) this.#writeMemory(size, address, this.#state[register], instruction.writeByte, 2);
     else this.#writeOperand(size, { kind: "data", register }, this.#readMemory(size, address, instruction.readByte, 2), instruction.writeByte);
-  }
-
-  #extend(register: DataRegister, size: 16 | 32): void {
-    const value = this.#state[register];
-    const result = size === 16 ? (signed8(value & 0xff) & 0xffff) : (value << 16 >> 16) >>> 0;
-    this.#state[register] = size === 16 ? ((value & 0xffff0000) | result) >>> 0 : result;
-    this.#setResultFlags(result, size);
-  }
-
-  #swapWords(register: DataRegister): void {
-    const value = this.#state[register];
-    this.#state[register] = this.#logic(32, (value << 16) | (value >>> 16));
-  }
-
-  #loadQuickRegister(register: DataRegister, byte: number): void {
-    const value = signed8(byte) >>> 0;
-    this.#state[register] = value;
-    this.#setResultFlags(value);
   }
 
   #moveMultiple(size: 16 | 32, load: boolean, mode: number, code: number,
