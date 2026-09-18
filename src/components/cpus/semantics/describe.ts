@@ -11,7 +11,8 @@ export function describeInstruction(definition: InstructionDefinition): string {
       // Arguments are in the caller's scope: substitution happens once, never recursively by name.
       case "select": return `select(${flag(expr.condition, parameters)}, ${number(expr.yes, parameters)}, ${number(expr.no, parameters)})`;
       case "value": return Object.hasOwn(parameters, expr.name) ? number(parameters[expr.name]!) : expr.name;
-      case "literal": return `${expr.value.toString(16).toUpperCase().padStart(expr.width / 4, "0")}:u${expr.width}`;
+      case "literal": return `${expr.value.toString(16).toUpperCase().padStart(Math.ceil(expr.width / 4), "0")}:u${expr.width}`;
+      case "truncate": return `low${expr.width}(${number(expr.value, parameters)})`;
       case "extend": return `zeroExtend${expr.width}(${number(expr.value, parameters)})`;
       case "sign-extend": return `signExtend${expr.width}(${number(expr.value, parameters)})`;
       case "high-byte": return `highByte(${number(expr.value, parameters)})`;
@@ -57,10 +58,12 @@ export function describeInstruction(definition: InstructionDefinition): string {
           break;
         case "capture": emit(`${step.name} := ${number(step.value)}`); break;
         case "read-register": emit(`${step.name}:u${step.register.width} := read ${step.register.field.toUpperCase()}`); break;
+        case "read-element": emit(`${step.name}:u${step.array.width} := read ${step.array.field.toUpperCase()}[${number(step.index)}]`); break;
         case "read-flag": emit(`${step.name}:flag := read ${step.flag.field.toUpperCase()}`); break;
         case "fetch-byte": emit(`${step.name}:u8 := fetch byte`); break;
         case "read-memory": emit(`${step.name}:u8 := read memory[${number(step.address)}]`); break;
         case "write-register": emit(`write ${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}`); break;
+        case "write-element": emit(`write ${step.array.field.toUpperCase()}[${number(step.index)}]:u${step.array.width} := ${number(step.value)}`); break;
         case "write-latch": emit(`write ${step.latch.field}:boolean := ${step.value}`); break;
         case "write-memory": emit(`write memory[${number(step.address)}] := ${number(step.value)}`); break;
         case "read-source":

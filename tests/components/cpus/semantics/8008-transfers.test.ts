@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8008.js";
 import { instructions8008 } from "../../../../src/components/cpus/semantics/definitions.js";
-import type { Cpu8008State } from "../../../../src/components/cpus/state/8008.js";
+import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
 import type { ByteInstructionContext } from "../../../../src/components/cpus/instruction-context.js";
 
 // Independent native load matrix: rows and columns are A/B/C/D/E/H/L/M; FF is HLT.
@@ -23,12 +23,12 @@ const forms = [
   ...[0x06, 0x0e, 0x16, 0x1e, 0x26, 0x2e, 0x36, 0x3e].map((opcode, destination) =>
     ({ opcode, destination: operands[destination]!, source: "immediate" as const })),
 ];
-const transfers: Readonly<Record<number, (state: Cpu8008State, context: ByteInstructionContext) => void>> = instructions;
+const transfers: Readonly<Record<number, (state: Cpu8008StoredState, context: ByteInstructionContext) => void>> = instructions;
 
 test("8008 generated transfers cover the native 71 slots, excluding every HLT encoding", () => {
   const expected = forms.map(({ opcode }) => opcode).sort((a, b) => a - b);
   assert.equal(new Set(expected).size, 71);
-  assert.deepEqual(Object.keys(instructions8008).filter(key => /^\d+$/.test(key)).map(Number).sort((a, b) => a - b), expected);
+  assert.deepEqual(Object.entries(instructions8008).filter(([, definition]) => definition.name.startsWith("L")).map(([key]) => Number(key)).sort((a, b) => a - b), expected);
 });
 
 test("8008 generated transfers capture full-byte sources, mask addresses at the access point, and never access flags or control state", () => {
@@ -36,7 +36,7 @@ test("8008 generated transfers capture full-byte sources, mask addresses at the 
     for (const high of [0x3f, 0x7f, 0xbf, 0xff]) for (const value of [0, 0x42, 0xff]) {
       const accesses = Number(source === "immediate" || source === "m") + Number(destination === "m");
       for (let failAt = -1; failAt < accesses; failAt++) {
-        const state: Cpu8008State = { a: 0x81, b: 0x22, c: 0x33, d: 0x44, e: 0x55, h: high, l: 0xff,
+        const state: Cpu8008StoredState = { a: 0x81, b: 0x22, c: 0x33, d: 0x44, e: 0x55, h: high, l: 0xff,
           flags: { s: set, z: set, p: set, c: set }, addressStack: [0, 1, 2, 3, 4, 5, 6, 0x3fff], stackIndex: 7, halted: true };
         if (source !== "m" && source !== "immediate") state[source] = value;
         const before = structuredClone(state), events: string[] = [], expectedEvents: string[] = [];

@@ -5912,6 +5912,55 @@ flags "6800 comparison" simultaneously {
 
 Flags preserved throughout: H, I.
 
+### 8008 HLT
+
+Set STOPPED without reading flags, registers, or memory. Opcode fetching belongs to the caller and alone determines whether PC advances.
+
+```text
+write halted:boolean := true
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 HLT
+
+Set STOPPED without reading flags, registers, or memory. Opcode fetching belongs to the caller and alone determines whether PC advances.
+
+```text
+write halted:boolean := true
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RFC
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+condition:flag := read C
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  next := low3(subtract(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RST 00
+
+Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target := 0000:u14
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 LAI n
 
 Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -5919,6 +5968,47 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 ```text
 result:u8 := fetch byte
 write A:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RET
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+slot:u3 := read STACKINDEX
+next := low3(subtract(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RFZ
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+condition:flag := read Z
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  next := low3(subtract(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RST 08
+
+Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target := 0008:u14
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -5934,6 +6024,47 @@ write B:u8 := result
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 RET
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+slot:u3 := read STACKINDEX
+next := low3(subtract(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RFS
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+condition:flag := read S
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  next := low3(subtract(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RST 10
+
+Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target := 0010:u14
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 LCI n
 
 Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -5941,6 +6072,47 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 ```text
 result:u8 := fetch byte
 write C:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RET
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+slot:u3 := read STACKINDEX
+next := low3(subtract(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RFP
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+condition:flag := read P
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  next := low3(subtract(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RST 18
+
+Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target := 0018:u14
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -5956,6 +6128,47 @@ write D:u8 := result
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 RET
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+slot:u3 := read STACKINDEX
+next := low3(subtract(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RTC
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+condition:flag := read C
+when condition {
+  slot:u3 := read STACKINDEX
+  next := low3(subtract(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RST 20
+
+Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target := 0020:u14
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 LEI n
 
 Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -5963,6 +6176,47 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 ```text
 result:u8 := fetch byte
 write E:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RET
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+slot:u3 := read STACKINDEX
+next := low3(subtract(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RTZ
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+condition:flag := read Z
+when condition {
+  slot:u3 := read STACKINDEX
+  next := low3(subtract(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RST 28
+
+Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target := 0028:u14
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -5978,6 +6232,47 @@ write H:u8 := result
 
 Flags preserved throughout: S, Z, P, C.
 
+### 8008 RET
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+slot:u3 := read STACKINDEX
+next := low3(subtract(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RTS
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+condition:flag := read S
+when condition {
+  slot:u3 := read STACKINDEX
+  next := low3(subtract(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RST 30
+
+Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target := 0030:u14
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
 ### 8008 LLI n
 
 Use the selected byte registers; memory uses H then L at the access point. Mask the memory address to 3FFF, preserving the full H and L registers. Capture the source before writing the destination, including self-transfers and unchanged writes. Stores never read the destination. Do not access flags or control state. A failed source read or fetch prevents writeback.
@@ -5985,6 +6280,47 @@ Use the selected byte registers; memory uses H then L at the access point. Mask 
 ```text
 result:u8 := fetch byte
 write L:u8 := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RET
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+slot:u3 := read STACKINDEX
+next := low3(subtract(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RTP
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+condition:flag := read P
+when condition {
+  slot:u3 := read STACKINDEX
+  next := low3(subtract(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RST 38
+
+Capture the encoded restart vector without fetching operands. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target := 0038:u14
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -5998,6 +6334,610 @@ result:u8 := fetch byte
 high:u8 := read H
 low:u8 := read L
 write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 RET
+
+Test the condition, if present, before reading the selector. Only a taken path decrements the three-bit selector with wrapping. Retain all physical address registers unchanged. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+slot:u3 := read STACKINDEX
+next := low3(subtract(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JFC
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read C
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  write ADDRESSSTACK[slot]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CFC
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read C
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  next := low3(addWrap(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+  write ADDRESSSTACK[next]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JMP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CAL
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JFZ
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read Z
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  write ADDRESSSTACK[slot]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CFZ
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read Z
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  next := low3(addWrap(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+  write ADDRESSSTACK[next]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JMP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CAL
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JFS
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read S
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  write ADDRESSSTACK[slot]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CFS
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read S
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  next := low3(addWrap(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+  write ADDRESSSTACK[next]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JMP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CAL
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JFP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read P
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  write ADDRESSSTACK[slot]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CFP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read P
+when not(condition) {
+  slot:u3 := read STACKINDEX
+  next := low3(addWrap(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+  write ADDRESSSTACK[next]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JMP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CAL
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JTC
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read C
+when condition {
+  slot:u3 := read STACKINDEX
+  write ADDRESSSTACK[slot]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CTC
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read C
+when condition {
+  slot:u3 := read STACKINDEX
+  next := low3(addWrap(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+  write ADDRESSSTACK[next]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JMP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CAL
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JTZ
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read Z
+when condition {
+  slot:u3 := read STACKINDEX
+  write ADDRESSSTACK[slot]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CTZ
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read Z
+when condition {
+  slot:u3 := read STACKINDEX
+  next := low3(addWrap(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+  write ADDRESSSTACK[next]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JMP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CAL
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JTS
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read S
+when condition {
+  slot:u3 := read STACKINDEX
+  write ADDRESSSTACK[slot]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CTS
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read S
+when condition {
+  slot:u3 := read STACKINDEX
+  next := low3(addWrap(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+  write ADDRESSSTACK[next]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JMP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CAL
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JTP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read P
+when condition {
+  slot:u3 := read STACKINDEX
+  write ADDRESSSTACK[slot]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CTP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+condition:flag := read P
+when condition {
+  slot:u3 := read STACKINDEX
+  next := low3(addWrap(zeroExtend8(slot), 01:u8))
+  write STACKINDEX:u3 := next
+  write ADDRESSSTACK[next]:u14 := target
+}
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 JMP
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path writes the selected address register. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+write ADDRESSSTACK[slot]:u14 := target
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 CAL
+
+Fetch both target bytes, low first, and discard the high two address bits before testing any condition. Only a taken path advances the three-bit selector with wrapping, then writes the target into the new slot. An eighth nested call overwrites the oldest return. RAM fetching advances the caller's slot; externally supplied bytes leave it unchanged. The body performs no data-memory accesses and preserves all flags and STOPPED. Failed fetches stop later effects; completed effects remain.
+
+```text
+target:u14 := source "14-bit target, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield low14(concatHighLow(high, low))
+}
+slot:u3 := read STACKINDEX
+next := low3(addWrap(zeroExtend8(slot), 01:u8))
+write STACKINDEX:u3 := next
+write ADDRESSSTACK[next]:u14 := target
 ```
 
 Flags preserved throughout: S, Z, P, C.
@@ -6719,6 +7659,16 @@ result:u8 := read L
 high:u8 := read H
 low:u8 := read L
 write memory[bitAnd(concatHighLow(high, low), 3FFF:u16)] := result
+```
+
+Flags preserved throughout: S, Z, P, C.
+
+### 8008 HLT
+
+Set STOPPED without reading flags, registers, or memory. Opcode fetching belongs to the caller and alone determines whether PC advances.
+
+```text
+write halted:boolean := true
 ```
 
 Flags preserved throughout: S, Z, P, C.

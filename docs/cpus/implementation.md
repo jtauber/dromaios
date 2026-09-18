@@ -261,8 +261,14 @@ without inheriting this execution core. Its definitions keep native
 A/B/C/D/E/H/L/M sources, a `3FFF` mask on memory addresses, and S/Z/P/C policies.
 Its own opcode table binds the generated bodies; transfer definitions and
 bindings consume one native encoding inventory with the `11 ddd sss` matrix
-and an explicit HLT exception. Fetching retains the selected address-register
-PC and interrupt supplied-byte rules.
+and an explicit HLT exception. The control-flow inventory also supplies both
+construction and binding opcodes, including all ignored-bit aliases. Generated
+calls and returns operate on the schema's physical address-register array and
+three-bit selector; they never use the RAM-stack helper. The compiler validates
+array bounds and exact stored widths, with explicit target narrowing to 14 bits.
+Generated execution uses `Cpu8008StoredState`; constructor inputs still accept
+readonly slots. Fetching retains the selected address-register PC and interrupt
+supplied-byte rules.
 
 ## Shared execution records
 

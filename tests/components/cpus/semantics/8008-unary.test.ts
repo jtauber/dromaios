@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8008.js";
-import type { Cpu8008State } from "../../../../src/components/cpus/state/8008.js";
+import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
 
-function initialState(): Cpu8008State {
+function initialState(): Cpu8008StoredState {
   return { a: 0x81, b: 0x22, c: 0x33, d: 0x44, e: 0x55, h: 0xe6, l: 0x77,
     flags: { s: true, z: false, p: true, c: false },
     addressStack: [0, 1, 2, 3, 4, 5, 6, 0x3fff], stackIndex: 7, halted: true };

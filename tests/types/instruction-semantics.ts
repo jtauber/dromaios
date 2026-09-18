@@ -1,13 +1,14 @@
 import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { and, signExtend, when, addWrap, carry, halfCarry, subtract, bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, lowByte, literal, not, readFlag, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, lowByte, literal, not, readFlag, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
 import type { CpuZ80State } from "../../src/components/cpus/z80.js";
 import { instructions as generated8008 } from "../../src/components/cpus/generated/8008.js";
-import type { Cpu8008State } from "../../src/components/cpus/8008.js";
+import { cpu8008StateDescription } from "../../src/components/cpus/state/8008.js";
+import type { Cpu8008State, Cpu8008StoredState } from "../../src/components/cpus/state/8008.js";
 import { instructions as generated8080 } from "../../src/components/cpus/generated/8080.js";
 import { instructions as generated6809 } from "../../src/components/cpus/generated/6809.js";
 import { instructions as generated6800 } from "../../src/components/cpus/generated/6800.js";
@@ -21,6 +22,17 @@ export function checkInstructionSemantics(): void {
   const mos = cpuSymbols("6502", cpu6502StateDescription), intel = cpuSymbols("8080", cpu8080StateDescription);
   mos.register("a");
   intel.flag("cy");
+  const i8008 = cpuSymbols("8008", cpu8008StateDescription);
+  readElement("pc", i8008.array("addressStack"), value("slot"));
+  writeElement(i8008.array("addressStack"), literal(3, 7), truncate(value("address"), 14));
+  // @ts-expect-error Array names come from the CPU schema.
+  i8008.array("a");
+  // @ts-expect-error A live selector must be captured before indexing.
+  readElement("pc", i8008.array("addressStack"), i8008.register("stackIndex"));
+  // @ts-expect-error Array targets are distinct from scalar registers.
+  writeElement(i8008.register("stackIndex"), literal(3, 0), literal(14, 0));
+  // @ts-expect-error Truncation operates on unsigned numeric values, not flags.
+  truncate(flagValue("carry"), 3);
   // @ts-expect-error The 6502 has no B register.
   mos.register("b");
   // @ts-expect-error Flags are not unsigned registers.
@@ -56,7 +68,7 @@ export function checkInstructionSemantics(): void {
   and(flagValue("carry"), value("byte"));
   // @ts-expect-error Signed widening cannot accept flags.
   signExtend(flagValue("carry"), 16);
-  // @ts-expect-error This vocabulary supports only byte/word widths.
+  // @ts-expect-error Long values are outside the current vocabulary.
   signExtend(value("byte"), 32);
   highByte(value("word"));
   lowByte(value("word"));
@@ -107,7 +119,7 @@ export function checkInstructionSemantics(): void {
   ] };
 }
 
-export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State, motorola: Cpu6809State, m6800: Cpu6800State, z80: CpuZ80State, i8008: Cpu8008State): void {
+export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State, motorola: Cpu6809State, m6800: Cpu6800State, z80: CpuZ80State, i8008: Cpu8008StoredState): void {
   const readers = sourceReaders(mos);
   const address: number = readers.addresses.absoluteX({ fetchByte: () => 0 });
   const byte: number = readers.operands[3]({ fetchByte: () => 0, readByte: () => 0 });
@@ -239,8 +251,19 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated8008[0xef](i8008, { readByte: () => 0 });
   generated8008[0xfd](i8008, { writeByte: () => {} });
   generated8008[0x3e](i8008, { fetchByte: () => 0, writeByte: () => {} });
-  // @ts-expect-error 8008 HLT is outside the transfer matrix.
   generated8008[0xff](i8008);
+  generated8008[0x46](i8008, { fetchByte: () => 0 });
+  generated8008[0x07](i8008);
+  generated8008[0x05](i8008);
+  // @ts-expect-error Calls fetch operands, but never write a return address to RAM.
+  generated8008[0x46](i8008, { fetchByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Returns only select a physical register; no memory capability is needed.
+  generated8008[0x07](i8008, { readByte: () => 0 });
+  // @ts-expect-error Restart vectors are encoded; no operand fetching is needed.
+  generated8008[0x05](i8008, { fetchByte: () => 0 });
+  const constructorInput: Cpu8008State = i8008;
+  // @ts-expect-error Execution needs owned, mutable slots; constructor inputs may have readonly slots.
+  generated8008[0x46](constructorInput, { fetchByte: () => 0 });
   // @ts-expect-error 8008 self-transfers need no context.
   generated8008[0xc0](i8008, { fetchByte: () => 0 });
   // @ts-expect-error LMI requires a write capability.

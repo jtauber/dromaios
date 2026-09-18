@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { instructions } from "../../../../src/components/cpus/generated/8008.js";
-import type { Cpu8008State } from "../../../../src/components/cpus/state/8008.js";
+import type { Cpu8008StoredState } from "../../../../src/components/cpus/state/8008.js";
 
 const families = ["ad", "ac", "su", "sb", "nd", "xr", "or", "cp"] as const;
 const sources = ["A", "B", "C", "D", "E", "H", "L", "M", "immediate"] as const;
-function initialState(): Cpu8008State {
+function initialState(): Cpu8008StoredState {
   return { a: 0x10, b: 0xff, c: 0xff, d: 0xff, e: 0xff, h: 0xff, l: 0xff,
     flags: { s: false, z: true, p: false, c: true },
     addressStack: [0, 1, 2, 3, 4, 5, 6, 0x3fff], stackIndex: 7, halted: true };

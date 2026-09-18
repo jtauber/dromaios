@@ -13,7 +13,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
   { bindOpcodes = false, sources }: { bindOpcodes?: boolean; sources?: SourceDefinitions } = {}): string {
   // Numeric definition keys are the opcode authority when generating execution bindings.
   if (bindOpcodes) opcodeTable(Object.entries(definitions).map(([opcode, definition]) => [Number(opcode), definition]));
-  const stateType = `Cpu${cpu === "z80" ? "Z80" : cpu}State`;
+  const stateType = `Cpu${cpu === "z80" ? "Z80" : cpu}${cpu === "8008" ? "Stored" : ""}State`;
   const helpers = new Set<string>();
   let needsContext = bindOpcodes;
   function compile(name: string, input: InstructionDefinition, result?: NumberExpression): string {
@@ -42,6 +42,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
         case "high-byte": return { code: `(${number(expr.value, scope).code} >>> 8)`, type: 8 };
         case "low-byte": return { code: `(${number(expr.value, scope).code} & 0xff)`, type: 8 };
         case "extend": return { code: number(expr.value, scope).code, type: expr.width };
+        case "truncate": return { code: `(${number(expr.value, scope).code} & 0x${(2 ** expr.width - 1).toString(16)})`, type: expr.width };
         case "sign-extend": {
           const operand = number(expr.value, scope), sign = 2 ** (operand.type - 1);
           return { code: `(((${operand.code} ^ ${sign}) - ${sign}) & ${2 ** expr.width - 1})`, type: expr.width };
@@ -104,6 +105,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
             continue;
           case "capture": captured = number(step.value, scope); break;
           case "read-register": captured = { code: `state${field(step.register.field)}`, type: step.register.width }; break;
+          case "read-element": captured = { code: `state${field(step.array.field)}[${number(step.index, scope).code}]!`, type: step.array.width }; break;
           case "read-flag": captured = { code: `state.flags${field(step.flag.field)}`, type: "flag" }; break;
           case "fetch-byte": captured = { code: `${access("fetchByte")}()`, type: 8 }; break;
           case "read-memory": captured = { code: `${access("readByte")}(${number(step.address, scope).code})`, type: 8 }; break;
@@ -115,6 +117,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
             break;
           }
           case "write-register": emit(`state${field(step.register.field)} = ${number(step.value, scope).code};`); continue;
+          case "write-element": emit(`state${field(step.array.field)}[${number(step.index, scope).code}] = ${number(step.value, scope).code};`); continue;
           case "write-latch": emit(`state${field(step.latch.field)} = ${step.value};`); continue;
           case "write-memory": emit(`${access("writeByte")}(${number(step.address, scope).code}, ${number(step.value, scope).code});`); continue;
           case "update-flags": case "replace-flags": {

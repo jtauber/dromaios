@@ -17,7 +17,7 @@ emulators do not count toward implementation here.
 
 | Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [263](../../src/components/cpus/8008.ts) | 159 / 250 | 63.6% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [234](../../src/components/cpus/8008.ts) | 218 / 250 | 87.2% |
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [199](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [260](../../src/components/cpus/6800.ts) | 194 / 197 | 98.5% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [162](../../src/components/cpus/6502.ts) | 149 / 151 | 98.7% |
@@ -27,8 +27,8 @@ emulators do not count toward implementation here.
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **1,378 generated bodies**, all used by CPU execution,
-covering **1,640 complete opcode forms**:
+contains **1,437 generated bodies**, all used by CPU execution,
+covering **1,699 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -232,7 +232,14 @@ covering **1,640 complete opcode forms**:
   stored register bytes. Transfers do not access flags or control state.
   Definition generation and execution consume the same native opcode inventory;
   HLT remains explicit. Handwritten arithmetic and operand read/write helpers
-  are removed; all 159 bodies are integrated.
+  are removed. All conditional jumps/calls/returns, unconditional aliases,
+  eight restarts, and three halts add 59 bodies and forms. Targets fetch low/high
+  and narrow to 14 bits before any condition read. Taken calls advance the
+  three-bit selector and write the next physical address slot; returns only
+  decrement the selector, retaining every slot. Untaken paths never read the
+  selector or access the array. Generated bodies leave fetch-time PC advancement
+  and supplied-byte behavior with the core. All 218 ordinary forms are migrated;
+  only the 32 port instructions remain handwritten.
 
 The 8088 and 68000 have no instruction bodies generated from these definitions.
 Their existing shared TypeScript helpers remain useful, but are outside this
@@ -280,32 +287,31 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,214 |
-| CPU-specific instruction definition files | 827 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,678 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,719** |
+| Eight CPU implementation files | 4,185 |
+| CPU-specific instruction definition files | 871 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,738 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,794** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 22,217 |
+| Generated CPU output, counted separately | 22,840 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The ordinary-status/decimal batch adds **61 bodies for 61 forms** across five
-CPUs. It completes the ordinary 6502, 6800, and 8080 instruction definitions;
-their remaining handwritten forms handle interrupt entry/return, waiting, or I/O.
-Shared packed-status construction consumes the same immutable layouts as runtime
-encoding. Numeric selection, Boolean OR, and complete flag replacement extend
-the semantic model, validator, compiler, and explanatory listing.
+The 8008 control-flow batch adds **59 bodies for 59 forms**, completing its
+ordinary instruction definitions. The only handwritten instruction bodies left
+are its 32 port forms. The shared representation now supports schema-owned
+register arrays, checked element access, three- and fourteen-bit stored values,
+and explicit narrowing; arithmetic remains byte/word sized.
 
-The eight CPU modules shrink by **168 lines**. The 6502's handwritten arithmetic,
-result-writing helpers, and operand dispatch are removed; the Intel PSW/AF
-hooks and handwritten DAA/complement helpers are gone. The now-unused Motorola
-DAA helper is removed too; only the Z80 retains the runtime call-stack helper.
-CPU-specific definitions add **55 lines** and other authored source adds
-**190 net**. Total authored CPU source changes from **7,642 to 7,719 lines**
-(**77 more**). This batch removes complete runtime paths but still increases
-total maintained source. All 1,317 earlier definitions and generated bodies remain
-unchanged; the 8008 generated module is byte-for-byte identical.
+The 8008 module shrinks by **29 lines**, removing its condition callbacks,
+call/jump/return helpers, and halt helper. CPU-specific definitions add
+**44 lines** and other authored source adds **60 net**. Total authored CPU source
+changes from **7,719 to 7,794 lines** (**75 more**). The increase buys explicit,
+validated and explainable physical-register effects, rather than source reduction
+across the whole project. All 1,378 earlier definitions remain unchanged. The
+other five generated CPU modules are byte-for-byte identical; the 8008's 159
+earlier method bodies are unchanged, with their state parameters now correctly
+requiring its owned, mutable stored-state type.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

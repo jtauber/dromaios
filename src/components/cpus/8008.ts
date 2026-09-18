@@ -17,7 +17,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { intel8008ByteTransferForms } from "./intel-encodings.ts";
+import { intel8008ByteTransferForms, intel8008ControlForms as controlForms } from "./intel-encodings.ts";
 
 export { cpu8008StateDescription } from "./state/8008.ts";
 export type { Cpu8008State, Cpu8008AddressStack, Cpu8008Flags } from "./state/8008.ts";
@@ -162,11 +162,6 @@ export class Cpu8008 {
     return instruction => execute(this.#state, instruction);
   });
 
-  // ccc = vff: v (bit 5) requires false/true; ff (bits 4..3) selects C/Z/S/P.
-  // Conditions read the current flags when executing, not when binding an opcode.
-  readonly #conditions = [false, true].flatMap(value =>
-    (["c", "z", "s", "p"] as const).map(flag => () => this.#state.flags[flag] === value));
-
   // Native 8008 opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
   // xx selects a block; the other fields select its operation and operands.
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
@@ -181,29 +176,29 @@ export class Cpu8008 {
     ...opcodePattern("00 010 010", () => semantics.ral(this.#state)), // RAL
     ...opcodePattern("00 011 010", () => semantics.rar(this.#state)), // RAR
 
-    // 00 ccc 011: conditional return; ccc = vff selects the flag and required value.
-    ...opcodeFamily("00 ccc 011", { c: this.#conditions }, ({ c: condition }) => () => this.#return(condition())), // RFc / RTc
+    // 00 ccc 011: conditional return; ccc=vff, v=false/true, ff=C/Z/S/P.
+    ...this.#instructionHandlers(controlForms.conditionalReturns), // RFc / RTc
 
     // 00 ooo 100: ooo (bits 5..3) selects the ALU operation; the next byte is its operand.
     ...opcodeFamily("00 ooo 100", { o: this.#aluInstructions }, ({ o: instruction }) => instruction("immediate")), // ADI / ACI / SUI / SBI / NDI / XRI / ORI / CPI
 
     // 00 vvv 101: a one-byte call to 0000..0038; vvv supplies address bits 5..3.
-    ...opcodeFamily("00 vvv 101", { v: [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] }, ({ v: address }) => () => this.#call(address)), // RST
+    ...this.#instructionHandlers(controlForms.restarts), // RST
 
     // 00 rrr 110: rrr (bits 5..3) selects the destination, including memory at rrr=111.
-    ...this.#transferHandlers(intel8008ByteTransferForms.immediate), // LrI n / LMI n
+    ...this.#instructionHandlers(intel8008ByteTransferForms.immediate), // LrI n / LMI n
 
     // 00 xxx 111: RET. Bits 5–3 are don't-care bits: all eight encodings return.
-    ...opcodePattern("00 xxx 111", () => this.#return()), // RET
+    ...this.#instructionHandlers(controlForms.return), // RET
 
     // 01 ccc 000/010: conditional jump/call; ccc = vff uses the same conditions as returns.
     // Both paths fetch llllllll, xxhhhhhh (low byte first), ignoring the high two address bits.
-    ...opcodeFamily("01 ccc 000", { c: this.#conditions }, ({ c: condition }) => ({ fetchWord }: InstructionContext) => this.#jump(fetchWord(), condition())), // JFc / JTc addr
-    ...opcodeFamily("01 ccc 010", { c: this.#conditions }, ({ c: condition }) => ({ fetchWord }: InstructionContext) => this.#call(fetchWord(), condition())), // CFc / CTc addr
+    ...this.#instructionHandlers(controlForms.conditionalJumps), // JFc / JTc addr
+    ...this.#instructionHandlers(controlForms.conditionalCalls), // CFc / CTc addr
 
     // 01 xxx 100/110: unconditional JMP/CAL; xxx is ignored, not a condition.
-    ...opcodePattern("01 xxx 100", ({ fetchWord }: InstructionContext) => this.#jump(fetchWord())), // JMP addr
-    ...opcodePattern("01 xxx 110", ({ fetchWord }: InstructionContext) => this.#call(fetchWord())), // CAL addr
+    ...this.#instructionHandlers(controlForms.jump), // JMP addr
+    ...this.#instructionHandlers(controlForms.call), // CAL addr
 
     // 01 ppppp 1: bits 5..1 select the port. ppppp = rrmmm: rr=00 inputs 0..7;
     // rr=01/10/11 outputs 8..31. INP replaces A; OUT sends A; both preserve flags.
@@ -214,50 +209,26 @@ export class Cpu8008 {
 
     // 11 ddd sss: ddd (bits 5..3) selects destination; sss (bits 2..0) selects source.
     // 11 111 111 is HLT, not LMM; it performs no data access.
-    ...this.#transferHandlers(intel8008ByteTransferForms.matrix), // Lr1r2 / LrM / LMr
-    ...opcodePattern("11 111 111", () => this.#halt()), // HLT
+    ...this.#instructionHandlers(intel8008ByteTransferForms.matrix), // Lr1r2 / LrM / LMr
+    ...opcodePattern("11 111 111", () => semantics[0xff](this.#state)), // HLT
   ]);
 
   #adjustHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { r: this.#byteOperands, d: ["in", "dc"] as const }, ({ r: operand, d: operation }) => {
       if (operand === "m") return undefined;
-      if (operand === "a") return () => this.#halt();
+      if (operand === "a") return () => semantics[operation === "in" ? 0x00 : 0x01](this.#state);
       return () => semantics[`${operation}${operand}`](this.#state);
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
-  #transferHandlers(forms: readonly (readonly [number, unknown])[]): readonly OpcodeEntry<OpcodeHandler>[] {
-    const transfers: Readonly<Record<number, (state: Cpu8008State, instruction: InstructionContext) => void>> = semantics;
-    return forms.map(([opcode]) => [opcode, instruction => transfers[opcode]!(this.#state, instruction)]);
+  #instructionHandlers(forms: readonly (readonly [number, unknown])[]): readonly OpcodeEntry<OpcodeHandler>[] {
+    const instructions: Readonly<Record<number, (state: Cpu8008StoredState, instruction: InstructionContext) => void>> = semantics;
+    return forms.map(([opcode]) => [opcode, instruction => instructions[opcode]!(this.#state, instruction)]);
   }
 
   #portHandler(port: number): OpcodeHandler {
     return port < 8
       ? ({ readPort }) => { this.#state.a = readPort(port); }
       : ({ writePort }) => writePort(port, this.#state.a);
-  }
-
-  // Control flow.
-
-  #jump(address: number, taken = true): void {
-    if (taken) this.#pc = address & 0x3fff;
-  }
-
-  #call(address: number, taken = true): void {
-    if (!taken) return;
-    // RAM fetches advance the caller's slot; externally supplied bytes leave it unchanged.
-    // The next physical slot becomes PC; an eighth nested call overwrites the oldest return.
-    this.#state.stackIndex = (this.#state.stackIndex + 1) & 7;
-    this.#jump(address);
-  }
-
-  #return(taken = true): void {
-    if (!taken) return;
-    // Retain the outgoing slot, advanced only when the opcode came from RAM.
-    this.#state.stackIndex = (this.#state.stackIndex + 7) & 7;
-  }
-
-  #halt(): void {
-    this.#state.halted = true;
   }
 }

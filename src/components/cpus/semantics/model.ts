@@ -1,9 +1,11 @@
-import type { GroupField, StateFields, UnsignedField } from "../state.ts";
+import type { ArrayField, GroupField, StateFields, UnsignedField } from "../state.ts";
 
-// The experiment covers byte/word operations and addresses represented as 16-bit values.
-export type Width = 8 | 16;
+// Byte/word operands plus the 8008's narrow selector and physical address registers.
+export type Width = 3 | 8 | 14 | 16;
+export const isWidth = (bits: number): bits is Width => bits === 3 || bits === 8 || bits === 14 || bits === 16;
 export type ValueType = Width | "flag";
 export interface Register { readonly kind: "register"; readonly cpu: string; readonly field: string; readonly width: Width }
+export interface RegisterArray { readonly kind: "register-array"; readonly cpu: string; readonly field: string; readonly width: Width; readonly length: number }
 export interface Flag { readonly kind: "flag"; readonly cpu: string; readonly field: string }
 export interface Latch { readonly kind: "latch"; readonly cpu: string; readonly field: string }
 export interface CpuDeclaration { readonly name: string; readonly state: StateFields }
@@ -23,7 +25,7 @@ export type NumberExpression =
   | ({ readonly kind: "subtract" | "add-wrap" } & ArithmeticOperands)
   | { readonly kind: "concat" | "bit-and" | "bit-or" | "bit-xor"; readonly left: NumberExpression; readonly right: NumberExpression }
   | { readonly kind: "shift-left" | "shift-right"; readonly value: NumberExpression; readonly incoming: FlagExpression }
-  | { readonly kind: "extend" | "sign-extend"; readonly value: NumberExpression; readonly width: Width };
+  | { readonly kind: "extend" | "sign-extend" | "truncate"; readonly value: NumberExpression; readonly width: Width };
 export type FlagExpression =
   | { readonly kind: "flag-value"; readonly name: string }
   | { readonly kind: "flag-literal"; readonly value: boolean }
@@ -53,11 +55,13 @@ export type Statement =
   | { readonly kind: "when"; readonly condition: FlagExpression; readonly steps: readonly Statement[] }
   | { readonly kind: "capture"; readonly name: string; readonly value: NumberExpression }
   | { readonly kind: "read-register"; readonly name: string; readonly register: Register }
+  | { readonly kind: "read-element"; readonly name: string; readonly array: RegisterArray; readonly index: NumberExpression }
   | { readonly kind: "read-flag"; readonly name: string; readonly flag: Flag }
   | { readonly kind: "fetch-byte"; readonly name: string }
   | { readonly kind: "read-memory"; readonly name: string; readonly address: NumberExpression }
   | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource }
   | { readonly kind: "write-register"; readonly register: Register; readonly value: NumberExpression }
+  | { readonly kind: "write-element"; readonly array: RegisterArray; readonly index: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "write-latch"; readonly latch: Latch; readonly value: boolean }
   | { readonly kind: "write-memory"; readonly address: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "update-flags" | "replace-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, Expression>> };
@@ -71,6 +75,7 @@ export interface InstructionDefinition {
 }
 
 type UnsignedNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends UnsignedField ? Key : never }[keyof Fields] & string;
+type ArrayNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends ArrayField ? Key : never }[keyof Fields] & string;
 type FlagNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends { kind: "flag" } ? Key : never }[keyof Fields] & string;
 type LatchNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends { kind: "boolean" } ? Key : never }[keyof Fields] & string;
 
@@ -80,10 +85,17 @@ export function cpuSymbols<const Fields extends StateFields & { flags: GroupFiel
     declaration: { name, state } satisfies CpuDeclaration,
     register(field: UnsignedNames<Fields>): Register {
       const description = state[field];
-      if (description?.kind !== "unsigned" || (description.bits !== 8 && description.bits !== 16)) {
-        throw new Error(`${name}.${field}: this experiment requires an 8- or 16-bit stored register.`);
+      if (description?.kind !== "unsigned" || !isWidth(description.bits)) {
+        throw new Error(`${name}.${field}: expected a stored register with a supported width.`);
       }
       return { kind: "register", cpu: name, field, width: description.bits };
+    },
+    array(field: ArrayNames<Fields>): RegisterArray {
+      const description = state[field];
+      if (description?.kind !== "array" || !isWidth(description.element.bits)) {
+        throw new Error(`${name}.${field}: expected a stored register array with a supported width.`);
+      }
+      return { kind: "register-array", cpu: name, field, width: description.element.bits, length: description.length };
     },
     flag(field: FlagNames<Fields["flags"]["fields"]>): Flag {
       if (state.flags.fields[field]?.kind !== "flag") throw new Error(`${name}.${field}: expected a stored flag.`);
@@ -114,6 +126,7 @@ export const highByte = (value: NumberExpression): NumberExpression => ({ kind: 
 export const lowByte = (value: NumberExpression): NumberExpression => ({ kind: "low-byte", value });
 export const extend = (value: NumberExpression, width: Width): NumberExpression => ({ kind: "extend", value, width });
 export const signExtend = (value: NumberExpression, width: Width): NumberExpression => ({ kind: "sign-extend", value, width });
+export const truncate = (value: NumberExpression, width: Width): NumberExpression => ({ kind: "truncate", value, width });
 export const shiftLeft = (value: NumberExpression, incoming: FlagExpression): NumberExpression => ({ kind: "shift-left", value, incoming });
 export const shiftRight = (value: NumberExpression, incoming: FlagExpression): NumberExpression => ({ kind: "shift-right", value, incoming });
 export const flagValue = (name: string): FlagExpression => ({ kind: "flag-value", name });
@@ -139,10 +152,12 @@ export const when = (condition: FlagExpression, steps: readonly Statement[]): St
 export const capture = (name: string, value: NumberExpression): Statement => ({ kind: "capture", name, value });
 export const fetchByte = (name: string): Statement => ({ kind: "fetch-byte", name });
 export const readRegister = (name: string, register: Register): Statement => ({ kind: "read-register", name, register });
+export const readElement = (name: string, array: RegisterArray, index: NumberExpression): Statement => ({ kind: "read-element", name, array, index });
 export const readFlag = (name: string, flag: Flag): Statement => ({ kind: "read-flag", name, flag });
 export const readMemory = (name: string, address: NumberExpression): Statement => ({ kind: "read-memory", name, address });
 export const readSource = (name: string, source: ValueSource): Statement => ({ kind: "read-source", name, source });
 export const writeRegister = (register: Register, value: NumberExpression): Statement => ({ kind: "write-register", register, value });
+export const writeElement = (array: RegisterArray, index: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-element", array, index, value });
 export const writeLatch = (latch: Latch, value: boolean): Statement => ({ kind: "write-latch", latch, value });
 export const writeMemory = (address: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-memory", address, value });
 export const updateFlags = (policy: FlagPolicy, args: Readonly<Record<string, Expression>>): Statement => ({ kind: "update-flags", policy, arguments: args });

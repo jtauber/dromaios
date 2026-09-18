@@ -1341,7 +1341,11 @@ Prefix decoding and displacement resolution retain their existing boundary.
 The 8008 reuses the same ALU construction unchanged, supplying native register
 ordering, S/Z/P/C policies, and a bitwise `3FFF` memory mask. Its selected PC
 slot and interrupt-supplied fetch rules remain in its execution boundary.
-These expansions add no semantic primitive.
+These ALU expansions add no semantic primitive. The later 8008 control-flow
+migration adds checked register-array effects and explicit narrow values:
+calls select the next physical address register, returns select the previous
+one, and neither operation stacks an address in RAM. Fetch policy remains in
+the execution boundary; all 218 ordinary instruction forms now use definitions.
 These definitions produce both execution and the explanatory listing. The
 6502 JSR probe is now represented using existing byte/word statements, including
 its interleaved fetches and stack writes. The 68000 probes below remain requirements

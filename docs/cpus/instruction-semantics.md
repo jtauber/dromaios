@@ -30,6 +30,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 8008 Lr1r2/LrM/LMr and immediate LrI/LMI | Reuse Intel transfer construction with native register selectors, matrix prefix, mnemonics, and a 14-bit memory mask; preserve full H/L bytes, source-before-address ordering, and address-slot fetching |
 | 8008 AD/AC/SU/SB/ND/XR/OR/CP, every register/memory/immediate form | Reuse Intel ALU construction with S/Z/P/C, native register order, and an explicit 14-bit memory mask; retain address-slot fetching and supplied-byte rules |
 | 8008 INr/DCr and RLC/RRC/RAL/RAR | Preserve C on adjustments; share 8080 rotate construction with explicit A-before-C writeback and preserved S/Z/P |
+| 8008 conditional/unconditional jumps, calls, returns, restarts, and halts | Explicit 14-bit targets and three-bit selector wrap; checked physical register arrays; no RAM-stack effects; retain ordinary versus supplied-byte fetching and all documented aliases |
 | 6809 CMPA/B/D/X/Y/U/S, every addressing form | Byte/word widths, D as A:B, and addressing that changes the register subsequently compared |
 | 6800 CMPA/CMPB/CPX, every addressing form, and CBA | Share comparison construction; original CPX derives N/V from high bytes without low-byte borrow, Z from the whole word, and preserves C |
 | 6502 LDA/LDX/LDY, every supported addressing form | Reuse comparison sources; delay destination and N/Z updates until the source succeeds |
@@ -57,7 +58,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 1,378 bodies. All are generated, executable, and bound into their CPU's
+There are 1,437 bodies. All are generated, executable, and bound into their CPU's
 opcode table. The earlier MOV B,A test sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
@@ -85,7 +86,7 @@ The authoring layers have separate homes:
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, and complete push/pop instruction construction |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, byte/word-transfer, branch, and subroutine construction, with explicit access and flag policies |
 | [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
-| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 load and 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; HALT omitted |
+| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 transfer/control and 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted, with 8008 HALT defined separately |
 | [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
 | [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
 | [mos.ts](../../src/components/cpus/semantics/mos.ts) | NMOS ADC/SBC binary facts, decimal digit correction, and distinct flag/write stages |
@@ -121,11 +122,12 @@ names or handwritten per-instruction bindings. These are construction-time
 families; the resulting definitions still contain only data.
 
 `cpuSymbols(name, stateDescription)` imports the CPU's existing authority for
-stored fields. It offers typed register, flag, and control-latch names and records register
+stored fields. It offers typed register, register-array, flag, and control-latch names and records register
 widths from that schema. There is no second register-layout declaration.
-Current symbols cover stored unsigned byte/word registers, the `flags`
-group, and top-level Boolean control latches; general declarations for slices, register views, and banks remain future
-work. Composed reads already use ordinary sources: 8080 HL is explicitly read
+Current symbols cover stored unsigned registers at supported widths, fixed
+arrays of those registers, the `flags` group, and top-level Boolean control
+latches. Array symbols derive both length and element width from the schema.
+General declarations for slices, register views, and banks remain future work. Composed reads already use ordinary sources: 8080 HL is explicitly read
 as H then L, and the 6809's D as A then B, before combining the bytes.
 Compound transfer and arithmetic destinations use explicit ordered statements consuming
 `result`: LDD writes A then B using `highByte`/`lowByte`; LDS writes S then
@@ -148,7 +150,7 @@ are captured values supplied at entry, before any body statement, and belong
 to the body's initial scope. Their names and widths are validated, and a later
 capture cannot redefine them. Sources and flag policies retain their separate
 closed scopes; a policy receives an input only through an explicit argument.
-Policy parameters may declare `8`, `16`, or `"flag"`; numeric and Boolean
+Policy parameters may declare a supported numeric width or `"flag"`; numeric and Boolean
 arguments remain distinct and are evaluated once before any flag assignments.
 Passing captured carry into a policy never reads live C again.
 This lets a body consume a resolved address without hiding address calculation
@@ -490,8 +492,10 @@ check results, effect stages, callback changes, and failures independently.
 
 ## Primitive meanings
 
-This vocabulary deliberately supports unsigned **8- and 16-bit values**,
-**Boolean flag captures**, constant **control-latch writes**, and **16-bit byte memory addresses**. Widths are decimal;
+This vocabulary supports unsigned **3-, 8-, 14-, and 16-bit values**,
+**Boolean flag captures**, constant **control-latch writes**, and **16-bit byte
+memory addresses**. The narrow widths describe the 8008 selector and physical
+address registers; arithmetic and shifts still require 8- or 16-bit operands. Widths are decimal;
 numeric literals in expanded listings are hexadecimal, while flag constants
 are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 
@@ -508,6 +512,7 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `concat(high, low)` | Two bytes combined as `high * 256 + low`, yielding a word |
 | `highByte(value)`, `lowByte(value)` | Extract bits 15–8 or 7–0 of a captured word as a byte; byte operands and live register symbols are rejected |
 | `extend(value, width)` | Unsigned widening; narrowing and equal-width conversions are rejected |
+| `truncate(value, width)` | Keep the low bits at a strictly narrower supported width; writes never narrow implicitly |
 | `signExtend(value, width)` | Widen the two's-complement value, returning an unsigned bit pattern at the new width; `80:u8` becomes `FF80:u16`; narrowing and equal-width conversions are rejected |
 | `shiftLeft(value, incoming)` | Shift left once at the operand's width, discard the outgoing high bit, and insert the Boolean incoming bit at bit 0 |
 | `shiftRight(value, incoming)` | Shift right once at the operand's width, discard bit 0, and insert the Boolean incoming bit at the high bit |
@@ -516,17 +521,20 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `zero(value)` | Whether the unsigned value is zero |
 | `evenParity(value)` | Whether a byte has an even population count, including zero |
 | `borrow(left, right, incoming?)` | Whether unsigned `left - right - incoming` is negative |
-| `halfBorrow(left, right, incoming?)` | Whether `(left mod 16) - (right mod 16) - incoming` is negative, at either supported width |
+| `halfBorrow(left, right, incoming?)` | Whether `(left mod 16) - (right mod 16) - incoming` is negative, at either arithmetic width |
 | `overflow(left, right, incoming?)` | Whether signed `left - right - incoming` falls outside the signed range at that width |
 | `carry(left, right, incoming?)` | Whether unsigned `left + right + incoming` reaches `2^width` |
-| `halfCarry(left, right, incoming?)` | Whether `(left mod 16) + (right mod 16) + incoming` reaches 16, at either supported width |
+| `halfCarry(left, right, incoming?)` | Whether `(left mod 16) + (right mod 16) + incoming` reaches 16, at either arithmetic width |
 | `addOverflow(left, right, incoming?)` | Whether signed `left + right + incoming` falls outside the signed range at that width |
 | `not(value)` | Boolean negation |
 | `xor(left, right)` | Boolean exclusive OR; true exactly when its two Boolean operands differ |
 | `or(left, right)` | Boolean disjunction over captured values; no implicit flag reads |
 | `and(left, right)` | Boolean conjunction of pure expressions over already captured values; no implicit flag reads |
 
-Binary arithmetic and bitwise operands must have equal widths. Optional arithmetic
+Binary arithmetic and bitwise operands must have equal widths. Narrow values
+must be explicitly widened before arithmetic and narrowed before writing back;
+for example, the 8008 selector update adds one as a byte and retains its low
+three bits. Bitwise operations and top-bit/zero tests also accept narrow values. Optional arithmetic
 inputs are Boolean expressions, contributing zero or one; omission means zero.
 Carry/borrow/overflow use the original operands and input bit, never an already
 wrapped `right + incoming`. These expressions perform no flag reads or writes. Shift operands have distinct
@@ -534,7 +542,7 @@ roles: a byte/word value and a Boolean incoming bit; shifts do not update flags.
 These arithmetic meanings correspond
 to existing [ALU](../../src/components/cpus/alu.ts) contracts; generated code
 uses those helpers for arithmetic facts and parity. Numeric bitwise expressions
-compile to parenthesized JavaScript operators; the supported byte/word widths
+compile to parenthesized JavaScript operators; the supported widths
 keep their results unsigned without extra masking. The reporter uses explanatory spellings
 such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 
@@ -542,10 +550,12 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | --- | --- |
 | `capture` | Evaluate a pure numeric expression and give the value a fresh, immutable name |
 | `read-register` | Read the selected stored register now, capturing its value |
+| `read-element` | Read one register-array slot selected by a captured numeric expression, without RAM access |
 | `read-flag` | Read the selected stored flag now, capturing its Boolean value |
 | `fetch-byte` | Request one byte from the instruction context's fetch interface and capture it after success |
 | `read-memory` | Read one byte at an explicit word address; capture it after success |
 | `write-register` | Replace the stored register with an equal-width unsigned value |
+| `write-element` | Replace one register-array slot with an equal-width value; do not read its old contents |
 | `write-latch` | Assign a Boolean constant to a declared top-level control latch; performs no read |
 | `write-memory` | Write one byte at an explicit word address, including unchanged values |
 | `read-source` | Expand and perform the named source body once in its own scope, then capture its result |
@@ -618,7 +628,11 @@ instruction's runtime captures.
 Validation rejects unknown/cross-CPU symbols, wrong widths, out-of-range
 constants, undeclared or duplicate captures, escaping source locals, missing
 or extra policy arguments, duplicate flag assignments, and unsupported
-conversions. Diagnostics identify the CPU, instruction, statement, and named
+conversions. Array accesses also check the schema's length and element width.
+A constant index must fit; a dynamic index's entire unsigned range must fit.
+A wider selector must therefore be explicitly narrowed before it can index an
+eight-element array. Generated indexing needs no runtime bounds check for valid
+stored state and declared inputs. Diagnostics identify the CPU, instruction, statement, and named
 source or policy. This is a typed authoring API, not a parser for arbitrary JSON.
 Validation establishes structural correctness; it cannot establish that the
 author chose the hardware's correct effect order or formulas.
@@ -840,11 +854,22 @@ effect boundaries. They also check 6502 JSR's separately captured return bytes.
 interrupt-supplied Intel instructions, every failed access, and indexed 6809
 calls through S. Unsupported indexed forms retain the existing rejection rule.
 
+[8008 control probes](../../tests/components/cpus/semantics/8008-control-flow.test.ts)
+check all 59 new forms, selectors, flag patterns, address aliases, and failed
+fetches. They change flags and the selector during fetching to verify read order,
+reject array reads and RAM transfers, and retain the selector if a later slot
+write fails. [Register-array probes](../../tests/components/cpus/semantics/register-arrays.test.ts)
+check schema identity, bounds, widths, lexical scopes, and exhaustive narrowing
+of every word value. Existing CPU tests cover ordinary and supplied-byte
+execution, wrapped PCs, nested calls, unbalanced returns, all halt aliases, and
+exact execution records.
+
 ## Executable generation and integration
 
 [generateInstructions](../../src/components/cpus/semantics/generate.ts) validates
 and freezes its input before emitting code. Generated methods take the concrete
-CPU state type (including `Cpu8008State` with its readonly address-stack input), followed by any numeric inputs
+CPU state type (the 8008 uses `Cpu8008StoredState`, with owned mutable address
+slots, rather than its readonly constructor-input array), followed by any numeric inputs
 in declaration order, then only the callbacks their statements use, expressed
 as a `Pick<ByteInstructionContext, ...>`. For example,
 `rolMemory(state, address, { readByte, writeByte })` cannot fetch operands or
@@ -859,9 +884,10 @@ ordinary `if` blocks with inherited capture maps and scoped locals. Source scope
 with separate name maps; only the result enters the caller's map. Policy
 arguments are captured once, then all flag results are computed before any flag
 assignment. No reads, writes, or policies move across one another. Widths select
-the existing ALU helper arguments and sign bits. Widening a known unsigned byte
+the existing ALU helper arguments and sign bits. Widening a known unsigned value
 requires no JavaScript arithmetic; signed widening replicates the sign bit and
-returns an unsigned word. The output is deliberately unoptimized:
+returns the wider unsigned pattern. Narrowing emits an explicit low-bit mask.
+Array access emits direct indexing with an already validated captured selector. The output is deliberately unoptimized:
 repeated arithmetic facts remain separate calls rather than introducing an
 optimization pass into this review.
 
@@ -964,9 +990,13 @@ The 8008 independently binds all 72 native ALU forms, twelve register adjustment
 four accumulator rotates, and 71 byte transfers through complete generated bodies.
 Its native transfer inventory supplies both definition keys and binding opcodes,
 with an explicit HLT slot; handwritten operand read/write helpers are removed.
-Its address-register stack, fetching, and interrupt acceptance remain handwritten;
-all its handwritten
-arithmetic methods are removed. The machine parser reads its separate state schema,
+Another 59 generated bodies cover its jumps, calls, returns, restarts, and all
+three halt encodings. The control-flow inventory serves construction and binding
+without separate opcode lists. Calls advance the selector modulo eight before
+writing the new 14-bit target; returns only decrement it. Targets are fetched
+before conditions, and untaken paths never access the selector or array.
+Fetching, reset, port access, and interrupt acceptance remain handwritten;
+all ordinary instruction bodies are generated. The machine parser reads its separate state schema,
 without depending on generated execution code.
 The 6800 and 6809 bind generated A/B and memory bodies through one
 `motorolaUnaryOperations` selector table, including TST and CLR. Each CPU's static

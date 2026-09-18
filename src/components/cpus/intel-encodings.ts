@@ -18,6 +18,18 @@ export const intelByteTransferForms = byteTransferForms(["b", "c", "d", "e", "h"
 // 8008: A is selector 000, M is 111; 11 111 111 is HLT.
 export const intel8008ByteTransferForms = byteTransferForms(["a", "b", "c", "d", "e", "h", "l", "m"], "11 ddd sss");
 
+// 8008 ccc=vff: v requires false/true; ff selects C/Z/S/P. xxx denotes ignored bits.
+export const intel8008ControlForms = {
+  halt: [...opcodePattern("00 000 00x", undefined), ...opcodePattern("11 111 111", undefined)],
+  conditionalReturns: opcodeFamily("00 ccc 011", { c: [0, 1, 2, 3, 4, 5, 6, 7] }, ({ c: condition }) => condition),
+  restarts: opcodeFamily("00 vvv 101", { v: [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] }, ({ v: address }) => address),
+  return: opcodePattern("00 xxx 111", undefined),
+  conditionalJumps: opcodeFamily("01 ccc 000", { c: [0, 1, 2, 3, 4, 5, 6, 7] }, ({ c: condition }) => condition),
+  conditionalCalls: opcodeFamily("01 ccc 010", { c: [0, 1, 2, 3, 4, 5, 6, 7] }, ({ c: condition }) => condition),
+  jump: opcodePattern("01 xxx 100", undefined),
+  call: opcodePattern("01 xxx 110", undefined),
+} as const;
+
 // 00 pp q 010: pp=00/01 uses BC/DE, pp=11 fetches nn; q=0 stores A, q=1 loads A.
 // pp=10 belongs to the HL word transfers below.
 export const intelAccumulatorTransferForms = {

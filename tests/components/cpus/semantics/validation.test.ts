@@ -119,7 +119,7 @@ test("control-latch writes require a Boolean constant and a declared latch belon
     assert.throws(() => instruction([{ kind: "write-latch", latch, value } as unknown as Statement]), /control latch value must be Boolean/);
   }
   assert.throws(() => motorola.latch("s" as "nmiArmed"), /expected a stored control latch/);
-  assert.throws(() => motorola.register("nmiArmed" as "s"), /requires an 8- or 16-bit stored register/);
+  assert.throws(() => motorola.register("nmiArmed" as "s"), /expected a stored register/);
 });
 
 test("CPU-owned state descriptions validate register identity, declared widths, and flag targets", () => {

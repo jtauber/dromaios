@@ -11,7 +11,7 @@ export function flagCondition(flag: Flag, set: boolean): Condition {
 }
 
 /** Conditions capture live state at this stage; only the taken path evaluates its ordered effects. */
-function conditional(condition: Condition | undefined, steps: readonly Statement[]): readonly Statement[] {
+export function conditional(condition: Condition | undefined, steps: readonly Statement[]): readonly Statement[] {
   return condition ? [...condition.steps, when(condition.test, steps)] : steps;
 }
 

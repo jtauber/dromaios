@@ -1,4 +1,5 @@
-import type { Expression, Flag, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueType, Width } from "./model.ts";
+import type { Expression, Flag, FlagPolicy, InstructionDefinition, NumberExpression, Register, RegisterArray, Statement, ValueType, Width } from "./model.ts";
+import { isWidth } from "./model.ts";
 
 /** Own and freeze a validated definition. Captures and source scopes are instruction-local. */
 export function defineInstruction(definition: InstructionDefinition): InstructionDefinition {
@@ -13,7 +14,11 @@ export function validateInstruction(definition: InstructionDefinition): void {
   const prefix = `${cpu.name} ${definition.name}`;
   const fail = (where: string, message: string): never => { throw new Error(`${prefix} / ${where}: ${message}`); };
   const width = (bits: number, where: string): Width => {
-    if (bits !== 8 && bits !== 16) return fail(where, "expected width 8 or 16");
+    if (!isWidth(bits)) return fail(where, "expected width 3, 8, 14, or 16");
+    return bits;
+  };
+  const arithmeticWidth = (bits: Width, where: string): Width => {
+    if (bits !== 8 && bits !== 16) fail(where, "arithmetic requires an 8- or 16-bit operand; widen narrow values explicitly");
     return bits;
   };
   const identifier = (name: string, where: string): void => {
@@ -29,6 +34,17 @@ export function validateInstruction(definition: InstructionDefinition): void {
   function flag(ref: Flag, where: string): void {
     const flags = cpu.state.flags;
     if (ref.cpu !== cpu.name || flags?.kind !== "group" || flags.fields[ref.field]?.kind !== "flag") fail(where, `unknown flag ${ref.cpu}.${ref.field}`);
+  }
+  function element(ref: RegisterArray, index: NumberExpression, scope: ReadonlyMap<string, ValueType>, where: string): Width {
+    const field = cpu.state[ref.field];
+    if (ref.cpu !== cpu.name || field?.kind !== "array" || field.element.bits !== ref.width || field.length !== ref.length) {
+      return fail(where, `register array ${ref.cpu}.${ref.field} does not match the CPU schema`);
+    }
+    const bits = expression(index, scope, where);
+    // A dynamic selector's entire unsigned range must fit; constants can name any valid slot.
+    const maximum = index.kind === "literal" ? index.value : 2 ** bits - 1;
+    if (maximum >= ref.length) fail(where, `index may exceed the ${ref.length}-element register array`);
+    return width(ref.width, where);
   }
   function expression(expr: Expression, scope: ReadonlyMap<string, ValueType>, where: string): Width {
     switch (expr.kind) {
@@ -56,13 +72,21 @@ export function validateInstruction(definition: InstructionDefinition): void {
         if (to <= from) fail(where, "extension must widen its operand");
         return to;
       }
+      case "truncate": {
+        const from = expression(expr.value, scope, where), to = width(expr.width, where);
+        if (to >= from) fail(where, "truncation must narrow its operand");
+        return to;
+      }
       case "shift-left": case "shift-right":
         flagExpression(expr.incoming, scope, where);
-        return expression(expr.value, scope, where);
+        return arithmeticWidth(expression(expr.value, scope, where), where);
       case "subtract": case "add-wrap": case "concat": case "bit-and": case "bit-or": case "bit-xor": {
         const left = expression(expr.left, scope, where), right = expression(expr.right, scope, where);
         if (left !== right) fail(where, "operands must have equal widths; conversions are explicit");
-        if ((expr.kind === "subtract" || expr.kind === "add-wrap") && expr.incoming !== undefined) flagExpression(expr.incoming, scope, where);
+        if (expr.kind === "subtract" || expr.kind === "add-wrap") {
+          arithmeticWidth(left, where);
+          if (expr.incoming !== undefined) flagExpression(expr.incoming, scope, where);
+        }
         if (expr.kind !== "concat") return left;
         if (left !== 8) fail(where, "concatenation requires two bytes, high then low");
         return 16;
@@ -87,6 +111,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
       }
       case "borrow": case "half-borrow": case "subtract-overflow": case "carry": case "half-carry": case "add-overflow":
         if (expression(expr.left, scope, where) !== expression(expr.right, scope, where)) fail(where, "flag operands must have equal widths");
+        arithmeticWidth(expression(expr.left, scope, where), where);
         if (expr.incoming !== undefined) flagExpression(expr.incoming, scope, where);
         return;
       default: fail(where, "unknown flag expression");
@@ -126,6 +151,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
           return;
         case "capture": captured = number(step.value); break;
         case "read-register": captured = register(step.register, where); break;
+        case "read-element": captured = element(step.array, step.index, scope, where); break;
         case "read-flag": flag(step.flag, where); captured = "flag"; break;
         case "fetch-byte": captured = 8; break;
         case "read-memory": expect(step.address, 16); captured = 8; break;
@@ -137,6 +163,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
           break;
         }
         case "write-register": expect(step.value, register(step.register, where)); return;
+        case "write-element": expect(step.value, element(step.array, step.index, scope, where)); return;
         case "write-latch":
           if (step.latch.cpu !== cpu.name || cpu.state[step.latch.field]?.kind !== "boolean") fail(where, `unknown control latch ${step.latch.cpu}.${step.latch.field}`);
           if (typeof step.value !== "boolean") fail(where, "control latch value must be Boolean");
