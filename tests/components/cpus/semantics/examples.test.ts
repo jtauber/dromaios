@@ -25,7 +25,9 @@ test("comparison expansions read the source before the register and expose CPU-s
   const motorola = description("6809", "CMPA #byte");
   assert.match(motorola, /V := subtractOverflow\(left, right\)/);
   assert.match(motorola, /C := borrow\(left, right\)/);
-  for (const definition of instructionDefinitions.filter(example => /^(CMP|CPX|CPY|CPI|CBA)/.test(example.name))) {
+  // Z80 CPI is a block comparison that changes HL/BC; Intel CPI is an immediate comparison.
+  for (const definition of instructionDefinitions.filter(example => /^(CMP[A-Z]*|CPX|CPY|CP|CBA)(?: |$)/.test(example.name)
+    || (example.cpu.name !== "z80" && /^CPI(?: |$)/.test(example.name)))) {
     assert.equal(definition.steps.some(step => step.kind === "write-register" || step.kind === "write-memory"), false);
   }
 });
@@ -301,7 +303,7 @@ test("the review artifact is reproducible from the inert definitions and their a
   assert.equal(readFileSync("docs/cpus/semantic-examples.md", "utf8"), document);
   assert.equal(JSON.stringify(instructionDefinitions), before);
   assert.equal(describeInstructions(instructionDefinitions), document);
-  assert.equal(instructionDefinitions.length, 1555);
+  assert.equal(instructionDefinitions.length, 1572);
 });
 
 test("8080 ALU explanations expose carry-before-A capture, parity, auxiliary carry, and flags before writeback", () => {

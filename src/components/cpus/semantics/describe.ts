@@ -6,6 +6,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
   validateInstruction(definition);
   const lines: string[] = [];
   const changed = new Set<string>();
+  const bank = (ref: { readonly bank?: string }): string => ref.bank === undefined ? "" : `${ref.bank.toUpperCase()}.`;
   function number(expr: Expression, parameters: Readonly<Record<string, Expression>> = {}): string {
     switch (expr.kind) {
       // Arguments are in the caller's scope: substitution happens once, never recursively by name.
@@ -19,6 +20,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "low-byte": return `lowByte(${number(expr.value, parameters)})`;
       case "shift-left": case "shift-right":
         return `${expr.kind === "shift-left" ? "shiftLeft" : "shiftRight"}(${number(expr.value, parameters)}, ${flag(expr.incoming, parameters)})`;
+      case "shift-bits": return `shiftBits${expr.direction === "left" ? "Left" : "Right"}(${number(expr.value, parameters)}, ${expr.count})`;
       case "subtract": case "add-wrap": case "concat": case "multiply": case "bit-and": case "bit-or": case "bit-xor": {
         const operation = { subtract: "subtract", "add-wrap": "addWrap", concat: "concatHighLow", multiply: "multiplyUnsigned8",
           "bit-and": "bitAnd", "bit-or": "bitOr", "bit-xor": "bitXor" }[expr.kind];
@@ -57,12 +59,19 @@ export function describeInstruction(definition: InstructionDefinition): string {
           emit("}");
           break;
         case "capture": emit(`${step.name} := ${number(step.value)}`); break;
-        case "read-register": emit(`${step.name}:u${step.register.width} := read ${step.register.field.toUpperCase()}`); break;
+        case "read-register": emit(`${step.name}:u${step.register.width} := read ${bank(step.register)}${step.register.field.toUpperCase()}`); break;
         case "read-element": emit(`${step.name}:u${step.array.width} := read ${step.array.field.toUpperCase()}[${number(step.index)}]`); break;
         case "read-flag": emit(`${step.name}:flag := read ${step.flag.field.toUpperCase()}`); break;
+        case "read-latch": emit(`${step.name}:flag := read control latch ${step.latch.field}`); break;
+        case "exchange-flags": {
+          emit(`exchange ${bank(step.left)}FLAGS with ${bank(step.right)}FLAGS // Capture right then left; write left then right. Exchange objects without reading individual flags.`);
+          const fields = definition.cpu.state.flags;
+          if ((step.left.bank === undefined || step.right.bank === undefined) && fields?.kind === "group") Object.keys(fields.fields).forEach(name => changed.add(name));
+          break;
+        }
         case "fetch-byte": emit(`${step.name}:u8 := fetch byte`); break;
         case "read-memory": emit(`${step.name}:u8 := read memory[${number(step.address)}]`); break;
-        case "write-register": emit(`write ${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}`); break;
+        case "write-register": emit(`write ${bank(step.register)}${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}`); break;
         case "write-element": emit(`write ${step.array.field.toUpperCase()}[${number(step.index)}]:u${step.array.width} := ${number(step.value)}`); break;
         case "write-latch": emit(`write ${step.latch.field}:boolean := ${step.value}`); break;
         case "write-memory": emit(`write memory[${number(step.address)}] := ${number(step.value)}`); break;

@@ -20,7 +20,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.js";
-import { subtract, evenParity8 } from "./alu.ts";
+import { evenParity8 } from "./alu.ts";
 
 export { cpuZ80StateDescription } from "./state/z80.ts";
 export type { CpuZ80State, CpuZ80Flags, CpuZ80RegisterBank } from "./state/z80.ts";
@@ -284,7 +284,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
     ...this.baseInstructions(),
     // 00 yyy 000: yyy=001 exchanges AF, 010 is DJNZ, 011 is JR, and 1cc is conditional JR.
-    ...instructionPattern("00 001 000", () => this.#exchangeAf()), // EX AF,AF'
+    ...instructionPattern("00 001 000", () => semantics.exchangeAf(this.state)), // EX AF,AF'
     ...instructionPattern("00 010 000", instruction => semantics.djnz(this.state, instruction)), // DJNZ e
     ...instructionPattern("00 011 000", instruction => semantics.jr(this.state, instruction)), // JR e
     ...opcodeFamily("00 1cc 000", { c: [semantics.jrNZ, semantics.jrZ, semantics.jrNC, semantics.jrC] },
@@ -292,7 +292,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     // 11 01 d 011: d=0 outputs, d=1 inputs; old A supplies address bits 15..8.
     ...instructionPattern("11 01 0 011", ({ fetchByte, writePort }) => writePort((this.state.a << 8) | fetchByte(), this.state.a)), // OUT (n),A
     ...instructionPattern("11 01 1 011", ({ fetchByte, readPort }) => { this.state.a = readPort((this.state.a << 8) | fetchByte()); }), // IN A,(n); preserve all flags
-    ...instructionPattern("11 01 1 001", () => this.#exchangeGeneralBanks()), // EXX
+    ...instructionPattern("11 01 1 001", () => semantics.exchangeGeneralBanks(this.state)), // EXX
     // 11 11 e 011: e selects DI/EI; EI inhibits IRQ through the following instruction.
     ...instructionPattern("11 11 0 011", () => { this.state.iff1 = this.state.iff2 = false; }), // DI
     ...instructionPattern("11 11 1 011", ({ deferInterrupt }) => { this.state.iff1 = this.state.iff2 = true; deferInterrupt(); }), // EI
@@ -341,7 +341,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
       [semantics.storeBCMemory, semantics.loadBCMemory], [semantics.storeDEMemory, semantics.loadDEMemory],
       [semantics[0x22], semantics[0x2a]], [semantics.storeSPMemory, semantics.loadSPMemory],
     ], d: [0, 1] }, ({ p: operations, d: direction }) => (instruction: InstructionContext) => operations[direction]!(this.state, instruction)), // LD (nn),dd / LD dd,(nn)
-    ...instructionPattern("01 000 100", () => this.#negate()), // NEG; other ED x4 aliases are undocumented
+    ...instructionPattern("01 000 100", () => semantics.neg(this.state)), // NEG; other ED x4 aliases are undocumented
     // 01 00 n 101: both returns restore IFF1 from IFF2; n=1 also notifies the device.
     ...instructionPattern("01 00 0 101", instruction => this.#returnFromInterrupt(false, instruction)), // RETN
     ...instructionPattern("01 00 1 101", instruction => this.#returnFromInterrupt(true, instruction)), // RETI
@@ -349,13 +349,16 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     ...([{ bits: "00", mode: 0 }, { bits: "10", mode: 1 }, { bits: "11", mode: 2 }] as const).flatMap(({ bits, mode }) =>
       instructionPattern(`01 0 ${bits} 110`, () => { this.state.im = mode; })), // IM 0/1/2
     // 01 0 d s 111: d=0 writes I/R from A, d=1 loads A; s=0 selects I, s=1 selects R.
-    ...opcodeFamily("01 0 0 s 111", { s: ["i", "r"] }, ({ s }) => () => { this.state[s] = this.state.a; }), // LD I/R,A
-    ...opcodeFamily("01 0 1 s 111", { s: ["i", "r"] }, ({ s }) => () => this.#loadSpecial(s)), // LD A,I/R
-    ...instructionPattern("01 10 0 111", instruction => this.#rotateDigits(false, instruction)), // RRD
-    ...instructionPattern("01 10 1 111", instruction => this.#rotateDigits(true, instruction)), // RLD
+    ...opcodeFamily("01 0 0 s 111", { s: [semantics.loadIFromA, semantics.loadRFromA] }, ({ s: execute }) => () => execute(this.state)), // LD I/R,A
+    ...opcodeFamily("01 0 1 s 111", { s: [semantics.loadAFromI, semantics.loadAFromR] }, ({ s: execute }) => () => execute(this.state)), // LD A,I/R
+    ...instructionPattern("01 10 0 111", instruction => semantics.rrd(this.state, instruction)), // RRD
+    ...instructionPattern("01 10 1 111", instruction => semantics.rld(this.state, instruction)), // RLD
     // 101 r d 00 c: r repeats, d=0 increments/1 decrements, c=0 copies/1 compares.
-    ...opcodeFamily("101 r d 00 c", { r: [false, true], d: [1, -1], c: [false, true] },
-      ({ r: repeat, d: delta, c: compare }) => (instruction: InstructionContext) => this.#block(delta, compare, repeat, instruction)), // LDI/R, LDD/R, CPI/R, CPD/R
+    ...opcodeFamily("101 r d 00 c", { r: [
+      [[semantics.ldi, semantics.cpi], [semantics.ldd, semantics.cpd]],
+      [[semantics.ldir, semantics.cpir], [semantics.lddr, semantics.cpdr]],
+    ], d: [0, 1], c: [0, 1] }, ({ r: directions, d: direction, c: operation }) =>
+      (instruction: InstructionContext) => directions[direction]![operation]!(this.state, instruction)), // LDI/R, LDD/R, CPI/R, CPD/R
     // 101 r d 01 o: r repeats, d=0 increments/1 decrements HL, o=0 inputs/1 outputs.
     ...opcodeFamily("101 r d 01 o", { r: [false, true], d: [1, -1], o: [false, true] },
       ({ r: repeat, d: delta, o: output }) => (instruction: InstructionContext) => this.#blockIo(delta, output, repeat, instruction)), // INI/R, IND/R, OUTI/OTIR, OUTD/OTDR
@@ -391,59 +394,10 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     ];
   }
 
-  // Addressing, loads, and exchanges.
+  // Addressing.
 
   #indexedAddress(index: IndexRegister, displacement: number): number {
     return (this.state[index] + signed8(displacement)) & 0xffff;
-  }
-
-  #loadSpecial(register: "i" | "r"): void {
-    this.state.a = this.#aluResult(this.state[register], { h: false, pv: this.state.iff2, n: false, c: this.state.flags.c });
-  }
-
-  #exchangeAf(): void {
-    const { alternate } = this.state;
-    [this.state.a, alternate.a] = [alternate.a, this.state.a];
-    [this.state.flags, alternate.flags] = [alternate.flags, this.state.flags];
-  }
-
-  #exchangeGeneralBanks(): void {
-    const { alternate } = this.state;
-    for (const register of ["b", "c", "d", "e", "h", "l"] as const) {
-      [this.state[register], alternate[register]] = [alternate[register], this.state[register]];
-    }
-  }
-
-  // Arithmetic, logic, and flags.
-
-  #negate(): void {
-    const { result, borrow, halfBorrow, overflow } = subtract(8, 0, this.state.a);
-    this.state.a = this.#aluResult(result, { h: halfBorrow, pv: overflow, n: true, c: borrow });
-  }
-
-  #rotateDigits(left: boolean, { readByte, writeByte }: InstructionContext): void {
-    const address = this.hl, memory = readByte(address), a = this.state.a;
-    const nextMemory = left ? ((memory << 4) | (a & 0x0f)) & 0xff : ((a & 0x0f) << 4) | (memory >>> 4);
-    const nextA = (a & 0xf0) | (left ? memory >>> 4 : memory & 0x0f);
-    writeByte(address, nextMemory);
-    this.state.a = this.#parityResult(nextA, { h: false, c: this.state.flags.c });
-  }
-
-  #block(delta: -1 | 1, compare: boolean, repeat: boolean, { readByte, writeByte }: InstructionContext): void {
-    const value = readByte(this.hl), count = (this.readPair("bc") - 1) & 0xffff;
-    if (compare) {
-      const { result, halfBorrow } = subtract(8, this.state.a, value);
-      this.#aluResult(result, { h: halfBorrow, pv: count !== 0, n: true, c: this.state.flags.c });
-    } else {
-      writeByte(this.readPair("de"), value);
-      this.writePair("de", (this.readPair("de") + delta) & 0xffff);
-      this.state.flags.h = this.state.flags.n = false;
-      this.state.flags.pv = count !== 0;
-    }
-    this.hl = (this.hl + delta) & 0xffff;
-    this.writePair("bc", count);
-    // One iteration per step; repeating refetches both opcode bytes and advances R twice again.
-    if (repeat && count !== 0 && (!compare || !this.state.flags.z)) this.state.pc = (this.state.pc - 2) & 0xffff;
   }
 
   // Block I/O: inputs use BC before decrementing B; outputs use BC afterward.
@@ -477,7 +431,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     flags.pv = flags.pv === evenParity8(parityOperand & 7);
   }
 
-  // Digit rotates and port inputs use parity.
+  // Port inputs use parity.
   #parityResult(result: number, { h, c }: Pick<CpuZ80Flags, "h" | "c">): number {
     return this.#aluResult(result, { h, pv: evenParity8(result), n: false, c });
   }

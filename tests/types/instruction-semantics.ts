@@ -1,7 +1,8 @@
 import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js";
+import { cpuZ80StateDescription } from "../../src/components/cpus/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, lowByte, literal, not, readFlag, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, readFlag, readLatch, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
@@ -20,6 +21,27 @@ import type { Cpu6809State } from "../../src/components/cpus/6809.js";
 // Compiled, never called: names come from CPU schemas; reads, expressions, and writes have distinct roles.
 export function checkInstructionSemantics(): void {
   const mos = cpuSymbols("6502", cpu6502StateDescription), intel = cpuSymbols("8080", cpu8080StateDescription);
+  const z80 = cpuSymbols("z80", cpuZ80StateDescription), alternate = z80.bank("alternate");
+  alternate.register("a");
+  exchangeFlags(z80.flags, alternate.flags);
+  readLatch("enabled", z80.latch("iff2"));
+  shiftBits(value("byte"), "right", 4);
+  // @ts-expect-error Bank names come from the CPU schema.
+  z80.bank("unknown");
+  // @ts-expect-error The flag group is not a register bank.
+  z80.bank("flags");
+  // @ts-expect-error Alternate banks do not contain the index registers.
+  alternate.register("ix");
+  // @ts-expect-error Dotted strings are not stored register names.
+  z80.register("alternate.a");
+  // @ts-expect-error A scalar flag is not a complete flag group.
+  exchangeFlags(z80.flags, z80.flag("c"));
+  // @ts-expect-error Control-latch reads cannot address numeric registers.
+  readLatch("enabled", z80.register("i"));
+  // @ts-expect-error Logical shifts operate on captured numbers, not live registers.
+  shiftBits(z80.register("a"), "left", 4);
+  // @ts-expect-error Logical shifts cannot rotate or insert carry.
+  shiftBits(value("byte"), "rotate", 4);
   mos.register("a");
   intel.flag("cy");
   const i8008 = cpuSymbols("8008", cpu8008StateDescription);
@@ -125,6 +147,24 @@ export function checkInstructionSemantics(): void {
 }
 
 export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State, motorola: Cpu6809State, m6800: Cpu6800State, z80: CpuZ80State, i8008: Cpu8008StoredState): void {
+  generatedZ80.exchangeAf(z80);
+  generatedZ80.exchangeGeneralBanks(z80);
+  generatedZ80.loadAFromI(z80);
+  generatedZ80.loadRFromA(z80);
+  generatedZ80.neg(z80);
+  generatedZ80.rrd(z80, { readByte: () => 0, writeByte: () => {} });
+  generatedZ80.ldir(z80, { readByte: () => 0, writeByte: () => {} });
+  generatedZ80.cpir(z80, { readByte: () => 0 });
+  // @ts-expect-error Bank exchanges require the Z80's concrete state.
+  generatedZ80.exchangeAf(intel);
+  // @ts-expect-error Special transfers cannot fetch again after refresh/decoding.
+  generatedZ80.loadAFromR(z80, { fetchByte: () => 0 });
+  // @ts-expect-error Digit rotations require a memory write.
+  generatedZ80.rld(z80, { readByte: () => 0 });
+  // @ts-expect-error Block comparisons cannot write memory.
+  generatedZ80.cpd(z80, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Repeated blocks cannot fetch or run a second iteration inside the body.
+  generatedZ80.lddr(z80, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
   const readers = sourceReaders(mos);
   const address: number = readers.addresses.absoluteX({ fetchByte: () => 0 });
   const byte: number = readers.operands[3]({ fetchByte: () => 0, readByte: () => 0 });

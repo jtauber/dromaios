@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { instructions8080, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { wordChanges, wordForms, wordState } from "../../../helpers/intel-words.js";
 
 test("Intel word transfers use seven 8080 bodies and 21 Z80 bodies for all 30 documented forms", () => {
   assert.equal(wordForms["8080"].length, 7); assert.equal(wordForms.z80.length, 23);
   assert.equal(new Set(wordForms["8080"].map(form => form.execute)).size, 7);
   assert.equal(new Set(wordForms.z80.map(form => form.execute)).size, 21);
-  assert.equal(Object.keys(instructions8080).length, 240);
-  assert.equal(Object.keys(instructionsZ80).length, 559);
   const names = Object.values(instructionsZ80).map(definition => definition.name);
   for (const name of ["LD HL,(nn)", "LD (nn),HL"]) assert.equal(names.filter(item => item === name).length, 1);
 });

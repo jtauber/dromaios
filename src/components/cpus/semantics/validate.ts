@@ -1,4 +1,4 @@
-import type { Expression, Flag, FlagPolicy, InstructionDefinition, NumberExpression, Register, RegisterArray, Statement, ValueType, Width } from "./model.ts";
+import type { Expression, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueType, Width } from "./model.ts";
 import { isWidth } from "./model.ts";
 
 /** Own and freeze a validated definition. Captures and source scopes are instruction-local. */
@@ -24,8 +24,15 @@ export function validateInstruction(definition: InstructionDefinition): void {
   const identifier = (name: string, where: string): void => {
     if (!/^[a-z][a-zA-Z0-9_]*$/.test(name)) fail(where, `invalid value name ${JSON.stringify(name)}`);
   };
+  function bank(ref: { readonly cpu: string; readonly bank?: string }, where: string) {
+    if (ref.cpu !== cpu.name) return fail(where, `reference does not match the CPU schema`);
+    if (ref.bank === undefined) return cpu.state;
+    const field = cpu.state[ref.bank];
+    if (field?.kind !== "group" || field.fields.flags?.kind !== "group") return fail(where, `unknown register bank ${ref.bank}`);
+    return field.fields;
+  }
   function register(ref: Register, where: string): Width {
-    const field = cpu.state[ref.field];
+    const field = bank(ref, where)[ref.field];
     if (ref.cpu !== cpu.name || field?.kind !== "unsigned" || field.bits !== ref.width) {
       return fail(where, `register ${ref.cpu}.${ref.field} does not match the CPU schema`);
     }
@@ -34,6 +41,16 @@ export function validateInstruction(definition: InstructionDefinition): void {
   function flag(ref: Flag, where: string): void {
     const flags = cpu.state.flags;
     if (ref.cpu !== cpu.name || flags?.kind !== "group" || flags.fields[ref.field]?.kind !== "flag") fail(where, `unknown flag ${ref.cpu}.${ref.field}`);
+  }
+  function latch(ref: Latch, where: string): void {
+    if (ref.cpu !== cpu.name || cpu.state[ref.field]?.kind !== "boolean") fail(where, `unknown control latch ${ref.cpu}.${ref.field}`);
+  }
+  function flagGroup(ref: FlagGroup, where: string): string[] {
+    const flags = bank(ref, where).flags;
+    if (ref.kind !== "flag-group" || flags?.kind !== "group" || Object.values(flags.fields).some(field => field.kind !== "flag")) {
+      return fail(where, "expected a complete group of stored flags");
+    }
+    return Object.keys(flags.fields).sort();
   }
   function element(ref: RegisterArray, index: NumberExpression, scope: ReadonlyMap<string, ValueType>, where: string): Width {
     const field = cpu.state[ref.field];
@@ -80,6 +97,11 @@ export function validateInstruction(definition: InstructionDefinition): void {
       case "shift-left": case "shift-right":
         flagExpression(expr.incoming, scope, where);
         return arithmeticWidth(expression(expr.value, scope, where), where);
+      case "shift-bits": {
+        const bits = arithmeticWidth(expression(expr.value, scope, where), where);
+        if (!Number.isInteger(expr.count) || expr.count < 0 || expr.count > bits || !["left", "right"].includes(expr.direction)) fail(where, "logical shift needs a direction and a constant count from zero through the operand width");
+        return bits;
+      }
       case "subtract": case "add-wrap": case "concat": case "multiply": case "bit-and": case "bit-or": case "bit-xor": {
         const left = expression(expr.left, scope, where), right = expression(expr.right, scope, where);
         if (left !== right) fail(where, "operands must have equal widths; conversions are explicit");
@@ -157,6 +179,12 @@ export function validateInstruction(definition: InstructionDefinition): void {
         case "read-register": captured = register(step.register, where); break;
         case "read-element": captured = element(step.array, step.index, scope, where); break;
         case "read-flag": flag(step.flag, where); captured = "flag"; break;
+        case "read-latch": latch(step.latch, where); captured = "flag"; break;
+        case "exchange-flags": {
+          const left = flagGroup(step.left, where), right = flagGroup(step.right, where);
+          if (left.length !== right.length || left.some((name, index) => name !== right[index])) fail(where, "exchanged flag groups must have the same fields");
+          return;
+        }
         case "fetch-byte": captured = 8; break;
         case "read-memory": expect(step.address, 16); captured = 8; break;
         case "read-source": {
@@ -169,7 +197,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
         case "write-register": expect(step.value, register(step.register, where)); return;
         case "write-element": expect(step.value, element(step.array, step.index, scope, where)); return;
         case "write-latch":
-          if (step.latch.cpu !== cpu.name || cpu.state[step.latch.field]?.kind !== "boolean") fail(where, `unknown control latch ${step.latch.cpu}.${step.latch.field}`);
+          latch(step.latch, where);
           if (typeof step.value !== "boolean") fail(where, "control latch value must be Boolean");
           return;
         case "write-memory": expect(step.address, 16); expect(step.value, 8); return;

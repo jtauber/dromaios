@@ -1352,8 +1352,12 @@ its interleaved fetches and stack writes. The 6809 now also uses construction-ti
 register views for D/CC/S, specialized TFR/EXG bodies, and byte-mask stack
 construction shared by ordinary instructions and interrupt-frame transfers.
 These expand into existing effects; unsigned byte multiplication is the only
-new primitive for its remaining ordinary instructions. The 68000 probes below remain requirements
-for later vocabulary. Whole-model migration remains a separate decision.
+new primitive for its remaining ordinary instructions. The Z80 now also authors
+its ordinary instructions, with checked alternate-bank references, explicit
+IFF2 reads, whole flag-object exchange, and constant logical shifts. Repeating
+blocks use one iteration and a conditional PC rewind, preserving refetch and
+interrupt boundaries without a loop primitive. The 68000 probes below remain
+requirements for later vocabulary. Whole-model migration remains a separate decision.
 
 The 6502 now authors these migrated instructions as encoding families and
 generates their execution bindings too. All ordinary 6502 bodies now expand their address and operand sources,

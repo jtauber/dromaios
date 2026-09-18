@@ -20,6 +20,8 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
 | Z80 accumulator rotates and all documented CB shifts/rotates, including indexed forms | Preserve S/Z/PV on accumulator rotates; derive them for CB operations; share each memory body across HL/IX/IY, with flags before writeback and explicit failure boundaries |
+| Z80 EX AF,AF′/EXX, I/R transfers, and NEG | Schema-owned alternate-bank references, whole flag-object exchange, explicit IFF2 reads, and flags before A |
+| Z80 RLD/RRD and all eight block transfer/search forms | Direct nibble shifts; successful memory writes before flags; live pair rereads; one iteration and conditional PC rewind, with no hidden loop |
 | Z80 BIT/RES/SET, including indexed forms | Fixed bit masks; BIT reads without writeback and preserves C; RES/SET write even unchanged values without accessing flags; share CB construction and bindings with shifts |
 | 8080 INR/DCR and Z80 byte INC/DEC, including indexed forms | Share read–adjust–flags–write bodies; preserve carry; distinguish 8080 inverse half-borrow and parity from Z80 half-borrow and overflow; retain calculated flags on failed writes |
 | 8080 MOV/MVI and corresponding Z80 LD matrices, immediate and indexed forms | Share one encoding inventory for definition generation and execution binding; capture sources before writes, retain HL access timing and real indexed H/L operands, preserve every flag, and exclude HALT |
@@ -61,8 +63,8 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 1,555 generated, executable bodies. All serve CPU execution;
-1,553 are bound through opcode or postbyte selection, and two are shared 6809
+There are 1,572 generated, executable bodies. All serve CPU execution;
+1,570 are bound through opcode or postbyte selection, and two are shared 6809
 frame helpers called by interrupt entry and return. The earlier MOV B,A test
 sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
@@ -132,12 +134,19 @@ widths from that schema. There is no second register-layout declaration.
 Current symbols cover stored unsigned registers at supported widths, fixed
 arrays of those registers, the `flags` group, and top-level Boolean control
 latches. Array symbols derive both length and element width from the schema.
-General declarations for slices, register views, and banks remain future work. Composed reads already use ordinary sources: 8080 HL is explicitly read
-as H then L, and the 6809's D as A then B, before combining the bytes.
+`cpu.bank("alternate")` exposes the stored unsigned registers and complete
+flag object in that named top-level bank, using the same CPU declaration.
+Register references carry an optional bank name; they never flatten or copy
+live bank state. Names and widths are checked against the owning schema.
+Arbitrary nested paths and implicit register slices remain outside this API.
+Composed reads use ordinary sources: 8080 HL is explicitly read as H then L,
+and the 6809's D as A then B, before combining the bytes. `intelPairView` supplies
+both that source and construction-time split writes, reusing `RegisterView`.
 Compound transfer and arithmetic destinations use explicit ordered statements consuming
 `result`: LDD writes A then B using `highByte`/`lowByte`; LDS writes S then
 `writeLatch(cpu.latch("nmiArmed"), true)`. A latch is distinct from an architectural
-flag. The current latch vocabulary supports constant Boolean writes only.
+flag. `readLatch` captures its Boolean value for later conditions or policies;
+`writeLatch` still accepts only a Boolean constant.
 
 TypeScript distinguishes a register, a captured numeric expression, and a flag
 expression. Registers and flags do not implicitly read themselves. A numeric
@@ -439,6 +448,43 @@ then replace Z/C. The C expression explicitly selects product bit 7.
 check every legal transfer pair, flag replacement and arming, read/write order,
 failed register effects, all byte products, and rejected multiplication widths.
 
+## Z80 banks, special registers, and repeated blocks
+
+EXX exchanges B/C/D/E/H/L one byte at a time; EX AF,AF′ exchanges A, then the
+complete flag objects. Each exchange reads alternate then main and writes main
+then alternate. Register exchanges use ordinary captures and writes. The
+`exchangeFlags` statement preserves flag-object identity without reading bits,
+packing, or reconstructing flags. Both groups must have the same stored flag
+names, and failed effects retain earlier assignments.
+
+LD A,I/R captures the special register, IFF2, then C; it replaces S/Z/H/PV/N/C
+before writing A. LD I/R,A copies all eight bits, including R bit 7, without
+accessing flags. Decoding and refresh increments happen before body entry.
+NEG also replaces flags before A. RLD/RRD use constant logical shifts to move
+A's low nibble and both memory nibbles. They capture HL, read memory, read A,
+write memory, then read C, replace flags, and write A. A failed write leaves
+A and flags unchanged.
+
+LDI/LDD/LDIR/LDDR and CPI/CPD/CPIR/CPDR each perform one iteration. They read
+memory before capturing the decremented BC. Copy bodies read DE for the write,
+reread DE after success, then adjust it and update N/H/PV. Comparisons preserve
+A and replace flags with PV from the remaining count. Both reread and adjust
+HL, write captured BC, and only then consider a PC rewind. Repeating comparisons
+read the updated Z only when the count is nonzero. Rewinding PC by two lets the
+next step refetch current code, update R, or accept an interrupt; it is not a
+loop inside the generated body. Prefix and interrupt-supplied fetching,
+recognition, and retirement stay in the CPU.
+
+[Bank/shift validation probes](../../tests/components/cpus/semantics/banks.test.ts)
+check ownership, widths, matching flag groups, latch scopes, safely emitted
+property names, and every byte/word value at boundary shift counts.
+[Generated-body probes](../../tests/components/cpus/semantics/z80-ordinary.test.ts)
+check exact effect ordering, whole-object exchange, partial failures, live
+callback changes, captured counters, and conditional PC access.
+[CPU failure probes](../../tests/components/cpus/z80/ordinary-failures.test.ts)
+cover every access failure in all 17 forms through ordinary and IM 0 execution.
+Existing exhaustive CPU tests remain the independent value/flag baseline.
+
 ## Branches and jumps
 
 [Shared control-flow construction](../../src/components/cpus/semantics/control-flow.ts)
@@ -540,7 +586,7 @@ check results, effect stages, callback changes, and failures independently.
 ## Primitive meanings
 
 This vocabulary supports unsigned **3-, 8-, 14-, and 16-bit values**,
-**Boolean flag captures**, constant **control-latch writes**, and **16-bit byte
+**Boolean flag/latch captures**, constant **control-latch writes**, and **16-bit byte
 memory addresses**. The narrow widths describe the 8008 selector and physical
 address registers; arithmetic and shifts still require 8- or 16-bit operands. Widths are decimal;
 numeric literals in expanded listings are hexadecimal, while flag constants
@@ -564,6 +610,7 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `signExtend(value, width)` | Widen the two's-complement value, returning an unsigned bit pattern at the new width; `80:u8` becomes `FF80:u16`; narrowing and equal-width conversions are rejected |
 | `shiftLeft(value, incoming)` | Shift left once at the operand's width, discard the outgoing high bit, and insert the Boolean incoming bit at bit 0 |
 | `shiftRight(value, incoming)` | Shift right once at the operand's width, discard bit 0, and insert the Boolean incoming bit at the high bit |
+| `shiftBits(value, direction, count)` | Logical left/right shift of a byte or word by a constant integer from zero through its width; zero-fill, retain the original width, discard shifted-out bits, and do not read or write carry |
 | `negative(value)` | Whether the top bit at the value's width is set |
 | `lowBit(value)` | Whether bit 0 is set |
 | `zero(value)` | Whether the unsigned value is zero |
@@ -600,6 +647,8 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `read-register` | Read the selected stored register now, capturing its value |
 | `read-element` | Read one register-array slot selected by a captured numeric expression, without RAM access |
 | `read-flag` | Read the selected stored flag now, capturing its Boolean value |
+| `read-latch` | Read a declared Boolean control latch now, capturing it as a Boolean for conditions or flag policies |
+| `exchange-flags` | Capture the right complete flag object, then the left; assign left, then right, without inspecting or copying their bits |
 | `fetch-byte` | Request one byte from the instruction context's fetch interface and capture it after success |
 | `read-memory` | Read one byte at an explicit word address; capture it after success |
 | `write-register` | Replace the stored register with an equal-width unsigned value |
@@ -676,7 +725,8 @@ instruction's runtime captures.
 Validation rejects unknown/cross-CPU symbols, wrong widths, out-of-range
 constants, undeclared or duplicate captures, escaping source locals, missing
 or extra policy arguments, duplicate flag assignments, and unsupported
-conversions. Array accesses also check the schema's length and element width.
+conversions. Bank references require a declared bank; flag exchanges require
+matching complete flag groups. Array accesses also check the schema's length and element width.
 A constant index must fit; a dynamic index's entire unsigned range must fit.
 A wider selector must therefore be explicitly narrowed before it can index an
 eight-element array. Generated indexing needs no runtime bounds check for valid
@@ -687,7 +737,8 @@ author chose the hardware's correct effect order or formulas.
 
 [describeInstruction](../../src/components/cpus/semantics/describe.ts) expands
 source bodies and substitutes policy arguments. It also derives the flags
-preserved throughout the body from the schema and actual update statements.
+preserved throughout the body from the schema, update statements, and any
+exchange involving the primary flag object.
 Those lists are not hand-maintained annotations. Explanatory prose remains
 authored text and is visibly separate from the generated operations.
 
@@ -936,8 +987,12 @@ the existing ALU helper arguments and sign bits. Widening a known unsigned value
 requires no JavaScript arithmetic; signed widening replicates the sign bit and
 returns the wider unsigned pattern. Narrowing emits an explicit low-bit mask.
 Unsigned byte multiplication emits JavaScript multiplication with a word result;
-no truncation or ALU helper is needed. Array access emits direct indexing with
-an already validated captured selector. The output is deliberately unoptimized:
+no truncation or ALU helper is needed. Constant logical shifts emit unsigned
+right shifts or masked left shifts, with counts checked against the operand width.
+Bank references emit direct, safely quoted properties as needed. Flag exchange
+emits two captured references followed by two assignments; it never packs or
+rebuilds the objects. Array access emits direct indexing with an already
+validated captured selector. The output is deliberately unoptimized:
 repeated arithmetic facts remain separate calls rather than introducing an
 optimization pass into this review.
 

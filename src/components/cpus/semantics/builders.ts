@@ -25,7 +25,7 @@ export const immediateByte: ValueSource = {
 };
 
 export function registerSource(register: Register): ValueSource {
-  return { name: `register ${register.field.toUpperCase()}`, width: register.width,
+  return { name: `register ${register.bank === undefined ? "" : register.bank.toUpperCase() + "."}${register.field.toUpperCase()}`, width: register.width,
     steps: [readRegister("contents", register)], result: value("contents") };
 }
 

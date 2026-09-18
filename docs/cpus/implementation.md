@@ -330,9 +330,10 @@ fields, concrete snapshot types, and outcome narrowing through the CPU exports.
 ## Register pairs and packed flags
 
 The [register-pair helpers](../../src/components/cpus/register-pairs.ts) define
-BC, DE, and HL as high/low byte views shared by the 8080 and Z80. Reading,
-writing, and snapshot views use that one mapping. CPU tables select pair names;
+BC, DE, and HL as high/low byte views shared by the 8080 and Z80. Runtime reads,
+generated split writes, and snapshot views use that one mapping. CPU tables select pair names;
 SP is stored directly. The Z80 applies the same views independently to each bank.
+The last ordinary Z80 migration removes the unused runtime pair writer and its family wrapper.
 
 The [flag-register helper](../../src/components/cpus/flags.ts) takes a map from
 flag names to bit positions, plus any fixed output bits. `encode` reads current
@@ -601,6 +602,18 @@ and S appends arming. The 6809 shares these writes between transfers, stacks,
 and LEA. Its transfer inventory drives both definitions and postbyte bindings,
 rejecting undefined or mixed-width pairs before body entry. TFR/EXG capture both
 originals before any write; LEA enters only after successful indexed resolution.
+
+The Z80's `intelPairView` reuses the same construction-time read/write view for
+BC/DE/HL. Stored alternate-bank registers come from `cpu.bank("alternate")`,
+not a second schema. Whole flag exchanges move object references explicitly;
+ordinary register exchanges remain ordered reads and writes. Keep latch reads
+explicit too: LD A,I/R captures IFF2 after the special-register byte and before C.
+
+Repeated Z80 blocks use one generated iteration and a conditional PC rewind.
+Keep source reads, counter capture, destination writes, live pair rereads,
+flags, and repeat testing in their existing order. The next step owns refetching
+and refresh. Digit rotates similarly keep their memory write before C, flag
+replacement, and A writeback; constant logical shifts make nibble movement visible.
 
 ## Shared arithmetic
 

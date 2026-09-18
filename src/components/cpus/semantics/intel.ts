@@ -1,6 +1,7 @@
 import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagLiteral, flagValue, highByte, literal, lowByte, not, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeLatch, writeMemory, writeRegister } from "./model.ts";
 import type { CpuDeclaration, Flag, Latch, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource } from "./model.ts";
 import { arithmetic, immediateByte, instructionSet, memorySource, registerSource, shift, transfer } from "./builders.ts";
+import type { RegisterView } from "./builders.ts";
 import { decimalAdjust } from "./decimal.ts";
 import { flagInstruction, flagPolicy, packedStatus, restoreStatus } from "./status.ts";
 import { defineInstruction } from "./validate.ts";
@@ -28,10 +29,16 @@ const wordDestination = (register: WordRegister): Register | readonly Statement[
 /** Pairs are views of two stored bytes, read and written high byte first. */
 export function intelWordRegister(cpu: IntelWordCpu, pair: RegisterPair | "sp"): WordRegister {
   if (pair === "sp") return cpu.register("sp");
+  const view = intelPairView(cpu, pair);
+  return { source: view.source, write: view.write(value("result")) };
+}
+
+/** Construction-time pair view, with an explicit value supplied to each split write. */
+export function intelPairView(cpu: IntelByteCpu, pair: RegisterPair): RegisterView {
   const [highField, lowField] = pairBytes[pair], high = cpu.register(highField), low = cpu.register(lowField);
   return { source: { name: pair.toUpperCase(), width: 16,
     steps: [readRegister("high", high), readRegister("low", low)], result: concat(value("high"), value("low")) },
-    write: [writeRegister(high, highByte(value("result"))), writeRegister(low, lowByte(value("result")))],
+    write: contents => [writeRegister(high, highByte(contents)), writeRegister(low, lowByte(contents))],
   };
 }
 

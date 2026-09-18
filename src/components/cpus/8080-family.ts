@@ -1,4 +1,4 @@
-import { readRegisterPair, writeRegisterPair } from "./register-pairs.ts";
+import { readRegisterPair } from "./register-pairs.ts";
 import type { RegisterPair } from "./register-pairs.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { opcodeFamily, opcodePattern } from "./opcodes.ts";
@@ -121,10 +121,6 @@ export abstract class Cpu8080Family<State extends Registers> {
 
   protected readPair(pair: RegisterPair): number {
     return readRegisterPair(this.state, pair);
-  }
-
-  protected writePair(pair: RegisterPair, value: number): void {
-    writeRegisterPair(this.state, pair, value);
   }
 
   // Data words are little-endian and wrap independently of the instruction stream.

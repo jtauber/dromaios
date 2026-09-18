@@ -1,18 +1,92 @@
 import { cpuZ80StateDescription, cpuZ80Status } from "../../state/z80.ts";
-import { addOverflow, bitAnd, bitOr, bitXor, borrow, capture, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, overflow,
-  readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
-import type { FlagPolicy, InstructionDefinition, Statement } from "../model.ts";
+import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, cpuSymbols, evenParity, exchangeFlags, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, overflow,
+  readFlag, readLatch, readMemory, readRegister, readSource, replaceFlags, shiftBits, subtract, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
+import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement } from "../model.ts";
 import { immediateByte, registerSource, shift } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
-import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelExchanges, intelJumps, intelRegisterStacks, intelStackTransfer, intelStatusInstructions, intelSubroutines, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelWordTransfer, intelWordTransfers } from "../intel.ts";
+import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelExchanges, intelJumps, intelRegisterStacks, intelStackTransfer, intelStatusInstructions, intelSubroutines, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelPairView, intelWordTransfer, intelWordTransfers } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
+import { flagPolicy } from "../status.ts";
 import { flagCondition, jump, relativeBranch } from "../control-flow.ts";
 
 const cpu = cpuSymbols("z80", cpuZ80StateDescription);
 const conditions = (["z", "c", "pv", "s"] as const).map(flag => cpu.flag(flag));
 const conditionNames = ["NZ", "Z", "NC", "C", "PO", "PE", "P", "M"];
 const sources = intelByteSources(cpu.register);
+
+const alternate = cpu.bank("alternate");
+const bc = intelPairView(cpu, "bc"), de = intelPairView(cpu, "de"), hl = intelPairView(cpu, "hl");
+
+// These bodies replace the complete flag object; any accumulator write follows that replacement.
+function resultFlags(name: string, parameters: FlagPolicy["parameters"], updates: Readonly<Record<string, FlagExpression>>) {
+  return flagPolicy(cpu, name, { result: 8, ...parameters }, { s: negative(value("result")), z: zero(value("result")), ...updates });
+}
+
+function exchangeBank(accumulator: boolean) {
+  return defineInstruction({ cpu: cpu.declaration, name: accumulator ? "EX AF,AF′" : "EXX",
+    explanation: "Exchange each stored byte in order, reading alternate then main and writing main then alternate. "
+      + (accumulator ? "After A, exchange the complete flag objects in the same order, without reading individual flags."
+        : "Visit B/C/D/E/H/L, preserving both A registers and both flag objects.") + " No memory or control-state access occurs.",
+    steps: [...(accumulator ? ["a"] as const : ["b", "c", "d", "e", "h", "l"] as const).flatMap(register => [
+      readRegister(`${register}Alternate`, alternate.register(register)), readRegister(`${register}Main`, cpu.register(register)),
+      writeRegister(cpu.register(register), value(`${register}Alternate`)), writeRegister(alternate.register(register), value(`${register}Main`))]),
+      ...(accumulator ? [exchangeFlags(cpu.flags, alternate.flags)] : [])],
+  });
+}
+
+function specialTransfer(register: "i" | "r", load: boolean) {
+  const name = load ? `LD A,${register.toUpperCase()}` : `LD ${register.toUpperCase()},A`;
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: "Entry follows opcode decoding and refresh increments. " + (load
+      ? "Capture the special register, IFF2, then C. Replace flags with S/Z from the byte, PV from IFF2, H/N clear, and captured C; then write A."
+      : "Copy A into the whole special register, including R bit 7, without accessing flags or latches."),
+    steps: load ? [readRegister("result", cpu.register(register)), readLatch("enabled", cpu.latch("iff2")), readFlag("carry", cpu.flag("c")),
+      replaceFlags(resultFlags(name, { enabled: "flag", carry: "flag" }, {
+        h: flagLiteral(false), pv: flagValue("enabled"), n: flagLiteral(false), c: flagValue("carry"),
+      }), { result: value("result"), enabled: flagValue("enabled"), carry: flagValue("carry") }), writeRegister(cpu.register("a"), value("result"))]
+      : [readRegister("byte", cpu.register("a")), writeRegister(cpu.register(register), value("byte"))],
+  });
+}
+
+function rotateDigits(left: boolean) {
+  const name = left ? "RLD" : "RRD", memory = value("memory"), a = value("accumulator"), low = bitAnd(a, literal(8, 0x0f));
+  const nextMemory = left ? bitOr(shiftBits(memory, "left", 4), low) : bitOr(shiftBits(low, "left", 4), shiftBits(memory, "right", 4));
+  const nextA = bitOr(bitAnd(a, literal(8, 0xf0)), left ? shiftBits(memory, "right", 4) : bitAnd(memory, literal(8, 0x0f)));
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: `Capture HL, read memory, then capture A. Rotate A's low nibble and both memory nibbles ${left ? "left" : "right"}, preserving A's high nibble. `
+      + "Write memory before reading C, replacing S/Z/parity with H/N cleared, and writing A. A failed write preserves A and flags; callbacks cannot change the captured address or result.",
+    steps: [readSource("address", hl.source), readMemory("memory", value("address")), readRegister("accumulator", cpu.register("a")),
+      capture("result", nextA), writeMemory(value("address"), nextMemory), readFlag("carry", cpu.flag("c")),
+      replaceFlags(resultFlags(name, { carry: "flag" }, { h: flagLiteral(false), pv: evenParity(value("result")), n: flagLiteral(false), c: flagValue("carry") }),
+        { result: value("result"), carry: flagValue("carry") }), writeRegister(cpu.register("a"), value("result"))],
+  });
+}
+
+function block(delta: -1 | 1, compare: boolean, repeat: boolean) {
+  const name = `${compare ? "CP" : "LD"}${delta === 1 ? "I" : "D"}${repeat ? "R" : ""}`;
+  const advance = (name: string) => (delta === 1 ? addWrap : subtract)(value(name), literal(16, 1));
+  const rewind = [readRegister("pc", cpu.register("pc")), writeRegister(cpu.register("pc"), subtract(value("pc"), literal(16, 2)))];
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: "Perform one iteration. Read (HL), then capture BC minus one with word wrapping. "
+      + (compare ? "Read A and C, replace comparison flags with PV from the remaining count, and preserve A. "
+        : "Read DE and write the captured byte; after success reread and adjust DE, clear N/H, then set PV from the captured count. Preserve S/Z/C. ")
+      + `Reread and ${delta === 1 ? "increment" : "decrement"} HL, then write the captured count to BC. `
+      + (repeat ? `Only if the count is nonzero${compare ? " and the updated Z is clear" : ""}, rewind current PC by two for the next step to refetch both opcodes. ` : "Do not access PC. ")
+      + "Pairs read and write high byte first. Failed accesses retain completed effects and prevent later register/flag updates; decoding and retirement stay in the CPU.",
+    steps: [readSource("address", hl.source), readMemory("byte", value("address")), readSource("counter", bc.source),
+      capture("count", subtract(value("counter"), literal(16, 1))),
+      ...(compare ? [readRegister("accumulator", cpu.register("a")), capture("result", subtract(value("accumulator"), value("byte"))), readFlag("carry", cpu.flag("c")),
+        replaceFlags(resultFlags(name, { accumulator: 8, byte: 8, count: 16, carry: "flag" }, {
+          h: halfBorrow(value("accumulator"), value("byte")), pv: not(zero(value("count"))), n: flagLiteral(true), c: flagValue("carry"),
+        }), { result: value("result"), accumulator: value("accumulator"), byte: value("byte"), count: value("count"), carry: flagValue("carry") })]
+        : [readSource("destination", de.source), writeMemory(value("destination"), value("byte")),
+          readSource("destinationAfterWrite", de.source), ...de.write(advance("destinationAfterWrite")),
+          updateFlags(flagPolicy(cpu, name, { count: 16 }, { n: flagLiteral(false), h: flagLiteral(false), pv: not(zero(value("count"))) }), { count: value("count") })]),
+      readSource("addressAfterTransfer", hl.source), ...hl.write(advance("addressAfterTransfer")), ...bc.write(value("count")),
+      ...(repeat ? [when(not(zero(value("count"))), compare ? [readFlag("matched", cpu.flag("z")), when(not(flagValue("matched")), rewind)] : rewind)] : [])],
+  });
+}
 
 function wordTransferName(register: string, operation: "immediate" | "load" | "store" | "copy"): string {
   const name = register.toUpperCase();
@@ -142,6 +216,19 @@ function family(mnemonic: string, operation: IntelByteOperation, withCarry = fal
 }
 
 export const instructionsZ80 = {
+  exchangeAf: exchangeBank(true), exchangeGeneralBanks: exchangeBank(false),
+  loadAFromI: specialTransfer("i", true), loadAFromR: specialTransfer("r", true),
+  loadIFromA: specialTransfer("i", false), loadRFromA: specialTransfer("r", false),
+  neg: defineInstruction({ cpu: cpu.declaration, name: "NEG",
+    explanation: "Capture A and subtract it from zero. Replace all flags with S/Z from the result, nibble/byte borrow, signed overflow, and N set; then write A. No incoming flag or memory access occurs.",
+    steps: [readRegister("original", cpu.register("a")), capture("result", subtract(literal(8, 0), value("original"))),
+      replaceFlags(resultFlags("NEG", { original: 8 }, { h: halfBorrow(literal(8, 0), value("original")), pv: overflow(literal(8, 0), value("original")),
+        n: flagLiteral(true), c: borrow(literal(8, 0), value("original")) }), { original: value("original"), result: value("result") }),
+      writeRegister(cpu.register("a"), value("result"))],
+  }),
+  rld: rotateDigits(true), rrd: rotateDigits(false),
+  ldi: block(1, false, false), ldd: block(-1, false, false), ldir: block(1, false, true), lddr: block(-1, false, true),
+  cpi: block(1, true, false), cpd: block(-1, true, false), cpir: block(1, true, true), cpdr: block(-1, true, true),
   ...intelStatusInstructions(cpu, cpuZ80Status, "z80"),
   ...intelRegisterStacks(cpu, (register, operation) => `${operation.toUpperCase()} ${register.toUpperCase()}`),
   ...Object.fromEntries((["ix", "iy"] as const).flatMap(register => (["push", "pop"] as const).map(operation =>

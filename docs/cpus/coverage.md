@@ -21,15 +21,15 @@ emulators do not count toward implementation here.
 | [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [199](../../src/components/cpus/8080.ts) | 240 / 244 | 98.4% |
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [260](../../src/components/cpus/6800.ts) | 194 / 197 | 98.5% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [162](../../src/components/cpus/6502.ts) | 149 / 151 | 98.7% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [489](../../src/components/cpus/z80.ts) | 650 / 698 | 93.1% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [443](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [385](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **1,555 generated bodies**, all used by CPU execution,
+contains **1,572 generated bodies**, all used by CPU execution,
 including two shared 6809 interrupt-frame helpers. They cover
-**1,713 complete opcode forms**:
+**1,730 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -226,7 +226,17 @@ including two shared 6809 interrupt-frame helpers. They cover
   after result writeback. Prefix decoding, supplied instructions, refresh, and
   retirement retain their existing contracts. The runtime stack helper now
   belongs to the Z80 alone, for interrupt entry/return.
-  The Z80 integrates 559 bodies covering 650 forms.
+  EX AF,AF′ and EXX add two bodies using schema-owned alternate registers;
+  the former exchanges whole flag objects without reading their bits. Four
+  I/R transfers retain refresh before entry and PV from a captured IFF2.
+  NEG, RLD, and RRD add three bodies; digit rotates capture HL/memory/A,
+  write memory, then read C, replace flags, and write A. Eight block transfer
+  and search bodies perform one iteration per step: capture BC after the read,
+  retain live pair updates, then conditionally rewind PC for refetching.
+  Constant logical shifts describe nibble movement directly. These 17 forms
+  complete ordinary instruction migration. The Z80 integrates 576 bodies
+  covering 667 forms; its 24 I/O and seven interrupt-related forms remain
+  handwritten.
 - [8008 definitions](../../src/components/cpus/semantics/definitions/8008.ts):
   All 72 byte ALU forms are integrated: AD/AC/SU/SB/ND/XR/OR/CP with each
   register, memory, and immediate source. The existing Intel ALU construction
@@ -301,30 +311,31 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,069 |
-| CPU-specific instruction definition files | 941 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,779 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,789** |
+| Eight CPU implementation files | 4,023 |
+| CPU-specific instruction definition files | 1,028 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,850 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,901** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 25,058 |
+| Generated CPU output, counted separately | 25,551 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The 6809 ordinary-instruction batch adds **118 bodies for 14 forms**:
-104 specialized transfer/exchange bodies, four register-mask stack bodies,
-eight inherent/effective-address bodies, and two reusable frame helpers.
-Only its six interrupt/wait instruction bodies remain handwritten; recognition,
-frame selection, and vector delivery stay in the CPU.
+The Z80 ordinary-instruction batch adds **17 bodies for 17 forms**, completing
+its ordinary instruction definitions. Its I/O and interrupt-related instruction
+bodies remain handwritten, along with decoding, refresh, and retirement.
 
-The 6809 module shrinks from **501 to 385 lines**, removing **116 lines** of
-handwritten register, arithmetic, and stack machinery. CPU-specific definitions
-add **70 lines** and other authored source adds **41 net**, including construction
-for register views and masked stacks, the shared postbyte inventory, and unsigned
-byte multiplication. Total authored CPU source falls from **7,794 to 7,789 lines**
-(**5 fewer**). Generated output grows by **2,218 lines**. All 1,437 earlier
-definitions remain unchanged; the other five generated modules are byte-for-byte
-identical, as are the 6809's 144 earlier method bodies.
+The Z80 module shrinks from **489 to 443 lines**, removing **46 net lines** of
+handwritten exchange, special-register, NEG, digit-rotate, and block machinery.
+CPU-specific definitions add **87 lines** and other authored source adds
+**71 net**, including schema-owned bank references, Boolean latch reads,
+complete flag-object exchange, constant logical shifts, and reusable Intel
+pair views, with the unused runtime pair writer and its family wrapper removed.
+Total authored CPU source rises from **7,789 to 7,901 lines**
+(**112 more**); this batch expands the shared representation rather than
+reducing its total size. Generated output grows by **493 lines**. All 1,555
+earlier definitions remain unchanged; the other five generated modules and
+the Z80's 559 earlier method bodies are byte-for-byte unchanged.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

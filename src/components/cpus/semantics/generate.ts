@@ -29,6 +29,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
     const helper = (name: string): string => { helpers.add(name); return name; };
     const access = (name: Capability): string => { capabilities.add(name); return `instruction.${name}`; };
     const field = (name: string): string => /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`;
+    const bank = (ref: { readonly bank?: string }): string => `state${ref.bank === undefined ? "" : field(ref.bank)}`;
     const comment = (text: string): void => { emit(`// ${JSON.stringify(text)}`); };
 
     function number(expr: Expression, scope: Scope): CapturedNumber {
@@ -50,6 +51,11 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
         case "shift-left": case "shift-right": {
           const operand = number(expr.value, scope), operation = helper(expr.kind === "shift-left" ? "shiftLeft" : "shiftRight");
           return { code: `${operation}(${operand.type}, ${operand.code}, (${flag(expr.incoming, scope)}) ? 1 : 0).result`, type: operand.type };
+        }
+        case "shift-bits": {
+          const operand = number(expr.value, scope);
+          return { code: expr.direction === "right" ? `(${operand.code} >>> ${expr.count})`
+            : `((${operand.code} << ${expr.count}) & 0x${(2 ** operand.type - 1).toString(16)})`, type: operand.type };
         }
         case "bit-and": case "bit-or": case "bit-xor": {
           const left = number(expr.left, scope), right = number(expr.right, scope);
@@ -105,9 +111,18 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
             emit("}");
             continue;
           case "capture": captured = number(step.value, scope); break;
-          case "read-register": captured = { code: `state${field(step.register.field)}`, type: step.register.width }; break;
+          case "read-register": captured = { code: `${bank(step.register)}${field(step.register.field)}`, type: step.register.width }; break;
           case "read-element": captured = { code: `state${field(step.array.field)}[${number(step.index, scope).code}]!`, type: step.array.width }; break;
           case "read-flag": captured = { code: `state.flags${field(step.flag.field)}`, type: "flag" }; break;
+          case "read-latch": captured = { code: `state${field(step.latch.field)}`, type: "flag" }; break;
+          case "exchange-flags": {
+            const right = local("rightFlags"), left = local("leftFlags");
+            emit(`const ${right} = ${bank(step.right)}.flags;`);
+            emit(`const ${left} = ${bank(step.left)}.flags;`);
+            emit(`${bank(step.left)}.flags = ${right};`);
+            emit(`${bank(step.right)}.flags = ${left};`);
+            continue;
+          }
           case "fetch-byte": captured = { code: `${access("fetchByte")}()`, type: 8 }; break;
           case "read-memory": captured = { code: `${access("readByte")}(${number(step.address, scope).code})`, type: 8 }; break;
           case "read-source": {
@@ -117,7 +132,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
             captured = number(step.source.result, sourceScope);
             break;
           }
-          case "write-register": emit(`state${field(step.register.field)} = ${number(step.value, scope).code};`); continue;
+          case "write-register": emit(`${bank(step.register)}${field(step.register.field)} = ${number(step.value, scope).code};`); continue;
           case "write-element": emit(`state${field(step.array.field)}[${number(step.index, scope).code}] = ${number(step.value, scope).code};`); continue;
           case "write-latch": emit(`state${field(step.latch.field)} = ${step.value};`); continue;
           case "write-memory": emit(`${access("writeByte")}(${number(step.address, scope).code}, ${number(step.value, scope).code});`); continue;
