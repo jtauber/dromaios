@@ -1,3 +1,4 @@
+import { instructions as stack8088 } from "../../src/components/cpus/generated/8088-stack.js";
 import { instructions as unary8088 } from "../../src/components/cpus/generated/8088-unary.js";
 import { instructions as alu8088 } from "../../src/components/cpus/generated/8088-alu.js";
 import { instructions as transfers8088 } from "../../src/components/cpus/generated/8088-transfers.js";
@@ -9,7 +10,7 @@ import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js
 import { cpuZ80StateDescription } from "../../src/components/cpus/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { deferInterrupt, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
@@ -667,4 +668,42 @@ export function check8088OrdinaryTypes(state: Cpu8088State, intel: Cpu8080State)
   unary8088.NEG_8_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
   // @ts-expect-error Bodies retain their concrete CPU state.
   unary8088.NEG_8_0(intel);
+}
+
+
+export function check8088StackTypes(state: Cpu8088State, intel: Cpu8080State): void {
+  generated8088[0x50](state, { writeByte: () => {} });
+  generated8088[0x5c](state, { readByte: () => 0 });
+  generated8088[0x17](state, { readByte: () => 0, deferInterrupt: () => {} });
+  generated8088[0x9d](state, { readByte: () => 0, deferInterrupt: () => {} });
+  generated8088[0x9a](state, { fetchByte: () => 0, writeByte: () => {} });
+  generated8088[0xc2](state, { fetchByte: () => 0, readByte: () => 0 });
+  stack8088.JMP_0(state);
+  stack8088.CALL_4(state, { writeByte: () => {} });
+  stack8088.CALL_far_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  stack8088.POP_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  stack8088.pushWord(state, 0x1234, { writeByte: () => {} });
+  deferInterrupt("all");
+  // @ts-expect-error Deferral is a specific boundary request, not an arbitrary callback.
+  deferInterrupt(() => {});
+  // @ts-expect-error Only the two modeled recognition scopes are supported.
+  deferInterrupt("irq");
+  // @ts-expect-error Segment POP requires a boundary deferral capability.
+  generated8088[0x17](state, { readByte: () => 0 });
+  // @ts-expect-error POPF cannot silently skip its IF-transition deferral.
+  generated8088[0x9d](state, { readByte: () => 0 });
+  // @ts-expect-error An ordinary register POP cannot request deferral.
+  generated8088[0x58](state, { readByte: () => 0, deferInterrupt: () => {} });
+  // @ts-expect-error PUSH cannot read its destination memory.
+  generated8088[0x50](state, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Relative CALL fetches explicit bytes, not an opaque word.
+  generated8088[0xe8](state, { fetchWord: () => 0, writeByte: () => {} });
+  // @ts-expect-error RETF without a discard operand has no fetch capability.
+  generated8088[0xcb](state, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error A resolved pointer jump has no stack-writing capability.
+  stack8088.JMP_far_memory(state, 0, 0, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Numeric inputs precede context; the stack word is not a callback.
+  stack8088.pushWord(state, () => 0, { writeByte: () => {} });
+  // @ts-expect-error Generated stack bodies retain the concrete CPU state.
+  stack8088.PUSH_memory(intel, 0, 0, { readByte: () => 0, writeByte: () => {} });
 }

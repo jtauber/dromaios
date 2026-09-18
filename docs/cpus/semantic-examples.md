@@ -14084,6 +14084,45 @@ write AX:u16 := result
 
 Flags preserved throughout: TF, IF, DF.
 
+### 8088 PUSH ES
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "register ES" {
+  contents:u16 := read ES
+  yield contents
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP ES
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers. After loading any segment, request inhibition of all interrupt recognition at retirement.
+
+```text
+result:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write ES:u16 := result
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 8088 OR AL,n
 
 Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Clear OF, CF, and AF in that order; AF is deterministically cleared although undefined on hardware. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
@@ -14139,6 +14178,25 @@ write AX:u16 := result
 ```
 
 Flags preserved throughout: TF, IF, DF.
+
+### 8088 PUSH CS
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "register CS" {
+  contents:u16 := read CS
+  yield contents
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 ADC AL,n
 
@@ -14198,6 +14256,45 @@ write AX:u16 := result
 
 Flags preserved throughout: TF, IF, DF.
 
+### 8088 PUSH SS
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "register SS" {
+  contents:u16 := read SS
+  yield contents
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP SS
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers. After loading any segment, request inhibition of all interrupt recognition at retirement.
+
+```text
+result:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write SS:u16 := result
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 8088 SBB AL,n
 
 Fetch the complete immediate low byte first, then read the accumulator. Capture CF after both operands. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
@@ -14255,6 +14352,45 @@ write AX:u16 := result
 ```
 
 Flags preserved throughout: TF, IF, DF.
+
+### 8088 PUSH DS
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "register DS" {
+  contents:u16 := read DS
+  yield contents
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP DS
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers. After loading any segment, request inhibition of all interrupt recognition at retirement.
+
+```text
+result:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write DS:u16 := result
+request all interrupt deferral at successful retirement
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 8088 AND AL,n
 
@@ -14877,6 +15013,310 @@ write DI:u16 := result
 
 Flags preserved throughout: TF, IF, DF.
 
+### 8088 PUSH AX
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 PUSH CX
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 PUSH DX
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 PUSH BX
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 PUSH SP
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "decremented SP" {
+  contents:u16 := read SP
+  yield subtract(contents, 0002:u16)
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 PUSH BP
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 PUSH SI
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 PUSH DI
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP AX
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+result:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write AX:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP CX
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+result:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write CX:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP DX
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+result:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write DX:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP BX
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+result:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write BX:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP SP
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+result:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write SP:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP BP
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+result:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write BP:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP SI
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+result:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write SI:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP DI
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+result:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write DI:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 8088 JO rel8
 
 Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
@@ -15315,6 +15755,103 @@ write DX:u16 := select(topBit(word), FFFF:u16, 0000:u16)
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
+### 8088 CALL ptr16:16
+
+Fetch offset then segment, low byte first. Push live CS then IP; capture IP only after the CS push. Commit CS:IP after both pushes. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+targetOffset:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+targetSegment:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+returnCS:u16 := read CS
+codePointer:u16 := read SP
+write SP:u16 := subtract(codePointer, 0002:u16)
+codeSegment:u16 := read SS
+codeOffset:u16 := read SP
+write memory[projectAddress(codeSegment * 16 + codeOffset, 20 bits)] := lowByte(returnCS)
+write memory[projectAddress(codeSegment * 16 + addWrap(codeOffset, 0001:u16), 20 bits)] := highByte(returnCS)
+returnIP:u16 := read IP
+returnPointer:u16 := read SP
+write SP:u16 := subtract(returnPointer, 0002:u16)
+returnSegment:u16 := read SS
+returnOffset:u16 := read SP
+write memory[projectAddress(returnSegment * 16 + returnOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(returnSegment * 16 + addWrap(returnOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+write CS:u16 := targetSegment
+write IP:u16 := targetOffset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 PUSHF
+
+Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+original:u16 := source "packed status" {
+  cf:flag := read CF
+  pf:flag := read PF
+  af:flag := read AF
+  zf:flag := read ZF
+  sf:flag := read SF
+  tf:flag := read TF
+  if:flag := read IF
+  df:flag := read DF
+  of:flag := read OF
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(F002:u16, select(cf, 0001:u16, 0000:u16)), select(pf, 0004:u16, 0000:u16)), select(af, 0010:u16, 0000:u16)), select(zf, 0040:u16, 0000:u16)), select(sf, 0080:u16, 0000:u16)), select(tf, 0100:u16, 0000:u16)), select(if, 0200:u16, 0000:u16)), select(df, 0400:u16, 0000:u16)), select(of, 0800:u16, 0000:u16))
+}
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(original)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(original)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POPF
+
+Pop the complete FLAGS word, then read live IF. A 0-to-1 transition requests INTR deferral before replacing the flag object. Ignore reserved bits. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+status:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+oldIF:flag := read IF
+when not(oldIF) {
+  when not(isZero(bitAnd(status, 0200:u16))) {
+    request INTR deferral at successful retirement
+  }
+}
+replace flags "restore packed status" simultaneously {
+  CF := not(isZero(bitAnd(status, 0001:u16)))
+  PF := not(isZero(bitAnd(status, 0004:u16)))
+  AF := not(isZero(bitAnd(status, 0010:u16)))
+  ZF := not(isZero(bitAnd(status, 0040:u16)))
+  SF := not(isZero(bitAnd(status, 0080:u16)))
+  TF := not(isZero(bitAnd(status, 0100:u16)))
+  IF := not(isZero(bitAnd(status, 0200:u16)))
+  DF := not(isZero(bitAnd(status, 0400:u16)))
+  OF := not(isZero(bitAnd(status, 0800:u16)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
 ### 8088 SAHF
 
 Capture AH, then update CF/PF/AF/ZF/SF in layout order, ignoring reserved bits. Preserve the flag object, OF/TF/IF/DF, registers, and control state.
@@ -15644,6 +16181,120 @@ write DI:u16 := result
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
+### 8088 RET n
+
+Fetch any discard count before stack reads. Pop IP, then CS for a far return, before committing either target. Finally add the unsigned discard count to live SP, even when zero. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+discard:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+targetIP:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write IP:u16 := targetIP
+discardPointer:u16 := read SP
+write SP:u16 := addWrap(discardPointer, discard)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 RET
+
+Fetch any discard count before stack reads. Pop IP, then CS for a far return, before committing either target. Finally add the unsigned discard count to live SP, even when zero. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+targetIP:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write IP:u16 := targetIP
+discardPointer:u16 := read SP
+write SP:u16 := addWrap(discardPointer, 0000:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 RETF n
+
+Fetch any discard count before stack reads. Pop IP, then CS for a far return, before committing either target. Finally add the unsigned discard count to live SP, even when zero. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+discard:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+targetIP:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+targetCS:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write IP:u16 := targetIP
+write CS:u16 := targetCS
+discardPointer:u16 := read SP
+write SP:u16 := addWrap(discardPointer, discard)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 RETF
+
+Fetch any discard count before stack reads. Pop IP, then CS for a far return, before committing either target. Finally add the unsigned discard count to live SP, even when zero. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+targetIP:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+targetCS:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write IP:u16 := targetIP
+write CS:u16 := targetCS
+discardPointer:u16 := read SP
+write SP:u16 := addWrap(discardPointer, 0000:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 8088 LOOPNE rel8
 
 Fetch the displacement first. LOOP variants decrement CX, reread it, and skip ZF when it is zero; LOOP never reads ZF. JCXZ reads CX once without decrementing. Only a taken path reads and writes IP, with word wrapping. Preserve every flag.
@@ -15728,6 +16379,29 @@ when isZero(remaining) {
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
+### 8088 CALL rel16
+
+Fetch the complete displacement before capturing and pushing return IP. Only after both writes add the displacement to live IP with word wrapping. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+displacement:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+returnIP:u16 := read IP
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+pc:u16 := read IP
+write IP:u16 := addWrap(pc, displacement)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 8088 JMP rel16
 
 Fetch the complete displacement low byte first, then add it to post-fetch IP with word wrapping. Preserve CS and flags; never read the target.
@@ -15740,6 +16414,27 @@ offset:u16 := source "immediate word, low byte first" {
 }
 pc:u16 := read IP
 write IP:u16 := addWrap(pc, offset)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP ptr16:16
+
+Fetch the complete offset and segment before writing CS then IP. Preserve SP and flags; never read the target.
+
+```text
+targetOffset:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+targetSegment:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write CS:u16 := targetSegment
+write IP:u16 := targetOffset
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
@@ -67643,6 +68338,433 @@ write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] 
 ```
 
 Flags preserved throughout: TF, IF, DF.
+
+### 8088 push captured word (internal)
+
+Shared word push for interrupt entry, using the same stack schedule as ordinary instructions. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+contents:u16 := input
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(contents)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(contents)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 PUSH word [segment:offset] (resolved)
+
+Read the complete resolved source before adjusting SP or writing the stack. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+segment:u16 := input
+offset:u16 := input
+wordLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+wordHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+word := concatHighLow(wordHigh, wordLow)
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(word)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(word)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 POP word [segment:offset] (resolved)
+
+Enter with the destination resolved before the pop. Capture the complete stack word, increment SP, then write the destination low/high without reading it. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+segment:u16 := input
+offset:u16 := input
+word:u16 := source "pop segmented word" {
+  segment:u16 := read SS
+  offset:u16 := read SP
+  low:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+  high:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0002:u16)
+  yield concatHighLow(high, low)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(word)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(word)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP AX (resolved)
+
+Capture the complete target before any stack writes. Write IP without reading the instruction at the target or accessing the stack. Preserve flags.
+
+```text
+target:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CALL AX (resolved)
+
+Capture the complete target before any stack writes. Capture and push return IP, then write the captured target. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+target:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+returnIP:u16 := read IP
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP CX (resolved)
+
+Capture the complete target before any stack writes. Write IP without reading the instruction at the target or accessing the stack. Preserve flags.
+
+```text
+target:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CALL CX (resolved)
+
+Capture the complete target before any stack writes. Capture and push return IP, then write the captured target. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+target:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+returnIP:u16 := read IP
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP DX (resolved)
+
+Capture the complete target before any stack writes. Write IP without reading the instruction at the target or accessing the stack. Preserve flags.
+
+```text
+target:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CALL DX (resolved)
+
+Capture the complete target before any stack writes. Capture and push return IP, then write the captured target. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+target:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+returnIP:u16 := read IP
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP BX (resolved)
+
+Capture the complete target before any stack writes. Write IP without reading the instruction at the target or accessing the stack. Preserve flags.
+
+```text
+target:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CALL BX (resolved)
+
+Capture the complete target before any stack writes. Capture and push return IP, then write the captured target. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+target:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+returnIP:u16 := read IP
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP SP (resolved)
+
+Capture the complete target before any stack writes. Write IP without reading the instruction at the target or accessing the stack. Preserve flags.
+
+```text
+target:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CALL SP (resolved)
+
+Capture the complete target before any stack writes. Capture and push return IP, then write the captured target. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+target:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+returnIP:u16 := read IP
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP BP (resolved)
+
+Capture the complete target before any stack writes. Write IP without reading the instruction at the target or accessing the stack. Preserve flags.
+
+```text
+target:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CALL BP (resolved)
+
+Capture the complete target before any stack writes. Capture and push return IP, then write the captured target. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+target:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+returnIP:u16 := read IP
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP SI (resolved)
+
+Capture the complete target before any stack writes. Write IP without reading the instruction at the target or accessing the stack. Preserve flags.
+
+```text
+target:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CALL SI (resolved)
+
+Capture the complete target before any stack writes. Capture and push return IP, then write the captured target. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+target:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+returnIP:u16 := read IP
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP DI (resolved)
+
+Capture the complete target before any stack writes. Write IP without reading the instruction at the target or accessing the stack. Preserve flags.
+
+```text
+target:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CALL DI (resolved)
+
+Capture the complete target before any stack writes. Capture and push return IP, then write the captured target. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+target:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+returnIP:u16 := read IP
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP word [segment:offset] (resolved)
+
+Capture the complete target before any stack writes. Write IP without reading the instruction at the target or accessing the stack. Preserve flags.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+target := concatHighLow(targetHigh, targetLow)
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CALL word [segment:offset] (resolved)
+
+Capture the complete target before any stack writes. Capture and push return IP, then write the captured target. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+target := concatHighLow(targetHigh, targetLow)
+returnIP:u16 := read IP
+stackPointer:u16 := read SP
+write SP:u16 := subtract(stackPointer, 0002:u16)
+stackSegment:u16 := read SS
+stackOffset:u16 := read SP
+write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+write IP:u16 := target
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP far [segment:offset] (resolved)
+
+Read offset then segment, low byte first, using the captured pointer address with wrapping offsets. Capture all four bytes before stack writes or target changes. Write CS then IP; preserve SP and flags.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+write CS:u16 := targetSegment
+write IP:u16 := targetOffset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CALL far [segment:offset] (resolved)
+
+Read offset then segment, low byte first, using the captured pointer address with wrapping offsets. Capture all four bytes before stack writes or target changes. Push live CS then IP before committing the target. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+segment:u16 := input
+offset:u16 := input
+targetOffsetLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(addWrap(offset, 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+returnCS:u16 := read CS
+codePointer:u16 := read SP
+write SP:u16 := subtract(codePointer, 0002:u16)
+codeSegment:u16 := read SS
+codeOffset:u16 := read SP
+write memory[projectAddress(codeSegment * 16 + codeOffset, 20 bits)] := lowByte(returnCS)
+write memory[projectAddress(codeSegment * 16 + addWrap(codeOffset, 0001:u16), 20 bits)] := highByte(returnCS)
+returnIP:u16 := read IP
+returnPointer:u16 := read SP
+write SP:u16 := subtract(returnPointer, 0002:u16)
+returnSegment:u16 := read SS
+returnOffset:u16 := read SP
+write memory[projectAddress(returnSegment * 16 + returnOffset, 20 bits)] := lowByte(returnIP)
+write memory[projectAddress(returnSegment * 16 + addWrap(returnOffset, 0001:u16), 20 bits)] := highByte(returnIP)
+write CS:u16 := targetSegment
+write IP:u16 := targetOffset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
 ### 6809 NOP
 

@@ -77,6 +77,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "read-memory": emit(`${step.name}:u8 := read memory[${address(step.address)}]`); break;
         case "write-register": emit(`write ${bank(step.register)}${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}`); break;
         case "write-element": emit(`write ${step.array.field.toUpperCase()}[${number(step.index)}]:u${step.array.width} := ${number(step.value)}`); break;
+        case "defer-interrupt": emit("request " + (step.scope === "intr" ? "INTR" : "all interrupt") + " deferral at successful retirement"); break;
         case "write-latch": emit(`write ${step.latch.field}:boolean := ${step.value}`); break;
         case "write-memory": emit(`write memory[${address(step.address)}] := ${number(step.value)}`); break;
         case "read-source":

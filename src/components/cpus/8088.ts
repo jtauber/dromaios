@@ -1,22 +1,22 @@
 import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep, WaitingStep } from "./execution-records.ts";
 import { signed8, readWordLE } from "./binary.ts";
-import { flagRegister } from "./flags.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import { recordPorts } from "./port-access.ts";
 import type { BytePorts, PortAccess } from "./port-access.ts";
 import { executionBoundary } from "./execution-boundary.ts";
-import type { WordInstructionContext } from "./instruction-context.ts";
+import type { WordInstructionContext, InterruptDeferralContext } from "./instruction-context.ts";
 import { copyState, readState } from "./state.ts";
-import { cpu8088StateDescription, cpu8088Status } from "./state/8088.ts";
+import { cpu8088StateDescription, cpu8088StatusWord } from "./state/8088.ts";
 import type { Cpu8088State, Cpu8088Flags } from "./state/8088.ts";
 import { byteRegisters8088, wordRegisters8088 } from "./8088-registers.ts";
-import type { ByteRegister8088, WordRegister8088 as WordRegister } from "./8088-registers.ts";
+import type { ByteRegister8088 } from "./8088-registers.ts";
 import { instructions as semantics, opcodeEntries } from "./generated/8088.ts";
 import { instructions as transfers } from "./generated/8088-transfers.ts";
 import { instructions as alu } from "./generated/8088-alu.ts";
 import { instructions as unary } from "./generated/8088-unary.ts";
+import { instructions as stack } from "./generated/8088-stack.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
@@ -104,12 +104,11 @@ export type Cpu8088InterruptRecord = StateTransition<Cpu8088Snapshot, Cpu8088Int
 
 export type Cpu8088ResetRecord = StateTransition<Cpu8088Snapshot>;
 
-interface InstructionContext extends WordInstructionContext, BytePorts {
+interface InstructionContext extends WordInstructionContext, BytePorts, InterruptDeferralContext {
   readonly startIp: number;
   readonly segment: number | undefined;
   // F3 repeats while equal, F2 while unequal; only CMPS/SCAS test the condition.
   readonly repeat: boolean | undefined;
-  readonly deferInterrupt: (scope: "intr" | "all") => void;
   readonly interrupt: (vector: number) => void;
   readonly recordAccess: (access: Cpu8088Access) => void;
 }
@@ -137,7 +136,7 @@ const memoryOperations: Readonly<Partial<Record<`${"load" | "store" | "exchangeM
   (state: Cpu8088State, segment: number, offset: number, instruction: ByteMemory) => void>>> = resolvedOperands;
 const memoryImmediates: Readonly<Record<`immediate_${OperandWidth}`,
   (state: Cpu8088State, segment: number, offset: number, instruction: InstructionContext) => void>> = transfers;
-const registerImmediates: Readonly<Partial<Record<number, (state: Cpu8088State, instruction: InstructionContext) => void>>> = semantics;
+const opcodeBodies: Readonly<Partial<Record<number, (state: Cpu8088State, instruction: InstructionContext) => void>>> = semantics;
 
 // 00 ooo ... and ModR/M mm ooo rrr share this operation field.
 const aluOperations = ["ADD", "OR", "ADC", "SBB", "AND", "SUB", "XOR", "CMP"] as const;
@@ -150,9 +149,13 @@ const unaryRegister: Readonly<Record<`${UnaryOperation}_${OperandWidth}_${number
 const unaryMemory: Readonly<Record<`${UnaryOperation}_${OperandWidth}_memory`,
   (state: Cpu8088State, segment: number, offset: number, instruction: ByteMemory) => void>> = unary;
 
+type StackOperation = "PUSH" | "POP" | "CALL" | "CALL_far" | "JMP" | "JMP_far";
+const stackRegisters: Readonly<Record<`${"CALL" | "JMP"}_${number}`,
+  (state: Cpu8088State, instruction: ByteMemory) => void>> = stack;
+const stackMemory: Readonly<Record<`${StackOperation}_memory`,
+  (state: Cpu8088State, segment: number, offset: number, instruction: ByteMemory) => void>> = stack;
+
 const instructionPattern = opcodePattern<OpcodeHandler>;
-// Original 8088 FLAGS: bits 15..12 and 1 pack as ones; bits 5/3 pack as zeros.
-const packedFlags = flagRegister({ ...cpu8088Status.bits, tf: 8, if: 9, df: 10, of: 11 }, 0xf002);
 
 // The original 8088 has twenty address lines; carries beyond bit 19 are discarded.
 function physicalAddress(segment: number, offset: number): number {
@@ -318,21 +321,15 @@ export class Cpu8088 {
   #enterInterrupt(vector: number, { readByte, writeByte }: ByteMemory): void {
     // Read the complete vector BEFORE writing the frame, including when the stack overlaps the IVT.
     const target = this.#readPointer({ segment: 0, offset: vector * 4 }, readByte);
-    const flags = packedFlags.encode(this.#state.flags);
+    const flags = cpu8088StatusWord.encode(this.#state.flags);
     this.#state.flags.if = this.#state.flags.tf = false;
     this.#state.halted = this.#state.waiting = this.#state.interruptDeferred = this.#state.recognitionDeferred = false;
-    this.#pushWord(flags, writeByte);
-    this.#pushWord(this.#state.cs, writeByte);
-    this.#pushWord(this.#state.ip, writeByte);
+    stack.pushWord(this.#state, flags, { writeByte });
+    stack.pushWord(this.#state, this.#state.cs, { writeByte });
+    stack.pushWord(this.#state, this.#state.ip, { writeByte });
     this.#state.cs = target.segment;
     this.#state.ip = target.offset;
     // Higher-priority delivery must not discard a single-step trap already owed at this boundary.
-  }
-
-  #restoreFlags(instruction: InstructionContext): void {
-    const flags = packedFlags.decode(this.#popWord(instruction.readByte));
-    if (!this.#state.flags.if && flags.if) instruction.deferInterrupt("intr");
-    this.#state.flags = flags;
   }
 
   #loadSegment(segment: SegmentRegister, value: number, instruction: InstructionContext): void {
@@ -397,19 +394,9 @@ export class Cpu8088 {
       // ModR/M mm ggg rrr supplies operands; d=0 selects the r/m destination, d=1 register ggg.
       ...opcodeFamily("00 ooo 0 d w", { o: aluOperations, d: [false, true], w: this.#operandWidths }, ({ o: operation, d: toRegister, w: width }) => (instruction: InstructionContext) => this.#binary(operation, width, toRegister, instruction)), // ALU r/m,r / r,r/m
 
-      // 000 ss 11p: ss selects ES/CS/SS/DS; p=0 PUSH, p=1 POP. POP CS is undocumented.
-      ...opcodeFamily("000 ss 110", { s: this.#segmentRegisters }, ({ s }) => ({ writeByte }: InstructionContext) => this.#pushWord(this.#state[s], writeByte)),
-      ...instructionPattern("000 00 111", instruction => this.#loadSegment("es", this.#popWord(instruction.readByte), instruction)), // POP ES
-      ...instructionPattern("000 10 111", instruction => this.#loadSegment("ss", this.#popWord(instruction.readByte), instruction)), // POP SS
-      ...instructionPattern("000 11 111", instruction => this.#loadSegment("ds", this.#popWord(instruction.readByte), instruction)), // POP DS
-
       // 001 u s 111: u=0 packed decimal (DAA/DAS), u=1 unpacked (AAA/AAS); s=0 add/1 subtract.
       ...opcodeFamily("001 0 s 111", { s: [false, true] }, ({ s: subtracting }) => () => this.#decimalAdjust(subtracting)),
       ...opcodeFamily("001 1 s 111", { s: [false, true] }, ({ s: subtracting }) => () => this.#asciiAdjust(subtracting)),
-
-      // 0101 p rrr: p=0 pushes, p=1 pops; rrr selects AX,CX,DX,BX,SP,BP,SI,DI.
-      ...opcodeFamily("0101 0 rrr", { r: this.#wordRegisters }, ({ r: register }) => ({ writeByte }: InstructionContext) => this.#pushRegister(register, writeByte)), // PUSH r16
-      ...opcodeFamily("0101 1 rrr", { r: this.#wordRegisters }, ({ r: register }) => ({ readByte }: InstructionContext) => { this.#state[register] = this.#popWord(readByte); }), // POP r16
 
       // 1000 00 s w + mm ooo rrr: immediate ALU; s=1 allows only ADD/ADC/SBB/SUB/CMP.
       // w=0 uses a byte; w=1 uses a word for s=0 or a sign-extended byte for s=1.
@@ -426,11 +413,7 @@ export class Cpu8088 {
       ...instructionPattern("1000 1101", instruction => this.#loadAddress(undefined, instruction)), // LEA r16,m
       ...instructionPattern("1000 1111", instruction => this.#popOperand(instruction)), // POP r/m16, only /0
 
-      // 1001 1ooo: far CALL, WAIT, and stack transfers of FLAGS.
-      ...instructionPattern("1001 1010", instruction => this.#farImmediate(true, instruction)), // CALL ptr16:16
       ...instructionPattern("1001 1011", instruction => this.#wait(false, instruction)), // WAIT
-      ...instructionPattern("1001 1100", ({ writeByte }) => this.#pushWord(packedFlags.encode(this.#state.flags), writeByte)), // PUSHF
-      ...instructionPattern("1001 1101", instruction => this.#restoreFlags(instruction)), // POPF
 
       // 1010 00 d w: d=0 loads, d=1 stores; w=0 AL, w=1 AX. The DS offset is always a word.
       ...opcodeFamily("1010 00 0 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#moveAbsolute(width, true, instruction)), // MOV AL/AX,[offset]
@@ -438,22 +421,16 @@ export class Cpu8088 {
 
       ...this.#stringHandlers, // MOVS/CMPS/STOS/LODS/SCAS, with optional REP
 
-      // 1100 001i: i=0 includes an unsigned word stack adjustment; i=1 pops only IP.
-      ...instructionPattern("1100 0010", ({ fetchWord, readByte }) => this.#return(fetchWord(), readByte)), // RET n
-      ...instructionPattern("1100 0011", ({ readByte }) => this.#return(0, readByte)), // RET
-
       // 1100 010s loads a far pointer into a general register and ES (s=0) or DS (s=1).
       ...opcodeFamily("1100 010 s", { s: ["es", "ds"] }, ({ s: segment }) => (instruction: InstructionContext) => this.#loadAddress(segment, instruction)), // LES / LDS
-      ...instructionPattern("1100 1010", ({ fetchWord, readByte }) => this.#returnFar(fetchWord(), readByte)), // RETF n
-      ...instructionPattern("1100 1011", ({ readByte }) => this.#returnFar(0, readByte)), // RETF
 
       // 1100 11tt: tt=00 breakpoint, 01 immediate type, 10 overflow, 11 interrupt return.
       ...instructionPattern("1100 1100", ({ interrupt }) => interrupt(3)), // INT3
       ...instructionPattern("1100 1101", ({ fetchByte, interrupt }) => interrupt(fetchByte())), // INT n
       ...instructionPattern("1100 1110", ({ interrupt }) => { if (this.#state.flags.of) interrupt(4); }), // INTO
       ...instructionPattern("1100 1111", instruction => {
-        this.#returnFar(0, instruction.readByte);
-        this.#restoreFlags(instruction);
+        semantics[0xcb](this.#state, instruction); // RETF
+        semantics[0x9d](this.#state, instruction); // POPF
       }), // IRET
 
       // 1100 011w + mm 000 rrr: immediate MOV; every other operation selector is unused.
@@ -471,10 +448,6 @@ export class Cpu8088 {
       // 1110 r 1 d w: r=0 immediate port/1 DX; d=0 IN/1 OUT; w=0 AL/1 AX.
       ...opcodeFamily("1110 r 1 d w", { r: [false, true], d: [false, true], w: this.#operandWidths },
         ({ r: useDx, d: output, w: width }) => (instruction: InstructionContext) => this.#transferPort(width, output, useDx ? this.#state.dx : instruction.fetchByte(), instruction)), // IN/OUT AL/AX,n/DX
-
-      // E8 uses a word displacement; EA carries a far pointer.
-      ...instructionPattern("1110 1000", ({ fetchWord, writeByte }) => this.#call(fetchWord(), writeByte)), // CALL rel16
-      ...instructionPattern("1110 1010", instruction => this.#farImmediate(false, instruction)), // JMP ptr16:16
 
       // 1111 011w: ModR/M mm ooo rrr selects TEST, unused /1, NOT, NEG, MUL, IMUL, DIV, IDIV.
       ...opcodeFamily("1111 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#unary(width, instruction)), // TEST/NOT/NEG/MUL/IMUL/DIV/IDIV r/m
@@ -583,7 +556,7 @@ export class Cpu8088 {
   #moveImmediate(width: OperandWidth, instruction: InstructionContext): Rejection | void {
     const modRM = instruction.fetchByte();
     if (((modRM >>> 3) & 7) !== 0) return "opcode"; // C6/C7 admit only /0; reject before displacement or immediate fetching.
-    if (modRM >= 0xc0) registerImmediates[(width === 8 ? 0xb0 : 0xb8) + (modRM & 7)]!(this.#state, instruction);
+    if (modRM >= 0xc0) opcodeBodies[(width === 8 ? 0xb0 : 0xb8) + (modRM & 7)]!(this.#state, instruction);
     else {
       const { segment, offset } = this.#effectiveAddress(modRM, instruction);
       memoryImmediates[`immediate_${width}`](this.#state, segment, offset, instruction);
@@ -650,80 +623,30 @@ export class Cpu8088 {
 
   // Control flow and stack operations.
 
-  #call(displacement: number, writeByte: InstructionContext["writeByte"]): void {
-    // Fetch the complete displacement before writing the following IP to SS:SP.
-    this.#pushWord(this.#state.ip, writeByte);
-    this.#state.ip = (this.#state.ip + displacement) & 0xffff;
-  }
-
-  #return(discardBytes: number, readByte: InstructionContext["readByte"]): void {
-    this.#state.ip = this.#popWord(readByte);
-    this.#state.sp = (this.#state.sp + discardBytes) & 0xffff;
-  }
-
-  #pushRegister(register: WordRegister, writeByte: InstructionContext["writeByte"]): void {
-    // The original 8088's PUSH SP stores the decremented pointer, unlike later x86 CPUs.
-    const value = register === "sp" ? (this.#state.sp - 2) & 0xffff : this.#state[register];
-    this.#pushWord(value, writeByte);
-  }
-
-  #pushWord(value: number, writeByte: InstructionContext["writeByte"]): void {
-    this.#state.sp = (this.#state.sp - 2) & 0xffff;
-    this.#writeMemoryWord(this.#state.ss, this.#state.sp, value, writeByte);
-  }
-
-  #popWord(readByte: InstructionContext["readByte"]): number {
-    const value = this.#readMemoryWord(this.#state.ss, this.#state.sp, readByte);
-    // POP SP assigns the popped value after this increment, replacing it entirely.
-    this.#state.sp = (this.#state.sp + 2) & 0xffff;
-    return value;
-  }
-
   #popOperand(instruction: InstructionContext): Rejection | void {
     const modRM = instruction.fetchByte();
     if ((modRM & 0x38) !== 0) return "opcode";
-    const destination = this.#registerMemoryOperand(16, modRM, instruction);
-    destination.write(this.#popWord(instruction.readByte));
+    return this.#stackOperand("POP", modRM, instruction);
   }
 
   #adjustOrWordGroup(width: OperandWidth, instruction: InstructionContext): Rejection | void {
     const modRM = instruction.fetchByte(), operation = (modRM >>> 3) & 7;
-    if ((width === 8 && operation > 1) || operation === 7 || ((operation === 3 || operation === 5) && modRM >= 0xc0)) return "opcode";
+    if ((width === 8 && operation > 1) || operation === 7) return "opcode";
     if (operation < 2) return this.#modify(operation === 0 ? "INC" : "DEC", width, modRM, instruction);
-    if (operation === 3 || operation === 5) {
-      const pointer = this.#readPointer(this.#effectiveAddress(modRM, instruction), instruction.readByte);
-      this.#farTransfer(pointer, operation === 3, instruction.writeByte);
-      return;
+    // FF /2..6: near CALL, far CALL, near JMP, far JMP, PUSH.
+    return this.#stackOperand((["CALL", "CALL_far", "JMP", "JMP_far", "PUSH"] as const)[operation - 2]!, modRM, instruction);
+  }
+
+  #stackOperand(operation: StackOperation, modRM: number, instruction: InstructionContext): Rejection | void {
+    if (modRM >= 0xc0) {
+      if (operation === "CALL_far" || operation === "JMP_far") return "opcode";
+      const register = modRM & 7;
+      if (operation === "PUSH" || operation === "POP") opcodeBodies[(operation === "PUSH" ? 0x50 : 0x58) + register]!(this.#state, instruction);
+      else stackRegisters[`${operation}_${register}`]!(this.#state, instruction);
+    } else {
+      const { segment, offset } = this.#effectiveAddress(modRM, instruction);
+      stackMemory[`${operation}_memory`](this.#state, segment, offset, instruction);
     }
-    const operand = this.#registerMemoryOperand(16, modRM, instruction);
-    const value = operand.read();
-    if (operation === 2) this.#pushWord(this.#state.ip, instruction.writeByte); // CALL r/m16
-    if (operation === 6) {
-      // FF /6's register SP form has the same original-8088 rule as opcode 54.
-      this.#pushWord(modRM === 0xf4 ? (value - 2) & 0xffff : value, instruction.writeByte);
-    } else this.#state.ip = value; // CALL / JMP r/m16
-  }
-
-  #farImmediate(call: boolean, instruction: InstructionContext): void {
-    const offset = instruction.fetchWord(), segment = instruction.fetchWord();
-    this.#farTransfer({ segment, offset }, call, instruction.writeByte);
-  }
-
-  #farTransfer(pointer: MemoryAddress, call: boolean, writeByte: InstructionContext["writeByte"]): void {
-    // Capture both target words before a call's stack writes can overlap the pointer or instruction.
-    if (call) {
-      this.#pushWord(this.#state.cs, writeByte);
-      this.#pushWord(this.#state.ip, writeByte);
-    }
-    this.#state.cs = pointer.segment;
-    this.#state.ip = pointer.offset;
-  }
-
-  #returnFar(discardBytes: number, readByte: InstructionContext["readByte"]): void {
-    const ip = this.#popWord(readByte), cs = this.#popWord(readByte);
-    this.#state.ip = ip;
-    this.#state.cs = cs;
-    this.#state.sp = (this.#state.sp + discardBytes) & 0xffff;
   }
 
   // Arithmetic and flags.

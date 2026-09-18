@@ -20,6 +20,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 8088 ModR/M MOV/XCHG, absolute accumulator MOV, and immediate r/m MOV | Resolved segment/offset inputs; byte-offset wrap before physical projection; complete source capture and low-first partial writes |
 | 8088 ModR/M and immediate ALU/TEST | Reuse resolved operands and accumulator arithmetic; source before destination before CF; sign-extended immediates; flags before partial writes; CMP/TEST without operand writes |
 | 8088 INC/DEC/NOT/NEG, Jcc/LOOP/JCXZ/relative JMP, sign extension, status, and halt | Restore captured CF before unary writeback; short-circuit conditions; decrement before testing CX; partial status updates and live AL preservation; CPU-owned retirement |
+| 8088 PUSH/POP, near/far CALL and RET, indirect/far JMP | Segmented word stacks; pointer/source capture ordering; full FLAGS replacement; explicit interrupt-deferral requests committed at retirement |
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
@@ -67,10 +68,10 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 3,671 generated, executable bodies. All serve CPU execution;
-3,669 are bound through opcode or postbyte selection, and two are shared 6809
-frame helpers called by interrupt entry and return. The earlier MOV B,A test
-sample is part of the complete 8080 matrix.
+There are 3,726 generated, executable bodies. All serve CPU execution;
+3,723 are bound through opcode or postbyte selection. Two shared 6809 frame
+helpers serve interrupt entry and return; one 8088 word-push helper serves entry.
+The earlier MOV B,A test sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
@@ -607,6 +608,60 @@ Existing CPU tests independently check complete unary value ranges and branch
 truth tables. Generated types restrict branches to byte fetching, unary
 memory bodies to read/write access, and state-only bodies to their CPU state.
 
+## 8088 segmented stacks and far control flow
+
+`segmentedWordStack` shares push/pop instruction construction with the byte-stack
+models, while making the 8088 schedule explicit. A push reads and decrements SP
+by two, then captures SS:SP before writing low and high bytes. A pop captures
+SS:SP, reads both bytes, then reads and increments live SP. Each logical offset
+wraps to sixteen bits before physical projection. A callback cannot retarget
+an in-progress word; a subsequent word captures the then-current segment and
+pointer. Failed accesses retain completed pointer changes and byte transfers.
+
+Register, segment, FLAGS, and memory pushes capture their full source first.
+PUSH SP subtracts two from its captured source before the stack's separate SP
+update. POP SP overwrites the incremented pointer. ModR/M POP captures its
+memory destination before popping and writes low/high without reading it.
+The decoder still rejects invalid selectors and resolves addresses before body
+entry. Register PUSH/POP reuse the short-encoding bodies.
+
+Near indirect calls capture the target before stacking return IP. Relative
+CALL captures and pushes return IP, then reads live IP for the relative target.
+Far calls capture the complete target before stacking CS, then read live IP
+for the second push, and commit CS followed by IP after both pushes. Returns
+pop IP and optional CS before committing either target, then add the immediate
+discard count to live SP, including a zero count. These schedules preserve
+stack/pointer overlap, callback changes, and partial failures.
+
+PUSHF/POPF share a CPU-owned sixteen-bit FLAGS layout with runtime packing.
+The status construction defaults to eight bits for earlier CPUs; an explicit
+word width supplies the 8088's reserved bits and nine stored flags. POPF pops
+the complete word, reads live IF, requests INTR deferral on a zero-to-one
+transition, then replaces the entire flag object. Segment pops write their
+register before requesting inhibition of all interrupt recognition.
+
+`deferInterrupt("intr" | "all")` is an explicit, validated boundary effect,
+currently allowed only for the 8088. It calls the instruction context's
+`InterruptDeferralContext` capability at that point in the sequence. The
+callback queues the request; only successful retirement commits the stored
+inhibition latches. A failed body retains earlier architectural effects but
+never retires the request. This keeps boundary policy in the CPU while making
+the request visible to both execution generation and explanation.
+
+These definitions cover 38 complete forms with 54 instruction bodies. A
+separate generated word-push helper removes the runtime stack implementation
+from interrupt entry too. IRET reuses RETF followed by POPF; it still has a
+handwritten composition and earns no complete-form credit in this batch.
+
+[Definition probes](../../tests/components/cpus/semantics/8088-stack.test.ts)
+independently specify every body's state, memory, and deferral order, fail each
+effect, change live state during accesses, and exhaust all FLAGS words with
+both incoming IF states. [CPU failure probes](../../tests/components/cpus/8088/stack-failures.test.ts)
+cover all 38 forms with prefixes, wrapped fetches and stacks, overlapping
+pointers, every failed byte access, rejection, and guard release. Existing CPU
+stack and interrupt tests remain independent checks. Generated types expose
+only each body's required byte accesses and deferral capability.
+
 ## Z80 banks, special registers, and repeated blocks
 
 EXX exchanges B/C/D/E/H/L one byte at a time; EX AF,AF′ exchanges A, then the
@@ -745,8 +800,9 @@ check results, effect stages, callback changes, and failures independently.
 ## Primitive meanings
 
 This vocabulary supports unsigned **3-, 8-, 14-, and 16-bit values**,
-**Boolean flag/latch captures**, constant **control-latch writes**, and **byte
-memory addresses** expressed as 16-bit values or explicit physical projections.
+**Boolean flag/latch captures**, constant **control-latch writes**, explicit
+**interrupt-deferral requests**, and **byte memory addresses** expressed as
+16-bit values or explicit physical projections.
 The narrow widths describe the 8008 selector and physical
 address registers; arithmetic and shifts still require 8- or 16-bit operands. Widths are decimal;
 numeric literals in expanded listings are hexadecimal, while flag constants
@@ -824,6 +880,7 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `write-register` | Replace the stored register with an equal-width unsigned value |
 | `write-element` | Replace one register-array slot with an equal-width value; do not read its old contents |
 | `write-latch` | Assign a Boolean constant to a declared top-level control latch; performs no read |
+| `defer-interrupt` | Request `intr` or `all` recognition inhibition through the 8088 context; the boundary commits it at successful retirement |
 | `write-memory` | Write one byte at an explicit word address, including unchanged values |
 | `read-source` | Expand and perform the named source body once in its own scope, then capture its result |
 | `update-flags` | Bind a named policy's pure parameters and apply its assignments at this point |
@@ -842,7 +899,7 @@ A conditional block inherits its parent's captured numbers and flags. Its local
 captures cannot escape the block or shadow inherited names; separate sibling
 blocks may reuse local names. Source and flag-policy scopes remain closed,
 even inside conditionals. Validation checks untaken bodies too, and capability
-inference includes their possible fetches, reads, and writes.
+inference includes their possible fetches, reads, writes, and deferral requests.
 
 Statements execute in their listed order under this contract. A failed
 effect stops the body; prior completed effects remain. There is no implicit
@@ -1140,7 +1197,8 @@ and freezes its input before emitting code. Generated methods take the concrete
 CPU state type (the 8008 uses `Cpu8008StoredState`, with owned mutable address
 slots, rather than its readonly constructor-input array), followed by any numeric inputs
 in declaration order, then only the callbacks their statements use, expressed
-as a `Pick<ByteInstructionContext, ...>`. For example,
+as a `Pick<ByteInstructionContext, ...>`, extended with
+`InterruptDeferralContext` only when the body can request deferral. For example,
 `rolMemory(state, address, { readByte, writeByte })` cannot fetch operands or
 resolve the address again. Bindings must supply unsigned integers fitting the
 declared widths; the generated internal functions do not coerce or validate
@@ -1168,7 +1226,7 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,8008,8080,8088,6809,z80}.ts` and
-`8088-transfers.ts`, `8088-alu.ts`, and `8088-unary.ts`. The separate 8088
+`8088-transfers.ts`, `8088-alu.ts`, `8088-unary.ts`, and `8088-stack.ts`. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
 Regenerate with `npm run generate:cpus`;
@@ -1192,7 +1250,8 @@ constructs its combined table after initializing state, and the ordinary
 `opcodeTable` rejects any collision with its remaining handwritten entries.
 Each instance binds its own state; no register or memory read occurs during
 binding. Generated methods retain their precise callback types, while the
-bound handlers accept the shared byte instruction context. Automatic opcode
+bound handlers accept the shared byte instruction context, with deferral when
+the module requires it. Automatic opcode
 bindings reject definitions with numeric inputs, since they cannot supply
 those values; such bodies require an explicit CPU-owned binding.
 

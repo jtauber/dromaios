@@ -1369,6 +1369,11 @@ it. Unary INC/DEC/NOT/NEG now reuse those operands and arithmetic recipes.
 Relative branches share target updates while retaining short-circuit flag
 reads and LOOP's decrement-before-test schedule. Status construction supports
 both complete replacement and SAHF's partial update without a new primitive.
+Segmented word stacks now share push/pop construction, preserving one pointer
+adjustment per word and captured SS:SP for both bytes. Far transfers expose
+complete target capture and CS-then-live-IP pushes. Word FLAGS reuse the status
+layout, while a checked boundary effect makes POPF/segment-pop deferral requests
+inspectable; the CPU still commits inhibition only at successful retirement.
 ModR/M resolution and retirement remain outside the bodies. The 68000 probes below remain
 requirements for later vocabulary. Whole-model migration remains a separate decision.
 

@@ -372,7 +372,8 @@ The 6502, 6800, 6809, and shared 8080-family core import
 and Z80 extend it with `BytePorts`; the 8080/Z80 add interrupt-deferral callbacks,
 and the Z80 also queues RETI notification for retirement.
 The 8088 extends it with `BytePorts`, the instruction start IP, local segment/repeat
-prefixes, and callbacks for instruction-local recognition delays and software entry. The 8008
+prefixes, `InterruptDeferralContext` for instruction-local recognition delays,
+and a callback for software entry. The 8008
 fetches a full two-byte operand and masks it to a 14-bit address when jumping
 or calling. The 68000 currently
 extends `ByteMemory` with `fetchWord`, `fetchLong`, `nextAddress`, `jump`, and
@@ -594,7 +595,8 @@ instructions and supplied-mask frame helpers. Ordinary nonempty S-stack
 instructions arm NMI at successful completion; interrupt frame helpers preserve
 arming. PULU's S write arms before a subsequent PC pull. The CPU retains interrupt
 recognition, frame selection, and vector delivery; its old stack helpers are gone.
-Other CPUs' interrupt paths still use runtime stack helpers.
+The 8088 likewise shares its generated word push with interrupt entry; other
+CPUs' interrupt paths still use runtime stack helpers.
 
 `RegisterView` is a construction-time source plus a function producing write
 statements. Keep compound effects explicit: D is A then B, CC replaces flags,
@@ -628,8 +630,8 @@ Keep migrated 8088 bit patterns beside their bodies in
 [the definitions](../../src/components/cpus/semantics/definitions/8088.ts), as for
 the 6502. Build the combined table after state initialization, retaining collision
 checks against handwritten entries. The decoder still owns prefixes, segmented
-fetching, and retirement; the generated register bodies receive only byte fetching
-when required. Preserve operand-before-CF captures and flags-before-writeback.
+fetching, and retirement; generated bodies receive only the callbacks their
+effects require. Preserve operand-before-CF captures and flags-before-writeback.
 
 For resolved 8088 transfers, retain ModR/M and segment selection in the decoder.
 Pass the captured segment and offset to the generated memory body. Express each
@@ -650,6 +652,14 @@ taken path after fetching. Preserve short-circuit flag reads with construction
 decisions rather than eagerly capturing every condition bit. LOOP writes and
 rereads CX before testing it. Use `updateStatus` for SAHF's partial flag update;
 whole-object restoration would incorrectly replace its unlisted flags.
+
+Use `segmentedWordStack` for the 8088's once-per-word pointer adjustment and
+captured SS:SP. Capture push sources before pointer changes, and keep PUSH SP's
+decremented source explicit. Far calls capture the whole target before pushing
+CS, then capture live IP for the second push. Word FLAGS packing shares the
+CPU-owned layout. Keep segment-pop and POPF recognition requests as explicit
+`deferInterrupt` effects; they queue work for successful retirement rather than
+writing stored boundary latches during the body.
 
 ## Shared arithmetic
 

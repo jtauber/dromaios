@@ -1,14 +1,15 @@
-import { cpu8088StateDescription, cpu8088Status } from "../../state/8088.ts";
+import { cpu8088StateDescription, cpu8088Status, cpu8088StatusWord } from "../../state/8088.ts";
 import { byteRegisters8088, wordRegisters8088 } from "../../8088-registers.ts";
 import { opcodeFamily } from "../../opcodes.ts";
-import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry,
-  highByte, literal, lowByte, negative, not, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, select, signExtend, subtract, updateFlags, value, writeLatch, writeMemory, writeRegister, xor, zero } from "../model.ts";
-import type { InstructionDefinition, NumberExpression, Statement } from "../model.ts";
+import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, deferInterrupt, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry,
+  highByte, literal, lowByte, negative, not, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, select, signExtend, subtract, updateFlags, value, writeLatch, writeMemory, writeRegister, when, xor, zero } from "../model.ts";
+import type { InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
 import { arithmetic, byteRegisterView, immediateByte, instructionSet, registerView, transfer } from "../builders.ts";
 import { immediateWord } from "../intel.ts";
-import { flagInstruction, flagPolicy, packedStatus, updateStatus } from "../status.ts";
+import { flagInstruction, flagPolicy, packedStatus, restoreStatus, updateStatus } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
 import { choose, conditional, flagCondition, relativeBranchSteps } from "../control-flow.ts";
+import { segmentedWordStack, stackPush, stackPop } from "../stack.ts";
 import type { Condition } from "../control-flow.ts";
 
 const cpu = cpuSymbols("8088", cpu8088StateDescription);
@@ -88,8 +89,42 @@ function accumulator(operation: Operation, width: 8 | 16) {
   });
 }
 
+const stack = segmentedWordStack(cpu.register("ss"), cpu.register("sp"));
+const segmentRegisters = ["es", "cs", "ss", "ds"] as const;
+
+function pushedRegister(register: typeof wordRegisters8088[number]): ValueSource {
+  const source = registerView(cpu.register(register)).source;
+  // Original 8088 PUSH SP captures the decremented value, before the stack's own pointer update.
+  return register === "sp" ? { ...source, name: "decremented SP", result: subtract(source.result, literal(16, 2)) } : source;
+}
+
+function popSegment(register: "es" | "ss" | "ds") {
+  const definition = stackPop(cpu.declaration, "POP " + register.toUpperCase(), stack,
+    [writeRegister(cpu.register(register), value("result")), deferInterrupt("all")]);
+  return defineInstruction({ ...definition, explanation: definition.explanation
+    + " After loading any segment, request inhibition of all interrupt recognition at retirement." });
+}
+
+function farTransfer(call: boolean): readonly Statement[] {
+  return [
+    ...(call ? [readRegister("returnCS", cpu.register("cs")), ...stack.push(value("returnCS"), "code"),
+      readRegister("returnIP", cpu.register("ip")), ...stack.push(value("returnIP"), "return")] : []),
+    writeRegister(cpu.register("cs"), value("targetSegment")), writeRegister(cpu.register("ip"), value("targetOffset")),
+  ];
+}
+
+function returnSteps(far: boolean, discard: NumberExpression): readonly Statement[] {
+  return [readSource("targetIP", stack.pop), ...(far ? [readSource("targetCS", stack.pop)] : []),
+    writeRegister(cpu.register("ip"), value("targetIP")), ...(far ? [writeRegister(cpu.register("cs"), value("targetCS"))] : []),
+    readRegister("discardPointer", cpu.register("sp")), writeRegister(cpu.register("sp"), addWrap(value("discardPointer"), discard))];
+}
+
 // Numeric keys are the encoding authority for both generated bodies and runtime bindings.
 export const instructions8088 = instructionSet([
+  // 000 ss 11p: ss=ES/CS/SS/DS; p=0 PUSH, p=1 POP, with POP CS undocumented.
+  ...opcodeFamily("000 ss 110", { s: segmentRegisters }, ({ s }) =>
+    stackPush(cpu.declaration, "PUSH " + s.toUpperCase(), stack, registerView(cpu.register(s)).source)),
+  [0x07, popSegment("es")], [0x17, popSegment("ss")], [0x1f, popSegment("ds")],
   // 00 ooo 10 w: ooo selects ADD/OR/ADC/SBB/AND/SUB/XOR/CMP; w=0 AL, w=1 AX.
   ...opcodeFamily("00 ooo 10 w", { o: operations, w: widths }, ({ o, w }) => accumulator(o, w)),
   // 0100 d rrr: d=0 INC, d=1 DEC; rrr selects AX/CX/DX/BX/SP/BP/SI/DI.
@@ -98,6 +133,10 @@ export const instructions8088 = instructionSet([
     explanation: "Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.",
     steps: [readRegister("left", cpu.register(register)), ...adjustmentSteps(16, decrement), writeRegister(cpu.register(register), value("result"))],
   })),
+  // 0101 p rrr: p=0 PUSH/1 POP; rrr selects AX/CX/DX/BX/SP/BP/SI/DI.
+  ...opcodeFamily("0101 p rrr", { p: [false, true], r: wordRegisters8088 }, ({ p: pop, r }) => pop
+    ? stackPop(cpu.declaration, "POP " + r.toUpperCase(), stack, cpu.register(r))
+    : stackPush(cpu.declaration, "PUSH " + r.toUpperCase(), stack, pushedRegister(r))),
   // 0111 ttt p: ttt selects the positive condition; p=1 inverts it without changing flag-read order.
   ...opcodeFamily("0111 ttt p", { t: branchConditions, p: [0, 1] }, ({ t: condition, p: invert }) => defineInstruction({
     cpu: cpu.declaration, name: `${condition.names[invert]} rel8`,
@@ -118,6 +157,17 @@ export const instructions8088 = instructionSet([
     steps: [readRegister("word", cpu.register("ax")), writeRegister(cpu.register(word ? "dx" : "ax"), word
       ? select(negative(value("word")), literal(16, 0xffff), literal(16, 0)) : signExtend(lowByte(value("word")), 16))],
   })),
+  // 1001 1010: far CALL fetches the full pointer before either return-address push.
+  [0x9a, defineInstruction({ cpu: cpu.declaration, name: "CALL ptr16:16",
+    explanation: "Fetch offset then segment, low byte first. Push live CS then IP; capture IP only after the CS push. Commit CS:IP after both pushes. " + stack.explanation,
+    steps: [readSource("targetOffset", immediateWord), readSource("targetSegment", immediateWord), ...farTransfer(true)] })],
+  // 1001 110p: p=0 pushes packed FLAGS; p=1 restores them after a complete pop.
+  [0x9c, stackPush(cpu.declaration, "PUSHF", stack, packedStatus(cpu, cpu8088StatusWord))],
+  [0x9d, defineInstruction({ cpu: cpu.declaration, name: "POPF",
+    explanation: "Pop the complete FLAGS word, then read live IF. A 0-to-1 transition requests INTR deferral before replacing the flag object. Ignore reserved bits. " + stack.explanation,
+    steps: [readSource("status", stack.pop), readFlag("oldIF", cpu.flag("if")),
+      when(not(flagValue("oldIF")), [when(not(zero(bitAnd(value("status"), literal(16, 0x200)))), [deferInterrupt("intr")])]),
+      restoreStatus(cpu, cpu8088StatusWord, value("status"))] })],
   // 1001 111d: d=0 stores AH's modeled flags; d=1 loads their packed byte into AH.
   [0x9e, defineInstruction({ cpu: cpu.declaration, name: "SAHF",
     explanation: "Capture AH, then update CF/PF/AF/ZF/SF in layout order, ignoring reserved bits. Preserve the flag object, OF/TF/IF/DF, registers, and control state.",
@@ -135,6 +185,12 @@ export const instructions8088 = instructionSet([
       steps: transfer(view.write(value("result")), immediate),
     });
   }),
+  // 1100 f 01n: f=0 near/1 far; n=0 fetches a discard count, n=1 discards zero.
+  ...opcodeFamily("1100 f 01 n", { f: [false, true], n: [false, true] }, ({ f: far, n: plain }) => defineInstruction({
+    cpu: cpu.declaration, name: (far ? "RETF" : "RET") + (plain ? "" : " n"),
+    explanation: "Fetch any discard count before stack reads. Pop IP, then CS for a far return, before committing either target. Finally add the unsigned discard count to live SP, even when zero. " + stack.explanation,
+    steps: [...(plain ? [] : [readSource("discard", immediateWord)]), ...returnSteps(far, plain ? literal(16, 0) : value("discard"))],
+  })),
   // 1110 00cc: cc=00 LOOPNE, 01 LOOPE, 10 LOOP decrement CX; 11 JCXZ only tests it.
   ...opcodeFamily("1110 00 cc", { c: ["LOOPNE", "LOOPE", "LOOP", "JCXZ"] }, ({ c: name }) => defineInstruction({
     cpu: cpu.declaration, name: `${name} rel8`,
@@ -144,6 +200,14 @@ export const instructions8088 = instructionSet([
       ...conditional({ steps: [readRegister("remaining", cpu.register("cx"))], test: name === "JCXZ" ? zero(value("remaining")) : not(zero(value("remaining"))) },
         name === "LOOPNE" || name === "LOOPE" ? conditional(flagCondition(cpu.flag("zf"), name === "LOOPE"), relativeByteBranch()) : relativeByteBranch())],
   })),
+  // 1110 10f0: f=0 relative CALL; f=1 immediate far JMP.
+  [0xe8, defineInstruction({ cpu: cpu.declaration, name: "CALL rel16",
+    explanation: "Fetch the complete displacement before capturing and pushing return IP. Only after both writes add the displacement to live IP with word wrapping. " + stack.explanation,
+    steps: [readSource("displacement", immediateWord), readRegister("returnIP", cpu.register("ip")),
+      ...stack.push(value("returnIP")), ...relativeBranchSteps(cpu.register("ip"), value("displacement"))] })],
+  [0xea, defineInstruction({ cpu: cpu.declaration, name: "JMP ptr16:16",
+    explanation: "Fetch the complete offset and segment before writing CS then IP. Preserve SP and flags; never read the target.",
+    steps: [readSource("targetOffset", immediateWord), readSource("targetSegment", immediateWord), ...farTransfer(false)] })],
   // 1110 10s1: s=0 fetches a word displacement; s=1 sign-extends a byte.
   ...opcodeFamily("1110 10 s 1", { s: [immediateWord, immediateByte] }, ({ s: source }) => defineInstruction({
     cpu: cpu.declaration, name: `JMP rel${source.width}`,
@@ -170,8 +234,9 @@ function registerOperands(width: 8 | 16): readonly OperandDefinition[] {
   return registers[width === 8 ? 0 : 1].map(({ name, view }) => ({ name, read: name => [readSource(name, view.source)], write: view.write }));
 }
 
-function memoryOperand(width: 8 | 16): OperandDefinition {
-  const address = (next: boolean) => projectAddress(value("segment"), next ? addWrap(value("offset"), literal(16, 1)) : value("offset"), 4, 20);
+function memoryOperand(width: 8 | 16, displacement = 0): OperandDefinition {
+  const offset = displacement ? addWrap(value("offset"), literal(16, displacement)) : value("offset");
+  const address = (next: boolean) => projectAddress(value("segment"), next ? addWrap(offset, literal(16, 1)) : offset, 4, 20);
   return { name: `${width === 8 ? "byte" : "word"} [segment:offset]`, memory: true,
     read: name => width === 8 ? [readMemory(name, address(false))] : [
       readMemory(`${name}Low`, address(false)), readMemory(`${name}High`, address(true)), capture(name, concat(value(`${name}High`), value(`${name}Low`)))],
@@ -270,3 +335,33 @@ export const unary8088: Readonly<Record<string, InstructionDefinition>> = Object
           ...operand.write(value("result"), "preservedWord")],
     }),
   ]))));
+
+
+/** Resolved stack/control operands; register PUSH/POP reuse their short-encoding bodies. */
+export const stack8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries([
+  ["pushWord", defineInstruction({ cpu: cpu.declaration, name: "push captured word (internal)", inputs: { contents: 16 },
+    explanation: "Shared word push for interrupt entry, using the same stack schedule as ordinary instructions. " + stack.explanation,
+    steps: stack.push(value("contents")) })],
+  ["PUSH_memory", defineInstruction({ cpu: cpu.declaration, name: "PUSH word [segment:offset] (resolved)", inputs: { segment: 16, offset: 16 },
+    explanation: "Read the complete resolved source before adjusting SP or writing the stack. " + stack.explanation,
+    steps: [...memoryOperand(16).read("word"), ...stack.push(value("word"))] })],
+  ["POP_memory", defineInstruction({ cpu: cpu.declaration, name: "POP word [segment:offset] (resolved)", inputs: { segment: 16, offset: 16 },
+    explanation: "Enter with the destination resolved before the pop. Capture the complete stack word, increment SP, then write the destination low/high without reading it. " + stack.explanation,
+    steps: [readSource("word", stack.pop), ...memoryOperand(16).write(value("word"), "unused")] })],
+  ...[...registerOperands(16), memoryOperand(16)].flatMap((operand, r) => [false, true].map(call => [
+    (call ? "CALL_" : "JMP_") + (operand.memory ? "memory" : r), defineInstruction({
+      cpu: cpu.declaration, name: (call ? "CALL " : "JMP ") + operand.name + " (resolved)",
+      ...(operand.memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
+      explanation: "Capture the complete target before any stack writes. " + (call
+        ? "Capture and push return IP, then write the captured target. " + stack.explanation : "Write IP without reading the instruction at the target or accessing the stack. Preserve flags."),
+      steps: [...operand.read("target"), ...(call ? [readRegister("returnIP", cpu.register("ip")), ...stack.push(value("returnIP"))] : []),
+        writeRegister(cpu.register("ip"), value("target"))],
+    }),
+  ])),
+  ...[false, true].map(call => [(call ? "CALL" : "JMP") + "_far_memory", defineInstruction({
+    cpu: cpu.declaration, name: (call ? "CALL" : "JMP") + " far [segment:offset] (resolved)", inputs: { segment: 16, offset: 16 },
+    explanation: "Read offset then segment, low byte first, using the captured pointer address with wrapping offsets. Capture all four bytes before stack writes or target changes. "
+      + (call ? "Push live CS then IP before committing the target. " + stack.explanation : "Write CS then IP; preserve SP and flags."),
+    steps: [...memoryOperand(16).read("targetOffset"), ...memoryOperand(16, 2).read("targetSegment"), ...farTransfer(call)],
+  })]),
+]);

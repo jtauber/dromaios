@@ -1,4 +1,4 @@
-import { addWrap, bitAnd, bitOr, concat, extend, highByte, literal, lowByte, not, readMemory, readRegister, readSource, subtract, value, when, writeMemory, writeRegister, zero } from "./model.ts";
+import { addWrap, bitAnd, bitOr, concat, extend, highByte, literal, lowByte, not, projectAddress, readMemory, readRegister, readSource, subtract, value, when, writeMemory, writeRegister, zero } from "./model.ts";
 import type { CpuDeclaration, FlagPolicy, NumberExpression, Register, Statement, ValueSource } from "./model.ts";
 import { transfer } from "./builders.ts";
 import type { RegisterView } from "./builders.ts";
@@ -46,6 +46,29 @@ export function wordStack(bytes: ReturnType<typeof byteStack>, order: "little-en
     pop: { name: `pop ${order} word`, width: 16,
       steps: [readSource(first, bytes.pop), readSource(second, bytes.pop)], result: concat(value("high"), value("low")) },
   };
+}
+
+/** 8088 word stack: adjust once per word; capture SS:SP before transferring low then high. */
+export function segmentedWordStack(segment: Register, pointer: Register) {
+  if (segment.width !== 16 || pointer.width !== 16) throw new Error("A segmented word stack requires word registers.");
+  const address = (segment: string, offset: string, high: boolean) =>
+    projectAddress(value(segment), high ? addWrap(value(offset), literal(16, 1)) : value(offset), 4, 20);
+  return {
+    explanation: "Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. "
+      + "Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.",
+    push: (contents, name = "stack") => [
+      readRegister(name + "Pointer", pointer), writeRegister(pointer, subtract(value(name + "Pointer"), literal(16, 2))),
+      readRegister(name + "Segment", segment), readRegister(name + "Offset", pointer),
+      writeMemory(address(name + "Segment", name + "Offset", false), lowByte(contents)),
+      writeMemory(address(name + "Segment", name + "Offset", true), highByte(contents)),
+    ],
+    pop: { name: "pop segmented word", width: 16,
+      steps: [readRegister("segment", segment), readRegister("offset", pointer),
+        readMemory("low", address("segment", "offset", false)), readMemory("high", address("segment", "offset", true)),
+        readRegister("pointer", pointer), writeRegister(pointer, addWrap(value("pointer"), literal(16, 2)))],
+      result: concat(value("high"), value("low")),
+    },
+  } satisfies Stack;
 }
 
 /** Mask bits name registers in pull order; pushes reverse it. Capture each register only at its turn. */

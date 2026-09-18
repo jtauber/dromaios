@@ -3,24 +3,26 @@ import type { CpuDeclaration, Flag, FlagExpression, FlagPolicy, NumberExpression
 import { defineInstruction } from "./validate.ts";
 
 interface StatusCpu { readonly declaration: CpuDeclaration; flag(field: string): Flag }
-interface StatusLayout { readonly bits: Readonly<Record<string, number>>; readonly fixed: number }
+interface StatusLayout { readonly bits: Readonly<Record<string, number>>; readonly fixed: number; readonly width?: 8 | 16 }
 
 /** Read each flag in layout order and insert its bit; fixed bits are not stored flags. */
 export function packedStatus(cpu: StatusCpu, layout: StatusLayout, set = 0): ValueSource {
-  return { name: "packed status", width: 8,
+  const width = layout.width ?? 8;
+  return { name: "packed status", width,
     steps: Object.keys(layout.bits).map(name => readFlag(name, cpu.flag(name))),
     result: Object.entries(layout.bits).reduce((result, [name, bit]) =>
-      bitOr(result, select(flagValue(name), literal(8, 2 ** bit), literal(8, 0))), literal(8, layout.fixed | set)),
+      bitOr(result, select(flagValue(name), literal(width, 2 ** bit), literal(width, 0))), literal(width, layout.fixed | set)),
   };
 }
 
 function decodedStatus(cpu: StatusCpu, layout: StatusLayout): FlagPolicy {
-  return { name: "restore packed status", parameters: { status: 8 }, unlisted: "preserve",
-    updates: Object.entries(layout.bits).map(([name, bit]) => ({ flag: cpu.flag(name), value: not(zero(bitAnd(value("status"), literal(8, 2 ** bit)))) })),
+  const width = layout.width ?? 8;
+  return { name: "restore packed status", parameters: { status: width }, unlisted: "preserve",
+    updates: Object.entries(layout.bits).map(([name, bit]) => ({ flag: cpu.flag(name), value: not(zero(bitAnd(value("status"), literal(width, 2 ** bit)))) })),
   };
 }
 
-/** Decode the captured byte, ignoring reserved bits, then replace the complete flag object. */
+/** Decode the captured status, ignoring reserved bits, then replace the complete flag object. */
 export function restoreStatus(cpu: StatusCpu, layout: StatusLayout, contents: NumberExpression) {
   return replaceFlags(decodedStatus(cpu, layout), { status: contents });
 }

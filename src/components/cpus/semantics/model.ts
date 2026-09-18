@@ -76,6 +76,7 @@ export type Statement =
   | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource }
   | { readonly kind: "write-register"; readonly register: Register; readonly value: NumberExpression }
   | { readonly kind: "write-element"; readonly array: RegisterArray; readonly index: NumberExpression; readonly value: NumberExpression }
+  | { readonly kind: "defer-interrupt"; readonly scope: "intr" | "all" }
   | { readonly kind: "write-latch"; readonly latch: Latch; readonly value: boolean }
   | { readonly kind: "write-memory"; readonly address: AddressExpression; readonly value: NumberExpression }
   | { readonly kind: "update-flags" | "replace-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, Expression>> };
@@ -198,3 +199,6 @@ export const writeLatch = (latch: Latch, value: boolean): Statement => ({ kind: 
 export const writeMemory = (address: AddressExpression, value: NumberExpression): Statement => ({ kind: "write-memory", address, value });
 export const updateFlags = (policy: FlagPolicy, args: Readonly<Record<string, Expression>>): Statement => ({ kind: "update-flags", policy, arguments: args });
 export const replaceFlags = (policy: FlagPolicy, args: Readonly<Record<string, Expression>>): Statement => ({ kind: "replace-flags", policy, arguments: args });
+
+/** Request 8088 recognition inhibition at successful retirement; the boundary owns its stored latches. */
+export const deferInterrupt = (scope: "intr" | "all"): Statement => ({ kind: "defer-interrupt", scope });

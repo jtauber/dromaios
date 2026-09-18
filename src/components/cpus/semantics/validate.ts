@@ -203,6 +203,10 @@ export function validateInstruction(definition: InstructionDefinition): void {
         }
         case "write-register": expect(step.value, register(step.register, where)); return;
         case "write-element": expect(step.value, element(step.array, step.index, scope, where)); return;
+        case "defer-interrupt":
+          if (cpu.name !== "8088") fail(where, "interrupt deferral currently requires the 8088 boundary");
+          if (step.scope !== "intr" && step.scope !== "all") fail(where, "interrupt deferral scope must be intr or all");
+          return;
         case "write-latch":
           latch(step.latch, where);
           if (typeof step.value !== "boolean") fail(where, "control latch value must be Boolean");

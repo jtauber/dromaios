@@ -13,7 +13,11 @@ import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js
 import { aluForms, aluResult, byteMoves, flags, initialState, unaryResult, wordMoves, words } from "../8088/helpers.js";
 
 type Word = typeof words[number];
-type Body = (state: Cpu8088State, instruction: { fetchByte: () => number }) => void;
+type Body = (state: Cpu8088State, instruction: {
+  fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void; deferInterrupt(scope: "intr" | "all"): void;
+}) => void;
+const noEffects = { readByte: (): never => assert.fail("Unexpected data read"), writeByte: (): never => assert.fail("Unexpected data write"),
+  deferInterrupt: (): never => assert.fail("Unexpected deferral") };
 const bodies: Readonly<Partial<Record<number, Body>>> = instructions;
 const names: Readonly<Record<number, string>> = {
   ...Object.fromEntries(aluForms.flatMap(([name, , , , , byte, word]) => [[byte, `${name} AL,n`], [word, `${name} AX,n`]])),
@@ -31,7 +35,7 @@ test("8088 register definitions and bindings retain their 58 complete forms with
   assert.deepEqual(opcodeEntries(forbidden).map(([opcode]) => opcode).filter(opcode => opcode in names), Object.keys(names).map(Number));
   const first = initialState(), second = initialState({ ax: 0x9876 });
   const one = new Map(opcodeEntries(first)), two = new Map(opcodeEntries(second));
-  const context = { fetchByte: () => 0x55, readByte: () => { throw Error("Unexpected data read"); }, writeByte: () => { throw Error("Unexpected data write"); } };
+  const context = { ...noEffects, fetchByte: () => 0x55, readByte: () => { throw Error("Unexpected data read"); }, writeByte: () => { throw Error("Unexpected data write"); } };
   one.get(0xb0)!(context); two.get(0xb4)!(context);
   assert.equal(first.ax, 0x1155); assert.equal(second.ax, 0x5576);
 });
@@ -114,7 +118,7 @@ test("all 58 8088 bodies retain their native effect order and exactly completed 
       const flagsObject = state.flags;
       const effect = (name: string) => { events.push(name); if (events.length - 1 === failAt) throw failure; };
       let fetched = 0;
-      const run = () => bodies[opcode]!(observed(state, effect), { fetchByte: () => { effect("fetch"); return [0x27, 0x80][fetched++]!; } });
+      const run = () => bodies[opcode]!(observed(state, effect), { ...noEffects, fetchByte: () => { effect("fetch"); return [0x27, 0x80][fetched++]!; } });
       if (failAt < 0) run(); else assert.throws(run, error => error === failure);
       assert.deepEqual(events, expected.slice(0, failAt < 0 ? undefined : failAt + 1).map(effect => effect.name), `${names[opcode]} at ${failAt}`);
       const after = structuredClone(before);
@@ -129,7 +133,7 @@ test("8088 byte writeback captures the retained half after fetching and after fl
     const state = initialState({ ax: 0x1234, flags: flags(0) });
     bodies[opcode]!(observed(state, name => {
       if (name === "write flag pf") state.ax = 0xaa55;
-    }), { fetchByte: () => { state.ax = 0xbb7f; state.flags.cf = true; return 1; } });
+    }), { ...noEffects, fetchByte: () => { state.ax = 0xbb7f; state.flags.cf = true; return 1; } });
     const expected = opcode === 0xb0 ? 0xbb01 : opcode === 0xb4 ? 0x017f : opcode === 0x3c || opcode === 0xa8 ? 0xaa55
       : 0xaa00 + aluResult(opcode === 0x04 ? "ADD" : opcode === 0x14 ? "ADC" : opcode === 0x1c ? "SBB" : "OR", 8, 0x7f, 1, flags(1)).result;
     assert.equal(state.ax, expected);
@@ -141,7 +145,7 @@ test("8088 generated register adjustments preserve both incoming carries over th
   for (const decrement of [false, true]) for (const cf of [false, true]) for (let word = 0; word < 65536; word++) {
     state.ax = word; state.flags = { ...flags(0x1fe), cf };
     const expected = unaryResult(decrement ? "DEC" : "INC", 16, word, state.flags);
-    bodies[decrement ? 0x48 : 0x40]!(state, { fetchByte: () => { throw Error("Unexpected fetch"); } });
+    bodies[decrement ? 0x48 : 0x40]!(state, { ...noEffects, fetchByte: () => { throw Error("Unexpected fetch"); } });
     assert.equal(state.ax, expected.result); assert.deepEqual(state.flags, expected.flags);
   }
 });
