@@ -1,7 +1,10 @@
-import { addOverflow, addWrap, carry, halfCarry, flagValue, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, highByte, literal, lowByte, negative, overflow, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
+import { addOverflow, addWrap, and, carry, halfCarry, flagValue, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, highByte, literal, lowByte, negative, not, overflow, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
 import { arithmetic, compare, immediateByte, logical, negativeZeroPolicy, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
+import { relativeBranch } from "./control-flow.ts";
+import type { FlowCpu, Condition } from "./control-flow.ts";
+import { motorolaBranchNames } from "../motorola.ts";
 
 interface MotorolaCpu {
   readonly declaration: CpuDeclaration;
@@ -90,6 +93,28 @@ export function motorolaComparisonFlags(cpu: MotorolaCpu, width: Width): FlagPol
 
 const immediateWord: ValueSource = { name: "immediate word, high byte first", width: 16,
   steps: [fetchByte("high"), fetchByte("low")], result: concat(value("high"), value("low")) };
+
+/** Native condition pairs share explicit flag-read order; 6800 omits BRN and 6809 also supplies long forms. */
+export function motorolaBranches(cpu: MotorolaCpu & FlowCpu, names: readonly (typeof motorolaBranchNames)[number][], long = false) {
+  const n = flagValue("n"), z = flagValue("z"), v = flagValue("v"), c = flagValue("c");
+  // ttt selects T/HI/CC/NE/VC/PL/GE/GT; p in cccc=tttp negates the chosen test.
+  const conditions: readonly Condition[] = [
+    { steps: [], test: flagLiteral(true) },
+    { steps: [readFlag("c", cpu.flag("c")), readFlag("z", cpu.flag("z"))], test: and(not(c), not(z)) },
+    { steps: [readFlag("c", cpu.flag("c"))], test: not(c) },
+    { steps: [readFlag("z", cpu.flag("z"))], test: not(z) },
+    { steps: [readFlag("v", cpu.flag("v"))], test: not(v) },
+    { steps: [readFlag("n", cpu.flag("n"))], test: not(n) },
+    { steps: [readFlag("n", cpu.flag("n")), readFlag("v", cpu.flag("v"))], test: not(xor(n, v)) },
+    { steps: [readFlag("n", cpu.flag("n")), readFlag("v", cpu.flag("v")), readFlag("z", cpu.flag("z"))], test: and(not(z), not(xor(n, v))) },
+  ];
+  return Object.fromEntries(motorolaBranchNames.flatMap((name, code) => {
+    if (!names.includes(name)) return [];
+    const condition = conditions[code >> 1]!, key = `${long ? "l" : ""}${name}`;
+    return [[key, relativeBranch(cpu, key.toUpperCase(), long ? immediateWord : immediateByte,
+      code === 0 ? undefined : { steps: condition.steps, test: code & 1 ? not(condition.test) : condition.test })]];
+  }));
+}
 
 interface OperandForm {
   readonly memory: boolean;

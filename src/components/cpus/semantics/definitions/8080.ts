@@ -1,7 +1,7 @@
 import { cpu8080StateDescription } from "../../state/8080.ts";
 import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readSource, value, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
-import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers, intelExchanges, intelWordArithmeticFamily, intelWordTransfers } from "../intel.ts";
+import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers, intelExchanges, intelJumps, intelWordArithmeticFamily, intelWordTransfers } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("8080", cpu8080StateDescription);
@@ -72,6 +72,9 @@ function rotation(name: string, direction: "left" | "right", circular: boolean):
 }
 
 export const instructions8080 = {
+  ...intelJumps(cpu, (["z", "cy", "p", "s"] as const).map(flag => cpu.flag(flag)),
+    condition => typeof condition === "number" ? ["JNZ", "JZ", "JNC", "JC", "JPO", "JPE", "JP", "JM"][condition]!
+      : condition === "absolute" ? "JMP" : "PCHL"),
   ...intelByteTransfers(cpu, "MOV", "MVI", "M"),
   ...intelAccumulatorTransfers(cpu, (address, operation) => address === "absolute" ? `${operation === "store" ? "STA" : "LDA"} nn`
     : `${operation === "store" ? "STAX" : "LDAX"} ${address === "bc" ? "B" : "D"}`),

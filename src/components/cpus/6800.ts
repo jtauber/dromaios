@@ -11,7 +11,7 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaDecimalAdjust, motorolaConditionPairs } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaDecimalAdjust, motorolaBranchNames } from "./motorola.ts";
 import { instructions as semantics } from "./generated/6800.ts";
 import { cpu6800StateDescription } from "./state/6800.ts";
 import type { Cpu6800State } from "./state/6800.ts";
@@ -140,16 +140,10 @@ export class Cpu6800 {
     ...instructionPattern("0001 1001", () => { this.#state.a = motorolaDecimalAdjust(this.#state.a, this.#state.flags); }), // DAA
     ...instructionPattern("0001 1011", () => semantics.aba(this.#state)), // ABA
 
-    // 0010 ttt p: bits 3..1 select a condition; bit 0 selects it (0) or its inverse (1).
+    // 0010 cccc, cccc=tttp: bits 3..1 select a condition; bit 0 selects it (0) or its inverse (1).
     // ttt=000 has only BRA. The original 6800 leaves 21 unused; it has no BRN.
-    ...instructionPattern("0010 000 0", ({ fetchByte }: InstructionContext) => this.#branch(fetchByte(), true)), // BRA
-    ...this.#branchPair("0010 001 p", 1), // BHI / BLS
-    ...this.#branchPair("0010 010 p", 2), // BCC / BCS
-    ...this.#branchPair("0010 011 p", 3), // BNE / BEQ
-    ...this.#branchPair("0010 100 p", 4), // BVC / BVS
-    ...this.#branchPair("0010 101 p", 5), // BPL / BMI
-    ...this.#branchPair("0010 110 p", 6), // BGE / BLT
-    ...this.#branchPair("0010 111 p", 7), // BGT / BLE
+    ...opcodeFamily("0010 cccc", { c: motorolaBranchNames }, ({ c: name }) => name).flatMap(([opcode, name]) =>
+      name === "brn" ? [] : [[opcode, (instruction: InstructionContext) => semantics[name](this.#state, instruction)] as const]),
 
     // 00110 p q r: q=1 pulls (p=0) or pushes (p=1) A/B (r=0/1).
     // q=0 manipulates SP/X. Every instruction in this group preserves all flags.
@@ -197,16 +191,11 @@ export class Cpu6800 {
     // All 197 documented encodings are covered; undefined encodings remain unsupported.
   ]);
 
-  #branchPair(pattern: string, condition: number): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { p: [false, true] }, ({ p: invert }) =>
-      ({ fetchByte }: InstructionContext) => this.#branch(fetchByte(), motorolaConditionPairs[condition]!(this.#state.flags) !== invert));
-  }
-
   #memoryUnaryHandlers(prefix: "0110" | "0111", address: AddressReader): readonly OpcodeEntry<OpcodeHandler>[] {
     return [
       ...Cpu6800.#unaryOperations.flatMap(({ bits, memory }) => instructionPattern(`${prefix} ${bits}`,
         instruction => memory(this.#state, address(instruction), instruction))),
-      ...instructionPattern(`${prefix} 1110`, instruction => { this.#state.pc = address(instruction); }), // JMP
+      ...instructionPattern(`${prefix} 1110`, instruction => semantics.jump(this.#state, address(instruction))), // JMP
     ];
   }
 
@@ -225,12 +214,8 @@ export class Cpu6800 {
 
   // Control flow and stack operations.
 
-  #branch(displacement: number, take: boolean): void {
-    if (take) this.#state.pc = this.#relativeAddress(displacement);
-  }
-
   #relativeAddress(displacement: number): number {
-    // Branches and BSR fetch the displacement before computing this relative address.
+    // BSR fetches the displacement before computing this relative address.
     const offset = signed8(displacement);
     return (this.#state.pc + offset) & 0xffff;
   }

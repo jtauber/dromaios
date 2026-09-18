@@ -1,10 +1,11 @@
 import { cpu6502StateDescription } from "../../state/6502.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
-import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, cpuSymbols, extend, fetchByte, literal, negative, not,
+import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, cpuSymbols, extend, fetchByte, literal, lowByte, negative, not,
   readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
 import { compare, immediateByte, instructionSet, logical, memorySource, negativeZeroPolicy, registerSource, shift, transfer } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
+import { flagCondition, jump, relativeBranch } from "../control-flow.ts";
 
 const cpu = cpuSymbols("6502", cpu6502StateDescription);
 type Operand = readonly [name: string, source: ValueSource];
@@ -41,6 +42,13 @@ const addresses = {
   zeroPage: zeroPage(), zeroPageX: zeroPage("x"), zeroPageY: zeroPage("y"),
   absolute: absolute(), absoluteX: absolute("x"), absoluteY: absolute("y"),
   indexedIndirect: indirect("indexed-indirect"), indirectIndexed: indirect("indirect-indexed"),
+};
+
+// NMOS JMP (addr) increments only the pointer's low byte: xxFF reads its high target byte at xx00.
+const indirectJump: ValueSource = { name: "NMOS page-wrapped pointer", width: 16,
+  steps: [readSource("pointer", addresses.absolute), readMemory("low", value("pointer")),
+    readMemory("high", bitOr(bitAnd(value("pointer"), literal(16, 0xff00)), extend(addWrap(lowByte(value("pointer")), literal(8, 1)), 16)))],
+  result: concat(value("high"), value("low")),
 };
 
 const resultNZ = negativeZeroPolicy("6502 result N/Z", cpu.flag("n"), cpu.flag("z"), 8);
@@ -169,6 +177,12 @@ const modifyOperands: readonly Operand[] = [
 
 // These patterns generate both instruction bodies and their execution bindings.
 export const instructions6502 = instructionSet([
+  // ffv 100 00: ff selects N/V/C/Z; v is the required flag value.
+  ...opcodeFamily("ff v 100 00", { f: ["n", "v", "c", "z"] as const, v: [false, true] }, ({ f, v }) =>
+    relativeBranch(cpu, { n: ["BPL", "BMI"], v: ["BVC", "BVS"], c: ["BCC", "BCS"], z: ["BNE", "BEQ"] }[f][Number(v)]!,
+      immediateByte, flagCondition(cpu.flag(f), v))),
+  ...opcodePattern("010 011 00", jump(cpu, "JMP absolute", addresses.absolute)),
+  ...opcodePattern("011 011 00", jump(cpu, "JMP indirect", indirectJump)),
   ...opcodeFamily("000 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("ORA", b)),
   ...opcodeFamily("001 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("AND", b)),
   ...opcodeFamily("010 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("EOR", b)),

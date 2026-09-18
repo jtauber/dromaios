@@ -4,7 +4,7 @@ import { flagRegister, negativeZero } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
-import { signed8, readWordLE } from "./binary.ts";
+import { readWordLE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -117,7 +117,6 @@ export class Cpu6502 {
   // Migrated patterns and bodies live together in semantics/definitions/6502.ts.
   // Only implemented encodings enter the table; this is not a decoder for every combination.
   #instructionEntries(): readonly OpcodeEntry<OpcodeHandler>[] {
-    const { addresses } = this.#readers;
     return [
       ...opcodeEntries(this.#state),
       // cc=00, bbb=000: aaa=000/010 select BRK/RTI; 001/011 select JSR/RTS.
@@ -132,19 +131,6 @@ export class Cpu6502 {
       ...instructionPattern("01 0 010 00", ({ writeByte }) => this.#pushByte(this.#state.a, writeByte)), // PHA
       ...instructionPattern("01 1 010 00", ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte))), // PLA
       // TAY and DEY/INY/INX are generated.
-
-      // cc=00, bbb=011: aaa=010/011 selects JMP absolute/indirect; BIT is generated.
-      ...instructionPattern("010 011 00", instruction => this.#jump(addresses.absolute(instruction))), // JMP addr
-      ...instructionPattern("011 011 00", instruction => this.#jump(this.#readPageWrappedPointer(addresses.absolute(instruction), instruction.readByte))), // JMP (addr)
-
-      // cc=00, bbb=100: ffv 100 00 selects a flag and the value required to branch.
-      // ff (bits 7..6): 00 N, 01 V, 10 C, 11 Z.
-      // v (bit 5): 0 clear (BPL/BVC/BCC/BNE), 1 set (BMI/BVS/BCS/BEQ).
-      ...opcodeFamily("ff v 100 00", {
-        f: ["n", "v", "c", "z"],
-        v: [false, true],
-      }, ({ f: flag, v: value }) => ({ fetchByte }: InstructionContext) =>
-        this.#branch(fetchByte(), this.#state.flags[flag] === value)),
 
       // cc=00, bbb=110: 00v/01v/11v select CLC/SEC, CLI/SEI, CLD/SED; v (bit 5) is the new flag value.
       // aaa=101 selects CLV; TYA is generated.
@@ -167,15 +153,6 @@ export class Cpu6502 {
   #accumulatorHandlers(pattern: string, operation: (value: number) => void): readonly OpcodeEntry<OpcodeHandler>[] {
     return opcodeFamily(pattern, { b: Object.values(this.#readers.operands) }, ({ b: readOperand }) =>
       instruction => operation(readOperand(instruction)));
-  }
-
-  // Indirect JMP retains the NMOS page-wrap behavior.
-
-  #readPageWrappedPointer(pointer: number, readByte: InstructionContext["readByte"]): number {
-    // Increment only the low byte: JMP (xxFF) reads the high target byte from xx00.
-    const low = readByte(pointer);
-    const high = readByte((pointer & 0xff00) | ((pointer + 1) & 0xff));
-    return low | (high << 8);
   }
 
   // Loads.
@@ -228,14 +205,6 @@ export class Cpu6502 {
     const low = this.#pullByte(readByte);
     const high = this.#pullByte(readByte);
     this.#jump(low | (high << 8)); // Unlike RTS, RTI restores the saved PC without incrementing it.
-  }
-
-  #branch(displacement: number, take: boolean): void {
-    // The operand is fetched on either path; PC now points past both instruction bytes.
-    if (take) {
-      const offset = signed8(displacement);
-      this.#state.pc = (this.#state.pc + offset) & 0xffff;
-    }
   }
 
   // Stack operations.

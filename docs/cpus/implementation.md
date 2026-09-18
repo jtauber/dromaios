@@ -184,7 +184,7 @@ operands, pair views, data-word accesses, and 240 supported
 the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
 The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
-operations, conditions, generated bodies keyed by opcode, byte increment/decrement, and PSW/AF
+operations, call/return conditions, generated bodies keyed by opcode, byte increment/decrement, and PSW/AF
 packing. Both CPUs' byte ALU and byte-adjustment selectors bind complete generated bodies with
 explicit source reads, flags, and writeback. Shared
 [Intel construction](../../src/components/cpus/semantics/intel.ts) supplies
@@ -234,6 +234,13 @@ construction also serves IX/IY. Bodies capture the complete register before SP,
 read low/high, write high/low, then replace the register only after both writes
 succeed. Register-only exchanges swap D/H before E/L. The two handwritten
 exchange helpers are removed; these bodies never write SP or access flags.
+
+The jump inventory uses the same binder for `11 ccc 010`, unconditional JMP/JP,
+and PCHL/JP (HL). Definitions capture complete targets before testing flags;
+only taken paths write PC. The family jump helper is removed. Z80 JR and DJNZ
+use the same conditional construction, and JP (IX/IY) uses a stored-word source.
+DJNZ fetches before decrementing B and never accesses flags. Prefix decoding,
+refresh, and supplied-instruction retirement remain in the core.
 
 Each concrete constructor validates and copies its state before passing that
 owned state to `super`. The base constructor binds only the state and call
@@ -545,6 +552,24 @@ check actual RAM calls, current values, log independence, and error propagation;
 Existing CPU and example tests independently verify each model's complete
 records and memory behavior.
 
+## Shared control flow
+
+[Control-flow definitions](../../src/components/cpus/semantics/control-flow.ts)
+construct jumps and relative branches for the 6502, 6800, 6809, 8080, and Z80.
+Fetch the complete operand before reading condition flags. A taken relative
+branch reads the current PC and adds a signed displacement with word wrapping;
+an untaken path does not read or write PC. CPU-owned fetch callbacks retain their
+normal and interrupt-supplied advancement rules.
+
+Use scoped `when` statements for conditional effects, `signExtend` for byte
+displacements, and Boolean `and` for compound conditions. Their
+[representation contract](instruction-semantics.md#primitive-meanings) defines
+scope and failure behavior. Keep processor-specific target sources explicit:
+6502 indirect JMP increments only the pointer's low byte, and Motorola JMP
+receives an address after the existing decoder completes. These bodies never
+read memory at the jump destination. Calls and returns retain their existing
+core helpers.
+
 ## Shared arithmetic
 
 The [ALU helpers](../../src/components/cpus/alu.ts) express arithmetic facts
@@ -618,9 +643,11 @@ matches; retain the CPU's explicit sequence where it differs.
 ## Shared Motorola behavior
 
 [Motorola helpers](../../src/components/cpus/motorola.ts) capture specific
-family relationships. The 6800, 6809, and 68000 share the T/F, HI/LS, CC/CS,
-NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition tests. The opcode tables retain
-the 6800's absent BRN and the 68000 branch family's BSR exception.
+family relationships. The 6800, 6809, and 68000 use the T/F, HI/LS, CC/CS,
+NE/EQ, VC/VS, PL/MI, GE/LT, and GT/LE condition encoding. The 68000 retains
+runtime condition tests. The 6800/6809 share generated branch construction
+with explicit flag captures and native branch names. The opcode tables retain
+the 6800's absent BRN, the 6809's standalone LBRA, and the 68000's BSR exception.
 
 `motorolaDecimalAdjust` takes the original byte and current flags directly.
 It uses the original A/H/C, preserves H and control flags, and clears undefined

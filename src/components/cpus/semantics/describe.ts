@@ -12,6 +12,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "value": return Object.hasOwn(parameters, expr.name) ? number(parameters[expr.name]!) : expr.name;
       case "literal": return `${expr.value.toString(16).toUpperCase().padStart(expr.width / 4, "0")}:u${expr.width}`;
       case "extend": return `zeroExtend${expr.width}(${number(expr.value, parameters)})`;
+      case "sign-extend": return `signExtend${expr.width}(${number(expr.value, parameters)})`;
       case "high-byte": return `highByte(${number(expr.value, parameters)})`;
       case "low-byte": return `lowByte(${number(expr.value, parameters)})`;
       case "shift-left": case "shift-right":
@@ -34,6 +35,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "flag-literal": return expr.value ? "1:flag" : "0:flag";
       case "not": return `not(${flag(expr.value, parameters)})`;
       case "xor": return `xor(${flag(expr.left, parameters)}, ${flag(expr.right, parameters)})`;
+      case "and": return `and(${flag(expr.left, parameters)}, ${flag(expr.right, parameters)})`;
       case "negative": case "low-bit": case "zero": case "even-parity":
         return `${{ negative: "topBit", "low-bit": "lowBit", zero: "isZero", "even-parity": "evenParity8" }[expr.kind]}(${number(expr.value, parameters)})`;
       case "borrow": case "half-borrow": case "subtract-overflow": case "carry": case "half-carry": case "add-overflow":
@@ -46,6 +48,11 @@ export function describeInstruction(definition: InstructionDefinition): string {
     const emit = (line: string): void => { lines.push(indent + line); };
     for (const step of steps) {
       switch (step.kind) {
+        case "when":
+          emit(`when ${flag(step.condition, {})} {`);
+          body(step.steps, indent + "  ");
+          emit("}");
+          break;
         case "capture": emit(`${step.name} := ${number(step.value)}`); break;
         case "read-register": emit(`${step.name}:u${step.register.width} := read ${step.register.field.toUpperCase()}`); break;
         case "read-flag": emit(`${step.name}:flag := read ${step.flag.field.toUpperCase()}`); break;
@@ -95,10 +102,10 @@ Bodies begin after opcode selection. Motorola memory bodies receive a resolved
 address from the existing decoder. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; a source
-block has its own scope. All expressions in one flag update are evaluated before
+block has its own scope. Conditional blocks inherit outer captures; local captures
+do not escape. Untaken blocks have no effects. All expressions in one flag update are evaluated before
 any of its assignments. On an effect failure, completed effects remain and no
-later statement runs. See the contract for which bodies are bound to CPU opcodes;
-MOV B,A remains an executable transfer sample outside the 8080 opcode table.
+later statement runs. See the contract for which bodies are bound to CPU opcodes.
 
 ## Examples
 

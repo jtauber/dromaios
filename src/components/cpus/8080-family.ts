@@ -4,7 +4,7 @@ import type { RegisterPair } from "./register-pairs.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { opcodeFamily, opcodePattern } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelWordArithmeticForms, intelWordTransferForms } from "./intel-encodings.ts";
+import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelJumpForms, intelWordArithmeticForms, intelWordTransferForms } from "./intel-encodings.ts";
 
 export type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperand = "b" | "c" | "d" | "e" | "h" | "l" | "(hl)" | "a";
@@ -94,15 +94,15 @@ export abstract class Cpu8080Family<State extends Registers> {
       // q=1 selects RET, an extension slot, PCHL / JP (HL), or SPHL / LD SP,HL.
       ...opcodeFamily("11 pp 0 001", { p: this.#stackPairs }, ({ p: pair }) => ({ readByte }: InstructionContext) => this.writePair(pair, this.stack.pop(readByte))), // POP
       ...instructionPattern("11 00 1 001", ({ readByte }) => this.stack.return(readByte)), // RET
-      ...instructionPattern("11 10 1 001", () => this.jump(this.hl)), // PCHL / JP (HL)
+      ...this.#generatedHandlers(intelJumpForms.indirect), // PCHL / JP (HL)
       ...this.#generatedHandlers(intelWordTransferForms.stackPointer), // SPHL / LD SP,HL
 
       // 11 ccc 010: all eight absolute jump conditions fetch nn on both paths.
-      ...opcodeFamily("11 ccc 010", { c: this.conditions }, ({ c: condition }) => ({ fetchWord }: InstructionContext) => this.jump(fetchWord(), condition())), // JMP cc / JP cc,nn
+      ...this.#generatedHandlers(intelJumpForms.conditional), // JMP cc / JP cc,nn
 
       // 11 yyy 011: absolute jump, extensions/I/O, stack exchange, DE/HL exchange, DI/EI.
       // Each CPU owns extension decoding, port I/O, and interrupt controls.
-      ...instructionPattern("11 000 011", ({ fetchWord }) => this.jump(fetchWord())), // JMP / JP nn
+      ...this.#generatedHandlers(intelJumpForms.absolute), // JMP / JP nn
       ...this.#generatedHandlers(intelExchangeForms), // 11 10 m 011: m=0 XTHL / EX (SP),HL; m=1 XCHG / EX DE,HL
 
       // 11 ccc 100: conditional calls always fetch nn, then push only on a taken path.
@@ -136,10 +136,6 @@ export abstract class Cpu8080Family<State extends Registers> {
     if (pair === "sp") this.state.sp = value;
     else if (pair === "status") this.statusWord = value;
     else writeRegisterPair(this.state, pair, value);
-  }
-
-  protected jump(address: number, take = true): void {
-    if (take) this.state.pc = address;
   }
 
   // Data words are little-endian and wrap independently of the instruction stream.

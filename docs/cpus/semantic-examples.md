@@ -11,10 +11,10 @@ Bodies begin after opcode selection. Motorola memory bodies receive a resolved
 address from the existing decoder. Declared inputs
 are captured before entry. Statements are
 ordered. Captures are immutable; a source
-block has its own scope. All expressions in one flag update are evaluated before
+block has its own scope. Conditional blocks inherit outer captures; local captures
+do not escape. Untaken blocks have no effects. All expressions in one flag update are evaluated before
 any of its assignments. On an effect failure, completed effects remain and no
-later statement runs. See the contract for which bodies are bound to CPU opcodes;
-MOV B,A remains an executable transfer sample outside the 8080 opcode table.
+later statement runs. See the contract for which bodies are bound to CPU opcodes.
 
 ## Examples
 
@@ -183,6 +183,24 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 BPL
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read N
+when not(condition) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
 
 ### 6502 ORA (zero page),Y
 
@@ -557,6 +575,24 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 BMI
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read N
+when condition {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 AND (zero page),Y
 
 Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
@@ -832,6 +868,21 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 JMP absolute
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "absolute address, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 EOR absolute
 
 Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
@@ -881,6 +932,24 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 BVC
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read V
+when not(condition) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
 
 ### 6502 EOR (zero page),Y
 
@@ -1084,6 +1153,26 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 JMP indirect
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "NMOS page-wrapped pointer" {
+  pointer:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  low:u8 := read memory[pointer]
+  high:u8 := read memory[bitOr(bitAnd(pointer, FF00:u16), zeroExtend16(addWrap(lowByte(pointer), 01:u8)))]
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 ROR absolute
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -1109,6 +1198,24 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 BVS
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read V
+when condition {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
 
 ### 6502 ROR zero page,X
 
@@ -1306,6 +1413,24 @@ address:u16 := source "absolute address, low byte first" {
 }
 byte:u8 := read X
 write memory[address] := byte
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 BCC
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read C
+when not(condition) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
 ```
 
 Flags preserved throughout: N, V, D, I, Z, C.
@@ -1695,6 +1820,24 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I, C.
+
+### 6502 BCS
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read C
+when condition {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
 
 ### 6502 LDA (zero page),Y
 
@@ -2148,6 +2291,24 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I, C.
 
+### 6502 BNE
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read Z
+when not(condition) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 CMP (zero page),Y
 
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
@@ -2427,6 +2588,24 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I, C.
 
+### 6502 BEQ
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read Z
+when condition {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 INC zero page,X
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -2471,6 +2650,292 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I, C.
+
+### 6800 BRA
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+pc:u16 := read PC
+write PC:u16 := addWrap(pc, signExtend16(offset))
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BHI
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+c:flag := read C
+z:flag := read Z
+when and(not(c), not(z)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BLS
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+c:flag := read C
+z:flag := read Z
+when not(and(not(c), not(z))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BCC
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+c:flag := read C
+when not(c) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BCS
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+c:flag := read C
+when not(not(c)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BNE
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+z:flag := read Z
+when not(z) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BEQ
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+z:flag := read Z
+when not(not(z)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BVC
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+v:flag := read V
+when not(v) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BVS
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+v:flag := read V
+when not(not(v)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BPL
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+when not(n) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BMI
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+when not(not(n)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BGE
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+v:flag := read V
+when not(xor(n, v)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BLT
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+v:flag := read V
+when not(not(xor(n, v))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BGT
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+when and(not(z), not(xor(n, v))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 BLE
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+when not(and(not(z), not(xor(n, v)))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 JMP resolved address
+
+After successful address resolution, write the captured address to PC without a target-memory read. Preserve all flags and other registers.
+
+```text
+address:u16 := input
+write PC:u16 := address
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
 
 ### 6800 NEGA
 
@@ -8145,6 +8610,111 @@ write A:u8 := result
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 JNZ
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read Z
+when not(condition) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 JMP
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 JZ
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read Z
+when condition {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 JNC
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read CY
+when not(condition) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 JC
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read CY
+when condition {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 JPO
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read P
+when not(condition) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 XTHL
 
 Capture the complete register, then SP. Read memory low byte then high byte, wrapping at FFFF. Write the original register high byte then low byte to those captured addresses, even if unchanged. Only after both writes succeed, replace the register with the captured memory word; pairs read and write high byte first. A failed access prevents register writeback and retains completed memory writes. Never write SP or access flags, alternate banks, or control state.
@@ -8167,6 +8737,39 @@ write L:u8 := lowByte(result)
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 PCHL
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 JPE
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read P
+when condition {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 XCHG
 
 Capture H then D, write D then H; capture L then E, write E then L. Preserve all other registers, flags, alternate banks, and control state without accessing them. No memory access occurs.
@@ -8184,6 +8787,24 @@ write L:u8 := e
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 JP
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read S
+when not(condition) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 SPHL
 
 Capture the complete source, then write SP without memory access. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
@@ -8195,6 +8816,24 @@ result:u16 := source "HL" {
   yield concatHighLow(high, low)
 }
 write SP:u16 := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 JM
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read S
+when condition {
+  write PC:u16 := target
+}
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -10231,6 +10870,617 @@ flags "8080 comparison" simultaneously {
 ```
 
 Flags preserved throughout: none.
+
+### 6809 BRA
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+pc:u16 := read PC
+write PC:u16 := addWrap(pc, signExtend16(offset))
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BRN
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+when not(1:flag) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BHI
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+c:flag := read C
+z:flag := read Z
+when and(not(c), not(z)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BLS
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+c:flag := read C
+z:flag := read Z
+when not(and(not(c), not(z))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BCC
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+c:flag := read C
+when not(c) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BCS
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+c:flag := read C
+when not(not(c)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BNE
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+z:flag := read Z
+when not(z) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BEQ
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+z:flag := read Z
+when not(not(z)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BVC
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+v:flag := read V
+when not(v) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BVS
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+v:flag := read V
+when not(not(v)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BPL
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+when not(n) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BMI
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+when not(not(n)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BGE
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+v:flag := read V
+when not(xor(n, v)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BLT
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+v:flag := read V
+when not(not(xor(n, v))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BGT
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+when and(not(z), not(xor(n, v))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 BLE
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+when not(and(not(z), not(xor(n, v)))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBRA
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+pc:u16 := read PC
+write PC:u16 := addWrap(pc, offset)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBRN
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+when not(1:flag) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBHI
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+c:flag := read C
+z:flag := read Z
+when and(not(c), not(z)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBLS
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+c:flag := read C
+z:flag := read Z
+when not(and(not(c), not(z))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBCC
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+c:flag := read C
+when not(c) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBCS
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+c:flag := read C
+when not(not(c)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBNE
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+z:flag := read Z
+when not(z) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBEQ
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+z:flag := read Z
+when not(not(z)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBVC
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+v:flag := read V
+when not(v) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBVS
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+v:flag := read V
+when not(not(v)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBPL
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+when not(n) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBMI
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+when not(not(n)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBGE
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+v:flag := read V
+when not(xor(n, v)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBLT
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+v:flag := read V
+when not(not(xor(n, v))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBGT
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+when and(not(z), not(xor(n, v))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBLE
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u16 := source "immediate word, high byte first" {
+  high:u8 := fetch byte
+  low:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+n:flag := read N
+v:flag := read V
+z:flag := read Z
+when not(and(not(z), not(xor(n, v)))) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, offset)
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 JMP resolved address
+
+After successful address resolution, write the captured address to PC without a target-memory read. Preserve all flags and other registers.
+
+```text
+address:u16 := input
+write PC:u16 := address
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 NEGA
 
@@ -13594,6 +14844,111 @@ write A:u8 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 JP NZ,nn
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read Z
+when not(condition) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP nn
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP Z,nn
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read Z
+when condition {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP NC,nn
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read C
+when not(condition) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP C,nn
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read C
+when condition {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP PO,nn
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read PV
+when not(condition) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 EX (SP),HL
 
 Capture the complete register, then SP. Read memory low byte then high byte, wrapping at FFFF. Write the original register high byte then low byte to those captured addresses, even if unchanged. Only after both writes succeed, replace the register with the captured memory word; pairs read and write high byte first. A failed access prevents register writeback and retains completed memory writes. Never write SP or access flags, alternate banks, or control state.
@@ -13616,6 +14971,39 @@ write L:u8 := lowByte(result)
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 JP (HL)
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP PE,nn
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read PV
+when condition {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 EX DE,HL
 
 Capture H then D, write D then H; capture L then E, write E then L. Preserve all other registers, flags, alternate banks, and control state without accessing them. No memory access occurs.
@@ -13633,6 +15021,24 @@ write L:u8 := e
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 JP P,nn
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read S
+when not(condition) {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 LD SP,HL
 
 Capture the complete source, then write SP without memory access. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
@@ -13644,6 +15050,159 @@ result:u16 := source "HL" {
   yield concatHighLow(high, low)
 }
 write SP:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP M,nn
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read S
+when condition {
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JR e
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+pc:u16 := read PC
+write PC:u16 := addWrap(pc, signExtend16(offset))
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JR NZ,e
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read Z
+when not(condition) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JR Z,e
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read Z
+when condition {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JR NC,e
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read C
+when not(condition) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JR C,e
+
+Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+condition:flag := read C
+when condition {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DJNZ e
+
+Fetch the displacement, then decrement B with byte wraparound without accessing flags. Read B again; if nonzero, add the signed displacement to the post-fetch PC with word wraparound. If zero, do not read or write PC. A failed fetch prevents the decrement. Preserve other registers.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+counter:u8 := read B
+write B:u8 := subtract(counter, 01:u8)
+remaining:u8 := read B
+when not(isZero(remaining)) {
+  pc:u16 := read PC
+  write PC:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP (IX)
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 JP (IY)
+
+Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
+
+```text
+target:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+write PC:u16 := target
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.

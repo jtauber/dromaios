@@ -1,7 +1,7 @@
 import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { addWrap, carry, halfCarry, subtract, bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, lowByte, literal, not, readFlag, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { and, signExtend, when, addWrap, carry, halfCarry, subtract, bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, lowByte, literal, not, readFlag, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
@@ -44,6 +44,20 @@ export function checkInstructionSemantics(): void {
   // @ts-expect-error Arithmetic flags require numeric operands.
   halfCarry(flagValue("carry"), value("right"));
   xor(flagValue("carry"), zero(value("byte")));
+  when(and(flagValue("carry"), zero(value("byte"))), []);
+  signExtend(value("byte"), 16);
+  // @ts-expect-error Conditions are Boolean expressions, not numeric values.
+  when(value("byte"), []);
+  // @ts-expect-error A live flag must be captured before testing it.
+  when(mos.flag("c"), []);
+  // @ts-expect-error Conditional bodies are ordered data, not callbacks.
+  when(flagValue("carry"), () => {});
+  // @ts-expect-error Boolean AND cannot accept numeric operands.
+  and(flagValue("carry"), value("byte"));
+  // @ts-expect-error Signed widening cannot accept flags.
+  signExtend(flagValue("carry"), 16);
+  // @ts-expect-error This vocabulary supports only byte/word widths.
+  signExtend(value("byte"), 32);
   highByte(value("word"));
   lowByte(value("word"));
   const motorola = cpuSymbols("6809", cpu6809StateDescription);
@@ -103,6 +117,25 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   readers.operands[3]({ fetchByte: () => 0 });
   // @ts-expect-error Reader bindings require the concrete CPU state.
   sourceReaders(intel);
+  generated6502[0x10](mos, { fetchByte: () => 0 });
+  generated6502[0x6c](mos, { fetchByte: () => 0, readByte: () => 0 });
+  generated6800.bra(m6800, { fetchByte: () => 0 });
+  generated6809.lbrn(motorola, { fetchByte: () => 0 });
+  generated6809.jump(motorola, 0xffff);
+  generated8080[0xc2](intel, { fetchByte: () => 0 });
+  generated8080[0xe9](intel);
+  generatedZ80.jumpIX(z80);
+  generatedZ80.djnz(z80, { fetchByte: () => 0 });
+  // @ts-expect-error Even a branch that is never taken must fetch its displacement.
+  generated6809.lbrn(motorola);
+  // @ts-expect-error Indirect JMP requires pointer reads.
+  generated6502[0x6c](mos, { fetchByte: () => 0 });
+  // @ts-expect-error Absolute jumps do not read their destination.
+  generated8080[0xc3](intel, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Register-indirect jumps do not fetch or read memory.
+  generatedZ80.jumpIY(z80, { readByte: () => 0 });
+  // @ts-expect-error Resolved jumps cannot resolve their address again.
+  generated6800.jump(m6800, 0xffff, { fetchByte: () => 0 });
   generated6502[0xaa](mos);
   generated6502[0xc9](mos, { fetchByte: () => 0 });
   generated6502[0xb6](mos, { fetchByte: () => 0, readByte: () => 0 });

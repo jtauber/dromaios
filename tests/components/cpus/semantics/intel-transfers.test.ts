@@ -20,11 +20,12 @@ const cpus: readonly { name: string; instructions: Readonly<Record<number, (stat
   { name: "8080", instructions: intel }, { name: "Z80", instructions: zilog },
 ];
 
-test("8080/Z80 numeric definitions cover 84 transfer, twelve word-arithmetic, and two exchange slots, excluding HALT", () => {
+test("8080/Z80 numeric definitions cover 84 transfer, twelve word-arithmetic, two exchange, and ten jump slots, excluding HALT", () => {
   const expected = [...forms.map(({ opcode }) => opcode), 0x01, 0x11, 0x21, 0x31, 0x22, 0x2a, 0xf9,
+    0xc2, 0xca, 0xd2, 0xda, 0xe2, 0xea, 0xf2, 0xfa, 0xc3, 0xe9,
     0x02, 0x0a, 0x12, 0x1a, 0x32, 0x3a, 0xe3, 0xeb,
     0x03, 0x0b, 0x09, 0x13, 0x1b, 0x19, 0x23, 0x2b, 0x29, 0x33, 0x3b, 0x39].sort((a, b) => a - b);
-  assert.equal(new Set(expected).size, 98);
+  assert.equal(new Set(expected).size, 108);
   for (const definitions of [instructions8080, instructionsZ80]) {
     assert.deepEqual(Object.keys(definitions).filter(key => /^\d+$/.test(key)).map(Number).sort((a, b) => a - b), expected);
   }

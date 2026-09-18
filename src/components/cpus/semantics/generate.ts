@@ -23,7 +23,8 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
     const capabilities = new Set<Capability>();
     let nextValue = 0;
     const indent = result ? "      " : "  ";
-    const emit = (line: string): void => { lines.push(`${indent}  ${line}`); };
+    let depth = "";
+    const emit = (line: string): void => { lines.push(`${indent}  ${depth}${line}`); };
     const local = (hint: string): string => `v${nextValue++}_${hint}`;
     const helper = (name: string): string => { helpers.add(name); return name; };
     const access = (name: Capability): string => { capabilities.add(name); return `instruction.${name}`; };
@@ -37,6 +38,10 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
         case "high-byte": return { code: `(${number(expr.value, scope).code} >>> 8)`, type: 8 };
         case "low-byte": return { code: `(${number(expr.value, scope).code} & 0xff)`, type: 8 };
         case "extend": return { code: number(expr.value, scope).code, type: expr.width };
+        case "sign-extend": {
+          const operand = number(expr.value, scope), sign = 2 ** (operand.type - 1);
+          return { code: `(((${operand.code} ^ ${sign}) - ${sign}) & ${2 ** expr.width - 1})`, type: expr.width };
+        }
         case "shift-left": case "shift-right": {
           const operand = number(expr.value, scope), operation = helper(expr.kind === "shift-left" ? "shiftLeft" : "shiftRight");
           return { code: `${operation}(${operand.type}, ${operand.code}, (${flag(expr.incoming, scope)}) ? 1 : 0).result`, type: operand.type };
@@ -64,6 +69,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
         case "flag-literal": return String(expr.value);
         case "not": return `!(${flag(expr.value, scope)})`;
         case "xor": return `(${flag(expr.left, scope)}) !== (${flag(expr.right, scope)})`;
+        case "and": return `(${flag(expr.left, scope)}) && (${flag(expr.right, scope)})`;
         case "negative": case "low-bit": case "zero": case "even-parity": {
           const value = number(expr.value, scope);
           if (expr.kind === "negative" || expr.kind === "low-bit") return `(${value.code} & 0x${(expr.kind === "low-bit" ? 1 : 2 ** (value.type - 1)).toString(16)}) !== 0`;
@@ -84,6 +90,13 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
       for (const step of steps) {
         let captured: CapturedValue;
         switch (step.kind) {
+          case "when":
+            emit(`if (${flag(step.condition, scope)}) {`);
+            depth += "  ";
+            body(step.steps, new Map(scope));
+            depth = depth.slice(0, -2);
+            emit("}");
+            continue;
           case "capture": captured = number(step.value, scope); break;
           case "read-register": captured = { code: `state${field(step.register.field)}`, type: step.register.width }; break;
           case "read-flag": captured = { code: `state.flags${field(step.flag.field)}`, type: "flag" }; break;

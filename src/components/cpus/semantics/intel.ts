@@ -2,7 +2,8 @@ import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagValue, 
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource } from "./model.ts";
 import { arithmetic, immediateByte, instructionSet, memorySource, registerSource, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
-import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
+import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelJumpForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
+import { flagCondition, jump } from "./control-flow.ts";
 import type { IntelByteOperand } from "../intel-encodings.ts";
 import { pairBytes } from "../register-pairs.ts";
 import type { RegisterPair } from "../register-pairs.ts";
@@ -13,7 +14,7 @@ interface IntelByteCpu {
 }
 
 interface IntelWordCpu extends IntelByteCpu {
-  register(field: "a" | "b" | "c" | "d" | "e" | "h" | "l" | "sp"): Register;
+  register(field: "a" | "b" | "c" | "d" | "e" | "h" | "l" | "sp" | "pc"): Register;
 }
 type WordRegister = Register | { readonly source: ValueSource; readonly write: readonly Statement[] };
 type WordTransfer = "immediate" | "load" | "store" | "copy";
@@ -33,6 +34,16 @@ export function intelWordRegister(cpu: IntelWordCpu, pair: RegisterPair | "sp"):
 
 const immediateWord: ValueSource = { name: "immediate word, low byte first", width: 16,
   steps: [fetchByte("low"), fetchByte("high")], result: concat(value("high"), value("low")) };
+
+/** Shared absolute/HL jumps; conditional forms capture their flag after both address bytes. */
+export function intelJumps(cpu: IntelWordCpu, flags: readonly Flag[], name: (condition: number | "absolute" | "indirect") => string) {
+  return instructionSet([
+    ...intelJumpForms.conditional.map(([opcode, condition]) => [opcode,
+      jump(cpu, name(condition), immediateWord, flagCondition(flags[condition >> 1]!, Boolean(condition & 1)))] as const),
+    ...intelJumpForms.absolute.map(([opcode]) => [opcode, jump(cpu, name("absolute"), immediateWord)] as const),
+    ...intelJumpForms.indirect.map(([opcode]) => [opcode, jump(cpu, name("indirect"), wordSource(intelWordRegister(cpu, "hl")))] as const),
+  ]);
+}
 
 /** Complete word transfers own operand fetching, source capture, and ordered writes; flags are never accessed. */
 export function intelWordTransfer(cpu: IntelWordCpu, register: WordRegister, operation: WordTransfer, name: string): InstructionDefinition {

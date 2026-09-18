@@ -41,3 +41,10 @@ export const intelWordArithmeticForms = {
 
 // 11 10 m 011: m=0 exchanges HL with (SP); m=1 exchanges DE with HL.
 export const intelExchangeForms = opcodeFamily("11 10 m 011", { m: ["stack", "register"] as const }, ({ m: operation }) => operation);
+
+// ccc=ffv: ff selects Z/C/P/S (Z80 uses P/V); v is the required value.
+export const intelJumpForms = {
+  conditional: opcodeFamily("11 ccc 010", { c: [0, 1, 2, 3, 4, 5, 6, 7] }, ({ c: condition }) => condition),
+  absolute: opcodePattern("11 000 011", "absolute"),
+  indirect: opcodePattern("11 10 1 001", "indirect"),
+} as const;

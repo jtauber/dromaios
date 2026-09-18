@@ -47,8 +47,11 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6809 LSR/ROR/ASR/ASL/ROL on A/B and memory | Zero, carry, or sign-bit insertion; N/Z/C before writeback; left shifts set V to N XOR C, right shifts preserve V; memory bodies receive a resolved address and retain flags on a failed write |
 | 6809 NEG/COM/INC/DEC/CLR/TST on A/B and memory | Reuse the same unary construction and bindings; INC/DEC/TST preserve C, TST omits writeback, and CLR retains the original memory read |
 | All eleven 6800 unary operations on A/B and memory | Share the 6809's construction and selector table; omit the CLR read, clear C for TST, and set V to N XOR C for right shifts too |
+| 6502 conditional branches and absolute/indirect JMP | Fetch before testing flags; read/write PC only when taken; keep the NMOS indirect pointer's page wrap explicit |
+| 6800 short branches and JMP; 6809 short/long branches and JMP | Share conditions and displacement sources; preserve absent BRN on 6800, standalone LBRA on 6809, and indexed decoding before resolved JMP |
+| 8080 conditional/unconditional JMP and PCHL; Z80 JP/JR/DJNZ | Share target fetching and condition construction; preserve supplied-byte PC rules, no target read for register jumps, and DJNZ's fetch–decrement–test order |
 
-There are 1,147 bodies. All are generated, executable, and bound into their CPU's
+There are 1,234 bodies. All are generated, executable, and bound into their CPU's
 opcode table. The earlier MOV B,A test sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
@@ -72,9 +75,10 @@ The authoring layers have separate homes:
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, and byte/word-transfer construction, with explicit access and flag policies |
-| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers, arithmetic, and exchanges, and explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
-| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 load and 8080/Z80 transfer, word-arithmetic, and exchange encoding inventories consumed by definition construction and runtime binding; HALT omitted |
+| [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, absolute/resolved jumps, and relative branches with explicit operand-before-condition order |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, byte/word-transfer, and branch construction, with explicit access and flag policies |
+| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers, arithmetic, exchanges, and jumps, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
+| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 load and 8080/Z80 transfer, word-arithmetic, exchange, and jump encoding inventories consumed by definition construction and runtime binding; HALT omitted |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8008.ts](../../src/components/cpus/semantics/definitions/8008.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -394,6 +398,22 @@ survive either failure.
 The 6800 uses the same ordering except for CLR's omitted read. A failed CLR
 write therefore retains its flag updates without any preceding data-memory read.
 
+## Branches and jumps
+
+[Shared control-flow construction](../../src/components/cpus/semantics/control-flow.ts)
+fetches the complete displacement or reads the target before capturing condition
+flags. Only a taken relative branch reads the post-fetch PC, adds the signed
+displacement with word wrapping, and writes PC. Eight-bit displacements widen
+explicitly; a 16-bit displacement already has the required modulo-word form.
+Untaken branches and jumps never write PC. Conditions are data with an explicit
+capture stage: Motorola compound conditions preserve flag-read order; Z80 DJNZ
+uses that stage to decrement B, then reads B again without touching flags.
+The 6502's page-wrapped indirect pointer stays in its own source. Motorola JMP
+receives an address only after the CPU decoder completes, retaining indexed
+side effects and rejection. Register-indirect Intel jumps read the register or
+pair directly and never read memory at the destination. Calls, returns, and
+instruction retirement stay in the cores.
+
 ## Primitive meanings
 
 This vocabulary deliberately supports unsigned **8- and 16-bit values**,
@@ -413,6 +433,7 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `concat(high, low)` | Two bytes combined as `high * 256 + low`, yielding a word |
 | `highByte(value)`, `lowByte(value)` | Extract bits 15–8 or 7–0 of a captured word as a byte; byte operands and live register symbols are rejected |
 | `extend(value, width)` | Unsigned widening; narrowing and equal-width conversions are rejected |
+| `signExtend(value, width)` | Widen the two's-complement value, returning an unsigned bit pattern at the new width; `80:u8` becomes `FF80:u16`; narrowing and equal-width conversions are rejected |
 | `shiftLeft(value, incoming)` | Shift left once at the operand's width, discard the outgoing high bit, and insert the Boolean incoming bit at bit 0 |
 | `shiftRight(value, incoming)` | Shift right once at the operand's width, discard bit 0, and insert the Boolean incoming bit at the high bit |
 | `negative(value)` | Whether the top bit at the value's width is set |
@@ -427,6 +448,7 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `addOverflow(left, right, incoming?)` | Whether signed `left + right + incoming` falls outside the signed range at that width |
 | `not(value)` | Boolean negation |
 | `xor(left, right)` | Boolean exclusive OR; true exactly when its two Boolean operands differ |
+| `and(left, right)` | Boolean conjunction of pure expressions over already captured values; no implicit flag reads |
 
 Binary arithmetic and bitwise operands must have equal widths. Optional arithmetic
 inputs are Boolean expressions, contributing zero or one; omission means zero.
@@ -452,6 +474,7 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `write-memory` | Write one byte at an explicit word address, including unchanged values |
 | `read-source` | Expand and perform the named source body once in its own scope, then capture its result |
 | `update-flags` | Bind a named policy's pure parameters and apply its assignments at this point |
+| `when` | Evaluate a Boolean condition; execute the nested ordered statements only if true, with no body effects otherwise |
 
 The current cores still own fetch-cursor behavior, PC commitment, access
 recording, exception handling, and instruction boundaries. In particular,
@@ -460,6 +483,12 @@ bodies receive each core's existing callbacks, including interrupt-supplied
 fetching on the 8080. Word
 data reads and writes in this slice are two explicit byte accesses with visible
 ordering and address wrapping; no word-access primitive hides partial completion.
+
+A conditional block inherits its parent's captured numbers and flags. Its local
+captures cannot escape the block or shadow inherited names; separate sibling
+blocks may reuse local names. Source and flag-policy scopes remain closed,
+even inside conditionals. Validation checks untaken bodies too, and capability
+inference includes their possible fetches, reads, and writes.
 
 Statements execute in their listed order under this contract. A failed
 effect stops the body; prior completed effects remain. There is no implicit
@@ -713,6 +742,17 @@ opcode reads and acknowledgements, STOPPED release, and guard release.
 All 530 earlier definitions remain structurally unchanged by this unary
 migration; the five other generated CPU modules remain byte-for-byte identical.
 
+[Conditional-language tests](../../tests/components/cpus/semantics/control-flow.test.ts)
+check inherited scope, rejected shadowing and escaping captures, nested effects,
+failure stopping, latent capabilities, every byte's signed widening, Boolean
+AND, and explanatory indentation. [Branch probes](../../tests/components/cpus/semantics/branches.test.ts)
+change flags and PC during fetching to verify live read order and no PC access
+on untaken paths. [CPU boundary tests](../../tests/components/cpus/branch-failures.test.ts)
+cover all 90 migrated encodings, every condition combination, signed boundaries,
+PC/R wrapping, supplied Intel instructions, DJNZ count wrapping, and every failed
+fetch or pointer read. Existing independent CPU tests retain exhaustive
+displacement, pointer, and 6809 indexed-postbyte expectations.
+
 ## Executable generation and integration
 
 [generateInstructions](../../src/components/cpus/semantics/generate.ts) validates
@@ -727,12 +767,14 @@ runtime inputs. Register-only
 bodies have no context parameter. There is no interpreter or semantic dispatch
 on the execution path.
 
-Captures become uniquely named constants. Source scopes are expanded inline,
+Captures become uniquely named constants. Conditional statements compile to
+ordinary `if` blocks with inherited capture maps and scoped locals. Source scopes are expanded inline,
 with separate name maps; only the result enters the caller's map. Policy
 arguments are captured once, then all flag results are computed before any flag
 assignment. No reads, writes, or policies move across one another. Widths select
 the existing ALU helper arguments and sign bits. Widening a known unsigned byte
-requires no JavaScript arithmetic. The output is deliberately unoptimized:
+requires no JavaScript arithmetic; signed widening replicates the sign bit and
+returns an unsigned word. The output is deliberately unoptimized:
 repeated arithmetic facts remain separate calls rather than introducing an
 optimization pass into this review.
 
@@ -788,7 +830,7 @@ and all 310 documented CB forms through unified ordinary and indexed CB bindings
 Thirty-one resolved-memory bodies each serve HL, IX, and IY after address resolution.
 Its prefix recognition, signed displacement calculation, PC/R updates, and
 interrupt handling remain in the CPU module.
-The shared 8080/Z80 transfer, word-arithmetic, and exchange inventory supplies both definition keys and ordinary
+The shared 8080/Z80 transfer, word-arithmetic, exchange, and jump inventory supplies both definition keys and ordinary
 binding opcodes. Each CPU exposes its generated bodies to one family binder;
 there are no duplicate per-CPU transfer binding tables. HALT is an explicit
 handwritten slot. The former operand read/write helpers and transfer body are
@@ -979,7 +1021,7 @@ fetching and stack writes, but adding that vocabulary alone would not establish
 a source-reduction benefit.
 
 General addressing decoders (such as the full 6809 postbyte decoder), general
-register-view declarations, branches, loops, push/pop/call/return bodies, instruction rejection, pending
+register-view declarations, loops, push/pop/call/return bodies, instruction rejection, pending
 commits, and exception delivery are not represented here. The 6502 JSR and 68000
 MOVE traces still challenge later ordering vocabulary. The 6507 address-projection
 and 4004 nibble/interface probes remain acceptance requirements, not capabilities

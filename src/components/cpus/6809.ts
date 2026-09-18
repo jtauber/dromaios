@@ -14,7 +14,7 @@ import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaDecimalAdjust, motorolaConditionPairs } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaDecimalAdjust, motorolaBranchNames } from "./motorola.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
 export type { Cpu6809State, Cpu6809Flags } from "./state/6809.ts";
@@ -179,7 +179,7 @@ export class Cpu6809 {
   // Transfers append 0=load/1=store; immediate stores are undefined.
   readonly #page2Handlers = opcodeTable<OpcodeHandler>([
     ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi2", instruction)), // SWI2
-    ...this.#branchHandlers(({ fetchWord }) => fetchWord()).filter(([opcode]) => opcode !== 0x20), // LBRN and LBcc; LBRA has base opcode 16
+    ...this.#branchHandlers(true).filter(([opcode]) => opcode !== 0x20), // LBRN and LBcc; LBRA has base opcode 16
     ...this.#operandHandlers("10 mm 0011", semantics.cmpdImmediate, semantics.cmpdMemory), // CMPD
     ...this.#operandHandlers("10 mm 1100", semantics.cmpyImmediate, semantics.cmpyMemory), // CMPY
     ...this.#operandHandlers("10 mm 1110", semantics.ldyImmediate, semantics.ldyMemory), // LDY
@@ -203,7 +203,7 @@ export class Cpu6809 {
     ...instructionPattern("0001 0001", instruction => this.#executePage(this.#page3Handlers, instruction)),
     ...instructionPattern("0001 0010", () => {}), // NOP
     ...instructionPattern("0001 0011", () => { this.#state.waitMode = "sync"; }), // SYNC
-    ...instructionPattern("0001 0110", ({ fetchWord }) => { this.#state.pc = this.#relativeAddress(fetchWord()); }), // LBRA rel16
+    ...instructionPattern("0001 0110", instruction => semantics.lbra(this.#state, instruction)), // LBRA rel16
     ...instructionPattern("0001 0111", ({ fetchWord, writeByte }) => this.#call(this.#relativeAddress(fetchWord()), writeByte)), // LBSR rel16
 
     ...instructionPattern("0001 1001", () => { this.#state.a = motorolaDecimalAdjust(this.#state.a, this.#state.flags); }), // DAA
@@ -214,8 +214,8 @@ export class Cpu6809 {
     ...instructionPattern("0001111 0", ({ fetchByte }) => this.#transfer(fetchByte(), true)), // EXG
     ...instructionPattern("0001111 1", ({ fetchByte }) => this.#transfer(fetchByte(), false)), // TFR
 
-    // 0010 ttt p: ttt selects T/HI/CC/NE/VC/PL/GE/GT; bit 0 inverts it.
-    ...this.#branchHandlers(({ fetchByte }) => signed8(fetchByte())), // BRA / BRN / Bcc
+    // 0010 cccc, cccc=tttp: ttt selects T/HI/CC/NE/VC/PL/GE/GT; bit 0 inverts it.
+    ...this.#branchHandlers(), // BRA / BRN / Bcc
 
     // 001100 rr: rr=00/01/10/11 selects X/Y/S/U; only X/Y replace Z.
     ...this.#addressedHandlers(this.#indexedOperandAddress, opcodeFamily("001100 rr", { r: ["x", "y", "s", "u"] },
@@ -270,9 +270,9 @@ export class Cpu6809 {
     return handler ? handler(instruction) : "unsupported";
   }
 
-  #branchHandlers(readOffset: OperandReader): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily("0010 ttt p", { t: motorolaConditionPairs, p: [false, true] },
-      ({ t: test, p: invert }) => instruction => this.#branch(readOffset(instruction), test(this.#state.flags) !== invert));
+  #branchHandlers(long = false): readonly OpcodeEntry<OpcodeHandler>[] {
+    return opcodeFamily("0010 cccc", { c: motorolaBranchNames }, ({ c: name }) =>
+      (instruction: InstructionContext) => semantics[`${long ? "l" : ""}${name}`](this.#state, instruction));
   }
 
   // CLR also reads its operand here; the 6800 binds CLR to a write-only instruction.
@@ -280,7 +280,7 @@ export class Cpu6809 {
     return this.#addressedHandlers(address, [
       ...Cpu6809.#unaryOperations.flatMap(({ bits, memory }) => addressPattern(`${prefix} ${bits}`,
         (address, instruction) => memory(this.#state, address, instruction))),
-      ...addressPattern(`${prefix} 1110`, address => { this.#state.pc = address; }), // JMP
+      ...addressPattern(`${prefix} 1110`, address => semantics.jump(this.#state, address)), // JMP
     ]);
   }
 
@@ -383,10 +383,6 @@ export class Cpu6809 {
   #relativeAddress(offset: number): number {
     // PC is past the operand. Modulo 65536 also interprets a word's two's-complement offset.
     return (this.#state.pc + offset) & 0xffff;
-  }
-
-  #branch(offset: number, take: boolean): void {
-    if (take) this.#state.pc = this.#relativeAddress(offset);
   }
 
   #call(address: number, writeByte: InstructionContext["writeByte"]): void {

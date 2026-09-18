@@ -1,12 +1,13 @@
 import { cpuZ80StateDescription } from "../../state/z80.ts";
 import { addOverflow, bitAnd, bitOr, bitXor, borrow, capture, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, overflow,
-  readMemory, readRegister, readSource, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
+  readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, Statement } from "../model.ts";
-import { shift } from "../builders.ts";
+import { immediateByte, registerSource, shift } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
-import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelExchanges, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelWordTransfer, intelWordTransfers } from "../intel.ts";
+import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelExchanges, intelJumps, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelWordTransfer, intelWordTransfers } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
+import { flagCondition, jump, relativeBranch } from "../control-flow.ts";
 
 const cpu = cpuSymbols("z80", cpuZ80StateDescription);
 const sources = intelByteSources(cpu.register);
@@ -139,6 +140,19 @@ function family(mnemonic: string, operation: IntelByteOperation, withCarry = fal
 }
 
 export const instructionsZ80 = {
+  ...intelJumps(cpu, (["z", "c", "pv", "s"] as const).map(flag => cpu.flag(flag)),
+    condition => typeof condition === "number" ? `JP ${["NZ", "Z", "NC", "C", "PO", "PE", "P", "M"][condition]},nn`
+      : condition === "absolute" ? "JP nn" : "JP (HL)"),
+  jr: relativeBranch(cpu, "JR e", immediateByte),
+  ...Object.fromEntries((["NZ", "Z", "NC", "C"] as const).map((name, index) =>
+    [`jr${name}`, relativeBranch(cpu, `JR ${name},e`, immediateByte, flagCondition(cpu.flag(index < 2 ? "z" : "c"), Boolean(index & 1)))])),
+  djnz: defineInstruction({ ...relativeBranch(cpu, "DJNZ e", immediateByte, {
+    steps: [readRegister("counter", cpu.register("b")), writeRegister(cpu.register("b"), subtract(value("counter"), literal(8, 1))),
+      readRegister("remaining", cpu.register("b"))], test: not(zero(value("remaining"))),
+  }), explanation: "Fetch the displacement, then decrement B with byte wraparound without accessing flags. Read B again; if nonzero, "
+    + "add the signed displacement to the post-fetch PC with word wraparound. If zero, do not read or write PC. A failed fetch prevents the decrement. Preserve other registers." }),
+  ...Object.fromEntries((["ix", "iy"] as const).map(index =>
+    [`jump${index.toUpperCase()}`, jump(cpu, `JP (${index.toUpperCase()})`, registerSource(cpu.register(index)))])),
   ...intelByteTransfers(cpu, "LD", "LD", "(HL)"),
   ...intelAccumulatorTransfers(cpu, (address, operation) => operation === "store" ? `LD (${address === "absolute" ? "nn" : address.toUpperCase()}),A`
     : `LD A,(${address === "absolute" ? "nn" : address.toUpperCase()})`),

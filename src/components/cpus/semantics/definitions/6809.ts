@@ -1,8 +1,10 @@
 import { cpu6809StateDescription } from "../../state/6809.ts";
 import { concat, cpuSymbols, highByte, lowByte, readRegister, value, writeLatch, writeRegister } from "../model.ts";
-import type { ValueSource } from "../model.ts";
+import type { InstructionDefinition, ValueSource } from "../model.ts";
 import { registerSource } from "../builders.ts";
-import { motorolaByteArithmetic, motorolaArithmeticFamily, motorolaTransfers, motorolaComparison, motorolaLogic, motorolaUnary } from "../motorola.ts";
+import { motorolaBranches, motorolaByteArithmetic, motorolaArithmeticFamily, motorolaTransfers, motorolaComparison, motorolaLogic, motorolaUnary } from "../motorola.ts";
+import { resolvedJump } from "../control-flow.ts";
+import { motorolaBranchNames } from "../../motorola.ts";
 
 const cpu = cpuSymbols("6809", cpu6809StateDescription);
 
@@ -18,7 +20,10 @@ const writableD = { source: d,
   explanation: "Write D as A then B",
 };
 
-export const instructions6809 = {
+export const instructions6809: Readonly<Record<string, InstructionDefinition>> = {
+  ...motorolaBranches(cpu, motorolaBranchNames),
+  ...motorolaBranches(cpu, motorolaBranchNames, true),
+  jump: resolvedJump(cpu),
   ...motorolaUnary(cpu, { clearReadsOperand: true, testClearsCarry: false, rightShiftSetsOverflow: false }),
   ...motorolaLogic(cpu),
   ...motorolaByteArithmetic(cpu),

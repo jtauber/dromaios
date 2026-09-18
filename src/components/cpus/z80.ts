@@ -303,9 +303,10 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     ...this.baseInstructions(),
     // 00 yyy 000: yyy=001 exchanges AF, 010 is DJNZ, 011 is JR, and 1cc is conditional JR.
     ...instructionPattern("00 001 000", () => this.#exchangeAf()), // EX AF,AF'
-    ...instructionPattern("00 010 000", ({ fetchByte }) => this.#decrementAndJump(fetchByte())), // DJNZ e
-    ...instructionPattern("00 011 000", ({ fetchByte }) => this.#jumpRelative(fetchByte(), true)), // JR e
-    ...opcodeFamily("00 1cc 000", { c: this.conditions.slice(0, 4) }, ({ c: condition }) => ({ fetchByte }: InstructionContext) => this.#jumpRelative(fetchByte(), condition())), // JR NZ/Z/NC/C,e
+    ...instructionPattern("00 010 000", instruction => semantics.djnz(this.state, instruction)), // DJNZ e
+    ...instructionPattern("00 011 000", instruction => semantics.jr(this.state, instruction)), // JR e
+    ...opcodeFamily("00 1cc 000", { c: [semantics.jrNZ, semantics.jrZ, semantics.jrNC, semantics.jrC] },
+      ({ c: execute }) => (instruction: InstructionContext) => execute(this.state, instruction)), // JR NZ/Z/NC/C,e
     // 11 01 d 011: d=0 outputs, d=1 inputs; old A supplies address bits 15..8.
     ...instructionPattern("11 01 0 011", ({ fetchByte, writePort }) => writePort((this.state.a << 8) | fetchByte(), this.state.a)), // OUT (n),A
     ...instructionPattern("11 01 1 011", ({ fetchByte, readPort }) => { this.state.a = readPort((this.state.a << 8) | fetchByte()); }), // IN A,(n); preserve all flags
@@ -401,7 +402,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
       ...opcodeFamily("10 ooo 110", { o: this.#aluFamilies }, ({ o: operation }) => (instruction: InstructionContext) =>
         semantics[`${operation}Memory`](this.state, address(instruction), instruction)), // ALU (IX/IY+d)
       ...instructionPattern("11 10 0 001", ({ readByte }) => { this.state[index] = this.stack.pop(readByte); }), // POP IX/IY
-      ...instructionPattern("11 10 1 001", () => this.jump(this.state[index])), // JP (IX/IY); no displacement or target read
+      ...instructionPattern("11 10 1 001", () => semantics[`jump${suffix}`](this.state)), // JP (IX/IY); no displacement or target read
       ...instructionPattern("11 100 011", instruction => semantics[`exchange${suffix}Word`](this.state, instruction)), // EX (SP),IX/IY
       ...instructionPattern("11 10 0 101", ({ writeByte }) => this.stack.push(this.state[index], writeByte)), // PUSH IX/IY
       ...instructionPattern("11 11 1 001", () => semantics[`copy${suffix}Word`](this.state)), // LD SP,IX/IY
@@ -429,22 +430,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     for (const register of ["b", "c", "d", "e", "h", "l"] as const) {
       [this.state[register], alternate[register]] = [alternate[register], this.state[register]];
     }
-  }
-
-  // Relative control flow.
-
-  #jumpRelative(displacement: number, take: boolean): void {
-    // Both paths fetch the operand; PC now points past both instruction bytes.
-    if (take) {
-      const offset = signed8(displacement);
-      this.state.pc = (this.state.pc + offset) & 0xffff;
-    }
-  }
-
-  #decrementAndJump(displacement: number): void {
-    // DJNZ decrements B without applying DEC's flag changes.
-    this.state.b = (this.state.b - 1) & 0xff;
-    this.#jumpRelative(displacement, this.state.b !== 0);
   }
 
   // Arithmetic, logic, and flags.

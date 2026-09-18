@@ -2,8 +2,10 @@ import { cpu6800StateDescription } from "../../state/6800.ts";
 import { cpuSymbols, highByte, negative, overflow, readRegister, writeRegister, subtract, value, zero } from "../model.ts";
 import type { FlagPolicy } from "../model.ts";
 import { compare, registerSource, transfer } from "../builders.ts";
-import { motorolaArithmetic, motorolaByteArithmetic, motorolaResultFlags, motorolaTransfers, motorolaComparison, motorolaComparisonFlags, motorolaLogic, motorolaUnary } from "../motorola.ts";
+import { motorolaArithmetic, motorolaBranches, motorolaByteArithmetic, motorolaResultFlags, motorolaTransfers, motorolaComparison, motorolaComparisonFlags, motorolaLogic, motorolaUnary } from "../motorola.ts";
 import { defineInstruction } from "../validate.ts";
+import { resolvedJump } from "../control-flow.ts";
+import { motorolaBranchNames } from "../../motorola.ts";
 
 const cpu = cpuSymbols("6800", cpu6800StateDescription);
 
@@ -18,6 +20,8 @@ const indexComparison: FlagPolicy = {
 };
 
 export const instructions6800 = {
+  ...motorolaBranches(cpu, motorolaBranchNames.filter(name => name !== "brn")),
+  jump: resolvedJump(cpu),
   ...motorolaUnary(cpu, { clearReadsOperand: false, testClearsCarry: true, rightShiftSetsOverflow: true }),
   ...motorolaByteArithmetic(cpu),
   ...motorolaLogic(cpu, "ORA"), // The original 6800 spells these ORAA/ORAB.

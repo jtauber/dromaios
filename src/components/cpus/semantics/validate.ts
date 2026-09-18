@@ -45,7 +45,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
       case "high-byte": case "low-byte":
         if (expression(expr.value, scope, where) !== 16) fail(where, `${expr.kind === "high-byte" ? "high" : "low"} byte requires a word`);
         return 8;
-      case "extend": {
+      case "extend": case "sign-extend": {
         const from = expression(expr.value, scope, where), to = width(expr.width, where);
         if (to <= from) fail(where, "extension must widen its operand");
         return to;
@@ -73,7 +73,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
         if (typeof expr.value !== "boolean") fail(where, "flag literal must be Boolean");
         return;
       case "not": return flagExpression(expr.value, scope, where);
-      case "xor": flagExpression(expr.left, scope, where); flagExpression(expr.right, scope, where); return;
+      case "xor": case "and": flagExpression(expr.left, scope, where); flagExpression(expr.right, scope, where); return;
       case "negative": case "low-bit": case "zero": case "even-parity": {
         const bits = expression(expr.value, scope, where);
         if (expr.kind === "even-parity" && bits !== 8) fail(where, "even parity requires a byte");
@@ -114,6 +114,10 @@ export function validateInstruction(definition: InstructionDefinition): void {
       };
       let captured: ValueType;
       switch (step.kind) {
+        case "when":
+          flagExpression(step.condition, scope, where);
+          steps(step.steps, new Map(scope), where);
+          return;
         case "capture": captured = number(step.value); break;
         case "read-register": captured = register(step.register, where); break;
         case "read-flag": flag(step.flag, where); captured = "flag"; break;
