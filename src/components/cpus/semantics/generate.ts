@@ -57,6 +57,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
           return { code: `(${left.code} ${operator} ${right.code})`, type: left.type };
         }
         case "concat": return { code: `((${number(expr.left, scope).code} << 8) | ${number(expr.right, scope).code})`, type: 16 };
+        case "multiply": return { code: `(${number(expr.left, scope).code} * ${number(expr.right, scope).code})`, type: 16 };
         case "subtract": case "add-wrap": {
           const left = number(expr.left, scope), right = number(expr.right, scope);
           const operation = helper(expr.kind === "subtract" ? "subtract" : "add");

@@ -31,6 +31,9 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 8008 AD/AC/SU/SB/ND/XR/OR/CP, every register/memory/immediate form | Reuse Intel ALU construction with S/Z/P/C, native register order, and an explicit 14-bit memory mask; retain address-slot fetching and supplied-byte rules |
 | 8008 INr/DCr and RLC/RRC/RAL/RAR | Preserve C on adjustments; share 8080 rotate construction with explicit A-before-C writeback and preserved S/Z/P |
 | 8008 conditional/unconditional jumps, calls, returns, restarts, and halts | Explicit 14-bit targets and three-bit selector wrap; checked physical register arrays; no RAM-stack effects; retain ordinary versus supplied-byte fetching and all documented aliases |
+| 6809 TFR/EXG, all legal same-width postbytes | Construction-time views for D, CC, and S; read both originals before writes; keep postbyte validation in the CPU |
+| 6809 PSHS/PULS/PSHU/PULU and shared interrupt-frame transfers | One byte-mask recipe; each register captured at its turn, each pop committed after its complete read, native NMI arming and partial failures |
+| 6809 LEAX/LEAY/LEAS/LEAU, SEX, ABX, MUL, and NOP | Resolved address inputs, precise flag policies, and unsigned byte multiplication with a full word result |
 | 6809 CMPA/B/D/X/Y/U/S, every addressing form | Byte/word widths, D as A:B, and addressing that changes the register subsequently compared |
 | 6800 CMPA/CMPB/CPX, every addressing form, and CBA | Share comparison construction; original CPX derives N/V from high bytes without low-byte borrow, Z from the whole word, and preserves C |
 | 6502 LDA/LDX/LDY, every supported addressing form | Reuse comparison sources; delay destination and N/Z updates until the source succeeds |
@@ -58,8 +61,10 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 1,437 bodies. All are generated, executable, and bound into their CPU's
-opcode table. The earlier MOV B,A test sample is part of the complete 8080 matrix.
+There are 1,555 generated, executable bodies. All serve CPU execution;
+1,553 are bound through opcode or postbyte selection, and two are shared 6809
+frame helpers called by interrupt entry and return. The earlier MOV B,A test
+sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
@@ -81,9 +86,9 @@ The authoring layers have separate homes:
 | Location | Responsibility |
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
-| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
+| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, construction-time register views, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
 | [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, and returns with explicit operand/condition/stack order |
-| [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, and complete push/pop instruction construction |
+| [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, and complete push/pop instruction construction |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, byte/word-transfer, branch, and subroutine construction, with explicit access and flag policies |
 | [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
 | [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 transfer/control and 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted, with 8008 HALT defined separately |
@@ -410,6 +415,30 @@ survive either failure.
 The 6800 uses the same ordering except for CLR's omitted read. A failed CLR
 write therefore retains its flag updates without any preceding data-memory read.
 
+## Register views and postbyte-selected transfers
+
+`RegisterView` pairs a `ValueSource` with a construction-time function returning
+write statements. `registerView(register, afterWrite?)` supplies the scalar case;
+6809 D supplies A/B reads and split writes, CC supplies packing and complete flag
+replacement, and S appends NMI arming. These functions run while definitions are
+built. Only expanded statements enter validation, generation, and explanations;
+there is no runtime view object or hidden setter in a body.
+
+One shared 6809 inventory enumerates the legal same-width pairs in `ssss dddd`.
+The CPU uses it to bind postbytes and the definition module to construct TFR/EXG
+bodies. Each body reads both originals before writing the target, then the source
+for EXG, including self-aliases and post-fetch PC values. Invalid postbytes never
+enter a body. LEA uses the same writes after indexed decoding has finished,
+retaining auto-updates, indirect reads, and failures before entry. X/Y update
+only Z; S arms NMI; U preserves all flags.
+
+SEX and ABX use existing widening and addition expressions. MUL introduces only
+unsigned byte multiplication: capture A/B, calculate a word, write A then B,
+then replace Z/C. The C expression explicitly selects product bit 7.
+[Register probes](../../tests/components/cpus/semantics/6809-registers.test.ts)
+check every legal transfer pair, flag replacement and arming, read/write order,
+failed register effects, all byte products, and rejected multiplication widths.
+
 ## Branches and jumps
 
 [Shared control-flow construction](../../src/components/cpus/semantics/control-flow.ts)
@@ -439,6 +468,24 @@ a byte pointer can select a fixed aligned page, such as the 6502's `0100`.
 `wordStack` separately declares little- or big-endian memory layout, pushing in
 the reverse order to popping. Each popped byte has a source-local capture.
 
+`maskedStack` takes up to eight byte/word register views in mask-bit order.
+Pulls visit ascending bits; pushes reverse the order. Each selected register is
+captured only at its turn, then its complete byte or word is transferred through
+`byteStack`/`wordStack`. A pull writes the destination only after its full read;
+an empty mask never inspects state. All effects expand into existing conditional,
+source, register, and memory statements.
+
+The 6809 supplies CC/A/B/DP/X/Y/other-stack/PC views. Its four instruction bodies
+fetch a mask; nonempty PSHS/PULS arm NMI only after all effects succeed. PULU's S
+view arms immediately after the complete S pop. The two frame helpers receive
+a captured mask and omit fetching and final arming. Interrupt policy still
+selects full/short frames, restores CC before examining E, and arms after RTI.
+This reuse removes the CPU's handwritten stack implementation without claiming
+the interrupt instructions themselves as migrated.
+[Mask probes](../../tests/components/cpus/semantics/masked-stacks.test.ts) cover
+every mask and failed access, register capture timing, complete-word writes,
+live-pointer changes, flag replacement, and both arming schedules.
+
 Complete push bodies capture the source before stack access. Pop bodies write
 the destination only after all reads succeed; pairs retain high/low register
 write order. PLA then applies N/Z. Calls capture the target before condition
@@ -455,8 +502,8 @@ can replace the final operand. RTS adds one to the popped word. Motorola calls
 use big-endian stacks and the existing address decoder. Indexed 6809 JSR retains
 S auto-updates and NMI arming before body entry; subroutine stack effects do not
 arm NMI. Packed-status stacks use the same construction with explicit packing
-and replacement stages. The 6809 register-mask stacks and interrupt handling
-continue to use their current runtime helpers.
+and replacement stages. The 6809 shares its mask-driven frame transfers with
+this construction while keeping interrupt policy in the CPU.
 
 ## Packed status and decimal arithmetic
 
@@ -509,6 +556,7 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `subtract(left, right, incoming?)` | Binary `left - right - incoming` modulo `2^width`; omitted incoming borrow is zero |
 | `addWrap(left, right, incoming?)` | Binary `left + right + incoming` modulo `2^width`; omitted incoming carry is zero |
 | `bitAnd(left, right)`, `bitOr(left, right)`, `bitXor(left, right)` | Bitwise AND, OR, and exclusive OR on equal-width unsigned numbers, preserving that width; distinct from Boolean `xor` |
+| `multiply(left, right)` | Unsigned byte-by-byte multiplication yielding the complete 16-bit product; non-byte operands are rejected |
 | `concat(high, low)` | Two bytes combined as `high * 256 + low`, yielding a word |
 | `highByte(value)`, `lowByte(value)` | Extract bits 15–8 or 7–0 of a captured word as a byte; byte operands and live register symbols are rejected |
 | `extend(value, width)` | Unsigned widening; narrowing and equal-width conversions are rejected |
@@ -887,7 +935,9 @@ assignment. No reads, writes, or policies move across one another. Widths select
 the existing ALU helper arguments and sign bits. Widening a known unsigned value
 requires no JavaScript arithmetic; signed widening replicates the sign bit and
 returns the wider unsigned pattern. Narrowing emits an explicit low-bit mask.
-Array access emits direct indexing with an already validated captured selector. The output is deliberately unoptimized:
+Unsigned byte multiplication emits JavaScript multiplication with a word result;
+no truncation or ALU helper is needed. Array access emits direct indexing with
+an already validated captured selector. The output is deliberately unoptimized:
 repeated arithmetic facts remain separate calls rather than introducing an
 optimization pass into this review.
 
@@ -1030,8 +1080,9 @@ destination, then apply N/Z with V cleared. A failed word store preserves flags
 and completed writes. Unary memory modifications instead apply flags before
 writing. D supplies A/B reads and split writes; S supplies a write followed by
 NMI arming. Both CPUs' byte and word load/store helpers are gone, along with
-the shared runtime result-flag helper. The 6809 retains its word-register
-writer for handwritten arithmetic and transfers.
+the shared runtime result-flag helper. The 6809's later ordinary-instruction
+migration also removes its runtime word-register writer; explicit D and S
+writes are shared within the definition module.
 
 The existing independent CPU tests cover values, flag patterns, and unchanged
 writes. Additional probes check each failed access, all 217 legal 6809 indexed
@@ -1137,9 +1188,9 @@ status stacks also use generated bodies; the runtime call stack is private to
 the Z80's interrupt paths. Total source accounting remains in the
 [footprint report](coverage.md#source-footprint).
 
-General addressing decoders (such as the full 6809 postbyte decoder), general
-register-view declarations, loops, register-mask stacks,
-instruction rejection, pending commits, and exception delivery are not represented
-here. The 68000 MOVE traces still challenge later ordering vocabulary. The 6507 address-projection
+General addressing decoders (such as the full 6809 postbyte decoder), loops,
+wider register masks, instruction rejection, pending commits, and exception
+delivery are not represented here. Register views and byte-mask stacks now have
+construction recipes, but no new runtime or primitive representation. The 68000 MOVE traces still challenge later ordering vocabulary. The 6507 address-projection
 and 4004 nibble/interface probes remain acceptance requirements, not capabilities
 of this byte/word slice.

@@ -13,7 +13,7 @@ import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaBranchNames } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaBranchNames, motorola6809TransferForms } from "./motorola.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
 export type { Cpu6809State, Cpu6809Flags } from "./state/6809.ts";
@@ -41,16 +41,10 @@ export type Cpu6809InterruptRecord = StateTransition<Cpu6809Snapshot> & { readon
 
 type OpcodeHandler = (instruction: InstructionContext) => "unsupported" | void;
 type AddressedHandler = (address: number, instruction: InstructionContext) => void;
-type Accumulator = "a" | "b";
-type StackPointer = "s" | "u";
 type OperandReader = (instruction: InstructionContext) => number;
 type AddressReader = (instruction: InstructionContext) => number | undefined;
-type WordRegister = "d" | "x" | "y" | "u" | "s" | "pc";
-type TransferRegister = WordRegister | Accumulator | "cc" | "dp";
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
-
-// CC bits 7..0: E F H I N Z V C.
 const addressPattern = opcodePattern<AddressedHandler>;
 
 // Vector address, frame size, and masks applied AFTER saving the original CC.
@@ -139,16 +133,6 @@ export class Cpu6809 {
 
   get #d(): number { return (this.#state.a << 8) | this.#state.b; }
 
-  #writeWordRegister(register: WordRegister, value: number): void {
-    if (register === "d") {
-      this.#state.a = value >>> 8;
-      this.#state.b = value & 0xff;
-    } else {
-      this.#state[register] = value;
-      if (register === "s") this.#state.nmiArmed = true;
-    }
-  }
-
   // Opcode selectors and construction.
 
   // Unary encodings: 0000 oooo = direct, 010r oooo = A/B,
@@ -169,7 +153,8 @@ export class Cpu6809 {
 
   // TFR/EXG postbyte ssss dddd: selector bit 3 chooses word=0/byte=1.
   // 0000..0101 = D/X/Y/U/S/PC; 1000..1011 = A/B/CC/DP; other selectors are undefined.
-  readonly #transferRegisters = ["d", "x", "y", "u", "s", "pc", undefined, undefined, "a", "b", "cc", "dp"] as const;
+  readonly #exchangeHandlers = this.#registerTransferHandlers("exg");
+  readonly #transferHandlers = this.#registerTransferHandlers("tfr");
 
   readonly #operandHandlers = motorolaOperandBindings(() => this.#state, this.#memoryModes);
 
@@ -197,9 +182,9 @@ export class Cpu6809 {
     // 0000 oooo: direct unary operations; 1110 is JMP instead of a byte operation.
     ...this.#memoryUnaryHandlers("0000", this.#directOperandAddress),
 
-    ...instructionPattern("0001 0000", instruction => this.#executePage(this.#page2Handlers, instruction)),
-    ...instructionPattern("0001 0001", instruction => this.#executePage(this.#page3Handlers, instruction)),
-    ...instructionPattern("0001 0010", () => {}), // NOP
+    ...instructionPattern("0001 0000", instruction => this.#executeFollowingByte(this.#page2Handlers, instruction)),
+    ...instructionPattern("0001 0001", instruction => this.#executeFollowingByte(this.#page3Handlers, instruction)),
+    ...instructionPattern("0001 0010", () => semantics.nop(this.#state)), // NOP
     ...instructionPattern("0001 0011", () => { this.#state.waitMode = "sync"; }), // SYNC
     ...instructionPattern("0001 0110", instruction => semantics.lbra(this.#state, instruction)), // LBRA rel16
     ...instructionPattern("0001 0111", instruction => semantics.lbsr(this.#state, instruction)), // LBSR rel16
@@ -207,26 +192,27 @@ export class Cpu6809 {
     ...instructionPattern("0001 1001", () => semantics.daa(this.#state)), // DAA
     ...instructionPattern("0001 1010", instruction => semantics.orcc(this.#state, instruction)), // ORCC
     ...instructionPattern("0001 1100", instruction => semantics.andcc(this.#state, instruction)), // ANDCC
-    ...instructionPattern("0001 1101", () => this.#signExtend()), // SEX
+    ...instructionPattern("0001 1101", () => semantics.sex(this.#state)), // SEX
     // 0001111 t: t=0 exchanges, t=1 transfers; the postbyte selects same-width registers.
-    ...instructionPattern("0001111 0", ({ fetchByte }) => this.#transfer(fetchByte(), true)), // EXG
-    ...instructionPattern("0001111 1", ({ fetchByte }) => this.#transfer(fetchByte(), false)), // TFR
+    ...instructionPattern("0001111 0", instruction => this.#executeFollowingByte(this.#exchangeHandlers, instruction)), // EXG
+    ...instructionPattern("0001111 1", instruction => this.#executeFollowingByte(this.#transferHandlers, instruction)), // TFR
 
     // 0010 cccc, cccc=tttp: ttt selects T/HI/CC/NE/VC/PL/GE/GT; bit 0 inverts it.
     ...this.#branchHandlers(), // BRA / BRN / Bcc
 
     // 001100 rr: rr=00/01/10/11 selects X/Y/S/U; only X/Y replace Z.
-    ...this.#addressedHandlers(this.#indexedOperandAddress, opcodeFamily("001100 rr", { r: ["x", "y", "s", "u"] },
-      ({ r }) => (address: number) => this.#loadEffectiveAddress(r, address))), // LEAX / LEAY / LEAS / LEAU
+    ...this.#addressedHandlers(this.#indexedOperandAddress, opcodeFamily("001100 rr", { r: [semantics.leax, semantics.leay, semantics.leas, semantics.leau] },
+      ({ r: execute }) => (address: number) => execute(this.#state, address))), // LEAX / LEAY / LEAS / LEAU
 
     // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
-    ...opcodeFamily("001101 s p", { s: ["s", "u"], p: [false, true] },
-      ({ s, p }) => (instruction: InstructionContext) => this.#stackInstruction(s, p, instruction)), // PSHS / PULS / PSHU / PULU
+    // Mask bits 7..0: PC, other stack pointer, Y, X, DP, B, A, CC (E F H I N Z V C).
+    ...opcodeFamily("001101 s p", { s: [[semantics.pshs, semantics.puls], [semantics.pshu, semantics.pulu]], p: [0, 1] },
+      ({ s: operations, p: direction }) => (instruction: InstructionContext) => operations[direction]!(this.#state, instruction)), // PSHS / PULS / PSHU / PULU
     ...instructionPattern("0011 1001", instruction => semantics.rts(this.#state, instruction)), // RTS
-    ...instructionPattern("0011 1010", () => { this.#state.x = (this.#state.x + this.#state.b) & 0xffff; }), // ABX, unsigned B; preserve flags
+    ...instructionPattern("0011 1010", () => semantics.abx(this.#state)), // ABX, unsigned B; preserve flags
     ...instructionPattern("0011 1011", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
     ...instructionPattern("0011 1100", instruction => this.#waitForInterrupt(instruction)), // CWAI #mask
-    ...instructionPattern("0011 1101", () => this.#multiply()), // MUL
+    ...instructionPattern("0011 1101", () => semantics.mul(this.#state)), // MUL
     ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi", instruction)), // SWI
 
     // 010 r oooo: A/B unary operations. TST updates flags without writing a result.
@@ -263,7 +249,13 @@ export class Cpu6809 {
     ...this.#operandHandlers("11 mm 1111", undefined, semantics.stuMemory), // STU
   ]);
 
-  #executePage(table: Readonly<Partial<Record<number, OpcodeHandler>>>, instruction: InstructionContext): "unsupported" | void {
+  #registerTransferHandlers(operation: "tfr" | "exg") {
+    const bodies: Readonly<Record<`${"tfr" | "exg"}_${string}_${string}`, (state: Cpu6809State) => void>> = semantics;
+    return opcodeTable<OpcodeHandler>(motorola6809TransferForms.map(([postbyte, { source, target }]) =>
+      [postbyte, () => bodies[`${operation}_${source}_${target}`]!(this.#state)]));
+  }
+
+  #executeFollowingByte(table: Readonly<Partial<Record<number, OpcodeHandler>>>, instruction: InstructionContext): "unsupported" | void {
     const handler = table[instruction.fetchByte()];
     return handler ? handler(instruction) : "unsupported";
   }
@@ -346,36 +338,6 @@ export class Cpu6809 {
     return indirect ? this.#readWord(address, readByte) : address;
   }
 
-  // Effective addresses and register transfers.
-
-  #loadEffectiveAddress(register: "x" | "y" | "s" | "u", address: number): void {
-    this.#state[register] = address; // Overwrite any auto-update of the destination during addressing.
-    if (register === "x" || register === "y") this.#state.flags.z = address === 0;
-    if (register === "s") this.#state.nmiArmed = true;
-  }
-
-  #readTransferRegister(register: TransferRegister): number {
-    if (register === "cc") return packedFlags.encode(this.#state.flags);
-    return register === "d" ? this.#d : this.#state[register];
-  }
-
-  #writeTransferRegister(register: TransferRegister, value: number): void {
-    if (register === "cc") this.#state.flags = packedFlags.decode(value);
-    else if (register === "d") this.#writeWordRegister("d", value);
-    else this.#state[register] = value;
-    if (register === "s") this.#state.nmiArmed = true;
-  }
-
-  #transfer(postbyte: number, exchange: boolean): "unsupported" | void {
-    const sourceCode = postbyte >>> 4, targetCode = postbyte & 0x0f;
-    const source = this.#transferRegisters[sourceCode], target = this.#transferRegisters[targetCode];
-    if (source === undefined || target === undefined || (sourceCode < 8) !== (targetCode < 8)) return "unsupported";
-    // Read both originals before writing either, including CC and the PC after the postbyte.
-    const value = this.#readTransferRegister(source), previous = this.#readTransferRegister(target);
-    this.#writeTransferRegister(target, value);
-    if (exchange) this.#writeTransferRegister(source, previous);
-  }
-
   // Control flow.
 
   #relativeAddress(offset: number): number {
@@ -387,7 +349,7 @@ export class Cpu6809 {
 
   #saveInterruptFrame(entire: boolean, writeByte: ByteMemory["writeByte"]): void {
     this.#state.flags.e = entire;
-    this.#pushRegisters("s", entire ? 0xff : 0x81, writeByte); // Full frame or PC/CC only.
+    semantics.pushFrame(this.#state, entire ? 0xff : 0x81, { writeByte }); // Full frame or PC/CC only.
   }
 
   #enterInterrupt(source: keyof typeof interruptEntries, { readByte, writeByte }: ByteMemory): void {
@@ -406,87 +368,9 @@ export class Cpu6809 {
   }
 
   #returnFromInterrupt(readByte: ByteMemory["readByte"]): void {
-    this.#pullRegisters("s", 0x01, readByte); // Restored E, not hidden state, selects the frame.
-    this.#pullRegisters("s", this.#state.flags.e ? 0xfe : 0x80, readByte);
+    semantics.pullFrame(this.#state, 0x01, { readByte }); // Restored E, not hidden state, selects the frame.
+    semantics.pullFrame(this.#state, this.#state.flags.e ? 0xfe : 0x80, { readByte });
     this.#state.nmiArmed = true;
-  }
-
-  // Stack operations.
-  // Postbyte bits 7..0: PC, other stack pointer, Y, X, DP, B, A, CC.
-  // Bit 6 always names the pointer not selected by the opcode's s bit.
-
-  #stackInstruction(stack: StackPointer, pull: boolean, instruction: InstructionContext): void {
-    const mask = instruction.fetchByte();
-    if (pull) this.#pullRegisters(stack, mask, instruction.readByte);
-    else this.#pushRegisters(stack, mask, instruction.writeByte);
-    // Nonempty PSHS/PULS arm NMI; interrupt stacking and subroutine calls do not.
-    if (stack === "s" && mask !== 0) this.#state.nmiArmed = true;
-  }
-
-  #pushRegisters(stack: StackPointer, mask: number, writeByte: InstructionContext["writeByte"]): void {
-    const pushByte = (value: number): void => this.#pushByte(stack, value, writeByte);
-    const pushWord = (value: number): void => this.#pushWord(stack, value, writeByte);
-    // Descending mask order; PC has already advanced past the postbyte.
-    if (mask & 0x80) pushWord(this.#state.pc);
-    if (mask & 0x40) pushWord(this.#state[stack === "s" ? "u" : "s"]);
-    if (mask & 0x20) pushWord(this.#state.y);
-    if (mask & 0x10) pushWord(this.#state.x);
-    if (mask & 0x08) pushByte(this.#state.dp);
-    if (mask & 0x04) pushByte(this.#state.b);
-    if (mask & 0x02) pushByte(this.#state.a);
-    if (mask & 0x01) pushByte(packedFlags.encode(this.#state.flags));
-  }
-
-  #pullRegisters(stack: StackPointer, mask: number, readByte: InstructionContext["readByte"]): void {
-    const pullByte = (): number => this.#pullByte(stack, readByte);
-    const pullWord = (): number => this.#pullWord(stack, readByte);
-    // Reverse the push order; ordinary pulls do not apply load-instruction flags.
-    if (mask & 0x01) this.#state.flags = packedFlags.decode(pullByte());
-    if (mask & 0x02) this.#state.a = pullByte();
-    if (mask & 0x04) this.#state.b = pullByte();
-    if (mask & 0x08) this.#state.dp = pullByte();
-    if (mask & 0x10) this.#state.x = pullWord();
-    if (mask & 0x20) this.#state.y = pullWord();
-    if (mask & 0x40) {
-      this.#state[stack === "s" ? "u" : "s"] = pullWord();
-      if (stack === "u") this.#state.nmiArmed = true;
-    }
-    if (mask & 0x80) this.#state.pc = pullWord();
-  }
-
-  #pushByte(stack: StackPointer, value: number, writeByte: InstructionContext["writeByte"]): void {
-    this.#state[stack] = (this.#state[stack] - 1) & 0xffff;
-    writeByte(this.#state[stack], value);
-  }
-
-  #pushWord(stack: StackPointer, value: number, writeByte: InstructionContext["writeByte"]): void {
-    this.#pushByte(stack, value & 0xff, writeByte);
-    this.#pushByte(stack, value >>> 8, writeByte);
-  }
-
-  #pullByte(stack: StackPointer, readByte: InstructionContext["readByte"]): number {
-    const value = readByte(this.#state[stack]);
-    this.#state[stack] = (this.#state[stack] + 1) & 0xffff;
-    return value;
-  }
-
-  #pullWord(stack: StackPointer, readByte: InstructionContext["readByte"]): number {
-    return readWordBE(() => this.#pullByte(stack, readByte));
-  }
-
-  // Arithmetic and CPU-specific flag effects.
-
-  #signExtend(): void {
-    this.#state.a = this.#state.b < 0x80 ? 0 : 0xff;
-    this.#state.flags.n = this.#state.b >= 0x80;
-    this.#state.flags.z = this.#state.b === 0; // SEX preserves V, unlike a word load.
-  }
-
-  #multiply(): void {
-    const product = this.#state.a * this.#state.b;
-    this.#writeWordRegister("d", product);
-    this.#state.flags.z = product === 0;
-    this.#state.flags.c = (product & 0x80) !== 0; // Bit 7 supports rounding the high byte, not overflow.
   }
 
   // Memory operations.

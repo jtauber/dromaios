@@ -80,12 +80,16 @@ export function validateInstruction(definition: InstructionDefinition): void {
       case "shift-left": case "shift-right":
         flagExpression(expr.incoming, scope, where);
         return arithmeticWidth(expression(expr.value, scope, where), where);
-      case "subtract": case "add-wrap": case "concat": case "bit-and": case "bit-or": case "bit-xor": {
+      case "subtract": case "add-wrap": case "concat": case "multiply": case "bit-and": case "bit-or": case "bit-xor": {
         const left = expression(expr.left, scope, where), right = expression(expr.right, scope, where);
         if (left !== right) fail(where, "operands must have equal widths; conversions are explicit");
         if (expr.kind === "subtract" || expr.kind === "add-wrap") {
           arithmeticWidth(left, where);
           if (expr.incoming !== undefined) flagExpression(expr.incoming, scope, where);
+        }
+        if (expr.kind === "multiply") {
+          if (left !== 8) fail(where, "multiplication requires two unsigned bytes and yields a word");
+          return 16;
         }
         if (expr.kind !== "concat") return left;
         if (left !== 8) fail(where, "concatenation requires two bytes, high then low");

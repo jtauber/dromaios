@@ -14028,6 +14028,3079 @@ flags "8080 comparison" simultaneously {
 
 Flags preserved throughout: none.
 
+### 6809 NOP
+
+No effects after opcode fetching.
+
+```text
+
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 SEX
+
+Sign-extend B into A, leaving B unchanged. Then set N/Z from B and preserve every other flag, including V.
+
+```text
+byte:u8 := read B
+write A:u8 := highByte(signExtend16(byte))
+flags "SEX N/Z" simultaneously {
+  N := topBit(byte)
+  Z := isZero(byte)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, V, C.
+
+### 6809 ABX
+
+Read X then unsigned B; add with word wrapping and write X. Preserve all flags without reading them.
+
+```text
+index:u16 := read X
+byte:u8 := read B
+write X:u16 := addWrap(index, zeroExtend16(byte))
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 MUL
+
+Multiply unsigned A by unsigned B. Write the complete product into D as A then B, then update Z and C. C is product bit 7 for rounding, not overflow; preserve all other flags.
+
+```text
+left:u8 := read A
+right:u8 := read B
+product := multiplyUnsigned8(left, right)
+write A:u8 := highByte(product)
+write B:u8 := lowByte(product)
+flags "MUL Z/C" simultaneously {
+  Z := isZero(product)
+  C := topBit(lowByte(product))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, N, V.
+
+### 6809 LEAX
+
+Entry follows successful indexed address resolution, including auto-updates and indirect reads. Write the captured effective address over any earlier update of the destination. Update only Z from the written address.
+
+```text
+address:u16 := input
+write X:u16 := address
+flags "LEA Z" simultaneously {
+  Z := isZero(address)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, N, V, C.
+
+### 6809 LEAY
+
+Entry follows successful indexed address resolution, including auto-updates and indirect reads. Write the captured effective address over any earlier update of the destination. Update only Z from the written address.
+
+```text
+address:u16 := input
+write Y:u16 := address
+flags "LEA Z" simultaneously {
+  Z := isZero(address)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: E, F, H, I, N, V, C.
+
+### 6809 LEAS
+
+Entry follows successful indexed address resolution, including auto-updates and indirect reads. Write the captured effective address over any earlier update of the destination. Arm NMI. Preserve every flag.
+
+```text
+address:u16 := input
+write S:u16 := address
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LEAU
+
+Entry follows successful indexed address resolution, including auto-updates and indirect reads. Write the captured effective address over any earlier update of the destination. Preserve every flag.
+
+```text
+address:u16 := input
+write U:u16 := address
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR D,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR D,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR D,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR D,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR D,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR D,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR X,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR X,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR X,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR X,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR X,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR X,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR Y,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR Y,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR Y,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR Y,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR Y,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR Y,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR U,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR U,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR U,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR U,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR U,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR U,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR S,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR S,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR S,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR S,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR S,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR S,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR PC,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR PC,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR PC,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR PC,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR PC,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR PC,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR A,A
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+target:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write A:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR A,B
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+target:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+write B:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR A,CC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+target:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(source, 80:u8)))
+  F := not(isZero(bitAnd(source, 40:u8)))
+  H := not(isZero(bitAnd(source, 20:u8)))
+  I := not(isZero(bitAnd(source, 10:u8)))
+  N := not(isZero(bitAnd(source, 08:u8)))
+  Z := not(isZero(bitAnd(source, 04:u8)))
+  V := not(isZero(bitAnd(source, 02:u8)))
+  C := not(isZero(bitAnd(source, 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 6809 TFR A,DP
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+target:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+write DP:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR B,A
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+target:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write A:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR B,B
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+target:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+write B:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR B,CC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+target:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(source, 80:u8)))
+  F := not(isZero(bitAnd(source, 40:u8)))
+  H := not(isZero(bitAnd(source, 20:u8)))
+  I := not(isZero(bitAnd(source, 10:u8)))
+  N := not(isZero(bitAnd(source, 08:u8)))
+  Z := not(isZero(bitAnd(source, 04:u8)))
+  V := not(isZero(bitAnd(source, 02:u8)))
+  C := not(isZero(bitAnd(source, 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 6809 TFR B,DP
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+target:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+write DP:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR CC,A
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+target:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write A:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR CC,B
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+target:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+write B:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR CC,CC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+target:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(source, 80:u8)))
+  F := not(isZero(bitAnd(source, 40:u8)))
+  H := not(isZero(bitAnd(source, 20:u8)))
+  I := not(isZero(bitAnd(source, 10:u8)))
+  N := not(isZero(bitAnd(source, 08:u8)))
+  Z := not(isZero(bitAnd(source, 04:u8)))
+  V := not(isZero(bitAnd(source, 02:u8)))
+  C := not(isZero(bitAnd(source, 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 6809 TFR CC,DP
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+target:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+write DP:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR DP,A
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+target:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write A:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR DP,B
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+target:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+write B:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 TFR DP,CC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+target:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(source, 80:u8)))
+  F := not(isZero(bitAnd(source, 40:u8)))
+  H := not(isZero(bitAnd(source, 20:u8)))
+  I := not(isZero(bitAnd(source, 10:u8)))
+  N := not(isZero(bitAnd(source, 08:u8)))
+  Z := not(isZero(bitAnd(source, 04:u8)))
+  V := not(isZero(bitAnd(source, 02:u8)))
+  C := not(isZero(bitAnd(source, 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 6809 TFR DP,DP
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+target:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+write DP:u8 := source
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG D,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+write A:u8 := highByte(target)
+write B:u8 := lowByte(target)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG D,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+write A:u8 := highByte(target)
+write B:u8 := lowByte(target)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG D,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+write A:u8 := highByte(target)
+write B:u8 := lowByte(target)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG D,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+write A:u8 := highByte(target)
+write B:u8 := lowByte(target)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG D,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+write A:u8 := highByte(target)
+write B:u8 := lowByte(target)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG D,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+write A:u8 := highByte(target)
+write B:u8 := lowByte(target)
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG X,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+write X:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG X,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+write X:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG X,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+write X:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG X,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+write X:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG X,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+write X:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG X,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+write X:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG Y,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+write Y:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG Y,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+write Y:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG Y,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+write Y:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG Y,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+write Y:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG Y,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+write Y:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG Y,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+write Y:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG U,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+write U:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG U,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+write U:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG U,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+write U:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG U,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+write U:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG U,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+write U:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG U,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+write U:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG S,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+write S:u16 := target
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG S,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+write S:u16 := target
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG S,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+write S:u16 := target
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG S,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+write S:u16 := target
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG S,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+write S:u16 := target
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG S,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+write S:u16 := target
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG PC,D
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "D from A:B" {
+  high:u8 := read A
+  low:u8 := read B
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(source)
+write B:u8 := lowByte(source)
+write PC:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG PC,X
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+write X:u16 := source
+write PC:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG PC,Y
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+write Y:u16 := source
+write PC:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG PC,U
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+write U:u16 := source
+write PC:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG PC,S
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "register S" {
+  contents:u16 := read S
+  yield contents
+}
+write S:u16 := source
+write nmiArmed:boolean := true
+write PC:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG PC,PC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+target:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+write PC:u16 := source
+write PC:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG A,A
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+target:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write A:u8 := source
+write A:u8 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG A,B
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+target:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+write B:u8 := source
+write A:u8 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG A,CC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+target:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(source, 80:u8)))
+  F := not(isZero(bitAnd(source, 40:u8)))
+  H := not(isZero(bitAnd(source, 20:u8)))
+  I := not(isZero(bitAnd(source, 10:u8)))
+  N := not(isZero(bitAnd(source, 08:u8)))
+  Z := not(isZero(bitAnd(source, 04:u8)))
+  V := not(isZero(bitAnd(source, 02:u8)))
+  C := not(isZero(bitAnd(source, 01:u8)))
+} // Replace the complete flag object.
+write A:u8 := target
+```
+
+Flags preserved throughout: none.
+
+### 6809 EXG A,DP
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+target:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+write DP:u8 := source
+write A:u8 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG B,A
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+target:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write A:u8 := source
+write B:u8 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG B,B
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+target:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+write B:u8 := source
+write B:u8 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG B,CC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+target:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(source, 80:u8)))
+  F := not(isZero(bitAnd(source, 40:u8)))
+  H := not(isZero(bitAnd(source, 20:u8)))
+  I := not(isZero(bitAnd(source, 10:u8)))
+  N := not(isZero(bitAnd(source, 08:u8)))
+  Z := not(isZero(bitAnd(source, 04:u8)))
+  V := not(isZero(bitAnd(source, 02:u8)))
+  C := not(isZero(bitAnd(source, 01:u8)))
+} // Replace the complete flag object.
+write B:u8 := target
+```
+
+Flags preserved throughout: none.
+
+### 6809 EXG B,DP
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+target:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+write DP:u8 := source
+write B:u8 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG CC,A
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+target:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write A:u8 := source
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(target, 80:u8)))
+  F := not(isZero(bitAnd(target, 40:u8)))
+  H := not(isZero(bitAnd(target, 20:u8)))
+  I := not(isZero(bitAnd(target, 10:u8)))
+  N := not(isZero(bitAnd(target, 08:u8)))
+  Z := not(isZero(bitAnd(target, 04:u8)))
+  V := not(isZero(bitAnd(target, 02:u8)))
+  C := not(isZero(bitAnd(target, 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 6809 EXG CC,B
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+target:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+write B:u8 := source
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(target, 80:u8)))
+  F := not(isZero(bitAnd(target, 40:u8)))
+  H := not(isZero(bitAnd(target, 20:u8)))
+  I := not(isZero(bitAnd(target, 10:u8)))
+  N := not(isZero(bitAnd(target, 08:u8)))
+  Z := not(isZero(bitAnd(target, 04:u8)))
+  V := not(isZero(bitAnd(target, 02:u8)))
+  C := not(isZero(bitAnd(target, 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 6809 EXG CC,CC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+target:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(source, 80:u8)))
+  F := not(isZero(bitAnd(source, 40:u8)))
+  H := not(isZero(bitAnd(source, 20:u8)))
+  I := not(isZero(bitAnd(source, 10:u8)))
+  N := not(isZero(bitAnd(source, 08:u8)))
+  Z := not(isZero(bitAnd(source, 04:u8)))
+  V := not(isZero(bitAnd(source, 02:u8)))
+  C := not(isZero(bitAnd(source, 01:u8)))
+} // Replace the complete flag object.
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(target, 80:u8)))
+  F := not(isZero(bitAnd(target, 40:u8)))
+  H := not(isZero(bitAnd(target, 20:u8)))
+  I := not(isZero(bitAnd(target, 10:u8)))
+  N := not(isZero(bitAnd(target, 08:u8)))
+  Z := not(isZero(bitAnd(target, 04:u8)))
+  V := not(isZero(bitAnd(target, 02:u8)))
+  C := not(isZero(bitAnd(target, 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 6809 EXG CC,DP
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+target:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+write DP:u8 := source
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(target, 80:u8)))
+  F := not(isZero(bitAnd(target, 40:u8)))
+  H := not(isZero(bitAnd(target, 20:u8)))
+  I := not(isZero(bitAnd(target, 10:u8)))
+  N := not(isZero(bitAnd(target, 08:u8)))
+  Z := not(isZero(bitAnd(target, 04:u8)))
+  V := not(isZero(bitAnd(target, 02:u8)))
+  C := not(isZero(bitAnd(target, 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 6809 EXG DP,A
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+target:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+write A:u8 := source
+write DP:u8 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG DP,B
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+target:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+write B:u8 := source
+write DP:u8 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 EXG DP,CC
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+target:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(source, 80:u8)))
+  F := not(isZero(bitAnd(source, 40:u8)))
+  H := not(isZero(bitAnd(source, 20:u8)))
+  I := not(isZero(bitAnd(source, 10:u8)))
+  N := not(isZero(bitAnd(source, 08:u8)))
+  Z := not(isZero(bitAnd(source, 04:u8)))
+  V := not(isZero(bitAnd(source, 02:u8)))
+  C := not(isZero(bitAnd(source, 01:u8)))
+} // Replace the complete flag object.
+write DP:u8 := target
+```
+
+Flags preserved throughout: none.
+
+### 6809 EXG DP,DP
+
+Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. Write the destination, then the original destination into the source. D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.
+
+```text
+source:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+target:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+write DP:u8 := source
+write DP:u8 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 PSHS
+
+Fetch the register mask before any stack effects. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Push in descending bit order; capture each selected register at its turn, then write words low then high. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. A nonempty mask arms NMI only after the whole instruction succeeds. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
+
+```text
+mask:u8 := fetch byte
+when not(isZero(bitAnd(mask, 80:u8))) {
+  contents:u16 := source "register PC" {
+    contents:u16 := read PC
+    yield contents
+  }
+  firstPointer:u16 := read S
+  write S:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read S
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read S
+  write S:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read S
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 40:u8))) {
+  contents:u16 := source "register U" {
+    contents:u16 := read U
+    yield contents
+  }
+  firstPointer:u16 := read S
+  write S:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read S
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read S
+  write S:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read S
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 20:u8))) {
+  contents:u16 := source "register Y" {
+    contents:u16 := read Y
+    yield contents
+  }
+  firstPointer:u16 := read S
+  write S:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read S
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read S
+  write S:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read S
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 10:u8))) {
+  contents:u16 := source "register X" {
+    contents:u16 := read X
+    yield contents
+  }
+  firstPointer:u16 := read S
+  write S:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read S
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read S
+  write S:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read S
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 08:u8))) {
+  contents:u8 := source "register DP" {
+    contents:u8 := read DP
+    yield contents
+  }
+  bytePointer:u16 := read S
+  write S:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read S
+  write memory[byteAddress] := contents
+}
+when not(isZero(bitAnd(mask, 04:u8))) {
+  contents:u8 := source "register B" {
+    contents:u8 := read B
+    yield contents
+  }
+  bytePointer:u16 := read S
+  write S:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read S
+  write memory[byteAddress] := contents
+}
+when not(isZero(bitAnd(mask, 02:u8))) {
+  contents:u8 := source "register A" {
+    contents:u8 := read A
+    yield contents
+  }
+  bytePointer:u16 := read S
+  write S:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read S
+  write memory[byteAddress] := contents
+}
+when not(isZero(bitAnd(mask, 01:u8))) {
+  contents:u8 := source "packed status" {
+    e:flag := read E
+    f:flag := read F
+    h:flag := read H
+    i:flag := read I
+    n:flag := read N
+    z:flag := read Z
+    v:flag := read V
+    c:flag := read C
+    yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  }
+  bytePointer:u16 := read S
+  write S:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read S
+  write memory[byteAddress] := contents
+}
+when not(isZero(mask)) {
+  write nmiArmed:boolean := true
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 PULS
+
+Fetch the register mask before any stack effects. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Pull in ascending bit order; read words high then low and commit each register only after its complete read. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. A nonempty mask arms NMI only after the whole instruction succeeds. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
+
+```text
+mask:u8 := fetch byte
+when not(isZero(bitAnd(mask, 01:u8))) {
+  contents:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  replace flags "restore packed status" simultaneously {
+    E := not(isZero(bitAnd(contents, 80:u8)))
+    F := not(isZero(bitAnd(contents, 40:u8)))
+    H := not(isZero(bitAnd(contents, 20:u8)))
+    I := not(isZero(bitAnd(contents, 10:u8)))
+    N := not(isZero(bitAnd(contents, 08:u8)))
+    Z := not(isZero(bitAnd(contents, 04:u8)))
+    V := not(isZero(bitAnd(contents, 02:u8)))
+    C := not(isZero(bitAnd(contents, 01:u8)))
+  } // Replace the complete flag object.
+}
+when not(isZero(bitAnd(mask, 02:u8))) {
+  contents:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write A:u8 := contents
+}
+when not(isZero(bitAnd(mask, 04:u8))) {
+  contents:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write B:u8 := contents
+}
+when not(isZero(bitAnd(mask, 08:u8))) {
+  contents:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write DP:u8 := contents
+}
+when not(isZero(bitAnd(mask, 10:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write X:u16 := contents
+}
+when not(isZero(bitAnd(mask, 20:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write Y:u16 := contents
+}
+when not(isZero(bitAnd(mask, 40:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write U:u16 := contents
+}
+when not(isZero(bitAnd(mask, 80:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := contents
+}
+when not(isZero(mask)) {
+  write nmiArmed:boolean := true
+}
+```
+
+Flags preserved throughout: none.
+
+### 6809 PSHU
+
+Fetch the register mask before any stack effects. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Push in descending bit order; capture each selected register at its turn, then write words low then high. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. Do not otherwise change NMI arming. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
+
+```text
+mask:u8 := fetch byte
+when not(isZero(bitAnd(mask, 80:u8))) {
+  contents:u16 := source "register PC" {
+    contents:u16 := read PC
+    yield contents
+  }
+  firstPointer:u16 := read U
+  write U:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read U
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read U
+  write U:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read U
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 40:u8))) {
+  contents:u16 := source "register S" {
+    contents:u16 := read S
+    yield contents
+  }
+  firstPointer:u16 := read U
+  write U:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read U
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read U
+  write U:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read U
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 20:u8))) {
+  contents:u16 := source "register Y" {
+    contents:u16 := read Y
+    yield contents
+  }
+  firstPointer:u16 := read U
+  write U:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read U
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read U
+  write U:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read U
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 10:u8))) {
+  contents:u16 := source "register X" {
+    contents:u16 := read X
+    yield contents
+  }
+  firstPointer:u16 := read U
+  write U:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read U
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read U
+  write U:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read U
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 08:u8))) {
+  contents:u8 := source "register DP" {
+    contents:u8 := read DP
+    yield contents
+  }
+  bytePointer:u16 := read U
+  write U:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read U
+  write memory[byteAddress] := contents
+}
+when not(isZero(bitAnd(mask, 04:u8))) {
+  contents:u8 := source "register B" {
+    contents:u8 := read B
+    yield contents
+  }
+  bytePointer:u16 := read U
+  write U:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read U
+  write memory[byteAddress] := contents
+}
+when not(isZero(bitAnd(mask, 02:u8))) {
+  contents:u8 := source "register A" {
+    contents:u8 := read A
+    yield contents
+  }
+  bytePointer:u16 := read U
+  write U:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read U
+  write memory[byteAddress] := contents
+}
+when not(isZero(bitAnd(mask, 01:u8))) {
+  contents:u8 := source "packed status" {
+    e:flag := read E
+    f:flag := read F
+    h:flag := read H
+    i:flag := read I
+    n:flag := read N
+    z:flag := read Z
+    v:flag := read V
+    c:flag := read C
+    yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  }
+  bytePointer:u16 := read U
+  write U:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read U
+  write memory[byteAddress] := contents
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 PULU
+
+Fetch the register mask before any stack effects. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Pull in ascending bit order; read words high then low and commit each register only after its complete read. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. Do not otherwise change NMI arming. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
+
+```text
+mask:u8 := fetch byte
+when not(isZero(bitAnd(mask, 01:u8))) {
+  contents:u8 := source "pop byte through U" {
+    address:u16 := read U
+    byte:u8 := read memory[address]
+    pointer:u16 := read U
+    write U:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  replace flags "restore packed status" simultaneously {
+    E := not(isZero(bitAnd(contents, 80:u8)))
+    F := not(isZero(bitAnd(contents, 40:u8)))
+    H := not(isZero(bitAnd(contents, 20:u8)))
+    I := not(isZero(bitAnd(contents, 10:u8)))
+    N := not(isZero(bitAnd(contents, 08:u8)))
+    Z := not(isZero(bitAnd(contents, 04:u8)))
+    V := not(isZero(bitAnd(contents, 02:u8)))
+    C := not(isZero(bitAnd(contents, 01:u8)))
+  } // Replace the complete flag object.
+}
+when not(isZero(bitAnd(mask, 02:u8))) {
+  contents:u8 := source "pop byte through U" {
+    address:u16 := read U
+    byte:u8 := read memory[address]
+    pointer:u16 := read U
+    write U:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write A:u8 := contents
+}
+when not(isZero(bitAnd(mask, 04:u8))) {
+  contents:u8 := source "pop byte through U" {
+    address:u16 := read U
+    byte:u8 := read memory[address]
+    pointer:u16 := read U
+    write U:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write B:u8 := contents
+}
+when not(isZero(bitAnd(mask, 08:u8))) {
+  contents:u8 := source "pop byte through U" {
+    address:u16 := read U
+    byte:u8 := read memory[address]
+    pointer:u16 := read U
+    write U:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write DP:u8 := contents
+}
+when not(isZero(bitAnd(mask, 10:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write X:u16 := contents
+}
+when not(isZero(bitAnd(mask, 20:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write Y:u16 := contents
+}
+when not(isZero(bitAnd(mask, 40:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write S:u16 := contents
+  write nmiArmed:boolean := true
+}
+when not(isZero(bitAnd(mask, 80:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through U" {
+      address:u16 := read U
+      byte:u8 := read memory[address]
+      pointer:u16 := read U
+      write U:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := contents
+}
+```
+
+Flags preserved throughout: none.
+
+### 6809 PSHS supplied frame mask
+
+Use the captured frame mask without fetching. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Push in descending bit order; capture each selected register at its turn, then write words low then high. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. Do not otherwise change NMI arming. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
+
+```text
+mask:u8 := input
+when not(isZero(bitAnd(mask, 80:u8))) {
+  contents:u16 := source "register PC" {
+    contents:u16 := read PC
+    yield contents
+  }
+  firstPointer:u16 := read S
+  write S:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read S
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read S
+  write S:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read S
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 40:u8))) {
+  contents:u16 := source "register U" {
+    contents:u16 := read U
+    yield contents
+  }
+  firstPointer:u16 := read S
+  write S:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read S
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read S
+  write S:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read S
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 20:u8))) {
+  contents:u16 := source "register Y" {
+    contents:u16 := read Y
+    yield contents
+  }
+  firstPointer:u16 := read S
+  write S:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read S
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read S
+  write S:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read S
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 10:u8))) {
+  contents:u16 := source "register X" {
+    contents:u16 := read X
+    yield contents
+  }
+  firstPointer:u16 := read S
+  write S:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read S
+  write memory[firstAddress] := lowByte(contents)
+  secondPointer:u16 := read S
+  write S:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read S
+  write memory[secondAddress] := highByte(contents)
+}
+when not(isZero(bitAnd(mask, 08:u8))) {
+  contents:u8 := source "register DP" {
+    contents:u8 := read DP
+    yield contents
+  }
+  bytePointer:u16 := read S
+  write S:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read S
+  write memory[byteAddress] := contents
+}
+when not(isZero(bitAnd(mask, 04:u8))) {
+  contents:u8 := source "register B" {
+    contents:u8 := read B
+    yield contents
+  }
+  bytePointer:u16 := read S
+  write S:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read S
+  write memory[byteAddress] := contents
+}
+when not(isZero(bitAnd(mask, 02:u8))) {
+  contents:u8 := source "register A" {
+    contents:u8 := read A
+    yield contents
+  }
+  bytePointer:u16 := read S
+  write S:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read S
+  write memory[byteAddress] := contents
+}
+when not(isZero(bitAnd(mask, 01:u8))) {
+  contents:u8 := source "packed status" {
+    e:flag := read E
+    f:flag := read F
+    h:flag := read H
+    i:flag := read I
+    n:flag := read N
+    z:flag := read Z
+    v:flag := read V
+    c:flag := read C
+    yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  }
+  bytePointer:u16 := read S
+  write S:u16 := subtract(bytePointer, 0001:u16)
+  byteAddress:u16 := read S
+  write memory[byteAddress] := contents
+}
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 PULS supplied frame mask
+
+Use the captured frame mask without fetching. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Pull in ascending bit order; read words high then low and commit each register only after its complete read. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. Do not otherwise change NMI arming. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
+
+```text
+mask:u8 := input
+when not(isZero(bitAnd(mask, 01:u8))) {
+  contents:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  replace flags "restore packed status" simultaneously {
+    E := not(isZero(bitAnd(contents, 80:u8)))
+    F := not(isZero(bitAnd(contents, 40:u8)))
+    H := not(isZero(bitAnd(contents, 20:u8)))
+    I := not(isZero(bitAnd(contents, 10:u8)))
+    N := not(isZero(bitAnd(contents, 08:u8)))
+    Z := not(isZero(bitAnd(contents, 04:u8)))
+    V := not(isZero(bitAnd(contents, 02:u8)))
+    C := not(isZero(bitAnd(contents, 01:u8)))
+  } // Replace the complete flag object.
+}
+when not(isZero(bitAnd(mask, 02:u8))) {
+  contents:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write A:u8 := contents
+}
+when not(isZero(bitAnd(mask, 04:u8))) {
+  contents:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write B:u8 := contents
+}
+when not(isZero(bitAnd(mask, 08:u8))) {
+  contents:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write DP:u8 := contents
+}
+when not(isZero(bitAnd(mask, 10:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write X:u16 := contents
+}
+when not(isZero(bitAnd(mask, 20:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write Y:u16 := contents
+}
+when not(isZero(bitAnd(mask, 40:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write U:u16 := contents
+}
+when not(isZero(bitAnd(mask, 80:u8))) {
+  contents:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := contents
+}
+```
+
+Flags preserved throughout: none.
+
 ### 6809 DAA
 
 Choose low/high corrections from the original A and half/full carry, including invalid BCD inputs. Add the correction; update N/Z, clear undefined V, and retain or set C before writing A. Preserve H and control flags. No instruction or data-memory access occurs.

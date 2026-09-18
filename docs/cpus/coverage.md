@@ -22,13 +22,14 @@ emulators do not count toward implementation here.
 | [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [260](../../src/components/cpus/6800.ts) | 194 / 197 | 98.5% |
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [162](../../src/components/cpus/6502.ts) | 149 / 151 | 98.7% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [489](../../src/components/cpus/z80.ts) | 650 / 698 | 93.1% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [501](../../src/components/cpus/6809.ts) | 248 / 268 | 92.5% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [385](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **1,437 generated bodies**, all used by CPU execution,
-covering **1,699 complete opcode forms**:
+contains **1,555 generated bodies**, all used by CPU execution,
+including two shared 6809 interrupt-frame helpers. They cover
+**1,713 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -151,8 +152,21 @@ covering **1,699 complete opcode forms**:
   resolved target before stacking, retaining S auto-updates and NMI arming;
   the call/return bodies themselves preserve arming. Shared DAA and generated
   ORCC/ANDCC add three more forms. CC is captured before fetching the mask;
-  only a successful fetch permits the complete flag replacement. This brings
-  migration to 248 forms.
+  only a successful fetch permits the complete flag replacement.
+  TFR/EXG add 104 specialized bodies for their 52 legal same-width postbytes
+  each, counting as two opcode forms. They capture both registers before
+  writing the destination, then the source for EXG. D expands to A/B, CC writes
+  replace all flags, and S writes arm NMI. Four mask-driven PSHS/PULS/PSHU/PULU
+  bodies cover all 256 masks each, capturing each pushed register at its turn
+  and committing each pulled register only after its full read. Nonempty
+  PSHS/PULS arm NMI only after success; PULU's S write arms immediately.
+  Two supplied-mask frame helpers reuse that construction without instruction
+  fetching or final arming; they earn no additional opcode credit. This removes
+  the handwritten stack helpers while preserving interrupt entry/return policy.
+  LEAX/LEAY/LEAS/LEAU, SEX, ABX, MUL, and NOP add eight more forms. LEA enters
+  after indexed resolution; MUL uses a checked byte-by-byte product yielding
+  a word, with C from product bit 7. All ordinary bodies are now generated:
+  262 forms. SYNC, CWAI, RTI, and SWI/SWI2/SWI3 remain handwritten.
 - [Z80 definitions](../../src/components/cpus/semantics/definitions/z80.ts):
   All eight byte ALU families (ADD/ADC/SUB/SBC/AND/XOR/OR/CP) are integrated:
   72 register, (HL), and immediate forms, plus 16 (IX+d)/(IY+d) forms. Eight
@@ -287,31 +301,30 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,185 |
-| CPU-specific instruction definition files | 871 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,738 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,794** |
+| Eight CPU implementation files | 4,069 |
+| CPU-specific instruction definition files | 941 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,779 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,789** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 22,840 |
+| Generated CPU output, counted separately | 25,058 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The 8008 control-flow batch adds **59 bodies for 59 forms**, completing its
-ordinary instruction definitions. The only handwritten instruction bodies left
-are its 32 port forms. The shared representation now supports schema-owned
-register arrays, checked element access, three- and fourteen-bit stored values,
-and explicit narrowing; arithmetic remains byte/word sized.
+The 6809 ordinary-instruction batch adds **118 bodies for 14 forms**:
+104 specialized transfer/exchange bodies, four register-mask stack bodies,
+eight inherent/effective-address bodies, and two reusable frame helpers.
+Only its six interrupt/wait instruction bodies remain handwritten; recognition,
+frame selection, and vector delivery stay in the CPU.
 
-The 8008 module shrinks by **29 lines**, removing its condition callbacks,
-call/jump/return helpers, and halt helper. CPU-specific definitions add
-**44 lines** and other authored source adds **60 net**. Total authored CPU source
-changes from **7,719 to 7,794 lines** (**75 more**). The increase buys explicit,
-validated and explainable physical-register effects, rather than source reduction
-across the whole project. All 1,378 earlier definitions remain unchanged. The
-other five generated CPU modules are byte-for-byte identical; the 8008's 159
-earlier method bodies are unchanged, with their state parameters now correctly
-requiring its owned, mutable stored-state type.
+The 6809 module shrinks from **501 to 385 lines**, removing **116 lines** of
+handwritten register, arithmetic, and stack machinery. CPU-specific definitions
+add **70 lines** and other authored source adds **41 net**, including construction
+for register views and masked stacks, the shared postbyte inventory, and unsigned
+byte multiplication. Total authored CPU source falls from **7,794 to 7,789 lines**
+(**5 fewer**). Generated output grows by **2,218 lines**. All 1,437 earlier
+definitions remain unchanged; the other five generated modules are byte-for-byte
+identical, as are the 6809's 144 earlier method bodies.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

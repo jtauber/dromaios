@@ -29,6 +29,16 @@ export function registerSource(register: Register): ValueSource {
     steps: [readRegister("contents", register)], result: value("contents") };
 }
 
+/** Construction-time read/write view. Only its expanded sources and statements enter definitions. */
+export interface RegisterView {
+  readonly source: ValueSource;
+  readonly write: (contents: NumberExpression) => readonly Statement[];
+}
+
+export function registerView(register: Register, afterWrite: readonly Statement[] = []): RegisterView {
+  return { source: registerSource(register), write: contents => [writeRegister(register, contents), ...afterWrite] };
+}
+
 /** Resolve an address once, then read its byte. Stores and modifiers can use the address source alone. */
 export function memorySource(address: ValueSource): ValueSource {
   return { name: `byte at ${address.name}`, width: 8,

@@ -1,11 +1,12 @@
 import { cpu6809StateDescription, cpu6809Status } from "../../state/6809.ts";
-import { bitAnd, bitOr, concat, fetchByte, cpuSymbols, highByte, lowByte, readRegister, readSource, value, writeLatch, writeRegister } from "../model.ts";
-import type { InstructionDefinition, ValueSource } from "../model.ts";
-import { registerSource } from "../builders.ts";
+import { addWrap, bitAnd, bitOr, capture, concat, extend, fetchByte, cpuSymbols, highByte, lowByte, multiply, negative, not, readRegister, readSource, signExtend, updateFlags, value, when, writeLatch, writeRegister, zero } from "../model.ts";
+import type { InstructionDefinition, NumberExpression, ValueSource } from "../model.ts";
+import { registerSource, registerView } from "../builders.ts";
 import { motorolaBranches, motorolaByteArithmetic, motorolaArithmeticFamily, motorolaTransfers, motorolaComparison, motorolaLogic, motorolaSubroutines, motorolaUnary } from "../motorola.ts";
 import { resolvedJump } from "../control-flow.ts";
-import { motorolaBranchNames } from "../../motorola.ts";
-import { packedStatus, restoreStatus } from "../status.ts";
+import { motorolaBranchNames, motorola6809TransferForms } from "../../motorola.ts";
+import { flagPolicy, packedStatus, restoreStatus } from "../status.ts";
+import { byteStack, maskedStack } from "../stack.ts";
 import { decimalAdjust } from "../decimal.ts";
 import { defineInstruction } from "../validate.ts";
 
@@ -18,12 +19,81 @@ const d: ValueSource = {
   result: concat(value("high"), value("low")),
 };
 
-const writableD = { source: d,
-  write: [writeRegister(cpu.register("a"), highByte(value("result"))), writeRegister(cpu.register("b"), lowByte(value("result")))],
-  explanation: "Write D as A then B",
+const writeD = (contents: NumberExpression) => [
+  writeRegister(cpu.register("a"), highByte(contents)), writeRegister(cpu.register("b"), lowByte(contents)),
+];
+const writableD = { source: d, write: writeD(value("result")), explanation: "Write D as A then B" };
+const armNmi = writeLatch(cpu.latch("nmiArmed"), true);
+const views = {
+  d: { source: d, write: writeD },
+  x: registerView(cpu.register("x")), y: registerView(cpu.register("y")), u: registerView(cpu.register("u")),
+  s: registerView(cpu.register("s"), [armNmi]), pc: registerView(cpu.register("pc")),
+  a: registerView(cpu.register("a")), b: registerView(cpu.register("b")), dp: registerView(cpu.register("dp")),
+  cc: { source: packedStatus(cpu, cpu6809Status), write: (contents: NumberExpression) => [restoreStatus(cpu, cpu6809Status, contents)] },
 };
 
+function registerTransfers(exchange: boolean) {
+  const mnemonic = exchange ? "EXG" : "TFR";
+  return Object.fromEntries(motorola6809TransferForms.map(([, { source, target }]) => [
+    `${mnemonic.toLowerCase()}_${source}_${target}`, defineInstruction({ cpu: cpu.declaration, name: `${mnemonic} ${source.toUpperCase()},${target.toUpperCase()}`,
+      explanation: "Entry follows a fetched, validated same-width register postbyte. Read both original values before any write, including on TFR. "
+        + `Write the destination${exchange ? ", then the original destination into the source" : ""}. `
+        + "D reads and writes A then B; CC writes replace all flags; each S write arms NMI. PC is the post-fetch value. No memory access occurs in the body.",
+      steps: [readSource("source", views[source].source), readSource("target", views[target].source),
+        ...views[target].write(value("source")), ...(exchange ? views[source].write(value("target")) : [])],
+    }),
+  ]));
+}
+
+function registerStack(stack: "s" | "u", pull: boolean, frame = false): InstructionDefinition {
+  const name = `${pull ? "PUL" : "PSH"}${stack.toUpperCase()}`;
+  const registers = [views.cc, views.a, views.b, views.dp, views.x, views.y, views[stack === "s" ? "u" : "s"], views.pc];
+  return defineInstruction({ cpu: cpu.declaration, name: frame ? `${name} supplied frame mask` : name,
+    ...(frame ? { inputs: { mask: 8 as const } } : {}),
+    explanation: (frame ? "Use the captured frame mask without fetching. " : "Fetch the register mask before any stack effects. ")
+      + "Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. "
+      + (pull ? "Pull in ascending bit order; read words high then low and commit each register only after its complete read. "
+        : "Push in descending bit order; capture each selected register at its turn, then write words low then high. ")
+      + "The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. "
+      + "CC pulls replace the flag object; pulling S through U arms NMI immediately. "
+      + (!frame && stack === "s" ? "A nonempty mask arms NMI only after the whole instruction succeeds. " : "Do not otherwise change NMI arming. ")
+      + "An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.",
+    steps: [...(frame ? [] : [fetchByte("mask")]),
+      ...maskedStack(registers, byteStack(cpu.register(stack), "occupied"), "big-endian", value("mask"), pull),
+      ...(!frame && stack === "s" ? [when(not(zero(value("mask"))), [armNmi])] : [])],
+  });
+}
+
 export const instructions6809: Readonly<Record<string, InstructionDefinition>> = {
+  nop: defineInstruction({ cpu: cpu.declaration, name: "NOP", explanation: "No effects after opcode fetching.", steps: [] }),
+  sex: defineInstruction({ cpu: cpu.declaration, name: "SEX",
+    explanation: "Sign-extend B into A, leaving B unchanged. Then set N/Z from B and preserve every other flag, including V.",
+    steps: [readRegister("byte", cpu.register("b")), writeRegister(cpu.register("a"), highByte(signExtend(value("byte"), 16))),
+      updateFlags(flagPolicy(cpu, "SEX N/Z", { byte: 8 }, { n: negative(value("byte")), z: zero(value("byte")) }), { byte: value("byte") })],
+  }),
+  abx: defineInstruction({ cpu: cpu.declaration, name: "ABX",
+    explanation: "Read X then unsigned B; add with word wrapping and write X. Preserve all flags without reading them.",
+    steps: [readRegister("index", cpu.register("x")), readRegister("byte", cpu.register("b")),
+      writeRegister(cpu.register("x"), addWrap(value("index"), extend(value("byte"), 16)))],
+  }),
+  mul: defineInstruction({ cpu: cpu.declaration, name: "MUL",
+    explanation: "Multiply unsigned A by unsigned B. Write the complete product into D as A then B, then update Z and C. C is product bit 7 for rounding, not overflow; preserve all other flags.",
+    steps: [readRegister("left", cpu.register("a")), readRegister("right", cpu.register("b")),
+      capture("product", multiply(value("left"), value("right"))), ...writeD(value("product")),
+      updateFlags(flagPolicy(cpu, "MUL Z/C", { product: 16 }, { z: zero(value("product")), c: negative(lowByte(value("product"))) }), { product: value("product") })],
+  }),
+  ...Object.fromEntries((["x", "y", "s", "u"] as const).map(register => [`lea${register}`, defineInstruction({ cpu: cpu.declaration,
+    name: `LEA${register.toUpperCase()}`, inputs: { address: 16 },
+    explanation: "Entry follows successful indexed address resolution, including auto-updates and indirect reads. Write the captured effective address over any earlier update of the destination. "
+      + (register === "s" ? "Arm NMI. Preserve every flag." : register === "u" ? "Preserve every flag." : "Update only Z from the written address."),
+    steps: [...views[register].write(value("address")), ...(register === "x" || register === "y"
+      ? [updateFlags(flagPolicy(cpu, "LEA Z", { address: 16 }, { z: zero(value("address")) }), { address: value("address") })] : [])],
+  })])),
+  ...registerTransfers(false), ...registerTransfers(true),
+  pshs: registerStack("s", false), puls: registerStack("s", true),
+  pshu: registerStack("u", false), pulu: registerStack("u", true),
+  // Reuse mask construction in interrupt entry/return without ordinary PSHS/PULS arming.
+  pushFrame: registerStack("s", false, true), pullFrame: registerStack("s", true, true),
   daa: decimalAdjust(cpu, "motorola"),
   ...Object.fromEntries((["or", "and"] as const).map(operation => [`${operation}cc`, defineInstruction({ cpu: cpu.declaration, name: `${operation.toUpperCase()}CC`,
     explanation: "Capture packed CC before fetching the mask, then combine and replace all flags. A failed fetch leaves flags unchanged.",

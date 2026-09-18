@@ -1,6 +1,7 @@
-import { addWrap, bitOr, concat, extend, highByte, literal, lowByte, readMemory, readRegister, readSource, subtract, value, writeMemory, writeRegister } from "./model.ts";
+import { addWrap, bitAnd, bitOr, concat, extend, highByte, literal, lowByte, not, readMemory, readRegister, readSource, subtract, value, when, writeMemory, writeRegister, zero } from "./model.ts";
 import type { CpuDeclaration, FlagPolicy, NumberExpression, Register, Statement, ValueSource } from "./model.ts";
 import { transfer } from "./builders.ts";
+import type { RegisterView } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
 
 export interface Stack {
@@ -45,6 +46,22 @@ export function wordStack(bytes: ReturnType<typeof byteStack>, order: "little-en
     pop: { name: `pop ${order} word`, width: 16,
       steps: [readSource(first, bytes.pop), readSource(second, bytes.pop)], result: concat(value("high"), value("low")) },
   };
+}
+
+/** Mask bits name registers in pull order; pushes reverse it. Capture each register only at its turn. */
+export function maskedStack(registers: readonly RegisterView[], bytes: ReturnType<typeof byteStack>,
+  order: "little-endian" | "big-endian", mask: NumberExpression, pull: boolean): readonly Statement[] {
+  if (registers.length > 8 || registers.some(register => register.source.width !== 8 && register.source.width !== 16)) {
+    throw new Error("A byte stack mask selects at most eight byte or word registers.");
+  }
+  const words = wordStack(bytes, order);
+  const entries = registers.map((register, bit) => ({ register, bit }));
+  return (pull ? entries : entries.reverse()).map(({ register, bit }) => {
+    const stack = register.source.width === 8 ? bytes : words;
+    return when(not(zero(bitAnd(mask, literal(8, 2 ** bit)))), pull
+      ? [readSource("contents", stack.pop), ...register.write(value("contents"))]
+      : [readSource("contents", register.source), ...stack.push(value("contents"))]);
+  });
 }
 
 /** Capture the whole source before the first stack access. */

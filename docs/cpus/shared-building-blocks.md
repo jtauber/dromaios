@@ -1348,7 +1348,11 @@ one, and neither operation stacks an address in RAM. Fetch policy remains in
 the execution boundary; all 218 ordinary instruction forms now use definitions.
 These definitions produce both execution and the explanatory listing. The
 6502 JSR probe is now represented using existing byte/word statements, including
-its interleaved fetches and stack writes. The 68000 probes below remain requirements
+its interleaved fetches and stack writes. The 6809 now also uses construction-time
+register views for D/CC/S, specialized TFR/EXG bodies, and byte-mask stack
+construction shared by ordinary instructions and interrupt-frame transfers.
+These expand into existing effects; unsigned byte multiplication is the only
+new primitive for its remaining ordinary instructions. The 68000 probes below remain requirements
 for later vocabulary. Whole-model migration remains a separate decision.
 
 The 6502 now authors these migrated instructions as encoding families and

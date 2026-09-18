@@ -1,7 +1,7 @@
 import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, lowByte, literal, not, readFlag, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, flagValue, highByte, lowByte, literal, not, readFlag, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
@@ -49,6 +49,11 @@ export function checkInstructionSemantics(): void {
   shiftLeft(value("byte"), flagValue("carry"));
   addWrap(value("left"), value("right"), flagValue("carry"));
   subtract(value("left"), value("right"), flagValue("borrow"));
+  multiply(value("left"), value("right"));
+  // @ts-expect-error Multiplication takes captured unsigned values, not live registers.
+  multiply(mos.register("a"), literal(8, 1));
+  // @ts-expect-error Flags are not numeric operands.
+  multiply(flagValue("carry"), literal(8, 1));
   // @ts-expect-error Numeric bits are not Boolean carry inputs.
   addWrap(value("left"), value("right"), literal(8, 1));
   // @ts-expect-error Live flags must be captured before use in arithmetic facts.
@@ -380,6 +385,29 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6809.clrMemory(motorola, 0xffff, { readByte: () => 0, writeByte: () => {} });
   generated6809.negA(motorola);
   generated6809.cmpaMemory(motorola, 0xffff, { readByte: () => 0 });
+  generated6809.exg_d_s(motorola);
+  generated6809.mul(motorola);
+  generated6809.leax(motorola, 0xffff);
+  generated6809.pshs(motorola, { fetchByte: () => 0xff, writeByte: () => {} });
+  generated6809.pulu(motorola, { fetchByte: () => 0xff, readByte: () => 0 });
+  generated6809.pushFrame(motorola, 0xff, { writeByte: () => {} });
+  generated6809.pullFrame(motorola, 0xff, { readByte: () => 0 });
+  // @ts-expect-error Transfers enter after the CPU fetches and validates their postbyte.
+  generated6809.tfr_pc_x(motorola, { fetchByte: () => 0 });
+  // @ts-expect-error LEA receives an already resolved numeric address.
+  generated6809.leas(motorola, () => 0xffff);
+  // @ts-expect-error Resolved LEA cannot fetch or read memory again.
+  generated6809.leax(motorola, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error Register-mask pushes cannot read memory.
+  generated6809.pshu(motorola, { fetchByte: () => 0, writeByte: () => {}, readByte: () => 0 });
+  // @ts-expect-error Register-mask pulls cannot write memory.
+  generated6809.puls(motorola, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Ordinary register-mask instructions fetch their mask.
+  generated6809.pshs(motorola, { writeByte: () => {} });
+  // @ts-expect-error Frame helpers take a supplied mask and never fetch.
+  generated6809.pushFrame(motorola, 0xff, { writeByte: () => {}, fetchByte: () => 0 });
+  // @ts-expect-error Transfer bodies require the concrete 6809 state.
+  generated6809.tfr_a_b(m6800);
   generated6809.cmpdMemory(motorola, 0xffff, { readByte: () => 0 });
   generated6809.cmpsImmediate(motorola, { fetchByte: () => 0 });
   // @ts-expect-error Comparison memory bodies cannot fetch or resolve another address.

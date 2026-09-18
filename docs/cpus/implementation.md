@@ -583,8 +583,24 @@ and high fetch remain an explicit sequence in its definitions; RTS adds one to
 the popped address. Motorola JSR receives the decoder's resolved target, retaining
 indexed S updates and NMI arming. The Intel condition hooks and superseded
 call/return wrappers are gone. Packed-status bodies add explicit packing and
-complete flag replacement around the shared stack effects. Interrupt paths
-retain their runtime stack helpers.
+complete flag replacement around the shared stack effects.
+
+For masked stacks, supply register views in mask-bit order to `maskedStack`.
+It expands conditional transfers, visits pushes in descending order and pulls
+in ascending order, captures each source at its turn, and writes each pulled
+register only after its complete read. The 6809 uses this recipe for S/U
+instructions and supplied-mask frame helpers. Ordinary nonempty S-stack
+instructions arm NMI at successful completion; interrupt frame helpers preserve
+arming. PULU's S write arms before a subsequent PC pull. The CPU retains interrupt
+recognition, frame selection, and vector delivery; its old stack helpers are gone.
+Other CPUs' interrupt paths still use runtime stack helpers.
+
+`RegisterView` is a construction-time source plus a function producing write
+statements. Keep compound effects explicit: D is A then B, CC replaces flags,
+and S appends arming. The 6809 shares these writes between transfers, stacks,
+and LEA. Its transfer inventory drives both definitions and postbyte bindings,
+rejecting undefined or mixed-width pairs before body entry. TFR/EXG capture both
+originals before any write; LEA enters only after successful indexed resolution.
 
 ## Shared arithmetic
 
