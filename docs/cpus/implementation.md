@@ -141,10 +141,9 @@ Generate the execution bindings from those same patterns; the CPU combines them
 with its remaining handwritten entries after initializing state. Preserve the
 duplicate-opcode check across both sets. Avoid maintaining a second list of
 generated method names or repeating migrated patterns in the CPU class.
-Keep address and operand sources there too: generated bodies expand them, while
-handwritten operations use the generated `sourceReaders(state)`. Bind those
-readers after initializing state. Address readers stop before the final data
-read, allowing stores and memory modifiers to preserve their own access order.
+Keep address and operand sources there too: all ordinary instructions now
+expand them into complete generated bodies. Standalone source generation remains
+a test of the same compiler. Address sources stop before the final data read, allowing stores and memory modifiers to preserve their own access order.
 Keep instruction-specific exceptions, such as indirect JMP's page wrap, explicit.
 
 The complete support inventory belongs in [CPU implementation coverage](coverage.md).
@@ -184,8 +183,8 @@ operands, pair views, data-word accesses, and 240 supported
 the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
 The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
-operations, generated bodies keyed by opcode, byte increment/decrement, and PSW/AF
-packing. Both CPUs' byte ALU and byte-adjustment selectors bind complete generated bodies with
+operations, generated bodies keyed by opcode, and byte increment/decrement.
+PSW/AF packing and all ordinary stack operations belong to generated bodies. Both CPUs' byte ALU and byte-adjustment selectors bind complete generated bodies with
 explicit source reads, flags, and writeback. Shared
 [Intel construction](../../src/components/cpus/semantics/intel.ts) supplies
 register/(HL)/immediate sources and carry-before-A ordering; CPU definitions
@@ -243,8 +242,9 @@ DJNZ fetches before decrementing B and never accesses flags. Prefix decoding,
 refresh, and supplied-instruction retirement remain in the core.
 
 Each concrete constructor validates and copies its state before passing that
-owned state to `super`. The base constructor binds only the state and call
-stack. The concrete CPU initializes its operation selectors
+owned state to `super`. The base constructor binds only the state; the Z80
+constructs its private runtime interrupt stack afterward. Each concrete CPU
+initializes its operation selectors
 before calling `baseInstructions()` to construct its table; the base constructor
 must never call that builder or a CPU hook. CPU-specific helpers stay in `#` methods except for the required overrides;
 protected members form the internal TypeScript inheritance boundary.
@@ -326,14 +326,15 @@ fields, concrete snapshot types, and outcome narrowing through the CPU exports.
 The [register-pair helpers](../../src/components/cpus/register-pairs.ts) define
 BC, DE, and HL as high/low byte views shared by the 8080 and Z80. Reading,
 writing, and snapshot views use that one mapping. CPU tables select pair names;
-The family core handles SP directly and delegates PSW/AF packing to each CPU. The Z80 applies the
-same views independently to each bank.
+SP is stored directly. The Z80 applies the same views independently to each bank.
 
 The [flag-register helper](../../src/components/cpus/flags.ts) takes a map from
 flag names to bit positions, plus any fixed output bits. `encode` reads current
 Booleans; `decode` creates a fresh flag object and ignores unmodeled input bits.
 The 6502's PHP/PLP, 8080's PSW, Z80's AF, 6800's TAP/TPA, and 6809's CC declare
-their own layouts beside their types. Fixed output bits describe the model's packing policy;
+their own layouts beside their state schemas. The helper owns and freezes both
+the layout and its codec; generated status sources use the same `bits` and
+`fixed` declaration as runtime encoding. Fixed output bits describe the model's packing policy;
 they do not add stored flags or assert hardware behavior for omitted bits.
 Layouts are checked for invalid, repeated, and overlapping bit positions.
 
@@ -465,11 +466,11 @@ mapped fetches, interleaved data accesses, record independence, and error propag
 [Type checks](../../tests/types/execute-byte-instruction.ts) preserve readonly
 records. Existing CPU and example tests retain independent hardware expectations.
 
-## Shared 8080/Z80 call stack
+## Runtime Z80 interrupt stack
 
 The [call-stack helper](../../src/components/cpus/call-stack.ts) remains in
-use for packed PSW/AF pushes/pops and Z80 interrupt entry/return. Ordinary
-BC/DE/HL/IX/IY pushes/pops and CALL/RET/RST now use generated definitions.
+use only for Z80 interrupt entry/return and is private to that CPU. Ordinary
+BC/DE/HL/IX/IY and packed PSW/AF pushes/pops, CALL/RET/RST use generated definitions.
 Both paths retain predecrement-before-write and increment-after-read ordering,
 high/low pushes, low/high pops, and 16-bit wrap. The helper does not own flags,
 interrupt acceptance, memory recording, or CPU lifecycle.
@@ -575,8 +576,9 @@ the complete stack access succeeds. The 6502 JSR's low fetch, high/low pushes,
 and high fetch remain an explicit sequence in its definitions; RTS adds one to
 the popped address. Motorola JSR receives the decoder's resolved target, retaining
 indexed S updates and NMI arming. The Intel condition hooks and superseded
-call/return wrappers are gone. Packed-status and interrupt paths retain their
-runtime stack helpers.
+call/return wrappers are gone. Packed-status bodies add explicit packing and
+complete flag replacement around the shared stack effects. Interrupt paths
+retain their runtime stack helpers.
 
 ## Shared arithmetic
 
@@ -657,9 +659,10 @@ runtime condition tests. The 6800/6809 share generated branch construction
 with explicit flag captures and native branch names. The opcode tables retain
 the 6800's absent BRN, the 6809's standalone LBRA, and the 68000's BSR exception.
 
-`motorolaDecimalAdjust` takes the original byte and current flags directly.
-It uses the original A/H/C, preserves H and control flags, and clears undefined
-V under the shared model policy. Binary addition and subtraction now use
+[Shared decimal construction](../../src/components/cpus/semantics/decimal.ts)
+uses the original A/H/C, preserves H and control flags, and clears undefined
+V under the Motorola model policy. The runtime DAA helper has no remaining callers
+and is removed. Binary addition and subtraction now use
 [shared definitions](../../src/components/cpus/semantics/motorola.ts).
 The [shared unary definitions](../../src/components/cpus/semantics/motorola.ts)
 express NEG/COM/shifts/rotates/INC/DEC/TST/CLR once. Each CPU declares whether

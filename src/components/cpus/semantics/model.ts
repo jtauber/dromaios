@@ -16,6 +16,7 @@ interface ArithmeticOperands {
 
 /** Expressions use captured values only; reading live state requires a statement. */
 export type NumberExpression =
+  | { readonly kind: "select"; readonly condition: FlagExpression; readonly yes: NumberExpression; readonly no: NumberExpression }
   | { readonly kind: "value"; readonly name: string }
   | { readonly kind: "literal"; readonly width: Width; readonly value: number }
   | { readonly kind: "high-byte" | "low-byte"; readonly value: NumberExpression }
@@ -27,7 +28,7 @@ export type FlagExpression =
   | { readonly kind: "flag-value"; readonly name: string }
   | { readonly kind: "flag-literal"; readonly value: boolean }
   | { readonly kind: "not"; readonly value: FlagExpression }
-  | { readonly kind: "xor" | "and"; readonly left: FlagExpression; readonly right: FlagExpression }
+  | { readonly kind: "xor" | "and" | "or"; readonly left: FlagExpression; readonly right: FlagExpression }
   | { readonly kind: "negative" | "low-bit" | "zero" | "even-parity"; readonly value: NumberExpression }
   | ({ readonly kind: "borrow" | "half-borrow" | "subtract-overflow" | "carry" | "half-carry" | "add-overflow" } & ArithmeticOperands);
 export type Expression = NumberExpression | FlagExpression;
@@ -59,7 +60,7 @@ export type Statement =
   | { readonly kind: "write-register"; readonly register: Register; readonly value: NumberExpression }
   | { readonly kind: "write-latch"; readonly latch: Latch; readonly value: boolean }
   | { readonly kind: "write-memory"; readonly address: NumberExpression; readonly value: NumberExpression }
-  | { readonly kind: "update-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, Expression>> };
+  | { readonly kind: "update-flags" | "replace-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, Expression>> };
 export interface InstructionDefinition {
   readonly name: string;
   readonly cpu: CpuDeclaration;
@@ -100,6 +101,7 @@ function arithmetic<Kind extends NumberExpression["kind"] | FlagExpression["kind
   left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): { readonly kind: Kind } & ArithmeticOperands {
   return { kind, left, right, ...(incoming === undefined ? {} : { incoming }) };
 }
+export const select = (condition: FlagExpression, yes: NumberExpression, no: NumberExpression): NumberExpression => ({ kind: "select", condition, yes, no });
 export const value = (name: string): NumberExpression => ({ kind: "value", name });
 export const literal = (width: Width, value: number): NumberExpression => ({ kind: "literal", width, value });
 export const subtract = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): NumberExpression => arithmetic("subtract", left, right, incoming);
@@ -123,6 +125,7 @@ export const evenParity = (value: NumberExpression): FlagExpression => ({ kind: 
 export const not = (value: FlagExpression): FlagExpression => ({ kind: "not", value });
 export const xor = (left: FlagExpression, right: FlagExpression): FlagExpression => ({ kind: "xor", left, right });
 export const and = (left: FlagExpression, right: FlagExpression): FlagExpression => ({ kind: "and", left, right });
+export const or = (left: FlagExpression, right: FlagExpression): FlagExpression => ({ kind: "or", left, right });
 export const borrow = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): FlagExpression => arithmetic("borrow", left, right, incoming);
 export const halfBorrow = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): FlagExpression => arithmetic("half-borrow", left, right, incoming);
 export const overflow = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): FlagExpression => arithmetic("subtract-overflow", left, right, incoming);
@@ -143,3 +146,4 @@ export const writeRegister = (register: Register, value: NumberExpression): Stat
 export const writeLatch = (latch: Latch, value: boolean): Statement => ({ kind: "write-latch", latch, value });
 export const writeMemory = (address: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-memory", address, value });
 export const updateFlags = (policy: FlagPolicy, args: Readonly<Record<string, Expression>>): Statement => ({ kind: "update-flags", policy, arguments: args });
+export const replaceFlags = (policy: FlagPolicy, args: Readonly<Record<string, Expression>>): Statement => ({ kind: "replace-flags", policy, arguments: args });

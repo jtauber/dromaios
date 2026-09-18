@@ -1,4 +1,4 @@
-import { cpu6502StateDescription } from "../../state/6502.ts";
+import { cpu6502StateDescription, cpu6502Status } from "../../state/6502.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, cpuSymbols, extend, fetchByte, highByte, literal, lowByte, negative, not,
   readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
@@ -7,6 +7,8 @@ import { compare, immediateByte, instructionSet, logical, memorySource, negative
 import { defineInstruction } from "../validate.ts";
 import { flagCondition, jump, relativeBranch, subroutineReturn } from "../control-flow.ts";
 import { byteStack, stackPop, stackPush, wordStack } from "../stack.ts";
+import { flagInstruction, packedStatus, restoreStatus } from "../status.ts";
+import { mosArithmetic } from "../mos.ts";
 
 const cpu = cpuSymbols("6502", cpu6502StateDescription);
 const stack = byteStack(cpu.register("sp"), "free", 0x0100);
@@ -67,6 +69,15 @@ const bitFlags: FlagPolicy = {
 };
 const logicalOperations = { ORA: bitOr, AND: bitAnd, EOR: bitXor };
 
+function arithmetic(name: "ADC" | "SBC", [operand, source]: Operand): InstructionDefinition {
+  return defineInstruction({ cpu: cpu.declaration, name: `${name} ${operand}`,
+    explanation: "Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. "
+      + (name === "ADC" ? "In decimal mode, Z follows binary addition, N/V follow low-digit correction, and C follows the decimal threshold; flags precede A. "
+        : "SBC writes the binary result and N/Z/C/V first; decimal mode then corrects A only. ")
+      + "Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.",
+    steps: [readSource("right", source), ...mosArithmetic(cpu, name)],
+  });
+}
 function comparison(register: "a" | "x" | "y", [operand, source]: Operand): InstructionDefinition {
   return defineInstruction({
     cpu: cpu.declaration, name: `${{ a: "CMP", x: "CPX", y: "CPY" }[register]} ${operand}`,
@@ -159,7 +170,7 @@ const accumulatorAddresses: readonly (Operand | undefined)[] = [
 ];
 const accumulatorOperands = accumulatorAddresses.map((operand): Operand => operand === undefined
   ? ["#byte", immediateByte] : [operand[0], memorySource(operand[1])]);
-// The same bbb source inventory serves generated bodies and the remaining handwritten ALU.
+// Standalone source generation retains focused probes of this shared addressing inventory.
 export const sources6502 = { cpu: cpu.declaration, groups: {
   addresses, operands: Object.fromEntries(accumulatorOperands.map(([, source], code) => [code, source])),
 } } satisfies SourceDefinitions;
@@ -179,6 +190,15 @@ const modifyOperands: readonly Operand[] = [
 
 // These patterns generate both instruction bodies and their execution bindings.
 export const instructions6502 = instructionSet([
+  ...opcodePattern("111 010 10", defineInstruction({ cpu: cpu.declaration, name: "NOP", explanation: "No effects after opcode fetching.", steps: [] })),
+  // 00v/01v/11v 110 00 select C/I/D and the new flag value; 101 selects CLV.
+  ...([["00", "c", "CLC", "SEC"], ["01", "i", "CLI", "SEI"], ["11", "d", "CLD", "SED"]] as const).flatMap(([bits, flag, clear, set]) =>
+    opcodeFamily(`${bits}v 110 00`, { v: [false, true] }, ({ v }) => flagInstruction(cpu, v ? set : clear, flag, v))),
+  ...opcodePattern("101 110 00", flagInstruction(cpu, "CLV", "v", false)),
+  // 00p 010 00: status push adds the stacked B marker; pull ignores reserved bits.
+  ...opcodePattern("00 0 010 00", stackPush(cpu.declaration, "PHP", stack, packedStatus(cpu, cpu6502Status, 0x10))),
+  ...opcodePattern("00 1 010 00", defineInstruction({ cpu: cpu.declaration, name: "PLP", explanation: "Pull status, then replace all six flags, ignoring reserved bits. " + stack.explanation,
+    steps: [readSource("status", stack.pop), restoreStatus(cpu, cpu6502Status, value("status"))] })),
   // 0rp 010 00: r=1 selects A; p=0 pushes, p=1 pulls and updates N/Z.
   ...opcodePattern("01 0 010 00", stackPush(cpu.declaration, "PHA", stack, registerSource(cpu.register("a")))),
   ...opcodePattern("01 1 010 00", stackPop(cpu.declaration, "PLA", stack, cpu.register("a"), resultNZ)),
@@ -201,6 +221,8 @@ export const instructions6502 = instructionSet([
   ...opcodeFamily("000 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("ORA", b)),
   ...opcodeFamily("001 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("AND", b)),
   ...opcodeFamily("010 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("EOR", b)),
+  ...opcodeFamily("011 bbb 01", { b: accumulatorOperands }, ({ b }) => arithmetic("ADC", b)),
+  ...opcodeFamily("111 bbb 01", { b: accumulatorOperands }, ({ b }) => arithmetic("SBC", b)),
   ...opcodeFamily("100 bbb 01", { b: accumulatorAddresses }, ({ b }) => b)
     .flatMap(([opcode, address]) => address === undefined ? [] : [[opcode, store("a", address)] as const]),
   ...opcodeFamily("101 bbb 01", { b: accumulatorOperands }, ({ b }) => load("a", b)),

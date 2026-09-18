@@ -1348,9 +1348,9 @@ its interleaved fetches and stack writes. The 68000 probes below remain requirem
 for later vocabulary. Whole-model migration remains a separate decision.
 
 The 6502 now authors these migrated instructions as encoding families and
-generates their execution bindings too. Its address and operand definitions also
-generate readers for handwritten instructions, replacing duplicate addressing
-helpers. Assess this cleanup against the complete
+generates their execution bindings too. All ordinary 6502 bodies now expand their address and operand sources,
+replacing the handwritten arithmetic and operand-dispatch paths. Standalone
+source generation remains a compiler probe. Assess this cleanup against the complete
 [authored-source footprint](coverage.md#source-footprint), including shared
 machinery, before treating migration percentages as evidence of simpler code.
 

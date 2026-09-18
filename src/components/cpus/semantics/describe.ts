@@ -9,6 +9,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
   function number(expr: Expression, parameters: Readonly<Record<string, Expression>> = {}): string {
     switch (expr.kind) {
       // Arguments are in the caller's scope: substitution happens once, never recursively by name.
+      case "select": return `select(${flag(expr.condition, parameters)}, ${number(expr.yes, parameters)}, ${number(expr.no, parameters)})`;
       case "value": return Object.hasOwn(parameters, expr.name) ? number(parameters[expr.name]!) : expr.name;
       case "literal": return `${expr.value.toString(16).toUpperCase().padStart(expr.width / 4, "0")}:u${expr.width}`;
       case "extend": return `zeroExtend${expr.width}(${number(expr.value, parameters)})`;
@@ -35,6 +36,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
       case "flag-literal": return expr.value ? "1:flag" : "0:flag";
       case "not": return `not(${flag(expr.value, parameters)})`;
       case "xor": return `xor(${flag(expr.left, parameters)}, ${flag(expr.right, parameters)})`;
+      case "or": return `or(${flag(expr.left, parameters)}, ${flag(expr.right, parameters)})`;
       case "and": return `and(${flag(expr.left, parameters)}, ${flag(expr.right, parameters)})`;
       case "negative": case "low-bit": case "zero": case "even-parity":
         return `${{ negative: "topBit", "low-bit": "lowBit", zero: "isZero", "even-parity": "evenParity8" }[expr.kind]}(${number(expr.value, parameters)})`;
@@ -67,13 +69,13 @@ export function describeInstruction(definition: InstructionDefinition): string {
           emit(`  yield ${number(step.source.result)}`);
           emit("}");
           break;
-        case "update-flags":
-          emit(`flags "${step.policy.name}" simultaneously {`);
+        case "update-flags": case "replace-flags":
+          emit(`${step.kind === "replace-flags" ? "replace flags" : "flags"} "${step.policy.name}" simultaneously {`);
           for (const update of step.policy.updates) {
             changed.add(update.flag.field);
             emit(`  ${update.flag.field.toUpperCase()} := ${flag(update.value, step.arguments)}`);
           }
-          emit("} // Preserve unlisted flags.");
+          emit(step.kind === "replace-flags" ? "} // Replace the complete flag object." : "} // Preserve unlisted flags.");
           break;
       }
     }

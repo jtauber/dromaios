@@ -1,3 +1,4 @@
+import { flagRegister } from "../flags.ts";
 import { defineState, unsigned, flag, boolean, group } from "../state.ts";
 import type { StateValues } from "../state.ts";
 
@@ -11,3 +12,6 @@ export const cpu8080StateDescription = defineState({
 
 export type Cpu8080State = StateValues<typeof cpu8080StateDescription>;
 export type Cpu8080Flags = Cpu8080State["flags"];
+
+// PSW low byte: S Z 0 AC 0 P 1 CY.
+export const cpu8080Status = flagRegister({ s: 7, z: 6, ac: 4, p: 2, cy: 0 }, 0x02);

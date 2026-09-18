@@ -7,8 +7,8 @@ test("Intel word transfers use seven 8080 bodies and 21 Z80 bodies for all 30 do
   assert.equal(wordForms["8080"].length, 7); assert.equal(wordForms.z80.length, 23);
   assert.equal(new Set(wordForms["8080"].map(form => form.execute)).size, 7);
   assert.equal(new Set(wordForms.z80.map(form => form.execute)).size, 21);
-  assert.equal(Object.keys(instructions8080).length, 232);
-  assert.equal(Object.keys(instructionsZ80).length, 551);
+  assert.equal(Object.keys(instructions8080).length, 240);
+  assert.equal(Object.keys(instructionsZ80).length, 559);
   const names = Object.values(instructionsZ80).map(definition => definition.name);
   for (const name of ["LD HL,(nn)", "LD (nn),HL"]) assert.equal(names.filter(item => item === name).length, 1);
 });

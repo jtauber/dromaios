@@ -3,9 +3,9 @@ import { cpuZ80StateDescription } from "./state/z80.ts";
 import type { CpuZ80State, CpuZ80Flags, CpuZ80RegisterBank } from "./state/z80.ts";
 import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
+import { callStack16LE } from "./call-stack.ts";
 import { Cpu8080Family } from "./8080-family.ts";
 import type { AluInstruction, ByteInstruction } from "./8080-family.ts";
-import { flagRegister } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { signed8, readWordLE } from "./binary.ts";
 import { executionBoundary } from "./execution-boundary.ts";
@@ -70,11 +70,9 @@ type AddressedHandler = (address: number, instruction: InstructionContext) => vo
 // Fix the handler type once so pattern callbacks infer their instruction context.
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
-// F = S Z 0 H 0 PV N C. Unmodeled bits 5/3 pack as zero, not hardware constants.
-const packedFlags = flagRegister({ s: 7, z: 6, h: 4, pv: 2, n: 1, c: 0 });
-
 /** Instruction-level Zilog Z80 with documented opcodes and boundary IRQ/NMI delivery. */
 export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
+  readonly #stack = callStack16LE(this.state);
   readonly #ram: Ram;
   readonly #ports: BytePorts | undefined;
   readonly #onReti: (() => void) | undefined;
@@ -180,7 +178,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
       this.#refresh(1);
       if (source === "nmi") {
         this.state.nmiDeferred = true;
-        this.stack.call(0x0066, writeByte);
+        this.#stack.call(0x0066, writeByte);
       } else {
         this.state.iff2 = false;
         this.state.interruptDeferred = false;
@@ -201,7 +199,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
             : { ...record, outcome: "unsupported", reason: "opcode" };
         }
         // IM 1 acknowledges but ignores the byte; IM 2 reads its vector AFTER pushing PC.
-        this.stack.push(this.state.pc, writeByte);
+        this.#stack.push(this.state.pc, writeByte);
         this.state.pc = this.state.im === 1 ? 0x0038 : this.readMemoryWord((this.state.i << 8) | opcode, readByte);
       }
       return { before, after: this.snapshot(), instruction: null, accesses, source, outcome: "accepted" };
@@ -241,21 +239,10 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
   }
 
   #returnFromInterrupt(notify: boolean, { readByte, deferInterrupt, notifyReti }: InstructionContext): void {
-    this.stack.return(readByte);
+    this.#stack.return(readByte);
     if (this.state.iff1 !== this.state.iff2) deferInterrupt();
     this.state.iff1 = this.state.iff2;
     if (notify) notifyReti();
-  }
-
-  // Register views.
-
-  protected override get statusWord(): number {
-    return (this.state.a << 8) | packedFlags.encode(this.state.flags);
-  }
-
-  protected override set statusWord(value: number) {
-    this.state.a = value >>> 8;
-    this.state.flags = packedFlags.decode(value);
   }
 
   // Opcode selectors and construction.
@@ -287,10 +274,10 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     () => semantics.rrca(this.state), // 001 RRCA
     () => semantics.rla(this.state), // 010 RLA
     () => semantics.rra(this.state), // 011 RRA
-    () => this.#decimalAdjust(), // 100 DAA
-    () => this.#complementAccumulator(), // 101 CPL
-    () => this.#setCarry(), // 110 SCF
-    () => this.#complementCarry(), // 111 CCF
+    () => semantics[0x27](this.state), // 100 DAA
+    () => semantics[0x2f](this.state), // 101 CPL
+    () => semantics[0x37](this.state), // 110 SCF
+    () => semantics[0x3f](this.state), // 111 CCF
   ];
 
   // Shared 8080 families are defined in 8080-family.ts; these fill documented Z80 extension slots.
@@ -429,32 +416,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
 
   // Arithmetic, logic, and flags.
 
-  #decimalAdjust(): void {
-    const { a, flags } = this.state;
-    const carry = flags.c || a > 0x99;
-    const correction = ((flags.h || (a & 0x0f) > 9) ? 0x06 : 0) | (carry ? 0x60 : 0);
-    // The digit thresholds apply for every input state; N selects addition or subtraction of the correction.
-    const result = (a + (flags.n ? -correction : correction)) & 0xff;
-    this.state.a = this.#parityResult(result, { h: ((a ^ result) & 0x10) !== 0, c: carry });
-    this.state.flags.n = flags.n;
-  }
-
-  #complementAccumulator(): void {
-    this.state.a ^= 0xff;
-    this.state.flags.h = this.state.flags.n = true;
-  }
-
-  #setCarry(): void {
-    this.state.flags.c = true;
-    this.state.flags.h = this.state.flags.n = false;
-  }
-
-  #complementCarry(): void {
-    this.state.flags.h = this.state.flags.c;
-    this.state.flags.c = !this.state.flags.c;
-    this.state.flags.n = false;
-  }
-
   #negate(): void {
     const { result, borrow, halfBorrow, overflow } = subtract(8, 0, this.state.a);
     this.state.a = this.#aluResult(result, { h: halfBorrow, pv: overflow, n: true, c: borrow });
@@ -516,7 +477,7 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     flags.pv = flags.pv === evenParity8(parityOperand & 7);
   }
 
-  // DAA, digit rotates, and port inputs use parity; DAA restores N from its input afterward.
+  // Digit rotates and port inputs use parity.
   #parityResult(result: number, { h, c }: Pick<CpuZ80Flags, "h" | "c">): number {
     return this.#aluResult(result, { h, pv: evenParity8(result), n: false, c });
   }

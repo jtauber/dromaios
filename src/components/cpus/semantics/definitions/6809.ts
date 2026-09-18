@@ -1,10 +1,13 @@
-import { cpu6809StateDescription } from "../../state/6809.ts";
-import { concat, cpuSymbols, highByte, lowByte, readRegister, value, writeLatch, writeRegister } from "../model.ts";
+import { cpu6809StateDescription, cpu6809Status } from "../../state/6809.ts";
+import { bitAnd, bitOr, concat, fetchByte, cpuSymbols, highByte, lowByte, readRegister, readSource, value, writeLatch, writeRegister } from "../model.ts";
 import type { InstructionDefinition, ValueSource } from "../model.ts";
 import { registerSource } from "../builders.ts";
 import { motorolaBranches, motorolaByteArithmetic, motorolaArithmeticFamily, motorolaTransfers, motorolaComparison, motorolaLogic, motorolaSubroutines, motorolaUnary } from "../motorola.ts";
 import { resolvedJump } from "../control-flow.ts";
 import { motorolaBranchNames } from "../../motorola.ts";
+import { packedStatus, restoreStatus } from "../status.ts";
+import { decimalAdjust } from "../decimal.ts";
+import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("6809", cpu6809StateDescription);
 
@@ -21,6 +24,12 @@ const writableD = { source: d,
 };
 
 export const instructions6809: Readonly<Record<string, InstructionDefinition>> = {
+  daa: decimalAdjust(cpu, "motorola"),
+  ...Object.fromEntries((["or", "and"] as const).map(operation => [`${operation}cc`, defineInstruction({ cpu: cpu.declaration, name: `${operation.toUpperCase()}CC`,
+    explanation: "Capture packed CC before fetching the mask, then combine and replace all flags. A failed fetch leaves flags unchanged.",
+    steps: [readSource("status", packedStatus(cpu, cpu6809Status)), fetchByte("mask"),
+      restoreStatus(cpu, cpu6809Status, (operation === "or" ? bitOr : bitAnd)(value("status"), value("mask")))],
+  })])),
   ...motorolaSubroutines(cpu, cpu.register("s"), "occupied", true),
   ...motorolaBranches(cpu, motorolaBranchNames),
   ...motorolaBranches(cpu, motorolaBranchNames, true),

@@ -1,6 +1,5 @@
 import { flagRegister } from "../../src/components/cpus/flags.js";
 import { readRegisterPair, writeRegisterPair } from "../../src/components/cpus/register-pairs.js";
-import { motorolaDecimalAdjust } from "../../src/components/cpus/motorola.js";
 import type { InstructionStep, HaltedStep } from "../../src/components/cpus/execution-records.js";
 import type { ReadonlyState } from "../../src/components/cpus/state.js";
 
@@ -18,8 +17,6 @@ export function checkCpuHelpers(record: InstructionStep<{ readonly pc: number }>
   writeRegisterPair(bank, "hl", 0x1234);
   // @ts-expect-error SP is stored directly and is not a pair of byte registers.
   readRegisterPair(bank, "sp");
-  // @ts-expect-error Motorola decimal correction requires H as well as N/Z/V/C.
-  motorolaDecimalAdjust(0, { n: false, z: false, v: false, c: false });
   const state: ReadonlyState<{ registers: [number, number]; alternate: { flags: { c: boolean } } }> = {
     registers: [0, 1], alternate: { flags: { c: false } },
   };

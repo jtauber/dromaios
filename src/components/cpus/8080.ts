@@ -3,7 +3,6 @@ import type { Ram } from "../memory/ram.js";
 import { pairViews } from "./register-pairs.ts";
 import { Cpu8080Family } from "./8080-family.ts";
 import type { AluInstruction, ByteInstruction } from "./8080-family.ts";
-import { flagRegister, signZeroParity8 } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, HaltedStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
@@ -55,9 +54,6 @@ interface InstructionContext extends WordInstructionContext, BytePorts {
 }
 type OpcodeHandler = (instruction: InstructionContext) => void;
 const instructionPattern = opcodePattern<OpcodeHandler>;
-
-// PSW low byte: S Z 0 AC 0 P 1 CY.
-const packedFlags = flagRegister({ s: 7, z: 6, ac: 4, p: 2, cy: 0 }, 0x02);
 
 /** Instruction-level Intel 8080 with boundary interrupt delivery; timing remains unmodeled. */
 export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
@@ -150,17 +146,6 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
     return ports.accesses;
   }
 
-  // Register and flag views.
-
-  protected override get statusWord(): number {
-    return (this.state.a << 8) | packedFlags.encode(this.state.flags);
-  }
-
-  protected override set statusWord(value: number) {
-    this.state.a = value >>> 8;
-    this.state.flags = packedFlags.decode(value);
-  }
-
   // Opcode selectors and construction.
 
   protected override readonly generatedInstructions = semantics;
@@ -195,10 +180,10 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
     () => semantics.rrc(this.state), // 001 RRC
     () => semantics.ral(this.state), // 010 RAL
     () => semantics.rar(this.state), // 011 RAR
-    () => this.#decimalAdjust(), // 100 DAA
-    () => { this.state.a ^= 0xff; }, // 101 CMA
-    () => { this.state.flags.cy = true; }, // 110 STC
-    () => { this.state.flags.cy = !this.state.flags.cy; }, // 111 CMC
+    () => semantics[0x27](this.state), // 100 DAA
+    () => semantics[0x2f](this.state), // 101 CMA
+    () => semantics[0x37](this.state), // 110 STC
+    () => semantics[0x3f](this.state), // 111 CMC
   ];
 
   // Common encodings and operand handling live in 8080-family.ts.
@@ -211,22 +196,4 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
     ...instructionPattern("1111 0 011", () => { this.state.interruptEnabled = false; }), // DI
     ...instructionPattern("1111 1 011", ({ deferInterrupt }) => { this.state.interruptEnabled = true; deferInterrupt(); }), // EI
   ]);
-
-  // Arithmetic, logic, and flags.
-
-  #decimalAdjust(): void {
-    const accumulator = this.state.a;
-    const low = accumulator & 0x0f;
-    const lowCorrection = low > 9 || this.state.flags.ac ? 0x06 : 0;
-    // Select both corrections from the original state; preserve incoming CY.
-    const cy = accumulator > 0x99 || this.state.flags.cy;
-    const correction = lowCorrection + (cy ? 0x60 : 0);
-    this.state.a = this.#aluResult(accumulator + correction, low + lowCorrection > 0x0f, cy);
-  }
-
-  #aluResult(value: number, ac: boolean, cy: boolean): number {
-    const result = value & 0xff;
-    this.state.flags = { ...signZeroParity8(result), ac, cy };
-    return result;
-  }
 }

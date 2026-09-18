@@ -1,4 +1,3 @@
-import { callStack16LE } from "./call-stack.ts";
 import { readRegisterPair, writeRegisterPair } from "./register-pairs.ts";
 import type { RegisterPair } from "./register-pairs.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -16,11 +15,9 @@ const instructionPattern = opcodePattern<OpcodeHandler>;
 /** Common 8080/Z80 encodings and operand mechanics; flags and CPU lifecycle belong to each CPU. */
 export abstract class Cpu8080Family<State extends Registers> {
   protected readonly state: State;
-  protected readonly stack: ReturnType<typeof callStack16LE>;
 
   protected constructor(state: State) {
     this.state = state;
-    this.stack = callStack16LE(state);
   }
 
   // These hooks describe instruction differences, without imposing a common flag layout.
@@ -28,8 +25,6 @@ export abstract class Cpu8080Family<State extends Registers> {
   protected abstract readonly byteAdjustments: readonly ByteInstruction[];
   protected abstract readonly generatedInstructions: Readonly<Record<number, (state: State, instruction: InstructionContext) => void>>;
   protected abstract readonly accumulatorOperations: readonly (() => void)[];
-  protected abstract get statusWord(): number;
-  protected abstract set statusWord(value: number);
 
   protected get hl(): number {
     return (this.state.h << 8) | this.state.l;
@@ -53,7 +48,7 @@ export abstract class Cpu8080Family<State extends Registers> {
   protected baseInstructions(): readonly OpcodeEntry<OpcodeHandler>[] {
     return [
       // xx=00, zzz=000: only yyy=000 (NOP) is documented on the 8080.
-      ...instructionPattern("00 000 000", () => {}), // NOP
+      ...instructionPattern("00 000 000", instruction => this.generatedInstructions[0x00]!(this.state, instruction)), // NOP
 
       // 00 pp q 001: pp selects BC/DE/HL/SP; q=0 loads nn, q=1 adds the pair to HL.
       ...this.#generatedHandlers(intelWordTransferForms.immediate), // LXI / LD dd,nn
@@ -78,7 +73,7 @@ export abstract class Cpu8080Family<State extends Registers> {
 
       // 01 ddd sss: ddd (bits 5..3) selects destination; sss (bits 2..0) selects source.
       ...this.#generatedHandlers(intelByteTransferForms.matrix), // MOV / LD; excludes memory-to-memory
-      ...instructionPattern("01 110 110", () => { this.state.halted = true; }), // HLT / HALT; no data access
+      ...instructionPattern("01 110 110", instruction => this.generatedInstructions[0x76]!(this.state, instruction)), // HLT / HALT; no data access
 
       // 10 ooo rrr: ooo selects ADD/ADC/SUB/SBC/AND/XOR/OR/CP; rrr selects B/C/D/E/H/L/(HL)/A.
       ...opcodeFamily("10 ooo rrr", { o: this.aluInstructions, r: this.byteOperands }, ({ o: instruction, r: operand }) => instruction(operand)), // ALU r / ALU (HL)
@@ -89,7 +84,7 @@ export abstract class Cpu8080Family<State extends Registers> {
       // 11 pp q 001: q=0 pops BC/DE/HL/status (PSW or AF).
       // q=1 selects RET, an extension slot, PCHL / JP (HL), or SPHL / LD SP,HL.
       ...this.#generatedHandlers(intelStackForms.pop), // POP BC/DE/HL
-      ...instructionPattern("11 11 0 001", ({ readByte }) => { this.statusWord = this.stack.pop(readByte); }), // POP PSW/AF
+      ...instructionPattern("11 11 0 001", instruction => this.generatedInstructions[0xf1]!(this.state, instruction)), // POP PSW/AF
       ...this.#generatedHandlers(intelSubroutineForms.return), // RET
       ...this.#generatedHandlers(intelJumpForms.indirect), // PCHL / JP (HL)
       ...this.#generatedHandlers(intelWordTransferForms.stackPointer), // SPHL / LD SP,HL
@@ -107,7 +102,7 @@ export abstract class Cpu8080Family<State extends Registers> {
 
       // 11 pp 0 101: PUSH uses BC/DE/HL/status. Bit 3=1 includes unconditional CALL.
       ...this.#generatedHandlers(intelStackForms.push), // PUSH BC/DE/HL
-      ...instructionPattern("11 11 0 101", ({ writeByte }) => this.stack.push(this.statusWord, writeByte)), // PUSH PSW/AF
+      ...instructionPattern("11 11 0 101", instruction => this.generatedInstructions[0xf5]!(this.state, instruction)), // PUSH PSW/AF
       ...this.#generatedHandlers(intelSubroutineForms.call), // CALL nn
 
       // 11 ooo 110: the same ooo operations with an immediate byte instead of a register/memory selector.

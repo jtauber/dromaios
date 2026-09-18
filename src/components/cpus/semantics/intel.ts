@@ -1,6 +1,8 @@
-import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagValue, highByte, literal, lowByte, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister } from "./model.ts";
-import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource } from "./model.ts";
+import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagLiteral, flagValue, highByte, literal, lowByte, not, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeLatch, writeMemory, writeRegister } from "./model.ts";
+import type { CpuDeclaration, Flag, Latch, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource } from "./model.ts";
 import { arithmetic, immediateByte, instructionSet, memorySource, registerSource, shift, transfer } from "./builders.ts";
+import { decimalAdjust } from "./decimal.ts";
+import { flagInstruction, flagPolicy, packedStatus, restoreStatus } from "./status.ts";
 import { defineInstruction } from "./validate.ts";
 import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelJumpForms, intelStackForms, intelSubroutineForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
 import { flagCondition, jump, subroutineCall, subroutineReturn } from "./control-flow.ts";
@@ -43,6 +45,34 @@ export function intelJumps(cpu: IntelWordCpu, flags: readonly Flag[], name: (con
       jump(cpu, name(condition), immediateWord, flagCondition(flags[condition >> 1]!, Boolean(condition & 1)))] as const),
     ...intelJumpForms.absolute.map(([opcode]) => [opcode, jump(cpu, name("absolute"), immediateWord)] as const),
     ...intelJumpForms.indirect.map(([opcode]) => [opcode, jump(cpu, name("indirect"), wordSource(intelWordRegister(cpu, "hl")))] as const),
+  ]);
+}
+
+/** Ordinary status/control forms share encodings; each CPU supplies its packed layout and flag rules. */
+export function intelStatusInstructions(cpu: IntelWordCpu & { flag(field: string): Flag; latch(field: "halted"): Latch },
+  layout: Parameters<typeof packedStatus>[1], family: "8080" | "z80") {
+  const z80 = family === "z80", stack = wordStack(byteStack(cpu.register("sp"), "occupied"), "little-endian");
+  const status: ValueSource = { name: `A:${z80 ? "F" : "PSW"}`, width: 16,
+    steps: [readRegister("a", cpu.register("a")), readSource("flags", packedStatus(cpu, layout))], result: concat(value("a"), value("flags")) };
+  const complement = z80 ? "CPL" : "CMA", set = z80 ? "SCF" : "STC", flip = z80 ? "CCF" : "CMC";
+  return instructionSet([
+    [0x00, defineInstruction({ cpu: cpu.declaration, name: "NOP", explanation: "No effects after opcode fetching.", steps: [] })],
+    [0x76, defineInstruction({ cpu: cpu.declaration, name: z80 ? "HALT" : "HLT", explanation: "Set the halted latch; preserve registers and flags. Retirement remains in the CPU boundary.", steps: [writeLatch(cpu.latch("halted"), true)] })],
+    [0xf5, stackPush(cpu.declaration, `PUSH ${z80 ? "AF" : "PSW"}`, stack, status)],
+    [0xf1, defineInstruction({ cpu: cpu.declaration, name: `POP ${z80 ? "AF" : "PSW"}`,
+      explanation: "Pop the complete word before writing A and replacing flags. Ignore reserved status bits. " + stack.explanation,
+      steps: [readSource("result", stack.pop), writeRegister(cpu.register("a"), highByte(value("result"))), restoreStatus(cpu, layout, lowByte(value("result")))] })],
+    [0x27, decimalAdjust(cpu, family)],
+    [0x2f, defineInstruction({ cpu: cpu.declaration, name: complement,
+      explanation: `Complement A; ${z80 ? "then set N/H and preserve the other flags" : "preserve all flags"}.`,
+      steps: [readRegister("original", cpu.register("a")), writeRegister(cpu.register("a"), bitXor(value("original"), literal(8, 0xff))),
+        ...(z80 ? [updateFlags(flagPolicy(cpu, complement, {}, { n: flagLiteral(true), h: flagLiteral(true) }), {})] : [])] })],
+    [0x37, z80 ? defineInstruction({ cpu: cpu.declaration, name: set, explanation: "Set C, then clear N/H; preserve S/Z/PV and all registers.",
+      steps: [updateFlags(flagPolicy(cpu, set, {}, { c: flagLiteral(true), n: flagLiteral(false), h: flagLiteral(false) }), {})] })
+      : flagInstruction(cpu, set, "cy", true)],
+    [0x3f, z80 ? defineInstruction({ cpu: cpu.declaration, name: flip, explanation: "Copy incoming C to H, complement C, and clear N. Preserve S/Z/PV and all registers.",
+      steps: [readFlag("carry", cpu.flag("c")), updateFlags(flagPolicy(cpu, flip, { carry: "flag" }, { h: flagValue("carry"), c: not(flagValue("carry")), n: flagLiteral(false) }), { carry: flagValue("carry") })] })
+      : flagInstruction(cpu, flip, "cy", "complement")],
   ]);
 }
 

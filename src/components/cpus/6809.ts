@@ -1,6 +1,5 @@
 import { instructions as semantics } from "./generated/6809.ts";
 import type { Ram } from "../memory/ram.js";
-import { flagRegister } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep, WaitingStep } from "./execution-records.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
@@ -9,12 +8,12 @@ import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { copyState, readState } from "./state.ts";
-import { cpu6809StateDescription } from "./state/6809.ts";
+import { cpu6809StateDescription, cpu6809Status as packedFlags } from "./state/6809.ts";
 import type { Cpu6809State } from "./state/6809.ts";
 import type { ReadonlyState } from "./state.js";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaDecimalAdjust, motorolaBranchNames } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaBranchNames } from "./motorola.ts";
 
 export { cpu6809StateDescription } from "./state/6809.ts";
 export type { Cpu6809State, Cpu6809Flags } from "./state/6809.ts";
@@ -52,7 +51,6 @@ type TransferRegister = WordRegister | Accumulator | "cc" | "dp";
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
 // CC bits 7..0: E F H I N Z V C.
-const packedFlags = flagRegister({ e: 7, f: 6, h: 5, i: 4, n: 3, z: 2, v: 1, c: 0 });
 const addressPattern = opcodePattern<AddressedHandler>;
 
 // Vector address, frame size, and masks applied AFTER saving the original CC.
@@ -206,9 +204,9 @@ export class Cpu6809 {
     ...instructionPattern("0001 0110", instruction => semantics.lbra(this.#state, instruction)), // LBRA rel16
     ...instructionPattern("0001 0111", instruction => semantics.lbsr(this.#state, instruction)), // LBSR rel16
 
-    ...instructionPattern("0001 1001", () => { this.#state.a = motorolaDecimalAdjust(this.#state.a, this.#state.flags); }), // DAA
-    ...instructionPattern("0001 1010", ({ fetchByte }) => this.#writeTransferRegister("cc", packedFlags.encode(this.#state.flags) | fetchByte())), // ORCC
-    ...instructionPattern("0001 1100", ({ fetchByte }) => this.#writeTransferRegister("cc", packedFlags.encode(this.#state.flags) & fetchByte())), // ANDCC
+    ...instructionPattern("0001 1001", () => semantics.daa(this.#state)), // DAA
+    ...instructionPattern("0001 1010", instruction => semantics.orcc(this.#state, instruction)), // ORCC
+    ...instructionPattern("0001 1100", instruction => semantics.andcc(this.#state, instruction)), // ANDCC
     ...instructionPattern("0001 1101", () => this.#signExtend()), // SEX
     // 0001111 t: t=0 exchanges, t=1 transfers; the postbyte selects same-width registers.
     ...instructionPattern("0001111 0", ({ fetchByte }) => this.#transfer(fetchByte(), true)), // EXG

@@ -1,7 +1,7 @@
-import { cpu8080StateDescription } from "../../state/8080.ts";
+import { cpu8080StateDescription, cpu8080Status } from "../../state/8080.ts";
 import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readSource, value, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
-import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers, intelExchanges, intelJumps, intelRegisterStacks, intelSubroutines, intelWordArithmeticFamily, intelWordTransfers } from "../intel.ts";
+import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers, intelExchanges, intelJumps, intelRegisterStacks, intelStatusInstructions, intelSubroutines, intelWordArithmeticFamily, intelWordTransfers } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("8080", cpu8080StateDescription);
@@ -73,6 +73,7 @@ function rotation(name: string, direction: "left" | "right", circular: boolean):
 }
 
 export const instructions8080 = {
+  ...intelStatusInstructions(cpu, cpu8080Status, "8080"),
   ...intelRegisterStacks(cpu, (register, operation) => `${operation.toUpperCase()} ${register[0]!.toUpperCase()}`),
   ...intelSubroutines(cpu, conditions, {
     call: condition => condition === undefined ? "CALL" : ["CNZ", "CZ", "CNC", "CC", "CPO", "CPE", "CP", "CM"][condition]!,

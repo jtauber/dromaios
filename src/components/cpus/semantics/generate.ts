@@ -33,6 +33,10 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
 
     function number(expr: Expression, scope: Scope): CapturedNumber {
       switch (expr.kind) {
+        case "select": {
+          const yes = number(expr.yes, scope), no = number(expr.no, scope);
+          return { code: `((${flag(expr.condition, scope)}) ? ${yes.code} : ${no.code})`, type: yes.type };
+        }
         case "value": return scope.get(expr.name)! as CapturedNumber; // Validation has resolved names and types.
         case "literal": return { code: `0x${expr.value.toString(16)}`, type: expr.width };
         case "high-byte": return { code: `(${number(expr.value, scope).code} >>> 8)`, type: 8 };
@@ -69,6 +73,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
         case "flag-literal": return String(expr.value);
         case "not": return `!(${flag(expr.value, scope)})`;
         case "xor": return `(${flag(expr.left, scope)}) !== (${flag(expr.right, scope)})`;
+        case "or": return `(${flag(expr.left, scope)}) || (${flag(expr.right, scope)})`;
         case "and": return `(${flag(expr.left, scope)}) && (${flag(expr.right, scope)})`;
         case "negative": case "low-bit": case "zero": case "even-parity": {
           const value = number(expr.value, scope);
@@ -112,8 +117,8 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
           case "write-register": emit(`state${field(step.register.field)} = ${number(step.value, scope).code};`); continue;
           case "write-latch": emit(`state${field(step.latch.field)} = ${step.value};`); continue;
           case "write-memory": emit(`${access("writeByte")}(${number(step.address, scope).code}, ${number(step.value, scope).code});`); continue;
-          case "update-flags": {
-            comment(`Flags: ${step.policy.name}; preserve unlisted flags`);
+          case "update-flags": case "replace-flags": {
+            comment(`Flags: ${step.policy.name}; ${step.kind === "replace-flags" ? "replace flag object" : "preserve unlisted flags"}`);
             // Arguments are pure expressions in the caller's scope. Evaluate once, before the policy.
             const parameters = new Map<string, CapturedValue>();
             for (const name of Object.keys(step.policy.parameters)) {
@@ -129,7 +134,8 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "6
               emit(`const ${code} = ${flag(update.value, parameters)};`);
               return { field: update.flag.field, code };
             });
-            for (const update of updates) emit(`state.flags${field(update.field)} = ${update.code};`);
+            if (step.kind === "replace-flags") emit(`state.flags = { ${updates.map(update => `[${JSON.stringify(update.field)}]: ${update.code}`).join(", ")} };`);
+            else for (const update of updates) emit(`state.flags${field(update.field)} = ${update.code};`);
             continue;
           }
         }

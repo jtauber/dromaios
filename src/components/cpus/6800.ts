@@ -1,6 +1,5 @@
 import type { Ram } from "../memory/ram.js";
 import type { FetchedInstruction, StateTransition, InstructionStep, WaitingStep } from "./execution-records.ts";
-import { flagRegister } from "./flags.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import { readWordBE } from "./binary.ts";
@@ -11,9 +10,9 @@ import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaDecimalAdjust, motorolaBranchNames } from "./motorola.ts";
+import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaBranchNames } from "./motorola.ts";
 import { instructions as semantics } from "./generated/6800.ts";
-import { cpu6800StateDescription } from "./state/6800.ts";
+import { cpu6800StateDescription, cpu6800Status as packedFlags } from "./state/6800.ts";
 import type { Cpu6800State } from "./state/6800.ts";
 
 export { cpu6800StateDescription } from "./state/6800.ts";
@@ -41,7 +40,6 @@ type OpcodeHandler = (instruction: InstructionContext) => void;
 type AddressReader = (instruction: InstructionContext) => number;
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
-const packedFlags = flagRegister({ h: 5, i: 4, n: 3, z: 2, v: 1, c: 0 }, 0xc0);
 
 /** Instruction-level Motorola 6800 with explicit boundary IRQ/NMI delivery. */
 export class Cpu6800 {
@@ -117,17 +115,17 @@ export class Cpu6800 {
   readonly #operandHandlers = motorolaOperandBindings(() => this.#state, this.#memoryModes);
 
   readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    ...instructionPattern("0000 0001", () => {}), // NOP
+    ...instructionPattern("0000 0001", () => semantics.nop(this.#state)), // NOP
 
     // 0000011 d: d=0 moves A's low six bits into CC; d=1 packs CC into A with bits 7/6 set.
-    ...instructionPattern("0000011 0", () => { this.#state.flags = packedFlags.decode(this.#state.a); }), // TAP
-    ...instructionPattern("0000011 1", () => { this.#state.a = packedFlags.encode(this.#state.flags); }), // TPA
+    ...instructionPattern("0000011 0", () => semantics.tap(this.#state)), // TAP
+    ...instructionPattern("0000011 1", () => semantics.tpa(this.#state)), // TPA
 
     // 00001 ff v: ff=00 adjusts X; ff=01/10/11 clears or sets V/C/I.
-    ...opcodeFamily("00001 00 d", { d: [1, -1] }, ({ d: delta }) => () => this.#adjustIndex(delta)), // INX / DEX; only Z changes
-    ...opcodeFamily("00001 01 v", { v: [false, true] }, ({ v: value }) => () => { this.#state.flags.v = value; }), // CLV / SEV
-    ...opcodeFamily("00001 10 v", { v: [false, true] }, ({ v: value }) => () => { this.#state.flags.c = value; }), // CLC / SEC
-    ...opcodeFamily("00001 11 v", { v: [false, true] }, ({ v: value }) => () => { this.#state.flags.i = value; }), // CLI / SEI
+    ...opcodeFamily("00001 00 d", { d: [semantics.inx, semantics.dex] }, ({ d: execute }) => () => execute(this.#state)), // INX / DEX; only Z changes
+    ...opcodeFamily("00001 01 v", { v: [semantics.clv, semantics.sev] }, ({ v: execute }) => () => execute(this.#state)), // CLV / SEV
+    ...opcodeFamily("00001 10 v", { v: [semantics.clc, semantics.sec] }, ({ v: execute }) => () => execute(this.#state)), // CLC / SEC
+    ...opcodeFamily("00001 11 v", { v: [semantics.cli, semantics.sei] }, ({ v: execute }) => () => execute(this.#state)), // CLI / SEI
 
     // 0001000 c: subtract B from A; c=1 compares without replacing A. Both ignore incoming carry.
     ...instructionPattern("0001000 0", () => semantics.sba(this.#state)), // SBA
@@ -137,7 +135,7 @@ export class Cpu6800 {
     ...instructionPattern("0001011 0", () => semantics.tab(this.#state)), // TAB
     ...instructionPattern("0001011 1", () => semantics.tba(this.#state)), // TBA
 
-    ...instructionPattern("0001 1001", () => { this.#state.a = motorolaDecimalAdjust(this.#state.a, this.#state.flags); }), // DAA
+    ...instructionPattern("0001 1001", () => semantics.daa(this.#state)), // DAA
     ...instructionPattern("0001 1011", () => semantics.aba(this.#state)), // ABA
 
     // 0010 cccc, cccc=tttp: bits 3..1 select a condition; bit 0 selects it (0) or its inverse (1).
@@ -147,11 +145,11 @@ export class Cpu6800 {
 
     // 00110 p q r: q=1 pulls (p=0) or pushes (p=1) A/B (r=0/1).
     // q=0 manipulates SP/X. Every instruction in this group preserves all flags.
-    ...instructionPattern("00110 0 0 0", () => { this.#state.x = (this.#state.sp + 1) & 0xffff; }), // TSX
-    ...instructionPattern("00110 0 0 1", () => { this.#state.sp = (this.#state.sp + 1) & 0xffff; }), // INS
+    ...instructionPattern("00110 0 0 0", () => semantics.tsx(this.#state)), // TSX
+    ...instructionPattern("00110 0 0 1", () => semantics.ins(this.#state)), // INS
     ...opcodeFamily("00110 0 1 r", { r: [semantics.pulA, semantics.pulB] }, ({ r: execute }) => (instruction: InstructionContext) => execute(this.#state, instruction)), // PULA / PULB
-    ...instructionPattern("00110 1 0 0", () => { this.#state.sp = (this.#state.sp - 1) & 0xffff; }), // DES
-    ...instructionPattern("00110 1 0 1", () => { this.#state.sp = (this.#state.x - 1) & 0xffff; }), // TXS
+    ...instructionPattern("00110 1 0 0", () => semantics.des(this.#state)), // DES
+    ...instructionPattern("00110 1 0 1", () => semantics.txs(this.#state)), // TXS
     ...opcodeFamily("00110 1 1 r", { r: [semantics.pshA, semantics.pshB] }, ({ r: execute }) => (instruction: InstructionContext) => execute(this.#state, instruction)), // PSHA / PSHB
     ...instructionPattern("0011 1001", instruction => semantics.rts(this.#state, instruction)), // RTS
     ...instructionPattern("0011 1011", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
@@ -203,13 +201,6 @@ export class Cpu6800 {
 
   #indexedAddress(offset: number): number {
     return (this.#state.x + offset) & 0xffff;
-  }
-
-  // Index adjustments.
-
-  #adjustIndex(delta: -1 | 1): void {
-    this.#state.x = (this.#state.x + delta) & 0xffff;
-    this.#state.flags.z = this.#state.x === 0;
   }
 
   // Interrupts and stack operations.

@@ -1,4 +1,3 @@
-import { add } from "./alu.ts";
 import { negativeZero } from "./flags.ts";
 import type { ArithmeticWidth, AdditionResult, SubtractionResult } from "./alu.ts";
 import type { ByteMemory } from "./memory-access.ts";
@@ -31,17 +30,6 @@ export const motorolaBranchNames = ["bra", "brn", "bhi", "bls", "bcc", "bcs", "b
 export function motorolaArithmeticFlags(width: ArithmeticWidth, facts: AdditionResult | SubtractionResult) {
   return { ...negativeZero(width, facts.result), v: facts.overflow,
     c: "carry" in facts ? facts.carry : facts.borrow };
-}
-
-/** Decimal correction uses the original byte and H/C; preserve H and the control flags. */
-export function motorolaDecimalAdjust(value: number, flags: ConditionCodes & { h: boolean }): number {
-  const low = (value & 0x0f) > 9 || flags.h ? 0x06 : 0;
-  const high = value > 0x99 || flags.c ? 0x60 : 0;
-  const { result, carry } = add(8, value, low + high);
-  Object.assign(flags, negativeZero(8, result));
-  flags.v = false; // Explicit model policy for the hardware-undefined V.
-  flags.c = flags.c || carry;
-  return result;
 }
 
 type UnaryName = "neg" | "com" | "lsr" | "ror" | "asr" | "asl" | "rol" | "dec" | "inc" | "tst" | "clr";

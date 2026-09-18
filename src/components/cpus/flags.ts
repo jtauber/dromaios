@@ -14,7 +14,8 @@ export function flagRegister<const Bits extends Readonly<Record<string, number>>
   if (new Set(fields.map(([, bit]) => bit)).size !== fields.length || (fixed & mask) !== 0) {
     throw new Error("Flag bits must be distinct and must not overlap fixed bits.");
   }
-  return {
+  return Object.freeze({
+    bits: Object.freeze({ ...bits }), fixed,
     encode(flags: Readonly<Flags>): number {
       return fields.reduce((value, [name, bit]) => flags[name] ? value | bit : value, fixed) >>> 0;
     },
@@ -22,7 +23,7 @@ export function flagRegister<const Bits extends Readonly<Record<string, number>>
       // Every declared bit produces exactly one Boolean; unmodeled input bits are ignored.
       return Object.fromEntries(fields.map(([name, bit]) => [name, (value & bit) !== 0])) as Flags;
     },
-  };
+  });
 }
 
 /** N/Z for an unsigned result already reduced to its operation width; does not change stored flags. */

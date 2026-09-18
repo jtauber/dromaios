@@ -1,3 +1,4 @@
+import { flagRegister } from "../flags.ts";
 import { defineState, unsigned, flag, boolean, choices, group } from "../state.ts";
 import type { StateValues } from "../state.ts";
 
@@ -19,3 +20,6 @@ export type CpuZ80State = StateValues<typeof cpuZ80StateDescription>;
 export type CpuZ80Flags = CpuZ80State["flags"];
 
 export type CpuZ80RegisterBank = StateValues<typeof bankFields>;
+
+// F = S Z 0 H 0 PV N C. Unmodeled bits 5/3 pack as zero, not hardware constants.
+export const cpuZ80Status = flagRegister({ s: 7, z: 6, h: 4, pv: 2, n: 1, c: 0 });

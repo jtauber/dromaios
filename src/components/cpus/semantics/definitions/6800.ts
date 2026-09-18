@@ -1,5 +1,5 @@
-import { cpu6800StateDescription } from "../../state/6800.ts";
-import { cpuSymbols, highByte, negative, overflow, readRegister, writeRegister, subtract, value, zero } from "../model.ts";
+import { cpu6800StateDescription, cpu6800Status } from "../../state/6800.ts";
+import { addWrap, cpuSymbols, highByte, literal, negative, overflow, readRegister, readSource, updateFlags, writeRegister, subtract, value, zero } from "../model.ts";
 import type { FlagPolicy } from "../model.ts";
 import { compare, registerSource, transfer } from "../builders.ts";
 import { motorolaArithmetic, motorolaBranches, motorolaByteArithmetic, motorolaResultFlags, motorolaSubroutines, motorolaTransfers, motorolaComparison, motorolaComparisonFlags, motorolaLogic, motorolaUnary } from "../motorola.ts";
@@ -7,6 +7,8 @@ import { defineInstruction } from "../validate.ts";
 import { resolvedJump } from "../control-flow.ts";
 import { motorolaBranchNames } from "../../motorola.ts";
 import { byteStack, stackPop, stackPush } from "../stack.ts";
+import { flagInstruction, flagPolicy, packedStatus, restoreStatus } from "../status.ts";
+import { decimalAdjust } from "../decimal.ts";
 
 const cpu = cpuSymbols("6800", cpu6800StateDescription);
 
@@ -21,6 +23,26 @@ const indexComparison: FlagPolicy = {
 };
 
 export const instructions6800 = {
+  nop: defineInstruction({ cpu: cpu.declaration, name: "NOP", explanation: "No effects after opcode fetching.", steps: [] }),
+  daa: decimalAdjust(cpu, "motorola"),
+  ...Object.fromEntries((["v", "c", "i"] as const).flatMap(flag => [false, true].map(set => {
+    const name = `${set ? "se" : "cl"}${flag}`; return [name, flagInstruction(cpu, name.toUpperCase(), flag, set)];
+  }))),
+  tap: defineInstruction({ cpu: cpu.declaration, name: "TAP", explanation: "Capture A and replace all six flags, ignoring bits 7/6.",
+    steps: [readRegister("status", cpu.register("a")), restoreStatus(cpu, cpu6800Status, value("status"))] }),
+  tpa: defineInstruction({ cpu: cpu.declaration, name: "TPA", explanation: "Capture all six flags and write A, setting reserved bits 7/6.",
+    steps: [readSource("status", packedStatus(cpu, cpu6800Status)), writeRegister(cpu.register("a"), value("status"))] }),
+  ...Object.fromEntries(([
+    ["inx", "x", "x", 1], ["dex", "x", "x", -1], ["ins", "sp", "sp", 1], ["des", "sp", "sp", -1],
+    ["tsx", "sp", "x", 1], ["txs", "x", "sp", -1],
+  ] as const).map(([name, from, to, delta]) => [name, defineInstruction({ cpu: cpu.declaration, name: name.toUpperCase(),
+    explanation: `Capture ${from.toUpperCase()}, ${delta === 1 ? "add" : "subtract"} one with word wrap, and write ${to.toUpperCase()}. `
+      + (from === "x" && to === "x" ? "Then update Z only." : "Preserve all flags."),
+    steps: [...transfer(cpu.register(to), { name: "adjusted word", width: 16, steps: [readRegister("original", cpu.register(from))],
+        result: (delta === 1 ? addWrap : subtract)(value("original"), literal(16, 1)) }),
+      ...(from === "x" && to === "x" ? [readRegister("adjusted", cpu.register("x")),
+        updateFlags(flagPolicy(cpu, "index Z", { result: 16 }, { z: zero(value("result")) }), { result: value("adjusted") })] : [])],
+  })])),
   ...motorolaSubroutines(cpu, cpu.register("sp"), "free"),
   ...Object.fromEntries((["a", "b"] as const).flatMap(register => {
     const stack = byteStack(cpu.register("sp"), "free"), suffix = register.toUpperCase();

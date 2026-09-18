@@ -95,6 +95,28 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 PHP
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+original:u8 := source "packed status" {
+  n:flag := read N
+  v:flag := read V
+  d:flag := read D
+  i:flag := read I
+  z:flag := read Z
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(30:u8, select(n, 80:u8, 00:u8)), select(v, 40:u8, 00:u8)), select(d, 08:u8, 00:u8)), select(i, 04:u8, 00:u8)), select(z, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+byteAddress:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(byteAddress))] := original
+bytePointer:u8 := read SP
+write SP:u8 := subtract(bytePointer, 01:u8)
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 ORA #byte
 
 Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
@@ -280,6 +302,18 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 CLC
+
+Clear C; preserve every other flag and register.
+
+```text
+flags "CLC" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: N, V, D, I, Z.
 
 ### 6502 ORA absolute,Y
 
@@ -481,6 +515,30 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 PLP
+
+Pull status, then replace all six flags, ignoring reserved bits. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+status:u8 := source "pop byte through SP" {
+  pointer:u8 := read SP
+  write SP:u8 := addWrap(pointer, 01:u8)
+  address:u8 := read SP
+  byte:u8 := read memory[bitOr(0100:u16, zeroExtend16(address))]
+  yield byte
+}
+replace flags "restore packed status" simultaneously {
+  N := not(isZero(bitAnd(status, 80:u8)))
+  V := not(isZero(bitAnd(status, 40:u8)))
+  D := not(isZero(bitAnd(status, 08:u8)))
+  I := not(isZero(bitAnd(status, 04:u8)))
+  Z := not(isZero(bitAnd(status, 02:u8)))
+  C := not(isZero(bitAnd(status, 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
 
 ### 6502 AND #byte
 
@@ -694,6 +752,18 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 SEC
+
+Set C; preserve every other flag and register.
+
+```text
+flags "SEC" simultaneously {
+  C := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: N, V, D, I, Z.
 
 ### 6502 AND absolute,Y
 
@@ -1069,6 +1139,18 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 CLI
+
+Clear I; preserve every other flag and register.
+
+```text
+flags "CLI" simultaneously {
+  I := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: N, V, D, Z, C.
+
 ### 6502 EOR absolute,Y
 
 Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
@@ -1174,6 +1256,97 @@ write PC:u16 := addWrap(returnPC, 0001:u16)
 
 Flags preserved throughout: N, V, D, I, Z, C.
 
+### 6502 ADC (zero page,X)
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. In decimal mode, Z follows binary addition, N/V follow low-digit correction, and C follows the decimal threshold; flags precede A. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at indexed indirect (zero page,X)" {
+  address:u16 := source "indexed indirect (zero page,X)" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    pointer := addWrap(offset, index)
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    yield base
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := addWrap(left, right, carry)
+decimal:flag := read D
+when not(decimal) {
+  write A:u8 := binary
+  flags "ADC binary N/Z" simultaneously {
+    N := topBit(binary)
+    Z := isZero(binary)
+  } // Preserve unlisted flags.
+  flags "ADC binary C/V" simultaneously {
+    C := carry(left, right, carry)
+    V := addOverflow(left, right, carry)
+  } // Preserve unlisted flags.
+}
+when decimal {
+  low := addWrap(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), carry)
+  intermediate := addWrap(addWrap(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(not(borrow(low, 000A:u16)), bitOr(bitAnd(addWrap(low, 0006:u16), 000F:u16), 0010:u16), low))
+  flags "ADC NMOS decimal flags" simultaneously {
+    Z := isZero(binary)
+    N := topBit(lowByte(intermediate))
+    V := not(isZero(bitAnd(bitAnd(bitXor(left, lowByte(intermediate)), bitXor(bitXor(left, right), FF:u8)), 80:u8)))
+    C := not(borrow(intermediate, 00A0:u16))
+  } // Preserve unlisted flags.
+  write A:u8 := lowByte(addWrap(intermediate, select(not(borrow(intermediate, 00A0:u16)), 0060:u16, 0000:u16)))
+}
+```
+
+Flags preserved throughout: D, I.
+
+### 6502 ADC zero page
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. In decimal mode, Z follows binary addition, N/V follow low-digit correction, and C follows the decimal threshold; flags precede A. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := addWrap(left, right, carry)
+decimal:flag := read D
+when not(decimal) {
+  write A:u8 := binary
+  flags "ADC binary N/Z" simultaneously {
+    N := topBit(binary)
+    Z := isZero(binary)
+  } // Preserve unlisted flags.
+  flags "ADC binary C/V" simultaneously {
+    C := carry(left, right, carry)
+    V := addOverflow(left, right, carry)
+  } // Preserve unlisted flags.
+}
+when decimal {
+  low := addWrap(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), carry)
+  intermediate := addWrap(addWrap(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(not(borrow(low, 000A:u16)), bitOr(bitAnd(addWrap(low, 0006:u16), 000F:u16), 0010:u16), low))
+  flags "ADC NMOS decimal flags" simultaneously {
+    Z := isZero(binary)
+    N := topBit(lowByte(intermediate))
+    V := not(isZero(bitAnd(bitAnd(bitXor(left, lowByte(intermediate)), bitXor(bitXor(left, right), FF:u8)), 80:u8)))
+    C := not(borrow(intermediate, 00A0:u16))
+  } // Preserve unlisted flags.
+  write A:u8 := lowByte(addWrap(intermediate, select(not(borrow(intermediate, 00A0:u16)), 0060:u16, 0000:u16)))
+}
+```
+
+Flags preserved throughout: D, I.
+
 ### 6502 ROR zero page
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -1220,6 +1393,45 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I, C.
 
+### 6502 ADC #byte
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. In decimal mode, Z follows binary addition, N/V follow low-digit correction, and C follows the decimal threshold; flags precede A. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := addWrap(left, right, carry)
+decimal:flag := read D
+when not(decimal) {
+  write A:u8 := binary
+  flags "ADC binary N/Z" simultaneously {
+    N := topBit(binary)
+    Z := isZero(binary)
+  } // Preserve unlisted flags.
+  flags "ADC binary C/V" simultaneously {
+    C := carry(left, right, carry)
+    V := addOverflow(left, right, carry)
+  } // Preserve unlisted flags.
+}
+when decimal {
+  low := addWrap(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), carry)
+  intermediate := addWrap(addWrap(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(not(borrow(low, 000A:u16)), bitOr(bitAnd(addWrap(low, 0006:u16), 000F:u16), 0010:u16), low))
+  flags "ADC NMOS decimal flags" simultaneously {
+    Z := isZero(binary)
+    N := topBit(lowByte(intermediate))
+    V := not(isZero(bitAnd(bitAnd(bitXor(left, lowByte(intermediate)), bitXor(bitXor(left, right), FF:u8)), 80:u8)))
+    C := not(borrow(intermediate, 00A0:u16))
+  } // Preserve unlisted flags.
+  write A:u8 := lowByte(addWrap(intermediate, select(not(borrow(intermediate, 00A0:u16)), 0060:u16, 0000:u16)))
+}
+```
+
+Flags preserved throughout: D, I.
+
 ### 6502 ROR A
 
 Read A before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -1259,6 +1471,50 @@ write PC:u16 := target
 ```
 
 Flags preserved throughout: N, V, D, I, Z, C.
+
+### 6502 ADC absolute
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. In decimal mode, Z follows binary addition, N/V follow low-digit correction, and C follows the decimal threshold; flags precede A. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := addWrap(left, right, carry)
+decimal:flag := read D
+when not(decimal) {
+  write A:u8 := binary
+  flags "ADC binary N/Z" simultaneously {
+    N := topBit(binary)
+    Z := isZero(binary)
+  } // Preserve unlisted flags.
+  flags "ADC binary C/V" simultaneously {
+    C := carry(left, right, carry)
+    V := addOverflow(left, right, carry)
+  } // Preserve unlisted flags.
+}
+when decimal {
+  low := addWrap(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), carry)
+  intermediate := addWrap(addWrap(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(not(borrow(low, 000A:u16)), bitOr(bitAnd(addWrap(low, 0006:u16), 000F:u16), 0010:u16), low))
+  flags "ADC NMOS decimal flags" simultaneously {
+    Z := isZero(binary)
+    N := topBit(lowByte(intermediate))
+    V := not(isZero(bitAnd(bitAnd(bitXor(left, lowByte(intermediate)), bitXor(bitXor(left, right), FF:u8)), 80:u8)))
+    C := not(borrow(intermediate, 00A0:u16))
+  } // Preserve unlisted flags.
+  write A:u8 := lowByte(addWrap(intermediate, select(not(borrow(intermediate, 00A0:u16)), 0060:u16, 0000:u16)))
+}
+```
+
+Flags preserved throughout: D, I.
 
 ### 6502 ROR absolute
 
@@ -1304,6 +1560,98 @@ when condition {
 
 Flags preserved throughout: N, V, D, I, Z, C.
 
+### 6502 ADC (zero page),Y
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. In decimal mode, Z follows binary addition, N/V follow low-digit correction, and C follows the decimal threshold; flags precede A. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at indirect indexed (zero page),Y" {
+  address:u16 := source "indirect indexed (zero page),Y" {
+    offset:u8 := fetch byte
+    pointer := offset
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    index:u8 := read Y
+    yield addWrap(base, zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := addWrap(left, right, carry)
+decimal:flag := read D
+when not(decimal) {
+  write A:u8 := binary
+  flags "ADC binary N/Z" simultaneously {
+    N := topBit(binary)
+    Z := isZero(binary)
+  } // Preserve unlisted flags.
+  flags "ADC binary C/V" simultaneously {
+    C := carry(left, right, carry)
+    V := addOverflow(left, right, carry)
+  } // Preserve unlisted flags.
+}
+when decimal {
+  low := addWrap(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), carry)
+  intermediate := addWrap(addWrap(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(not(borrow(low, 000A:u16)), bitOr(bitAnd(addWrap(low, 0006:u16), 000F:u16), 0010:u16), low))
+  flags "ADC NMOS decimal flags" simultaneously {
+    Z := isZero(binary)
+    N := topBit(lowByte(intermediate))
+    V := not(isZero(bitAnd(bitAnd(bitXor(left, lowByte(intermediate)), bitXor(bitXor(left, right), FF:u8)), 80:u8)))
+    C := not(borrow(intermediate, 00A0:u16))
+  } // Preserve unlisted flags.
+  write A:u8 := lowByte(addWrap(intermediate, select(not(borrow(intermediate, 00A0:u16)), 0060:u16, 0000:u16)))
+}
+```
+
+Flags preserved throughout: D, I.
+
+### 6502 ADC zero page,X
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. In decimal mode, Z follows binary addition, N/V follow low-digit correction, and C follows the decimal threshold; flags precede A. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at zero page indexed by X" {
+  address:u16 := source "zero page indexed by X" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    yield zeroExtend16(addWrap(offset, index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := addWrap(left, right, carry)
+decimal:flag := read D
+when not(decimal) {
+  write A:u8 := binary
+  flags "ADC binary N/Z" simultaneously {
+    N := topBit(binary)
+    Z := isZero(binary)
+  } // Preserve unlisted flags.
+  flags "ADC binary C/V" simultaneously {
+    C := carry(left, right, carry)
+    V := addOverflow(left, right, carry)
+  } // Preserve unlisted flags.
+}
+when decimal {
+  low := addWrap(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), carry)
+  intermediate := addWrap(addWrap(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(not(borrow(low, 000A:u16)), bitOr(bitAnd(addWrap(low, 0006:u16), 000F:u16), 0010:u16), low))
+  flags "ADC NMOS decimal flags" simultaneously {
+    Z := isZero(binary)
+    N := topBit(lowByte(intermediate))
+    V := not(isZero(bitAnd(bitAnd(bitXor(left, lowByte(intermediate)), bitXor(bitXor(left, right), FF:u8)), 80:u8)))
+    C := not(borrow(intermediate, 00A0:u16))
+  } // Preserve unlisted flags.
+  write A:u8 := lowByte(addWrap(intermediate, select(not(borrow(intermediate, 00A0:u16)), 0060:u16, 0000:u16)))
+}
+```
+
+Flags preserved throughout: D, I.
+
 ### 6502 ROR zero page,X
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -1329,6 +1677,108 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 SEI
+
+Set I; preserve every other flag and register.
+
+```text
+flags "SEI" simultaneously {
+  I := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: N, V, D, Z, C.
+
+### 6502 ADC absolute,Y
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. In decimal mode, Z follows binary addition, N/V follow low-digit correction, and C follows the decimal threshold; flags precede A. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at absolute indexed by Y" {
+  address:u16 := source "absolute indexed by Y" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read Y
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := addWrap(left, right, carry)
+decimal:flag := read D
+when not(decimal) {
+  write A:u8 := binary
+  flags "ADC binary N/Z" simultaneously {
+    N := topBit(binary)
+    Z := isZero(binary)
+  } // Preserve unlisted flags.
+  flags "ADC binary C/V" simultaneously {
+    C := carry(left, right, carry)
+    V := addOverflow(left, right, carry)
+  } // Preserve unlisted flags.
+}
+when decimal {
+  low := addWrap(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), carry)
+  intermediate := addWrap(addWrap(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(not(borrow(low, 000A:u16)), bitOr(bitAnd(addWrap(low, 0006:u16), 000F:u16), 0010:u16), low))
+  flags "ADC NMOS decimal flags" simultaneously {
+    Z := isZero(binary)
+    N := topBit(lowByte(intermediate))
+    V := not(isZero(bitAnd(bitAnd(bitXor(left, lowByte(intermediate)), bitXor(bitXor(left, right), FF:u8)), 80:u8)))
+    C := not(borrow(intermediate, 00A0:u16))
+  } // Preserve unlisted flags.
+  write A:u8 := lowByte(addWrap(intermediate, select(not(borrow(intermediate, 00A0:u16)), 0060:u16, 0000:u16)))
+}
+```
+
+Flags preserved throughout: D, I.
+
+### 6502 ADC absolute,X
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. In decimal mode, Z follows binary addition, N/V follow low-digit correction, and C follows the decimal threshold; flags precede A. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at absolute indexed by X" {
+  address:u16 := source "absolute indexed by X" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read X
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := addWrap(left, right, carry)
+decimal:flag := read D
+when not(decimal) {
+  write A:u8 := binary
+  flags "ADC binary N/Z" simultaneously {
+    N := topBit(binary)
+    Z := isZero(binary)
+  } // Preserve unlisted flags.
+  flags "ADC binary C/V" simultaneously {
+    C := carry(left, right, carry)
+    V := addOverflow(left, right, carry)
+  } // Preserve unlisted flags.
+}
+when decimal {
+  low := addWrap(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), carry)
+  intermediate := addWrap(addWrap(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(not(borrow(low, 000A:u16)), bitOr(bitAnd(addWrap(low, 0006:u16), 000F:u16), 0010:u16), low))
+  flags "ADC NMOS decimal flags" simultaneously {
+    Z := isZero(binary)
+    N := topBit(lowByte(intermediate))
+    V := not(isZero(bitAnd(bitAnd(bitXor(left, lowByte(intermediate)), bitXor(bitXor(left, right), FF:u8)), 80:u8)))
+    C := not(borrow(intermediate, 00A0:u16))
+  } // Preserve unlisted flags.
+  write A:u8 := lowByte(addWrap(intermediate, select(not(borrow(intermediate, 00A0:u16)), 0060:u16, 0000:u16)))
+}
+```
+
+Flags preserved throughout: D, I.
 
 ### 6502 ROR absolute,X
 
@@ -2022,6 +2472,18 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I, C.
 
+### 6502 CLV
+
+Clear V; preserve every other flag and register.
+
+```text
+flags "CLV" simultaneously {
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: N, D, I, Z, C.
+
 ### 6502 LDA absolute,Y
 
 Finish the source reads before writing the destination, then set N/Z from the captured byte. Preserve V, D, I, and C. A failed source read leaves the destination and every flag unchanged.
@@ -2472,6 +2934,18 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I, C.
 
+### 6502 CLD
+
+Clear D; preserve every other flag and register.
+
+```text
+flags "CLD" simultaneously {
+  D := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: N, V, I, Z, C.
+
 ### 6502 CMP absolute,Y
 
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
@@ -2567,6 +3041,46 @@ flags "6502 comparison" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 SBC (zero page,X)
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. SBC writes the binary result and N/Z/C/V first; decimal mode then corrects A only. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at indexed indirect (zero page,X)" {
+  address:u16 := source "indexed indirect (zero page,X)" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    pointer := addWrap(offset, index)
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    yield base
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := subtract(left, right, not(carry))
+write A:u8 := binary
+flags "SBC binary N/Z" simultaneously {
+  N := topBit(binary)
+  Z := isZero(binary)
+} // Preserve unlisted flags.
+flags "SBC binary C/V" simultaneously {
+  C := not(borrow(left, right, not(carry)))
+  V := subtractOverflow(left, right, not(carry))
+} // Preserve unlisted flags.
+decimal:flag := read D
+when decimal {
+  low := subtract(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), not(carry))
+  intermediate := addWrap(subtract(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(topBit(low), subtract(bitAnd(subtract(low, 0006:u16), 000F:u16), 0010:u16), low))
+  write A:u8 := lowByte(select(topBit(intermediate), subtract(intermediate, 0060:u16), intermediate))
+}
+```
+
+Flags preserved throughout: D, I.
+
 ### 6502 CPX zero page
 
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
@@ -2590,6 +3104,41 @@ flags "6502 comparison" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 SBC zero page
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. SBC writes the binary result and N/Z/C/V first; decimal mode then corrects A only. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at zero page" {
+  address:u16 := source "zero page" {
+    offset:u8 := fetch byte
+    yield zeroExtend16(offset)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := subtract(left, right, not(carry))
+write A:u8 := binary
+flags "SBC binary N/Z" simultaneously {
+  N := topBit(binary)
+  Z := isZero(binary)
+} // Preserve unlisted flags.
+flags "SBC binary C/V" simultaneously {
+  C := not(borrow(left, right, not(carry)))
+  V := subtractOverflow(left, right, not(carry))
+} // Preserve unlisted flags.
+decimal:flag := read D
+when decimal {
+  low := subtract(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), not(carry))
+  intermediate := addWrap(subtract(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(topBit(low), subtract(bitAnd(subtract(low, 0006:u16), 000F:u16), 0010:u16), low))
+  write A:u8 := lowByte(select(topBit(intermediate), subtract(intermediate, 0060:u16), intermediate))
+}
+```
+
+Flags preserved throughout: D, I.
 
 ### 6502 INC zero page
 
@@ -2628,6 +3177,47 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I, C.
 
+### 6502 SBC #byte
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. SBC writes the binary result and N/Z/C/V first; decimal mode then corrects A only. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := subtract(left, right, not(carry))
+write A:u8 := binary
+flags "SBC binary N/Z" simultaneously {
+  N := topBit(binary)
+  Z := isZero(binary)
+} // Preserve unlisted flags.
+flags "SBC binary C/V" simultaneously {
+  C := not(borrow(left, right, not(carry)))
+  V := subtractOverflow(left, right, not(carry))
+} // Preserve unlisted flags.
+decimal:flag := read D
+when decimal {
+  low := subtract(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), not(carry))
+  intermediate := addWrap(subtract(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(topBit(low), subtract(bitAnd(subtract(low, 0006:u16), 000F:u16), 0010:u16), low))
+  write A:u8 := lowByte(select(topBit(intermediate), subtract(intermediate, 0060:u16), intermediate))
+}
+```
+
+Flags preserved throughout: D, I.
+
+### 6502 NOP
+
+No effects after opcode fetching.
+
+```text
+
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 CPX absolute
 
 Read the source before the comparison register. Subtract without writing a destination. C means no borrow; V, D, and I are preserved. Decimal mode does not change comparison.
@@ -2652,6 +3242,42 @@ flags "6502 comparison" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 SBC absolute
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. SBC writes the binary result and N/Z/C/V first; decimal mode then corrects A only. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at absolute address, low byte first" {
+  address:u16 := source "absolute address, low byte first" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := subtract(left, right, not(carry))
+write A:u8 := binary
+flags "SBC binary N/Z" simultaneously {
+  N := topBit(binary)
+  Z := isZero(binary)
+} // Preserve unlisted flags.
+flags "SBC binary C/V" simultaneously {
+  C := not(borrow(left, right, not(carry)))
+  V := subtractOverflow(left, right, not(carry))
+} // Preserve unlisted flags.
+decimal:flag := read D
+when decimal {
+  low := subtract(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), not(carry))
+  intermediate := addWrap(subtract(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(topBit(low), subtract(bitAnd(subtract(low, 0006:u16), 000F:u16), 0010:u16), low))
+  write A:u8 := lowByte(select(topBit(intermediate), subtract(intermediate, 0060:u16), intermediate))
+}
+```
+
+Flags preserved throughout: D, I.
 
 ### 6502 INC absolute
 
@@ -2693,6 +3319,82 @@ when condition {
 
 Flags preserved throughout: N, V, D, I, Z, C.
 
+### 6502 SBC (zero page),Y
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. SBC writes the binary result and N/Z/C/V first; decimal mode then corrects A only. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at indirect indexed (zero page),Y" {
+  address:u16 := source "indirect indexed (zero page),Y" {
+    offset:u8 := fetch byte
+    pointer := offset
+    low:u8 := read memory[zeroExtend16(pointer)]
+    high:u8 := read memory[zeroExtend16(addWrap(pointer, 01:u8))]
+    base := concatHighLow(high, low)
+    index:u8 := read Y
+    yield addWrap(base, zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := subtract(left, right, not(carry))
+write A:u8 := binary
+flags "SBC binary N/Z" simultaneously {
+  N := topBit(binary)
+  Z := isZero(binary)
+} // Preserve unlisted flags.
+flags "SBC binary C/V" simultaneously {
+  C := not(borrow(left, right, not(carry)))
+  V := subtractOverflow(left, right, not(carry))
+} // Preserve unlisted flags.
+decimal:flag := read D
+when decimal {
+  low := subtract(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), not(carry))
+  intermediate := addWrap(subtract(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(topBit(low), subtract(bitAnd(subtract(low, 0006:u16), 000F:u16), 0010:u16), low))
+  write A:u8 := lowByte(select(topBit(intermediate), subtract(intermediate, 0060:u16), intermediate))
+}
+```
+
+Flags preserved throughout: D, I.
+
+### 6502 SBC zero page,X
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. SBC writes the binary result and N/Z/C/V first; decimal mode then corrects A only. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at zero page indexed by X" {
+  address:u16 := source "zero page indexed by X" {
+    offset:u8 := fetch byte
+    index:u8 := read X
+    yield zeroExtend16(addWrap(offset, index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := subtract(left, right, not(carry))
+write A:u8 := binary
+flags "SBC binary N/Z" simultaneously {
+  N := topBit(binary)
+  Z := isZero(binary)
+} // Preserve unlisted flags.
+flags "SBC binary C/V" simultaneously {
+  C := not(borrow(left, right, not(carry)))
+  V := subtractOverflow(left, right, not(carry))
+} // Preserve unlisted flags.
+decimal:flag := read D
+when decimal {
+  low := subtract(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), not(carry))
+  intermediate := addWrap(subtract(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(topBit(low), subtract(bitAnd(subtract(low, 0006:u16), 000F:u16), 0010:u16), low))
+  write A:u8 := lowByte(select(topBit(intermediate), subtract(intermediate, 0060:u16), intermediate))
+}
+```
+
+Flags preserved throughout: D, I.
+
 ### 6502 INC zero page,X
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -2714,6 +3416,92 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I, C.
+
+### 6502 SED
+
+Set D; preserve every other flag and register.
+
+```text
+flags "SED" simultaneously {
+  D := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: N, V, I, Z, C.
+
+### 6502 SBC absolute,Y
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. SBC writes the binary result and N/Z/C/V first; decimal mode then corrects A only. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at absolute indexed by Y" {
+  address:u16 := source "absolute indexed by Y" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read Y
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := subtract(left, right, not(carry))
+write A:u8 := binary
+flags "SBC binary N/Z" simultaneously {
+  N := topBit(binary)
+  Z := isZero(binary)
+} // Preserve unlisted flags.
+flags "SBC binary C/V" simultaneously {
+  C := not(borrow(left, right, not(carry)))
+  V := subtractOverflow(left, right, not(carry))
+} // Preserve unlisted flags.
+decimal:flag := read D
+when decimal {
+  low := subtract(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), not(carry))
+  intermediate := addWrap(subtract(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(topBit(low), subtract(bitAnd(subtract(low, 0006:u16), 000F:u16), 0010:u16), low))
+  write A:u8 := lowByte(select(topBit(intermediate), subtract(intermediate, 0060:u16), intermediate))
+}
+```
+
+Flags preserved throughout: D, I.
+
+### 6502 SBC absolute,X
+
+Finish operand reads before capturing A and carry. Binary mode writes A before N/Z/C/V. SBC writes the binary result and N/Z/C/V first; decimal mode then corrects A only. Each decimal digit passes at most one carry or borrow, including invalid BCD digits. Preserve D/I.
+
+```text
+right:u8 := source "byte at absolute indexed by X" {
+  address:u16 := source "absolute indexed by X" {
+    low:u8 := fetch byte
+    high:u8 := fetch byte
+    index:u8 := read X
+    yield addWrap(concatHighLow(high, low), zeroExtend16(index))
+  }
+  byte:u8 := read memory[address]
+  yield byte
+}
+left:u8 := read A
+carry:flag := read C
+binary := subtract(left, right, not(carry))
+write A:u8 := binary
+flags "SBC binary N/Z" simultaneously {
+  N := topBit(binary)
+  Z := isZero(binary)
+} // Preserve unlisted flags.
+flags "SBC binary C/V" simultaneously {
+  C := not(borrow(left, right, not(carry)))
+  V := subtractOverflow(left, right, not(carry))
+} // Preserve unlisted flags.
+decimal:flag := read D
+when decimal {
+  low := subtract(zeroExtend16(bitAnd(left, 0F:u8)), zeroExtend16(bitAnd(right, 0F:u8)), not(carry))
+  intermediate := addWrap(subtract(zeroExtend16(bitAnd(left, F0:u8)), zeroExtend16(bitAnd(right, F0:u8))), select(topBit(low), subtract(bitAnd(subtract(low, 0006:u16), 000F:u16), 0010:u16), low))
+  write A:u8 := lowByte(select(topBit(intermediate), subtract(intermediate, 0060:u16), intermediate))
+}
+```
+
+Flags preserved throughout: D, I.
 
 ### 6502 INC absolute,X
 
@@ -2737,6 +3525,238 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I, C.
+
+### 6800 NOP
+
+No effects after opcode fetching.
+
+```text
+
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 DAA
+
+Choose low/high corrections from the original A and half/full carry, including invalid BCD inputs. Add the correction; update N/Z, clear undefined V, and retain or set C before writing A. Preserve H and control flags. No instruction or data-memory access occurs.
+
+```text
+original:u8 := read A
+half:flag := read H
+carry:flag := read C
+correction := bitOr(select(or(not(borrow(bitAnd(original, 0F:u8), 0A:u8)), half), 06:u8, 00:u8), select(or(not(borrow(original, 9A:u8)), carry), 60:u8, 00:u8))
+result := addWrap(original, correction)
+flags "DAA" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := or(carry, carry(original, correction))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I.
+
+### 6800 CLV
+
+Clear V; preserve every other flag and register.
+
+```text
+flags "CLV" simultaneously {
+  V := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, Z, C.
+
+### 6800 SEV
+
+Set V; preserve every other flag and register.
+
+```text
+flags "SEV" simultaneously {
+  V := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, Z, C.
+
+### 6800 CLC
+
+Clear C; preserve every other flag and register.
+
+```text
+flags "CLC" simultaneously {
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, Z, V.
+
+### 6800 SEC
+
+Set C; preserve every other flag and register.
+
+```text
+flags "SEC" simultaneously {
+  C := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, Z, V.
+
+### 6800 CLI
+
+Clear I; preserve every other flag and register.
+
+```text
+flags "CLI" simultaneously {
+  I := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, N, Z, V, C.
+
+### 6800 SEI
+
+Set I; preserve every other flag and register.
+
+```text
+flags "SEI" simultaneously {
+  I := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, N, Z, V, C.
+
+### 6800 TAP
+
+Capture A and replace all six flags, ignoring bits 7/6.
+
+```text
+status:u8 := read A
+replace flags "restore packed status" simultaneously {
+  H := not(isZero(bitAnd(status, 20:u8)))
+  I := not(isZero(bitAnd(status, 10:u8)))
+  N := not(isZero(bitAnd(status, 08:u8)))
+  Z := not(isZero(bitAnd(status, 04:u8)))
+  V := not(isZero(bitAnd(status, 02:u8)))
+  C := not(isZero(bitAnd(status, 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 6800 TPA
+
+Capture all six flags and write A, setting reserved bits 7/6.
+
+```text
+status:u8 := source "packed status" {
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(C0:u8, select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+write A:u8 := status
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 INX
+
+Capture X, add one with word wrap, and write X. Then update Z only.
+
+```text
+result:u16 := source "adjusted word" {
+  original:u16 := read X
+  yield addWrap(original, 0001:u16)
+}
+write X:u16 := result
+adjusted:u16 := read X
+flags "index Z" simultaneously {
+  Z := isZero(adjusted)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, V, C.
+
+### 6800 DEX
+
+Capture X, subtract one with word wrap, and write X. Then update Z only.
+
+```text
+result:u16 := source "adjusted word" {
+  original:u16 := read X
+  yield subtract(original, 0001:u16)
+}
+write X:u16 := result
+adjusted:u16 := read X
+flags "index Z" simultaneously {
+  Z := isZero(adjusted)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: H, I, N, V, C.
+
+### 6800 INS
+
+Capture SP, add one with word wrap, and write SP. Preserve all flags.
+
+```text
+result:u16 := source "adjusted word" {
+  original:u16 := read SP
+  yield addWrap(original, 0001:u16)
+}
+write SP:u16 := result
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 DES
+
+Capture SP, subtract one with word wrap, and write SP. Preserve all flags.
+
+```text
+result:u16 := source "adjusted word" {
+  original:u16 := read SP
+  yield subtract(original, 0001:u16)
+}
+write SP:u16 := result
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 TSX
+
+Capture SP, add one with word wrap, and write X. Preserve all flags.
+
+```text
+result:u16 := source "adjusted word" {
+  original:u16 := read SP
+  yield addWrap(original, 0001:u16)
+}
+write X:u16 := result
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 TXS
+
+Capture X, subtract one with word wrap, and write SP. Preserve all flags.
+
+```text
+result:u16 := source "adjusted word" {
+  original:u16 := read X
+  yield subtract(original, 0001:u16)
+}
+write SP:u16 := result
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
 
 ### 6800 BSR
 
@@ -7578,6 +8598,16 @@ flags "8008 CP" simultaneously {
 
 Flags preserved throughout: none.
 
+### 8080 NOP
+
+No effects after opcode fetching.
+
+```text
+
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 LXI B,nn
 
 Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
@@ -7913,6 +8943,28 @@ write H:u8 := result
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 DAA
+
+Choose low/high corrections from the original A and half/full carry, including invalid BCD inputs. Add the correction; replace S/Z/P/AC/CY before writing A. No instruction or data-memory access occurs.
+
+```text
+original:u8 := read A
+half:flag := read AC
+carry:flag := read CY
+correction := bitOr(select(or(not(borrow(bitAnd(original, 0F:u8), 0A:u8)), half), 06:u8, 00:u8), select(or(not(borrow(original, 9A:u8)), carry), 60:u8, 00:u8))
+result := addWrap(original, correction)
+replace flags "DAA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  P := evenParity8(result)
+  AC := not(isZero(bitAnd(bitXor(original, result), 10:u8)))
+  CY := or(not(borrow(original, 9A:u8)), carry)
+} // Replace the complete flag object.
+write A:u8 := result
+```
+
+Flags preserved throughout: none.
+
 ### 8080 DAD H
 
 Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying 8080 DAD carry. Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
@@ -7987,6 +9039,17 @@ write L:u8 := result
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 CMA
+
+Complement A; preserve all flags.
+
+```text
+original:u8 := read A
+write A:u8 := bitXor(original, FF:u8)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 LXI SP,nn
 
 Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
@@ -8048,6 +9111,18 @@ write memory[concatHighLow(high, low)] := result
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 STC
+
+Set CY; preserve every other flag and register.
+
+```text
+flags "STC" simultaneously {
+  CY := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, AC, P.
 
 ### 8080 DAD SP
 
@@ -8117,6 +9192,19 @@ write A:u8 := result
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 CMC
+
+Complement CY; preserve every other flag and register.
+
+```text
+original:flag := read CY
+flags "CMC" simultaneously {
+  CY := not(original)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, AC, P.
 
 ### 8080 MOV B,B
 
@@ -8732,6 +9820,16 @@ result:u8 := read L
 high:u8 := read H
 low:u8 := read L
 write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 HLT
+
+Set the halted latch; preserve registers and flags. Retirement remains in the CPU boundary.
+
+```text
+write halted:boolean := true
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -9709,6 +10807,40 @@ when not(condition) {
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 POP PSW
+
+Pop the complete word before writing A and replacing flags. Ignore reserved status bits. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(result)
+replace flags "restore packed status" simultaneously {
+  S := not(isZero(bitAnd(lowByte(result), 80:u8)))
+  Z := not(isZero(bitAnd(lowByte(result), 40:u8)))
+  AC := not(isZero(bitAnd(lowByte(result), 10:u8)))
+  P := not(isZero(bitAnd(lowByte(result), 04:u8)))
+  CY := not(isZero(bitAnd(lowByte(result), 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
 ### 8080 JP
 
 Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
@@ -9750,6 +10882,35 @@ when not(condition) {
   write memory[secondAddress] := lowByte(returnPC)
   write PC:u16 := target
 }
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 PUSH PSW
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+original:u16 := source "A:PSW" {
+  a:u8 := read A
+  flags:u8 := source "packed status" {
+    s:flag := read S
+    z:flag := read Z
+    ac:flag := read AC
+    p:flag := read P
+    cy:flag := read CY
+    yield bitOr(bitOr(bitOr(bitOr(bitOr(02:u8, select(s, 80:u8, 00:u8)), select(z, 40:u8, 00:u8)), select(ac, 10:u8, 00:u8)), select(p, 04:u8, 00:u8)), select(cy, 01:u8, 00:u8))
+  }
+  yield concatHighLow(a, flags)
+}
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(original)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(original)
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -11913,6 +13074,89 @@ flags "8080 comparison" simultaneously {
   CY := borrow(left, right)
   AC := not(halfBorrow4(left, right))
 } // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
+### 6809 DAA
+
+Choose low/high corrections from the original A and half/full carry, including invalid BCD inputs. Add the correction; update N/Z, clear undefined V, and retain or set C before writing A. Preserve H and control flags. No instruction or data-memory access occurs.
+
+```text
+original:u8 := read A
+half:flag := read H
+carry:flag := read C
+correction := bitOr(select(or(not(borrow(bitAnd(original, 0F:u8), 0A:u8)), half), 06:u8, 00:u8), select(or(not(borrow(original, 9A:u8)), carry), 60:u8, 00:u8))
+result := addWrap(original, correction)
+flags "DAA" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := or(carry, carry(original, correction))
+} // Preserve unlisted flags.
+write A:u8 := result
+```
+
+Flags preserved throughout: E, F, H, I.
+
+### 6809 ORCC
+
+Capture packed CC before fetching the mask, then combine and replace all flags. A failed fetch leaves flags unchanged.
+
+```text
+status:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+mask:u8 := fetch byte
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(bitOr(status, mask), 80:u8)))
+  F := not(isZero(bitAnd(bitOr(status, mask), 40:u8)))
+  H := not(isZero(bitAnd(bitOr(status, mask), 20:u8)))
+  I := not(isZero(bitAnd(bitOr(status, mask), 10:u8)))
+  N := not(isZero(bitAnd(bitOr(status, mask), 08:u8)))
+  Z := not(isZero(bitAnd(bitOr(status, mask), 04:u8)))
+  V := not(isZero(bitAnd(bitOr(status, mask), 02:u8)))
+  C := not(isZero(bitAnd(bitOr(status, mask), 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
+### 6809 ANDCC
+
+Capture packed CC before fetching the mask, then combine and replace all flags. A failed fetch leaves flags unchanged.
+
+```text
+status:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+mask:u8 := fetch byte
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(bitAnd(status, mask), 80:u8)))
+  F := not(isZero(bitAnd(bitAnd(status, mask), 40:u8)))
+  H := not(isZero(bitAnd(bitAnd(status, mask), 20:u8)))
+  I := not(isZero(bitAnd(bitAnd(status, mask), 10:u8)))
+  N := not(isZero(bitAnd(bitAnd(status, mask), 08:u8)))
+  Z := not(isZero(bitAnd(bitAnd(status, mask), 04:u8)))
+  V := not(isZero(bitAnd(bitAnd(status, mask), 02:u8)))
+  C := not(isZero(bitAnd(bitAnd(status, mask), 01:u8)))
+} // Replace the complete flag object.
 ```
 
 Flags preserved throughout: none.
@@ -14723,6 +15967,16 @@ flags "6809 comparison" simultaneously {
 
 Flags preserved throughout: E, F, H, I.
 
+### z80 NOP
+
+No effects after opcode fetching.
+
+```text
+
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 LD BC,nn
 
 Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
@@ -15062,6 +16316,33 @@ write H:u8 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 DAA
+
+Choose low/high corrections from the original A and half/full carry, including invalid BCD inputs. N selects subtract or add. Replace S/Z/H/PV/N/C, write A, then restore incoming N. No instruction or data-memory access occurs.
+
+```text
+original:u8 := read A
+half:flag := read H
+carry:flag := read C
+subtract:flag := read N
+correction := bitOr(select(or(not(borrow(bitAnd(original, 0F:u8), 0A:u8)), half), 06:u8, 00:u8), select(or(not(borrow(original, 9A:u8)), carry), 60:u8, 00:u8))
+result := select(subtract, subtract(original, correction), addWrap(original, correction))
+replace flags "DAA" simultaneously {
+  S := topBit(result)
+  Z := isZero(result)
+  H := not(isZero(bitAnd(bitXor(original, result), 10:u8)))
+  PV := evenParity8(result)
+  N := 0:flag
+  C := or(not(borrow(original, 9A:u8)), carry)
+} // Replace the complete flag object.
+write A:u8 := result
+flags "restore DAA N" simultaneously {
+  N := subtract
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: none.
+
 ### z80 ADD HL,HL
 
 Read the complete source before the destination, even when both operands name the same register. Do not read incoming flags. Add with word wraparound; write the destination before applying Z80 ADD word flags (H at bit 11). Pairs read and write high byte first. Preserve unlisted flags, alternate banks, and control state; no memory access occurs.
@@ -15138,6 +16419,21 @@ write L:u8 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 CPL
+
+Complement A; then set N/H and preserve the other flags.
+
+```text
+original:u8 := read A
+write A:u8 := bitXor(original, FF:u8)
+flags "CPL" simultaneously {
+  N := 1:flag
+  H := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV, C.
+
 ### z80 LD SP,nn
 
 Fetch the immediate low byte then high byte; write the destination only after both fetches succeed. Register pairs use explicit high-then-low byte reads and writes. Preserve flags, alternate banks, and control state without accessing them. Completed accesses remain on failure.
@@ -15199,6 +16495,20 @@ write memory[concatHighLow(high, low)] := result
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 SCF
+
+Set C, then clear N/H; preserve S/Z/PV and all registers.
+
+```text
+flags "SCF" simultaneously {
+  C := 1:flag
+  N := 0:flag
+  H := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
 
 ### z80 ADD HL,SP
 
@@ -15270,6 +16580,21 @@ write A:u8 := result
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CCF
+
+Copy incoming C to H, complement C, and clear N. Preserve S/Z/PV and all registers.
+
+```text
+carry:flag := read C
+flags "CCF" simultaneously {
+  H := carry
+  C := not(carry)
+  N := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: S, Z, PV.
 
 ### z80 LD B,B
 
@@ -15885,6 +17210,16 @@ result:u8 := read L
 high:u8 := read H
 low:u8 := read L
 write memory[concatHighLow(high, low)] := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 HALT
+
+Set the halted latch; preserve registers and flags. Retirement remains in the CPU boundary.
+
+```text
+write halted:boolean := true
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -16862,6 +18197,41 @@ when not(condition) {
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 POP AF
+
+Pop the complete word before writing A and replacing flags. Ignore reserved status bits. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write A:u8 := highByte(result)
+replace flags "restore packed status" simultaneously {
+  S := not(isZero(bitAnd(lowByte(result), 80:u8)))
+  Z := not(isZero(bitAnd(lowByte(result), 40:u8)))
+  H := not(isZero(bitAnd(lowByte(result), 10:u8)))
+  PV := not(isZero(bitAnd(lowByte(result), 04:u8)))
+  N := not(isZero(bitAnd(lowByte(result), 02:u8)))
+  C := not(isZero(bitAnd(lowByte(result), 01:u8)))
+} // Replace the complete flag object.
+```
+
+Flags preserved throughout: none.
+
 ### z80 JP P,nn
 
 Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
@@ -16903,6 +18273,36 @@ when not(condition) {
   write memory[secondAddress] := lowByte(returnPC)
   write PC:u16 := target
 }
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH AF
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+original:u16 := source "A:F" {
+  a:u8 := read A
+  flags:u8 := source "packed status" {
+    s:flag := read S
+    z:flag := read Z
+    h:flag := read H
+    pv:flag := read PV
+    n:flag := read N
+    c:flag := read C
+    yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(s, 80:u8, 00:u8)), select(z, 40:u8, 00:u8)), select(h, 10:u8, 00:u8)), select(pv, 04:u8, 00:u8)), select(n, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  }
+  yield concatHighLow(a, flags)
+}
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(original)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(original)
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.

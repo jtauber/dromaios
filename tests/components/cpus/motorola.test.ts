@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { add, subtract } from "../../../src/components/cpus/alu.js";
-import { motorolaDecimalAdjust, motorolaConditions, motorolaArithmeticFlags } from "../../../src/components/cpus/motorola.js";
+import { motorolaConditions, motorolaArithmeticFlags } from "../../../src/components/cpus/motorola.js";
+
+import { instructions as m6800 } from "../../../src/components/cpus/generated/6800.js";
 
 test("Motorola condition encodings agree with unsigned and signed comparisons", () => {
   for (let left = 0; left < 256; left++) for (let right = 0; right < 256; right++) {
@@ -21,8 +23,10 @@ test("Motorola condition encodings agree with unsigned and signed comparisons", 
 test("Motorola decimal correction updates the supplied flags and preserves H and control flags", () => {
   for (const incoming of [false, true]) {
     const flags = { h: incoming, c: incoming, n: true, z: true, v: true, i: !incoming, f: incoming };
-    const result = motorolaDecimalAdjust(0x9a, flags);
-    assert.equal(result, 0);
+    const state = { a: 0x9a, b: 0, x: 0, sp: 0, pc: 0, waiting: false, flags };
+    m6800.daa(state);
+    assert.equal(state.a, 0);
+    assert.equal(state.flags, flags);
     assert.deepEqual(flags, { h: incoming, c: true, n: false, z: true, v: false, i: !incoming, f: incoming });
   }
 });

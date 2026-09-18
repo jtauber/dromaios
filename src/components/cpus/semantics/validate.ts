@@ -32,6 +32,12 @@ export function validateInstruction(definition: InstructionDefinition): void {
   }
   function expression(expr: Expression, scope: ReadonlyMap<string, ValueType>, where: string): Width {
     switch (expr.kind) {
+      case "select": {
+        flagExpression(expr.condition, scope, where);
+        const yes = expression(expr.yes, scope, where), no = expression(expr.no, scope, where);
+        if (yes !== no) fail(where, "selected values must have equal widths");
+        return yes;
+      }
       case "value": {
         const type = scope.get(expr.name) ?? fail(where, `value ${expr.name} has not been captured in this scope`);
         if (type === "flag") return fail(where, `value ${expr.name} is a flag, not a number`);
@@ -73,7 +79,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
         if (typeof expr.value !== "boolean") fail(where, "flag literal must be Boolean");
         return;
       case "not": return flagExpression(expr.value, scope, where);
-      case "xor": case "and": flagExpression(expr.left, scope, where); flagExpression(expr.right, scope, where); return;
+      case "xor": case "and": case "or": flagExpression(expr.left, scope, where); flagExpression(expr.right, scope, where); return;
       case "negative": case "low-bit": case "zero": case "even-parity": {
         const bits = expression(expr.value, scope, where);
         if (expr.kind === "even-parity" && bits !== 8) fail(where, "even parity requires a byte");
@@ -136,7 +142,15 @@ export function validateInstruction(definition: InstructionDefinition): void {
           if (typeof step.value !== "boolean") fail(where, "control latch value must be Boolean");
           return;
         case "write-memory": expect(step.address, 16); expect(step.value, 8); return;
-        case "update-flags": policy(step.policy, step.arguments, scope, `${where} / policy ${step.policy.name}`); return;
+        case "update-flags": case "replace-flags":
+          policy(step.policy, step.arguments, scope, `${where} / policy ${step.policy.name}`);
+          if (step.kind === "replace-flags") {
+            const fields = cpu.state.flags;
+            if (fields?.kind !== "group" || Object.keys(fields.fields).some(name => !step.policy.updates.some(update => update.flag.field === name))) {
+              fail(where, "replacing flags requires every stored flag");
+            }
+          }
+          return;
         default: return fail(where, "unknown statement");
       }
       identifier(step.name, where);

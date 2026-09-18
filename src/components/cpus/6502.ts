@@ -1,6 +1,5 @@
-import { opcodeEntries, sourceReaders } from "./generated/6502.ts";
+import { opcodeEntries } from "./generated/6502.ts";
 import type { Ram } from "../memory/ram.js";
-import { flagRegister, negativeZero } from "./flags.ts";
 import type { FetchedInstruction, StateTransition, InstructionStep } from "./execution-records.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
@@ -9,12 +8,11 @@ import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { copyState, readState } from "./state.ts";
-import { cpu6502StateDescription } from "./state/6502.ts";
+import { cpu6502StateDescription, cpu6502Status as packedFlags } from "./state/6502.ts";
 import type { Cpu6502State } from "./state/6502.ts";
 import type { ReadonlyState } from "./state.js";
-import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
+import { opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { add, subtract } from "./alu.ts";
 
 export { cpu6502StateDescription } from "./state/6502.ts";
 export type { Cpu6502State, Cpu6502Flags } from "./state/6502.ts";
@@ -38,19 +36,14 @@ export type Cpu6502InterruptRecord = StateTransition<Cpu6502Snapshot> & { readon
 );
 
 type OpcodeHandler = (instruction: InstructionContext) => void;
-type ByteRegister = "a" | "x" | "y";
 
 // Fix the handler type once so pattern callbacks infer their instruction context.
 const instructionPattern = opcodePattern<OpcodeHandler>;
-
-// Status bit 5 is fixed; PHP/BRK add the stacked B marker in bit 4. Neither is stored.
-const packedFlags = flagRegister({ n: 7, v: 6, d: 3, i: 2, z: 1, c: 0 }, 0x20);
 
 /** Instruction-level NMOS 6502 with explicit boundary IRQ/NMI delivery. */
 export class Cpu6502 {
   readonly #ram: Ram;
   readonly #state: Cpu6502State;
-  readonly #readers: ReturnType<typeof sourceReaders>;
   readonly #opcodeHandlers: Readonly<Partial<Record<number, OpcodeHandler>>>;
   readonly #atBoundary = executionBoundary("6502 step, reset, and interrupt calls must not be reentrant.");
 
@@ -60,7 +53,6 @@ export class Cpu6502 {
     }
     this.#ram = ram;
     this.#state = readState(cpu6502StateDescription, initialState);
-    this.#readers = sourceReaders(this.#state);
     this.#opcodeHandlers = opcodeTable(this.#instructionEntries());
   }
 
@@ -123,39 +115,8 @@ export class Cpu6502 {
       ...instructionPattern("000 000 00", instruction => this.#break(instruction)), // BRK
       ...instructionPattern("010 000 00", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
 
-      // cc=00, bbb=010: 0rp 010 00. r (bit 6) selects status (0)/A (1); p (bit 5) selects push (0)/pull (1).
-      ...instructionPattern("00 0 010 00", ({ writeByte }) => this.#pushByte(packedFlags.encode(this.#state.flags) | 0x10, writeByte)), // PHP
-      ...instructionPattern("00 1 010 00", ({ readByte }) => { this.#state.flags = packedFlags.decode(this.#pullByte(readByte)); }), // PLP
-      // PHA/PLA, TAY, and DEY/INY/INX are generated.
-
-      // cc=00, bbb=110: 00v/01v/11v select CLC/SEC, CLI/SEI, CLD/SED; v (bit 5) is the new flag value.
-      // aaa=101 selects CLV; TYA is generated.
-      ...opcodeFamily("00v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.c = v; }), // CLC/SEC
-      ...opcodeFamily("01v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.i = v; }), // CLI/SEI
-      ...instructionPattern("101 110 00", () => { this.#state.flags.v = false; }), // CLV
-      ...opcodeFamily("11v 110 00", { v: [false, true] }, ({ v }) => () => { this.#state.flags.d = v; }), // CLD/SED
-
-      // cc=01: aaa selects ORA, AND, EOR, ADC, STA, LDA, CMP, SBC in that order.
-      // Only ADC/SBC remain handwritten, using the generated bbb operand readers.
-      ...this.#accumulatorHandlers("011 bbb 01", value => this.#addWithCarry(value)), // ADC
-      ...this.#accumulatorHandlers("111 bbb 01", value => this.#subtractWithCarry(value)), // SBC
-
-      // cc=10: shifts/rotates, DEC/INC, DEX, LDX/STX, and transfers are generated.
-      // aaa=111, bbb=010 is NOP, not accumulator INC.
-      ...instructionPattern("111 010 10", () => {}), // NOP: step() advances PC; no further effects.
+      // All ordinary instructions, including decimal arithmetic and status transfers, are generated.
     ];
-  }
-
-  #accumulatorHandlers(pattern: string, operation: (value: number) => void): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { b: Object.values(this.#readers.operands) }, ({ b: readOperand }) =>
-      instruction => operation(readOperand(instruction)));
-  }
-
-  // Loads.
-
-  #loadRegister(register: ByteRegister, value: number): void {
-    this.#state[register] = value;
-    this.#setNegativeZero(value);
   }
 
   // Control flow.
@@ -197,51 +158,5 @@ export class Cpu6502 {
   #pullByte(readByte: InstructionContext["readByte"]): number {
     this.#state.sp = (this.#state.sp + 1) & 0xff;
     return readByte(0x0100 | this.#state.sp);
-  }
-
-  // Arithmetic and flags.
-
-  #setNegativeZero(value: number): void {
-    Object.assign(this.#state.flags, negativeZero(8, value));
-  }
-
-  #addWithCarry(value: number): void {
-    const { a, flags } = this.#state;
-    const carryIn = flags.c ? 1 : 0;
-    const { result, carry, overflow } = add(8, a, value, carryIn);
-    if (!flags.d) {
-      this.#loadRegister("a", result);
-      flags.c = carry;
-      flags.v = overflow;
-      return;
-    }
-
-    // Decimal digits pass at most one carry, even for invalid BCD nibbles.
-    let low = (a & 0x0f) + (value & 0x0f) + carryIn;
-    if (low > 9) low = ((low + 6) & 0x0f) + 0x10;
-    const intermediate = (a & 0xf0) + (value & 0xf0) + low;
-    // NMOS Z uses the binary result; N/V follow the low-digit correction only.
-    flags.z = result === 0;
-    flags.n = (intermediate & 0x80) !== 0;
-    flags.v = (~(a ^ value) & (a ^ intermediate) & 0x80) !== 0;
-    flags.c = intermediate >= 0xa0;
-    this.#state.a = (intermediate + (flags.c ? 0x60 : 0)) & 0xff;
-  }
-
-  #subtractWithCarry(value: number): void {
-    const { a, flags } = this.#state;
-    const borrowIn = flags.c ? 0 : 1;
-    const { result, borrow, overflow } = subtract(8, a, value, borrowIn);
-    // NMOS SBC derives all four flags from binary subtraction, even with D set.
-    this.#loadRegister("a", result);
-    flags.c = !borrow; // Set means no borrow, allowing multi-byte subtraction.
-    flags.v = overflow;
-    if (flags.d) {
-      let low = (a & 0x0f) - (value & 0x0f) - borrowIn;
-      if (low < 0) low = ((low - 6) & 0x0f) - 0x10;
-      let decimal = (a & 0xf0) - (value & 0xf0) + low;
-      if (decimal < 0) decimal -= 0x60;
-      this.#state.a = decimal & 0xff;
-    }
   }
 }

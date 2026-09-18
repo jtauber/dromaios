@@ -1,15 +1,21 @@
-import { addWrap, capture, fetchByte, flagLiteral, flagValue, lowBit, negative, readFlag, readMemory, readRegister, readSource,
+import { addWrap, borrow, capture, fetchByte, flagLiteral, flagValue, lowBit, negative, not, readFlag, readMemory, readRegister, readSource,
   shiftLeft, shiftRight, subtract, updateFlags, value, writeRegister, zero } from "./model.ts";
 import type { Flag, FlagExpression, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
-import type { InstructionDefinition } from "./model.ts";
+import type { CpuDeclaration, InstructionDefinition } from "./model.ts";
 import { opcodeTable } from "../opcodes.ts";
 import type { OpcodeEntry } from "../opcodes.ts";
+
+/** Stored accumulator and flags required by shared arithmetic/status construction. */
+export interface AccumulatorCpu { readonly declaration: CpuDeclaration; register(field: "a"): Register; flag(field: string): Flag }
 
 /** Check encoding collisions before making the generator's inventory of defined entries. */
 export function instructionSet(entries: readonly OpcodeEntry<InstructionDefinition>[]): Readonly<Record<string, InstructionDefinition>> {
   opcodeTable(entries);
   return Object.freeze(Object.fromEntries(entries));
 }
+
+/** Unsigned comparison expressed through the existing subtraction-borrow fact. */
+export const atLeast = (left: NumberExpression, right: NumberExpression): FlagExpression => not(borrow(left, right));
 
 // Construction-time recipes return inspectable data; none reads live CPU state.
 // Every source owns its captures. Only the yielded value enters the caller's scope.

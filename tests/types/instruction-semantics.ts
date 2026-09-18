@@ -253,8 +253,20 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generatedZ80.loadHMemory(z80, 0xffff, { readByte: () => 0 });
   generatedZ80.storeLMemory(z80, 0xffff, { writeByte: () => {} });
   generatedZ80.storeImmediateMemory(z80, 0xffff, { fetchByte: () => 0, writeByte: () => {} });
-  // @ts-expect-error HALT is deliberately outside the generated transfer matrix.
   generated8080[0x76](intel);
+  generated6502[0x69](mos, { fetchByte: () => 0 });
+  generated6502[0x28](mos, { readByte: () => 0 });
+  generated6800.daa(m6800);
+  generated6809.orcc(motorola, { fetchByte: () => 0 });
+  generatedZ80[0xf5](z80, { writeByte: () => {} });
+  // @ts-expect-error Decimal adjustment needs no memory capability.
+  generatedZ80[0x27](z80, { readByte: () => 0 });
+  // @ts-expect-error Immediate ADC cannot access data memory.
+  generated6502[0x69](mos, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error PHP writes the stack; it cannot read it.
+  generated6502[0x08](mos, { readByte: () => 0 });
+  // @ts-expect-error Status pops require a complete read capability.
+  generated8080[0xf1](intel);
   // @ts-expect-error Register transfers need no instruction context.
   generated8080[0x47](intel, { readByte: () => 0 });
   // @ts-expect-error Immediate stores do not read the destination.

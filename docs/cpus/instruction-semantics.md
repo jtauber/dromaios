@@ -53,8 +53,11 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6502 PHA/PLA and JSR/RTS | Fixed stack page and byte-pointer wrap; PLA flags after the read; JSR's interleaved operand/stack access and RTS's final increment |
 | 6800 A/B pushes/pulls and BSR/JSR/RTS; 6809 BSR/LBSR/JSR/RTS | Share big-endian word construction with distinct pointer position; preserve partial effects and indexed S updates before calls |
 | 8080 BC/DE/HL and Z80 BC/DE/HL/IX/IY pushes/pops, all ordinary CALL/RET/RST | Capture sources before stack access; defer destination writes until complete pops; share conditional calls/returns while retaining supplied-byte and retirement contracts |
+| 6502 ADC/SBC, all addressing forms; PHP/PLP, flag changes, and NOP | NMOS binary/decimal flag timing, invalid decimal digits, shared packed status, and complete ordinary instruction migration |
+| 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
+| 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 1,317 bodies. All are generated, executable, and bound into their CPU's
+There are 1,378 bodies. All are generated, executable, and bound into their CPU's
 opcode table. The earlier MOV B,A test sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
@@ -83,6 +86,9 @@ The authoring layers have separate homes:
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, byte/word-transfer, branch, and subroutine construction, with explicit access and flag policies |
 | [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
 | [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 load and 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; HALT omitted |
+| [status.ts](../../src/components/cpus/semantics/status.ts) | Pack and restore CPU-owned layouts, construct single-flag changes, and declare flag policies |
+| [decimal.ts](../../src/components/cpus/semantics/decimal.ts) | Shared decimal-correction selection with explicit Intel/Motorola flag and result stages |
+| [mos.ts](../../src/components/cpus/semantics/mos.ts) | NMOS ADC/SBC binary facts, decimal digit correction, and distinct flag/write stages |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8008.ts](../../src/components/cpus/semantics/definitions/8008.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -446,8 +452,41 @@ high, read/push current PC low, fetch high target, then write PC. A stack write
 can replace the final operand. RTS adds one to the popped word. Motorola calls
 use big-endian stacks and the existing address decoder. Indexed 6809 JSR retains
 S auto-updates and NMI arming before body entry; subroutine stack effects do not
-arm NMI. Packed-status stacks, 6809 register-mask stacks, and interrupt handling
+arm NMI. Packed-status stacks use the same construction with explicit packing
+and replacement stages. The 6809 register-mask stacks and interrupt handling
 continue to use their current runtime helpers.
+
+## Packed status and decimal arithmetic
+
+Each migrated CPU owns one immutable packed layout beside its state schema.
+The runtime `flagRegister` exposes that layout as `bits` and `fixed`; generated
+sources consume the same declaration. Packing reads each flag once, inserts its
+bit, and adds fixed bits. Restoring ignores unmodeled bits and explicitly
+replaces the complete flag object. A replacement must supply every stored flag;
+partial updates continue to preserve unlisted fields on the existing object.
+The 6502 adds the stacked B marker only when pushing PHP. PSW/AF pushes capture
+A before flags and both before stack effects; pops wait for both bytes before
+writing A and replacing flags. The 6809's ORCC/ANDCC capture status before mask
+fetching, preserving that ordering even if a callback changes live flags.
+
+`select` chooses between equal-width captured expressions; `or` combines
+captured Booleans. Both branches are validated, while only the selected expression
+is evaluated. `atLeast` is construction shorthand for inverse unsigned borrow;
+it adds no primitive. These operations express decimal thresholds without opaque
+CPU callbacks. DAA chooses both corrections from the original accumulator and
+incoming half/full carry. The Z80 selects correction direction with N; the 8080
+always adds. Both replace their flags before A; Z80 then restores incoming N.
+Motorola DAA preserves the flag object, H, and control bits, updating N/Z/V/C
+before A and retaining the model's deterministic clear for undefined V.
+
+NMOS ADC/SBC remain distinct sequences. Binary arithmetic writes A then N/Z/C/V.
+Decimal ADC sets Z from binary addition, N/V from the low-digit-corrected
+intermediate, and C from the decimal threshold before writing A. SBC first
+writes the binary result and flags, then optionally corrects A alone. Word-width
+intermediates retain the digit carry/borrow before byte narrowing, including
+invalid BCD digits. The existing exhaustive CPU arithmetic/status tests and
+[new generated-body probes](../../tests/components/cpus/semantics/status.test.ts)
+check results, effect stages, callback changes, and failures independently.
 
 ## Primitive meanings
 
@@ -461,6 +500,7 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `value(name)` | An already captured numeric value in the current lexical scope |
 | `flagValue(name)` | An already captured Boolean flag in the current lexical scope |
 | `flagLiteral(value)` | A Boolean constant; never a numeric zero or one |
+| `select(condition, yes, no)` | Evaluate a Boolean condition and select one of two equal-width pure numeric expressions; validate both arms |
 | `literal(width, value)` | An unsigned constant that fits the width |
 | `subtract(left, right, incoming?)` | Binary `left - right - incoming` modulo `2^width`; omitted incoming borrow is zero |
 | `addWrap(left, right, incoming?)` | Binary `left + right + incoming` modulo `2^width`; omitted incoming carry is zero |
@@ -483,6 +523,7 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `addOverflow(left, right, incoming?)` | Whether signed `left + right + incoming` falls outside the signed range at that width |
 | `not(value)` | Boolean negation |
 | `xor(left, right)` | Boolean exclusive OR; true exactly when its two Boolean operands differ |
+| `or(left, right)` | Boolean disjunction over captured values; no implicit flag reads |
 | `and(left, right)` | Boolean conjunction of pure expressions over already captured values; no implicit flag reads |
 
 Binary arithmetic and bitwise operands must have equal widths. Optional arithmetic
@@ -509,6 +550,7 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `write-memory` | Write one byte at an explicit word address, including unchanged values |
 | `read-source` | Expand and perform the named source body once in its own scope, then capture its result |
 | `update-flags` | Bind a named policy's pure parameters and apply its assignments at this point |
+| `replace-flags` | Bind and evaluate a complete flag policy, then assign a fresh flag object; reject policies missing any stored flag |
 | `when` | Evaluate a Boolean condition; execute the nested ordered statements only if true, with no body effects otherwise |
 
 The current cores still own fetch-cursor behavior, PC commitment, access
@@ -562,7 +604,8 @@ selects generated bodies for all 72 register, (HL), and immediate ALU forms;
 each owns its source reads, flag updates, and optional A writeback. The Z80 also
 binds sixteen indexed forms to eight resolved-memory bodies. Their old ALU
 methods and the operand-and-accumulator wrapper are gone; unrelated handwritten
-operations retain their existing result helpers.
+Z80 operations retain their existing result helpers. The 8080 result helper is
+removed now that DAA is generated.
 
 ## Validation and generated explanations
 
@@ -853,11 +896,10 @@ The generator's `sources` option also emits `sourceReaders(state)`. These reader
 use the same validation, lexical scopes, and statement compiler as instruction
 bodies, returning the source's captured result. Each reader requires only the
 callbacks it uses: a simple address needs fetching, an indirect address also
-needs pointer reads, and a memory operand adds the final data read. The CPU
-binds readers after initializing its state. Binding performs no register or
-memory reads; each call observes live registers at their declared positions.
-Remaining handwritten operations can therefore share the definitions before
-their complete bodies are migrated.
+needs pointer reads, and a memory operand adds the final data read. Binding
+performs no register or memory reads; each call observes live registers at its
+declared position. The 6502 now expands these sources into every ordinary
+instruction body; standalone readers remain focused generator probes.
 
 This covers the complete 6502 comparison, load/store, logical, shift/rotate, and
 byte increment/decrement families, plus all six register transfers. The 8080 uses
@@ -877,7 +919,7 @@ interrupt handling remain in the CPU module.
 The shared 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine inventory supplies both definition keys and ordinary
 binding opcodes. Each CPU exposes its generated bodies to one family binder;
 there are no duplicate per-CPU transfer binding tables. HALT is an explicit
-handwritten slot. The former operand read/write helpers and transfer body are
+generated control body outside the transfer matrix. The former operand read/write helpers and transfer body are
 removed. Z80 indexed bindings retain their decoder and supply the resolved
 address to generated load/store bodies.
 Accumulator memory transfers through BC/DE and absolute addresses use the same
@@ -1058,15 +1100,15 @@ and shared support add 41, leaving one additional authored line overall.
 All 256 earlier definitions remain structurally unchanged. Compound writes
 remain ordinary statements and do not introduce a general register-view system.
 
-Subsequent migrations should also identify the handwritten helpers they can
-retire. The 6502's result-writing, arithmetic, and stack helpers still serve
-handwritten instructions. JSR now expresses interleaved fetching and stack
-writes using existing statements; its call/return wrappers have been removed.
-Stack migration improves shared authoring but still increases total authored
-source, as recorded in the footprint report.
+Subsequent migrations should identify the handwritten helpers they can retire.
+The 6502's arithmetic, result-writing, and operand-dispatch helpers are now gone;
+its byte-stack helpers still serve BRK/RTI and interrupt entry. Ordinary Intel
+status stacks also use generated bodies; the runtime call stack is private to
+the Z80's interrupt paths. Total source accounting remains in the
+[footprint report](coverage.md#source-footprint).
 
 General addressing decoders (such as the full 6809 postbyte decoder), general
-register-view declarations, loops, packed-status and register-mask stacks,
+register-view declarations, loops, register-mask stacks,
 instruction rejection, pending commits, and exception delivery are not represented
 here. The 68000 MOVE traces still challenge later ordering vocabulary. The 6507 address-projection
 and 4004 nibble/interface probes remain acceptance requirements, not capabilities
