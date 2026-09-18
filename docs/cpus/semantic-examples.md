@@ -14877,6 +14877,318 @@ write DI:u16 := result
 
 Flags preserved throughout: TF, IF, DF.
 
+### 8088 JO rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+of:flag := read OF
+when of {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JNO rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+of:flag := read OF
+when not(of) {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JB rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+cf:flag := read CF
+when cf {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JAE rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+cf:flag := read CF
+when not(cf) {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JE rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+zf:flag := read ZF
+when zf {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JNE rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+zf:flag := read ZF
+when not(zf) {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JBE rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+cf:flag := read CF
+when cf {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+when not(cf) {
+  zf:flag := read ZF
+  when zf {
+    pc:u16 := read IP
+    write IP:u16 := addWrap(pc, signExtend16(offset))
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JA rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+cf:flag := read CF
+when not(cf) {
+  zf:flag := read ZF
+  when not(zf) {
+    pc:u16 := read IP
+    write IP:u16 := addWrap(pc, signExtend16(offset))
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JS rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+sf:flag := read SF
+when sf {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JNS rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+sf:flag := read SF
+when not(sf) {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JP rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+pf:flag := read PF
+when pf {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JNP rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+pf:flag := read PF
+when not(pf) {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JL rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+sf:flag := read SF
+of:flag := read OF
+when xor(sf, of) {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JGE rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+sf:flag := read SF
+of:flag := read OF
+when not(xor(sf, of)) {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JLE rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+zf:flag := read ZF
+when zf {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+when not(zf) {
+  sf:flag := read SF
+  of:flag := read OF
+  when xor(sf, of) {
+    pc:u16 := read IP
+    write IP:u16 := addWrap(pc, signExtend16(offset))
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JG rel8
+
+Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+zf:flag := read ZF
+when not(zf) {
+  sf:flag := read SF
+  of:flag := read OF
+  when not(xor(sf, of)) {
+    pc:u16 := read IP
+    write IP:u16 := addWrap(pc, signExtend16(offset))
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 8088 NOP
 
 Capture the selected register before AX, then write AX before the selected register. NOP retains the same self-exchange schedule. Do not access flags or memory.
@@ -14977,6 +15289,64 @@ selected:u16 := read DI
 accumulator:u16 := read AX
 write AX:u16 := selected
 write DI:u16 := accumulator
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CBW
+
+Capture AL and sign-extend it to replace AX without accessing flags.
+
+```text
+word:u16 := read AX
+write AX:u16 := signExtend16(lowByte(word))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CWD
+
+Capture AX, then fill DX with its sign bit without changing AX or flags.
+
+```text
+word:u16 := read AX
+write DX:u16 := select(topBit(word), FFFF:u16, 0000:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 SAHF
+
+Capture AH, then update CF/PF/AF/ZF/SF in layout order, ignoring reserved bits. Preserve the flag object, OF/TF/IF/DF, registers, and control state.
+
+```text
+word:u16 := read AX
+flags "restore packed status" simultaneously {
+  CF := not(isZero(bitAnd(highByte(word), 01:u8)))
+  PF := not(isZero(bitAnd(highByte(word), 04:u8)))
+  AF := not(isZero(bitAnd(highByte(word), 10:u8)))
+  ZF := not(isZero(bitAnd(highByte(word), 40:u8)))
+  SF := not(isZero(bitAnd(highByte(word), 80:u8)))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: TF, IF, DF, OF.
+
+### 8088 LAHF
+
+Read CF/PF/AF/ZF/SF in layout order and pack SF:ZF:0:AF:0:PF:1:CF into AH. Preserve the live AL byte at writeback and leave every flag unchanged.
+
+```text
+status:u8 := source "packed status" {
+  cf:flag := read CF
+  pf:flag := read PF
+  af:flag := read AF
+  zf:flag := read ZF
+  sf:flag := read SF
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(02:u8, select(cf, 01:u8, 00:u8)), select(pf, 04:u8, 00:u8)), select(af, 10:u8, 00:u8)), select(zf, 40:u8, 00:u8)), select(sf, 80:u8, 00:u8))
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(status, lowByte(preservedWord))
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
@@ -15273,6 +15643,192 @@ write DI:u16 := result
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LOOPNE rel8
+
+Fetch the displacement first. LOOP variants decrement CX, reread it, and skip ZF when it is zero; LOOP never reads ZF. JCXZ reads CX once without decrementing. Only a taken path reads and writes IP, with word wrapping. Preserve every flag.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+counter:u16 := read CX
+write CX:u16 := subtract(counter, 0001:u16)
+remaining:u16 := read CX
+when not(isZero(remaining)) {
+  condition:flag := read ZF
+  when not(condition) {
+    pc:u16 := read IP
+    write IP:u16 := addWrap(pc, signExtend16(offset))
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LOOPE rel8
+
+Fetch the displacement first. LOOP variants decrement CX, reread it, and skip ZF when it is zero; LOOP never reads ZF. JCXZ reads CX once without decrementing. Only a taken path reads and writes IP, with word wrapping. Preserve every flag.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+counter:u16 := read CX
+write CX:u16 := subtract(counter, 0001:u16)
+remaining:u16 := read CX
+when not(isZero(remaining)) {
+  condition:flag := read ZF
+  when condition {
+    pc:u16 := read IP
+    write IP:u16 := addWrap(pc, signExtend16(offset))
+  }
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 LOOP rel8
+
+Fetch the displacement first. LOOP variants decrement CX, reread it, and skip ZF when it is zero; LOOP never reads ZF. JCXZ reads CX once without decrementing. Only a taken path reads and writes IP, with word wrapping. Preserve every flag.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+counter:u16 := read CX
+write CX:u16 := subtract(counter, 0001:u16)
+remaining:u16 := read CX
+when not(isZero(remaining)) {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JCXZ rel8
+
+Fetch the displacement first. LOOP variants decrement CX, reread it, and skip ZF when it is zero; LOOP never reads ZF. JCXZ reads CX once without decrementing. Only a taken path reads and writes IP, with word wrapping. Preserve every flag.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+remaining:u16 := read CX
+when isZero(remaining) {
+  pc:u16 := read IP
+  write IP:u16 := addWrap(pc, signExtend16(offset))
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP rel16
+
+Fetch the complete displacement low byte first, then add it to post-fetch IP with word wrapping. Preserve CS and flags; never read the target.
+
+```text
+offset:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+pc:u16 := read IP
+write IP:u16 := addWrap(pc, offset)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 JMP rel8
+
+Fetch the complete displacement low byte first, then add it to post-fetch IP with word wrapping. Preserve CS and flags; never read the target.
+
+```text
+offset:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+pc:u16 := read IP
+write IP:u16 := addWrap(pc, signExtend16(offset))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 HLT
+
+Set the stored halt latch without accessing registers or flags; the CPU boundary still owns retirement and pending traps.
+
+```text
+write halted:boolean := true
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CMC
+
+Complement CF; preserve every other flag and register.
+
+```text
+original:flag := read CF
+flags "CMC" simultaneously {
+  CF := not(original)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CLC
+
+Clear CF; preserve every other flag and register.
+
+```text
+flags "CLC" simultaneously {
+  CF := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 STC
+
+Set CF; preserve every other flag and register.
+
+```text
+flags "STC" simultaneously {
+  CF := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 CLD
+
+Clear DF; preserve every other flag and register.
+
+```text
+flags "CLD" simultaneously {
+  DF := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, OF.
+
+### 8088 STD
+
+Set DF; preserve every other flag and register.
+
+```text
+flags "STD" simultaneously {
+  DF := 1:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, OF.
 
 ### 8088 MOV AL,AL (resolved)
 
@@ -65356,6 +65912,1734 @@ flags "8088 TEST" simultaneously {
   SF := topBit(result)
   PF := evenParity8(lowByte(result))
 } // Preserve unlisted flags.
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC AL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC CL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC DL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC BL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC AH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC CH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC DH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC BH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC byte [segment:offset] (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+segment:u16 := input
+offset:u16 := input
+left:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+preservedCarry:flag := read CF
+right := 01:u8
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC AL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC CL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC DL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC BL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC AH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC CH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC DH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC BH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+preservedCarry:flag := read CF
+right := 01:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC byte [segment:offset] (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+segment:u16 := input
+offset:u16 := input
+left:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+preservedCarry:flag := read CF
+right := 01:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NOT AL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), bitXor(operand, FF:u8))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT CL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), bitXor(operand, FF:u8))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT DL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), bitXor(operand, FF:u8))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT BL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), bitXor(operand, FF:u8))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT AH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(bitXor(operand, FF:u8), lowByte(preservedWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT CH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(bitXor(operand, FF:u8), lowByte(preservedWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT DH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(bitXor(operand, FF:u8), lowByte(preservedWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT BH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(bitXor(operand, FF:u8), lowByte(preservedWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT byte [segment:offset] (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+segment:u16 := input
+offset:u16 := input
+operand:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := bitXor(operand, FF:u8)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NEG AL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+left := 00:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG CL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+left := 00:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG DL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+left := 00:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG BL (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+left := 00:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG AH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+left := 00:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG CH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+left := 00:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG DH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+left := 00:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG BH (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+left := 00:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG byte [segment:offset] (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+left := 00:u8
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC AX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC CX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write CX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC DX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write DX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC BX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write BX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC SP (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write SP:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC BP (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write BP:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC SI (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write SI:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC DI (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write DI:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC word [segment:offset] (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+segment:u16 := input
+offset:u16 := input
+leftLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(result)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC AX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC CX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write CX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC DX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write DX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC BX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write BX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC SP (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write SP:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC BP (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write BP:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC SI (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write SI:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC DI (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+left:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write DI:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC word [segment:offset] (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+segment:u16 := input
+offset:u16 := input
+leftLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(result)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NOT AX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write AX:u16 := bitXor(operand, FFFF:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT CX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write CX:u16 := bitXor(operand, FFFF:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT DX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write DX:u16 := bitXor(operand, FFFF:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT BX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write BX:u16 := bitXor(operand, FFFF:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT SP (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write SP:u16 := bitXor(operand, FFFF:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT BP (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write BP:u16 := bitXor(operand, FFFF:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT SI (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write SI:u16 := bitXor(operand, FFFF:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT DI (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+operand:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write DI:u16 := bitXor(operand, FFFF:u16)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NOT word [segment:offset] (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Complement every operand bit without reading or writing flags. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+segment:u16 := input
+offset:u16 := input
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(bitXor(operand, FFFF:u16))
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(bitXor(operand, FFFF:u16))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 NEG AX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+left := 0000:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG CX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+left := 0000:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write CX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG DX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+left := 0000:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write DX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG BX (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+left := 0000:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write BX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG SP (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+left := 0000:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write SP:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG BP (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+left := 0000:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write BP:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG SI (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+left := 0000:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write SI:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG DI (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+left := 0000:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write DI:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NEG word [segment:offset] (resolved)
+
+Enter after operand resolution and read the complete operand low byte first. Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.
+
+```text
+segment:u16 := input
+offset:u16 := input
+rightLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+left := 0000:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(result)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(result)
 ```
 
 Flags preserved throughout: TF, IF, DF.

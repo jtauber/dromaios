@@ -15,6 +15,16 @@ export function conditional(condition: Condition | undefined, steps: readonly St
   return condition ? [...condition.steps, when(condition.test, steps)] : steps;
 }
 
+/** Expand a short-circuit decision; only the selected arm observes its ordered effects. */
+export function choose(condition: Condition, yes: readonly Statement[], no: readonly Statement[]): readonly Statement[] {
+  return [...condition.steps, ...(yes.length ? [when(condition.test, yes)] : []), ...(no.length ? [when(not(condition.test), no)] : [])];
+}
+
+/** Add a captured word displacement to the live program-counter role (PC or IP), with word wrapping. */
+export function relativeBranchSteps(pc: Register, displacement: NumberExpression): readonly Statement[] {
+  return [readRegister("pc", pc), writeRegister(pc, addWrap(value("pc"), displacement))];
+}
+
 /** Fetch or read the complete target before testing flags. Untaken paths never write PC. */
 export function jump(cpu: FlowCpu, name: string, target: ValueSource, condition?: Condition) {
   return defineInstruction({ cpu: cpu.declaration, name,
@@ -30,9 +40,8 @@ export function relativeBranch(cpu: FlowCpu, name: string, displacement: ValueSo
     explanation: "Fetch the complete displacement before testing the condition. Only on a taken path read the post-fetch PC, "
       + "add the signed displacement with word wraparound, and write PC. Preserve flags and other registers. "
       + "Untaken paths do not read or write PC. A failed fetch stops later effects; completed fetches remain.",
-    steps: [readSource("offset", displacement), ...conditional(condition, [
-      readRegister("pc", cpu.register("pc")), writeRegister(cpu.register("pc"),
-        addWrap(value("pc"), displacement.width === 8 ? signExtend(value("offset"), 16) : value("offset")))])],
+    steps: [readSource("offset", displacement), ...conditional(condition,
+      relativeBranchSteps(cpu.register("pc"), displacement.width === 8 ? signExtend(value("offset"), 16) : value("offset")))],
   });
 }
 

@@ -19,6 +19,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
 | 8088 ModR/M MOV/XCHG, absolute accumulator MOV, and immediate r/m MOV | Resolved segment/offset inputs; byte-offset wrap before physical projection; complete source capture and low-first partial writes |
 | 8088 ModR/M and immediate ALU/TEST | Reuse resolved operands and accumulator arithmetic; source before destination before CF; sign-extended immediates; flags before partial writes; CMP/TEST without operand writes |
+| 8088 INC/DEC/NOT/NEG, Jcc/LOOP/JCXZ/relative JMP, sign extension, status, and halt | Restore captured CF before unary writeback; short-circuit conditions; decrement before testing CX; partial status updates and live AL preservation; CPU-owned retirement |
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
@@ -66,8 +67,8 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 3,567 generated, executable bodies. All serve CPU execution;
-3,565 are bound through opcode or postbyte selection, and two are shared 6809
+There are 3,671 generated, executable bodies. All serve CPU execution;
+3,669 are bound through opcode or postbyte selection, and two are shared 6809
 frame helpers called by interrupt entry and return. The earlier MOV B,A test
 sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
@@ -487,8 +488,8 @@ segmented fetching, trap sampling, and interrupt-deferral retirement remain in
 the CPU.
 
 [Definition probes](../../tests/components/cpus/semantics/8088-registers.test.ts)
-check the exact 58-form inventory, every stored word through both byte views,
-complete word INC/DEC ranges with both carries, effect order, all partial-effect
+check the original 58-form register inventory, every stored word through both
+byte views, complete word INC/DEC ranges with both carries, effect order, all partial-effect
 failures, live alias changes, and explanations. Independent existing CPU tests
 exhaust byte arithmetic and exercise word boundaries. The
 [fetch-failure tests](../../tests/components/cpus/8088/register-failures.test.ts)
@@ -542,11 +543,12 @@ A failed memory write retains the new flags and any earlier byte write.
 MOV, XCHG, ALU, and register TEST share one CPU-owned ModR/M binding. The
 decoder resolves memory once and rejects unused immediate selectors before
 fetching a displacement. F6/F7 /0 enters immediate TEST's complete generated
-body; /1 remains unsupported, and other unary operations retain their existing
-paths. Prefix rejection, fetching, and retirement remain outside the bodies.
+body; /1 remains unsupported, /2 and /3 enter generated NOT/NEG bodies, and
+multiply/divide retain their existing paths. Prefix rejection, fetching, and
+retirement remain outside the bodies.
 The handwritten ALU function table, operand-pair/application wrappers, immediate
-reader/TEST wrapper, and logical-flag helper are removed. Addition/subtraction
-helpers still serve unmigrated unary and string operations.
+reader/TEST wrapper, and logical-flag helper are removed. The remaining subtraction
+helper serves string comparisons.
 
 [Definition probes](../../tests/components/cpus/semantics/8088-alu.test.ts)
 check the entire specialization inventory, every effect and partial failure,
@@ -557,6 +559,53 @@ retained flags and partial writes, successful retirement, and unused-selector
 rejection. Existing independent CPU tests cover every addressing/register
 choice, signed-byte values, overlapping code/data, and arithmetic boundaries.
 Generated context types give CMP/TEST no write capability.
+
+### Unary operations, relative branches, and status
+
+INC/DEC/NOT/NEG cover eight register/memory forms with 72 specialized bodies.
+They reuse the same register and memory operands as transfers and ALU.
+INC/DEC capture CF after the complete operand, update CF/AF/OF/ZF/SF/PF,
+restore CF, and then write. The original word-register INC/DEC now share that
+construction without changing their expanded definitions. NEG subtracts the
+operand from zero; NOT complements it without flag access. Memory writes
+retain low-first order and offset wrapping, and byte views retain their live
+other half. A failed write leaves completed flag updates intact.
+
+Jcc, LOOP/JCXZ, and relative JMP use the shared `relativeBranchSteps` recipe
+with the IP role. It reads and writes IP only on the taken path, after the
+complete displacement fetch. The CPU still owns per-byte CS:IP fetching.
+The construction helper `choose` combines two conditional statement arms.
+Conditions use captured flag values, so one arm cannot change which other
+arm is selected. `either` composes these decisions during construction to
+preserve JBE/JA's CF-before-ZF and JLE/JG's ZF-before-SF/OF short circuits.
+No runtime condition callback or new semantic primitive is introduced.
+LOOP variants fetch, read/decrement/write CX, then reread it; a zero count
+skips ZF. JCXZ reads CX once and never changes it.
+
+CBW and CWD express sign extension with existing byte/word expressions.
+SAHF/LAHF share the CPU-owned low FLAGS layout with runtime FLAGS packing.
+`updateStatus` reuses the status decoder but updates individual flags:
+SAHF changes CF/PF/AF/ZF/SF without replacing the flag object or disturbing
+TF/IF/DF/OF. LAHF packs those flags before reading live AL for its AH write.
+Carry/direction controls reuse `flagInstruction`; HLT writes only the halt
+latch. Trap sampling and retirement remain in the CPU boundary.
+
+These bodies add 40 complete forms: eight unary, 22 relative control-flow,
+and ten sign-extension/status/halt forms. The unary-operation and condition
+tables, generic operand-group wrapper, adjustment/addition helpers, and
+handwritten jump/loop paths are removed. FE/FF still reject invalid selectors
+before resolving an operand, and the remaining FF control/stack paths retain
+their schedules.
+
+[Definition probes](../../tests/components/cpus/semantics/8088-ordinary.test.ts)
+check the exact added inventory, all flag patterns, short-circuit reads,
+counter rereads, live byte halves, and every failed effect.
+[CPU boundary probes](../../tests/components/cpus/8088/ordinary-failures.test.ts)
+cover all 40 forms, prefixed and wrapping fetches, partial memory writes,
+retained inhibition, guard release, and rejection before body entry.
+Existing CPU tests independently check complete unary value ranges and branch
+truth tables. Generated types restrict branches to byte fetching, unary
+memory bodies to read/write access, and state-only bodies to their CPU state.
 
 ## Z80 banks, special registers, and repeated blocks
 
@@ -1119,8 +1168,8 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,8008,8080,8088,6809,z80}.ts` and
-`8088-transfers.ts` and `8088-alu.ts`. The separate 8088 operand modules contain
-specialized resolved bodies; its numeric opcode module retains automatic bindings.
+`8088-transfers.ts`, `8088-alu.ts`, and `8088-unary.ts`. The separate 8088
+operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
 These files are ignored build output and removed by `npm run clean`.
 Regenerate with `npm run generate:cpus`;
 `npm run build` generates these bodies and the machine factories automatically.

@@ -1,13 +1,15 @@
-import { cpu8088StateDescription } from "../../state/8088.ts";
+import { cpu8088StateDescription, cpu8088Status } from "../../state/8088.ts";
 import { byteRegisters8088, wordRegisters8088 } from "../../8088-registers.ts";
 import { opcodeFamily } from "../../opcodes.ts";
 import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry,
-  highByte, literal, lowByte, negative, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, signExtend, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
+  highByte, literal, lowByte, negative, not, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, select, signExtend, subtract, updateFlags, value, writeLatch, writeMemory, writeRegister, xor, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Statement } from "../model.ts";
 import { arithmetic, byteRegisterView, immediateByte, instructionSet, registerView, transfer } from "../builders.ts";
 import { immediateWord } from "../intel.ts";
-import { flagPolicy } from "../status.ts";
+import { flagInstruction, flagPolicy, packedStatus, updateStatus } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
+import { choose, conditional, flagCondition, relativeBranchSteps } from "../control-flow.ts";
+import type { Condition } from "../control-flow.ts";
 
 const cpu = cpuSymbols("8088", cpu8088StateDescription);
 const registers = [
@@ -30,6 +32,31 @@ function arithmeticBody(operation: "add" | "subtract", width: 8 | 16, withCarry 
     of: (adding ? addOverflow : overflow)(left, right, incoming), ...resultFlags(width),
   }), incoming);
 }
+
+function adjustmentSteps(width: 8 | 16, decrement: boolean): readonly Statement[] {
+  return [readFlag("preservedCarry", cpu.flag("cf")), capture("right", literal(width, 1)),
+    ...arithmeticBody(decrement ? "subtract" : "add", width),
+    updateFlags(flagPolicy(cpu, "preserved carry", { carry: "flag" }, { cf: flagValue("carry") }), { carry: flagValue("preservedCarry") })];
+}
+
+// Construction-time decisions retain the original short-circuit flag-read order.
+type Decision = (yes: readonly Statement[], no: readonly Statement[]) => readonly Statement[];
+const decision = (condition: Condition): Decision => (yes, no) => choose(condition, yes, no);
+const flagTest = (field: "cf" | "zf" | "sf" | "pf" | "of") => decision({ steps: [readFlag(field, cpu.flag(field))], test: flagValue(field) });
+const either = (left: Decision, right: Decision): Decision => (yes, no) => left(yes, right(yes, no));
+const signMismatch = decision({ steps: [readFlag("sf", cpu.flag("sf")), readFlag("of", cpu.flag("of"))], test: xor(flagValue("sf"), flagValue("of")) });
+// 0111 ttt p: rows select ttt; names select p=0/1 without changing the read schedule.
+const branchConditions = [
+  { names: ["JO", "JNO"], decide: flagTest("of") }, // 000: overflow
+  { names: ["JB", "JAE"], decide: flagTest("cf") }, // 001: unsigned below
+  { names: ["JE", "JNE"], decide: flagTest("zf") }, // 010: equal
+  { names: ["JBE", "JA"], decide: either(flagTest("cf"), flagTest("zf")) }, // 011: unsigned below or equal
+  { names: ["JS", "JNS"], decide: flagTest("sf") }, // 100: sign
+  { names: ["JP", "JNP"], decide: flagTest("pf") }, // 101: parity
+  { names: ["JL", "JGE"], decide: signMismatch }, // 110: signed less
+  { names: ["JLE", "JG"], decide: either(flagTest("zf"), signMismatch) }, // 111: signed less or equal
+] as const;
+const relativeByteBranch = () => relativeBranchSteps(cpu.register("ip"), signExtend(value("offset"), 16));
 
 function aluSteps(operation: Operation, width: 8 | 16, write: (contents: NumberExpression) => readonly Statement[]): readonly Statement[] {
   const withCarry = operation === "ADC" || operation === "SBB";
@@ -69,10 +96,13 @@ export const instructions8088 = instructionSet([
   ...opcodeFamily("0100 d rrr", { d: [false, true], r: wordRegisters8088 }, ({ d: decrement, r: register }) => defineInstruction({
     cpu: cpu.declaration, name: `${decrement ? "DEC" : "INC"} ${register.toUpperCase()}`,
     explanation: "Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.",
-    steps: [readRegister("left", cpu.register(register)), readFlag("preservedCarry", cpu.flag("cf")), capture("right", literal(16, 1)),
-      ...arithmeticBody(decrement ? "subtract" : "add", 16),
-      updateFlags(flagPolicy(cpu, "preserved carry", { carry: "flag" }, { cf: flagValue("carry") }), { carry: flagValue("preservedCarry") }),
-      writeRegister(cpu.register(register), value("result"))],
+    steps: [readRegister("left", cpu.register(register)), ...adjustmentSteps(16, decrement), writeRegister(cpu.register(register), value("result"))],
+  })),
+  // 0111 ttt p: ttt selects the positive condition; p=1 inverts it without changing flag-read order.
+  ...opcodeFamily("0111 ttt p", { t: branchConditions, p: [0, 1] }, ({ t: condition, p: invert }) => defineInstruction({
+    cpu: cpu.declaration, name: `${condition.names[invert]} rel8`,
+    explanation: "Fetch the signed displacement before testing flags. Preserve short-circuit flag reads; only a taken path reads and writes post-fetch IP. Wrap IP within CS and preserve flags and control state.",
+    steps: [readSource("offset", immediateByte), ...condition.decide(invert ? [] : relativeByteBranch(), invert ? relativeByteBranch() : [])],
   })),
   // 1001 0 rrr: exchange AX with the selected word; rrr=000 is the documented NOP.
   ...opcodeFamily("1001 0 rrr", { r: wordRegisters8088 }, ({ r: register }) => defineInstruction({
@@ -81,6 +111,20 @@ export const instructions8088 = instructionSet([
     steps: [readRegister("selected", cpu.register(register)), readRegister("accumulator", cpu.register("ax")),
       writeRegister(cpu.register("ax"), value("selected")), writeRegister(cpu.register(register), value("accumulator"))],
   })),
+  // 1001 100s: CBW sign-extends AL to AX; CWD extends AX's sign into DX.
+  ...opcodeFamily("1001 100 s", { s: [false, true] }, ({ s: word }) => defineInstruction({
+    cpu: cpu.declaration, name: word ? "CWD" : "CBW",
+    explanation: word ? "Capture AX, then fill DX with its sign bit without changing AX or flags." : "Capture AL and sign-extend it to replace AX without accessing flags.",
+    steps: [readRegister("word", cpu.register("ax")), writeRegister(cpu.register(word ? "dx" : "ax"), word
+      ? select(negative(value("word")), literal(16, 0xffff), literal(16, 0)) : signExtend(lowByte(value("word")), 16))],
+  })),
+  // 1001 111d: d=0 stores AH's modeled flags; d=1 loads their packed byte into AH.
+  [0x9e, defineInstruction({ cpu: cpu.declaration, name: "SAHF",
+    explanation: "Capture AH, then update CF/PF/AF/ZF/SF in layout order, ignoring reserved bits. Preserve the flag object, OF/TF/IF/DF, registers, and control state.",
+    steps: [readRegister("word", cpu.register("ax")), updateStatus(cpu, cpu8088Status, highByte(value("word")))] })],
+  [0x9f, defineInstruction({ cpu: cpu.declaration, name: "LAHF",
+    explanation: "Read CF/PF/AF/ZF/SF in layout order and pack SF:ZF:0:AF:0:PF:1:CF into AH. Preserve the live AL byte at writeback and leave every flag unchanged.",
+    steps: [readSource("status", packedStatus(cpu, cpu8088Status)), ...registers[0][4]!.view.write(value("status"))] })],
   // 1010 100 w: TEST AL/AX,n sets logical flags without accumulator writeback.
   ...opcodeFamily("1010 100 w", { w: widths }, ({ w }) => accumulator("TEST", w)),
   // 1011 w rrr: w=0 AL/CL/DL/BL/AH/CH/DH/BH; w=1 AX/CX/DX/BX/SP/BP/SI/DI.
@@ -91,6 +135,27 @@ export const instructions8088 = instructionSet([
       steps: transfer(view.write(value("result")), immediate),
     });
   }),
+  // 1110 00cc: cc=00 LOOPNE, 01 LOOPE, 10 LOOP decrement CX; 11 JCXZ only tests it.
+  ...opcodeFamily("1110 00 cc", { c: ["LOOPNE", "LOOPE", "LOOP", "JCXZ"] }, ({ c: name }) => defineInstruction({
+    cpu: cpu.declaration, name: `${name} rel8`,
+    explanation: "Fetch the displacement first. LOOP variants decrement CX, reread it, and skip ZF when it is zero; LOOP never reads ZF. JCXZ reads CX once without decrementing. Only a taken path reads and writes IP, with word wrapping. Preserve every flag.",
+    steps: [readSource("offset", immediateByte),
+      ...(name === "JCXZ" ? [] : [readRegister("counter", cpu.register("cx")), writeRegister(cpu.register("cx"), subtract(value("counter"), literal(16, 1)))]),
+      ...conditional({ steps: [readRegister("remaining", cpu.register("cx"))], test: name === "JCXZ" ? zero(value("remaining")) : not(zero(value("remaining"))) },
+        name === "LOOPNE" || name === "LOOPE" ? conditional(flagCondition(cpu.flag("zf"), name === "LOOPE"), relativeByteBranch()) : relativeByteBranch())],
+  })),
+  // 1110 10s1: s=0 fetches a word displacement; s=1 sign-extends a byte.
+  ...opcodeFamily("1110 10 s 1", { s: [immediateWord, immediateByte] }, ({ s: source }) => defineInstruction({
+    cpu: cpu.declaration, name: `JMP rel${source.width}`,
+    explanation: "Fetch the complete displacement low byte first, then add it to post-fetch IP with word wrapping. Preserve CS and flags; never read the target.",
+    steps: [readSource("offset", source), ...relativeBranchSteps(cpu.register("ip"), source.width === 8 ? signExtend(value("offset"), 16) : value("offset"))],
+  })),
+  // 1111 010h: h=0 HLT, h=1 CMC. 1111 1f0v: f=0 carry/1 direction, v is the new value.
+  [0xf4, defineInstruction({ cpu: cpu.declaration, name: "HLT", explanation: "Set the stored halt latch without accessing registers or flags; the CPU boundary still owns retirement and pending traps.",
+    steps: [writeLatch(cpu.latch("halted"), true)] })],
+  [0xf5, flagInstruction(cpu, "CMC", "cf", "complement")],
+  ...opcodeFamily("1111 1 f 0 v", { f: [{ field: "cf", names: ["CLC", "STC"] }, { field: "df", names: ["CLD", "STD"] }], v: [0, 1] },
+    ({ f, v }) => flagInstruction(cpu, f.names[v]!, f.field, Boolean(v))),
 ]);
 
 // Resolved operands retain only the decoder's captured segment/offset; no live address callback enters a body.
@@ -187,3 +252,21 @@ export const alu8088: Readonly<Record<string, InstructionDefinition>> = Object.f
     }),
   ]);
 }));
+
+/** INC/DEC restore captured CF before writeback; NOT has no flag effects and NEG uses ordinary subtraction flags. */
+export const unary8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(widths.flatMap(width =>
+  ["INC", "DEC", "NOT", "NEG"].flatMap(operation => [...registerOperands(width), memoryOperand(width)].map((operand, r) => [
+    `${operation}_${width}_${operand.memory ? "memory" : r}`, defineInstruction({
+      cpu: cpu.declaration, name: `${operation} ${operand.name} (resolved)`,
+      ...(operand.memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
+      explanation: "Enter after operand resolution and read the complete operand low byte first. "
+        + (operation === "NOT" ? "Complement every operand bit without reading or writing flags. "
+          : operation === "NEG" ? "Subtract the operand from zero and update CF/AF/OF/ZF/SF/PF before writing. "
+            : "Capture CF after the operand. Add/subtract one, update arithmetic flags, then restore CF before writing. ")
+        + "A byte write preserves its live other half; word memory writes wrap each offset before projection. Failed effects retain completed flags and writes; preserve control state.",
+      steps: operation === "NOT" ? [...operand.read("operand"), ...operand.write(bitXor(value("operand"), literal(width, 2 ** width - 1)), "preservedWord")]
+        : [...operand.read(operation === "NEG" ? "right" : "left"),
+          ...(operation === "NEG" ? [capture("left", literal(width, 0)), ...arithmeticBody("subtract", width)] : adjustmentSteps(width, operation === "DEC")),
+          ...operand.write(value("result"), "preservedWord")],
+    }),
+  ]))));

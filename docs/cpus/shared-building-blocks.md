@@ -1365,7 +1365,11 @@ inputs and a distinct physical-address projection keep logical byte progression
 before bus mapping explicit. ALU/TEST now share these operands, the accumulator
 arithmetic/flag recipe, and the MOV/XCHG ModR/M binding. Register choices
 specialize during construction; flags precede writeback, and comparisons omit
-it. ModR/M resolution and retirement remain outside the bodies. The 68000 probes below remain
+it. Unary INC/DEC/NOT/NEG now reuse those operands and arithmetic recipes.
+Relative branches share target updates while retaining short-circuit flag
+reads and LOOP's decrement-before-test schedule. Status construction supports
+both complete replacement and SAHF's partial update without a new primitive.
+ModR/M resolution and retirement remain outside the bodies. The 68000 probes below remain
 requirements for later vocabulary. Whole-model migration remains a separate decision.
 
 The 6502 now authors these migrated instructions as encoding families and

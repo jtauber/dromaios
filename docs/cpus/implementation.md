@@ -643,6 +643,14 @@ ALU/TEST capture the source before the destination, then CF for ADC/SBB.
 Share their arithmetic/flag recipe with accumulator forms; update flags before
 writeback, preserve live byte halves, and omit writes entirely for CMP/TEST.
 
+Unary bodies reuse those operands and flag recipes. INC/DEC capture CF after
+the complete operand and restore it before writeback; NOT never accesses flags.
+For relative branches, use IP with `relativeBranchSteps`; read it only on the
+taken path after fetching. Preserve short-circuit flag reads with construction
+decisions rather than eagerly capturing every condition bit. LOOP writes and
+rereads CX before testing it. Use `updateStatus` for SAHF's partial flag update;
+whole-object restoration would incorrectly replace its unlisted flags.
+
 ## Shared arithmetic
 
 The [ALU helpers](../../src/components/cpus/alu.ts) express arithmetic facts

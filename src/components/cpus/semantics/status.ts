@@ -14,12 +14,20 @@ export function packedStatus(cpu: StatusCpu, layout: StatusLayout, set = 0): Val
   };
 }
 
-/** Decode the captured byte, ignoring reserved bits, then replace the complete flag object. */
-export function restoreStatus(cpu: StatusCpu, layout: StatusLayout, contents: NumberExpression) {
-  const policy: FlagPolicy = { name: "restore packed status", parameters: { status: 8 }, unlisted: "preserve",
+function decodedStatus(cpu: StatusCpu, layout: StatusLayout): FlagPolicy {
+  return { name: "restore packed status", parameters: { status: 8 }, unlisted: "preserve",
     updates: Object.entries(layout.bits).map(([name, bit]) => ({ flag: cpu.flag(name), value: not(zero(bitAnd(value("status"), literal(8, 2 ** bit)))) })),
   };
-  return replaceFlags(policy, { status: contents });
+}
+
+/** Decode the captured byte, ignoring reserved bits, then replace the complete flag object. */
+export function restoreStatus(cpu: StatusCpu, layout: StatusLayout, contents: NumberExpression) {
+  return replaceFlags(decodedStatus(cpu, layout), { status: contents });
+}
+
+/** Update only the layout's flags, preserving the flag object and all unlisted flags. */
+export function updateStatus(cpu: StatusCpu, layout: StatusLayout, contents: NumberExpression) {
+  return updateFlags(decodedStatus(cpu, layout), { status: contents });
 }
 
 /** Set, clear, or complement one flag without reading or replacing the others. */

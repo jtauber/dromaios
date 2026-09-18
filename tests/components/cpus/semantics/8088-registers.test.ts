@@ -24,11 +24,11 @@ const names: Readonly<Record<number, string>> = {
   0xa8: "TEST AL,n", 0xa9: "TEST AX,n",
 };
 
-test("8088 definitions and bindings cover exactly 58 complete forms without observing state at binding time", () => {
+test("8088 register definitions and bindings retain their 58 complete forms without observing state at binding time", () => {
   assert.equal(Object.keys(names).length, 58);
-  assert.deepEqual(Object.fromEntries(Object.entries(instructions8088).map(([opcode, definition]) => [opcode, definition.name])), names);
+  assert.deepEqual(Object.fromEntries(Object.entries(instructions8088).filter(([opcode]) => Number(opcode) in names).map(([opcode, definition]) => [opcode, definition.name])), names);
   const forbidden = new Proxy(initialState(), { get() { assert.fail("Binding must not read state"); } });
-  assert.deepEqual(opcodeEntries(forbidden).map(([opcode]) => opcode), Object.keys(names).map(Number));
+  assert.deepEqual(opcodeEntries(forbidden).map(([opcode]) => opcode).filter(opcode => opcode in names), Object.keys(names).map(Number));
   const first = initialState(), second = initialState({ ax: 0x9876 });
   const one = new Map(opcodeEntries(first)), two = new Map(opcodeEntries(second));
   const context = { fetchByte: () => 0x55, readByte: () => { throw Error("Unexpected data read"); }, writeByte: () => { throw Error("Unexpected data write"); } };

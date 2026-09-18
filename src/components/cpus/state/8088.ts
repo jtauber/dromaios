@@ -1,3 +1,4 @@
+import { flagRegister } from "../flags.ts";
 import { defineState, unsigned, flag, boolean, group } from "../state.ts";
 import type { StateValues } from "../state.ts";
 
@@ -13,3 +14,5 @@ export const cpu8088StateDescription = defineState({
 export type Cpu8088State = StateValues<typeof cpu8088StateDescription>;
 export type Cpu8088Flags = Cpu8088State["flags"];
 
+/** Low FLAGS layout shared by LAHF/SAHF and full-word runtime packing. */
+export const cpu8088Status = flagRegister({ cf: 0, pf: 2, af: 4, zf: 6, sf: 7 }, 0x02);

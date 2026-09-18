@@ -1,3 +1,4 @@
+import { instructions as unary8088 } from "../../src/components/cpus/generated/8088-unary.js";
 import { instructions as alu8088 } from "../../src/components/cpus/generated/8088-alu.js";
 import { instructions as transfers8088 } from "../../src/components/cpus/generated/8088-transfers.js";
 import { instructions as generated8088, opcodeEntries as opcodeEntries8088 } from "../../src/components/cpus/generated/8088.js";
@@ -635,4 +636,35 @@ export function check8088AluTypes(state: Cpu8088State, intel: Cpu8080State): voi
   alu8088.ADD_8_0_4(intel);
   // @ts-expect-error The original chip has no sign-extended immediate OR.
   alu8088.OR_signed_16_0(state, { fetchByte: () => 0 });
+}
+
+
+export function check8088OrdinaryTypes(state: Cpu8088State, intel: Cpu8080State): void {
+  generated8088[0x76](state, { fetchByte: () => 0 });
+  generated8088[0xe0](state, { fetchByte: () => 0 });
+  generated8088[0xe9](state, { fetchByte: () => 0 });
+  generated8088[0x98](state);
+  generated8088[0x9e](state);
+  generated8088[0x9f](state);
+  generated8088[0xf4](state);
+  unary8088.INC_8_4(state);
+  unary8088.NEG_16_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Branches cannot access data memory.
+  generated8088[0x76](state, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error Relative word branches require explicit byte fetching.
+  generated8088[0xe9](state, { fetchWord: () => 0 });
+  // @ts-expect-error HLT has no context or retirement callback.
+  generated8088[0xf4](state, { retire: () => {} });
+  // @ts-expect-error SAHF needs no memory capability.
+  generated8088[0x9e](state, { readByte: () => 0 });
+  // @ts-expect-error Register unary operations need no context.
+  unary8088.INC_8_4(state, {});
+  // @ts-expect-error Even NOT requires a complete memory read before writing.
+  unary8088.NOT_16_memory(state, 0xffff, 0xffff, { writeByte: () => {} });
+  // @ts-expect-error Unary memory operations need both read and write.
+  unary8088.DEC_16_memory(state, 0xffff, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error The decoder has finished fetching before a unary body begins.
+  unary8088.NEG_8_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {}, fetchByte: () => 0 });
+  // @ts-expect-error Bodies retain their concrete CPU state.
+  unary8088.NEG_8_0(intel);
 }
