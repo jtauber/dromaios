@@ -107,15 +107,15 @@ test("byte extraction requires a captured word and yields a byte, without implic
   }
 });
 
-test("control-latch writes require a Boolean constant and a declared latch belonging to this CPU", () => {
+test("control-latch writes require a Boolean value and a declared latch belonging to this CPU", () => {
   const latch = motorola.latch("nmiArmed");
   const instruction = (steps: readonly Statement[]) => defineInstruction({ cpu: motorola.declaration, name: "latch", explanation: "Latch probe.", steps });
-  for (const value of [false, true]) instruction([writeLatch(latch, value)]);
+  for (const value of [false, true, flagLiteral(true)]) instruction([writeLatch(latch, value)]);
   for (const ref of [{ ...latch, cpu: "6502" }, ...["s", "flags", "c", "waitMode", "missing"].map(field => ({ ...latch, field }))]) {
     assert.throws(() => instruction([writeLatch(ref, true)]), /unknown control latch/);
   }
   assert.throws(() => define([writeLatch(latch, true)]), /unknown control latch/);
-  for (const value of [0, 1, "true", null, flagLiteral(true)]) {
+  for (const value of [0, 1, "true", null]) {
     assert.throws(() => instruction([{ kind: "write-latch", latch, value } as unknown as Statement]), /control latch value must be Boolean/);
   }
   assert.throws(() => motorola.latch("s" as "nmiArmed"), /expected a stored control latch/);

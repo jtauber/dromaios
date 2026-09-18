@@ -1,4 +1,4 @@
-import type { AddressExpression, Expression, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueType, Width } from "./model.ts";
+import type { AddressExpression, Choice, Expression, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueType, Width } from "./model.ts";
 import { isWidth } from "./model.ts";
 
 /** Own and freeze a validated definition. Captures and source scopes are instruction-local. */
@@ -44,6 +44,12 @@ export function validateInstruction(definition: InstructionDefinition): void {
   }
   function latch(ref: Latch, where: string): void {
     if (ref.cpu !== cpu.name || cpu.state[ref.field]?.kind !== "boolean") fail(where, `unknown control latch ${ref.cpu}.${ref.field}`);
+  }
+  function choice(ref: Choice, value: string | number, where: string): void {
+    const field = cpu.state[ref.field];
+    if (ref.cpu !== cpu.name || (field?.kind !== "choice" && field?.kind !== "named-choice")
+      || ref.values.length !== field.values.length || ref.values.some((v, i) => v !== field.values[i])) fail(where, "control choices do not match the CPU schema");
+    if (!ref.values.includes(value)) fail(where, "value is not a declared control choice");
   }
   function flagGroup(ref: FlagGroup, where: string): string[] {
     const flags = bank(ref, where).flags;
@@ -216,6 +222,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
         case "read-register": captured = register(step.register, where); break;
         case "read-element": captured = element(step.array, step.index, scope, where); break;
         case "read-flag": flag(step.flag, where); captured = "flag"; break;
+        case "test-choice": choice(step.choice, step.value, where); captured = "flag"; break;
         case "read-latch": latch(step.latch, where); captured = "flag"; break;
         case "exchange-flags": {
           const left = flagGroup(step.left, where), right = flagGroup(step.right, where);
@@ -235,12 +242,20 @@ export function validateInstruction(definition: InstructionDefinition): void {
         case "write-register": expect(step.value, register(step.register, where)); return;
         case "write-element": expect(step.value, element(step.array, step.index, scope, where)); return;
         case "defer-interrupt":
-          if (cpu.name !== "8088") fail(where, "interrupt deferral currently requires the 8088 boundary");
-          if (step.scope !== "intr" && step.scope !== "all") fail(where, "interrupt deferral scope must be intr or all");
+          if (cpu.name === "8088") {
+            if (step.scope !== "intr" && step.scope !== "all") fail(where, "8088 interrupt deferral scope must be intr or all");
+          } else if ((cpu.name !== "8080" && cpu.name !== "z80") || step.scope !== "irq") fail(where, "IRQ deferral requires an 8080 or Z80 boundary");
           return;
+        case "notify-reti":
+          if (cpu.name !== "z80") fail(where, "RETI notification requires the Z80 boundary");
+          return;
+        case "write-choice": choice(step.choice, step.value, where); return;
         case "write-latch":
           latch(step.latch, where);
-          if (typeof step.value !== "boolean") fail(where, "control latch value must be Boolean");
+          if (typeof step.value !== "boolean") {
+            if (!step.value || typeof step.value !== "object") fail(where, "control latch value must be Boolean or a flag expression");
+            flagExpression(step.value, scope, where);
+          }
           return;
         case "write-port": expect(step.port, 16); expect(step.value, 8); return;
         case "write-memory": address(step.address, scope, where); expect(step.value, 8); return;

@@ -5,7 +5,7 @@ import type { RegisterView } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
 
 export interface Stack {
-  readonly push: (contents: NumberExpression) => readonly Statement[];
+  readonly push: (contents: NumberExpression, name?: string) => readonly Statement[];
   readonly pop: ValueSource;
   readonly explanation: string;
 }
@@ -39,9 +39,9 @@ export function byteStack(pointer: Register, position: "occupied" | "free", page
 export function wordStack(bytes: ReturnType<typeof byteStack>, order: "little-endian" | "big-endian"): Stack {
   const first = order === "little-endian" ? "low" : "high", second = first === "low" ? "high" : "low";
   return { explanation: `${bytes.explanation} Words are ${order}.`,
-    push: contents => [
-      ...bytes.push((second === "high" ? highByte : lowByte)(contents), "first"),
-      ...bytes.push((first === "high" ? highByte : lowByte)(contents), "second"),
+    push: (contents, name) => [
+      ...bytes.push((second === "high" ? highByte : lowByte)(contents), name === undefined ? "first" : name + "First"),
+      ...bytes.push((first === "high" ? highByte : lowByte)(contents), name === undefined ? "second" : name + "Second"),
     ],
     pop: { name: `pop ${order} word`, width: 16,
       steps: [readSource(first, bytes.pop), readSource(second, bytes.pop)], result: concat(value("high"), value("low")) },
@@ -102,5 +102,16 @@ export function stackPop(cpu: CpuDeclaration, name: string, stack: Stack, destin
       + (flags ? `Then apply ${flags.name}, preserving unlisted flags. ` : "Preserve all flags. ")
       + "Preserve other registers and control state. " + stack.explanation,
     steps: transfer(destination, stack.pop, flags),
+  });
+}
+
+/** Frame fields are listed in pull order; pushes visit them in reverse, capturing each at its turn. */
+export function stackFrame(registers: readonly RegisterView[], bytes: ReturnType<typeof byteStack>, order: "little-endian" | "big-endian", pull: boolean, prefix = "frame"): readonly Statement[] {
+  const words = wordStack(bytes, order), entries = registers.map((view, index) => ({ view, name: `${prefix}${index}` }));
+  return (pull ? entries : entries.reverse()).flatMap(({ view, name }) => {
+    if (view.source.width !== 8 && view.source.width !== 16) throw new Error("Stack frames require byte or word fields.");
+    const stack = view.source.width === 8 ? bytes : words;
+    return pull ? [readSource(name, stack.pop), ...view.write(value(name))]
+      : [readSource(name, view.source), ...stack.push(value(name), name)];
   });
 }

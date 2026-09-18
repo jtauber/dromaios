@@ -49,11 +49,8 @@ const addressPattern = opcodePattern<AddressedHandler>;
 
 // Vector address, frame size, and masks applied AFTER saving the original CC.
 const interruptEntries = {
-  swi3: { vector: 0xfff2, entire: true, masks: 0x00 },
-  swi2: { vector: 0xfff4, entire: true, masks: 0x00 },
   firq: { vector: 0xfff6, entire: false, masks: 0x50 },
   irq:  { vector: 0xfff8, entire: true, masks: 0x10 },
-  swi:  { vector: 0xfffa, entire: true, masks: 0x50 },
   nmi:  { vector: 0xfffc, entire: true, masks: 0x50 },
 } as const;
 
@@ -161,7 +158,7 @@ export class Cpu6809 {
   // Prefix 10 selects page 2. Word encodings retain mm=00/01/10/11 addressing.
   // Transfers append 0=load/1=store; immediate stores are undefined.
   readonly #page2Handlers = opcodeTable<OpcodeHandler>([
-    ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi2", instruction)), // SWI2
+    ...instructionPattern("0011 1111", instruction => semantics.swi2(this.#state, instruction)), // SWI2
     ...this.#branchHandlers(true).filter(([opcode]) => opcode !== 0x20), // LBRN and LBcc; LBRA has base opcode 16
     ...this.#operandHandlers("10 mm 0011", semantics.cmpdImmediate, semantics.cmpdMemory), // CMPD
     ...this.#operandHandlers("10 mm 1100", semantics.cmpyImmediate, semantics.cmpyMemory), // CMPY
@@ -172,7 +169,7 @@ export class Cpu6809 {
   ]);
   // Prefix 11 selects page 3: the same comparison fields select U/S rather than D/Y.
   readonly #page3Handlers = opcodeTable<OpcodeHandler>([
-    ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi3", instruction)), // SWI3
+    ...instructionPattern("0011 1111", instruction => semantics.swi3(this.#state, instruction)), // SWI3
     ...this.#operandHandlers("10 mm 0011", semantics.cmpuImmediate, semantics.cmpuMemory), // CMPU
     ...this.#operandHandlers("10 mm 1100", semantics.cmpsImmediate, semantics.cmpsMemory), // CMPS
   ]);
@@ -185,7 +182,7 @@ export class Cpu6809 {
     ...instructionPattern("0001 0000", instruction => this.#executeFollowingByte(this.#page2Handlers, instruction)),
     ...instructionPattern("0001 0001", instruction => this.#executeFollowingByte(this.#page3Handlers, instruction)),
     ...instructionPattern("0001 0010", () => semantics.nop(this.#state)), // NOP
-    ...instructionPattern("0001 0011", () => { this.#state.waitMode = "sync"; }), // SYNC
+    ...instructionPattern("0001 0011", () => semantics.sync(this.#state)), // SYNC
     ...instructionPattern("0001 0110", instruction => semantics.lbra(this.#state, instruction)), // LBRA rel16
     ...instructionPattern("0001 0111", instruction => semantics.lbsr(this.#state, instruction)), // LBSR rel16
 
@@ -210,10 +207,10 @@ export class Cpu6809 {
       ({ s: operations, p: direction }) => (instruction: InstructionContext) => operations[direction]!(this.#state, instruction)), // PSHS / PULS / PSHU / PULU
     ...instructionPattern("0011 1001", instruction => semantics.rts(this.#state, instruction)), // RTS
     ...instructionPattern("0011 1010", () => semantics.abx(this.#state)), // ABX, unsigned B; preserve flags
-    ...instructionPattern("0011 1011", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
-    ...instructionPattern("0011 1100", instruction => this.#waitForInterrupt(instruction)), // CWAI #mask
+    ...instructionPattern("0011 1011", instruction => semantics.rti(this.#state, instruction)), // RTI
+    ...instructionPattern("0011 1100", instruction => semantics.cwai(this.#state, instruction)), // CWAI #mask
     ...instructionPattern("0011 1101", () => semantics.mul(this.#state)), // MUL
-    ...instructionPattern("0011 1111", instruction => this.#enterInterrupt("swi", instruction)), // SWI
+    ...instructionPattern("0011 1111", instruction => semantics.swi(this.#state, instruction)), // SWI
 
     // 010 r oooo: A/B unary operations. TST updates flags without writing a result.
     ...Cpu6809.#unaryOperations.flatMap(({ bits, registers }) => opcodeFamily(`010 r ${bits}`,
@@ -359,18 +356,6 @@ export class Cpu6809 {
     this.#state.flags = packedFlags.decode(packedFlags.encode(this.#state.flags) | masks);
     this.#state.waitMode = "none";
     this.#state.pc = this.#readWord(vector, readByte);
-  }
-
-  #waitForInterrupt({ fetchByte, writeByte }: InstructionContext): void {
-    this.#state.flags = packedFlags.decode(packedFlags.encode(this.#state.flags) & fetchByte());
-    this.#saveInterruptFrame(true, writeByte);
-    this.#state.waitMode = "cwai";
-  }
-
-  #returnFromInterrupt(readByte: ByteMemory["readByte"]): void {
-    semantics.pullFrame(this.#state, 0x01, { readByte }); // Restored E, not hidden state, selects the frame.
-    semantics.pullFrame(this.#state, this.#state.flags.e ? 0xfe : 0x80, { readByte });
-    this.#state.nmiArmed = true;
   }
 
   // Memory operations.

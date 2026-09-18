@@ -6,11 +6,16 @@ export interface ByteInstructionContext extends ByteMemory {
 }
 
 /** Request recognition inhibition at successful retirement, without changing stored latches now. */
-export interface InterruptDeferralContext {
-  readonly deferInterrupt: (scope: "intr" | "all") => void;
+export interface InterruptDeferralContext<Scope extends "irq" | "intr" | "all" = "intr" | "all"> {
+  readonly deferInterrupt: (scope: Scope) => void;
 }
 
 /** Adds a 16-bit operand fetch in the CPU's byte order. */
 export interface WordInstructionContext extends ByteInstructionContext {
   readonly fetchWord: () => number;
+}
+
+/** Record a RETI request now; notify the device only after successful retirement. */
+export interface RetiNotificationContext {
+  readonly notifyReti: () => void;
 }

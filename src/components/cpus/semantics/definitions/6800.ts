@@ -1,12 +1,12 @@
 import { cpu6800StateDescription, cpu6800Status } from "../../state/6800.ts";
-import { addWrap, cpuSymbols, highByte, literal, negative, overflow, readRegister, readSource, updateFlags, writeRegister, subtract, value, zero } from "../model.ts";
-import type { FlagPolicy } from "../model.ts";
-import { compare, registerSource, transfer } from "../builders.ts";
+import { addWrap, cpuSymbols, flagLiteral, flagValue, highByte, literal, negative, not, overflow, readLatch, readRegister, readSource, updateFlags, writeRegister, subtract, value, when, writeLatch, zero } from "../model.ts";
+import type { FlagPolicy, NumberExpression, Statement } from "../model.ts";
+import { compare, registerSource, registerView, transfer } from "../builders.ts";
 import { motorolaArithmetic, motorolaBranches, motorolaByteArithmetic, motorolaResultFlags, motorolaSubroutines, motorolaTransfers, motorolaComparison, motorolaComparisonFlags, motorolaLogic, motorolaUnary } from "../motorola.ts";
 import { defineInstruction } from "../validate.ts";
-import { resolvedJump } from "../control-flow.ts";
+import { loadVector, resolvedJump } from "../control-flow.ts";
 import { motorolaBranchNames } from "../../motorola.ts";
-import { byteStack, stackPop, stackPush } from "../stack.ts";
+import { byteStack, stackFrame, stackPop, stackPush } from "../stack.ts";
 import { flagInstruction, flagPolicy, packedStatus, restoreStatus } from "../status.ts";
 import { decimalAdjust } from "../decimal.ts";
 
@@ -22,7 +22,27 @@ const indexComparison: FlagPolicy = {
   ],
 };
 
+const interruptStack = byteStack(cpu.register("sp"), "free");
+const frame = [{ source: packedStatus(cpu, cpu6800Status), write: (contents: NumberExpression) => [restoreStatus(cpu, cpu6800Status, contents)] },
+  ...(["b", "a", "x", "pc"] as const).map(field => registerView(cpu.register(field)))];
+const saveFrame = () => stackFrame(frame, interruptStack, "big-endian", false);
+function interruptEntry(vector: NumberExpression): readonly Statement[] {
+  return [readLatch("waiting", cpu.latch("waiting")), when(not(flagValue("waiting")), saveFrame()),
+    writeLatch(cpu.latch("waiting"), false), updateFlags(flagPolicy(cpu, "mask IRQ", {}, { i: flagLiteral(true) }), {}),
+    ...loadVector(cpu.register("pc"), vector, "big-endian")];
+}
+const entryExplanation = "Unless WAI already saved the frame, push PC, X, A, B, then CC with old I. Capture each field at its turn; words push low/high. Release WAI, set I, then read the complete high-first vector before writing PC. " + interruptStack.explanation;
+
 export const instructions6800 = {
+  enterInterrupt: defineInstruction({ cpu: cpu.declaration, name: "external interrupt entry", inputs: { vector: 16 },
+    explanation: entryExplanation, steps: interruptEntry(value("vector")) }),
+  swi: defineInstruction({ cpu: cpu.declaration, name: "SWI", explanation: entryExplanation, steps: interruptEntry(literal(16, 0xfffa)) }),
+  wai: defineInstruction({ cpu: cpu.declaration, name: "WAI",
+    explanation: "Save the complete interrupt frame before entering WAI; preserve I until wake-up. A failed push prevents waiting. " + interruptStack.explanation,
+    steps: [...saveFrame(), writeLatch(cpu.latch("waiting"), true)] }),
+  rti: defineInstruction({ cpu: cpu.declaration, name: "RTI",
+    explanation: "Pull CC, B, A, X, then PC. Replace flags immediately after CC; commit each later field only after its complete read. Preserve waiting. " + interruptStack.explanation,
+    steps: stackFrame(frame, interruptStack, "big-endian", true) }),
   nop: defineInstruction({ cpu: cpu.declaration, name: "NOP", explanation: "No effects after opcode fetching.", steps: [] }),
   daa: decimalAdjust(cpu, "motorola"),
   ...Object.fromEntries((["v", "c", "i"] as const).flatMap(flag => [false, true].map(set => {

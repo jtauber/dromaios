@@ -1,13 +1,13 @@
 import { cpu6502StateDescription, cpu6502Status } from "../../state/6502.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
-import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, cpuSymbols, extend, fetchByte, highByte, literal, lowByte, negative, not,
+import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, cpuSymbols, extend, fetchByte, flagLiteral, highByte, literal, lowByte, negative, not,
   readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
-import type { FlagPolicy, InstructionDefinition, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
+import type { FlagPolicy, InstructionDefinition, NumberExpression, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
 import { compare, immediateByte, instructionSet, logical, memorySource, negativeZeroPolicy, registerSource, shift, transfer } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
-import { flagCondition, jump, relativeBranch, subroutineReturn } from "../control-flow.ts";
+import { flagCondition, loadVector, jump, relativeBranch, subroutineReturn } from "../control-flow.ts";
 import { byteStack, stackPop, stackPush, wordStack } from "../stack.ts";
-import { flagInstruction, packedStatus, restoreStatus } from "../status.ts";
+import { flagInstruction, flagPolicy, packedStatus, restoreStatus } from "../status.ts";
 import { mosArithmetic } from "../mos.ts";
 
 const cpu = cpuSymbols("6502", cpu6502StateDescription);
@@ -188,8 +188,27 @@ const modifyOperands: readonly Operand[] = [
   ["zero page,X", addresses.zeroPageX], ["absolute,X", addresses.absoluteX],
 ];
 
+function interruptEntry(vector: NumberExpression, software: boolean): readonly Statement[] {
+  return [readRegister("highPC", cpu.register("pc")), ...stack.push(highByte(value("highPC")), "high"),
+    readRegister("lowPC", cpu.register("pc")), ...stack.push(lowByte(value("lowPC")), "low"),
+    readSource("status", packedStatus(cpu, cpu6502Status, software ? 0x10 : 0)), ...stack.push(value("status"), "status"),
+    updateFlags(flagPolicy(cpu, "mask IRQ after stacking old I", {}, { i: flagLiteral(true) }), {}),
+    ...loadVector(cpu.register("pc"), vector, "little-endian")];
+}
+const entryExplanation = "Push PC high then live PC low, then packed status with old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. " + stack.explanation;
+export const interrupts6502 = { enter: defineInstruction({ cpu: cpu.declaration, name: "external interrupt entry", inputs: { vector: 16 },
+  explanation: "After CPU-owned recognition, stack B clear. " + entryExplanation, steps: interruptEntry(value("vector"), false) }) };
+
 // These patterns generate both instruction bodies and their execution bindings.
 export const instructions6502 = instructionSet([
+  // 0r0 000 00: r=0 BRK consumes padding and enters IRQ; r=1 RTI restores status then PC.
+  ...opcodePattern("000 000 00", defineInstruction({ cpu: cpu.declaration, name: "BRK",
+    explanation: "Fetch padding before saving PC; stack B set. " + entryExplanation,
+    steps: [fetchByte("padding"), ...interruptEntry(literal(16, 0xfffe), true)] })),
+  ...opcodePattern("010 000 00", defineInstruction({ cpu: cpu.declaration, name: "RTI",
+    explanation: "Restore the complete flag object first, then pull PC low/high without RTS's increment. A failed PC read retains restored flags. " + stack.explanation,
+    steps: [readSource("status", stack.pop), restoreStatus(cpu, cpu6502Status, value("status")),
+      readSource("target", wordStack(stack, "little-endian").pop), writeRegister(cpu.register("pc"), value("target"))] })),
   ...opcodePattern("111 010 10", defineInstruction({ cpu: cpu.declaration, name: "NOP", explanation: "No effects after opcode fetching.", steps: [] })),
   // 00v/01v/11v 110 00 select C/I/D and the new flag value; 101 selects CLV.
   ...([["00", "c", "CLC", "SEC"], ["01", "i", "CLI", "SEI"], ["11", "d", "CLD", "SED"]] as const).flatMap(([bits, flag, clear, set]) =>

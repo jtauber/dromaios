@@ -1,12 +1,12 @@
 import { cpu6809StateDescription, cpu6809Status } from "../../state/6809.ts";
-import { addWrap, bitAnd, bitOr, capture, concat, extend, fetchByte, cpuSymbols, highByte, lowByte, multiply, negative, not, readRegister, readSource, signExtend, updateFlags, value, when, writeLatch, writeRegister, zero } from "../model.ts";
-import type { InstructionDefinition, NumberExpression, ValueSource } from "../model.ts";
+import { addWrap, bitAnd, bitOr, capture, concat, extend, fetchByte, flagLiteral, flagValue, literal, cpuSymbols, highByte, lowByte, multiply, negative, not, readRegister, readSource, signExtend, testChoice, updateFlags, value, when, writeChoice, writeLatch, writeRegister, zero } from "../model.ts";
+import type { InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
 import { registerSource, registerView } from "../builders.ts";
 import { motorolaBranches, motorolaByteArithmetic, motorolaArithmeticFamily, motorolaTransfers, motorolaComparison, motorolaLogic, motorolaSubroutines, motorolaUnary } from "../motorola.ts";
-import { resolvedJump } from "../control-flow.ts";
+import { choose, flagCondition, loadVector, resolvedJump } from "../control-flow.ts";
 import { motorolaBranchNames, motorola6809TransferForms } from "../../motorola.ts";
 import { flagPolicy, packedStatus, restoreStatus } from "../status.ts";
-import { byteStack, maskedStack } from "../stack.ts";
+import { byteStack, maskedStack, stackFrame } from "../stack.ts";
 import { decimalAdjust } from "../decimal.ts";
 import { defineInstruction } from "../validate.ts";
 
@@ -64,7 +64,35 @@ function registerStack(stack: "s" | "u", pull: boolean, frame = false): Instruct
   });
 }
 
+const interruptStack = byteStack(cpu.register("s"), "occupied");
+const interruptFrame = [views.cc, views.a, views.b, views.dp, views.x, views.y, views.u, views.pc];
+function saveInterruptFrame(): readonly Statement[] {
+  return [updateFlags(flagPolicy(cpu, "entire interrupt frame", {}, { e: flagLiteral(true) }), {}),
+    ...stackFrame(interruptFrame, interruptStack, "big-endian", false)];
+}
+function softwareInterrupt(name: string, vector: number, masks: number) {
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: "Unless CWAI already saved a frame, set E and push the full frame in PC/U/Y/X/DP/B/A/CC order. "
+      + "Then repack and replace CC with the instruction's interrupt masks, leave waiting, and fetch the complete high-first vector. " + interruptStack.explanation,
+    steps: [testChoice("waiting", cpu.choice("waitMode"), "cwai"), when(not(flagValue("waiting")), saveInterruptFrame()),
+      readSource("status", packedStatus(cpu, cpu6809Status)), restoreStatus(cpu, cpu6809Status, bitOr(value("status"), literal(8, masks))),
+      writeChoice(cpu.choice("waitMode"), "none"), ...loadVector(cpu.register("pc"), literal(16, vector), "big-endian")],
+  });
+}
+
 export const instructions6809: Readonly<Record<string, InstructionDefinition>> = {
+  // Base/page 10/page 11 opcode 0011 1111: SWI masks I/F; SWI2 and SWI3 preserve them.
+  swi: softwareInterrupt("SWI", 0xfffa, 0x50), swi2: softwareInterrupt("SWI2", 0xfff4, 0), swi3: softwareInterrupt("SWI3", 0xfff2, 0),
+  sync: defineInstruction({ cpu: cpu.declaration, name: "SYNC", explanation: "Enter SYNC without accessing registers, flags, or memory.",
+    steps: [writeChoice(cpu.choice("waitMode"), "sync")] }),
+  cwai: defineInstruction({ cpu: cpu.declaration, name: "CWAI",
+    explanation: "Capture CC before fetching the mask, replace flags with their masked values, set E, and save the complete frame. Enter CWAI only after every push succeeds. " + interruptStack.explanation,
+    steps: [readSource("status", packedStatus(cpu, cpu6809Status)), fetchByte("mask"), restoreStatus(cpu, cpu6809Status, bitAnd(value("status"), value("mask"))),
+      ...saveInterruptFrame(), writeChoice(cpu.choice("waitMode"), "cwai")] }),
+  rti: defineInstruction({ cpu: cpu.declaration, name: "RTI",
+    explanation: "Pull and replace CC first. Restored E selects the remaining full frame or PC alone; only complete each field after all its reads. Arm NMI after all transfers succeed. " + interruptStack.explanation,
+    steps: [...stackFrame([views.cc], interruptStack, "big-endian", true), ...choose(flagCondition(cpu.flag("e"), true),
+      stackFrame(interruptFrame.slice(1), interruptStack, "big-endian", true, "rest"), stackFrame([views.pc], interruptStack, "big-endian", true, "rest")), armNmi] }),
   nop: defineInstruction({ cpu: cpu.declaration, name: "NOP", explanation: "No effects after opcode fetching.", steps: [] }),
   sex: defineInstruction({ cpu: cpu.declaration, name: "SEX",
     explanation: "Sign-extend B into A, leaving B unchanged. Then set N/Z from B and preserve every other flag, including V.",
@@ -92,8 +120,8 @@ export const instructions6809: Readonly<Record<string, InstructionDefinition>> =
   ...registerTransfers(false), ...registerTransfers(true),
   pshs: registerStack("s", false), puls: registerStack("s", true),
   pshu: registerStack("u", false), pulu: registerStack("u", true),
-  // Reuse mask construction in interrupt entry/return without ordinary PSHS/PULS arming.
-  pushFrame: registerStack("s", false, true), pullFrame: registerStack("s", true, true),
+  // Reuse mask construction in external interrupt entry without ordinary PSHS arming.
+  pushFrame: registerStack("s", false, true),
   daa: decimalAdjust(cpu, "motorola"),
   ...Object.fromEntries((["or", "and"] as const).map(operation => [`${operation}cc`, defineInstruction({ cpu: cpu.declaration, name: `${operation.toUpperCase()}CC`,
     explanation: "Capture packed CC before fetching the mask, then combine and replace all flags. A failed fetch leaves flags unchanged.",

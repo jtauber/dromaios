@@ -18,18 +18,19 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [228](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [199](../../src/components/cpus/8080.ts) | 242 / 244 | 99.2% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [260](../../src/components/cpus/6800.ts) | 194 / 197 | 98.5% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [162](../../src/components/cpus/6502.ts) | 149 / 151 | 98.7% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [402](../../src/components/cpus/z80.ts) | 691 / 698 | 99.0% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [385](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [197](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 197 / 197 | 100% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [621](../../src/components/cpus/8088.ts) | 279 / 291 | 95.9% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **4,262 generated bodies**, all used by CPU execution,
-including two shared 6809 interrupt-frame helpers and one 8088 word-push helper.
-They cover **2,067 complete opcode forms**:
+contains **4,283 generated bodies**, all used by CPU execution,
+including 6502/6800 external-entry helpers, a 6809 frame-push helper, and an
+8088 word-push helper. They cover **2,087 complete opcode forms**. All six
+8-bit CPUs now have complete instruction-definition migration:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -43,8 +44,10 @@ They cover **2,067 complete opcode forms**:
   ADC/SBC in all sixteen addressing forms, PHP/PLP, the seven flag changes,
   and NOP add 26 bodies. NMOS decimal correction retains distinct flag/write
   stages and invalid-digit behavior. Status packing uses the CPU-owned layout;
-  PLP replaces flags only after a successful pull. All 149 bodies are integrated
-  and count as migrated forms. Only BRK/RTI remain handwritten. The accumulator
+  PLP replaces flags only after a successful pull. BRK/RTI complete all 151 forms;
+  BRK consumes padding, pushes live PC bytes and status, then sets I and loads
+  the vector. RTI restores flags before PC. A generated external-entry helper
+  shares BRK's sequence with the saved B marker clear. The accumulator
   families share their addressing inventory, with STA excluding the immediate
   slot. Logical instructions read the operand before A; ORA/AND/EOR write A then
   set N/Z, while BIT preserves A and copies memory bits 7/6 into N/V.
@@ -89,8 +92,9 @@ They cover **2,067 complete opcode forms**:
   add eight bodies. PSW shares its reserved-bit layout with runtime encoding;
   POP replaces A then the complete flags only after both reads succeed.
   IN/OUT add two bodies using shared port-transfer construction, with the
-  immediate port fetched before A is read or written. All 242 bodies are
-  integrated; only DI/EI remain handwritten.
+  immediate port fetched before A is read or written. DI/EI complete all 244
+  bodies and forms. EI sets the enable latch and requests IRQ deferral; the
+  CPU commits that request only at successful retirement.
 - [6800 definitions](../../src/components/cpus/semantics/definitions/6800.ts):
   All eleven unary operations on A/B and indexed/extended memory count as 44
   migrated forms. Their 33 bodies use the same
@@ -121,7 +125,10 @@ They cover **2,067 complete opcode forms**:
   DAA, TAP/TPA, six flag changes, INX/DEX, INS/DES, TSX/TXS, and NOP add
   sixteen bodies. Decimal correction is shared with the 6809; only INX/DEX
   affect Z among the pointer/index operations. TAP ignores reserved bits and
-  replaces the whole flag object. All 194 forms are migrated except RTI/WAI/SWI.
+  replaces the whole flag object. RTI/WAI/SWI complete all 197 forms. Their
+  generated frames capture each field at its turn and restore CC before
+  registers. The external-entry helper shares SWI's sequence, reusing an
+  existing WAI frame before masking IRQ and loading the vector.
 - [6809 definitions](../../src/components/cpus/semantics/definitions/6809.ts):
   CMPA/B/D/X/Y/U/S across immediate/direct/indexed/extended addressing count as
   28 migrated forms from 14 bodies. All eleven unary operations (NEG, COM, LSR,
@@ -162,13 +169,14 @@ They cover **2,067 complete opcode forms**:
   bodies cover all 256 masks each, capturing each pushed register at its turn
   and committing each pulled register only after its full read. Nonempty
   PSHS/PULS arm NMI only after success; PULU's S write arms immediately.
-  Two supplied-mask frame helpers reuse that construction without instruction
-  fetching or final arming; they earn no additional opcode credit. This removes
-  the handwritten stack helpers while preserving interrupt entry/return policy.
+  A supplied-mask frame-push helper reuses that construction for external entry
+  without instruction fetching or final arming; it earns no opcode credit.
+  Complete RTI replaces the former partial frame-pull helper.
   LEAX/LEAY/LEAS/LEAU, SEX, ABX, MUL, and NOP add eight more forms. LEA enters
   after indexed resolution; MUL uses a checked byte-by-byte product yielding
-  a word, with C from product bit 7. All ordinary bodies are now generated:
-  262 forms. SYNC, CWAI, RTI, and SWI/SWI2/SWI3 remain handwritten.
+  a word, with C from product bit 7. SYNC, CWAI, RTI, and SWI/SWI2/SWI3
+  complete all 268 forms. Generated wait-mode choices retain CWAI frame reuse;
+  restored E selects RTI's full or short frame before final NMI arming.
 - [Z80 definitions](../../src/components/cpus/semantics/definitions/z80.ts):
   All eight byte ALU families (ADD/ADC/SUB/SBC/AND/XOR/OR/CP) are integrated:
   72 register, (HL), and immediate forms, plus 16 (IX+d)/(IY+d) forms. Eight
@@ -240,8 +248,9 @@ They cover **2,067 complete opcode forms**:
   bodies: immediate ports capture old A before fetching, register ports use BC,
   and block I/O preserves B decrement between the read and write. Repeated
   forms transfer one byte per step, then rewind PC and correct H/PV as required.
-  The Z80 integrates 600 bodies covering 691 forms; seven interrupt-related
-  forms remain handwritten.
+  DI/EI, IM 0/1/2, and RETN/RETI complete 607 bodies covering all 698 forms.
+  Mode choices come from the state schema. Returns commit PC before restoring
+  IFF1 from IFF2; deferral and RETI notification remain retirement requests.
 - [8008 definitions](../../src/components/cpus/semantics/definitions/8008.ts):
   All 72 byte ALU forms are integrated: AD/AC/SU/SB/ND/XR/OR/CP with each
   register, memory, and immediate source. The existing Intel ALU construction
@@ -404,32 +413,33 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,601 |
-| CPU-specific instruction definition files | 1,702 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,130 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,433** |
+| Eight CPU implementation files | 3,466 |
+| CPU-specific instruction definition files | 1,791 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,195 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,452** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 91,663 |
+| Generated CPU output, counted separately | 92,564 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The port-I/O migration adds **66 bodies for 66 forms** across the 8008, 8080,
-Z80, and 8088. Two new byte-port effects share capability inference, validation,
-and explanation. A common transfer recipe captures an address before accessing
-an operand and supports low-first word transfers. Z80 input flags and block-I/O
-sequencing remain explicit CPU definitions.
+The interrupt/control migration completes **20 opcode forms** across the 6502,
+6800, 8080, Z80, and 6809. It adds two shared external-entry bodies and retires
+the 6809's partial frame-pull helper: **21 net new bodies**. Shared construction
+now describes ordered interrupt frames and vector loads. Schema-owned control
+choices, captured Boolean latch writes, IRQ deferral, and RETI notification
+keep control effects explicit while the CPUs retain recognition and retirement.
 
-The main CPU modules lose **94 lines**: six from the 8008, 41 from the Z80,
-and 47 from the 8088. The 8080 retains its size while replacing inline effects
-with generated calls. Removed code includes the handwritten port helpers,
-Z80 block-I/O flag helpers, and the 8088's last runtime register-operand wrapper.
-Definitions add **82 net lines** and shared support adds **42**. Total authored
-CPU source rises from **8,403 to 8,433 lines** (**30 more**); generated output
-adds **1,063 lines**. The new shared effects are included in this accounting.
-All **4,196** earlier definitions remain structurally unchanged, and ten
-unaffected generated modules remain byte-identical. Only the four port-using
-CPU modules gain generated bodies.
+The main CPU modules lose **135 lines**: 61 from the 6502, 47 from the 6800,
+15 from the 6809, ten from the Z80, and two from the 8080. Removed code includes
+the 6502/6800 stack implementations and their interrupt bodies, plus the Z80
+return helper. Definitions add **89 net lines** and shared support adds **65**.
+Total authored CPU source rises from **8,433 to 8,452 lines** (**19 more**);
+generated output adds **901 lines**. This completes the 8-bit migration without
+yet reducing the total maintained source in this batch.
+All **4,261 retained earlier definitions** remain structurally unchanged; the
+only removed definition is the partial 6809 frame pull. Nine unaffected
+generated modules remain byte-identical, including every 8008 and 8088 module.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

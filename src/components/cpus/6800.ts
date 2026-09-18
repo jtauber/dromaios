@@ -4,7 +4,7 @@ import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
 import { readWordBE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
-import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
+import type { MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
@@ -12,7 +12,7 @@ import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { motorolaUnaryOperations, motorolaOperandBindings, motorolaByteBindings, motorolaBranchNames } from "./motorola.ts";
 import { instructions as semantics } from "./generated/6800.ts";
-import { cpu6800StateDescription, cpu6800Status as packedFlags } from "./state/6800.ts";
+import { cpu6800StateDescription } from "./state/6800.ts";
 import type { Cpu6800State } from "./state/6800.ts";
 
 export { cpu6800StateDescription } from "./state/6800.ts";
@@ -95,7 +95,7 @@ export class Cpu6800 {
         return { before, after: this.snapshot(), instruction: null, accesses: [], source, outcome: "ignored", reason: "masked" };
       }
       const memory = recordMemory(this.#ram);
-      this.#enterInterrupt(source === "irq" ? 0xfff8 : 0xfffc, memory);
+      semantics.enterInterrupt(this.#state, source === "irq" ? 0xfff8 : 0xfffc, memory);
       return { before, after: this.snapshot(), instruction: null, accesses: memory.accesses, source, outcome: "accepted" };
     });
   }
@@ -152,11 +152,11 @@ export class Cpu6800 {
     ...instructionPattern("00110 1 0 1", () => semantics.txs(this.#state)), // TXS
     ...opcodeFamily("00110 1 1 r", { r: [semantics.pshA, semantics.pshB] }, ({ r: execute }) => (instruction: InstructionContext) => execute(this.#state, instruction)), // PSHA / PSHB
     ...instructionPattern("0011 1001", instruction => semantics.rts(this.#state, instruction)), // RTS
-    ...instructionPattern("0011 1011", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
+    ...instructionPattern("0011 1011", instruction => semantics.rti(this.#state, instruction)), // RTI
 
     // 0011111 s: both save the full frame; s=0 waits, s=1 enters the software vector.
-    ...instructionPattern("0011111 0", ({ writeByte }) => { this.#saveInterruptFrame(writeByte); this.#state.waiting = true; }), // WAI
-    ...instructionPattern("0011111 1", instruction => this.#enterInterrupt(0xfffa, instruction)), // SWI
+    ...instructionPattern("0011111 0", instruction => semantics.wai(this.#state, instruction)), // WAI
+    ...instructionPattern("0011111 1", instruction => semantics.swi(this.#state, instruction)), // SWI
 
     // 010 r oooo (tt=00/01): r selects A=0/B=1. 1110 is unused here.
     ...Cpu6800.#unaryOperations.flatMap(({ bits, registers }) => opcodeFamily(`010 r ${bits}`,
@@ -201,53 +201,6 @@ export class Cpu6800 {
 
   #indexedAddress(offset: number): number {
     return (this.#state.x + offset) & 0xffff;
-  }
-
-  // Interrupts and stack operations.
-
-  #saveInterruptFrame(writeByte: ByteMemory["writeByte"]): void {
-    // Descending stack: PC low/high, X low/high, A, B, then CC with the original I.
-    this.#pushWord(this.#state.pc, writeByte);
-    this.#pushWord(this.#state.x, writeByte);
-    this.#pushByte(this.#state.a, writeByte);
-    this.#pushByte(this.#state.b, writeByte);
-    this.#pushByte(packedFlags.encode(this.#state.flags), writeByte);
-  }
-
-  #enterInterrupt(vector: number, memory: ByteMemory): void {
-    // WAI already saved the frame; waking only masks IRQ and loads the vector.
-    if (!this.#state.waiting) this.#saveInterruptFrame(memory.writeByte);
-    this.#state.waiting = false;
-    this.#state.flags.i = true;
-    this.#state.pc = this.#readWord(vector, memory.readByte);
-  }
-
-  #returnFromInterrupt(readByte: ByteMemory["readByte"]): void {
-    this.#state.flags = packedFlags.decode(this.#pullByte(readByte));
-    this.#state.b = this.#pullByte(readByte);
-    this.#state.a = this.#pullByte(readByte);
-    this.#state.x = this.#pullWord(readByte);
-    this.#state.pc = this.#pullWord(readByte);
-  }
-
-  #pushWord(value: number, writeByte: ByteMemory["writeByte"]): void {
-    this.#pushByte(value & 0xff, writeByte);
-    this.#pushByte(value >>> 8, writeByte);
-  }
-
-  #pullWord(readByte: ByteMemory["readByte"]): number {
-    return readWordBE(() => this.#pullByte(readByte));
-  }
-
-  #pushByte(value: number, writeByte: InstructionContext["writeByte"]): void {
-    // SP points at the next free byte: write first, then decrement across the full address space.
-    writeByte(this.#state.sp, value);
-    this.#state.sp = (this.#state.sp - 1) & 0xffff;
-  }
-
-  #pullByte(readByte: InstructionContext["readByte"]): number {
-    this.#state.sp = (this.#state.sp + 1) & 0xffff;
-    return readByte(this.#state.sp);
   }
 
   // Memory operations.

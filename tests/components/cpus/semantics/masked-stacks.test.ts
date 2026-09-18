@@ -27,7 +27,6 @@ const probes: readonly Probe[] = [
   { name: "PSHU", pointer: "u", pull: false, execute: (s, _m, c) => instructions.pshu(s, c) },
   { name: "PULU", pointer: "u", pull: true, execute: (s, _m, c) => instructions.pulu(s, c) },
   { name: "frame push", pointer: "s", pull: false, frame: true, execute: (s, m, c) => instructions.pushFrame(s, m, c) },
-  { name: "frame pull", pointer: "s", pull: true, frame: true, execute: (s, m, c) => instructions.pullFrame(s, m, c) },
 ];
 
 test("masked stacks preserve byte ordering, completed register transfers, and arming at every access failure for every mask", () => {

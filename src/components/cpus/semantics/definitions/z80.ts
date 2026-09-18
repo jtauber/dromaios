@@ -1,6 +1,6 @@
 import { cpuZ80StateDescription, cpuZ80Status } from "../../state/z80.ts";
-import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, evenParity, exchangeFlags, fetchByte, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, overflow,
-  readFlag, readLatch, readMemory, readPort, readRegister, readSource, replaceFlags, select, shiftBits, subtract, updateFlags, value, when, writeMemory, writePort, writeRegister, xor, zero } from "../model.ts";
+import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, deferInterrupt, evenParity, exchangeFlags, fetchByte, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, notifyReti, overflow,
+  readFlag, readLatch, readMemory, readPort, readRegister, readSource, replaceFlags, select, shiftBits, subtract, updateFlags, value, when, writeChoice, writeLatch, writeMemory, writePort, writeRegister, xor, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
 import { immediateByte, registerSource, registerView, shift } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
@@ -9,6 +9,7 @@ import type { IntelByteOperation } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 import { flagPolicy } from "../status.ts";
 import { choose, flagCondition, jump, relativeBranch } from "../control-flow.ts";
+import { byteStack, wordStack } from "../stack.ts";
 import { portTransfer } from "../ports.ts";
 
 const cpu = cpuSymbols("z80", cpuZ80StateDescription);
@@ -271,7 +272,24 @@ function blockIo(delta: -1 | 1, output: boolean, repeat: boolean) {
   });
 }
 
+function interruptReturn(notify: boolean) {
+  return defineInstruction({ cpu: cpu.declaration, name: notify ? "RETI" : "RETN",
+    explanation: "Pop the complete PC before reading IFF1/IFF2. Request IRQ deferral if they differ, then reread IFF2 into IFF1. "
+      + (notify ? "Request device notification after architectural retirement; a notification failure cannot undo the return." : "Do not notify the device."),
+    steps: [readSource("target", wordStack(byteStack(cpu.register("sp"), "occupied"), "little-endian").pop),
+      writeRegister(cpu.register("pc"), value("target")), readLatch("enabled", cpu.latch("iff1")), readLatch("saved", cpu.latch("iff2")),
+      when(xor(flagValue("enabled"), flagValue("saved")), [deferInterrupt("irq")]),
+      readLatch("restored", cpu.latch("iff2")), writeLatch(cpu.latch("iff1"), flagValue("restored")), ...(notify ? [notifyReti()] : [])],
+  });
+}
+
 export const instructionsZ80 = {
+  ...Object.fromEntries(([false, true] as const).map(enabled => [enabled ? "ei" : "di", defineInstruction({ cpu: cpu.declaration, name: enabled ? "EI" : "DI",
+    explanation: "Write IFF2 before IFF1. " + (enabled ? "Then request IRQ inhibition through the following instruction at successful retirement." : "Retirement consumes any previous inhibition."),
+    steps: [writeLatch(cpu.latch("iff2"), enabled), writeLatch(cpu.latch("iff1"), enabled), ...(enabled ? [deferInterrupt("irq")] : [])] })])),
+  ...Object.fromEntries(([0, 1, 2] as const).map(mode => [`im${mode}`, defineInstruction({ cpu: cpu.declaration, name: `IM ${mode}`,
+    explanation: "Select a declared interrupt mode without changing flags or interrupt enables.", steps: [writeChoice(cpu.choice("im"), mode)] })])),
+  retn: interruptReturn(false), reti: interruptReturn(true),
   input: portTransfer(cpu.declaration, "IN A,(n)", immediatePort, registerView(cpu.register("a")), false),
   output: portTransfer(cpu.declaration, "OUT (n),A", immediatePort, registerView(cpu.register("a")), true),
   // ED 01 rrr 00d: omit undocumented rrr=110; d=0 inputs, d=1 outputs through BC.

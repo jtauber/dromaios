@@ -15,7 +15,7 @@ import { recordPorts } from "./port-access.ts";
 import type { BytePorts, PortAccess } from "./port-access.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { MemoryAccess } from "./memory-access.ts";
-import type { WordInstructionContext } from "./instruction-context.ts";
+import type { WordInstructionContext, InterruptDeferralContext, RetiNotificationContext } from "./instruction-context.ts";
 import { copyState, readState } from "./state.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
@@ -58,10 +58,7 @@ export type CpuZ80InterruptRecord = StateTransition<CpuZ80Snapshot, CpuZ80Interr
   | { readonly source: "irq"; readonly outcome: "unsupported"; readonly reason: "opcode"; readonly instruction: CpuZ80InterruptInstruction }
 );
 
-interface InstructionContext extends WordInstructionContext, BytePorts {
-  readonly deferInterrupt: () => void;
-  readonly notifyReti: () => void;
-}
+interface InstructionContext extends WordInstructionContext, BytePorts, InterruptDeferralContext<"irq">, RetiNotificationContext {}
 type OpcodeHandler = (instruction: InstructionContext) => void;
 type IndexRegister = "ix" | "iy";
 type AddressedHandler = (address: number, instruction: InstructionContext) => void;
@@ -237,13 +234,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     if (reti) this.#onReti?.();
   }
 
-  #returnFromInterrupt(notify: boolean, { readByte, deferInterrupt, notifyReti }: InstructionContext): void {
-    this.#stack.return(readByte);
-    if (this.state.iff1 !== this.state.iff2) deferInterrupt();
-    this.state.iff1 = this.state.iff2;
-    if (notify) notifyReti();
-  }
-
   // Opcode selectors and construction.
 
   protected override readonly generatedInstructions = semantics;
@@ -293,8 +283,8 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     ...instructionPattern("11 01 1 011", instruction => semantics.input(this.state, instruction)), // IN A,(n); preserve all flags
     ...instructionPattern("11 01 1 001", () => semantics.exchangeGeneralBanks(this.state)), // EXX
     // 11 11 e 011: e selects DI/EI; EI inhibits IRQ through the following instruction.
-    ...instructionPattern("11 11 0 011", () => { this.state.iff1 = this.state.iff2 = false; }), // DI
-    ...instructionPattern("11 11 1 011", ({ deferInterrupt }) => { this.state.iff1 = this.state.iff2 = true; deferInterrupt(); }), // EI
+    ...instructionPattern("11 11 0 011", () => semantics.di(this.state)), // DI
+    ...instructionPattern("11 11 1 011", instruction => semantics.ei(this.state, instruction)), // EI
   ]);
 
   // CB's xx yyy rrr: xx=00 selects a shift; xx=01/10/11 selects BIT/RES/SET.
@@ -340,11 +330,11 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     ], d: [0, 1] }, ({ p: operations, d: direction }) => (instruction: InstructionContext) => operations[direction]!(this.state, instruction)), // LD (nn),dd / LD dd,(nn)
     ...instructionPattern("01 000 100", () => semantics.neg(this.state)), // NEG; other ED x4 aliases are undocumented
     // 01 00 n 101: both returns restore IFF1 from IFF2; n=1 also notifies the device.
-    ...instructionPattern("01 00 0 101", instruction => this.#returnFromInterrupt(false, instruction)), // RETN
-    ...instructionPattern("01 00 1 101", instruction => this.#returnFromInterrupt(true, instruction)), // RETI
+    ...instructionPattern("01 00 0 101", instruction => semantics.retn(this.state, instruction)), // RETN
+    ...instructionPattern("01 00 1 101", instruction => semantics.reti(this.state, instruction)), // RETI
     // 01 0 mm 110: documented mode selectors 00/10/11 mean IM 0/1/2; 01 is an alias.
     ...([{ bits: "00", mode: 0 }, { bits: "10", mode: 1 }, { bits: "11", mode: 2 }] as const).flatMap(({ bits, mode }) =>
-      instructionPattern(`01 0 ${bits} 110`, () => { this.state.im = mode; })), // IM 0/1/2
+      instructionPattern(`01 0 ${bits} 110`, () => semantics[`im${mode}`](this.state))), // IM 0/1/2
     // 01 0 d s 111: d=0 writes I/R from A, d=1 loads A; s=0 selects I, s=1 selects R.
     ...opcodeFamily("01 0 0 s 111", { s: [semantics.loadIFromA, semantics.loadRFromA] }, ({ s: execute }) => () => execute(this.state)), // LD I/R,A
     ...opcodeFamily("01 0 1 s 111", { s: [semantics.loadAFromI, semantics.loadAFromR] }, ({ s: execute }) => () => execute(this.state)), // LD A,I/R

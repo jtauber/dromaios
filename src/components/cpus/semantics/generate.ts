@@ -6,7 +6,7 @@ import { opcodeTable } from "../opcodes.ts";
 interface CapturedValue { readonly code: string; readonly type: ValueType }
 type CapturedNumber = CapturedValue & { readonly type: Width };
 type Scope = ReadonlyMap<string, CapturedValue>;
-type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt";
+type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti";
 
 /** Compile the bounded experiment to ordinary typed statements, without executing any effects. */
 export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8088" | "6809" | "z80", definitions: Readonly<Record<string, InstructionDefinition>>,
@@ -19,6 +19,8 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
   let needsContext = bindOpcodes;
   let needsDeferral = false;
   let needsPorts = false;
+  let needsReti = false;
+  const deferralContext = `InterruptDeferralContext${cpu === "8080" || cpu === "z80" ? '<"irq">' : ""}`;
   function compile(name: string, input: InstructionDefinition, result?: NumberExpression): string {
     const definition = defineInstruction(input);
     if (definition.cpu.name !== cpu) throw new Error(`${name}: expected a ${cpu} definition.`);
@@ -168,6 +170,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
           case "read-register": captured = { code: `${bank(step.register)}${field(step.register.field)}`, type: step.register.width }; break;
           case "read-element": captured = { code: `state${field(step.array.field)}[${number(step.index, scope).code}]!`, type: step.array.width }; break;
           case "read-flag": captured = { code: `state.flags${field(step.flag.field)}`, type: "flag" }; break;
+          case "test-choice": captured = { code: `state${field(step.choice.field)} === ${JSON.stringify(step.value)}`, type: "flag" }; break;
           case "read-latch": captured = { code: `state${field(step.latch.field)}`, type: "flag" }; break;
           case "exchange-flags": {
             const right = local("rightFlags"), left = local("leftFlags");
@@ -189,7 +192,9 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
           }
           case "write-register": emit(`${bank(step.register)}${field(step.register.field)} = ${number(step.value, scope).code};`); continue;
           case "write-element": emit(`state${field(step.array.field)}[${number(step.index, scope).code}] = ${number(step.value, scope).code};`); continue;
-          case "write-latch": emit(`state${field(step.latch.field)} = ${step.value};`); continue;
+          case "write-latch": emit(`state${field(step.latch.field)} = ${typeof step.value === "boolean" ? step.value : flag(step.value, scope)};`); continue;
+          case "notify-reti": emit(`${access("notifyReti")}();`); continue;
+          case "write-choice": emit(`state${field(step.choice.field)} = ${JSON.stringify(step.value)};`); continue;
           case "defer-interrupt": emit(`${access("deferInterrupt")}(${JSON.stringify(step.scope)});`); continue;
           case "write-port": emit(`${access("writePort")}(${number(step.port, scope).code}, ${number(step.value, scope).code});`); continue;
           case "write-memory": emit(`${access("writeByte")}(${address(step.address, scope)}, ${number(step.value, scope).code});`); continue;
@@ -235,7 +240,9 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
     needsDeferral ||= defers;
     const ports = capabilities.has("readPort") || capabilities.has("writePort");
     needsPorts ||= ports;
-    if (capabilities.size) parameters.push(`instruction: Pick<ByteInstructionContext${ports ? " & BytePorts" : ""}${defers ? " & InterruptDeferralContext" : ""}, ${[...capabilities].map(name => JSON.stringify(name)).join(" | ")}>`);
+    const reti = capabilities.has("notifyReti");
+    needsReti ||= reti;
+    if (capabilities.size) parameters.push(`instruction: Pick<ByteInstructionContext${ports ? " & BytePorts" : ""}${defers ? " & " + deferralContext : ""}${reti ? " & RetiNotificationContext" : ""}, ${[...capabilities].map(name => JSON.stringify(name)).join(" | ")}>`);
     const key = bindOpcodes && !result ? `0x${Number(name).toString(16).padStart(2, "0")}` : JSON.stringify(name);
     return `${indent}// ${JSON.stringify(`${cpu} ${definition.name}`)}\n`
       + `${indent}${key}(${parameters.join(", ")}): ${result ? "number" : ["void", ...[...rejections].map(reason => JSON.stringify(reason))].join(" | ")} {\n${lines.join("\n")}\n${indent}},`;
@@ -251,9 +258,10 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
   if (needsContext) imports.push('import type { ByteInstructionContext } from "../instruction-context.ts";');
   if (needsPorts) imports.push('import type { BytePorts } from "../port-access.ts";');
   if (needsDeferral) imports.push('import type { InterruptDeferralContext } from "../instruction-context.ts";');
+  if (needsReti) imports.push('import type { RetiNotificationContext } from "../instruction-context.ts";');
   if (bindOpcodes) imports.push('import type { OpcodeEntry } from "../opcodes.ts";');
   if (helpers.size) imports.push(`import { ${[...helpers].sort().join(", ")} } from "../alu.ts";`);
-  const boundContext = `ByteInstructionContext${needsPorts ? " & BytePorts" : ""}${needsDeferral ? " & InterruptDeferralContext" : ""}`;
+  const boundContext = `ByteInstructionContext${needsPorts ? " & BytePorts" : ""}${needsDeferral ? " & " + deferralContext : ""}${needsReti ? " & RetiNotificationContext" : ""}`;
   const outcome = ["void", ...[...outcomes].map(reason => JSON.stringify(reason))].join(" | ");
   return `// Generated by scripts/generate-cpu-semantics.ts; edit semantics/definitions/${cpu}.ts instead.\n`
     + `${imports.join("\n")}\n\nexport const instructions = {\n${methods.join("\n\n")}\n};\n`

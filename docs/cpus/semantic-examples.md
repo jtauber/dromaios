@@ -20,6 +20,45 @@ later statement runs. See the contract for which bodies are bound to CPU opcodes
 
 ## Examples
 
+### 6502 BRK
+
+Fetch padding before saving PC; stack B set. Push PC high then live PC low, then packed status with old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+padding:u8 := fetch byte
+highPC:u16 := read PC
+highAddress:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(highAddress))] := highByte(highPC)
+highPointer:u8 := read SP
+write SP:u8 := subtract(highPointer, 01:u8)
+lowPC:u16 := read PC
+lowAddress:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(lowAddress))] := lowByte(lowPC)
+lowPointer:u8 := read SP
+write SP:u8 := subtract(lowPointer, 01:u8)
+status:u8 := source "packed status" {
+  n:flag := read N
+  v:flag := read V
+  d:flag := read D
+  i:flag := read I
+  z:flag := read Z
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(30:u8, select(n, 80:u8, 00:u8)), select(v, 40:u8, 00:u8)), select(d, 08:u8, 00:u8)), select(i, 04:u8, 00:u8)), select(z, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+statusAddress:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(statusAddress))] := status
+statusPointer:u8 := read SP
+write SP:u8 := subtract(statusPointer, 01:u8)
+flags "mask IRQ after stacking old I" simultaneously {
+  I := 1:flag
+} // Preserve unlisted flags.
+vectorLow:u8 := read memory[FFFE:u16]
+vectorHigh:u8 := read memory[addWrap(FFFE:u16, 0001:u16)]
+write PC:u16 := concatHighLow(vectorHigh, vectorLow)
+```
+
+Flags preserved throughout: N, V, D, Z, C.
+
 ### 6502 ORA (zero page,X)
 
 Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
@@ -845,6 +884,48 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 RTI
+
+Restore the complete flag object first, then pull PC low/high without RTS's increment. A failed PC read retains restored flags. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+status:u8 := source "pop byte through SP" {
+  pointer:u8 := read SP
+  write SP:u8 := addWrap(pointer, 01:u8)
+  address:u8 := read SP
+  byte:u8 := read memory[bitOr(0100:u16, zeroExtend16(address))]
+  yield byte
+}
+replace flags "restore packed status" simultaneously {
+  N := not(isZero(bitAnd(status, 80:u8)))
+  V := not(isZero(bitAnd(status, 40:u8)))
+  D := not(isZero(bitAnd(status, 08:u8)))
+  I := not(isZero(bitAnd(status, 04:u8)))
+  Z := not(isZero(bitAnd(status, 02:u8)))
+  C := not(isZero(bitAnd(status, 01:u8)))
+} // Replace the complete flag object.
+target:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    pointer:u8 := read SP
+    write SP:u8 := addWrap(pointer, 01:u8)
+    address:u8 := read SP
+    byte:u8 := read memory[bitOr(0100:u16, zeroExtend16(address))]
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    pointer:u8 := read SP
+    write SP:u8 := addWrap(pointer, 01:u8)
+    address:u8 := read SP
+    byte:u8 := read memory[bitOr(0100:u16, zeroExtend16(address))]
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+```
+
+Flags preserved throughout: none.
 
 ### 6502 EOR (zero page,X)
 
@@ -3527,6 +3608,329 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I, C.
+
+### 6502 external interrupt entry
+
+After CPU-owned recognition, stack B clear. Push PC high then live PC low, then packed status with old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+vector:u16 := input
+highPC:u16 := read PC
+highAddress:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(highAddress))] := highByte(highPC)
+highPointer:u8 := read SP
+write SP:u8 := subtract(highPointer, 01:u8)
+lowPC:u16 := read PC
+lowAddress:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(lowAddress))] := lowByte(lowPC)
+lowPointer:u8 := read SP
+write SP:u8 := subtract(lowPointer, 01:u8)
+status:u8 := source "packed status" {
+  n:flag := read N
+  v:flag := read V
+  d:flag := read D
+  i:flag := read I
+  z:flag := read Z
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(20:u8, select(n, 80:u8, 00:u8)), select(v, 40:u8, 00:u8)), select(d, 08:u8, 00:u8)), select(i, 04:u8, 00:u8)), select(z, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+statusAddress:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(statusAddress))] := status
+statusPointer:u8 := read SP
+write SP:u8 := subtract(statusPointer, 01:u8)
+flags "mask IRQ after stacking old I" simultaneously {
+  I := 1:flag
+} // Preserve unlisted flags.
+vectorLow:u8 := read memory[vector]
+vectorHigh:u8 := read memory[addWrap(vector, 0001:u16)]
+write PC:u16 := concatHighLow(vectorHigh, vectorLow)
+```
+
+Flags preserved throughout: N, V, D, Z, C.
+
+### 6800 external interrupt entry
+
+Unless WAI already saved the frame, push PC, X, A, B, then CC with old I. Capture each field at its turn; words push low/high. Release WAI, set I, then read the complete high-first vector before writing PC. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+vector:u16 := input
+waiting:flag := read control latch waiting
+when not(waiting) {
+  frame4:u16 := source "register PC" {
+    contents:u16 := read PC
+    yield contents
+  }
+  frame4FirstAddress:u16 := read SP
+  write memory[frame4FirstAddress] := lowByte(frame4)
+  frame4FirstPointer:u16 := read SP
+  write SP:u16 := subtract(frame4FirstPointer, 0001:u16)
+  frame4SecondAddress:u16 := read SP
+  write memory[frame4SecondAddress] := highByte(frame4)
+  frame4SecondPointer:u16 := read SP
+  write SP:u16 := subtract(frame4SecondPointer, 0001:u16)
+  frame3:u16 := source "register X" {
+    contents:u16 := read X
+    yield contents
+  }
+  frame3FirstAddress:u16 := read SP
+  write memory[frame3FirstAddress] := lowByte(frame3)
+  frame3FirstPointer:u16 := read SP
+  write SP:u16 := subtract(frame3FirstPointer, 0001:u16)
+  frame3SecondAddress:u16 := read SP
+  write memory[frame3SecondAddress] := highByte(frame3)
+  frame3SecondPointer:u16 := read SP
+  write SP:u16 := subtract(frame3SecondPointer, 0001:u16)
+  frame2:u8 := source "register A" {
+    contents:u8 := read A
+    yield contents
+  }
+  frame2Address:u16 := read SP
+  write memory[frame2Address] := frame2
+  frame2Pointer:u16 := read SP
+  write SP:u16 := subtract(frame2Pointer, 0001:u16)
+  frame1:u8 := source "register B" {
+    contents:u8 := read B
+    yield contents
+  }
+  frame1Address:u16 := read SP
+  write memory[frame1Address] := frame1
+  frame1Pointer:u16 := read SP
+  write SP:u16 := subtract(frame1Pointer, 0001:u16)
+  frame0:u8 := source "packed status" {
+    h:flag := read H
+    i:flag := read I
+    n:flag := read N
+    z:flag := read Z
+    v:flag := read V
+    c:flag := read C
+    yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(C0:u8, select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  }
+  frame0Address:u16 := read SP
+  write memory[frame0Address] := frame0
+  frame0Pointer:u16 := read SP
+  write SP:u16 := subtract(frame0Pointer, 0001:u16)
+}
+write waiting:boolean := false
+flags "mask IRQ" simultaneously {
+  I := 1:flag
+} // Preserve unlisted flags.
+vectorHigh:u8 := read memory[vector]
+vectorLow:u8 := read memory[addWrap(vector, 0001:u16)]
+write PC:u16 := concatHighLow(vectorHigh, vectorLow)
+```
+
+Flags preserved throughout: H, N, Z, V, C.
+
+### 6800 SWI
+
+Unless WAI already saved the frame, push PC, X, A, B, then CC with old I. Capture each field at its turn; words push low/high. Release WAI, set I, then read the complete high-first vector before writing PC. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+waiting:flag := read control latch waiting
+when not(waiting) {
+  frame4:u16 := source "register PC" {
+    contents:u16 := read PC
+    yield contents
+  }
+  frame4FirstAddress:u16 := read SP
+  write memory[frame4FirstAddress] := lowByte(frame4)
+  frame4FirstPointer:u16 := read SP
+  write SP:u16 := subtract(frame4FirstPointer, 0001:u16)
+  frame4SecondAddress:u16 := read SP
+  write memory[frame4SecondAddress] := highByte(frame4)
+  frame4SecondPointer:u16 := read SP
+  write SP:u16 := subtract(frame4SecondPointer, 0001:u16)
+  frame3:u16 := source "register X" {
+    contents:u16 := read X
+    yield contents
+  }
+  frame3FirstAddress:u16 := read SP
+  write memory[frame3FirstAddress] := lowByte(frame3)
+  frame3FirstPointer:u16 := read SP
+  write SP:u16 := subtract(frame3FirstPointer, 0001:u16)
+  frame3SecondAddress:u16 := read SP
+  write memory[frame3SecondAddress] := highByte(frame3)
+  frame3SecondPointer:u16 := read SP
+  write SP:u16 := subtract(frame3SecondPointer, 0001:u16)
+  frame2:u8 := source "register A" {
+    contents:u8 := read A
+    yield contents
+  }
+  frame2Address:u16 := read SP
+  write memory[frame2Address] := frame2
+  frame2Pointer:u16 := read SP
+  write SP:u16 := subtract(frame2Pointer, 0001:u16)
+  frame1:u8 := source "register B" {
+    contents:u8 := read B
+    yield contents
+  }
+  frame1Address:u16 := read SP
+  write memory[frame1Address] := frame1
+  frame1Pointer:u16 := read SP
+  write SP:u16 := subtract(frame1Pointer, 0001:u16)
+  frame0:u8 := source "packed status" {
+    h:flag := read H
+    i:flag := read I
+    n:flag := read N
+    z:flag := read Z
+    v:flag := read V
+    c:flag := read C
+    yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(C0:u8, select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  }
+  frame0Address:u16 := read SP
+  write memory[frame0Address] := frame0
+  frame0Pointer:u16 := read SP
+  write SP:u16 := subtract(frame0Pointer, 0001:u16)
+}
+write waiting:boolean := false
+flags "mask IRQ" simultaneously {
+  I := 1:flag
+} // Preserve unlisted flags.
+vectorHigh:u8 := read memory[FFFA:u16]
+vectorLow:u8 := read memory[addWrap(FFFA:u16, 0001:u16)]
+write PC:u16 := concatHighLow(vectorHigh, vectorLow)
+```
+
+Flags preserved throughout: H, N, Z, V, C.
+
+### 6800 WAI
+
+Save the complete interrupt frame before entering WAI; preserve I until wake-up. A failed push prevents waiting. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+frame4:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+frame4FirstAddress:u16 := read SP
+write memory[frame4FirstAddress] := lowByte(frame4)
+frame4FirstPointer:u16 := read SP
+write SP:u16 := subtract(frame4FirstPointer, 0001:u16)
+frame4SecondAddress:u16 := read SP
+write memory[frame4SecondAddress] := highByte(frame4)
+frame4SecondPointer:u16 := read SP
+write SP:u16 := subtract(frame4SecondPointer, 0001:u16)
+frame3:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+frame3FirstAddress:u16 := read SP
+write memory[frame3FirstAddress] := lowByte(frame3)
+frame3FirstPointer:u16 := read SP
+write SP:u16 := subtract(frame3FirstPointer, 0001:u16)
+frame3SecondAddress:u16 := read SP
+write memory[frame3SecondAddress] := highByte(frame3)
+frame3SecondPointer:u16 := read SP
+write SP:u16 := subtract(frame3SecondPointer, 0001:u16)
+frame2:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+frame2Address:u16 := read SP
+write memory[frame2Address] := frame2
+frame2Pointer:u16 := read SP
+write SP:u16 := subtract(frame2Pointer, 0001:u16)
+frame1:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+frame1Address:u16 := read SP
+write memory[frame1Address] := frame1
+frame1Pointer:u16 := read SP
+write SP:u16 := subtract(frame1Pointer, 0001:u16)
+frame0:u8 := source "packed status" {
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(C0:u8, select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+frame0Address:u16 := read SP
+write memory[frame0Address] := frame0
+frame0Pointer:u16 := read SP
+write SP:u16 := subtract(frame0Pointer, 0001:u16)
+write waiting:boolean := true
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 RTI
+
+Pull CC, B, A, X, then PC. Replace flags immediately after CC; commit each later field only after its complete read. Preserve waiting. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+frame0:u8 := source "pop byte through SP" {
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0001:u16)
+  address:u16 := read SP
+  byte:u8 := read memory[address]
+  yield byte
+}
+replace flags "restore packed status" simultaneously {
+  H := not(isZero(bitAnd(frame0, 20:u8)))
+  I := not(isZero(bitAnd(frame0, 10:u8)))
+  N := not(isZero(bitAnd(frame0, 08:u8)))
+  Z := not(isZero(bitAnd(frame0, 04:u8)))
+  V := not(isZero(bitAnd(frame0, 02:u8)))
+  C := not(isZero(bitAnd(frame0, 01:u8)))
+} // Replace the complete flag object.
+frame1:u8 := source "pop byte through SP" {
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0001:u16)
+  address:u16 := read SP
+  byte:u8 := read memory[address]
+  yield byte
+}
+write B:u8 := frame1
+frame2:u8 := source "pop byte through SP" {
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0001:u16)
+  address:u16 := read SP
+  byte:u8 := read memory[address]
+  yield byte
+}
+write A:u8 := frame2
+frame3:u16 := source "pop big-endian word" {
+  high:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  low:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write X:u16 := frame3
+frame4:u16 := source "pop big-endian word" {
+  high:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  low:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := frame4
+```
+
+Flags preserved throughout: none.
 
 ### 6800 NOP
 
@@ -12513,6 +12917,27 @@ write SP:u16 := subtract(secondPointer, 0001:u16)
 secondAddress:u16 := read SP
 write memory[secondAddress] := lowByte(returnPC)
 write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 DI
+
+Clear interrupt enable without changing deferral until retirement.
+
+```text
+write interruptEnabled:boolean := false
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 EI
+
+Set interrupt enable, then request IRQ inhibition through the following instruction at successful retirement.
+
+```text
+write interruptEnabled:boolean := true
+request IRQ deferral at successful retirement
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -83139,6 +83564,665 @@ write DX:u16 := remainder
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
+### 6809 SWI
+
+Unless CWAI already saved a frame, set E and push the full frame in PC/U/Y/X/DP/B/A/CC order. Then repack and replace CC with the instruction's interrupt masks, leave waiting, and fetch the complete high-first vector. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+waiting:flag := test control waitMode equals "cwai"
+when not(waiting) {
+  flags "entire interrupt frame" simultaneously {
+    E := 1:flag
+  } // Preserve unlisted flags.
+  frame7:u16 := source "register PC" {
+    contents:u16 := read PC
+    yield contents
+  }
+  frame7FirstPointer:u16 := read S
+  write S:u16 := subtract(frame7FirstPointer, 0001:u16)
+  frame7FirstAddress:u16 := read S
+  write memory[frame7FirstAddress] := lowByte(frame7)
+  frame7SecondPointer:u16 := read S
+  write S:u16 := subtract(frame7SecondPointer, 0001:u16)
+  frame7SecondAddress:u16 := read S
+  write memory[frame7SecondAddress] := highByte(frame7)
+  frame6:u16 := source "register U" {
+    contents:u16 := read U
+    yield contents
+  }
+  frame6FirstPointer:u16 := read S
+  write S:u16 := subtract(frame6FirstPointer, 0001:u16)
+  frame6FirstAddress:u16 := read S
+  write memory[frame6FirstAddress] := lowByte(frame6)
+  frame6SecondPointer:u16 := read S
+  write S:u16 := subtract(frame6SecondPointer, 0001:u16)
+  frame6SecondAddress:u16 := read S
+  write memory[frame6SecondAddress] := highByte(frame6)
+  frame5:u16 := source "register Y" {
+    contents:u16 := read Y
+    yield contents
+  }
+  frame5FirstPointer:u16 := read S
+  write S:u16 := subtract(frame5FirstPointer, 0001:u16)
+  frame5FirstAddress:u16 := read S
+  write memory[frame5FirstAddress] := lowByte(frame5)
+  frame5SecondPointer:u16 := read S
+  write S:u16 := subtract(frame5SecondPointer, 0001:u16)
+  frame5SecondAddress:u16 := read S
+  write memory[frame5SecondAddress] := highByte(frame5)
+  frame4:u16 := source "register X" {
+    contents:u16 := read X
+    yield contents
+  }
+  frame4FirstPointer:u16 := read S
+  write S:u16 := subtract(frame4FirstPointer, 0001:u16)
+  frame4FirstAddress:u16 := read S
+  write memory[frame4FirstAddress] := lowByte(frame4)
+  frame4SecondPointer:u16 := read S
+  write S:u16 := subtract(frame4SecondPointer, 0001:u16)
+  frame4SecondAddress:u16 := read S
+  write memory[frame4SecondAddress] := highByte(frame4)
+  frame3:u8 := source "register DP" {
+    contents:u8 := read DP
+    yield contents
+  }
+  frame3Pointer:u16 := read S
+  write S:u16 := subtract(frame3Pointer, 0001:u16)
+  frame3Address:u16 := read S
+  write memory[frame3Address] := frame3
+  frame2:u8 := source "register B" {
+    contents:u8 := read B
+    yield contents
+  }
+  frame2Pointer:u16 := read S
+  write S:u16 := subtract(frame2Pointer, 0001:u16)
+  frame2Address:u16 := read S
+  write memory[frame2Address] := frame2
+  frame1:u8 := source "register A" {
+    contents:u8 := read A
+    yield contents
+  }
+  frame1Pointer:u16 := read S
+  write S:u16 := subtract(frame1Pointer, 0001:u16)
+  frame1Address:u16 := read S
+  write memory[frame1Address] := frame1
+  frame0:u8 := source "packed status" {
+    e:flag := read E
+    f:flag := read F
+    h:flag := read H
+    i:flag := read I
+    n:flag := read N
+    z:flag := read Z
+    v:flag := read V
+    c:flag := read C
+    yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  }
+  frame0Pointer:u16 := read S
+  write S:u16 := subtract(frame0Pointer, 0001:u16)
+  frame0Address:u16 := read S
+  write memory[frame0Address] := frame0
+}
+status:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(bitOr(status, 50:u8), 80:u8)))
+  F := not(isZero(bitAnd(bitOr(status, 50:u8), 40:u8)))
+  H := not(isZero(bitAnd(bitOr(status, 50:u8), 20:u8)))
+  I := not(isZero(bitAnd(bitOr(status, 50:u8), 10:u8)))
+  N := not(isZero(bitAnd(bitOr(status, 50:u8), 08:u8)))
+  Z := not(isZero(bitAnd(bitOr(status, 50:u8), 04:u8)))
+  V := not(isZero(bitAnd(bitOr(status, 50:u8), 02:u8)))
+  C := not(isZero(bitAnd(bitOr(status, 50:u8), 01:u8)))
+} // Replace the complete flag object.
+write control waitMode := "none"
+vectorHigh:u8 := read memory[FFFA:u16]
+vectorLow:u8 := read memory[addWrap(FFFA:u16, 0001:u16)]
+write PC:u16 := concatHighLow(vectorHigh, vectorLow)
+```
+
+Flags preserved throughout: none.
+
+### 6809 SWI2
+
+Unless CWAI already saved a frame, set E and push the full frame in PC/U/Y/X/DP/B/A/CC order. Then repack and replace CC with the instruction's interrupt masks, leave waiting, and fetch the complete high-first vector. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+waiting:flag := test control waitMode equals "cwai"
+when not(waiting) {
+  flags "entire interrupt frame" simultaneously {
+    E := 1:flag
+  } // Preserve unlisted flags.
+  frame7:u16 := source "register PC" {
+    contents:u16 := read PC
+    yield contents
+  }
+  frame7FirstPointer:u16 := read S
+  write S:u16 := subtract(frame7FirstPointer, 0001:u16)
+  frame7FirstAddress:u16 := read S
+  write memory[frame7FirstAddress] := lowByte(frame7)
+  frame7SecondPointer:u16 := read S
+  write S:u16 := subtract(frame7SecondPointer, 0001:u16)
+  frame7SecondAddress:u16 := read S
+  write memory[frame7SecondAddress] := highByte(frame7)
+  frame6:u16 := source "register U" {
+    contents:u16 := read U
+    yield contents
+  }
+  frame6FirstPointer:u16 := read S
+  write S:u16 := subtract(frame6FirstPointer, 0001:u16)
+  frame6FirstAddress:u16 := read S
+  write memory[frame6FirstAddress] := lowByte(frame6)
+  frame6SecondPointer:u16 := read S
+  write S:u16 := subtract(frame6SecondPointer, 0001:u16)
+  frame6SecondAddress:u16 := read S
+  write memory[frame6SecondAddress] := highByte(frame6)
+  frame5:u16 := source "register Y" {
+    contents:u16 := read Y
+    yield contents
+  }
+  frame5FirstPointer:u16 := read S
+  write S:u16 := subtract(frame5FirstPointer, 0001:u16)
+  frame5FirstAddress:u16 := read S
+  write memory[frame5FirstAddress] := lowByte(frame5)
+  frame5SecondPointer:u16 := read S
+  write S:u16 := subtract(frame5SecondPointer, 0001:u16)
+  frame5SecondAddress:u16 := read S
+  write memory[frame5SecondAddress] := highByte(frame5)
+  frame4:u16 := source "register X" {
+    contents:u16 := read X
+    yield contents
+  }
+  frame4FirstPointer:u16 := read S
+  write S:u16 := subtract(frame4FirstPointer, 0001:u16)
+  frame4FirstAddress:u16 := read S
+  write memory[frame4FirstAddress] := lowByte(frame4)
+  frame4SecondPointer:u16 := read S
+  write S:u16 := subtract(frame4SecondPointer, 0001:u16)
+  frame4SecondAddress:u16 := read S
+  write memory[frame4SecondAddress] := highByte(frame4)
+  frame3:u8 := source "register DP" {
+    contents:u8 := read DP
+    yield contents
+  }
+  frame3Pointer:u16 := read S
+  write S:u16 := subtract(frame3Pointer, 0001:u16)
+  frame3Address:u16 := read S
+  write memory[frame3Address] := frame3
+  frame2:u8 := source "register B" {
+    contents:u8 := read B
+    yield contents
+  }
+  frame2Pointer:u16 := read S
+  write S:u16 := subtract(frame2Pointer, 0001:u16)
+  frame2Address:u16 := read S
+  write memory[frame2Address] := frame2
+  frame1:u8 := source "register A" {
+    contents:u8 := read A
+    yield contents
+  }
+  frame1Pointer:u16 := read S
+  write S:u16 := subtract(frame1Pointer, 0001:u16)
+  frame1Address:u16 := read S
+  write memory[frame1Address] := frame1
+  frame0:u8 := source "packed status" {
+    e:flag := read E
+    f:flag := read F
+    h:flag := read H
+    i:flag := read I
+    n:flag := read N
+    z:flag := read Z
+    v:flag := read V
+    c:flag := read C
+    yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  }
+  frame0Pointer:u16 := read S
+  write S:u16 := subtract(frame0Pointer, 0001:u16)
+  frame0Address:u16 := read S
+  write memory[frame0Address] := frame0
+}
+status:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(bitOr(status, 00:u8), 80:u8)))
+  F := not(isZero(bitAnd(bitOr(status, 00:u8), 40:u8)))
+  H := not(isZero(bitAnd(bitOr(status, 00:u8), 20:u8)))
+  I := not(isZero(bitAnd(bitOr(status, 00:u8), 10:u8)))
+  N := not(isZero(bitAnd(bitOr(status, 00:u8), 08:u8)))
+  Z := not(isZero(bitAnd(bitOr(status, 00:u8), 04:u8)))
+  V := not(isZero(bitAnd(bitOr(status, 00:u8), 02:u8)))
+  C := not(isZero(bitAnd(bitOr(status, 00:u8), 01:u8)))
+} // Replace the complete flag object.
+write control waitMode := "none"
+vectorHigh:u8 := read memory[FFF4:u16]
+vectorLow:u8 := read memory[addWrap(FFF4:u16, 0001:u16)]
+write PC:u16 := concatHighLow(vectorHigh, vectorLow)
+```
+
+Flags preserved throughout: none.
+
+### 6809 SWI3
+
+Unless CWAI already saved a frame, set E and push the full frame in PC/U/Y/X/DP/B/A/CC order. Then repack and replace CC with the instruction's interrupt masks, leave waiting, and fetch the complete high-first vector. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+waiting:flag := test control waitMode equals "cwai"
+when not(waiting) {
+  flags "entire interrupt frame" simultaneously {
+    E := 1:flag
+  } // Preserve unlisted flags.
+  frame7:u16 := source "register PC" {
+    contents:u16 := read PC
+    yield contents
+  }
+  frame7FirstPointer:u16 := read S
+  write S:u16 := subtract(frame7FirstPointer, 0001:u16)
+  frame7FirstAddress:u16 := read S
+  write memory[frame7FirstAddress] := lowByte(frame7)
+  frame7SecondPointer:u16 := read S
+  write S:u16 := subtract(frame7SecondPointer, 0001:u16)
+  frame7SecondAddress:u16 := read S
+  write memory[frame7SecondAddress] := highByte(frame7)
+  frame6:u16 := source "register U" {
+    contents:u16 := read U
+    yield contents
+  }
+  frame6FirstPointer:u16 := read S
+  write S:u16 := subtract(frame6FirstPointer, 0001:u16)
+  frame6FirstAddress:u16 := read S
+  write memory[frame6FirstAddress] := lowByte(frame6)
+  frame6SecondPointer:u16 := read S
+  write S:u16 := subtract(frame6SecondPointer, 0001:u16)
+  frame6SecondAddress:u16 := read S
+  write memory[frame6SecondAddress] := highByte(frame6)
+  frame5:u16 := source "register Y" {
+    contents:u16 := read Y
+    yield contents
+  }
+  frame5FirstPointer:u16 := read S
+  write S:u16 := subtract(frame5FirstPointer, 0001:u16)
+  frame5FirstAddress:u16 := read S
+  write memory[frame5FirstAddress] := lowByte(frame5)
+  frame5SecondPointer:u16 := read S
+  write S:u16 := subtract(frame5SecondPointer, 0001:u16)
+  frame5SecondAddress:u16 := read S
+  write memory[frame5SecondAddress] := highByte(frame5)
+  frame4:u16 := source "register X" {
+    contents:u16 := read X
+    yield contents
+  }
+  frame4FirstPointer:u16 := read S
+  write S:u16 := subtract(frame4FirstPointer, 0001:u16)
+  frame4FirstAddress:u16 := read S
+  write memory[frame4FirstAddress] := lowByte(frame4)
+  frame4SecondPointer:u16 := read S
+  write S:u16 := subtract(frame4SecondPointer, 0001:u16)
+  frame4SecondAddress:u16 := read S
+  write memory[frame4SecondAddress] := highByte(frame4)
+  frame3:u8 := source "register DP" {
+    contents:u8 := read DP
+    yield contents
+  }
+  frame3Pointer:u16 := read S
+  write S:u16 := subtract(frame3Pointer, 0001:u16)
+  frame3Address:u16 := read S
+  write memory[frame3Address] := frame3
+  frame2:u8 := source "register B" {
+    contents:u8 := read B
+    yield contents
+  }
+  frame2Pointer:u16 := read S
+  write S:u16 := subtract(frame2Pointer, 0001:u16)
+  frame2Address:u16 := read S
+  write memory[frame2Address] := frame2
+  frame1:u8 := source "register A" {
+    contents:u8 := read A
+    yield contents
+  }
+  frame1Pointer:u16 := read S
+  write S:u16 := subtract(frame1Pointer, 0001:u16)
+  frame1Address:u16 := read S
+  write memory[frame1Address] := frame1
+  frame0:u8 := source "packed status" {
+    e:flag := read E
+    f:flag := read F
+    h:flag := read H
+    i:flag := read I
+    n:flag := read N
+    z:flag := read Z
+    v:flag := read V
+    c:flag := read C
+    yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+  }
+  frame0Pointer:u16 := read S
+  write S:u16 := subtract(frame0Pointer, 0001:u16)
+  frame0Address:u16 := read S
+  write memory[frame0Address] := frame0
+}
+status:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(bitOr(status, 00:u8), 80:u8)))
+  F := not(isZero(bitAnd(bitOr(status, 00:u8), 40:u8)))
+  H := not(isZero(bitAnd(bitOr(status, 00:u8), 20:u8)))
+  I := not(isZero(bitAnd(bitOr(status, 00:u8), 10:u8)))
+  N := not(isZero(bitAnd(bitOr(status, 00:u8), 08:u8)))
+  Z := not(isZero(bitAnd(bitOr(status, 00:u8), 04:u8)))
+  V := not(isZero(bitAnd(bitOr(status, 00:u8), 02:u8)))
+  C := not(isZero(bitAnd(bitOr(status, 00:u8), 01:u8)))
+} // Replace the complete flag object.
+write control waitMode := "none"
+vectorHigh:u8 := read memory[FFF2:u16]
+vectorLow:u8 := read memory[addWrap(FFF2:u16, 0001:u16)]
+write PC:u16 := concatHighLow(vectorHigh, vectorLow)
+```
+
+Flags preserved throughout: none.
+
+### 6809 SYNC
+
+Enter SYNC without accessing registers, flags, or memory.
+
+```text
+write control waitMode := "sync"
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 CWAI
+
+Capture CC before fetching the mask, replace flags with their masked values, set E, and save the complete frame. Enter CWAI only after every push succeeds. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+status:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+mask:u8 := fetch byte
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(bitAnd(status, mask), 80:u8)))
+  F := not(isZero(bitAnd(bitAnd(status, mask), 40:u8)))
+  H := not(isZero(bitAnd(bitAnd(status, mask), 20:u8)))
+  I := not(isZero(bitAnd(bitAnd(status, mask), 10:u8)))
+  N := not(isZero(bitAnd(bitAnd(status, mask), 08:u8)))
+  Z := not(isZero(bitAnd(bitAnd(status, mask), 04:u8)))
+  V := not(isZero(bitAnd(bitAnd(status, mask), 02:u8)))
+  C := not(isZero(bitAnd(bitAnd(status, mask), 01:u8)))
+} // Replace the complete flag object.
+flags "entire interrupt frame" simultaneously {
+  E := 1:flag
+} // Preserve unlisted flags.
+frame7:u16 := source "register PC" {
+  contents:u16 := read PC
+  yield contents
+}
+frame7FirstPointer:u16 := read S
+write S:u16 := subtract(frame7FirstPointer, 0001:u16)
+frame7FirstAddress:u16 := read S
+write memory[frame7FirstAddress] := lowByte(frame7)
+frame7SecondPointer:u16 := read S
+write S:u16 := subtract(frame7SecondPointer, 0001:u16)
+frame7SecondAddress:u16 := read S
+write memory[frame7SecondAddress] := highByte(frame7)
+frame6:u16 := source "register U" {
+  contents:u16 := read U
+  yield contents
+}
+frame6FirstPointer:u16 := read S
+write S:u16 := subtract(frame6FirstPointer, 0001:u16)
+frame6FirstAddress:u16 := read S
+write memory[frame6FirstAddress] := lowByte(frame6)
+frame6SecondPointer:u16 := read S
+write S:u16 := subtract(frame6SecondPointer, 0001:u16)
+frame6SecondAddress:u16 := read S
+write memory[frame6SecondAddress] := highByte(frame6)
+frame5:u16 := source "register Y" {
+  contents:u16 := read Y
+  yield contents
+}
+frame5FirstPointer:u16 := read S
+write S:u16 := subtract(frame5FirstPointer, 0001:u16)
+frame5FirstAddress:u16 := read S
+write memory[frame5FirstAddress] := lowByte(frame5)
+frame5SecondPointer:u16 := read S
+write S:u16 := subtract(frame5SecondPointer, 0001:u16)
+frame5SecondAddress:u16 := read S
+write memory[frame5SecondAddress] := highByte(frame5)
+frame4:u16 := source "register X" {
+  contents:u16 := read X
+  yield contents
+}
+frame4FirstPointer:u16 := read S
+write S:u16 := subtract(frame4FirstPointer, 0001:u16)
+frame4FirstAddress:u16 := read S
+write memory[frame4FirstAddress] := lowByte(frame4)
+frame4SecondPointer:u16 := read S
+write S:u16 := subtract(frame4SecondPointer, 0001:u16)
+frame4SecondAddress:u16 := read S
+write memory[frame4SecondAddress] := highByte(frame4)
+frame3:u8 := source "register DP" {
+  contents:u8 := read DP
+  yield contents
+}
+frame3Pointer:u16 := read S
+write S:u16 := subtract(frame3Pointer, 0001:u16)
+frame3Address:u16 := read S
+write memory[frame3Address] := frame3
+frame2:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+frame2Pointer:u16 := read S
+write S:u16 := subtract(frame2Pointer, 0001:u16)
+frame2Address:u16 := read S
+write memory[frame2Address] := frame2
+frame1:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+frame1Pointer:u16 := read S
+write S:u16 := subtract(frame1Pointer, 0001:u16)
+frame1Address:u16 := read S
+write memory[frame1Address] := frame1
+frame0:u8 := source "packed status" {
+  e:flag := read E
+  f:flag := read F
+  h:flag := read H
+  i:flag := read I
+  n:flag := read N
+  z:flag := read Z
+  v:flag := read V
+  c:flag := read C
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(00:u8, select(e, 80:u8, 00:u8)), select(f, 40:u8, 00:u8)), select(h, 20:u8, 00:u8)), select(i, 10:u8, 00:u8)), select(n, 08:u8, 00:u8)), select(z, 04:u8, 00:u8)), select(v, 02:u8, 00:u8)), select(c, 01:u8, 00:u8))
+}
+frame0Pointer:u16 := read S
+write S:u16 := subtract(frame0Pointer, 0001:u16)
+frame0Address:u16 := read S
+write memory[frame0Address] := frame0
+write control waitMode := "cwai"
+```
+
+Flags preserved throughout: none.
+
+### 6809 RTI
+
+Pull and replace CC first. Restored E selects the remaining full frame or PC alone; only complete each field after all its reads. Arm NMI after all transfers succeed. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+frame0:u8 := source "pop byte through S" {
+  address:u16 := read S
+  byte:u8 := read memory[address]
+  pointer:u16 := read S
+  write S:u16 := addWrap(pointer, 0001:u16)
+  yield byte
+}
+replace flags "restore packed status" simultaneously {
+  E := not(isZero(bitAnd(frame0, 80:u8)))
+  F := not(isZero(bitAnd(frame0, 40:u8)))
+  H := not(isZero(bitAnd(frame0, 20:u8)))
+  I := not(isZero(bitAnd(frame0, 10:u8)))
+  N := not(isZero(bitAnd(frame0, 08:u8)))
+  Z := not(isZero(bitAnd(frame0, 04:u8)))
+  V := not(isZero(bitAnd(frame0, 02:u8)))
+  C := not(isZero(bitAnd(frame0, 01:u8)))
+} // Replace the complete flag object.
+condition:flag := read E
+when condition {
+  rest0:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write A:u8 := rest0
+  rest1:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write B:u8 := rest1
+  rest2:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  write DP:u8 := rest2
+  rest3:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write X:u16 := rest3
+  rest4:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write Y:u16 := rest4
+  rest5:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write U:u16 := rest5
+  rest6:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := rest6
+}
+when not(condition) {
+  rest0:u16 := source "pop big-endian word" {
+    high:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    low:u8 := source "pop byte through S" {
+      address:u16 := read S
+      byte:u8 := read memory[address]
+      pointer:u16 := read S
+      write S:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := rest0
+}
+write nmiArmed:boolean := true
+```
+
+Flags preserved throughout: none.
+
 ### 6809 NOP
 
 No effects after opcode fetching.
@@ -86072,145 +87156,6 @@ when not(isZero(bitAnd(mask, 01:u8))) {
 ```
 
 Flags preserved throughout: E, F, H, I, N, Z, V, C.
-
-### 6809 PULS supplied frame mask
-
-Use the captured frame mask without fetching. Bits 7..0 select PC, the other stack pointer, Y, X, DP, B, A, CC. Pull in ascending bit order; read words high then low and commit each register only after its complete read. The selected pointer wraps at 16 bits, decrements before each write, and increments after each successful read. CC pulls replace the flag object; pulling S through U arms NMI immediately. Do not otherwise change NMI arming. An empty mask has no stack effects. A failed access retains completed transfers and pointer updates; later effects do not run.
-
-```text
-mask:u8 := input
-when not(isZero(bitAnd(mask, 01:u8))) {
-  contents:u8 := source "pop byte through S" {
-    address:u16 := read S
-    byte:u8 := read memory[address]
-    pointer:u16 := read S
-    write S:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  replace flags "restore packed status" simultaneously {
-    E := not(isZero(bitAnd(contents, 80:u8)))
-    F := not(isZero(bitAnd(contents, 40:u8)))
-    H := not(isZero(bitAnd(contents, 20:u8)))
-    I := not(isZero(bitAnd(contents, 10:u8)))
-    N := not(isZero(bitAnd(contents, 08:u8)))
-    Z := not(isZero(bitAnd(contents, 04:u8)))
-    V := not(isZero(bitAnd(contents, 02:u8)))
-    C := not(isZero(bitAnd(contents, 01:u8)))
-  } // Replace the complete flag object.
-}
-when not(isZero(bitAnd(mask, 02:u8))) {
-  contents:u8 := source "pop byte through S" {
-    address:u16 := read S
-    byte:u8 := read memory[address]
-    pointer:u16 := read S
-    write S:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  write A:u8 := contents
-}
-when not(isZero(bitAnd(mask, 04:u8))) {
-  contents:u8 := source "pop byte through S" {
-    address:u16 := read S
-    byte:u8 := read memory[address]
-    pointer:u16 := read S
-    write S:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  write B:u8 := contents
-}
-when not(isZero(bitAnd(mask, 08:u8))) {
-  contents:u8 := source "pop byte through S" {
-    address:u16 := read S
-    byte:u8 := read memory[address]
-    pointer:u16 := read S
-    write S:u16 := addWrap(pointer, 0001:u16)
-    yield byte
-  }
-  write DP:u8 := contents
-}
-when not(isZero(bitAnd(mask, 10:u8))) {
-  contents:u16 := source "pop big-endian word" {
-    high:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    low:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write X:u16 := contents
-}
-when not(isZero(bitAnd(mask, 20:u8))) {
-  contents:u16 := source "pop big-endian word" {
-    high:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    low:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write Y:u16 := contents
-}
-when not(isZero(bitAnd(mask, 40:u8))) {
-  contents:u16 := source "pop big-endian word" {
-    high:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    low:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write U:u16 := contents
-}
-when not(isZero(bitAnd(mask, 80:u8))) {
-  contents:u16 := source "pop big-endian word" {
-    high:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    low:u8 := source "pop byte through S" {
-      address:u16 := read S
-      byte:u8 := read memory[address]
-      pointer:u16 := read S
-      write S:u16 := addWrap(pointer, 0001:u16)
-      yield byte
-    }
-    yield concatHighLow(high, low)
-  }
-  write PC:u16 := contents
-}
-```
-
-Flags preserved throughout: none.
 
 ### 6809 DAA
 
@@ -91567,6 +92512,128 @@ write SP:u16 := subtract(secondPointer, 0001:u16)
 secondAddress:u16 := read SP
 write memory[secondAddress] := lowByte(returnPC)
 write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 DI
+
+Write IFF2 before IFF1. Retirement consumes any previous inhibition.
+
+```text
+write iff2:boolean := false
+write iff1:boolean := false
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 EI
+
+Write IFF2 before IFF1. Then request IRQ inhibition through the following instruction at successful retirement.
+
+```text
+write iff2:boolean := true
+write iff1:boolean := true
+request IRQ deferral at successful retirement
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IM 0
+
+Select a declared interrupt mode without changing flags or interrupt enables.
+
+```text
+write control im := 0
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IM 1
+
+Select a declared interrupt mode without changing flags or interrupt enables.
+
+```text
+write control im := 1
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 IM 2
+
+Select a declared interrupt mode without changing flags or interrupt enables.
+
+```text
+write control im := 2
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RETN
+
+Pop the complete PC before reading IFF1/IFF2. Request IRQ deferral if they differ, then reread IFF2 into IFF1. Do not notify the device.
+
+```text
+target:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+enabled:flag := read control latch iff1
+saved:flag := read control latch iff2
+when xor(enabled, saved) {
+  request IRQ deferral at successful retirement
+}
+restored:flag := read control latch iff2
+write iff1:boolean := restored
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RETI
+
+Pop the complete PC before reading IFF1/IFF2. Request IRQ deferral if they differ, then reread IFF2 into IFF1. Request device notification after architectural retirement; a notification failure cannot undo the return.
+
+```text
+target:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := target
+enabled:flag := read control latch iff1
+saved:flag := read control latch iff2
+when xor(enabled, saved) {
+  request IRQ deferral at successful retirement
+}
+restored:flag := read control latch iff2
+write iff1:boolean := restored
+request RETI device notification after successful architectural retirement
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.

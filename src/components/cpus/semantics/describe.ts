@@ -80,6 +80,7 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "read-register": emit(`${step.name}:u${step.register.width} := read ${bank(step.register)}${step.register.field.toUpperCase()}`); break;
         case "read-element": emit(`${step.name}:u${step.array.width} := read ${step.array.field.toUpperCase()}[${number(step.index)}]`); break;
         case "read-flag": emit(`${step.name}:flag := read ${step.flag.field.toUpperCase()}`); break;
+        case "test-choice": emit(`${step.name}:flag := test control ${step.choice.field} equals ${JSON.stringify(step.value)}`); break;
         case "read-latch": emit(`${step.name}:flag := read control latch ${step.latch.field}`); break;
         case "exchange-flags": {
           emit(`exchange ${bank(step.left)}FLAGS with ${bank(step.right)}FLAGS // Capture right then left; write left then right. Exchange objects without reading individual flags.`);
@@ -92,8 +93,10 @@ export function describeInstruction(definition: InstructionDefinition): string {
         case "read-memory": emit(`${step.name}:u8 := read memory[${address(step.address)}]`); break;
         case "write-register": emit(`write ${bank(step.register)}${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}`); break;
         case "write-element": emit(`write ${step.array.field.toUpperCase()}[${number(step.index)}]:u${step.array.width} := ${number(step.value)}`); break;
-        case "defer-interrupt": emit("request " + (step.scope === "intr" ? "INTR" : "all interrupt") + " deferral at successful retirement"); break;
-        case "write-latch": emit(`write ${step.latch.field}:boolean := ${step.value}`); break;
+        case "defer-interrupt": emit("request " + ({ irq: "IRQ", intr: "INTR", all: "all interrupt" }[step.scope]) + " deferral at successful retirement"); break;
+        case "notify-reti": emit("request RETI device notification after successful architectural retirement"); break;
+        case "write-choice": emit(`write control ${step.choice.field} := ${JSON.stringify(step.value)}`); break;
+        case "write-latch": emit(`write ${step.latch.field}:boolean := ${typeof step.value === "boolean" ? step.value : flag(step.value, {})}`); break;
         case "write-port": emit(`write port[${number(step.port)}] := ${number(step.value)}`); break;
         case "write-memory": emit(`write memory[${address(step.address)}] := ${number(step.value)}`); break;
         case "read-source":

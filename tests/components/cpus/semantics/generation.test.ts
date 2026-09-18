@@ -6,7 +6,7 @@ import { instructions as mos, opcodeEntries } from "../../../../src/components/c
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
-import { instructions6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions6502, interrupts6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister, value, writeLatch, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
@@ -37,6 +37,7 @@ test("all generated modules reproduce from definitions without changing them", (
     assert.equal(generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502" || cpu === "8088", sources: cpu === "6502" ? sources6502 : undefined }), source);
     assert.equal(JSON.stringify(definitions), before);
   }
+  assert.equal(generateInstructions("6502", interrupts6502), readFileSync("src/components/cpus/generated/6502-interrupts.ts", "utf8"));
   assert.equal(generateInstructions("8088", transfers8088), readFileSync("src/components/cpus/generated/8088-transfers.ts", "utf8"));
   assert.equal(generateInstructions("8088", alu8088), readFileSync("src/components/cpus/generated/8088-alu.ts", "utf8"));
   assert.equal(generateInstructions("8088", unary8088), readFileSync("src/components/cpus/generated/8088-unary.ts", "utf8"));
@@ -50,7 +51,7 @@ test("all generated modules reproduce from definitions without changing them", (
 test("6502 families generate exactly the migrated encodings, including opposite-index transfers and omitted store modes", () => {
   // Explicit opcode expectations are independent of the authored bit-pattern expansion.
   const expected = {
-    0x08: "PHP", 0x28: "PLP", 0xea: "NOP",
+    0x00: "BRK", 0x40: "RTI", 0x08: "PHP", 0x28: "PLP", 0xea: "NOP",
     0x18: "CLC", 0x38: "SEC", 0x58: "CLI", 0x78: "SEI", 0xb8: "CLV", 0xd8: "CLD", 0xf8: "SED",
     0x61: "ADC (zero page,X)", 0x65: "ADC zero page", 0x69: "ADC #byte", 0x6d: "ADC absolute",
     0x71: "ADC (zero page),Y", 0x75: "ADC zero page,X", 0x79: "ADC absolute,Y", 0x7d: "ADC absolute,X",

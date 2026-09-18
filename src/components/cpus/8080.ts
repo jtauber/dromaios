@@ -13,7 +13,7 @@ import type { MemoryAccess } from "./memory-access.ts";
 import { recordMemory } from "./memory-access.ts";
 import { recordPorts } from "./port-access.ts";
 import type { BytePorts, PortAccess } from "./port-access.ts";
-import type { WordInstructionContext } from "./instruction-context.ts";
+import type { WordInstructionContext, InterruptDeferralContext } from "./instruction-context.ts";
 import { copyState, readState } from "./state.ts";
 import { cpu8080StateDescription } from "./state/8080.ts";
 import type { Cpu8080State } from "./state/8080.ts";
@@ -49,9 +49,7 @@ export type Cpu8080InterruptRecord = StateTransition<Cpu8080Snapshot, Cpu8080Int
   | { readonly outcome: "unsupported"; readonly reason: "opcode"; readonly instruction: Cpu8080InterruptInstruction }
 );
 
-interface InstructionContext extends WordInstructionContext, BytePorts {
-  readonly deferInterrupt: () => void;
-}
+interface InstructionContext extends WordInstructionContext, BytePorts, InterruptDeferralContext<"irq"> {}
 type OpcodeHandler = (instruction: InstructionContext) => void;
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
@@ -193,7 +191,7 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
     ...instructionPattern("1101 0 011", instruction => semantics.output(this.state, instruction)), // OUT
     ...instructionPattern("1101 1 011", instruction => semantics.input(this.state, instruction)), // IN
     // 1111 e 011: e selects interrupt enable; EI inhibits acceptance through the next instruction.
-    ...instructionPattern("1111 0 011", () => { this.state.interruptEnabled = false; }), // DI
-    ...instructionPattern("1111 1 011", ({ deferInterrupt }) => { this.state.interruptEnabled = true; deferInterrupt(); }), // EI
+    ...instructionPattern("1111 0 011", () => semantics.di(this.state)), // DI
+    ...instructionPattern("1111 1 011", instruction => semantics.ei(this.state, instruction)), // EI
   ]);
 }

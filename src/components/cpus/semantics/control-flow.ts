@@ -1,4 +1,4 @@
-import { addWrap, capture, flagValue, literal, not, readFlag, readRegister, readSource, signExtend, value, when, writeRegister } from "./model.ts";
+import { addWrap, capture, concat, flagValue, literal, not, readFlag, readMemory, readRegister, readSource, signExtend, value, when, writeRegister } from "./model.ts";
 import type { CpuDeclaration, Flag, FlagExpression, NumberExpression, Register, Statement, ValueSource } from "./model.ts";
 import type { Stack } from "./stack.ts";
 import { defineInstruction } from "./validate.ts";
@@ -93,4 +93,11 @@ export function subroutineReturn(cpu: FlowCpu, name: string, stack: Stack, condi
     steps: conditional(condition, [readSource("returnPC", stack.pop),
       writeRegister(cpu.register("pc"), increment ? addWrap(value("returnPC"), literal(16, increment)) : value("returnPC"))]),
   });
+}
+
+/** Read both vector bytes before committing PC; each address wraps within the word space. */
+export function loadVector(pc: Register, address: NumberExpression, order: "little-endian" | "big-endian"): readonly Statement[] {
+  const first = order === "little-endian" ? "Low" : "High", second = first === "Low" ? "High" : "Low";
+  return [readMemory(`vector${first}`, address), readMemory(`vector${second}`, addWrap(address, literal(16, 1))),
+    writeRegister(pc, concat(value("vectorHigh"), value("vectorLow")))];
 }

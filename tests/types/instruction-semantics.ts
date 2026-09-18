@@ -13,7 +13,7 @@ import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js
 import { cpuZ80StateDescription } from "../../src/components/cpus/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { readPort, writePort, deferInterrupt, divide, iterate, reject, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { testChoice, writeChoice, readPort, writePort, deferInterrupt, divide, iterate, reject, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
@@ -113,13 +113,28 @@ export function checkInstructionSemantics(): void {
   lowByte(value("word"));
   const motorola = cpuSymbols("6809", cpu6809StateDescription);
   writeLatch(motorola.latch("nmiArmed"), true);
+  writeLatch(motorola.latch("nmiArmed"), flagValue("armed"));
+  writeChoice(z80.choice("im"), 2);
+  testChoice("waiting", motorola.choice("waitMode"), "cwai");
+  // @ts-expect-error Choices preserve their schema's numeric literal union.
+  writeChoice(z80.choice("im"), 3);
+  // @ts-expect-error Numeric choices are not strings.
+  testChoice("mode", z80.choice("im"), "2");
+  // @ts-expect-error Named choices preserve their schema's string literal union.
+  writeChoice(motorola.choice("waitMode"), "halt");
+  // @ts-expect-error Registers are not control choices.
+  motorola.choice("pc");
+  // @ts-expect-error Choices require explicit control access, not numeric register reads.
+  z80.register("im");
+  // @ts-expect-error A choice is distinct from a Boolean control latch.
+  writeLatch(z80.choice("im"), false);
   // @ts-expect-error Word registers are not control latches.
   motorola.latch("s");
   // @ts-expect-error Architectural flags remain distinct from control latches.
   motorola.latch("c");
   // @ts-expect-error Latches are not numeric registers.
   motorola.register("nmiArmed");
-  // @ts-expect-error Latch writes require an actual Boolean constant.
+  // @ts-expect-error Latch writes require a Boolean constant or expression.
   writeLatch(motorola.latch("nmiArmed"), 1);
   // @ts-expect-error Architectural flags cannot be written as latches.
   writeLatch(motorola.flag("c"), true);
@@ -160,6 +175,23 @@ export function checkInstructionSemantics(): void {
 }
 
 export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080State, motorola: Cpu6809State, m6800: Cpu6800State, z80: CpuZ80State, i8008: Cpu8008StoredState): void {
+  generatedZ80.di(z80);
+  generatedZ80.ei(z80, { deferInterrupt: (scope: "irq") => {} });
+  generatedZ80.im2(z80);
+  generatedZ80.retn(z80, { readByte: () => 0, deferInterrupt: (scope: "irq") => {} });
+  generatedZ80.reti(z80, { readByte: () => 0, deferInterrupt: (scope: "irq") => {}, notifyReti: () => {} });
+  // @ts-expect-error RETI requests notification separately from memory and deferral.
+  generatedZ80.reti(z80, { readByte: () => 0, deferInterrupt: () => {} });
+  // @ts-expect-error RETN has no device-notification effect.
+  generatedZ80.retn(z80, { readByte: () => 0, deferInterrupt: () => {}, notifyReti: () => {} });
+  // @ts-expect-error Z80 deferral requires IRQ, not 8088 INTR.
+  generatedZ80.ei(z80, { deferInterrupt: (scope: "intr") => {} });
+  // @ts-expect-error DI has no retirement callback.
+  generatedZ80.di(z80, { deferInterrupt: () => {} });
+  generated6502[0](mos, { fetchByte: () => 0, readByte: () => 0, writeByte: () => {} });
+  generated6502[0x40](mos, { readByte: () => 0 });
+  // @ts-expect-error BRK consumes its padding byte before stack access.
+  generated6502[0](mos, { readByte: () => 0, writeByte: () => {} });
   generatedZ80.exchangeAf(z80);
   generatedZ80.exchangeGeneralBanks(z80);
   generatedZ80.loadAFromI(z80);
@@ -444,7 +476,7 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   generated6809.pshs(motorola, { fetchByte: () => 0xff, writeByte: () => {} });
   generated6809.pulu(motorola, { fetchByte: () => 0xff, readByte: () => 0 });
   generated6809.pushFrame(motorola, 0xff, { writeByte: () => {} });
-  generated6809.pullFrame(motorola, 0xff, { readByte: () => 0 });
+  generated6809.rti(motorola, { readByte: () => 0 });
   // @ts-expect-error Transfers enter after the CPU fetches and validates their postbyte.
   generated6809.tfr_pc_x(motorola, { fetchByte: () => 0 });
   // @ts-expect-error LEA receives an already resolved numeric address.
@@ -691,8 +723,8 @@ export function check8088StackTypes(state: Cpu8088State, intel: Cpu8080State): v
   deferInterrupt("all");
   // @ts-expect-error Deferral is a specific boundary request, not an arbitrary callback.
   deferInterrupt(() => {});
-  // @ts-expect-error Only the two modeled recognition scopes are supported.
-  deferInterrupt("irq");
+  // @ts-expect-error Unknown recognition scopes are rejected.
+  deferInterrupt("nmi");
   // @ts-expect-error Segment POP requires a boundary deferral capability.
   generated8088[0x17](state, { readByte: () => 0 });
   // @ts-expect-error POPF cannot silently skip its IF-transition deferral.

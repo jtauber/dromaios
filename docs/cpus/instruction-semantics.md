@@ -71,12 +71,12 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 4,262 generated, executable bodies. All serve CPU execution;
-4,259 are bound through opcode or postbyte selection. Two shared 6809 frame
-helpers serve interrupt entry and return; one 8088 word-push helper serves entry.
+There are 4,283 generated, executable bodies. All serve CPU execution;
+4,279 are bound through opcode or postbyte selection. The remaining four serve
+external entry: 6502/6800 entry bodies, a 6809 frame push, and an 8088 word push.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
-Other instruction families retain their existing shared helpers. This is not a
-complete CPU migration. Bodies start after opcode selection. Each 6809 memory
+All six 8-bit CPUs have complete instruction-definition migration; the 8088
+and 68000 remain unfinished. Bodies start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
 extended forms, including all legal indexed postbytes. The 6800 memory
 comparisons, logic, arithmetic, and byte/word transfers likewise serve direct/indexed/extended
@@ -119,6 +119,45 @@ expectations, port records, wrapping, disconnections, malformed devices,
 supplied instructions, and guard release. [Type checks](../../tests/types/instruction-semantics.ts)
 keep port and memory capabilities distinct.
 
+## Interrupt and control instructions
+
+The 20 remaining 8-bit interrupt/control forms now use complete definitions:
+6502 BRK/RTI; 6800 SWI/WAI/RTI; 8080 DI/EI; Z80 DI/EI, IM 0/1/2, RETN/RETI;
+and 6809 SWI/SWI2/SWI3, SYNC/CWAI/RTI. This completes instruction migration for
+all six 8-bit CPUs. External offer validation and recognition, supplied-byte
+fetching, reset, retirement, and device notification delivery stay in the cores.
+
+`stackFrame` lists register views in pull order and reverses them for pushes.
+It captures each field only at its turn and commits each popped field after
+its complete read, using the existing byte/word stacks. The 6800 and 6809 share
+this construction while retaining their free/occupied stack pointers and native
+field order. `loadVector` reads both bytes in the selected byte order before
+committing PC. The 6502 explicitly pushes separately read PC bytes, preserving
+live changes between accesses, and consumes BRK's padding before entry. Its
+external-entry body shares that sequence with the saved B marker clear.
+The 6800 external-entry body shares SWI's frame and WAI reuse rules.
+
+Control choices are schema-owned: Z80 IM is `0 | 1 | 2`; 6809 wait mode is
+`"none" | "sync" | "cwai"`. `testChoice` captures a Boolean comparison at a
+specific point; `writeChoice` assigns only a declared alternative. They do not
+introduce general string expressions. `writeLatch` also accepts captured Boolean
+expressions, allowing Z80 IFF restoration without an implicit live read.
+
+8080/Z80 `deferInterrupt("irq")` requests inhibition at successful retirement.
+The existing 8088 scopes remain `"intr" | "all"`. Z80 `notifyReti()` requests
+device notification after architectural retirement; a failed stack read cannot
+notify, while a failing device notification leaves a fully retired return.
+The generator infers these as separate capabilities, including effects nested
+under conditions. It validates each against the CPU's boundary contract.
+
+The [independent control tests](../../tests/components/cpus/semantics/interrupt-control.test.ts)
+compare all 20 forms and both external-entry helpers with imperative schedules,
+including failure at every observed state/flag/bus effect and live callback
+changes. Existing CPU tests retain the recognition, record, deferral, notification,
+wait/wake, wrapping, and failure expectations. [Effect tests](../../tests/components/cpus/semantics/control-effects.test.ts)
+and [type checks](../../tests/types/instruction-semantics.ts) cover schema choices,
+Boolean captures, conditional capabilities, and CPU-specific request scopes.
+
 ## Representation and authoring
 
 [model.ts](../../src/components/cpus/semantics/model.ts) separates declarations,
@@ -131,9 +170,9 @@ The authoring layers have separate homes:
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, construction-time register views, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
-| [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, and returns with explicit operand/condition/stack order |
+| [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, returns, and vector loads with explicit operand/condition/stack order |
 | [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
-| [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, and complete push/pop instruction construction |
+| [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
 | [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, byte/word-transfer, branch, and subroutine construction, with explicit access and flag policies |
 | [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
 | [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 transfer/control/port and 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; memory-to-memory transfer slots omitted, with 8008 HALT defined separately |
@@ -172,11 +211,11 @@ names or handwritten per-instruction bindings. These are construction-time
 families; the resulting definitions still contain only data.
 
 `cpuSymbols(name, stateDescription)` imports the CPU's existing authority for
-stored fields. It offers typed register, register-array, flag, and control-latch names and records register
+stored fields. It offers typed register, register-array, flag, control-latch, and control-choice names and records register
 widths from that schema. There is no second register-layout declaration.
 Current symbols cover stored unsigned registers at supported widths, fixed
 arrays of those registers, the `flags` group, and top-level Boolean control
-latches. Array symbols derive both length and element width from the schema.
+latches, plus declared numeric or named choices. Array symbols derive both length and element width from the schema.
 `cpu.bank("alternate")` exposes the stored unsigned registers and complete
 flag object in that named top-level bank, using the same CPU declaration.
 Register references carry an optional bank name; they never flatten or copy
@@ -189,7 +228,9 @@ Compound transfer and arithmetic destinations use explicit ordered statements co
 `result`: LDD writes A then B using `highByte`/`lowByte`; LDS writes S then
 `writeLatch(cpu.latch("nmiArmed"), true)`. A latch is distinct from an architectural
 flag. `readLatch` captures its Boolean value for later conditions or policies;
-`writeLatch` still accepts only a Boolean constant.
+`writeLatch` accepts a Boolean constant or a captured Boolean expression.
+`choice`, `testChoice`, and `writeChoice` retain the state schema's literal unions
+for mode selectors; those fields cannot be accessed as registers or latches.
 
 TypeScript distinguishes a register, a captured numeric expression, and a flag
 expression. Registers and flags do not implicitly read themselves. A numeric
@@ -864,11 +905,11 @@ source, register, and memory statements.
 
 The 6809 supplies CC/A/B/DP/X/Y/other-stack/PC views. Its four instruction bodies
 fetch a mask; nonempty PSHS/PULS arm NMI only after all effects succeed. PULU's S
-view arms immediately after the complete S pop. The two frame helpers receive
-a captured mask and omit fetching and final arming. Interrupt policy still
-selects full/short frames, restores CC before examining E, and arms after RTI.
-This reuse removes the CPU's handwritten stack implementation without claiming
-the interrupt instructions themselves as migrated.
+view arms immediately after the complete S pop. The external frame-push helper
+receives a captured mask and omits fetching and final arming. Complete RTI now
+uses `stackFrame`: restore CC, inspect E to select the remaining full or short
+frame, then arm NMI only after success. This replaces the former partial-pull
+helper and includes the complete return in migration coverage.
 [Mask probes](../../tests/components/cpus/semantics/masked-stacks.test.ts) cover
 every mask and failed access, register capture timing, complete-word writes,
 live-pointer changes, flag replacement, and both arming schedules.
@@ -889,8 +930,8 @@ can replace the final operand. RTS adds one to the popped word. Motorola calls
 use big-endian stacks and the existing address decoder. Indexed 6809 JSR retains
 S auto-updates and NMI arming before body entry; subroutine stack effects do not
 arm NMI. Packed-status stacks use the same construction with explicit packing
-and replacement stages. The 6809 shares its mask-driven frame transfers with
-this construction while keeping interrupt policy in the CPU.
+and replacement stages. The 6809 shares its mask-driven and fixed-frame
+transfers with this construction; external recognition stays in the CPU.
 
 ## Packed status and decimal arithmetic
 
@@ -1007,8 +1048,11 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `read-memory` | Read one byte at an explicit word address; capture it after success |
 | `write-register` | Replace the stored register with an equal-width unsigned value |
 | `write-element` | Replace one register-array slot with an equal-width value; do not read its old contents |
-| `write-latch` | Assign a Boolean constant to a declared top-level control latch; performs no read |
-| `defer-interrupt` | Request `intr` or `all` recognition inhibition through the 8088 context; the boundary commits it at successful retirement |
+| `test-choice` | Compare a live declared control choice with one permitted alternative, capturing the Boolean result |
+| `write-choice` | Assign a permitted constant to a declared control choice; performs no read |
+| `write-latch` | Assign a Boolean constant or captured Boolean expression to a declared top-level control latch; performs no implicit read |
+| `defer-interrupt` | Request `irq` inhibition on 8080/Z80 or `intr`/`all` on 8088; the boundary commits it at successful retirement |
+| `notify-reti` | Request Z80 device notification after successful architectural retirement |
 | `write-port` | Write one byte to a captured 16-bit port address; no implicit memory access or flag update |
 | `write-memory` | Write one byte at an explicit word address, including unchanged values |
 | `read-source` | Expand and perform the named source body once in its own scope, then capture its result |
@@ -1398,8 +1442,9 @@ each CPU's stored fields.
 Opcode selection remains in the CPU tables. For the 6502 and numeric 8088 families,
 `generateInstructions(..., { bindOpcodes: true })` also generates
 `opcodeEntries(state)`, connecting every defined opcode to its body. The CPU
-constructs its combined table after initializing state, and the ordinary
-`opcodeTable` rejects any collision with its remaining handwritten entries.
+constructs its table after initializing state. The 6502 uses generated entries
+exclusively; the 8088 combines them with handwritten entries. In both cases
+`opcodeTable` rejects collisions.
 Each instance binds its own state; no register or memory read occurs during
 binding. Generated methods retain their precise callback types, while the
 bound handlers accept the shared byte instruction context, with deferral when

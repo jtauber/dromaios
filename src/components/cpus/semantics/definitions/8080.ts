@@ -1,5 +1,5 @@
 import { cpu8080StateDescription, cpu8080Status } from "../../state/8080.ts";
-import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, extend, fetchByte, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readSource, value, zero } from "../model.ts";
+import { bitAnd, bitOr, borrow, carry, cpuSymbols, deferInterrupt, evenParity, extend, fetchByte, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readSource, value, writeLatch, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
 import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers, intelExchanges, intelJumps, intelRegisterStacks, intelStatusInstructions, intelSubroutines, intelWordArithmeticFamily, intelWordTransfers } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
@@ -77,6 +77,10 @@ function rotation(name: string, direction: "left" | "right", circular: boolean):
 }
 
 export const instructions8080 = {
+  di: defineInstruction({ cpu: cpu.declaration, name: "DI", explanation: "Clear interrupt enable without changing deferral until retirement.",
+    steps: [writeLatch(cpu.latch("interruptEnabled"), false)] }),
+  ei: defineInstruction({ cpu: cpu.declaration, name: "EI", explanation: "Set interrupt enable, then request IRQ inhibition through the following instruction at successful retirement.",
+    steps: [writeLatch(cpu.latch("interruptEnabled"), true), deferInterrupt("irq")] }),
   input: portTransfer(cpu.declaration, "IN n", immediatePort, registerView(cpu.register("a")), false),
   output: portTransfer(cpu.declaration, "OUT n", immediatePort, registerView(cpu.register("a")), true),
   ...intelStatusInstructions(cpu, cpu8080Status, "8080"),

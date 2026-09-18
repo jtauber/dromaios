@@ -1,4 +1,4 @@
-import type { ArrayField, GroupField, StateFields, UnsignedField } from "../state.ts";
+import type { ArrayField, ChoiceField, NamedChoiceField, GroupField, StateFields, UnsignedField } from "../state.ts";
 
 // Unsigned bit vectors, including double-word intermediates and the 8008's narrow selectors.
 export type Width = 3 | 8 | 14 | 16 | 32;
@@ -9,6 +9,7 @@ export interface FlagGroup { readonly kind: "flag-group"; readonly cpu: string; 
 export interface RegisterArray { readonly kind: "register-array"; readonly cpu: string; readonly field: string; readonly width: Width; readonly length: number }
 export interface Flag { readonly kind: "flag"; readonly cpu: string; readonly field: string }
 export interface Latch { readonly kind: "latch"; readonly cpu: string; readonly field: string }
+export interface Choice<Value extends string | number = string | number> { readonly kind: "choice"; readonly cpu: string; readonly field: string; readonly values: readonly Value[] }
 export interface CpuDeclaration { readonly name: string; readonly state: StateFields }
 
 interface ArithmeticOperands {
@@ -73,6 +74,7 @@ export type Statement =
   | { readonly kind: "read-register"; readonly name: string; readonly register: Register }
   | { readonly kind: "read-element"; readonly name: string; readonly array: RegisterArray; readonly index: NumberExpression }
   | { readonly kind: "read-flag"; readonly name: string; readonly flag: Flag }
+  | { readonly kind: "test-choice"; readonly name: string; readonly choice: Choice; readonly value: string | number }
   | { readonly kind: "read-latch"; readonly name: string; readonly latch: Latch }
   | { readonly kind: "exchange-flags"; readonly left: FlagGroup; readonly right: FlagGroup }
   | { readonly kind: "fetch-byte"; readonly name: string }
@@ -81,8 +83,10 @@ export type Statement =
   | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource }
   | { readonly kind: "write-register"; readonly register: Register; readonly value: NumberExpression }
   | { readonly kind: "write-element"; readonly array: RegisterArray; readonly index: NumberExpression; readonly value: NumberExpression }
-  | { readonly kind: "defer-interrupt"; readonly scope: "intr" | "all" }
-  | { readonly kind: "write-latch"; readonly latch: Latch; readonly value: boolean }
+  | { readonly kind: "defer-interrupt"; readonly scope: "irq" | "intr" | "all" }
+  | { readonly kind: "notify-reti" }
+  | { readonly kind: "write-choice"; readonly choice: Choice; readonly value: string | number }
+  | { readonly kind: "write-latch"; readonly latch: Latch; readonly value: boolean | FlagExpression }
   | { readonly kind: "write-port"; readonly port: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "write-memory"; readonly address: AddressExpression; readonly value: NumberExpression }
   | { readonly kind: "update-flags" | "replace-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, Expression>> };
@@ -99,6 +103,7 @@ type UnsignedNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends Unsign
 type ArrayNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends ArrayField ? Key : never }[keyof Fields] & string;
 type FlagNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends { kind: "flag" } ? Key : never }[keyof Fields] & string;
 type LatchNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends { kind: "boolean" } ? Key : never }[keyof Fields] & string;
+type ChoiceNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends ChoiceField | NamedChoiceField ? Key : never }[keyof Fields] & string;
 type BankNames<Fields> = { [Key in keyof Fields]: Fields[Key] extends GroupField<StateFields & { flags: GroupField }> ? Key : never }[keyof Fields] & string;
 
 /** A bank names stored registers and its complete flag object; it does not create another CPU. */
@@ -136,6 +141,11 @@ export function cpuSymbols<const Fields extends StateFields & { flags: GroupFiel
     flag(field: FlagNames<Fields["flags"]["fields"]>): Flag {
       if (state.flags.fields[field]?.kind !== "flag") throw new Error(`${name}.${field}: expected a stored flag.`);
       return { kind: "flag", cpu: name, field };
+    },
+    choice<Key extends ChoiceNames<Fields>>(field: Key): Choice<Extract<Fields[Key], ChoiceField | NamedChoiceField>["values"][number]> {
+      const description = state[field];
+      if (description?.kind !== "choice" && description?.kind !== "named-choice") throw new Error(`${name}.${field}: expected declared control choices.`);
+      return { kind: "choice", cpu: name, field, values: description.values as Extract<Fields[Key], ChoiceField | NamedChoiceField>["values"] };
     },
     latch(field: LatchNames<Fields>): Latch {
       if (state[field]?.kind !== "boolean") throw new Error(`${name}.${field}: expected a stored control latch.`);
@@ -209,14 +219,20 @@ export const readMemory = (name: string, address: AddressExpression): Statement 
 export const readSource = (name: string, source: ValueSource): Statement => ({ kind: "read-source", name, source });
 export const writeRegister = (register: Register, value: NumberExpression): Statement => ({ kind: "write-register", register, value });
 export const writeElement = (array: RegisterArray, index: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-element", array, index, value });
-export const writeLatch = (latch: Latch, value: boolean): Statement => ({ kind: "write-latch", latch, value });
+export const writeLatch = (latch: Latch, value: boolean | FlagExpression): Statement => ({ kind: "write-latch", latch, value });
 export const writeMemory = (address: AddressExpression, value: NumberExpression): Statement => ({ kind: "write-memory", address, value });
 export const updateFlags = (policy: FlagPolicy, args: Readonly<Record<string, Expression>>): Statement => ({ kind: "update-flags", policy, arguments: args });
 export const replaceFlags = (policy: FlagPolicy, args: Readonly<Record<string, Expression>>): Statement => ({ kind: "replace-flags", policy, arguments: args });
 
-/** Request 8088 recognition inhibition at successful retirement; the boundary owns its stored latches. */
-export const deferInterrupt = (scope: "intr" | "all"): Statement => ({ kind: "defer-interrupt", scope });
+/** Request recognition inhibition at successful retirement; the boundary owns its stored latches. */
+export const deferInterrupt = (scope: "irq" | "intr" | "all"): Statement => ({ kind: "defer-interrupt", scope });
 
 /** Port space is distinct from RAM: a word address selects one byte transfer. */
 export const readPort = (name: string, port: NumberExpression): Statement => ({ kind: "read-port", name, port });
 export const writePort = (port: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-port", port, value });
+
+/** Compare a live declared control choice, capturing only the Boolean result. */
+export const testChoice = <Value extends string | number>(name: string, choice: Choice<Value>, value: NoInfer<Value>): Statement => ({ kind: "test-choice", name, choice, value });
+export const writeChoice = <Value extends string | number>(choice: Choice<Value>, value: NoInfer<Value>): Statement => ({ kind: "write-choice", choice, value });
+/** Request the Z80 device notification after successful architectural retirement. */
+export const notifyReti = (): Statement => ({ kind: "notify-reti" });

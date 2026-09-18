@@ -137,11 +137,10 @@ explain postbyte fields separately.
 
 For migrated 6502 instructions, keep patterns and selectors beside their bodies
 in [the authored definitions](../../src/components/cpus/semantics/definitions/6502.ts).
-Generate the execution bindings from those same patterns; the CPU combines them
-with its remaining handwritten entries after initializing state. Preserve the
-duplicate-opcode check across both sets. Avoid maintaining a second list of
+Generate execution bindings from those same patterns; the CPU binds the complete
+inventory after initializing state. Preserve the duplicate-opcode check. Avoid maintaining a second list of
 generated method names or repeating migrated patterns in the CPU class.
-Keep address and operand sources there too: all ordinary instructions now
+Keep address and operand sources there too: all instructions now
 expand them into complete generated bodies. Standalone source generation remains
 a test of the same compiler. Address sources stop before the final data read, allowing stores and memory modifiers to preserve their own access order.
 Keep instruction-specific exceptions, such as indirect JMP's page wrap, explicit.
