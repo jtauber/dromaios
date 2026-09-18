@@ -1,14 +1,14 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { instructions6502, sources6502, instructions6800, instructions8008, instructions8080, instructions6809, instructionsZ80 } from "../src/components/cpus/semantics/definitions.ts";
+import { instructions6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, instructions6809, instructionsZ80 } from "../src/components/cpus/semantics/definitions.ts";
 import { generateInstructions } from "../src/components/cpus/semantics/generate.ts";
 
 /** Rebuild executable semantics from definitions and CPU-owned state schemas. */
 export function generateCpuSemantics(directory: string): void {
   const modules = ([
-    ["6502", instructions6502], ["6800", instructions6800], ["8008", instructions8008], ["8080", instructions8080], ["6809", instructions6809], ["z80", instructionsZ80],
-  ] as const).map(([cpu, definitions]) => [cpu, generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502", sources: cpu === "6502" ? sources6502 : undefined })] as const);
+    ["6502", instructions6502], ["6800", instructions6800], ["8008", instructions8008], ["8080", instructions8080], ["8088", instructions8088], ["6809", instructions6809], ["z80", instructionsZ80],
+  ] as const).map(([cpu, definitions]) => [cpu, generateInstructions(cpu, definitions, { bindOpcodes: cpu === "6502" || cpu === "8088", sources: cpu === "6502" ? sources6502 : undefined })] as const);
   rmSync(directory, { recursive: true, force: true });
   mkdirSync(directory, { recursive: true });
   for (const [cpu, source] of modules) writeFileSync(join(directory, `${cpu}.ts`), source);

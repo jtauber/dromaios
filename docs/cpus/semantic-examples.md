@@ -14028,6 +14028,1252 @@ flags "8080 comparison" simultaneously {
 
 Flags preserved throughout: none.
 
+### 8088 ADD AL,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 ADD AX,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 OR AL,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Clear OF, CF, and AF in that order; AF is deterministically cleared although undefined on hardware. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+result := bitOr(left, right)
+flags "8088 OR" simultaneously {
+  OF := 0:flag
+  CF := 0:flag
+  AF := 0:flag
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 OR AX,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Clear OF, CF, and AF in that order; AF is deterministically cleared although undefined on hardware. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+result := bitOr(left, right)
+flags "8088 OR" simultaneously {
+  OF := 0:flag
+  CF := 0:flag
+  AF := 0:flag
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 ADC AL,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Capture CF after both operands. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+carry:flag := read CF
+result := addWrap(left, right, carry)
+flags "8088 add" simultaneously {
+  CF := carry(left, right, carry)
+  AF := halfCarry4(left, right, carry)
+  OF := addOverflow(left, right, carry)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 ADC AX,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Capture CF after both operands. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+carry:flag := read CF
+result := addWrap(left, right, carry)
+flags "8088 add" simultaneously {
+  CF := carry(left, right, carry)
+  AF := halfCarry4(left, right, carry)
+  OF := addOverflow(left, right, carry)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SBB AL,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Capture CF after both operands. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+carry:flag := read CF
+result := subtract(left, right, carry)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right, carry)
+  AF := halfBorrow4(left, right, carry)
+  OF := subtractOverflow(left, right, carry)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SBB AX,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Capture CF after both operands. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+carry:flag := read CF
+result := subtract(left, right, carry)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right, carry)
+  AF := halfBorrow4(left, right, carry)
+  OF := subtractOverflow(left, right, carry)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 AND AL,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Clear OF, CF, and AF in that order; AF is deterministically cleared although undefined on hardware. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+result := bitAnd(left, right)
+flags "8088 AND" simultaneously {
+  OF := 0:flag
+  CF := 0:flag
+  AF := 0:flag
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 AND AX,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Clear OF, CF, and AF in that order; AF is deterministically cleared although undefined on hardware. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+result := bitAnd(left, right)
+flags "8088 AND" simultaneously {
+  OF := 0:flag
+  CF := 0:flag
+  AF := 0:flag
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SUB AL,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 SUB AX,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 XOR AL,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Clear OF, CF, and AF in that order; AF is deterministically cleared although undefined on hardware. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+result := bitXor(left, right)
+flags "8088 XOR" simultaneously {
+  OF := 0:flag
+  CF := 0:flag
+  AF := 0:flag
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 XOR AX,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Clear OF, CF, and AF in that order; AF is deterministically cleared although undefined on hardware. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Write the accumulator after flags; a byte write retains the current upper half of AX. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+result := bitXor(left, right)
+flags "8088 XOR" simultaneously {
+  OF := 0:flag
+  CF := 0:flag
+  AF := 0:flag
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 CMP AL,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Do not write the accumulator. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 CMP AX,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Update CF, AF, and OF in that order from unsigned carry/borrow, nibble carry/borrow, and signed overflow. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Do not write the accumulator. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC AX
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read AX
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC CX
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read CX
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write CX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC DX
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read DX
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write DX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC BX
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read BX
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write BX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC SP
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read SP
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write SP:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC BP
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read BP
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write BP:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC SI
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read SI
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write SI:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 INC DI
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read DI
+preservedCarry:flag := read CF
+right := 0001:u16
+result := addWrap(left, right)
+flags "8088 add" simultaneously {
+  CF := carry(left, right)
+  AF := halfCarry4(left, right)
+  OF := addOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write DI:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC AX
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read AX
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write AX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC CX
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read CX
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write CX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC DX
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read DX
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write DX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC BX
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read BX
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write BX:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC SP
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read SP
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write SP:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC BP
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read BP
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write BP:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC SI
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read SI
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write SI:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 DEC DI
+
+Capture the word and CF. Add/subtract one with word wrapping; update arithmetic flags, then restore captured CF before writing the register. Preserve TF/IF/DF.
+
+```text
+left:u16 := read DI
+preservedCarry:flag := read CF
+right := 0001:u16
+result := subtract(left, right)
+flags "8088 subtract" simultaneously {
+  CF := borrow(left, right)
+  AF := halfBorrow4(left, right)
+  OF := subtractOverflow(left, right)
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+flags "preserved carry" simultaneously {
+  CF := preservedCarry
+} // Preserve unlisted flags.
+write DI:u16 := result
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 NOP
+
+Capture the selected register before AX, then write AX before the selected register. NOP retains the same self-exchange schedule. Do not access flags or memory.
+
+```text
+selected:u16 := read AX
+accumulator:u16 := read AX
+write AX:u16 := selected
+write AX:u16 := accumulator
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,CX
+
+Capture the selected register before AX, then write AX before the selected register. NOP retains the same self-exchange schedule. Do not access flags or memory.
+
+```text
+selected:u16 := read CX
+accumulator:u16 := read AX
+write AX:u16 := selected
+write CX:u16 := accumulator
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,DX
+
+Capture the selected register before AX, then write AX before the selected register. NOP retains the same self-exchange schedule. Do not access flags or memory.
+
+```text
+selected:u16 := read DX
+accumulator:u16 := read AX
+write AX:u16 := selected
+write DX:u16 := accumulator
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,BX
+
+Capture the selected register before AX, then write AX before the selected register. NOP retains the same self-exchange schedule. Do not access flags or memory.
+
+```text
+selected:u16 := read BX
+accumulator:u16 := read AX
+write AX:u16 := selected
+write BX:u16 := accumulator
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,SP
+
+Capture the selected register before AX, then write AX before the selected register. NOP retains the same self-exchange schedule. Do not access flags or memory.
+
+```text
+selected:u16 := read SP
+accumulator:u16 := read AX
+write AX:u16 := selected
+write SP:u16 := accumulator
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,BP
+
+Capture the selected register before AX, then write AX before the selected register. NOP retains the same self-exchange schedule. Do not access flags or memory.
+
+```text
+selected:u16 := read BP
+accumulator:u16 := read AX
+write AX:u16 := selected
+write BP:u16 := accumulator
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,SI
+
+Capture the selected register before AX, then write AX before the selected register. NOP retains the same self-exchange schedule. Do not access flags or memory.
+
+```text
+selected:u16 := read SI
+accumulator:u16 := read AX
+write AX:u16 := selected
+write SI:u16 := accumulator
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,DI
+
+Capture the selected register before AX, then write AX before the selected register. NOP retains the same self-exchange schedule. Do not access flags or memory.
+
+```text
+selected:u16 := read DI
+accumulator:u16 := read AX
+write AX:u16 := selected
+write DI:u16 := accumulator
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 TEST AL,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Clear OF, CF, and AF in that order; AF is deterministically cleared although undefined on hardware. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Do not write the accumulator. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+result := bitAnd(left, right)
+flags "8088 TEST" simultaneously {
+  OF := 0:flag
+  CF := 0:flag
+  AF := 0:flag
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 TEST AX,n
+
+Fetch the complete immediate low byte first, then read the accumulator. Do not read incoming flags. Clear OF, CF, and AF in that order; AF is deterministically cleared although undefined on hardware. Then set ZF/SF from the full result and PF from its low byte. Preserve TF/IF/DF. Do not write the accumulator. A failed fetch prevents all body effects; completed fetches and IP changes remain.
+
+```text
+right:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+result := bitAnd(left, right)
+flags "8088 TEST" simultaneously {
+  OF := 0:flag
+  CF := 0:flag
+  AF := 0:flag
+  ZF := isZero(result)
+  SF := topBit(result)
+  PF := evenParity8(lowByte(result))
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: TF, IF, DF.
+
+### 8088 MOV AL,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CL,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DL,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BL,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(preservedWord), result)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AH,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+preservedWord:u16 := read AX
+write AX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CH,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+preservedWord:u16 := read CX
+write CX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DH,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+preservedWord:u16 := read DX
+write DX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BH,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+preservedWord:u16 := read BX
+write BX:u16 := concatHighLow(result, lowByte(preservedWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write AX:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write CX:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write DX:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write BX:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write SP:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write BP:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write SI:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,n
+
+Fetch the complete immediate low byte first, then write the destination. A byte write retains the current other half of its stored word. Do not access flags. A failed fetch leaves the destination untouched.
+
+```text
+result:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write DI:u16 := result
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 6809 NOP
 
 No effects after opcode fetching.

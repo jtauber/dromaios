@@ -42,7 +42,7 @@ export function intelPairView(cpu: IntelByteCpu, pair: RegisterPair): RegisterVi
   };
 }
 
-const immediateWord: ValueSource = { name: "immediate word, low byte first", width: 16,
+export const immediateWord: ValueSource = { name: "immediate word, low byte first", width: 16,
   steps: [fetchByte("low"), fetchByte("high")], result: concat(value("high"), value("low")) };
 
 /** Shared absolute/HL jumps; conditional forms capture their flag after both address bytes. */

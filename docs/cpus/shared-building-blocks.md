@@ -1356,7 +1356,11 @@ new primitive for its remaining ordinary instructions. The Z80 now also authors
 its ordinary instructions, with checked alternate-bank references, explicit
 IFF2 reads, whole flag-object exchange, and constant logical shifts. Repeating
 blocks use one iteration and a conditional PC rewind, preserving refetch and
-interrupt boundaries without a loop primitive. The 68000 probes below remain
+interrupt boundaries without a loop primitive. The first 8088 register families
+reuse arithmetic construction and low-first fetching. Byte views expand into
+existing word reads, byte extraction, and concatenation, capturing the retained
+half at writeback. Definitions generate their own opcode bindings; ModR/M,
+segmented data access, and retirement remain outside those bodies. The 68000 probes below remain
 requirements for later vocabulary. Whole-model migration remains a separate decision.
 
 The 6502 now authors these migrated instructions as encoding families and

@@ -35,7 +35,7 @@ core. Keep a CPU in one file while this organization remains easy to follow.
 ## Stored-state descriptions
 
 Each CPU module exports a `cpu…StateDescription` beside its public state
-type. For the 6502, 6800, 8008, 8080, 6809, and Z80, the declaration and derived types live in
+type. For the 6502, 6800, 8008, 8080, 8088, 6809, and Z80, the declaration and derived types live in
 CPU-owned modules under [`state/`](../../src/components/cpus/state) and are
 re-exported by the original CPU module. This lets instruction generation load
 schemas without loading execution or its generated imports. The description
@@ -614,6 +614,20 @@ Keep source reads, counter capture, destination writes, live pair rereads,
 flags, and repeat testing in their existing order. The next step owns refetching
 and refresh. Digit rotates similarly keep their memory write before C, flag
 replacement, and A writeback; constant logical shifts make nibble movement visible.
+
+The 8088 uses `byteRegisterView` for the low/high halves of its stored words.
+The source reads the word once. Its write statements read the word again at
+writeback to preserve the current other half, after any intervening fetches or
+flag effects. These are construction recipes, with no runtime view object in
+new generated bodies. The [encoded register inventory](../../src/components/cpus/8088-registers.ts)
+is shared by definitions and the remaining runtime operands.
+
+Keep migrated 8088 bit patterns beside their bodies in
+[the definitions](../../src/components/cpus/semantics/definitions/8088.ts), as for
+the 6502. Build the combined table after state initialization, retaining collision
+checks against handwritten entries. The decoder still owns prefixes, segmented
+fetching, and retirement; the generated register bodies receive only byte fetching
+when required. Preserve operand-before-CF captures and flags-before-writeback.
 
 ## Shared arithmetic
 

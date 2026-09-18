@@ -1,4 +1,4 @@
-import { addWrap, borrow, capture, fetchByte, flagLiteral, flagValue, lowBit, negative, not, readFlag, readMemory, readRegister, readSource,
+import { addWrap, borrow, capture, concat, fetchByte, flagLiteral, flagValue, highByte, lowByte, lowBit, negative, not, readFlag, readMemory, readRegister, readSource,
   shiftLeft, shiftRight, subtract, updateFlags, value, writeRegister, zero } from "./model.ts";
 import type { Flag, FlagExpression, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
 import type { CpuDeclaration, InstructionDefinition } from "./model.ts";
@@ -37,6 +37,17 @@ export interface RegisterView {
 
 export function registerView(register: Register, afterWrite: readonly Statement[] = []): RegisterView {
   return { source: registerSource(register), write: contents => [writeRegister(register, contents), ...afterWrite] };
+}
+
+/** A byte view of a stored word; capture the retained half at writeback, not at the earlier operand read. */
+export function byteRegisterView(register: Register, half: "low" | "high"): RegisterView {
+  if (register.width !== 16) throw new Error("A byte register view requires a stored word.");
+  return {
+    source: { name: `${half} byte of ${registerSource(register).name}`, width: 8,
+      steps: [readRegister("word", register)], result: (half === "low" ? lowByte : highByte)(value("word")) },
+    write: contents => [readRegister("preservedWord", register), writeRegister(register, half === "low"
+      ? concat(highByte(value("preservedWord")), contents) : concat(contents, lowByte(value("preservedWord"))))],
+  };
 }
 
 /** Resolve an address once, then read its byte. Stores and modifiers can use the address source alone. */

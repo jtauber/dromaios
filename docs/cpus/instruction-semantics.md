@@ -3,7 +3,7 @@
 This implements the bounded executable review in
 [stage 5 of the shared-building-blocks proposal](shared-building-blocks.md#5-execute-one-slice-and-produce-a-useful-second-output).
 Typed definitions drive validation, a reproducible [expanded listing](semantic-examples.md),
-and generated TypeScript instruction bodies used by the 6502, 6800, 8008, 8080, 6809, and Z80.
+and generated TypeScript instruction bodies used by the 6502, 6800, 8008, 8080, 8088, 6809, and Z80.
 The public execution interfaces and supported opcode inventories are unchanged.
 
 The experiment asks whether an instruction's meaning can be described clearly
@@ -16,6 +16,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 
 | Definitions | What they challenge |
 | --- | --- |
+| 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
@@ -63,8 +64,8 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 1,572 generated, executable bodies. All serve CPU execution;
-1,570 are bound through opcode or postbyte selection, and two are shared 6809
+There are 1,630 generated, executable bodies. All serve CPU execution;
+1,628 are bound through opcode or postbyte selection, and two are shared 6809
 frame helpers called by interrupt entry and return. The earlier MOV B,A test
 sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
@@ -447,6 +448,49 @@ then replace Z/C. The C expression explicitly selects product bit 7.
 [Register probes](../../tests/components/cpus/semantics/6809-registers.test.ts)
 check every legal transfer pair, flag replacement and arming, read/write order,
 failed register effects, all byte products, and rejected multiplication widths.
+
+## 8088 byte views and register families
+
+The [8088 definitions](../../src/components/cpus/semantics/definitions/8088.ts)
+use the existing `RegisterView` construction for scalar words and a
+`byteRegisterView(register, "low" | "high")` for their byte slices. A byte source
+reads the stored word once and extracts the selected half. Its write statements
+capture `preservedWord` at writeback and concatenate the new byte with the
+current other half. This prevents an earlier operand read from freezing the
+retained byte across later flag effects. Each view write introduces that capture
+in its containing statement scope. No view primitive, live callback, or runtime
+view object enters the generated body.
+
+Immediate MOV and accumulator ALU/TEST fetch all operand bytes before reading
+registers or flags. Words reuse the Intel low-first source; the CPU's fetch
+callback owns CS:IP mapping and per-byte offset wrapping. ADC/SBB read CF only
+after the accumulator. The shared arithmetic recipe computes the result and
+updates CF/AF/OF/ZF/SF/PF before writeback; CF and AF report carry or borrow.
+Logic clears OF then CF then AF, followed by ZF/SF/PF. AF remains deterministically
+clear under the existing undefined-flag policy. PF always uses the low byte;
+ZF/SF use the full operand width. CMP/TEST never write or reread AX.
+
+Word INC/DEC capture the word and incoming CF, perform ordinary arithmetic flag
+updates, restore the captured CF, and then write the destination. Register
+exchanges capture the selected register before AX and write AX before the selected
+register, including both reads and writes for NOP's self-exchange. None of these
+bodies reads or changes TF/IF/DF or the execution-control latches.
+
+One encoded register inventory serves definitions and runtime operands. Numeric
+definition keys drive generated opcode bindings; the constructor combines them
+with handwritten entries only after state initialization. The accumulator-dispatch
+and register-adjustment wrappers are removed. Prefix decoding, REP rejection,
+segmented fetching, trap sampling, and interrupt-deferral retirement remain in
+the CPU. ModR/M and data-memory operations are outside this batch.
+
+[Definition probes](../../tests/components/cpus/semantics/8088-registers.test.ts)
+check the exact 58-form inventory, every stored word through both byte views,
+complete word INC/DEC ranges with both carries, effect order, all partial-effect
+failures, live alias changes, and explanations. Independent existing CPU tests
+exhaust byte arithmetic and exercise word boundaries. The
+[fetch-failure tests](../../tests/components/cpus/8088/register-failures.test.ts)
+check all 58 forms with prefixes, wrapping IP/physical addresses, retained
+inhibition on failure, guard release, and REP/REPNE rejection before body entry.
 
 ## Z80 banks, special registers, and repeated blocks
 

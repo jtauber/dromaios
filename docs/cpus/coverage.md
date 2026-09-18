@@ -23,13 +23,13 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [162](../../src/components/cpus/6502.ts) | 149 / 151 | 98.7% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [443](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [385](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [963](../../src/components/cpus/8088.ts) | 58 / 291 | 19.9% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **1,572 generated bodies**, all used by CPU execution,
+contains **1,630 generated bodies**, all used by CPU execution,
 including two shared 6809 interrupt-frame helpers. They cover
-**1,730 complete opcode forms**:
+**1,788 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -265,8 +265,26 @@ including two shared 6809 interrupt-frame helpers. They cover
   and supplied-byte behavior with the core. All 218 ordinary forms are migrated;
   only the 32 port instructions remain handwritten.
 
-The 8088 and 68000 have no instruction bodies generated from these definitions.
-Their existing shared TypeScript helpers remain useful, but are outside this
+- [8088 definitions](../../src/components/cpus/semantics/definitions/8088.ts):
+  Sixteen immediate MOV forms, sixteen accumulator ADD/OR/ADC/SBB/AND/SUB/XOR/CMP
+  forms, both immediate TEST forms, sixteen word INC/DEC forms, and eight
+  AX/register exchanges including NOP add 58 bodies and complete forms.
+  Construction-time byte views read AL/AH and their siblings from stored words;
+  writes reread the word at writeback and retain the current other half.
+  Immediates fetch completely before operand or flag reads; word operands use
+  the existing low-first Intel source. ADC/SBB capture CF after the accumulator.
+  Arithmetic and logical flags precede writeback, word parity uses the low
+  byte, and logical AF retains deterministic clearing. INC/DEC capture CF,
+  update arithmetic flags, then restore CF before writing the register.
+  Exchanges read the selected register before AX and write AX first, retaining
+  the self-exchange schedule for NOP. Definitions own the encoding families and
+  generate their bindings, sharing register selectors with runtime operands.
+  The accumulator-dispatch and register-adjustment wrappers are removed.
+  Prefix handling, segmented fetching, rejection, and retirement remain in the
+  CPU; no data-memory or ModR/M forms count as migrated yet.
+
+The 68000 has no instruction bodies generated from these definitions.
+Its existing shared TypeScript helpers remain useful, but are outside this
 migration count. The [current review](instruction-semantics.md#decision-and-next-review)
 focuses on complete operation families, explicit carry and writeback stages,
 and the total authored source needed to share these definitions across CPUs.
@@ -311,31 +329,30 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,023 |
-| CPU-specific instruction definition files | 1,028 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,850 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,901** |
+| Eight CPU implementation files | 3,990 |
+| CPU-specific instruction definition files | 1,115 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,886 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,991** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 25,551 |
+| Generated CPU output, counted separately | 26,744 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The Z80 ordinary-instruction batch adds **17 bodies for 17 forms**, completing
-its ordinary instruction definitions. Its I/O and interrupt-related instruction
-bodies remain handwritten, along with decoding, refresh, and retirement.
+The first 8088 migration adds **58 bodies for 58 forms**, sharing the existing
+arithmetic construction and low-first word source. Byte-register views expand
+into ordinary reads, byte extraction, concatenation, and writes; there are no
+new semantic primitives or runtime view objects in generated bodies.
 
-The Z80 module shrinks from **489 to 443 lines**, removing **46 net lines** of
-handwritten exchange, special-register, NEG, digit-rotate, and block machinery.
-CPU-specific definitions add **87 lines** and other authored source adds
-**71 net**, including schema-owned bank references, Boolean latch reads,
-complete flag-object exchange, constant logical shifts, and reusable Intel
-pair views, with the unused runtime pair writer and its family wrapper removed.
-Total authored CPU source rises from **7,789 to 7,901 lines**
-(**112 more**); this batch expands the shared representation rather than
-reducing its total size. Generated output grows by **493 lines**. All 1,555
-earlier definitions remain unchanged; the other five generated modules and
-the Z80's 559 earlier method bodies are byte-for-byte unchanged.
+The 8088 module shrinks from **996 to 963 lines**, removing **33 net lines**.
+This includes moving its unchanged state schema and encoded register inventory
+into CPU-owned modules, generating migrated bindings, and removing the
+accumulator-dispatch and register-adjustment wrappers. CPU-specific definitions
+add **87 lines** and other authored source adds **36 net**. Total authored CPU
+source rises from **7,901 to 7,991 lines** (**90 more**); this establishes the
+8088's definitions and sliced-register construction, rather than reducing total
+source. Generated output grows by **1,193 lines**. All **1,572** earlier
+definitions and the six earlier generated CPU modules remain unchanged.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.
