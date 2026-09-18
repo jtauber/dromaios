@@ -13,7 +13,8 @@ import { cpu8088StateDescription } from "./state/8088.ts";
 import type { Cpu8088State, Cpu8088Flags } from "./state/8088.ts";
 import { byteRegisters8088, wordRegisters8088 } from "./8088-registers.ts";
 import type { ByteRegister8088, WordRegister8088 as WordRegister } from "./8088-registers.ts";
-import { opcodeEntries } from "./generated/8088.ts";
+import { instructions as semantics, opcodeEntries } from "./generated/8088.ts";
+import { instructions as transfers } from "./generated/8088-transfers.ts";
 import type { ReadonlyState } from "./state.js";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
@@ -125,6 +126,14 @@ interface Operand {
   readonly read: () => number;
   readonly write: (value: number) => void;
 }
+
+// Definitions specialize register selectors; memory bodies take one captured segment and offset.
+const registerTransfers: Readonly<Record<`${"move" | "exchange"}_${OperandWidth}_${number}_${number}`, (state: Cpu8088State) => void>> = transfers;
+const memoryTransfers: Readonly<Record<`${"load" | "store" | "exchangeMemory"}_${OperandWidth}_${number}`,
+  (state: Cpu8088State, segment: number, offset: number, instruction: ByteMemory) => void>> = transfers;
+const memoryImmediates: Readonly<Record<`immediate_${OperandWidth}`,
+  (state: Cpu8088State, segment: number, offset: number, instruction: InstructionContext) => void>> = transfers;
+const registerImmediates: Readonly<Partial<Record<number, (state: Cpu8088State, instruction: InstructionContext) => void>>> = semantics;
 
 const instructionPattern = opcodePattern<OpcodeHandler>;
 const statusBits = { cf: 0, pf: 2, af: 4, zf: 6, sf: 7 } as const;
@@ -364,9 +373,6 @@ export class Cpu8088 {
     (width, operand) => operand.write(this.#adjust(width, operand.read(), false)), // 000: INC
     (width, operand) => operand.write(this.#adjust(width, operand.read(), true)), // 001: DEC
   ];
-  readonly #immediateMoveOperations: readonly OperandOperation[] = [
-    (width, operand, instruction) => operand.write(this.#fetchImmediate(width, instruction)), // C6/C7 /0: MOV r/m,n
-  ];
 
   // D0–D3: mm ooo rrr selects the one-bit operation. /6 is undocumented.
   // The inserted bit is the outgoing bit (rotate), CF (through carry), zero, or sign.
@@ -445,9 +451,9 @@ export class Cpu8088 {
       // 1000 010w + mm ggg rrr: AND flags without a write; ggg is the source register.
       ...opcodeFamily("1000 010 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#aluRegisterMemory(this.#test, width, false, instruction)), // TEST r/m,r
       // 1000 011w + mm ggg rrr: exchange the original operands, even when registers alias.
-      ...opcodeFamily("1000 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#exchange(...this.#registerMemoryOperands(width, false, instruction))), // XCHG r/m,r
+      ...opcodeFamily("1000 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#transfer(width, "exchange", instruction)), // XCHG r/m,r
       // 1000 10 d w + mm ggg rrr: d=0 writes r/m, d=1 writes register ggg; no flags change.
-      ...opcodeFamily("1000 10 d w", { d: [false, true], w: this.#operandWidths }, ({ d: toRegister, w: width }) => (instruction: InstructionContext) => this.#moveRegisterMemory(width, toRegister, instruction)), // MOV r/m,r / r,r/m
+      ...opcodeFamily("1000 10 d w", { d: [false, true], w: this.#operandWidths }, ({ d: toRegister, w: width }) => (instruction: InstructionContext) => this.#transfer(width, toRegister ? "load" : "store", instruction)), // MOV r/m,r / r,r/m
 
       // 1000 11 d 0 + mm 0ss rrr moves segment registers; loading CS is undocumented.
       ...opcodeFamily("1000 11 d 0", { d: [false, true] }, ({ d: toSegment }) => (instruction: InstructionContext) => this.#moveSegment(toSegment, instruction)), // MOV r/m16,Sreg / Sreg,r/m16
@@ -489,7 +495,7 @@ export class Cpu8088 {
       }), // IRET
 
       // 1100 011w + mm 000 rrr: immediate MOV; every other operation selector is unused.
-      ...opcodeFamily("1100 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#operandGroup(width, this.#immediateMoveOperations, instruction)), // MOV r/m,n
+      ...opcodeFamily("1100 011 w", { w: this.#operandWidths }, ({ w: width }) => (instruction: InstructionContext) => this.#moveImmediate(width, instruction)), // MOV r/m,n
       // 1101 00vw + mm ooo rrr: v=0 shifts once, v=1 uses all eight bits of CL; w selects byte/word.
       ...opcodeFamily("1101 00 v w", { v: [false, true], w: this.#operandWidths }, ({ v: useCL, w: width }) => (instruction: InstructionContext) => this.#shift(width, useCL, instruction)), // ROL/ROR/RCL/RCR/SHL/SHR/SAR
 
@@ -627,24 +633,30 @@ export class Cpu8088 {
     return toRegister ? [register, memoryOrRegister] : [memoryOrRegister, register];
   }
 
-  #moveRegisterMemory(width: OperandWidth, toRegister: boolean, instruction: InstructionContext): void {
-    const [destination, source] = this.#registerMemoryOperands(width, toRegister, instruction);
-    destination.write(source.read());
+  #transfer(width: OperandWidth, operation: "load" | "store" | "exchange", instruction: InstructionContext): void {
+    const modRM = instruction.fetchByte(), register = (modRM >>> 3) & 7, rm = modRM & 7;
+    if (modRM >= 0xc0) {
+      const [destination, source] = operation === "load" ? [register, rm] : [rm, register];
+      registerTransfers[`${operation === "exchange" ? "exchange" : "move"}_${width}_${destination}_${source}`]!(this.#state);
+    } else {
+      const { segment, offset } = this.#effectiveAddress(modRM, instruction);
+      memoryTransfers[`${operation === "exchange" ? "exchangeMemory" : operation}_${width}_${register}`]!(this.#state, segment, offset, instruction);
+    }
   }
 
-  #exchange(left: Operand, right: Operand): void {
-    const leftValue = left.read();
-    const rightValue = right.read();
-    left.write(rightValue);
-    right.write(leftValue);
+  #moveImmediate(width: OperandWidth, instruction: InstructionContext): Rejection | void {
+    const modRM = instruction.fetchByte();
+    if (((modRM >>> 3) & 7) !== 0) return "opcode"; // C6/C7 admit only /0; reject before displacement or immediate fetching.
+    if (modRM >= 0xc0) registerImmediates[(width === 8 ? 0xb0 : 0xb8) + (modRM & 7)]!(this.#state, instruction);
+    else {
+      const { segment, offset } = this.#effectiveAddress(modRM, instruction);
+      memoryImmediates[`immediate_${width}`](this.#state, segment, offset, instruction);
+    }
   }
 
   #moveAbsolute(width: OperandWidth, toAccumulator: boolean, instruction: InstructionContext): void {
-    const offset = instruction.fetchWord();
-    const accumulator = this.#registerOperand(width, 0);
-    const memory = this.#memoryOperand(width, instruction.segment ?? this.#state.ds, offset, instruction);
-    const [destination, source] = toAccumulator ? [accumulator, memory] : [memory, accumulator];
-    destination.write(source.read());
+    const offset = instruction.fetchWord(), segment = instruction.segment ?? this.#state.ds;
+    memoryTransfers[`${toAccumulator ? "load" : "store"}_${width}_0`]!(this.#state, segment, offset, instruction);
   }
 
   #moveSegment(toSegment: boolean, instruction: InstructionContext): Rejection | void {

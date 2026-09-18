@@ -1,3 +1,4 @@
+import { instructions as transfers8088 } from "../../src/components/cpus/generated/8088-transfers.js";
 import { instructions as generated8088, opcodeEntries as opcodeEntries8088 } from "../../src/components/cpus/generated/8088.js";
 import { cpu8088StateDescription } from "../../src/components/cpus/state/8088.js";
 import type { Cpu8088State } from "../../src/components/cpus/8088.js";
@@ -6,7 +7,7 @@ import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js
 import { cpuZ80StateDescription } from "../../src/components/cpus/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, readFlag, readLatch, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
@@ -586,4 +587,30 @@ export function check8088Semantics(state: Cpu8088State, intel: Cpu8080State): vo
   generated8088[0x40](state, { fetchByte: () => 0 });
   // @ts-expect-error 8080 state is not 8088 state.
   generated8088[0x90](intel);
+}
+
+export function check8088TransferTypes(state: Cpu8088State, intel: Cpu8080State): void {
+  readMemory("byte", projectAddress(value("segment"), value("offset"), 4, 20));
+  // @ts-expect-error Physical address projections are distinct from numeric register expressions.
+  addWrap(projectAddress(value("segment"), value("offset"), 4, 20), literal(16, 1));
+  // @ts-expect-error Projections use numeric words, not conditions.
+  projectAddress(flagValue("carry"), value("offset"), 4, 20);
+  transfers8088.move_8_0_4(state);
+  transfers8088.exchange_8_0_4(state);
+  transfers8088.load_16_0(state, 0xffff, 0xffff, { readByte: () => 0 });
+  transfers8088.store_16_0(state, 0xffff, 0xffff, { writeByte: () => {} });
+  transfers8088.immediate_16(state, 0xffff, 0xffff, { fetchByte: () => 0, writeByte: () => {} });
+  transfers8088.exchangeMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Generated register transfers need no memory or fetch capability.
+  transfers8088.move_8_0_4(state, {});
+  // @ts-expect-error Resolved addresses are numbers, not opaque mapping callbacks.
+  transfers8088.load_16_0(state, () => 0xffff, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error MOV never reads its memory destination.
+  transfers8088.store_16_0(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error A memory exchange needs the write capability as well as reading.
+  transfers8088.exchangeMemory_16_0(state, 0xffff, 0xffff, { readByte: () => 0 });
+  // @ts-expect-error Immediate memory MOV must fetch before writing.
+  transfers8088.immediate_16(state, 0xffff, 0xffff, { writeByte: () => {} });
+  // @ts-expect-error Resolved transfer bodies retain concrete 8088 state.
+  transfers8088.exchange_8_0_4(intel);
 }

@@ -1,9 +1,9 @@
 import { cpu8088StateDescription } from "../../state/8088.ts";
 import { byteRegisters8088, wordRegisters8088 } from "../../8088-registers.ts";
 import { opcodeFamily } from "../../opcodes.ts";
-import { addOverflow, bitAnd, bitOr, bitXor, borrow, capture, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry,
-  literal, lowByte, negative, overflow, readFlag, readRegister, readSource, updateFlags, value, writeRegister, zero } from "../model.ts";
-import type { Statement } from "../model.ts";
+import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry,
+  highByte, literal, lowByte, negative, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
+import type { InstructionDefinition, NumberExpression, Statement } from "../model.ts";
 import { arithmetic, byteRegisterView, immediateByte, instructionSet, registerView, transfer } from "../builders.ts";
 import { immediateWord } from "../intel.ts";
 import { flagPolicy } from "../status.ts";
@@ -85,3 +85,60 @@ export const instructions8088 = instructionSet([
     });
   }),
 ]);
+
+// Resolved operands retain only the decoder's captured segment/offset; no live address callback enters a body.
+interface TransferOperand {
+  readonly name: string;
+  readonly memory?: true;
+  readonly read: (name: string) => readonly Statement[];
+  readonly write: (contents: NumberExpression, captureName: string) => readonly Statement[];
+}
+
+function memoryOperand(width: 8 | 16): TransferOperand {
+  const address = (next: boolean) => projectAddress(value("segment"), next ? addWrap(value("offset"), literal(16, 1)) : value("offset"), 4, 20);
+  return { name: `${width === 8 ? "byte" : "word"} [segment:offset]`, memory: true,
+    read: name => width === 8 ? [readMemory(name, address(false))] : [
+      readMemory(`${name}Low`, address(false)), readMemory(`${name}High`, address(true)), capture(name, concat(value(`${name}High`), value(`${name}Low`)))],
+    write: contents => width === 8 ? [writeMemory(address(false), contents)] : [
+      writeMemory(address(false), lowByte(contents)), writeMemory(address(true), highByte(contents))],
+  };
+}
+
+function transferDefinition(destination: TransferOperand, source: Pick<TransferOperand, "name" | "memory">, steps: readonly Statement[], exchange = false): InstructionDefinition {
+  const memory = destination.memory || source.memory;
+  return defineInstruction({ cpu: cpu.declaration, name: `${exchange ? "XCHG" : "MOV"} ${destination.name},${source.name} (resolved)`,
+    ...(memory ? { inputs: { segment: 16, offset: 16 } as const } : {}),
+    explanation: "Enter after successful operand resolution. "
+      + (exchange ? "Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. "
+        : "Read the complete source before writing the destination; never read a memory destination. ")
+      + (memory ? "Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. " : "No memory access occurs. ")
+      + "Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.",
+    steps,
+  });
+}
+
+function moveBody(destination: TransferOperand, source: Pick<TransferOperand, "name" | "read" | "memory">) {
+  return transferDefinition(destination, source, [...source.read("right"), ...destination.write(value("right"), "destinationWord")]);
+}
+
+function exchangeBody(left: TransferOperand, right: TransferOperand) {
+  return transferDefinition(left, right, [...left.read("left"), ...right.read("right"),
+    ...left.write(value("right"), "destinationWord"), ...right.write(value("left"), "sourceWord")], true);
+}
+
+/** Specialized register choices; memory bodies share every decoder-resolved addressing mode. */
+export const transfers8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries(widths.flatMap((width, index) => {
+  const operands: TransferOperand[] = registers[index]!.map(({ name, view }) => ({ name,
+    read: name => [readSource(name, view.source)], write: view.write }));
+  const memory = memoryOperand(width);
+  return [
+    ...operands.flatMap((destination, d) => operands.flatMap((source, s) => [
+      [`move_${width}_${d}_${s}`, moveBody(destination, source)], [`exchange_${width}_${d}_${s}`, exchangeBody(destination, source)],
+    ])),
+    ...operands.flatMap((register, r) => [
+      [`load_${width}_${r}`, moveBody(register, memory)], [`store_${width}_${r}`, moveBody(memory, register)],
+      [`exchangeMemory_${width}_${r}`, exchangeBody(memory, register)],
+    ]),
+    [`immediate_${width}`, moveBody(memory, { name: "n", read: name => [readSource(name, immediates[width])] })],
+  ];
+}));

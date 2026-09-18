@@ -17,6 +17,7 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | Definitions | What they challenge |
 | --- | --- |
 | 8088 immediate MOV and accumulator ALU/TEST, word INC/DEC, AX/register exchanges | Low/high byte views with live preservation of the other half; operand-before-CF capture; low-byte parity for words; explicit flag/write ordering; generated encoding bindings |
+| 8088 ModR/M MOV/XCHG, absolute accumulator MOV, and immediate r/m MOV | Resolved segment/offset inputs; byte-offset wrap before physical projection; complete source capture and low-first partial writes |
 | 6502 CMP/CPX/CPY, every supported addressing form | Share subtraction without writeback; preserve V/D/I; C means no borrow |
 | 8080 ADD/ADC/SUB/SBB/ANA/XRA/ORA/CMP and every immediate counterpart | Shared register, memory, and immediate sources; CY before A for ADC/SBB; parity, inverse half-borrow, and ANA's auxiliary carry rule |
 | Z80 ADD/ADC/SUB/SBC/AND/XOR/OR/CP, including (IX+d)/(IY+d) | Share 8080 sources and ALU construction with distinct overflow, half-carry, and N rules; enter indexed bodies after displacement/address resolution; preserve both-bank and prefix-decoding contracts |
@@ -64,8 +65,8 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 1,630 generated, executable bodies. All serve CPU execution;
-1,628 are bound through opcode or postbyte selection, and two are shared 6809
+There are 1,936 generated, executable bodies. All serve CPU execution;
+1,934 are bound through opcode or postbyte selection, and two are shared 6809
 frame helpers called by interrupt entry and return. The earlier MOV B,A test
 sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
@@ -458,8 +459,9 @@ reads the stored word once and extracts the selected half. Its write statements
 capture `preservedWord` at writeback and concatenate the new byte with the
 current other half. This prevents an earlier operand read from freezing the
 retained byte across later flag effects. Each view write introduces that capture
-in its containing statement scope. No view primitive, live callback, or runtime
-view object enters the generated body.
+in its containing statement scope; callers give distinct capture names when
+multiple view writes share a scope, as in XCHG. No view primitive, live callback,
+or runtime view object enters the generated body.
 
 Immediate MOV and accumulator ALU/TEST fetch all operand bytes before reading
 registers or flags. Words reuse the Intel low-first source; the CPU's fetch
@@ -481,7 +483,7 @@ definition keys drive generated opcode bindings; the constructor combines them
 with handwritten entries only after state initialization. The accumulator-dispatch
 and register-adjustment wrappers are removed. Prefix decoding, REP rejection,
 segmented fetching, trap sampling, and interrupt-deferral retirement remain in
-the CPU. ModR/M and data-memory operations are outside this batch.
+the CPU.
 
 [Definition probes](../../tests/components/cpus/semantics/8088-registers.test.ts)
 check the exact 58-form inventory, every stored word through both byte views,
@@ -491,6 +493,33 @@ exhaust byte arithmetic and exercise word boundaries. The
 [fetch-failure tests](../../tests/components/cpus/8088/register-failures.test.ts)
 check all 58 forms with prefixes, wrapping IP/physical addresses, retained
 inhibition on failure, guard release, and REP/REPNE rejection before body entry.
+
+### Resolved segmented transfers
+
+ModR/M MOV and XCHG, absolute accumulator MOV, and immediate r/m MOV use the
+same byte/word views after the existing decoder selects registers or resolves
+one segment and offset. Register-to-register bodies specialize both selectors;
+memory bodies receive the captured numeric segment and offset, with only the
+fetch/read/write callbacks they need. The immediate register cases reuse the
+earlier MOV bodies. These 306 new bodies cover twelve complete opcode forms;
+no address-mode or register specialization earns additional opcode credit.
+
+`projectAddress(segment, offset, 4, 20)` maps a logical byte to the physical bus.
+Word bodies first add one to the offset with 16-bit wrapping, then project
+that byte independently. They never increment an already projected address.
+MOV captures the entire source before any write and never reads a memory
+destination. XCHG reads r/m before the register, captures both values, writes
+r/m, then writes the register. Each byte-view write preserves its live other
+half, including AL/AH aliases. All accesses are low byte first; a failed second
+access retains the first, and flags/control state remain untouched by the body.
+
+[Transfer probes](../../tests/components/cpus/semantics/8088-transfers.test.ts)
+cover every specialization, aliased views, changing live state, and failure at
+every effect. [CPU boundary probes](../../tests/components/cpus/8088/transfer-failures.test.ts)
+cover all twelve forms with prefixes, wrapping fetch/data addresses, overlapping
+code, retained partial writes and inhibition, and guard release. C6/C7 reject
+nonzero operation extensions before fetching displacements or immediates;
+REP/REPNE rejection and retirement remain with the existing CPU boundary.
 
 ## Z80 banks, special registers, and repeated blocks
 
@@ -630,8 +659,9 @@ check results, effect stages, callback changes, and failures independently.
 ## Primitive meanings
 
 This vocabulary supports unsigned **3-, 8-, 14-, and 16-bit values**,
-**Boolean flag/latch captures**, constant **control-latch writes**, and **16-bit byte
-memory addresses**. The narrow widths describe the 8008 selector and physical
+**Boolean flag/latch captures**, constant **control-latch writes**, and **byte
+memory addresses** expressed as 16-bit values or explicit physical projections.
+The narrow widths describe the 8008 selector and physical
 address registers; arithmetic and shifts still require 8- or 16-bit operands. Widths are decimal;
 numeric literals in expanded listings are hexadecimal, while flag constants
 are `0:flag` and `1:flag`. There is no implicit truncation on a write.
@@ -669,6 +699,16 @@ are `0:flag` and `1:flag`. There is no implicit truncation on a write.
 | `xor(left, right)` | Boolean exclusive OR; true exactly when its two Boolean operands differ |
 | `or(left, right)` | Boolean disjunction over captured values; no implicit flag reads |
 | `and(left, right)` | Boolean conjunction of pure expressions over already captured values; no implicit flag reads |
+
+Memory statements also accept `projectAddress(base, offset, baseShift, addressBits)`:
+`(base * 2^baseShift + offset) modulo 2^addressBits`. Base and offset must be
+captured word expressions; the constant shift is 0–16 and physical width is
+1–32. Logical progression and wrapping belong in the offset expression before
+projection. A projection can only supply a memory address; it is not an ALU
+value or a new register width. Generation uses exact unsigned JavaScript number
+arithmetic, avoiding signed 32-bit bitwise results. [Projection probes](../../tests/components/cpus/semantics/address-projection.test.ts)
+check the bounds and lexical scope, compare emitted addresses with a BigInt
+oracle, and cover the full unsigned 32-bit endpoint.
 
 Binary arithmetic and bitwise operands must have equal widths. Narrow values
 must be explicitly widened before arithmetic and narrowed before writing back;
@@ -1041,14 +1081,17 @@ repeated arithmetic facts remain separate calls rather than introducing an
 optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
-`src/components/cpus/generated/{6502,6800,8008,8080,6809,z80}.ts`. These files are ignored build
-output and removed by `npm run clean`. Regenerate with `npm run generate:cpus`;
+`src/components/cpus/generated/{6502,6800,8008,8080,8088,6809,z80}.ts` and
+`8088-transfers.ts`. The separate 8088 transfer module contains specialized
+resolved bodies; its numeric opcode module retains automatic bindings.
+These files are ignored build output and removed by `npm run clean`.
+Regenerate with `npm run generate:cpus`;
 `npm run build` generates these bodies and the machine factories automatically.
 The source-only check and ordinary compilation both type-check the generated
 bodies. Reproducibility tests compare every module with fresh output and run the
 native generator in a clean temporary tree from another working directory.
 
-The six CPU-owned state declarations now live under
+The seven CPU-owned state declarations now live under
 [`src/components/cpus/state/`](../../src/components/cpus/state), re-exported
 through their original CPU modules. This lets definitions and generation load
 schemas without importing execution or requiring generated files to exist.
@@ -1056,7 +1099,7 @@ The machine parser imports those schemas directly too, so machine generation
 works independently of generated CPU output. There is still one authority for
 each CPU's stored fields.
 
-Opcode selection remains in the CPU tables. For the 6502,
+Opcode selection remains in the CPU tables. For the 6502 and numeric 8088 families,
 `generateInstructions(..., { bindOpcodes: true })` also generates
 `opcodeEntries(state)`, connecting every defined opcode to its body. The CPU
 constructs its combined table after initializing state, and the ordinary

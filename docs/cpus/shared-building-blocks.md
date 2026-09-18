@@ -1359,8 +1359,11 @@ blocks use one iteration and a conditional PC rewind, preserving refetch and
 interrupt boundaries without a loop primitive. The first 8088 register families
 reuse arithmetic construction and low-first fetching. Byte views expand into
 existing word reads, byte extraction, and concatenation, capturing the retained
-half at writeback. Definitions generate their own opcode bindings; ModR/M,
-segmented data access, and retirement remain outside those bodies. The 68000 probes below remain
+half at writeback. Definitions generate their own opcode bindings. ModR/M
+MOV/XCHG and absolute MOV transfers now also use resolved bodies: captured segment/offset
+inputs and a distinct physical-address projection keep logical byte progression
+before bus mapping explicit. Register choices specialize during construction;
+ModR/M resolution and retirement remain outside the bodies. The 68000 probes below remain
 requirements for later vocabulary. Whole-model migration remains a separate decision.
 
 The 6502 now authors these migrated instructions as encoding families and

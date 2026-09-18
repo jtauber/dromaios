@@ -32,7 +32,8 @@ export function registerSource(register: Register): ValueSource {
 /** Construction-time read/write view. Only its expanded sources and statements enter definitions. */
 export interface RegisterView {
   readonly source: ValueSource;
-  readonly write: (contents: NumberExpression) => readonly Statement[];
+  /** Give each write a distinct capture name when multiple byte views share a statement scope. */
+  readonly write: (contents: NumberExpression, captureName?: string) => readonly Statement[];
 }
 
 export function registerView(register: Register, afterWrite: readonly Statement[] = []): RegisterView {
@@ -45,8 +46,8 @@ export function byteRegisterView(register: Register, half: "low" | "high"): Regi
   return {
     source: { name: `${half} byte of ${registerSource(register).name}`, width: 8,
       steps: [readRegister("word", register)], result: (half === "low" ? lowByte : highByte)(value("word")) },
-    write: contents => [readRegister("preservedWord", register), writeRegister(register, half === "low"
-      ? concat(highByte(value("preservedWord")), contents) : concat(contents, lowByte(value("preservedWord"))))],
+    write: (contents, captureName = "preservedWord") => [readRegister(captureName, register), writeRegister(register, half === "low"
+      ? concat(highByte(value(captureName)), contents) : concat(contents, lowByte(value(captureName))))],
   };
 }
 

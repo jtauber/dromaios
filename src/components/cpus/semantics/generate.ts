@@ -1,4 +1,4 @@
-import type { Expression, FlagExpression, InstructionDefinition, NumberExpression, SourceDefinitions, Statement, ValueType, Width } from "./model.ts";
+import type { AddressExpression, Expression, FlagExpression, InstructionDefinition, NumberExpression, SourceDefinitions, Statement, ValueType, Width } from "./model.ts";
 import { readSource, value } from "./model.ts";
 import { defineInstruction } from "./validate.ts";
 import { opcodeTable } from "../opcodes.ts";
@@ -99,6 +99,11 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
         default: throw new Error("Expected a validated flag expression.");
       }
     }
+    function address(expr: AddressExpression, scope: Scope): string {
+      return expr.kind === "address-projection"
+        ? `((${number(expr.base, scope).code} * ${2 ** expr.baseShift} + ${number(expr.offset, scope).code}) % ${2 ** expr.addressBits})`
+        : number(expr, scope).code;
+    }
     function body(steps: readonly Statement[], scope: Map<string, CapturedValue>): void {
       for (const step of steps) {
         let captured: CapturedValue;
@@ -124,7 +129,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
             continue;
           }
           case "fetch-byte": captured = { code: `${access("fetchByte")}()`, type: 8 }; break;
-          case "read-memory": captured = { code: `${access("readByte")}(${number(step.address, scope).code})`, type: 8 }; break;
+          case "read-memory": captured = { code: `${access("readByte")}(${address(step.address, scope)})`, type: 8 }; break;
           case "read-source": {
             comment(`Source: ${step.source.name}`);
             const sourceScope = new Map<string, CapturedValue>();
@@ -135,7 +140,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "8008" | "8080" | "8
           case "write-register": emit(`${bank(step.register)}${field(step.register.field)} = ${number(step.value, scope).code};`); continue;
           case "write-element": emit(`state${field(step.array.field)}[${number(step.index, scope).code}] = ${number(step.value, scope).code};`); continue;
           case "write-latch": emit(`state${field(step.latch.field)} = ${step.value};`); continue;
-          case "write-memory": emit(`${access("writeByte")}(${number(step.address, scope).code}, ${number(step.value, scope).code});`); continue;
+          case "write-memory": emit(`${access("writeByte")}(${address(step.address, scope)}, ${number(step.value, scope).code});`); continue;
           case "update-flags": case "replace-flags": {
             comment(`Flags: ${step.policy.name}; ${step.kind === "replace-flags" ? "replace flag object" : "preserve unlisted flags"}`);
             // Arguments are pure expressions in the caller's scope. Evaluate once, before the policy.

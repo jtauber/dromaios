@@ -23,13 +23,13 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [162](../../src/components/cpus/6502.ts) | 149 / 151 | 98.7% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [443](../../src/components/cpus/z80.ts) | 667 / 698 | 95.6% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [385](../../src/components/cpus/6809.ts) | 262 / 268 | 97.8% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [963](../../src/components/cpus/8088.ts) | 58 / 291 | 19.9% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [975](../../src/components/cpus/8088.ts) | 70 / 291 | 24.1% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **1,630 generated bodies**, all used by CPU execution,
+contains **1,936 generated bodies**, all used by CPU execution,
 including two shared 6809 interrupt-frame helpers. They cover
-**1,788 complete opcode forms**:
+**1,800 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -280,8 +280,16 @@ including two shared 6809 interrupt-frame helpers. They cover
   the self-exchange schedule for NOP. Definitions own the encoding families and
   generate their bindings, sharing register selectors with runtime operands.
   The accumulator-dispatch and register-adjustment wrappers are removed.
-  Prefix handling, segmented fetching, rejection, and retirement remain in the
-  CPU; no data-memory or ModR/M forms count as migrated yet.
+  ModR/M MOV in both directions, ModR/M XCHG, absolute accumulator MOV, and
+  immediate r/m MOV add twelve complete forms: 70 migrated in total.
+  Their 306 specialized bodies cover every register pair and reuse resolved
+  memory bodies across addressing modes; immediate register choices reuse the
+  earlier bodies. The decoder supplies a captured segment and offset. Each
+  word access wraps its byte offset before projecting onto the 20-bit bus,
+  transferring low byte first. Sources are captured before writes; XCHG reads
+  r/m before the register and writes r/m first. Failed second accesses retain
+  completed effects. Prefix handling, ModR/M resolution, rejection, segmented
+  fetching, and retirement remain in the CPU.
 
 The 68000 has no instruction bodies generated from these definitions.
 Its existing shared TypeScript helpers remain useful, but are outside this
@@ -329,30 +337,30 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,990 |
-| CPU-specific instruction definition files | 1,115 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,886 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,991** |
-| CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 26,744 |
+| Eight CPU implementation files | 4,002 |
+| CPU-specific instruction definition files | 1,172 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,916 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,090** |
+| CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
+| Generated CPU output, counted separately | 29,968 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The first 8088 migration adds **58 bodies for 58 forms**, sharing the existing
-arithmetic construction and low-first word source. Byte-register views expand
-into ordinary reads, byte extraction, concatenation, and writes; there are no
-new semantic primitives or runtime view objects in generated bodies.
+The segmented 8088 transfer migration adds **306 bodies for twelve forms**.
+Register pairs specialize during construction; memory bodies share captured
+segment/offset inputs across addressing modes. Address projection is a distinct
+memory-address expression, keeping physical bus width separate from ALU widths.
+Byte views reuse the existing read/extract/concatenate/write construction.
 
-The 8088 module shrinks from **996 to 963 lines**, removing **33 net lines**.
-This includes moving its unchanged state schema and encoded register inventory
-into CPU-owned modules, generating migrated bindings, and removing the
-accumulator-dispatch and register-adjustment wrappers. CPU-specific definitions
-add **87 lines** and other authored source adds **36 net**. Total authored CPU
-source rises from **7,901 to 7,991 lines** (**90 more**); this establishes the
-8088's definitions and sliced-register construction, rather than reducing total
-source. Generated output grows by **1,193 lines**. All **1,572** earlier
-definitions and the six earlier generated CPU modules remain unchanged.
+The 8088 module grows from **963 to 975 lines** (**12 more**) because its
+replacement decode bindings now select generated register or memory bodies.
+CPU-specific definitions add **57 lines** and other authored source adds **30**.
+Total authored CPU source rises from **7,991 to 8,090 lines** (**99 more**).
+This establishes explicit segmented-memory meaning and removes handwritten
+MOV/XCHG bodies; it does not yet reduce source. Generated output grows by
+**3,224 lines**. All **1,630** earlier definitions and seven earlier generated
+modules remain unchanged.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

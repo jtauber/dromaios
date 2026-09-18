@@ -621,6 +621,8 @@ writeback to preserve the current other half, after any intervening fetches or
 flag effects. These are construction recipes, with no runtime view object in
 new generated bodies. The [encoded register inventory](../../src/components/cpus/8088-registers.ts)
 is shared by definitions and the remaining runtime operands.
+When two byte-view writes share a statement scope, give their preservation
+captures distinct names. XCHG must preserve each live other half at its own write.
 
 Keep migrated 8088 bit patterns beside their bodies in
 [the definitions](../../src/components/cpus/semantics/definitions/8088.ts), as for
@@ -628,6 +630,13 @@ the 6502. Build the combined table after state initialization, retaining collisi
 checks against handwritten entries. The decoder still owns prefixes, segmented
 fetching, and retirement; the generated register bodies receive only byte fetching
 when required. Preserve operand-before-CF captures and flags-before-writeback.
+
+For resolved 8088 transfers, retain ModR/M and segment selection in the decoder.
+Pass the captured segment and offset to the generated memory body. Express each
+physical address with `projectAddress(segment, offset, 4, 20)`, wrapping each
+logical byte offset before projection. Keep complete source capture, low-first
+accesses, and partial writeback explicit; never replace them with an opaque
+address callback. Register-pair bodies specialize the selectors at construction.
 
 ## Shared arithmetic
 

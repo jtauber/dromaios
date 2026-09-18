@@ -15274,6 +15274,5272 @@ write DI:u16 := result
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
+### 8088 MOV AL,AL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AL,AL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AL,CL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AL,CL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AL,DL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AL,DL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AL,BL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AL,BL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AL,AH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AL,AH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AL,CH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AL,CH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AL,DH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AL,DH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AL,BH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AL,BH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CL,AL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CL,AL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CL,CL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CL,CL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CL,DL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CL,DL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CL,BL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CL,BL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CL,AH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CL,AH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CL,CH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CL,CH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CL,DH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CL,DH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CL,BH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CL,BH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DL,AL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DL,AL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DL,CL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DL,CL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DL,DL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DL,DL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DL,BL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DL,BL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DL,AH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DL,AH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DL,CH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DL,CH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DL,DH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DL,DH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DL,BH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DL,BH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BL,AL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BL,AL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BL,CL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BL,CL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BL,DL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BL,DL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BL,BL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BL,BL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BL,AH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BL,AH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BL,CH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BL,CH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BL,DH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BL,DH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BL,BH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BL,BH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AH,AL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AH,AL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AH,CL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AH,CL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AH,DL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AH,DL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AH,BL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AH,BL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AH,AH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AH,AH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AH,CH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AH,CH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AH,DH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AH,DH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AH,BH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AH,BH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CH,AL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CH,AL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CH,CL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CH,CL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CH,DL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CH,DL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CH,BL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CH,BL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CH,AH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CH,AH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CH,CH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CH,CH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CH,DH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CH,DH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CH,BH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CH,BH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DH,AL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DH,AL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DH,CL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DH,CL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DH,DL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DH,DL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DH,BL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DH,BL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DH,AH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DH,AH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DH,CH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DH,CH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DH,DH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DH,DH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DH,BH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DH,BH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BH,AL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BH,AL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BH,CL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BH,CL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BH,DL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BH,DL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BH,BL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BH,BL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BH,AH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BH,AH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BH,CH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BH,CH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BH,DH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BH,DH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BH,BH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BH,BH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AL,byte [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV byte [segment:offset],AL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG byte [segment:offset],AL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+left:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+right:u8 := source "low byte of register AX" {
+  word:u16 := read AX
+  yield lowByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CL,byte [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV byte [segment:offset],CL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG byte [segment:offset],CL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+left:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+right:u8 := source "low byte of register CX" {
+  word:u16 := read CX
+  yield lowByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DL,byte [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV byte [segment:offset],DL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG byte [segment:offset],DL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+left:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+right:u8 := source "low byte of register DX" {
+  word:u16 := read DX
+  yield lowByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BL,byte [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(destinationWord), right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV byte [segment:offset],BL (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG byte [segment:offset],BL (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+left:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+right:u8 := source "low byte of register BX" {
+  word:u16 := read BX
+  yield lowByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(highByte(sourceWord), left)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AH,byte [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+destinationWord:u16 := read AX
+write AX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV byte [segment:offset],AH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG byte [segment:offset],AH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+left:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+right:u8 := source "high byte of register AX" {
+  word:u16 := read AX
+  yield highByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+sourceWord:u16 := read AX
+write AX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CH,byte [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+destinationWord:u16 := read CX
+write CX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV byte [segment:offset],CH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG byte [segment:offset],CH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+left:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+right:u8 := source "high byte of register CX" {
+  word:u16 := read CX
+  yield highByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+sourceWord:u16 := read CX
+write CX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DH,byte [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+destinationWord:u16 := read DX
+write DX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV byte [segment:offset],DH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG byte [segment:offset],DH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+left:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+right:u8 := source "high byte of register DX" {
+  word:u16 := read DX
+  yield highByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+sourceWord:u16 := read DX
+write DX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BH,byte [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+destinationWord:u16 := read BX
+write BX:u16 := concatHighLow(right, lowByte(destinationWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV byte [segment:offset],BH (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG byte [segment:offset],BH (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+left:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+right:u8 := source "high byte of register BX" {
+  word:u16 := read BX
+  yield highByte(word)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+sourceWord:u16 := read BX
+write BX:u16 := concatHighLow(left, lowByte(sourceWord))
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV byte [segment:offset],n (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u8 := source "immediate byte" {
+  byte:u8 := fetch byte
+  yield byte
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,AX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write AX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,AX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write AX:u16 := right
+write AX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,CX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write AX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,CX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write AX:u16 := right
+write CX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,DX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write AX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,DX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write AX:u16 := right
+write DX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,BX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write AX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,BX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write AX:u16 := right
+write BX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,SP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write AX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,SP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write AX:u16 := right
+write SP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,BP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write AX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,BP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write AX:u16 := right
+write BP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,SI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write AX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,SI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write AX:u16 := right
+write SI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,DI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write AX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG AX,DI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write AX:u16 := right
+write DI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,AX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write CX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CX,AX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write CX:u16 := right
+write AX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,CX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write CX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CX,CX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write CX:u16 := right
+write CX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,DX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write CX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CX,DX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write CX:u16 := right
+write DX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,BX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write CX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CX,BX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write CX:u16 := right
+write BX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,SP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write CX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CX,SP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write CX:u16 := right
+write SP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,BP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write CX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CX,BP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write CX:u16 := right
+write BP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,SI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write CX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CX,SI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write CX:u16 := right
+write SI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,DI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write CX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG CX,DI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write CX:u16 := right
+write DI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,AX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write DX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DX,AX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write DX:u16 := right
+write AX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,CX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write DX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DX,CX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write DX:u16 := right
+write CX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,DX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write DX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DX,DX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write DX:u16 := right
+write DX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,BX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write DX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DX,BX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write DX:u16 := right
+write BX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,SP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write DX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DX,SP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write DX:u16 := right
+write SP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,BP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write DX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DX,BP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write DX:u16 := right
+write BP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,SI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write DX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DX,SI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write DX:u16 := right
+write SI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,DI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write DX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DX,DI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write DX:u16 := right
+write DI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,AX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write BX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BX,AX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write BX:u16 := right
+write AX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,CX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write BX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BX,CX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write BX:u16 := right
+write CX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,DX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write BX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BX,DX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write BX:u16 := right
+write DX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,BX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write BX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BX,BX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write BX:u16 := right
+write BX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,SP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write BX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BX,SP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write BX:u16 := right
+write SP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,BP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write BX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BX,BP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write BX:u16 := right
+write BP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,SI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write BX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BX,SI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write BX:u16 := right
+write SI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,DI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write BX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BX,DI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write BX:u16 := right
+write DI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,AX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write SP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SP,AX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write SP:u16 := right
+write AX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,CX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write SP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SP,CX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write SP:u16 := right
+write CX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,DX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write SP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SP,DX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write SP:u16 := right
+write DX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,BX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write SP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SP,BX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write SP:u16 := right
+write BX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,SP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write SP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SP,SP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write SP:u16 := right
+write SP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,BP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write SP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SP,BP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write SP:u16 := right
+write BP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,SI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write SP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SP,SI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write SP:u16 := right
+write SI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,DI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write SP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SP,DI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write SP:u16 := right
+write DI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,AX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write BP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BP,AX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write BP:u16 := right
+write AX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,CX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write BP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BP,CX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write BP:u16 := right
+write CX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,DX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write BP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BP,DX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write BP:u16 := right
+write DX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,BX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write BP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BP,BX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write BP:u16 := right
+write BX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,SP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write BP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BP,SP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write BP:u16 := right
+write SP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,BP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write BP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BP,BP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write BP:u16 := right
+write BP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,SI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write BP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BP,SI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write BP:u16 := right
+write SI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,DI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write BP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG BP,DI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write BP:u16 := right
+write DI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,AX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write SI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SI,AX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write SI:u16 := right
+write AX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,CX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write SI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SI,CX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write SI:u16 := right
+write CX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,DX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write SI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SI,DX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write SI:u16 := right
+write DX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,BX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write SI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SI,BX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write SI:u16 := right
+write BX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,SP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write SI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SI,SP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write SI:u16 := right
+write SP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,BP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write SI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SI,BP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write SI:u16 := right
+write BP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,SI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write SI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SI,SI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write SI:u16 := right
+write SI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,DI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write SI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG SI,DI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write SI:u16 := right
+write DI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,AX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write DI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DI,AX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write DI:u16 := right
+write AX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,CX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write DI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DI,CX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write DI:u16 := right
+write CX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,DX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write DI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DI,DX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write DI:u16 := right
+write DX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,BX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write DI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DI,BX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write DI:u16 := right
+write BX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,SP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write DI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DI,SP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write DI:u16 := right
+write SP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,BP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write DI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DI,BP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write DI:u16 := right
+write BP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,SI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write DI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DI,SI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write DI:u16 := right
+write SI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,DI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write DI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG DI,DI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. No memory access occurs. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+left:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write DI:u16 := right
+write DI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV AX,word [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+rightLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+write AX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],AX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG word [segment:offset],AX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+leftLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+right:u16 := source "register AX" {
+  contents:u16 := read AX
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+write AX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV CX,word [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+rightLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+write CX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],CX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG word [segment:offset],CX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+leftLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+right:u16 := source "register CX" {
+  contents:u16 := read CX
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+write CX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DX,word [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+rightLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+write DX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],DX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG word [segment:offset],DX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+leftLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+right:u16 := source "register DX" {
+  contents:u16 := read DX
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+write DX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BX,word [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+rightLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+write BX:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],BX (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG word [segment:offset],BX (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+leftLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+right:u16 := source "register BX" {
+  contents:u16 := read BX
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+write BX:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SP,word [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+rightLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+write SP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],SP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG word [segment:offset],SP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+leftLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+right:u16 := source "register SP" {
+  contents:u16 := read SP
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+write SP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV BP,word [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+rightLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+write BP:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],BP (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG word [segment:offset],BP (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+leftLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+right:u16 := source "register BP" {
+  contents:u16 := read BP
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+write BP:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV SI,word [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+rightLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+write SI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],SI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG word [segment:offset],SI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+leftLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+right:u16 := source "register SI" {
+  contents:u16 := read SI
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+write SI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV DI,word [segment:offset] (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+rightLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+rightHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+right := concatHighLow(rightHigh, rightLow)
+write DI:u16 := right
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],DI (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 XCHG word [segment:offset],DI (resolved)
+
+Enter after successful operand resolution. Read the r/m operand before the register, then write r/m before the register. Capture both values before either write. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+leftLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+leftHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+left := concatHighLow(leftHigh, leftLow)
+right:u16 := source "register DI" {
+  contents:u16 := read DI
+  yield contents
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+write DI:u16 := left
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 MOV word [segment:offset],n (resolved)
+
+Enter after successful operand resolution. Read the complete source before writing the destination; never read a memory destination. Use the captured segment and offset for every access. Transfer low byte first; wrap each byte's offset to 16 bits before computing (segment * 16 + offset) modulo 2^20. Byte-register writes preserve the current other half at each writeback, including overlapping views. Preserve all flags and control state. Failed effects retain completed reads/writes and prevent later effects.
+
+```text
+segment:u16 := input
+offset:u16 := input
+right:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+write memory[projectAddress(segment * 16 + offset, 20 bits)] := lowByte(right)
+write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] := highByte(right)
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 6809 NOP
 
 No effects after opcode fetching.

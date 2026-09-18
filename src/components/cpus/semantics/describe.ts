@@ -1,4 +1,4 @@
-import type { Expression, FlagExpression, InstructionDefinition, Statement } from "./model.ts";
+import type { AddressExpression, Expression, FlagExpression, InstructionDefinition, Statement } from "./model.ts";
 import { validateInstruction } from "./validate.ts";
 
 /** Expand every source and flag policy from its represented meaning, without running any effects. */
@@ -32,6 +32,10 @@ export function describeInstruction(definition: InstructionDefinition): string {
   }
   function incoming(expr: FlagExpression | undefined, parameters: Readonly<Record<string, Expression>>): string {
     return expr === undefined ? "" : `, ${flag(expr, parameters)}`;
+  }
+  function address(expr: AddressExpression): string {
+    return expr.kind === "address-projection"
+      ? `projectAddress(${number(expr.base)} * ${2 ** expr.baseShift} + ${number(expr.offset)}, ${expr.addressBits} bits)` : number(expr);
   }
   function flag(expr: Expression, parameters: Readonly<Record<string, Expression>>): string {
     switch (expr.kind) {
@@ -70,11 +74,11 @@ export function describeInstruction(definition: InstructionDefinition): string {
           break;
         }
         case "fetch-byte": emit(`${step.name}:u8 := fetch byte`); break;
-        case "read-memory": emit(`${step.name}:u8 := read memory[${number(step.address)}]`); break;
+        case "read-memory": emit(`${step.name}:u8 := read memory[${address(step.address)}]`); break;
         case "write-register": emit(`write ${bank(step.register)}${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}`); break;
         case "write-element": emit(`write ${step.array.field.toUpperCase()}[${number(step.index)}]:u${step.array.width} := ${number(step.value)}`); break;
         case "write-latch": emit(`write ${step.latch.field}:boolean := ${step.value}`); break;
-        case "write-memory": emit(`write memory[${number(step.address)}] := ${number(step.value)}`); break;
+        case "write-memory": emit(`write memory[${address(step.address)}] := ${number(step.value)}`); break;
         case "read-source":
           emit(`${step.name}:u${step.source.width} := source "${step.source.name}" {`);
           body(step.source.steps, indent + "  ");

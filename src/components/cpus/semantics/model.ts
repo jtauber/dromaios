@@ -37,6 +37,16 @@ export type FlagExpression =
   | ({ readonly kind: "borrow" | "half-borrow" | "subtract-overflow" | "carry" | "half-carry" | "add-overflow" } & ArithmeticOperands);
 export type Expression = NumberExpression | FlagExpression;
 
+/** Project captured words onto a physical byte bus; logical offset progression precedes projection. */
+export interface AddressProjection {
+  readonly kind: "address-projection";
+  readonly base: NumberExpression;
+  readonly offset: NumberExpression;
+  readonly baseShift: number;
+  readonly addressBits: number;
+}
+export type AddressExpression = NumberExpression | AddressProjection;
+
 export interface FlagPolicy {
   readonly name: string;
   readonly parameters: Readonly<Record<string, ValueType>>;
@@ -62,12 +72,12 @@ export type Statement =
   | { readonly kind: "read-latch"; readonly name: string; readonly latch: Latch }
   | { readonly kind: "exchange-flags"; readonly left: FlagGroup; readonly right: FlagGroup }
   | { readonly kind: "fetch-byte"; readonly name: string }
-  | { readonly kind: "read-memory"; readonly name: string; readonly address: NumberExpression }
+  | { readonly kind: "read-memory"; readonly name: string; readonly address: AddressExpression }
   | { readonly kind: "read-source"; readonly name: string; readonly source: ValueSource }
   | { readonly kind: "write-register"; readonly register: Register; readonly value: NumberExpression }
   | { readonly kind: "write-element"; readonly array: RegisterArray; readonly index: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "write-latch"; readonly latch: Latch; readonly value: boolean }
-  | { readonly kind: "write-memory"; readonly address: NumberExpression; readonly value: NumberExpression }
+  | { readonly kind: "write-memory"; readonly address: AddressExpression; readonly value: NumberExpression }
   | { readonly kind: "update-flags" | "replace-flags"; readonly policy: FlagPolicy; readonly arguments: Readonly<Record<string, Expression>> };
 export interface InstructionDefinition {
   readonly name: string;
@@ -168,6 +178,9 @@ export const carry = (left: NumberExpression, right: NumberExpression, incoming?
 export const halfCarry = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): FlagExpression => arithmetic("half-carry", left, right, incoming);
 export const addOverflow = (left: NumberExpression, right: NumberExpression, incoming?: FlagExpression): FlagExpression => arithmetic("add-overflow", left, right, incoming);
 
+export const projectAddress = (base: NumberExpression, offset: NumberExpression, baseShift: number, addressBits: number): AddressProjection =>
+  ({ kind: "address-projection", base, offset, baseShift, addressBits });
+
 // Statement constructors describe effects; they never perform them. Array order is execution order.
 export const when = (condition: FlagExpression, steps: readonly Statement[]): Statement => ({ kind: "when", condition, steps });
 export const capture = (name: string, value: NumberExpression): Statement => ({ kind: "capture", name, value });
@@ -177,11 +190,11 @@ export const readElement = (name: string, array: RegisterArray, index: NumberExp
 export const readFlag = (name: string, flag: Flag): Statement => ({ kind: "read-flag", name, flag });
 export const readLatch = (name: string, latch: Latch): Statement => ({ kind: "read-latch", name, latch });
 export const exchangeFlags = (left: FlagGroup, right: FlagGroup): Statement => ({ kind: "exchange-flags", left, right });
-export const readMemory = (name: string, address: NumberExpression): Statement => ({ kind: "read-memory", name, address });
+export const readMemory = (name: string, address: AddressExpression): Statement => ({ kind: "read-memory", name, address });
 export const readSource = (name: string, source: ValueSource): Statement => ({ kind: "read-source", name, source });
 export const writeRegister = (register: Register, value: NumberExpression): Statement => ({ kind: "write-register", register, value });
 export const writeElement = (array: RegisterArray, index: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-element", array, index, value });
 export const writeLatch = (latch: Latch, value: boolean): Statement => ({ kind: "write-latch", latch, value });
-export const writeMemory = (address: NumberExpression, value: NumberExpression): Statement => ({ kind: "write-memory", address, value });
+export const writeMemory = (address: AddressExpression, value: NumberExpression): Statement => ({ kind: "write-memory", address, value });
 export const updateFlags = (policy: FlagPolicy, args: Readonly<Record<string, Expression>>): Statement => ({ kind: "update-flags", policy, arguments: args });
 export const replaceFlags = (policy: FlagPolicy, args: Readonly<Record<string, Expression>>): Statement => ({ kind: "replace-flags", policy, arguments: args });

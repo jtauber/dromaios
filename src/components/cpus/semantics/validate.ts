@@ -1,4 +1,4 @@
-import type { Expression, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueType, Width } from "./model.ts";
+import type { AddressExpression, Expression, Flag, FlagGroup, FlagPolicy, InstructionDefinition, Latch, NumberExpression, Register, RegisterArray, Statement, ValueType, Width } from "./model.ts";
 import { isWidth } from "./model.ts";
 
 /** Own and freeze a validated definition. Captures and source scopes are instruction-local. */
@@ -162,6 +162,13 @@ export function validateInstruction(definition: InstructionDefinition): void {
       flagExpression(value, parameters, where);
     }
   }
+  function address(expr: AddressExpression, scope: ReadonlyMap<string, ValueType>, where: string): void {
+    if (expr.kind === "address-projection") {
+      if (expression(expr.base, scope, where) !== 16 || expression(expr.offset, scope, where) !== 16) fail(where, "address projection requires word base and offset");
+      if (!Number.isInteger(expr.baseShift) || expr.baseShift < 0 || expr.baseShift > 16) fail(where, "address base shift must be a constant from 0 through 16");
+      if (!Number.isInteger(expr.addressBits) || expr.addressBits < 1 || expr.addressBits > 32) fail(where, "physical address width must be a constant from 1 through 32");
+    } else if (expression(expr, scope, where) !== 16) fail(where, "expected 16-bit value");
+  }
   function steps(body: readonly Statement[], scope: Map<string, ValueType>, parent: string): void {
     body.forEach((step, index) => {
       const where = `${parent} / ${index + 1} ${step.kind}`;
@@ -186,7 +193,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
           return;
         }
         case "fetch-byte": captured = 8; break;
-        case "read-memory": expect(step.address, 16); captured = 8; break;
+        case "read-memory": address(step.address, scope, where); captured = 8; break;
         case "read-source": {
           const local = new Map<string, ValueType>();
           steps(step.source.steps, local, `${where} / source ${step.source.name}`);
@@ -200,7 +207,7 @@ export function validateInstruction(definition: InstructionDefinition): void {
           latch(step.latch, where);
           if (typeof step.value !== "boolean") fail(where, "control latch value must be Boolean");
           return;
-        case "write-memory": expect(step.address, 16); expect(step.value, 8); return;
+        case "write-memory": address(step.address, scope, where); expect(step.value, 8); return;
         case "update-flags": case "replace-flags":
           policy(step.policy, step.arguments, scope, `${where} / policy ${step.policy.name}`);
           if (step.kind === "replace-flags") {
