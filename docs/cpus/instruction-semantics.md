@@ -71,12 +71,12 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 4,283 generated, executable bodies. All serve CPU execution;
-4,279 are bound through opcode or postbyte selection. The remaining four serve
-external entry: 6502/6800 entry bodies, a 6809 frame push, and an 8088 word push.
+There are 4,290 generated, executable bodies. All serve CPU execution;
+4,285 are bound through opcode or postbyte selection. Five boundary helpers
+serve 6502/6800/8088 entry, 6809 frame pushing, and 8088 WAIT resumption.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
-All six 8-bit CPUs have complete instruction-definition migration; the 8088
-and 68000 remain unfinished. Bodies start after opcode selection. Each 6809 memory
+All six 8-bit CPUs and the 8088 have complete instruction-definition migration;
+the 68000 remains unmigrated. Bodies start after opcode selection. Each 6809 memory
 body starts after successful address resolution and serves direct, indexed, and
 extended forms, including all legal indexed postbytes. The 6800 memory
 comparisons, logic, arithmetic, and byte/word transfers likewise serve direct/indexed/extended
@@ -157,6 +157,59 @@ changes. Existing CPU tests retain the recognition, record, deferral, notificati
 wait/wake, wrapping, and failure expectations. [Effect tests](../../tests/components/cpus/semantics/control-effects.test.ts)
 and [type checks](../../tests/types/instruction-semantics.ts) cover schema choices,
 Boolean captures, conditional capabilities, and CPU-specific request scopes.
+
+## Completing the 8088 controls
+
+INT3, INT, INTO, WAIT, and all eight ESC primary encodings complete the 8088's
+instruction migration. Four numeric definitions join the generated opcode
+bindings. Two resolved ESC bodies cover every ModR/M byte after the existing
+CPU decoder fetches it and, for memory forms, resolves its segment and offset.
+The [control module](../../src/components/cpus/semantics/definitions/8088.ts)
+also supplies interrupt entry and WAIT resumption without opcode fetching.
+
+Entry expands existing segmented memory, packed FLAGS, latch, and stack
+construction. It reads the entire four-byte vector first, captures FLAGS, clears
+TF then IF and the recognition/wait/halt latches, and pushes FLAGS, live CS,
+then live IP. Only complete writes allow target CS and IP to be committed.
+This preserves overlapping vectors/stacks, live changes between words, partial
+failures, and previously owed traps. INT fetches its type byte before entry;
+INTO reads OF and skips every delivery effect when clear. `reportInterrupt`
+records software delivery after completion; it performs no CPU or memory work.
+Trap, divide-error, INTR, and NMI paths call the same generated entry body.
+
+WAIT captures `readTest` once, then writes the waiting latch. First entry
+rewinds IP only when busy; resumption advances it only on release. Both read
+live IP after the pin callback, wrap it within sixteen bits, and request
+all-interrupt deferral only for a low sample. Resumption never refetches an
+opcode, and CPU-owned retirement retains the existing TF sampling policy.
+
+ESC's memory body reads a complete low-first dummy word through a captured
+segment/offset, even when no device is connected. The register body inspects
+no CPU register. Both construct the external opcode from the captured primary
+and ModR/M fields, then use `sendEscape` with explicit captured request data.
+The [device adapter](../../src/components/cpus/8088-external.ts) gives the device
+a detached request and records only after callback success. Its TEST adapter
+validates a Boolean physical level before recording or returning it. Neither
+adapter performs instruction state transitions, memory reads, or interrupt entry.
+The public connection and execution-record types remain compatible.
+
+The three new effects—`read-test`, `send-escape`, and `report-interrupt`—are
+validated against the 8088 context, with explicit Boolean/byte/word/address
+requirements and ordinary lexical scope checks. A shared capability mapping
+selects context types and imports for all CPUs, including effects in conditional
+bodies; ordinary instructions gain no device or reporting capability.
+
+[Independent definition tests](../../tests/components/cpus/semantics/8088-control.test.ts)
+compare imperative effect schedules, inject failure at every observed state,
+flag, memory, pin, request, and reporting effect, and mutate live state during
+callbacks. They cover every ESC primary/ModR/M combination, vector/frame
+aliasing, wrapping, wait/resume paths, request ownership, malformed pin levels,
+and conditional capability inference. Existing
+[interrupt](../../tests/components/cpus/8088/interrupts.test.ts) and
+[external-device](../../tests/components/cpus/8088/external.test.ts) tests retain
+complete CPU records, recognition, prefixes, restart, device failures, and
+reentrancy checks. [Type checks](../../tests/types/instruction-semantics.ts)
+keep pin/device access and completion reporting distinct from memory access.
 
 ## Representation and authoring
 
@@ -727,10 +780,10 @@ inhibition latches. A failed body retains earlier architectural effects but
 never retires the request. This keeps boundary policy in the CPU while making
 the request visible to both execution generation and explanation.
 
-These definitions cover 38 complete forms with 54 instruction bodies. A
-separate generated word-push helper removes the runtime stack implementation
-from interrupt entry too. IRET now composes those same return and FLAGS
-statements in its own definition, as described below.
+These definitions cover 38 complete forms with 54 instruction bodies. The
+complete generated entry now shares their word-push construction directly;
+the earlier standalone word-push helper is retired. IRET composes those same
+return and FLAGS statements in its own definition, as described below.
 
 [Definition probes](../../tests/components/cpus/semantics/8088-stack.test.ts)
 independently specify every body's state, memory, and deferral order, fail each
@@ -1053,6 +1106,9 @@ such as `topBit`, `zeroExtend16`, and `halfBorrow4` to expose those meanings.
 | `write-latch` | Assign a Boolean constant or captured Boolean expression to a declared top-level control latch; performs no implicit read |
 | `defer-interrupt` | Request `irq` inhibition on 8080/Z80 or `intr`/`all` on 8088; the boundary commits it at successful retirement |
 | `notify-reti` | Request Z80 device notification after successful architectural retirement |
+| `read-test` | Sample and record the 8088 physical TEST pin, capturing a validated Boolean level |
+| `send-escape` | Send an 8088 ESC request from explicit captured operands; memory reads are separate statements; detach the device request and record only after success |
+| `report-interrupt` | Report completed 8088 software delivery with a captured type byte; performs no entry or memory effects |
 | `write-port` | Write one byte to a captured 16-bit port address; no implicit memory access or flag update |
 | `write-memory` | Write one byte at an explicit word address, including unchanged values |
 | `read-source` | Expand and perform the named source body once in its own scope, then capture its result |

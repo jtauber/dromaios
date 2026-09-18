@@ -109,7 +109,6 @@ test("8088 addressing, string, and remaining interrupt-control definitions have 
   assert.deepEqual(Object.keys(addressing8088).sort(), Object.keys(addressing).sort());
   assert.deepEqual(Object.keys(strings).sort(), stringCases.map(c => c.key).sort());
   assert.deepEqual(Object.keys(strings8088).sort(), Object.keys(strings).sort());
-  assert.equal(Object.keys(instructions8088).length, 139);
   assert.deepEqual([0xcf, 0xfa, 0xfb].map(opcode => instructions8088[opcode]!.name), ["IRET", "CLI", "STI"]);
 });
 

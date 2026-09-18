@@ -2,7 +2,7 @@ import { cpu8088StateDescription, cpu8088Status, cpu8088StatusWord } from "../..
 import { byteRegisters8088, wordRegisters8088 } from "../../8088-registers.ts";
 import { opcodeFamily } from "../../opcodes.ts";
 import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, deferInterrupt, evenParity, extend, flagLiteral, flagValue, halfBorrow, halfCarry,
-  divide, fetchByte, highByte, iterate, literal, lowByte, multiply, negative, not, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, reject, select, shiftBits, signExtend, subtract, truncate, updateFlags, value, writeLatch, writeMemory, writeRegister, when, xor, zero } from "../model.ts";
+  readTest, reportInterrupt, sendEscape, divide, fetchByte, highByte, iterate, literal, lowByte, multiply, negative, not, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, reject, select, shiftBits, signExtend, subtract, truncate, updateFlags, value, writeLatch, writeMemory, writeRegister, when, xor, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
 import { arithmetic, atLeast, byteRegisterView, immediateByte, instructionSet, registerView, registerSource, shift, transfer } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
@@ -170,6 +170,59 @@ function radixAdjustment(beforeDivision: boolean): InstructionDefinition {
   });
 }
 
+function interruptEntry(vector: NumberExpression): readonly Statement[] {
+  const offset = shiftBits(extend(vector, 16), "left", 2);
+  return [...memoryOperand(16, literal(16, 0), offset).read("targetOffset"),
+    ...memoryOperand(16, literal(16, 0), addWrap(offset, literal(16, 2))).read("targetSegment"),
+    readSource("savedFlags", packedStatus(cpu, cpu8088StatusWord)),
+    updateFlags(flagPolicy(cpu, "disable traps and mask INTR", {}, { tf: flagLiteral(false), if: flagLiteral(false) }), {}),
+    ...(["recognitionDeferred", "interruptDeferred", "waiting", "halted"] as const).map(field => writeLatch(cpu.latch(field), false)),
+    ...stack.push(value("savedFlags"), "flags"), readRegister("savedCS", cpu.register("cs")), ...stack.push(value("savedCS"), "code"),
+    readRegister("savedIP", cpu.register("ip")), ...stack.push(value("savedIP"), "return"),
+    writeRegister(cpu.register("cs"), value("targetSegment")), writeRegister(cpu.register("ip"), value("targetOffset"))];
+}
+const interruptExplanation = "Read all four vector bytes before touching flags or stack, even when the frame overlaps the vector. Capture FLAGS, clear TF then IF and the recognition/wait/halt latches, then push FLAGS, live CS, and live IP. Commit target CS then IP after all writes succeed; preserve any owed trap. " + stack.explanation;
+function softwareInterrupt(name: string, type: number | "immediate", condition?: Condition): InstructionDefinition {
+  const vector = type === "immediate" ? value("vector") : literal(8, type);
+  return defineInstruction({ cpu: cpu.declaration, name,
+    explanation: (type === "immediate" ? "Fetch the type byte first. " : condition ? "Test OF first; when clear perform no delivery effects. " : `Use vector ${type}. `)
+      + interruptExplanation + " Report software delivery only after the complete entry succeeds.",
+    steps: [...(type === "immediate" ? [fetchByte("vector")] : []),
+      ...conditional(condition, [...interruptEntry(vector), reportInterrupt(vector)])],
+  });
+}
+function waitInstruction(resuming: boolean): InstructionDefinition {
+  return defineInstruction({ cpu: cpu.declaration, name: resuming ? "resume WAIT" : "WAIT",
+    explanation: "Sample and record TEST once before writing waiting. " + (resuming
+      ? "On release, increment live IP past the saved WAIT opcode. Busy resumption leaves IP alone and does not refetch. "
+      : "When busy, decrement live IP to the WAIT opcode, after any prefixes. Immediate release leaves IP alone. ")
+      + "Only a low sample requests all-interrupt inhibition at successful retirement. Preserve flags and pending traps; failed pin sampling changes no CPU state.",
+    steps: [readTest("high"), writeLatch(cpu.latch("waiting"), flagValue("high")),
+      when(resuming ? not(flagValue("high")) : flagValue("high"), [readRegister("position", cpu.register("ip")),
+        writeRegister(cpu.register("ip"), (resuming ? addWrap : subtract)(value("position"), literal(16, 1)))]),
+      when(not(flagValue("high")), [deferInterrupt("all")])],
+  });
+}
+function escapeInstruction(memory: boolean): InstructionDefinition {
+  return defineInstruction({ cpu: cpu.declaration, name: `ESC ${memory ? "memory" : "register"} (resolved)`,
+    inputs: { highOpcode: 3, modRM: 8, ...(memory ? { segment: 16, offset: 16 } as const : {}) },
+    explanation: "After ModR/M fetch and address resolution, " + (memory
+      ? "read a complete dummy word low byte first, even without a device; wrap each logical byte offset before projecting to the physical bus. "
+      : "pass the register selector without reading any CPU register or memory. ")
+      + "Combine opcode bits ooo with ModR/M ppp to form the six-bit external opcode. Send a detached request and record it only after callback success; preserve all CPU state.",
+    steps: [...(memory ? memoryOperand(16).read("operand") : []), sendEscape({
+      opcode: bitOr(shiftBits(extend(value("highOpcode"), 8), "left", 3), bitAnd(shiftBits(value("modRM"), "right", 3), literal(8, 7))), modRM: value("modRM"),
+      ...(memory ? { memory: { segment: value("segment"), offset: value("offset"), address: projectAddress(value("segment"), value("offset"), 4, 20), value: value("operand") } } : {}),
+    })],
+  });
+}
+
+// Entry and WAIT resumption are boundary helpers; two resolved ESC bodies cover all eight primary encodings.
+export const control8088 = {
+  enterInterrupt: defineInstruction({ cpu: cpu.declaration, name: "interrupt entry", inputs: { vector: 8 }, explanation: interruptExplanation, steps: interruptEntry(value("vector")) }),
+  resumeWait: waitInstruction(true), escapeRegister: escapeInstruction(false), escapeMemory: escapeInstruction(true),
+};
+
 // Numeric keys are the encoding authority for both generated bodies and runtime bindings.
 export const instructions8088 = instructionSet([
   // 000 ss 11p: ss=ES/CS/SS/DS; p=0 PUSH, p=1 POP, with POP CS undocumented.
@@ -214,6 +267,7 @@ export const instructions8088 = instructionSet([
   [0x9a, defineInstruction({ cpu: cpu.declaration, name: "CALL ptr16:16",
     explanation: "Fetch offset then segment, low byte first. Push live CS then IP; capture IP only after the CS push. Commit CS:IP after both pushes. " + stack.explanation,
     steps: [readSource("targetOffset", immediateWord), readSource("targetSegment", immediateWord), ...farTransfer(true)] })],
+  [0x9b, waitInstruction(false)], // 1001 1011: sample TEST before the next coprocessor instruction.
   // 1001 110p: p=0 pushes packed FLAGS; p=1 restores them after a complete pop.
   [0x9c, stackPush(cpu.declaration, "PUSHF", stack, packedStatus(cpu, cpu8088StatusWord))],
   [0x9d, defineInstruction({ cpu: cpu.declaration, name: "POPF",
@@ -243,6 +297,8 @@ export const instructions8088 = instructionSet([
     steps: [...(plain ? [] : [readSource("discard", immediateWord)]), ...returnSteps(far, plain ? literal(16, 0) : value("discard"))],
   })),
   // 1100 1111: IRET completes the far return before reading and restoring FLAGS.
+  // 1100 11tt: tt=00 breakpoint, 01 type byte, 10 overflow, 11 return.
+  [0xcc, softwareInterrupt("INT3", 3)], [0xcd, softwareInterrupt("INT n", "immediate")], [0xce, softwareInterrupt("INTO", 4, flagCondition(cpu.flag("of"), true))],
   [0xcf, defineInstruction({ cpu: cpu.declaration, name: "IRET",
     explanation: "Pop IP and CS before committing either target, then pop FLAGS and apply POPF's IF-transition deferral. Failed FLAGS reads retain the completed far return. Retirement samples the original TF. " + stack.explanation,
     steps: [...returnSteps(true, literal(16, 0)), ...restoreFlagsSteps()] })],
@@ -477,9 +533,6 @@ export const arithmetic8088: Readonly<Record<string, InstructionDefinition>> = O
 
 /** Resolved stack/control operands; register PUSH/POP reuse their short-encoding bodies. */
 export const stack8088: Readonly<Record<string, InstructionDefinition>> = Object.fromEntries([
-  ["pushWord", defineInstruction({ cpu: cpu.declaration, name: "push captured word (internal)", inputs: { contents: 16 },
-    explanation: "Shared word push for interrupt entry, using the same stack schedule as ordinary instructions. " + stack.explanation,
-    steps: stack.push(value("contents")) })],
   ["PUSH_memory", defineInstruction({ cpu: cpu.declaration, name: "PUSH word [segment:offset] (resolved)", inputs: { segment: 16, offset: 16 },
     explanation: "Read the complete resolved source before adjusting SP or writing the stack. " + stack.explanation,
     steps: [...memoryOperand(16).read("word"), ...stack.push(value("word"))] })],

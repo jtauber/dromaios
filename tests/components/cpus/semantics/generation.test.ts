@@ -6,7 +6,7 @@ import { instructions as mos, opcodeEntries } from "../../../../src/components/c
 import { instructions as intel } from "../../../../src/components/cpus/generated/8080.js";
 import { instructions as motorola } from "../../../../src/components/cpus/generated/6809.js";
 import { instructions as motorola6800 } from "../../../../src/components/cpus/generated/6800.js";
-import { instructions6502, interrupts6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
+import { instructions6502, interrupts6502, sources6502, instructions6800, instructions8008, instructions8080, instructions8088, transfers8088, alu8088, unary8088, stack8088, addressing8088, strings8088, arithmetic8088, control8088, instructions6809, instructionsZ80 } from "../../../../src/components/cpus/semantics/definitions.js";
 import { generateInstructions } from "../../../../src/components/cpus/semantics/generate.js";
 import { instructionSet } from "../../../../src/components/cpus/semantics/builders.js";
 import { cpuSymbols, addWrap, capture, highByte, lowByte, literal, readRegister, value, writeLatch, writeRegister, zero } from "../../../../src/components/cpus/semantics/model.js";
@@ -44,6 +44,7 @@ test("all generated modules reproduce from definitions without changing them", (
   assert.equal(generateInstructions("8088", stack8088), readFileSync("src/components/cpus/generated/8088-stack.ts", "utf8"));
   assert.equal(generateInstructions("8088", addressing8088), readFileSync("src/components/cpus/generated/8088-addressing.ts", "utf8"));
   assert.equal(generateInstructions("8088", strings8088), readFileSync("src/components/cpus/generated/8088-strings.ts", "utf8"));
+  assert.equal(generateInstructions("8088", control8088), readFileSync("src/components/cpus/generated/8088-control.ts", "utf8"));
   assert.equal(generateInstructions("8088", arithmetic8088), readFileSync("src/components/cpus/generated/8088-arithmetic.ts", "utf8"));
   assert.throws(() => generateInstructions("8080", instructions6502), /expected a 8080 definition/);
 });

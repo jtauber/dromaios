@@ -1,4 +1,5 @@
 import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
+import { no8088Control } from "../../../helpers/no-8088-control.js";
 import { noPorts } from "../../../helpers/no-ports.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -18,7 +19,7 @@ import { address, flags, initialState, words } from "../8088/helpers.js";
 type Register = typeof words[number] | "cs" | "ss" | "ds" | "es" | "ip";
 type Operation = "PUSH" | "POP" | "PUSHF" | "POPF" | "CALL" | "JMP" | "RET";
 interface Form { key: number | string; operation: Operation; register?: Register; memory?: true; far?: true; relative?: true; discard?: true }
-type Context = BytePorts & { fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void; deferInterrupt(scope: "intr" | "all"): void };
+type Context = BytePorts & typeof no8088Control & { fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void; deferInterrupt(scope: "intr" | "all"): void };
 type Body = (state: Cpu8088State, context: Context) => void;
 type MemoryBody = (state: Cpu8088State, segment: number, offset: number, context: Context) => void;
 const bodies: Readonly<Partial<Record<number, Body>>> = instructions;
@@ -34,7 +35,6 @@ const forms: readonly Form[] = [
   ...words.flatMap((register, i): Form[] => [{ key: "CALL_" + i, operation: "CALL", register }, { key: "JMP_" + i, operation: "JMP", register }]),
   ...(["PUSH", "POP", "CALL", "JMP"] as const).map((operation): Form => ({ key: operation + "_memory", operation, memory: true })),
   ...(["CALL", "JMP"] as const).map((operation): Form => ({ key: operation + "_far_memory", operation, memory: true, far: true })),
-  { key: "pushWord", operation: "PUSH" },
 ];
 const positions = { cf: 0, pf: 2, af: 4, zf: 6, sf: 7, tf: 8, if: 9, df: 10, of: 11 } as const;
 function decoded(word: number): Cpu8088Flags {
@@ -47,15 +47,14 @@ const immediate = [0x10, 0xff, 0x34, 0x12];
 
 function execute(form: Form, state: Cpu8088State, segment: number, offset: number, context: Context) {
   if (typeof form.key === "number") bodies[form.key]!(state, context);
-  else if (form.key === "pushWord") stack.pushWord(state, 0xabcd, context);
   else if (form.memory) (resolved[form.key] as MemoryBody)(state, segment, offset, context);
   else (resolved[form.key] as Body)(state, context);
 }
 
-test("8088 stack definitions add exactly 32 encoded bodies, 22 resolved bodies, and one shared interrupt push", () => {
+test("8088 stack definitions add exactly 32 encoded bodies and 22 resolved bodies", () => {
   const opcodes = forms.filter(f => typeof f.key === "number").map(f => f.key);
   const keys = forms.filter(f => typeof f.key === "string").map(f => f.key).sort();
-  assert.equal(opcodes.length, 32); assert.equal(keys.length, 23); assert.equal(Object.keys(instructions8088).length, 139);
+  assert.equal(opcodes.length, 32); assert.equal(keys.length, 22);
   assert.ok(opcodes.every(key => key in instructions8088));
   assert.deepEqual(Object.keys(stack8088).sort(), keys); assert.deepEqual(Object.keys(stack).sort(), keys);
   const forbidden = new Proxy(initialState(), { get() { assert.fail("Binding must not read state"); } });
@@ -148,7 +147,7 @@ test("every 8088 stack/control body retains exact read/write/deferral ordering a
       let fetched = 0;
       const run = () => execute(form, observed(state, effect), segment, offset, {
         fetchByte() { effect(["fetch"]); return immediate[fetched++]!; },
-        ...noPorts, readByte(a) { effect(["read memory " + a]); assert.ok(bytes.has(a)); return bytes.get(a)!; },
+        ...noPorts, ...no8088Control, readByte(a) { effect(["read memory " + a]); assert.ok(bytes.has(a)); return bytes.get(a)!; },
         writeByte(a, byte) { effect(["write memory " + a, byte]); bytes.set(a, byte); },
         deferInterrupt(scope) { effect(["defer " + scope]); deferred.push(scope); },
       });
@@ -162,8 +161,8 @@ test("every 8088 stack/control body retains exact read/write/deferral ordering a
 });
 
 test("8088 word-stack callbacks cannot retarget a word but later words and pointer adjustments observe live state", () => {
-  const state = initialState({ ss: 0xffff, sp: 1, cs: 0x1234, ip: 0x100 }), writes: number[][] = [];
-  stack.pushWord(state, 0xabcd, { writeByte(a, byte) {
+  const state = initialState({ ax: 0xabcd, ss: 0xffff, sp: 1, cs: 0x1234, ip: 0x100 }), writes: number[][] = [];
+  instructions[0x50](state, { writeByte(a, byte) {
     writes.push([a, byte]); state.ss = 0x2000; state.sp = 0x300;
   } });
   assert.deepEqual(writes, [[0xffef, 0xcd], [0xffff0, 0xab]]); assert.equal(state.sp, 0x300);

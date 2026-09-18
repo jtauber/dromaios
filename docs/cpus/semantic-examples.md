@@ -17172,6 +17172,24 @@ write IP:u16 := targetOffset
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
 
+### 8088 WAIT
+
+Sample and record TEST once before writing waiting. When busy, decrement live IP to the WAIT opcode, after any prefixes. Immediate release leaves IP alone. Only a low sample requests all-interrupt inhibition at successful retirement. Preserve flags and pending traps; failed pin sampling changes no CPU state.
+
+```text
+high:flag := sample and record physical TEST level; high waits, low releases
+write waiting:boolean := high
+when high {
+  position:u16 := read IP
+  write IP:u16 := subtract(position, 0001:u16)
+}
+when not(high) {
+  request all interrupt deferral at successful retirement
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
 ### 8088 PUSHF
 
 Capture the complete source, then push it. Preserve flags and other registers. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
@@ -17676,6 +17694,184 @@ write SP:u16 := addWrap(discardPointer, 0000:u16)
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 INT3
+
+Use vector 3. Read all four vector bytes before touching flags or stack, even when the frame overlaps the vector. Capture FLAGS, clear TF then IF and the recognition/wait/halt latches, then push FLAGS, live CS, and live IP. Commit target CS then IP after all writes succeed; preserve any owed trap. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers. Report software delivery only after the complete entry succeeds.
+
+```text
+targetOffsetLow:u8 := read memory[projectAddress(0000:u16 * 16 + shiftBitsLeft(zeroExtend16(03:u8), 2), 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(shiftBitsLeft(zeroExtend16(03:u8), 2), 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(shiftBitsLeft(zeroExtend16(03:u8), 2), 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(addWrap(shiftBitsLeft(zeroExtend16(03:u8), 2), 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+savedFlags:u16 := source "packed status" {
+  cf:flag := read CF
+  pf:flag := read PF
+  af:flag := read AF
+  zf:flag := read ZF
+  sf:flag := read SF
+  tf:flag := read TF
+  if:flag := read IF
+  df:flag := read DF
+  of:flag := read OF
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(F002:u16, select(cf, 0001:u16, 0000:u16)), select(pf, 0004:u16, 0000:u16)), select(af, 0010:u16, 0000:u16)), select(zf, 0040:u16, 0000:u16)), select(sf, 0080:u16, 0000:u16)), select(tf, 0100:u16, 0000:u16)), select(if, 0200:u16, 0000:u16)), select(df, 0400:u16, 0000:u16)), select(of, 0800:u16, 0000:u16))
+}
+flags "disable traps and mask INTR" simultaneously {
+  TF := 0:flag
+  IF := 0:flag
+} // Preserve unlisted flags.
+write recognitionDeferred:boolean := false
+write interruptDeferred:boolean := false
+write waiting:boolean := false
+write halted:boolean := false
+flagsPointer:u16 := read SP
+write SP:u16 := subtract(flagsPointer, 0002:u16)
+flagsSegment:u16 := read SS
+flagsOffset:u16 := read SP
+write memory[projectAddress(flagsSegment * 16 + flagsOffset, 20 bits)] := lowByte(savedFlags)
+write memory[projectAddress(flagsSegment * 16 + addWrap(flagsOffset, 0001:u16), 20 bits)] := highByte(savedFlags)
+savedCS:u16 := read CS
+codePointer:u16 := read SP
+write SP:u16 := subtract(codePointer, 0002:u16)
+codeSegment:u16 := read SS
+codeOffset:u16 := read SP
+write memory[projectAddress(codeSegment * 16 + codeOffset, 20 bits)] := lowByte(savedCS)
+write memory[projectAddress(codeSegment * 16 + addWrap(codeOffset, 0001:u16), 20 bits)] := highByte(savedCS)
+savedIP:u16 := read IP
+returnPointer:u16 := read SP
+write SP:u16 := subtract(returnPointer, 0002:u16)
+returnSegment:u16 := read SS
+returnOffset:u16 := read SP
+write memory[projectAddress(returnSegment * 16 + returnOffset, 20 bits)] := lowByte(savedIP)
+write memory[projectAddress(returnSegment * 16 + addWrap(returnOffset, 0001:u16), 20 bits)] := highByte(savedIP)
+write CS:u16 := targetSegment
+write IP:u16 := targetOffset
+report completed software interrupt delivery, vector 03:u8
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
+
+### 8088 INT n
+
+Fetch the type byte first. Read all four vector bytes before touching flags or stack, even when the frame overlaps the vector. Capture FLAGS, clear TF then IF and the recognition/wait/halt latches, then push FLAGS, live CS, and live IP. Commit target CS then IP after all writes succeed; preserve any owed trap. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers. Report software delivery only after the complete entry succeeds.
+
+```text
+vector:u8 := fetch byte
+targetOffsetLow:u8 := read memory[projectAddress(0000:u16 * 16 + shiftBitsLeft(zeroExtend16(vector), 2), 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(shiftBitsLeft(zeroExtend16(vector), 2), 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(shiftBitsLeft(zeroExtend16(vector), 2), 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(addWrap(shiftBitsLeft(zeroExtend16(vector), 2), 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+savedFlags:u16 := source "packed status" {
+  cf:flag := read CF
+  pf:flag := read PF
+  af:flag := read AF
+  zf:flag := read ZF
+  sf:flag := read SF
+  tf:flag := read TF
+  if:flag := read IF
+  df:flag := read DF
+  of:flag := read OF
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(F002:u16, select(cf, 0001:u16, 0000:u16)), select(pf, 0004:u16, 0000:u16)), select(af, 0010:u16, 0000:u16)), select(zf, 0040:u16, 0000:u16)), select(sf, 0080:u16, 0000:u16)), select(tf, 0100:u16, 0000:u16)), select(if, 0200:u16, 0000:u16)), select(df, 0400:u16, 0000:u16)), select(of, 0800:u16, 0000:u16))
+}
+flags "disable traps and mask INTR" simultaneously {
+  TF := 0:flag
+  IF := 0:flag
+} // Preserve unlisted flags.
+write recognitionDeferred:boolean := false
+write interruptDeferred:boolean := false
+write waiting:boolean := false
+write halted:boolean := false
+flagsPointer:u16 := read SP
+write SP:u16 := subtract(flagsPointer, 0002:u16)
+flagsSegment:u16 := read SS
+flagsOffset:u16 := read SP
+write memory[projectAddress(flagsSegment * 16 + flagsOffset, 20 bits)] := lowByte(savedFlags)
+write memory[projectAddress(flagsSegment * 16 + addWrap(flagsOffset, 0001:u16), 20 bits)] := highByte(savedFlags)
+savedCS:u16 := read CS
+codePointer:u16 := read SP
+write SP:u16 := subtract(codePointer, 0002:u16)
+codeSegment:u16 := read SS
+codeOffset:u16 := read SP
+write memory[projectAddress(codeSegment * 16 + codeOffset, 20 bits)] := lowByte(savedCS)
+write memory[projectAddress(codeSegment * 16 + addWrap(codeOffset, 0001:u16), 20 bits)] := highByte(savedCS)
+savedIP:u16 := read IP
+returnPointer:u16 := read SP
+write SP:u16 := subtract(returnPointer, 0002:u16)
+returnSegment:u16 := read SS
+returnOffset:u16 := read SP
+write memory[projectAddress(returnSegment * 16 + returnOffset, 20 bits)] := lowByte(savedIP)
+write memory[projectAddress(returnSegment * 16 + addWrap(returnOffset, 0001:u16), 20 bits)] := highByte(savedIP)
+write CS:u16 := targetSegment
+write IP:u16 := targetOffset
+report completed software interrupt delivery, vector vector
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
+
+### 8088 INTO
+
+Test OF first; when clear perform no delivery effects. Read all four vector bytes before touching flags or stack, even when the frame overlaps the vector. Capture FLAGS, clear TF then IF and the recognition/wait/halt latches, then push FLAGS, live CS, and live IP. Commit target CS then IP after all writes succeed; preserve any owed trap. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers. Report software delivery only after the complete entry succeeds.
+
+```text
+condition:flag := read OF
+when condition {
+  targetOffsetLow:u8 := read memory[projectAddress(0000:u16 * 16 + shiftBitsLeft(zeroExtend16(04:u8), 2), 20 bits)]
+  targetOffsetHigh:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(shiftBitsLeft(zeroExtend16(04:u8), 2), 0001:u16), 20 bits)]
+  targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+  targetSegmentLow:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(shiftBitsLeft(zeroExtend16(04:u8), 2), 0002:u16), 20 bits)]
+  targetSegmentHigh:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(addWrap(shiftBitsLeft(zeroExtend16(04:u8), 2), 0002:u16), 0001:u16), 20 bits)]
+  targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+  savedFlags:u16 := source "packed status" {
+    cf:flag := read CF
+    pf:flag := read PF
+    af:flag := read AF
+    zf:flag := read ZF
+    sf:flag := read SF
+    tf:flag := read TF
+    if:flag := read IF
+    df:flag := read DF
+    of:flag := read OF
+    yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(F002:u16, select(cf, 0001:u16, 0000:u16)), select(pf, 0004:u16, 0000:u16)), select(af, 0010:u16, 0000:u16)), select(zf, 0040:u16, 0000:u16)), select(sf, 0080:u16, 0000:u16)), select(tf, 0100:u16, 0000:u16)), select(if, 0200:u16, 0000:u16)), select(df, 0400:u16, 0000:u16)), select(of, 0800:u16, 0000:u16))
+  }
+  flags "disable traps and mask INTR" simultaneously {
+    TF := 0:flag
+    IF := 0:flag
+  } // Preserve unlisted flags.
+  write recognitionDeferred:boolean := false
+  write interruptDeferred:boolean := false
+  write waiting:boolean := false
+  write halted:boolean := false
+  flagsPointer:u16 := read SP
+  write SP:u16 := subtract(flagsPointer, 0002:u16)
+  flagsSegment:u16 := read SS
+  flagsOffset:u16 := read SP
+  write memory[projectAddress(flagsSegment * 16 + flagsOffset, 20 bits)] := lowByte(savedFlags)
+  write memory[projectAddress(flagsSegment * 16 + addWrap(flagsOffset, 0001:u16), 20 bits)] := highByte(savedFlags)
+  savedCS:u16 := read CS
+  codePointer:u16 := read SP
+  write SP:u16 := subtract(codePointer, 0002:u16)
+  codeSegment:u16 := read SS
+  codeOffset:u16 := read SP
+  write memory[projectAddress(codeSegment * 16 + codeOffset, 20 bits)] := lowByte(savedCS)
+  write memory[projectAddress(codeSegment * 16 + addWrap(codeOffset, 0001:u16), 20 bits)] := highByte(savedCS)
+  savedIP:u16 := read IP
+  returnPointer:u16 := read SP
+  write SP:u16 := subtract(returnPointer, 0002:u16)
+  returnSegment:u16 := read SS
+  returnOffset:u16 := read SP
+  write memory[projectAddress(returnSegment * 16 + returnOffset, 20 bits)] := lowByte(savedIP)
+  write memory[projectAddress(returnSegment * 16 + addWrap(returnOffset, 0001:u16), 20 bits)] := highByte(savedIP)
+  write CS:u16 := targetSegment
+  write IP:u16 := targetOffset
+  report completed software interrupt delivery, vector 04:u8
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
 
 ### 8088 IRET
 
@@ -70005,22 +70201,6 @@ write memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)] 
 
 Flags preserved throughout: TF, IF, DF.
 
-### 8088 push captured word (internal)
-
-Shared word push for interrupt entry, using the same stack schedule as ordinary instructions. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
-
-```text
-contents:u16 := input
-stackPointer:u16 := read SP
-write SP:u16 := subtract(stackPointer, 0002:u16)
-stackSegment:u16 := read SS
-stackOffset:u16 := read SP
-write memory[projectAddress(stackSegment * 16 + stackOffset, 20 bits)] := lowByte(contents)
-write memory[projectAddress(stackSegment * 16 + addWrap(stackOffset, 0001:u16), 20 bits)] := highByte(contents)
-```
-
-Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
-
 ### 8088 PUSH word [segment:offset] (resolved)
 
 Read the complete resolved source before adjusting SP or writing the stack. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
@@ -83560,6 +83740,111 @@ when isZero(bitXor(quotient, 8000:u16)) {
 }
 write AX:u16 := quotient
 write DX:u16 := remainder
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 interrupt entry
+
+Read all four vector bytes before touching flags or stack, even when the frame overlaps the vector. Capture FLAGS, clear TF then IF and the recognition/wait/halt latches, then push FLAGS, live CS, and live IP. Commit target CS then IP after all writes succeed; preserve any owed trap. Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.
+
+```text
+vector:u8 := input
+targetOffsetLow:u8 := read memory[projectAddress(0000:u16 * 16 + shiftBitsLeft(zeroExtend16(vector), 2), 20 bits)]
+targetOffsetHigh:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(shiftBitsLeft(zeroExtend16(vector), 2), 0001:u16), 20 bits)]
+targetOffset := concatHighLow(targetOffsetHigh, targetOffsetLow)
+targetSegmentLow:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(shiftBitsLeft(zeroExtend16(vector), 2), 0002:u16), 20 bits)]
+targetSegmentHigh:u8 := read memory[projectAddress(0000:u16 * 16 + addWrap(addWrap(shiftBitsLeft(zeroExtend16(vector), 2), 0002:u16), 0001:u16), 20 bits)]
+targetSegment := concatHighLow(targetSegmentHigh, targetSegmentLow)
+savedFlags:u16 := source "packed status" {
+  cf:flag := read CF
+  pf:flag := read PF
+  af:flag := read AF
+  zf:flag := read ZF
+  sf:flag := read SF
+  tf:flag := read TF
+  if:flag := read IF
+  df:flag := read DF
+  of:flag := read OF
+  yield bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(bitOr(F002:u16, select(cf, 0001:u16, 0000:u16)), select(pf, 0004:u16, 0000:u16)), select(af, 0010:u16, 0000:u16)), select(zf, 0040:u16, 0000:u16)), select(sf, 0080:u16, 0000:u16)), select(tf, 0100:u16, 0000:u16)), select(if, 0200:u16, 0000:u16)), select(df, 0400:u16, 0000:u16)), select(of, 0800:u16, 0000:u16))
+}
+flags "disable traps and mask INTR" simultaneously {
+  TF := 0:flag
+  IF := 0:flag
+} // Preserve unlisted flags.
+write recognitionDeferred:boolean := false
+write interruptDeferred:boolean := false
+write waiting:boolean := false
+write halted:boolean := false
+flagsPointer:u16 := read SP
+write SP:u16 := subtract(flagsPointer, 0002:u16)
+flagsSegment:u16 := read SS
+flagsOffset:u16 := read SP
+write memory[projectAddress(flagsSegment * 16 + flagsOffset, 20 bits)] := lowByte(savedFlags)
+write memory[projectAddress(flagsSegment * 16 + addWrap(flagsOffset, 0001:u16), 20 bits)] := highByte(savedFlags)
+savedCS:u16 := read CS
+codePointer:u16 := read SP
+write SP:u16 := subtract(codePointer, 0002:u16)
+codeSegment:u16 := read SS
+codeOffset:u16 := read SP
+write memory[projectAddress(codeSegment * 16 + codeOffset, 20 bits)] := lowByte(savedCS)
+write memory[projectAddress(codeSegment * 16 + addWrap(codeOffset, 0001:u16), 20 bits)] := highByte(savedCS)
+savedIP:u16 := read IP
+returnPointer:u16 := read SP
+write SP:u16 := subtract(returnPointer, 0002:u16)
+returnSegment:u16 := read SS
+returnOffset:u16 := read SP
+write memory[projectAddress(returnSegment * 16 + returnOffset, 20 bits)] := lowByte(savedIP)
+write memory[projectAddress(returnSegment * 16 + addWrap(returnOffset, 0001:u16), 20 bits)] := highByte(savedIP)
+write CS:u16 := targetSegment
+write IP:u16 := targetOffset
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, DF, OF.
+
+### 8088 resume WAIT
+
+Sample and record TEST once before writing waiting. On release, increment live IP past the saved WAIT opcode. Busy resumption leaves IP alone and does not refetch. Only a low sample requests all-interrupt inhibition at successful retirement. Preserve flags and pending traps; failed pin sampling changes no CPU state.
+
+```text
+high:flag := sample and record physical TEST level; high waits, low releases
+write waiting:boolean := high
+when not(high) {
+  position:u16 := read IP
+  write IP:u16 := addWrap(position, 0001:u16)
+}
+when not(high) {
+  request all interrupt deferral at successful retirement
+}
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ESC register (resolved)
+
+After ModR/M fetch and address resolution, pass the register selector without reading any CPU register or memory. Combine opcode bits ooo with ModR/M ppp to form the six-bit external opcode. Send a detached request and record it only after callback success; preserve all CPU state.
+
+```text
+highOpcode:u3 := input
+modRM:u8 := input
+send and record ESC opcode bitOr(shiftBitsLeft(zeroExtend8(highOpcode), 3), bitAnd(shiftBitsRight(modRM, 3), 07:u8)), ModR/M modRM, register selector only; device receives a detached request; record only after callback success
+```
+
+Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.
+
+### 8088 ESC memory (resolved)
+
+After ModR/M fetch and address resolution, read a complete dummy word low byte first, even without a device; wrap each logical byte offset before projecting to the physical bus. Combine opcode bits ooo with ModR/M ppp to form the six-bit external opcode. Send a detached request and record it only after callback success; preserve all CPU state.
+
+```text
+highOpcode:u3 := input
+modRM:u8 := input
+segment:u16 := input
+offset:u16 := input
+operandLow:u8 := read memory[projectAddress(segment * 16 + offset, 20 bits)]
+operandHigh:u8 := read memory[projectAddress(segment * 16 + addWrap(offset, 0001:u16), 20 bits)]
+operand := concatHighLow(operandHigh, operandLow)
+send and record ESC opcode bitOr(shiftBitsLeft(zeroExtend8(highOpcode), 3), bitAnd(shiftBitsRight(modRM, 3), 07:u8)), ModR/M modRM, captured memory segment:offset at projectAddress(segment * 16 + offset, 20 bits) with word operand; device receives a detached request; record only after callback success
 ```
 
 Flags preserved throughout: CF, PF, AF, ZF, SF, TF, IF, DF, OF.

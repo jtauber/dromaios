@@ -288,7 +288,8 @@ provide the common fields used by all eight CPUs:
 CPU modules keep their public names as aliases, such as `Cpu6502Instruction`
 and `Cpu6502ResetRecord`. `InstructionStep`, `HaltedStep`, and `WaitingStep` accept the same
 optional access type. The 8008, 8080, Z80, and 8088 supply a union of memory and
-port accesses. The 8088 additionally records ESC delivery and TEST samples; the
+port accesses. The 8088 additionally records ESC delivery and TEST samples through its
+[device adapter](../../src/components/cpus/8088-external.ts); the
 68000 includes a device-reset event. Other CPUs retain the memory-only default.
 Each step type selects its supported outcomes. The 68000 selects only the executed
 branch of `InstructionStep`: invalid opwords deliver exceptions instead of opcode

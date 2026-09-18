@@ -65,6 +65,12 @@ export interface SourceDefinitions {
   readonly cpu: CpuDeclaration;
   readonly groups: Readonly<Record<string, Readonly<Record<string, ValueSource>>>>;
 }
+/** Captured ESC operands; physical projection and the dummy read remain explicit in the definition. */
+export interface EscapeRequest {
+  readonly opcode: NumberExpression;
+  readonly modRM: NumberExpression;
+  readonly memory?: { readonly segment: NumberExpression; readonly offset: NumberExpression; readonly address: AddressExpression; readonly value: NumberExpression };
+}
 export type Statement =
   | { readonly kind: "when"; readonly condition: FlagExpression; readonly steps: readonly Statement[] }
   | { readonly kind: "iterate"; readonly name: string; readonly count: NumberExpression; readonly initial: NumberExpression; readonly steps: readonly Statement[]; readonly result: NumberExpression }
@@ -85,6 +91,9 @@ export type Statement =
   | { readonly kind: "write-element"; readonly array: RegisterArray; readonly index: NumberExpression; readonly value: NumberExpression }
   | { readonly kind: "defer-interrupt"; readonly scope: "irq" | "intr" | "all" }
   | { readonly kind: "notify-reti" }
+  | { readonly kind: "report-interrupt"; readonly vector: NumberExpression }
+  | { readonly kind: "read-test"; readonly name: string }
+  | ({ readonly kind: "send-escape" } & EscapeRequest)
   | { readonly kind: "write-choice"; readonly choice: Choice; readonly value: string | number }
   | { readonly kind: "write-latch"; readonly latch: Latch; readonly value: boolean | FlagExpression }
   | { readonly kind: "write-port"; readonly port: NumberExpression; readonly value: NumberExpression }
@@ -236,3 +245,8 @@ export const testChoice = <Value extends string | number>(name: string, choice: 
 export const writeChoice = <Value extends string | number>(choice: Choice<Value>, value: NoInfer<Value>): Statement => ({ kind: "write-choice", choice, value });
 /** Request the Z80 device notification after successful architectural retirement. */
 export const notifyReti = (): Statement => ({ kind: "notify-reti" });
+
+/** External delivery reporting and pin/device effects do not hide CPU state or memory operations. */
+export const reportInterrupt = (vector: NumberExpression): Statement => ({ kind: "report-interrupt", vector });
+export const readTest = (name: string): Statement => ({ kind: "read-test", name });
+export const sendEscape = (request: EscapeRequest): Statement => ({ kind: "send-escape", ...request });

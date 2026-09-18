@@ -1,3 +1,4 @@
+import { instructions as control8088 } from "../../src/components/cpus/generated/8088-control.js";
 import { instructions as addressing8088 } from "../../src/components/cpus/generated/8088-addressing.js";
 import { instructions as strings8088 } from "../../src/components/cpus/generated/8088-strings.js";
 import { instructions as arithmetic8088 } from "../../src/components/cpus/generated/8088-arithmetic.js";
@@ -13,7 +14,7 @@ import { cpu6809StateDescription } from "../../src/components/cpus/state/6809.js
 import { cpuZ80StateDescription } from "../../src/components/cpus/state/z80.js";
 import { cpu6502StateDescription } from "../../src/components/cpus/6502.js";
 import { cpu8080StateDescription } from "../../src/components/cpus/8080.js";
-import { testChoice, writeChoice, readPort, writePort, deferInterrupt, divide, iterate, reject, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
+import { readTest, reportInterrupt, sendEscape, testChoice, writeChoice, readPort, writePort, deferInterrupt, divide, iterate, reject, and, signExtend, truncate, readElement, writeElement, when, addWrap, carry, halfCarry, subtract, multiply, bitAnd, bitOr, bitXor, cpuSymbols, exchangeFlags, flagValue, highByte, lowByte, literal, not, projectAddress, readFlag, readLatch, readMemory, shiftBits, shiftLeft, value, writeLatch, xor, zero } from "../../src/components/cpus/semantics/model.js";
 import type { FlagPolicy, NumberExpression, Statement } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated6502, sourceReaders } from "../../src/components/cpus/generated/6502.js";
 import { instructions as generatedZ80 } from "../../src/components/cpus/generated/z80.js";
@@ -719,7 +720,6 @@ export function check8088StackTypes(state: Cpu8088State, intel: Cpu8080State): v
   stack8088.CALL_4(state, { writeByte: () => {} });
   stack8088.CALL_far_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
   stack8088.POP_memory(state, 0xffff, 0xffff, { readByte: () => 0, writeByte: () => {} });
-  stack8088.pushWord(state, 0x1234, { writeByte: () => {} });
   deferInterrupt("all");
   // @ts-expect-error Deferral is a specific boundary request, not an arbitrary callback.
   deferInterrupt(() => {});
@@ -739,8 +739,6 @@ export function check8088StackTypes(state: Cpu8088State, intel: Cpu8080State): v
   generated8088[0xcb](state, { fetchByte: () => 0, readByte: () => 0 });
   // @ts-expect-error A resolved pointer jump has no stack-writing capability.
   stack8088.JMP_far_memory(state, 0, 0, { readByte: () => 0, writeByte: () => {} });
-  // @ts-expect-error Numeric inputs precede context; the stack word is not a callback.
-  stack8088.pushWord(state, () => 0, { writeByte: () => {} });
   // @ts-expect-error Generated stack bodies retain the concrete CPU state.
   stack8088.PUSH_memory(intel, 0, 0, { readByte: () => 0, writeByte: () => {} });
 }
@@ -847,4 +845,38 @@ export function checkPortTypes(small: Cpu8008StoredState, intel: Cpu8080State, z
   generatedZ80.inputA!(z80, { readPort: () => 0, writeByte: () => {} });
   // @ts-expect-error Output retains its concrete CPU state.
   generated8080.output(x86, { fetchByte: () => 0, writePort: () => {} });
+}
+
+export function check8088ControlTypes(state: Cpu8088State, other: Cpu8080State): void {
+  const memory = { readByte: () => 0, writeByte: () => {} };
+  generated8088[0xcc](state, { ...memory, reportInterrupt: () => {} });
+  generated8088[0xcd](state, { ...memory, fetchByte: () => 0, reportInterrupt: () => {} });
+  generated8088[0x9b](state, { readTest: () => true, deferInterrupt: () => {} });
+  control8088.enterInterrupt(state, 3, memory);
+  control8088.resumeWait(state, { readTest: () => false, deferInterrupt: () => {} });
+  control8088.escapeRegister(state, 7, 0xc7, { sendEscape: () => {} });
+  control8088.escapeMemory(state, 7, 0x3f, 0xffff, 0xffff, { readByte: () => 0, sendEscape: () => {} });
+  readTest("high"); reportInterrupt(literal(8, 3)); sendEscape({ opcode: literal(8, 63), modRM: literal(8, 255) });
+  // @ts-expect-error A TEST pin sample is Boolean, not an unchecked numeric level.
+  generated8088[0x9b](state, { readTest: () => 1, deferInterrupt: () => {} });
+  // @ts-expect-error INT must fetch its type byte before entry.
+  generated8088[0xcd](state, { ...memory, reportInterrupt: () => {} });
+  // @ts-expect-error Complete software delivery requires reporting capability.
+  generated8088[0xcc](state, memory);
+  // @ts-expect-error External entry does not report software delivery.
+  control8088.enterInterrupt(state, 3, { ...memory, reportInterrupt: () => {} });
+  // @ts-expect-error Vector inputs are captured numbers, not host callbacks.
+  control8088.enterInterrupt(state, () => 3, memory);
+  // @ts-expect-error WAIT resumption never fetches again.
+  control8088.resumeWait(state, { readTest: () => false, deferInterrupt: () => {}, fetchByte: () => 0 });
+  // @ts-expect-error A register ESC must not read CPU data memory.
+  control8088.escapeRegister(state, 7, 0xc7, { readByte: () => 0, sendEscape: () => {} });
+  // @ts-expect-error A memory ESC must finish its dummy word read before sending.
+  control8088.escapeMemory(state, 7, 0x3f, 0, 0, { sendEscape: () => {} });
+  // @ts-expect-error Generated controls retain the concrete CPU state.
+  control8088.enterInterrupt(other, 3, memory);
+  // @ts-expect-error Vector expressions are numeric, not Boolean.
+  reportInterrupt(flagValue("high"));
+  // @ts-expect-error ESC requests contain explicit data, not opaque execution callbacks.
+  sendEscape(() => {});
 }

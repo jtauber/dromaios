@@ -101,7 +101,6 @@ test("8088 arithmetic definitions have exactly 324 operand specializations and s
   assert.equal(cases.length, 324);
   assert.deepEqual(Object.keys(arithmetic).sort(), cases.map(c => c.key).sort());
   assert.deepEqual(Object.keys(arithmetic8088).sort(), Object.keys(arithmetic).sort());
-  assert.equal(Object.keys(instructions8088).length, 139);
   assert.deepEqual(Object.fromEntries(Object.keys(decimalOpcodes).map(key => [key, instructions8088[key]!.name])), decimalOpcodes);
 });
 

@@ -1,4 +1,5 @@
 import type { BytePorts } from "../../../../src/components/cpus/port-access.js";
+import { no8088Control } from "../../../helpers/no-8088-control.js";
 import { noPorts } from "../../../helpers/no-ports.js";
 import assert from "node:assert/strict";
 import { stripTypeScriptTypes } from "node:module";
@@ -15,10 +16,10 @@ import type { Cpu8088State } from "../../../../src/components/cpus/state/8088.js
 import { aluForms, aluResult, byteMoves, flags, initialState, unaryResult, wordMoves, words } from "../8088/helpers.js";
 
 type Word = typeof words[number];
-type Body = (state: Cpu8088State, instruction: BytePorts & {
+type Body = (state: Cpu8088State, instruction: BytePorts & typeof no8088Control & {
   fetchByte(): number; readByte(address: number): number; writeByte(address: number, byte: number): void; deferInterrupt(scope: "intr" | "all"): void;
 }) => void;
-const noEffects = { ...noPorts, readByte: (): never => assert.fail("Unexpected data read"), writeByte: (): never => assert.fail("Unexpected data write"),
+const noEffects = { ...noPorts, ...no8088Control, readByte: (): never => assert.fail("Unexpected data read"), writeByte: (): never => assert.fail("Unexpected data write"),
   deferInterrupt: (): never => assert.fail("Unexpected deferral") };
 const bodies: Readonly<Partial<Record<number, Body>>> = instructions;
 const names: Readonly<Record<number, string>> = {

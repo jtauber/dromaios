@@ -23,14 +23,14 @@ emulators do not count toward implementation here.
 | [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [621](../../src/components/cpus/8088.ts) | 279 / 291 | 95.9% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [548](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **4,283 generated bodies**, all used by CPU execution,
-including 6502/6800 external-entry helpers, a 6809 frame-push helper, and an
-8088 word-push helper. They cover **2,087 complete opcode forms**. All six
-8-bit CPUs now have complete instruction-definition migration:
+contains **4,290 generated bodies**, all used by CPU execution,
+including 6502/6800/8088 entry helpers, a 6809 frame-push helper, and 8088 WAIT
+resumption. They cover **2,099 complete opcode forms**. All six 8-bit CPUs and
+the 8088 now have complete instruction-definition migration:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -338,8 +338,9 @@ including 6502/6800 external-entry helpers, a 6809 frame-push helper, and an
   whole target before stacking CS and then live IP. POPF replaces all flags
   after a complete read and requests INTR deferral only when IF becomes set;
   segment pops request all-interrupt deferral. The boundary commits these
-  requests only at successful retirement. One additional word-push helper
-  serves interrupt entry. Handwritten stack/call/return/FLAGS helpers are removed.
+  requests only at successful retirement. Complete interrupt entry now expands
+  that same word-push construction, replacing the earlier standalone helper.
+  Handwritten stack/call/return/FLAGS helpers are removed.
   Segment MOV, LEA, LES/LDS, and XLAT add six forms using 89 specialized bodies.
   LES/LDS share complete far-pointer reads with CALL/JMP but write the general
   register before the segment and never request inhibition. XLAT preserves
@@ -364,8 +365,17 @@ including 6502/6800 external-entry helpers, a 6809 frame-push helper, and an
   IN/OUT add all eight forms with immediate or DX addressing and AL/AX operands.
   Word transfers use low then high bytes, wrapping the second port within 16
   bits. Input commits only after all reads; byte input preserves live AH.
-  All **279 forms** are integrated. The remaining twelve are eight ESC forms,
-  WAIT, and INT3/INT/INTO; interrupt delivery and retirement remain CPU-owned.
+  The final twelve forms—eight ESC encodings, WAIT, and INT3/INT/INTO—complete
+  all **291 forms**. Six instruction bodies share two ESC operand paths;
+  complete entry and WAIT resumption add two boundary helpers. Software,
+  divide-error, trap, and external delivery share the explicit vector/frame
+  sequence: capture the full vector before clearing masks or stacking, push
+  FLAGS and live CS/IP, then commit CS:IP. Software delivery is reported only
+  after completion. WAIT samples TEST before changing waiting/IP and requests
+  inhibition only on release. ESC resolves its operand in the CPU, then its
+  generated body reads a dummy word for memory forms before sending the request.
+  Device adapters retain validation, detached requests, and access recording;
+  recognition and retirement remain CPU-owned.
 
 The 68000 has no instruction bodies generated from these definitions.
 Its existing shared TypeScript helpers remain useful, but are outside this
@@ -413,33 +423,33 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,466 |
-| CPU-specific instruction definition files | 1,791 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,195 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,452** |
+| Eight CPU implementation files | 3,393 |
+| CPU-specific instruction definition files | 1,844 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,277 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,514** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 92,564 |
+| Generated CPU output, counted separately | 92,818 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The interrupt/control migration completes **20 opcode forms** across the 6502,
-6800, 8080, Z80, and 6809. It adds two shared external-entry bodies and retires
-the 6809's partial frame-pull helper: **21 net new bodies**. Shared construction
-now describes ordered interrupt frames and vector loads. Schema-owned control
-choices, captured Boolean latch writes, IRQ deferral, and RETI notification
-keep control effects explicit while the CPUs retain recognition and retirement.
+The final 8088 migration completes **12 opcode forms** with six instruction
+bodies: INT3/INT/INTO, WAIT, and two resolved ESC paths. Two more bodies share
+interrupt entry and resume WAIT; the obsolete standalone word-push body is
+removed: **seven net new bodies**. The compiler adds explicit TEST, ESC, and
+completed-delivery effects and consolidates context selection into one capability
+mapping. Pin validation, request detachment, and recording live in a small
+[device adapter](../../src/components/cpus/8088-external.ts).
 
-The main CPU modules lose **135 lines**: 61 from the 6502, 47 from the 6800,
-15 from the 6809, ten from the Z80, and two from the 8080. Removed code includes
-the 6502/6800 stack implementations and their interrupt bodies, plus the Z80
-return helper. Definitions add **89 net lines** and shared support adds **65**.
-Total authored CPU source rises from **8,433 to 8,452 lines** (**19 more**);
-generated output adds **901 lines**. This completes the 8-bit migration without
-yet reducing the total maintained source in this batch.
-All **4,261 retained earlier definitions** remain structurally unchanged; the
-only removed definition is the partial 6809 frame pull. Nine unaffected
-generated modules remain byte-identical, including every 8008 and 8088 module.
+The 8088 module loses **73 lines**, including interrupt entry, WAIT state
+transitions, ESC delivery, and its last word/pointer memory readers. Definitions
+add **53 net lines** and supporting source adds **82**, including the adapter.
+Total authored CPU source rises from **8,452 to 8,514 lines** (**62 more**);
+generated output adds **254 lines**. This completes seven CPUs' instruction
+migration; the total maintained source still grows in this batch.
+All **4,282 retained earlier definitions** remain structurally unchanged; the
+only removed definition is the internal 8088 word push. Thirteen unaffected
+generated modules remain byte-identical, including every 8-bit CPU module.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

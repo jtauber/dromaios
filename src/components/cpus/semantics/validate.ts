@@ -249,6 +249,20 @@ export function validateInstruction(definition: InstructionDefinition): void {
         case "notify-reti":
           if (cpu.name !== "z80") fail(where, "RETI notification requires the Z80 boundary");
           return;
+        case "report-interrupt":
+          if (cpu.name !== "8088") fail(where, "software delivery reporting requires the 8088 boundary");
+          expect(step.vector, 8); return;
+        case "read-test":
+          if (cpu.name !== "8088") fail(where, "TEST sampling requires an 8088 connection");
+          captured = "flag"; break;
+        case "send-escape":
+          if (cpu.name !== "8088") fail(where, "ESC requests require an 8088 connection");
+          expect(step.opcode, 8); expect(step.modRM, 8);
+          if (step.memory) {
+            expect(step.memory.segment, 16); expect(step.memory.offset, 16); expect(step.memory.value, 16);
+            address(step.memory.address, scope, where);
+          }
+          return;
         case "write-choice": choice(step.choice, step.value, where); return;
         case "write-latch":
           latch(step.latch, where);

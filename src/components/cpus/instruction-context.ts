@@ -19,3 +19,8 @@ export interface WordInstructionContext extends ByteInstructionContext {
 export interface RetiNotificationContext {
   readonly notifyReti: () => void;
 }
+
+/** Report completed software delivery; the definition has already performed all vector and frame effects. */
+export interface InterruptReportContext {
+  readonly reportInterrupt: (vector: number) => void;
+}
