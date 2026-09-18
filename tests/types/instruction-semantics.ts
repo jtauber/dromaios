@@ -1,3 +1,6 @@
+import { instructions as moves68000 } from "../../src/components/cpus/generated/68000-moves.js";
+import type { Cpu68000AddressContext, OperandAlignmentFault } from "../../src/components/cpus/68000-context.js";
+import { alignmentFault, commitAddressUpdates, fetchWord, readProgramMemory, resolveAddress } from "../../src/components/cpus/semantics/model.js";
 import { instructions as generated68000 } from "../../src/components/cpus/generated/68000.js";
 import { instructions as quick68000 } from "../../src/components/cpus/generated/68000-quick.js";
 import { cpu68000StateDescription } from "../../src/components/cpus/state/68000.js";
@@ -35,6 +38,29 @@ import type { Cpu8080State } from "../../src/components/cpus/8080.js";
 import type { Cpu6809State } from "../../src/components/cpus/6809.js";
 
 // Compiled, never called: names come from CPU schemas; reads, expressions, and writes have distinct roles.
+export function check68000MoveTypes(state: Cpu68000State, context: Cpu68000AddressContext & {
+  readByte(address: number): number; writeByte(address: number, byte: number): void;
+}): void {
+  moves68000["8_immediate_d0"](state, 7, 4, 0, 0, { fetchWord: () => 0xffff });
+  const fault: OperandAlignmentFault | void = moves68000["32_program_memory"](state, 7, 2, 3, 0, context);
+  resolveAddress("address", 32, literal(3, 7), literal(3, 2));
+  commitAddressUpdates(); fetchWord("word"); readProgramMemory("byte", literal(32, 0));
+  alignmentFault("read", literal(32, 1), "program");
+  // @ts-expect-error Program-space reads cannot be supplied only as data-space reads.
+  moves68000["16_program_d0"](state, 7, 2, 0, 0, { resolveAddress: context.resolveAddress, readByte: context.readByte, commitAddressUpdates: context.commitAddressUpdates });
+  // @ts-expect-error Even byte transfers require an explicit commit stage after addressing.
+  moves68000["8_memory_d0"](state, 2, 0, 0, 0, { resolveAddress: context.resolveAddress, readByte: context.readByte });
+  // @ts-expect-error The word fetch supplies a complete numeric word.
+  moves68000["8_immediate_d0"](state, 7, 4, 0, 0, { fetchWord: () => false });
+  // @ts-expect-error Selector expressions must be captured numbers, not conditions.
+  resolveAddress("address", 32, flagValue("supervisor"), literal(3, 2));
+  // @ts-expect-error Alignment faults describe operand accesses, not instruction fetches.
+  alignmentFault("fetch", literal(32, 1));
+  // @ts-expect-error Fault descriptions are readonly.
+  if (fault) fault.address = 0;
+}
+
+
 export function check68000RegisterTypes(state: Cpu68000State, other: Cpu8088State): void {
   const cpu = cpuSymbols("68000", cpu68000StateDescription);
   cpu.register("d7"); cpu.register("usp"); cpu.register("ssp"); cpu.flag("s");

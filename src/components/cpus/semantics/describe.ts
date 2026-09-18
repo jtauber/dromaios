@@ -89,6 +89,11 @@ export function describeInstruction(definition: InstructionDefinition): string {
           break;
         }
         case "fetch-byte": emit(`${step.name}:u8 := fetch byte`); break;
+        case "fetch-word": emit(`${step.name}:u16 := fetch complete native-order word`); break;
+        case "resolve-address": emit(`${step.name}:u32 := resolve ${step.size}-bit memory EA (mode ${number(step.mode)}, register ${number(step.code)}); stage auto-updates for later operands`); break;
+        case "commit-address-updates": emit("commit staged address-register updates in first-use order; repeated registers receive their final staged value"); break;
+        case "alignment-fault": emit(`return ${step.space}-space ${step.operation} alignment fault at ${number(step.address)}; no later effects`); break;
+        case "read-program-memory": emit(`${step.name}:u8 := read program memory[${number(step.address)}]`); break;
         case "read-port": emit(`${step.name}:u8 := read port[${number(step.port)}]`); break;
         case "read-memory": emit(`${step.name}:u8 := read memory[${address(step.address)}]`); break;
         case "write-register": emit(`write ${bank(step.register)}${step.register.field.toUpperCase()}:u${step.register.width} := ${number(step.value)}`); break;

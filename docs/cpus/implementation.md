@@ -149,13 +149,25 @@ For migrated 68000 register instructions, patterns likewise live beside their
 [definitions](../../src/components/cpus/semantics/definitions/68000.ts).
 `instructionSet(entries, 16)` checks the word-sized encoding inventory. The core
 adds generated entries to its shared static table, passing the executing CPU's
-state to each body; it excludes those slots from the handwritten MOVE builder.
+state to each body. The remaining MOVE/MOVEA forms use a shared
+[encoding inventory](../../src/components/cpus/68000-moves.ts) to select bodies
+by operand role and supply the exact mode/register selectors.
 MOVEQ retains its embedded-byte selector and supplies the immediate to one
 parameterized body per destination. Literal values do not multiply coverage.
 A7 selection expands into explicit S tests and SSP/USP branches at each operand's
 turn. Byte/word data writes preserve the live upper portion, while EXT.W uses
 its captured original. Keep SWAP's flags-before-write order distinct from
 MOVE/MOVEQ/EXT's write-before-flags order.
+
+For memory/immediate MOVE forms, the definition requests EA resolution at the
+source and destination stages separately. Keep the existing decoder behind
+`Cpu68000AddressContext`; it owns extension decoding and an instruction-local
+map of pending auto-updates. Generated bodies own alignment checks, all operand
+byte accesses, the explicit update-commit point, writeback, and flags. Do not
+resolve the destination before completing the source read. Keep logical
+32-bit addresses until the memory adapter maps the physical bus, retaining
+program/data space for fault delivery. Native-word operand fetching preserves
+the core's complete-word cursor and instruction-byte recording boundary.
 
 The complete support inventory belongs in [CPU implementation coverage](coverage.md).
 This guide describes organization and does not replace the model contracts or

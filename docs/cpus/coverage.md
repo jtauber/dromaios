@@ -24,12 +24,12 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [548](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1305](../../src/components/cpus/68000.ts) | 800 / 36,029 | 2.2% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1294](../../src/components/cpus/68000.ts) | 9,950 / 36,029 | 27.6% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **5,090 generated bodies**, all used by CPU execution,
+contains **5,259 generated bodies**, all used by CPU execution,
 including 6502/6800/8088 entry helpers, a 6809 frame-push helper, and 8088 WAIT
-resumption. They cover **2,899 complete opcode forms**. All six 8-bit CPUs and
+resumption. They cover **12,049 complete opcode forms**. All six 8-bit CPUs and
 the 8088 now have complete instruction-definition migration. The current
 family inventory is:
 
@@ -389,8 +389,17 @@ family inventory is:
   stack. EXG resolves both identities and captures both originals before either
   write. MOVE/MOVEQ/EXT write before N/Z/V/C; SWAP applies flags first. X/T/S
   remain untouched. The existing conditional, width, transfer, and flag
-  vocabulary suffices; no semantic primitive is added. Memory MOVE/MOVEA and
-  the remaining families still use handwritten bodies.
+  vocabulary suffices for these register forms.
+  All remaining **9,150 MOVE/MOVEA forms** now use **169 shared bodies**,
+  completing the entire ordinary transfer family. Sources finish before
+  destination-address decoding. The decoder stages auto-updates, making them
+  visible to later base/index calculations; the body commits them only after
+  alignment checks and before writeback. Source/extension failures discard
+  pending updates; failed destination writes retain committed updates and
+  completed bytes, with flags unchanged. Immediate operands fetch complete
+  words; data reads/writes remain explicit high-first byte accesses. PC-relative
+  sources retain program-space identity in both bus and alignment faults.
+  The CPU still owns EA decoding, fetch cursors, exception delivery, and retirement.
 
 The [current review](instruction-semantics.md#decision-and-next-review)
 focuses on complete operation families, explicit carry and writeback stages,
@@ -436,29 +445,31 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 3,354 |
-| CPU-specific instruction definition files | 1,950 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,295 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,599** |
+| Eight CPU implementation files | 3,343 |
+| CPU-specific instruction definition files | 2,011 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,395 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,749** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 103,175 |
+| Generated CPU output, counted separately | 106,526 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The first 68000 migration adds **800 bodies** for **800 documented forms**.
-Its existing 32-bit operations and conditional statements express partial data
-registers and the active A7 bank. MOVEQ uses eight bodies with an immediate input,
-so generation does not duplicate each destination for 256 byte values. Shared
-construction gains an optional 16-bit opcode width for collision checks; the
-state declaration moves to a CPU-owned module to break the generation dependency.
+Completing 68000 MOVE/MOVEA adds **169 shared bodies** for **9,150 forms**.
+The encoding inventory supplies register/memory roles and decoded selectors;
+addressing variants share bodies with the same data flow. Native-word fetch,
+address-resolution and update-commit stages, program-space byte reads, and
+structured operand faults extend the vocabulary. The original address decoder
+remains behind a narrow context interface; no opaque instruction callback
+replaces the transfer sequence.
 
-The 68000 module falls from **1,344 to 1,305 lines** (**39 fewer**), retiring its
-EXT, SWAP, MOVEQ, and exchange helpers. Definitions add **106 lines** and other
-CPU source adds **18**, including the extracted schema. Total authored CPU source
-rises from **8,514 to 8,599 lines** (**85 more**); generated output adds **10,357**.
-This is a migration and clarity improvement, not an overall source reduction.
-All **4,290 earlier definitions** remain structurally unchanged, and all sixteen
+The 68000 module falls from **1,305 to 1,294 lines** (**11 fewer**), retiring its
+MOVE builder and handwritten transfer sequence. Definitions add **61 lines**
+and supporting CPU source adds **100**. Total authored CPU source rises from
+**8,599 to 8,749 lines** (**150 more**); generated output adds **3,351**.
+The new stage vocabulary makes the transfer order explicit and supports later
+families; this batch does not reduce total authored source.
+All **5,090 earlier definitions** remain structurally unchanged, and all eighteen
 previously generated modules remain byte-identical.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate

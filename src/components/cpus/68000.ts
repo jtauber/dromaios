@@ -13,6 +13,9 @@ export { cpu68000StateDescription } from "./state/68000.ts";
 export type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
 import { instructions as generated } from "./generated/68000.ts";
 import { instructions as quick } from "./generated/68000-quick.ts";
+import { instructions as moveBodies } from "./generated/68000-moves.ts";
+import { operandMoveForms68000 } from "./68000-moves.ts";
+import type { Cpu68000AddressContext } from "./68000-context.ts";
 import { opcodeFamily, opcodePattern, opcodeTable } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
 import { flagRegister, negativeZero } from "./flags.ts";
@@ -139,6 +142,10 @@ interface InstructionContext extends MemoryContext {
   readonly fetchWord: () => number;
   readonly fetchLong: () => number;
 }
+
+// Shared bodies receive decoded selectors and only the context capabilities their stages require.
+const moves: Readonly<Record<string, (state: Cpu68000State, sourceMode: number, sourceCode: number,
+  destinationMode: number, destinationCode: number, instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = moveBodies;
 
 type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => InstructionFault | void;
 type ControlOperation = (cpu: Cpu68000, address: number, instruction: InstructionContext) => AlignmentFault | void;
@@ -389,6 +396,8 @@ export class Cpu68000 {
     // Register transfers, EXT/SWAP, and EXG own their patterns in semantics/definitions/68000.ts.
     ...Object.entries(generated).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> =>
       [Number(opcode), cpu => execute(cpu.#state)]),
+    ...operandMoveForms68000.map(({ opcode, body, sourceMode, sourceCode, destinationMode, destinationCode }): OpcodeEntry<OpcodeHandler> =>
+      [opcode, (cpu, instruction) => moves[body]!(cpu.#state, sourceMode, sourceCode, destinationMode, destinationCode, cpu.#addressContext(instruction))]),
     // Immediate ALU: 0000 ooo 0 ss mmm rrr. ooo selects the operation below;
     // ss=00 byte, 01 word, 10 long (11 reserved); mmm rrr selects a data-alterable EA.
     // An, PC-relative, and immediate destinations are excluded, including CCR/SR encodings.
@@ -415,13 +424,6 @@ export class Cpu68000 {
     // MOVEP: 0000 ddd 1 t s 001 aaa. t=0 memory to Dn, 1 Dn to memory;
     // s=0 word, 1 long. A signed displacement precedes alternate-byte transfers, even at odd addresses.
     ...opcodeFamily("0000 ddd 1 t s 001 aaa", { d: this.#dataRegisters, t: [false, true], s: [16, 32] as const, a: this.#selectors }, ({ d, t: store, s: size, a }) => (cpu: Cpu68000, instruction: InstructionContext) => cpu.#movePeripheral(d, a, size, store, instruction)), // MOVEP
-
-    // MOVE: 00 zz ddd mmm sss rrr. zz=01 byte, 10 long, 11 word.
-    // Destination is register ddd then mode mmm; source is mode sss then register rrr.
-    // Destination mode 001 is MOVEA (word/long only), with sign extension and no flag changes.
-    ...this.#moveHandlers("00 01 ddd mmm sss rrr", 8), // MOVE.B <ea>,<ea>
-    ...this.#moveHandlers("00 10 ddd mmm sss rrr", 32), // MOVE.L / MOVEA.L <ea>,<ea>
-    ...this.#moveHandlers("00 11 ddd mmm sss rrr", 16), // MOVE.W / MOVEA.W <ea>,<ea>
 
     // Unary ALU: 0100 oooo ss mmm rrr. ss=00 byte, 01 word, 10 long;
     // mmm rrr selects a data-alterable EA, even for TST on the original 68000.
@@ -594,17 +596,6 @@ export class Cpu68000 {
       const bit = register === undefined ? instruction.fetchWord() : cpu.#state[register];
       return cpu.#effectiveAddressAlu(size, mode, code, bit, apply, instruction);
     };
-  }
-
-  static #moveHandlers(pattern: string, size: OperandSize): readonly OpcodeEntry<OpcodeHandler>[] {
-    const codes = this.#selectors;
-    return opcodeFamily(pattern, { d: codes, m: codes, s: codes, r: codes }, ({ d, m, s, r }) => {
-      if (s < 2 && m < 2) return undefined; // Register-only forms belong to generated definitions.
-      // Mode 111: sources allow absolute word/long, PC displacement/index, and immediate;
-      // destinations allow only absolute word/long. Byte transfers cannot read or write An.
-      if ((s === 7 && r > 4) || (m === 7 && d > 1) || (size === 8 && (s === 1 || m === 1))) return undefined;
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#move(size, s, r, m, d, instruction);
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
   static #unaryHandlers(pattern: string, apply: AluOperation): readonly OpcodeEntry<OpcodeHandler>[] {
@@ -936,18 +927,16 @@ export class Cpu68000 {
 
   // Loads and stores. Source reads finish before resolving or writing the destination.
 
-  #move(size: OperandSize, sourceMode: number, sourceCode: number, destinationMode: number, destinationCode: number,
-    instruction: InstructionContext): AlignmentFault | void {
+  #addressContext(instruction: InstructionContext): InstructionContext & Cpu68000AddressContext {
     const updates: AddressUpdates = new Map();
-    const source = this.#resolveOperand(size, sourceMode, sourceCode, instruction, updates);
-    if (source.kind === "memory" && size !== 8 && source.address % 2 !== 0) return { operation: "read", address: source.address, programSpace: source.programSpace };
-    const value = this.#readOperand(size, source, instruction);
-    const destination = this.#resolveOperand(size, destinationMode, destinationCode, instruction, updates);
-    if (destination.kind === "memory" && size !== 8 && destination.address % 2 !== 0) return { operation: "write", address: destination.address };
-    if (destination.kind === "immediate") throw new Error("Immediate destination reached execution.");
-    for (const [register, address] of updates) this.#state[register] = address;
-    this.#writeOperand(size, destination, value, instruction.writeByte);
-    if (destination.kind !== "address") this.#setResultFlags(value, size);
+    return { ...instruction,
+      resolveAddress: (size, mode, code) => {
+        const operand = this.#resolveOperand(size, mode, code, instruction, updates);
+        if (operand.kind !== "memory") throw new Error("A memory address was expected by the MOVE definition.");
+        return operand.address;
+      },
+      commitAddressUpdates: () => { for (const [register, address] of updates) this.#state[register] = address; },
+    };
   }
 
   #readDataWord(mode: number, code: number, instruction: InstructionContext,

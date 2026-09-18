@@ -12905,6 +12905,4377 @@ flags "68000 result" simultaneously {
 
 Flags preserved throughout: X, T, S.
 
+### 68000 MOVE.B MEMORY,D0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read program memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := low8(immediateHigh)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D0,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D0
+result := low8(source)
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D1,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D1
+result := low8(source)
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D2,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D2
+result := low8(source)
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D3,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D3
+result := low8(source)
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D4,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D4
+result := low8(source)
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D5,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D5
+result := low8(source)
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D6,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D6
+result := low8(source)
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B D7,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D7
+result := low8(source)
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B MEMORY,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read memory[sourceAddress]
+result := byte0
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read program memory[sourceAddress]
+result := byte0
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := low8(immediateHigh)
+destinationAddress:u32 := resolve 8-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B MEMORY,D1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read program memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := low8(immediateHigh)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B MEMORY,D2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read program memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := low8(immediateHigh)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B MEMORY,D3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read program memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := low8(immediateHigh)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B MEMORY,D4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read program memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := low8(immediateHigh)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B MEMORY,D5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read program memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := low8(immediateHigh)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B MEMORY,D6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read program memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := low8(immediateHigh)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B MEMORY,D7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B PROGRAM,D7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 8-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+byte0:u8 := read program memory[sourceAddress]
+result := byte0
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.B IMMEDIATE,D7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := low8(immediateHigh)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFFFF00:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L MEMORY,D0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L PROGRAM,D0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L IMMEDIATE,D0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write D0:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L MEMORY,A0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L PROGRAM,A0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L IMMEDIATE,A0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write A0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L D0,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D0
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D1,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D1
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D2,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D2
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D3,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D3
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D4,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D4
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D5,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D5
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D6,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D6
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L D7,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D7
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A0,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A0
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A1,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A1
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A2,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A2
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A3,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A3
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A4,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A4
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A5,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A5
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A6,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A6
+result := source
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L A7,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := source
+  destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+  when lowBit(destinationAddress) {
+    return data-space write alignment fault at destinationAddress; no later effects
+  }
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := source
+  destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+  when lowBit(destinationAddress) {
+    return data-space write alignment fault at destinationAddress; no later effects
+  }
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L MEMORY,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L PROGRAM,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L IMMEDIATE,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+destinationAddress:u32 := resolve 32-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(destinationAddress, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L MEMORY,D1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L PROGRAM,D1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L IMMEDIATE,D1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write D1:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L MEMORY,A1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L PROGRAM,A1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L IMMEDIATE,A1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write A1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L MEMORY,D2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L PROGRAM,D2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L IMMEDIATE,D2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write D2:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L MEMORY,A2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L PROGRAM,A2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L IMMEDIATE,A2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write A2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L MEMORY,D3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L PROGRAM,D3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L IMMEDIATE,D3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write D3:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L MEMORY,A3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L PROGRAM,A3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L IMMEDIATE,A3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write A3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L MEMORY,D4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L PROGRAM,D4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L IMMEDIATE,D4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write D4:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L MEMORY,A4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L PROGRAM,A4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L IMMEDIATE,A4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write A4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L MEMORY,D5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L PROGRAM,D5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L IMMEDIATE,D5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write D5:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L MEMORY,A5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L PROGRAM,A5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L IMMEDIATE,A5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write A5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L MEMORY,D6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L PROGRAM,D6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L IMMEDIATE,D6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write D6:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L MEMORY,A6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L PROGRAM,A6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L IMMEDIATE,A6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write A6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.L MEMORY,D7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L PROGRAM,D7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.L IMMEDIATE,D7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+write D7:u32 := result
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.L MEMORY,A7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L PROGRAM,A7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 32-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+byte2:u8 := read program memory[addWrap(sourceAddress, 00000002:u32)]
+byte3:u8 := read program memory[addWrap(sourceAddress, 00000003:u32)]
+result := concatHighLow(concatHighLow(byte0, byte1), concatHighLow(byte2, byte3))
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.L IMMEDIATE,A7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+immediateLow:u16 := fetch complete native-order word
+result := concatHighLow(immediateHigh, immediateLow)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := result
+}
+when not(destinationSupervisor) {
+  write USP:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W MEMORY,D0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W PROGRAM,D0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W MEMORY,A0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A0
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+write A0:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W D0,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D0
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D1,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D1
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D2,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D2
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D3,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D3
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D4,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D4
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D5,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D5
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D6,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D6
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W D7,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read D7
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A0,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A0
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A1,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A1
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A2,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A2
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A3,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A3
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A4,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A4
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A5,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A5
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A6,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+source:u32 := read A6
+result := low16(source)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W A7,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceSupervisor:flag := read S
+when sourceSupervisor {
+  source:u32 := read SSP
+  result := low16(source)
+  destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+  when lowBit(destinationAddress) {
+    return data-space write alignment fault at destinationAddress; no later effects
+  }
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+when not(sourceSupervisor) {
+  source:u32 := read USP
+  result := low16(source)
+  destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+  when lowBit(destinationAddress) {
+    return data-space write alignment fault at destinationAddress; no later effects
+  }
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  flags "68000 result" simultaneously {
+    N := topBit(result)
+    Z := isZero(result)
+    V := 0:flag
+    C := 0:flag
+  } // Preserve unlisted flags.
+}
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W MEMORY,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W PROGRAM,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,MEMORY
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+destinationAddress:u32 := resolve 16-bit memory EA (mode destinationMode, register destinationCode); stage auto-updates for later operands
+when lowBit(destinationAddress) {
+  return data-space write alignment fault at destinationAddress; no later effects
+}
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write memory[destinationAddress] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(destinationAddress, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W MEMORY,D1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W PROGRAM,D1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W MEMORY,A1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A1
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+write A1:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W MEMORY,D2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W PROGRAM,D2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W MEMORY,A2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A2
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+write A2:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W MEMORY,D3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W PROGRAM,D3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W MEMORY,A3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A3
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+write A3:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W MEMORY,D4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W PROGRAM,D4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W MEMORY,A4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A4
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+write A4:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W MEMORY,D5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W PROGRAM,D5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W MEMORY,A5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A5
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+write A5:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W MEMORY,D6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W PROGRAM,D6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W MEMORY,A6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A6
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+write A6:u32 := signExtend32(result)
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVE.W MEMORY,D7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W PROGRAM,D7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+commit staged address-register updates in first-use order; repeated registers receive their final staged value
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVE.W IMMEDIATE,D7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. Preserve live upper Dn bits on byte/word writes. Only a complete write sets N/Z and clears V/C; preserve X/T/S.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+flags "68000 result" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+  V := 0:flag
+  C := 0:flag
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: X, T, S.
+
+### 68000 MOVEA.W MEMORY,A7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return data-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read memory[sourceAddress]
+byte1:u8 := read memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W PROGRAM,A7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+sourceAddress:u32 := resolve 16-bit memory EA (mode sourceMode, register sourceCode); stage auto-updates for later operands
+when lowBit(sourceAddress) {
+  return program-space read alignment fault at sourceAddress; no later effects
+}
+byte0:u8 := read program memory[sourceAddress]
+byte1:u8 := read program memory[addWrap(sourceAddress, 00000001:u32)]
+result := concatHighLow(byte0, byte1)
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  commit staged address-register updates in first-use order; repeated registers receive their final staged value
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEA.W IMMEDIATE,A7
+
+Read the complete source before resolving the destination. Memory EA decoding fetches extensions and stages auto-updates; later base/index calculations observe those pending values. Reject odd word/long addresses before the rejected access. After both operands pass alignment checks, commit pending registers before writing the destination. Failed source/extension accesses discard pending updates; failed destination writes retain updates and completed bytes, with flags unchanged. Memory transfers are high byte first with 32-bit logical wrap. MOVEA.W sign-extends, and both sizes preserve every flag. The destination write wins over an auto-update to the same register.
+
+```text
+sourceMode:u3 := input
+sourceCode:u3 := input
+destinationMode:u3 := input
+destinationCode:u3 := input
+immediateHigh:u16 := fetch complete native-order word
+result := immediateHigh
+destinationSupervisor:flag := read S
+when destinationSupervisor {
+  write SSP:u32 := signExtend32(result)
+}
+when not(destinationSupervisor) {
+  write USP:u32 := signExtend32(result)
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
 ### 6502 BRK
 
 Fetch padding before saving PC; stack B set. Push PC high then live PC low, then packed status with old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.

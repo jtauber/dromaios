@@ -6,7 +6,8 @@ import { opcodeTable } from "../opcodes.ts";
 interface CapturedValue { readonly code: string; readonly type: ValueType }
 type CapturedNumber = CapturedValue & { readonly type: Width };
 type Scope = ReadonlyMap<string, CapturedValue>;
-type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti" | "reportInterrupt" | "readTest" | "sendEscape";
+type Capability = "fetchByte" | "readByte" | "writeByte" | "readPort" | "writePort" | "deferInterrupt" | "notifyReti" | "reportInterrupt" | "readTest" | "sendEscape"
+  | "fetchWord" | "resolveAddress" | "commitAddressUpdates" | "readProgramByte";
 
 /** Compile the bounded experiment to ordinary typed statements, without executing any effects. */
 export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "8080" | "8088" | "6809" | "z80", definitions: Readonly<Record<string, InstructionDefinition>>,
@@ -16,6 +17,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "
   const stateType = `Cpu${cpu === "z80" ? "Z80" : cpu}${cpu === "8008" ? "Stored" : ""}State`;
   const helpers = new Set<string>();
   const outcomes = new Set<string>();
+  let alignmentFaults = false;
   const allCapabilities = new Set<Capability>();
   const contextExtensions: readonly { name: string; type?: string; file: string; capabilities: readonly Capability[] }[] = [
     { name: "BytePorts", file: "port-access", capabilities: ["readPort", "writePort"] },
@@ -23,6 +25,8 @@ export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "
     { name: "RetiNotificationContext", file: "instruction-context", capabilities: ["notifyReti"] },
     { name: "InterruptReportContext", file: "instruction-context", capabilities: ["reportInterrupt"] },
     { name: "Cpu8088ExternalContext", file: "8088-external", capabilities: ["readTest", "sendEscape"] },
+    { name: "WordInstructionContext", file: "instruction-context", capabilities: ["fetchWord"] },
+    { name: "Cpu68000AddressContext", file: "68000-context", capabilities: ["resolveAddress", "commitAddressUpdates", "readProgramByte"] },
   ];
   const extensions = (capabilities: ReadonlySet<Capability>) => contextExtensions.filter(extension => extension.capabilities.some(name => capabilities.has(name)));
   const contextType = (capabilities: ReadonlySet<Capability>) => "ByteInstructionContext" + extensions(capabilities).map(extension => " & " + (extension.type ?? extension.name)).join("");
@@ -32,6 +36,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "
     const lines: string[] = [];
     const capabilities = new Set<Capability>();
     const rejections = new Set<string>();
+    let rejectsAlignment = false;
     let nextValue = 0;
     const indent = result ? "      " : "  ";
     let depth = "";
@@ -186,6 +191,14 @@ export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "
             continue;
           }
           case "fetch-byte": captured = { code: `${access("fetchByte")}()`, type: 8 }; break;
+          case "fetch-word": captured = { code: `${access("fetchWord")}()`, type: 16 }; break;
+          case "resolve-address": captured = { code: `${access("resolveAddress")}(${step.size}, ${number(step.mode, scope).code}, ${number(step.code, scope).code})`, type: 32 }; break;
+          case "commit-address-updates": emit(`${access("commitAddressUpdates")}();`); continue;
+          case "alignment-fault":
+            alignmentFaults = rejectsAlignment = true;
+            emit(`return { operation: ${JSON.stringify(step.operation)}, address: ${number(step.address, scope).code}${step.operation === "read" ? `, programSpace: ${step.space === "program"}` : ""} };`);
+            continue;
+          case "read-program-memory": captured = { code: `${access("readProgramByte")}(${number(step.address, scope).code})`, type: 8 }; break;
           case "read-port": captured = { code: `${access("readPort")}(${number(step.port, scope).code})`, type: 8 }; break;
           case "read-memory": captured = { code: `${access("readByte")}(${address(step.address, scope)})`, type: 8 }; break;
           case "read-source": {
@@ -252,7 +265,7 @@ export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "
     if (capabilities.size) parameters.push(`instruction: Pick<${contextType(capabilities)}, ${[...capabilities].map(name => JSON.stringify(name)).join(" | ")}>`);
     const key = bindOpcodes && !result ? `0x${Number(name).toString(16).padStart(2, "0")}` : JSON.stringify(name);
     return `${indent}// ${JSON.stringify(`${cpu} ${definition.name}`)}\n`
-      + `${indent}${key}(${parameters.join(", ")}): ${result ? "number" : ["void", ...[...rejections].map(reason => JSON.stringify(reason))].join(" | ")} {\n${lines.join("\n")}\n${indent}},`;
+      + `${indent}${key}(${parameters.join(", ")}): ${result ? "number" : ["void", ...[...rejections].map(reason => JSON.stringify(reason)), ...(rejectsAlignment ? ["OperandAlignmentFault"] : [])].join(" | ")} {\n${lines.join("\n")}\n${indent}},`;
   }
   const methods = Object.entries(definitions).map(([name, definition]) => compile(name, definition));
   const readers = sources ? Object.entries(sources.groups).map(([group, members]) => {
@@ -264,10 +277,11 @@ export function generateInstructions(cpu: "6502" | "6800" | "68000" | "8008" | "
   const imports = [`import type { ${stateType} } from "../state/${cpu}.ts";`];
   if (bindOpcodes || allCapabilities.size) imports.push('import type { ByteInstructionContext } from "../instruction-context.ts";');
   for (const extension of extensions(allCapabilities)) imports.push(`import type { ${extension.name} } from "../${extension.file}.ts";`);
+  if (alignmentFaults) imports.push('import type { OperandAlignmentFault } from "../68000-context.ts";');
   if (bindOpcodes) imports.push('import type { OpcodeEntry } from "../opcodes.ts";');
   if (helpers.size) imports.push(`import { ${[...helpers].sort().join(", ")} } from "../alu.ts";`);
   const boundContext = contextType(allCapabilities);
-  const outcome = ["void", ...[...outcomes].map(reason => JSON.stringify(reason))].join(" | ");
+  const outcome = ["void", ...[...outcomes].map(reason => JSON.stringify(reason)), ...(alignmentFaults ? ["OperandAlignmentFault"] : [])].join(" | ");
   return `// Generated by scripts/generate-cpu-semantics.ts; edit semantics/definitions/${cpu}.ts instead.\n`
     + `${imports.join("\n")}\n\nexport const instructions = {\n${methods.join("\n\n")}\n};\n`
     + (sources ? `\n/** Bind reusable sources; fetching and memory access occur only when a reader is called. */

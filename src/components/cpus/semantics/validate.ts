@@ -174,7 +174,10 @@ export function validateInstruction(definition: InstructionDefinition): void {
       if (expression(expr.base, scope, where) !== 16 || expression(expr.offset, scope, where) !== 16) fail(where, "address projection requires word base and offset");
       if (!Number.isInteger(expr.baseShift) || expr.baseShift < 0 || expr.baseShift > 16) fail(where, "address base shift must be a constant from 0 through 16");
       if (!Number.isInteger(expr.addressBits) || expr.addressBits < 1 || expr.addressBits > 32) fail(where, "physical address width must be a constant from 1 through 32");
-    } else if (expression(expr, scope, where) !== 16) fail(where, "expected 16-bit value");
+    } else {
+      const bits = cpu.name === "68000" ? 32 : 16;
+      if (expression(expr, scope, where) !== bits) fail(where, `expected ${bits}-bit value`);
+    }
   }
   function steps(body: readonly Statement[], scope: Map<string, ValueType>, parent: string, allowRejection = true): void {
     body.forEach((step, index) => {
@@ -230,6 +233,23 @@ export function validateInstruction(definition: InstructionDefinition): void {
           return;
         }
         case "fetch-byte": captured = 8; break;
+        case "fetch-word": captured = 16; break;
+        case "resolve-address":
+          if (cpu.name !== "68000") fail(where, "staged address decoding requires a 68000 context");
+          if (![8, 16, 32].includes(step.size)) fail(where, "operand size must be 8, 16, or 32");
+          expect(step.mode, 3); expect(step.code, 3); captured = 32; break;
+        case "commit-address-updates":
+          if (cpu.name !== "68000") fail(where, "staged address updates require a 68000 context");
+          return;
+        case "alignment-fault":
+          if (cpu.name !== "68000") fail(where, "operand alignment faults require a 68000 boundary");
+          if (!allowRejection) fail(where, "value sources cannot reject an instruction");
+          if (!["read", "write"].includes(step.operation) || !["data", "program"].includes(step.space)
+            || (step.operation === "write" && step.space === "program")) fail(where, "invalid operand fault access space");
+          expect(step.address, 32); return;
+        case "read-program-memory":
+          if (cpu.name !== "68000") fail(where, "program-space reads require a 68000 context");
+          expect(step.address, 32); captured = 8; break;
         case "read-port": expect(step.port, 16); captured = 8; break;
         case "read-memory": address(step.address, scope, where); captured = 8; break;
         case "read-source": {
