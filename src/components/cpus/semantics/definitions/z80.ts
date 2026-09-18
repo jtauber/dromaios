@@ -4,12 +4,14 @@ import { addOverflow, bitAnd, bitOr, bitXor, borrow, capture, carry, cpuSymbols,
 import type { FlagPolicy, InstructionDefinition, Statement } from "../model.ts";
 import { immediateByte, registerSource, shift } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
-import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelExchanges, intelJumps, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelWordTransfer, intelWordTransfers } from "../intel.ts";
+import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfer, intelByteTransfers, intelExchanges, intelJumps, intelRegisterStacks, intelStackTransfer, intelSubroutines, intelStackExchange, intelWordAdjustment, intelWordArithmetic, intelWordArithmeticFamily, intelWordRegister, intelWordTransfer, intelWordTransfers } from "../intel.ts";
 import type { IntelByteOperation } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 import { flagCondition, jump, relativeBranch } from "../control-flow.ts";
 
 const cpu = cpuSymbols("z80", cpuZ80StateDescription);
+const conditions = (["z", "c", "pv", "s"] as const).map(flag => cpu.flag(flag));
+const conditionNames = ["NZ", "Z", "NC", "C", "PO", "PE", "P", "M"];
 const sources = intelByteSources(cpu.register);
 
 function wordTransferName(register: string, operation: "immediate" | "load" | "store" | "copy"): string {
@@ -140,8 +142,16 @@ function family(mnemonic: string, operation: IntelByteOperation, withCarry = fal
 }
 
 export const instructionsZ80 = {
-  ...intelJumps(cpu, (["z", "c", "pv", "s"] as const).map(flag => cpu.flag(flag)),
-    condition => typeof condition === "number" ? `JP ${["NZ", "Z", "NC", "C", "PO", "PE", "P", "M"][condition]},nn`
+  ...intelRegisterStacks(cpu, (register, operation) => `${operation.toUpperCase()} ${register.toUpperCase()}`),
+  ...Object.fromEntries((["ix", "iy"] as const).flatMap(register => (["push", "pop"] as const).map(operation =>
+    [`${operation}${register.toUpperCase()}`, intelStackTransfer(cpu, cpu.register(register), operation, `${operation.toUpperCase()} ${register.toUpperCase()}`)]))),
+  ...intelSubroutines(cpu, conditions, {
+    call: condition => condition === undefined ? "CALL nn" : `CALL ${conditionNames[condition]},nn`,
+    return: condition => condition === undefined ? "RET" : `RET ${conditionNames[condition]}`,
+    restart: address => `RST ${address.toString(16).toUpperCase().padStart(2, "0")}H`,
+  }),
+  ...intelJumps(cpu, conditions,
+    condition => typeof condition === "number" ? `JP ${conditionNames[condition]},nn`
       : condition === "absolute" ? "JP nn" : "JP (HL)"),
   jr: relativeBranch(cpu, "JR e", immediateByte),
   ...Object.fromEntries((["NZ", "Z", "NC", "C"] as const).map((name, index) =>

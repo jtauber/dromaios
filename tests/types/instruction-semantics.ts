@@ -117,6 +117,26 @@ export function checkGeneratedInstructionTypes(mos: Cpu6502State, intel: Cpu8080
   readers.operands[3]({ fetchByte: () => 0 });
   // @ts-expect-error Reader bindings require the concrete CPU state.
   sourceReaders(intel);
+  generated6502[0x20](mos, { fetchByte: () => 0, writeByte: () => {} });
+  generated6502[0x48](mos, { writeByte: () => {} });
+  generated6502[0x60](mos, { readByte: () => 0 });
+  generated6800.bsr(m6800, { fetchByte: () => 0, writeByte: () => {} });
+  generated6809.jsr(motorola, 0xffff, { writeByte: () => {} });
+  generated8080[0xc5](intel, { writeByte: () => {} });
+  generated8080[0xc1](intel, { readByte: () => 0 });
+  generatedZ80.pushIX(z80, { writeByte: () => {} });
+  generatedZ80.popIY(z80, { readByte: () => 0 });
+  generatedZ80[0xcd](z80, { fetchByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Calls require stack writes, even when the runtime condition is false.
+  generated8080[0xc4](intel, { fetchByte: () => 0 });
+  // @ts-expect-error Returns read memory but never fetch an operand.
+  generated8080[0xc0](intel, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error RST has no target operand to fetch.
+  generatedZ80[0xc7](z80, { fetchByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error Resolved JSR cannot fetch or resolve its target again.
+  generated6809.jsr(motorola, 0xffff, { fetchByte: () => 0, writeByte: () => {} });
+  // @ts-expect-error PHA cannot read its destination.
+  generated6502[0x48](mos, { readByte: () => 0, writeByte: () => {} });
   generated6502[0x10](mos, { fetchByte: () => 0 });
   generated6502[0x6c](mos, { fetchByte: () => 0, readByte: () => 0 });
   generated6800.bra(m6800, { fetchByte: () => 0 });

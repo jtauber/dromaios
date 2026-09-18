@@ -2,8 +2,9 @@ import { addOverflow, addWrap, and, carry, halfCarry, flagValue, bitAnd, bitOr, 
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
 import { arithmetic, compare, immediateByte, logical, negativeZeroPolicy, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
-import { relativeBranch } from "./control-flow.ts";
+import { relativeBranch, relativeTarget, resolvedCall, subroutineCall, subroutineReturn } from "./control-flow.ts";
 import type { FlowCpu, Condition } from "./control-flow.ts";
+import { byteStack, wordStack } from "./stack.ts";
 import { motorolaBranchNames } from "../motorola.ts";
 
 interface MotorolaCpu {
@@ -93,6 +94,16 @@ export function motorolaComparisonFlags(cpu: MotorolaCpu, width: Width): FlagPol
 
 const immediateWord: ValueSource = { name: "immediate word, high byte first", width: 16,
   steps: [fetchByte("high"), fetchByte("low")], result: concat(value("high"), value("low")) };
+
+/** Motorola call stacks store words high-byte-first in memory; each CPU declares what its pointer names. */
+export function motorolaSubroutines(cpu: FlowCpu, pointer: Register, position: "free" | "occupied", long = false) {
+  const stack = wordStack(byteStack(pointer, position), "big-endian");
+  return {
+    bsr: subroutineCall(cpu, "BSR", relativeTarget(cpu, immediateByte), stack),
+    ...(long ? { lbsr: subroutineCall(cpu, "LBSR", relativeTarget(cpu, immediateWord), stack) } : {}),
+    jsr: resolvedCall(cpu, stack), rts: subroutineReturn(cpu, "RTS", stack),
+  };
+}
 
 /** Native condition pairs share explicit flag-read order; 6800 omits BRN and 6809 also supplies long forms. */
 export function motorolaBranches(cpu: MotorolaCpu & FlowCpu, names: readonly (typeof motorolaBranchNames)[number][], long = false) {

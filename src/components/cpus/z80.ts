@@ -281,11 +281,6 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
     return instruction => execute(this.state, instruction);
   });
 
-  // ccc=ffv: ff selects Z/C/PV/S; v is the required value, giving NZ/Z/NC/C/PO/PE/P/M.
-  // Conditional JR uses just the first four tests.
-  protected override readonly conditions = (["z", "c", "pv", "s"] as const).flatMap(flag =>
-    [false, true].map(value => () => this.state.flags[flag] === value));
-
   // 00 ooo 111: accumulator/carry operations, in encoded order.
   protected override readonly accumulatorOperations: readonly (() => void)[] = [
     () => semantics.rlca(this.state), // 000 RLCA
@@ -401,10 +396,10 @@ export class CpuZ80 extends Cpu8080Family<CpuZ80State> {
       ]),
       ...opcodeFamily("10 ooo 110", { o: this.#aluFamilies }, ({ o: operation }) => (instruction: InstructionContext) =>
         semantics[`${operation}Memory`](this.state, address(instruction), instruction)), // ALU (IX/IY+d)
-      ...instructionPattern("11 10 0 001", ({ readByte }) => { this.state[index] = this.stack.pop(readByte); }), // POP IX/IY
+      ...instructionPattern("11 10 0 001", instruction => semantics[`pop${suffix}`](this.state, instruction)), // POP IX/IY
       ...instructionPattern("11 10 1 001", () => semantics[`jump${suffix}`](this.state)), // JP (IX/IY); no displacement or target read
       ...instructionPattern("11 100 011", instruction => semantics[`exchange${suffix}Word`](this.state, instruction)), // EX (SP),IX/IY
-      ...instructionPattern("11 10 0 101", ({ writeByte }) => this.stack.push(this.state[index], writeByte)), // PUSH IX/IY
+      ...instructionPattern("11 10 0 101", instruction => semantics[`push${suffix}`](this.state, instruction)), // PUSH IX/IY
       ...instructionPattern("11 11 1 001", () => semantics[`copy${suffix}Word`](this.state)), // LD SP,IX/IY
     ];
   }

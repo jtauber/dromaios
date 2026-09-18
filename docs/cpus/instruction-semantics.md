@@ -50,8 +50,11 @@ it does not choose an external grammar or a document format for authoring CPUs.
 | 6502 conditional branches and absolute/indirect JMP | Fetch before testing flags; read/write PC only when taken; keep the NMOS indirect pointer's page wrap explicit |
 | 6800 short branches and JMP; 6809 short/long branches and JMP | Share conditions and displacement sources; preserve absent BRN on 6800, standalone LBRA on 6809, and indexed decoding before resolved JMP |
 | 8080 conditional/unconditional JMP and PCHL; Z80 JP/JR/DJNZ | Share target fetching and condition construction; preserve supplied-byte PC rules, no target read for register jumps, and DJNZ's fetch–decrement–test order |
+| 6502 PHA/PLA and JSR/RTS | Fixed stack page and byte-pointer wrap; PLA flags after the read; JSR's interleaved operand/stack access and RTS's final increment |
+| 6800 A/B pushes/pulls and BSR/JSR/RTS; 6809 BSR/LBSR/JSR/RTS | Share big-endian word construction with distinct pointer position; preserve partial effects and indexed S updates before calls |
+| 8080 BC/DE/HL and Z80 BC/DE/HL/IX/IY pushes/pops, all ordinary CALL/RET/RST | Capture sources before stack access; defer destination writes until complete pops; share conditional calls/returns while retaining supplied-byte and retirement contracts |
 
-There are 1,234 bodies. All are generated, executable, and bound into their CPU's
+There are 1,317 bodies. All are generated, executable, and bound into their CPU's
 opcode table. The earlier MOV B,A test sample is part of the complete 8080 matrix.
 Other instruction families retain their existing shared helpers. This is not a
 complete CPU migration. Bodies start after opcode selection. Each 6809 memory
@@ -75,10 +78,11 @@ The authoring layers have separate homes:
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
 | [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
-| [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, absolute/resolved jumps, and relative branches with explicit operand-before-condition order |
-| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, byte/word-transfer, and branch construction, with explicit access and flag policies |
-| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers, arithmetic, exchanges, and jumps, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
-| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 load and 8080/Z80 transfer, word-arithmetic, exchange, and jump encoding inventories consumed by definition construction and runtime binding; HALT omitted |
+| [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, and returns with explicit operand/condition/stack order |
+| [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, and complete push/pop instruction construction |
+| [motorola.ts](../../src/components/cpus/semantics/motorola.ts) | Shared 6800/6809 unary, comparison, logical, arithmetic, byte/word-transfer, branch, and subroutine construction, with explicit access and flag policies |
+| [intel.ts](../../src/components/cpus/semantics/intel.ts) | Shared 8008/8080/Z80 byte ALU and transfers, 8080/Z80 word transfers, arithmetic, exchanges, jumps, stacks, and subroutines, with explicit address, read, and writeback policies; byte sources and adjustments; shared accumulator rotates with CPU-specific additional flag stages |
+| [intel-encodings.ts](../../src/components/cpus/intel-encodings.ts) | Native 8008 load and 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine encoding inventories consumed by definition construction and runtime binding; HALT omitted |
 | [definitions/6502.ts](../../src/components/cpus/semantics/definitions/6502.ts), [6800.ts](../../src/components/cpus/semantics/definitions/6800.ts), [8008.ts](../../src/components/cpus/semantics/definitions/8008.ts), [8080.ts](../../src/components/cpus/semantics/definitions/8080.ts), [6809.ts](../../src/components/cpus/semantics/definitions/6809.ts), [z80.ts](../../src/components/cpus/semantics/definitions/z80.ts) | CPU-specific sources, flag policies, instruction bodies, and authored explanations |
 | [definitions.ts](../../src/components/cpus/semantics/definitions.ts) | Inventory consumed by executable generation and explanation |
 
@@ -306,8 +310,8 @@ indexed modes, whereas LDY uses X.
 `sources6502` groups eight named address sources and eight `bbb` operand sources.
 The operand readers and generated accumulator bodies use the same selector inventory.
 This removes a second addressing implementation and operand list from the CPU.
-Indirect JMP retains its explicit page-wrap helper, and JSR still fetches its
-operand bytes separately around the stack writes.
+Indirect JMP uses its explicit page-wrapped pointer source. Generated JSR
+fetches its operand bytes separately around the stack writes.
 
 All thirteen STA/STX/STY forms use one store construction: read the address
 source, read the source register, and write its captured byte once. There is no
@@ -411,8 +415,39 @@ uses that stage to decrement B, then reads B again without touching flags.
 The 6502's page-wrapped indirect pointer stays in its own source. Motorola JMP
 receives an address only after the CPU decoder completes, retaining indexed
 side effects and rejection. Register-indirect Intel jumps read the register or
-pair directly and never read memory at the destination. Calls, returns, and
-instruction retirement stay in the cores.
+pair directly and never read memory at the destination. Instruction retirement
+stays in the cores.
+
+## Stacks and subroutines
+
+[Stack construction](../../src/components/cpus/semantics/stack.ts) expands into
+existing register, memory, and arithmetic statements. It adds no primitive or
+runtime interpreter. `byteStack` declares the pointer and whether it names an
+occupied or free byte. An occupied pointer predecrements on push and increments
+after a successful pop read. A free pointer writes before decrementing on push
+and increments before a pop read. Each adjustment reads the live pointer at its
+own stage, including after a memory callback. Pointer width determines wrapping;
+a byte pointer can select a fixed aligned page, such as the 6502's `0100`.
+`wordStack` separately declares little- or big-endian memory layout, pushing in
+the reverse order to popping. Each popped byte has a source-local capture.
+
+Complete push bodies capture the source before stack access. Pop bodies write
+the destination only after all reads succeed; pairs retain high/low register
+write order. PLA then applies N/Z. Calls capture the target before condition
+flags, capture the return PC only if taken, push it, and write PC after both
+writes succeed. Returns test flags before stack access and write PC after a
+complete pop. Untaken calls and returns leave SP untouched and only advance
+PC through instruction fetching. The
+shared Intel native inventory supplies definition keys and runtime bindings;
+condition callbacks and the old stack-pair dispatch are removed.
+
+The 6502's JSR stays an explicit sequence: fetch low target, read/push current PC
+high, read/push current PC low, fetch high target, then write PC. A stack write
+can replace the final operand. RTS adds one to the popped word. Motorola calls
+use big-endian stacks and the existing address decoder. Indexed 6809 JSR retains
+S auto-updates and NMI arming before body entry; subroutine stack effects do not
+arm NMI. Packed-status stacks, 6809 register-mask stacks, and interrupt handling
+continue to use their current runtime helpers.
 
 ## Primitive meanings
 
@@ -753,6 +788,15 @@ PC/R wrapping, supplied Intel instructions, DJNZ count wrapping, and every faile
 fetch or pointer read. Existing independent CPU tests retain exhaustive
 displacement, pointer, and 6809 indexed-postbyte expectations.
 
+[Stack body probes](../../tests/components/cpus/semantics/stacks.test.ts)
+replace pointers, registers, and flag objects during memory callbacks to check
+live pointer reads, captured push sources, delayed pop writeback, and conditional
+effect boundaries. They also check 6502 JSR's separately captured return bytes.
+[CPU stack tests](../../tests/components/cpus/stack-failures.test.ts) cover all
+86 encodings, conditions, PC/SP/R wrap, overlapping code and stack memory,
+interrupt-supplied Intel instructions, every failed access, and indexed 6809
+calls through S. Unsupported indexed forms retain the existing rejection rule.
+
 ## Executable generation and integration
 
 [generateInstructions](../../src/components/cpus/semantics/generate.ts) validates
@@ -830,7 +874,7 @@ and all 310 documented CB forms through unified ordinary and indexed CB bindings
 Thirty-one resolved-memory bodies each serve HL, IX, and IY after address resolution.
 Its prefix recognition, signed displacement calculation, PC/R updates, and
 interrupt handling remain in the CPU module.
-The shared 8080/Z80 transfer, word-arithmetic, exchange, and jump inventory supplies both definition keys and ordinary
+The shared 8080/Z80 transfer, word-arithmetic, exchange, jump, stack, and subroutine inventory supplies both definition keys and ordinary
 binding opcodes. Each CPU exposes its generated bodies to one family binder;
 there are no duplicate per-CPU transfer binding tables. HALT is an explicit
 handwritten slot. The former operand read/write helpers and transfer body are
@@ -1016,13 +1060,14 @@ remain ordinary statements and do not introduce a general register-view system.
 
 Subsequent migrations should also identify the handwritten helpers they can
 retire. The 6502's result-writing, arithmetic, and stack helpers still serve
-handwritten instructions. A later JSR slice remains a test of interleaved
-fetching and stack writes, but adding that vocabulary alone would not establish
-a source-reduction benefit.
+handwritten instructions. JSR now expresses interleaved fetching and stack
+writes using existing statements; its call/return wrappers have been removed.
+Stack migration improves shared authoring but still increases total authored
+source, as recorded in the footprint report.
 
 General addressing decoders (such as the full 6809 postbyte decoder), general
-register-view declarations, loops, push/pop/call/return bodies, instruction rejection, pending
-commits, and exception delivery are not represented here. The 6502 JSR and 68000
-MOVE traces still challenge later ordering vocabulary. The 6507 address-projection
+register-view declarations, loops, packed-status and register-mask stacks,
+instruction rejection, pending commits, and exception delivery are not represented
+here. The 68000 MOVE traces still challenge later ordering vocabulary. The 6507 address-projection
 and 4004 nibble/interface probes remain acceptance requirements, not capabilities
 of this byte/word slice.

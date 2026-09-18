@@ -18,17 +18,17 @@ emulators do not count toward implementation here.
 | Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
 | --- | --- | ---: | ---: | --- | --- |
 | [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [263](../../src/components/cpus/8008.ts) | 159 / 250 | 63.6% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [237](../../src/components/cpus/8080.ts) | 200 / 244 | 82.0% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [285](../../src/components/cpus/6800.ts) | 170 / 197 | 86.3% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [267](../../src/components/cpus/6502.ts) | 119 / 151 | 78.8% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [533](../../src/components/cpus/z80.ts) | 606 / 698 | 86.8% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [509](../../src/components/cpus/6809.ts) | 239 / 268 | 89.2% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [232](../../src/components/cpus/8080.ts) | 232 / 244 | 95.1% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [269](../../src/components/cpus/6800.ts) | 178 / 197 | 90.4% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [247](../../src/components/cpus/6502.ts) | 123 / 151 | 81.5% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [528](../../src/components/cpus/z80.ts) | 642 / 698 | 92.0% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [503](../../src/components/cpus/6809.ts) | 245 / 268 | 91.4% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [996](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
 | [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [1344](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **1,234 generated bodies**, all used by CPU execution,
-covering **1,493 complete opcode forms**:
+contains **1,317 generated bodies**, all used by CPU execution,
+covering **1,579 complete opcode forms**:
 
 - [6502 definitions](../../src/components/cpus/semantics/definitions/6502.ts):
   14 CMP/CPX/CPY forms, 18 LDA/LDX/LDY forms, 13 STA/STX/STY forms, all six register transfers,
@@ -36,7 +36,10 @@ covering **1,493 complete opcode forms**:
   all 24 ORA/AND/EOR forms, both BIT forms, eight conditional branches,
   and absolute/indirect JMP. Branches fetch before testing flags and read/write
   PC only when taken. Indirect JMP retains the NMOS pointer-page wrap.
-  All 119 bodies are integrated and count as migrated forms. The accumulator
+  PHA/PLA and JSR/RTS add four bodies. PLA applies N/Z only after a successful
+  pull; JSR fetches target low, pushes current PC high/low, then fetches target
+  high, retaining code/stack overlap. RTS adds one after the complete pop.
+  All 123 bodies are integrated and count as migrated forms. The accumulator
   families share their addressing inventory, with STA excluding the immediate
   slot. Logical instructions read the operand before A; ORA/AND/EOR write A then
   set N/Z, while BIT preserves A and copies memory bits 7/6 into N/V.
@@ -72,7 +75,13 @@ covering **1,493 complete opcode forms**:
   XCHG swaps D/H before E/L without memory or flag access. Eight conditional
   jumps, JMP, and PCHL add ten bodies using shared control-flow construction
   and Intel encodings. Immediate targets are fetched completely before flags
-  are tested; PCHL reads H/L without a memory access. All 200 bodies are integrated.
+  are tested; PCHL reads H/L without a memory access. PUSH/POP BC/DE/HL,
+  nine CALL forms, nine RET forms, and eight RST forms add 32 bodies. All use
+  shared descending-stack construction: predecrement before writes, increment
+  after successful reads, and little-endian words. Calls fetch targets before
+  testing flags; untaken calls/returns leave SP untouched and only advance PC
+  through instruction fetching. All 232 bodies
+  are integrated; packed PSW stacks remain handwritten.
 - [6800 definitions](../../src/components/cpus/semantics/definitions/6800.ts):
   All eleven unary operations on A/B and indexed/extended memory count as 44
   migrated forms. Their 33 bodies use the same
@@ -95,6 +104,11 @@ covering **1,493 complete opcode forms**:
   Fifteen short branches and indexed/extended JMP add 17 forms from 16 bodies.
   Branch construction and conditions are shared with the 6809; the unused BRN
   slot stays absent. One JMP body serves both resolved addresses.
+  PSHA/PSHB/PULA/PULB, BSR, indexed/extended JSR, and RTS add eight forms from
+  seven bodies. SP names the next free byte: push writes before decrementing,
+  pull increments before reading. Word calls push low/high and return reads
+  high/low. Calls capture targets before stacking; completed effects remain
+  on failure. Stack operations preserve flags.
 - [6809 definitions](../../src/components/cpus/semantics/definitions/6809.ts):
   CMPA/B/D/X/Y/U/S across immediate/direct/indexed/extended addressing count as
   28 migrated forms from 14 bodies. All eleven unary operations (NEG, COM, LSR,
@@ -121,6 +135,11 @@ covering **1,493 complete opcode forms**:
   their complete displacement. LBRA keeps its standalone opcode. One resolved
   JMP body serves direct/indexed/extended forms, preserving all indexed-decoder
   side effects and rejection before entry: 35 further forms from 33 bodies.
+  BSR/LBSR, direct/indexed/extended JSR, and RTS add six forms from four bodies.
+  S names the occupied byte: pushes predecrement; pulls increment after reads.
+  Words use the same big-endian layout as the 6800. Indexed JSR captures its
+  resolved target before stacking, retaining S auto-updates and NMI arming;
+  the call/return bodies themselves preserve arming.
 - [Z80 definitions](../../src/components/cpus/semantics/definitions/z80.ts):
   All eight byte ALU families (ADD/ADC/SUB/SBC/AND/XOR/OR/CP) are integrated:
   72 register, (HL), and immediate forms, plus 16 (IX+d)/(IY+d) forms. Eight
@@ -172,7 +191,12 @@ covering **1,493 complete opcode forms**:
   twelve bodies. Five JR forms and DJNZ add six more. All targets/displacements
   are read before conditions; untaken paths do not read or write PC. DJNZ
   decrements B after fetching, preserves flags, and tests the resulting B.
-  The Z80 integrates 515 bodies covering 606 forms.
+  PUSH/POP BC/DE/HL/IX/IY and every ordinary CALL/RET/RST add 36 bodies and
+  forms. They share the 8080's stack/subroutine construction, including complete
+  source capture, delayed pop writeback, and byte-level failure boundaries.
+  AF stacks and interrupt returns remain handwritten. Prefix decoding, supplied
+  instructions, refresh, and retirement retain their existing contracts.
+  The Z80 integrates 551 bodies covering 642 forms.
 - [8008 definitions](../../src/components/cpus/semantics/definitions/8008.ts):
   All 72 byte ALU forms are integrated: AD/AC/SU/SB/ND/XR/OR/CP with each
   register, memory, and immediate source. The existing Intel ALU construction
@@ -240,27 +264,28 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 4,434 |
-| CPU-specific instruction definition files | 732 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,330 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,496** |
+| Eight CPU implementation files | 4,382 |
+| CPU-specific instruction definition files | 772 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 2,488 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **7,642** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 17 |
-| Generated CPU output, counted separately | 19,462 |
+| Generated CPU output, counted separately | 20,983 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The branch/jump migration adds **87 bodies for 90 forms** across the 6502,
-6800, 6809, 8080, and Z80. It removes their handwritten branch/jump paths and
-the 6502's indirect-JMP pointer helper; helpers still needed by calls/returns
-remain. The eight CPU modules shrink by **65 lines**, while CPU-specific
-definitions add **40** and other authored CPU source adds **115**, including
-shared construction, three semantic primitives, validation, generation, and
-reporting. Total authored CPU source rises from **7,406 to 7,496 lines**
-(**90 more**). All 1,147 earlier definitions remain structurally unchanged;
-the 8008 generated module remains byte-for-byte identical. Scoped conditional
-statements, signed widening, and Boolean AND make shared control flow
-inspectable, but this batch does not reduce total authored source.
+The stack/subroutine migration adds **83 bodies for 86 forms** across five
+CPUs. Shared byte-stack construction makes pointer position and access order
+explicit; word construction selects byte order separately. This uses the
+existing semantic primitives without validator, generator, or reporter changes.
+The eight CPU modules shrink by **52 lines** and the Intel family core by **6**,
+retiring condition callbacks, broad pair dispatch, and superseded call/return
+wrappers. Runtime stack helpers still serve packed-status and interrupt paths.
+CPU-specific definitions add **40 lines**; other authored source adds **158**
+net, including those family-core removals. Total authored CPU source rises from
+**7,496 to 7,642 lines** (**146 more**). All 1,234 earlier definitions and their
+generated bodies remain unchanged; the 8008 module is byte-for-byte identical.
+This expands shared instruction authoring but does not reduce total source.
 The 16 standalone address/operand readers are not instruction bodies and do
 not earn separate migration credit.
 

@@ -43,6 +43,7 @@ test("all generated modules reproduce from definitions without changing them", (
 test("6502 families generate exactly the migrated encodings, including opposite-index transfers and omitted store modes", () => {
   // Explicit opcode expectations are independent of the authored bit-pattern expansion.
   const expected = {
+    0x20: "JSR", 0x60: "RTS", 0x48: "PHA", 0x68: "PLA",
     0x10: "BPL", 0x30: "BMI", 0x50: "BVC", 0x70: "BVS",
     0x90: "BCC", 0xb0: "BCS", 0xd0: "BNE", 0xf0: "BEQ",
     0x4c: "JMP absolute", 0x6c: "JMP indirect",

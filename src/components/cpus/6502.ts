@@ -119,18 +119,14 @@ export class Cpu6502 {
   #instructionEntries(): readonly OpcodeEntry<OpcodeHandler>[] {
     return [
       ...opcodeEntries(this.#state),
-      // cc=00, bbb=000: aaa=000/010 select BRK/RTI; 001/011 select JSR/RTS.
+      // cc=00, bbb=000: aaa=000/010 select BRK/RTI; 001/011 (JSR/RTS) are generated.
       ...instructionPattern("000 000 00", instruction => this.#break(instruction)), // BRK
-      ...instructionPattern("001 000 00", instruction => this.#call(instruction)), // JSR addr
       ...instructionPattern("010 000 00", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
-      ...instructionPattern("011 000 00", ({ readByte }) => this.#return(readByte)), // RTS
 
       // cc=00, bbb=010: 0rp 010 00. r (bit 6) selects status (0)/A (1); p (bit 5) selects push (0)/pull (1).
       ...instructionPattern("00 0 010 00", ({ writeByte }) => this.#pushByte(packedFlags.encode(this.#state.flags) | 0x10, writeByte)), // PHP
       ...instructionPattern("00 1 010 00", ({ readByte }) => { this.#state.flags = packedFlags.decode(this.#pullByte(readByte)); }), // PLP
-      ...instructionPattern("01 0 010 00", ({ writeByte }) => this.#pushByte(this.#state.a, writeByte)), // PHA
-      ...instructionPattern("01 1 010 00", ({ readByte }) => this.#loadRegister("a", this.#pullByte(readByte))), // PLA
-      // TAY and DEY/INY/INX are generated.
+      // PHA/PLA, TAY, and DEY/INY/INX are generated.
 
       // cc=00, bbb=110: 00v/01v/11v select CLC/SEC, CLI/SEI, CLD/SED; v (bit 5) is the new flag value.
       // aaa=101 selects CLV; TYA is generated.
@@ -166,22 +162,6 @@ export class Cpu6502 {
 
   #jump(address: number): void {
     this.#state.pc = address;
-  }
-
-  #call({ fetchByte, writeByte }: InstructionContext): void {
-    const low = fetchByte();
-    // PC points at JSR's last byte. Push that address high first, before fetching the target high byte.
-    // A stack write can replace that operand; the target low byte has already been captured.
-    this.#pushByte(this.#state.pc >>> 8, writeByte);
-    this.#pushByte(this.#state.pc & 0xff, writeByte);
-    const high = fetchByte();
-    this.#jump(low | (high << 8));
-  }
-
-  #return(readByte: InstructionContext["readByte"]): void {
-    const low = this.#pullByte(readByte);
-    const high = this.#pullByte(readByte);
-    this.#jump(((low | (high << 8)) + 1) & 0xffff);
   }
 
   #break(instruction: InstructionContext): void {

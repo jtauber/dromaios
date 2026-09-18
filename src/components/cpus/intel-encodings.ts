@@ -48,3 +48,19 @@ export const intelJumpForms = {
   absolute: opcodePattern("11 000 011", "absolute"),
   indirect: opcodePattern("11 10 1 001", "indirect"),
 } as const;
+
+// 11 pp 0 q01: pp selects BC/DE/HL; pp=11 is the CPU-owned packed status word. q=0 pops, q=1 pushes.
+function registerStackForms(pattern: string) {
+  return opcodeFamily(pattern, { p: ["bc", "de", "hl", undefined] as const }, ({ p: register }) => register)
+    .flatMap(([opcode, register]) => register === undefined ? [] : [[opcode, register] as const]);
+}
+export const intelStackForms = { pop: registerStackForms("11 pp 0 001"), push: registerStackForms("11 pp 0 101") };
+
+// ccc=ffv uses the jump conditions; ttt selects restart address bits 5..3.
+export const intelSubroutineForms = {
+  conditionalCalls: opcodeFamily("11 ccc 100", { c: [0, 1, 2, 3, 4, 5, 6, 7] }, ({ c: condition }) => condition),
+  call: opcodePattern("11 00 1 101", undefined),
+  conditionalReturns: opcodeFamily("11 ccc 000", { c: [0, 1, 2, 3, 4, 5, 6, 7] }, ({ c: condition }) => condition),
+  return: opcodePattern("11 00 1 001", undefined),
+  restarts: opcodeFamily("11 ttt 111", { t: [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] }, ({ t: address }) => address),
+} as const;

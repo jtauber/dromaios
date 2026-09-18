@@ -1,13 +1,15 @@
 import { cpu6502StateDescription } from "../../state/6502.ts";
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
-import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, cpuSymbols, extend, fetchByte, literal, lowByte, negative, not,
+import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, cpuSymbols, extend, fetchByte, highByte, literal, lowByte, negative, not,
   readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
 import { compare, immediateByte, instructionSet, logical, memorySource, negativeZeroPolicy, registerSource, shift, transfer } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
-import { flagCondition, jump, relativeBranch } from "../control-flow.ts";
+import { flagCondition, jump, relativeBranch, subroutineReturn } from "../control-flow.ts";
+import { byteStack, stackPop, stackPush, wordStack } from "../stack.ts";
 
 const cpu = cpuSymbols("6502", cpu6502StateDescription);
+const stack = byteStack(cpu.register("sp"), "free", 0x0100);
 type Operand = readonly [name: string, source: ValueSource];
 
 // Address sources stop before the final data read; stores and modifiers use them directly.
@@ -177,6 +179,19 @@ const modifyOperands: readonly Operand[] = [
 
 // These patterns generate both instruction bodies and their execution bindings.
 export const instructions6502 = instructionSet([
+  // 0rp 010 00: r=1 selects A; p=0 pushes, p=1 pulls and updates N/Z.
+  ...opcodePattern("01 0 010 00", stackPush(cpu.declaration, "PHA", stack, registerSource(cpu.register("a")))),
+  ...opcodePattern("01 1 010 00", stackPop(cpu.declaration, "PLA", stack, cpu.register("a"), resultNZ)),
+  // 0r1 000 00: r=0 calls, r=1 returns. JSR interleaves operand fetching with stack writes.
+  ...opcodePattern("001 000 00", defineInstruction({ cpu: cpu.declaration, name: "JSR",
+    explanation: "Fetch the target low byte, then push the current PC high byte and current PC low byte. "
+      + "Only then fetch the target high byte and write PC. A stack write may replace that final operand. "
+      + "Preserve flags and other registers. " + stack.explanation,
+    steps: [fetchByte("targetLow"), readRegister("highPC", cpu.register("pc")), ...stack.push(highByte(value("highPC")), "high"),
+      readRegister("lowPC", cpu.register("pc")), ...stack.push(lowByte(value("lowPC")), "low"),
+      fetchByte("targetHigh"), writeRegister(cpu.register("pc"), concat(value("targetHigh"), value("targetLow")))],
+  })),
+  ...opcodePattern("011 000 00", subroutineReturn(cpu, "RTS", wordStack(stack, "little-endian"), undefined, 1)),
   // ffv 100 00: ff selects N/V/C/Z; v is the required flag value.
   ...opcodeFamily("ff v 100 00", { f: ["n", "v", "c", "z"] as const, v: [false, true] }, ({ f, v }) =>
     relativeBranch(cpu, { n: ["BPL", "BMI"], v: ["BVC", "BVS"], c: ["BCC", "BCS"], z: ["BNE", "BEQ"] }[f][Number(v)]!,

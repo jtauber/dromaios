@@ -2,10 +2,11 @@ import { cpu6800StateDescription } from "../../state/6800.ts";
 import { cpuSymbols, highByte, negative, overflow, readRegister, writeRegister, subtract, value, zero } from "../model.ts";
 import type { FlagPolicy } from "../model.ts";
 import { compare, registerSource, transfer } from "../builders.ts";
-import { motorolaArithmetic, motorolaBranches, motorolaByteArithmetic, motorolaResultFlags, motorolaTransfers, motorolaComparison, motorolaComparisonFlags, motorolaLogic, motorolaUnary } from "../motorola.ts";
+import { motorolaArithmetic, motorolaBranches, motorolaByteArithmetic, motorolaResultFlags, motorolaSubroutines, motorolaTransfers, motorolaComparison, motorolaComparisonFlags, motorolaLogic, motorolaUnary } from "../motorola.ts";
 import { defineInstruction } from "../validate.ts";
 import { resolvedJump } from "../control-flow.ts";
 import { motorolaBranchNames } from "../../motorola.ts";
+import { byteStack, stackPop, stackPush } from "../stack.ts";
 
 const cpu = cpuSymbols("6800", cpu6800StateDescription);
 
@@ -20,6 +21,12 @@ const indexComparison: FlagPolicy = {
 };
 
 export const instructions6800 = {
+  ...motorolaSubroutines(cpu, cpu.register("sp"), "free"),
+  ...Object.fromEntries((["a", "b"] as const).flatMap(register => {
+    const stack = byteStack(cpu.register("sp"), "free"), suffix = register.toUpperCase();
+    return [[`psh${suffix}`, stackPush(cpu.declaration, `PSH${suffix}`, stack, registerSource(cpu.register(register)))],
+      [`pul${suffix}`, stackPop(cpu.declaration, `PUL${suffix}`, stack, cpu.register(register))]];
+  })),
   ...motorolaBranches(cpu, motorolaBranchNames.filter(name => name !== "brn")),
   jump: resolvedJump(cpu),
   ...motorolaUnary(cpu, { clearReadsOperand: false, testClearsCarry: true, rightShiftSetsOverflow: true }),

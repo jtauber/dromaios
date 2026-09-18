@@ -4,13 +4,12 @@ import type { RegisterPair } from "./register-pairs.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
 import { opcodeFamily, opcodePattern } from "./opcodes.ts";
 import type { OpcodeEntry } from "./opcodes.ts";
-import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelJumpForms, intelWordArithmeticForms, intelWordTransferForms } from "./intel-encodings.ts";
+import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelJumpForms, intelStackForms, intelSubroutineForms, intelWordArithmeticForms, intelWordTransferForms } from "./intel-encodings.ts";
 
 export type OpcodeHandler = (instruction: InstructionContext) => void;
 type ByteOperand = "b" | "c" | "d" | "e" | "h" | "l" | "(hl)" | "a";
 export type ByteInstruction = (operand: ByteOperand) => OpcodeHandler;
 export type AluInstruction = (operand: ByteOperand | "immediate") => OpcodeHandler;
-export type WordOperand = RegisterPair | "sp" | "status";
 type Registers = Record<"a" | "b" | "c" | "d" | "e" | "h" | "l" | "pc" | "sp", number> & { halted: boolean };
 const instructionPattern = opcodePattern<OpcodeHandler>;
 
@@ -29,7 +28,6 @@ export abstract class Cpu8080Family<State extends Registers> {
   protected abstract readonly byteAdjustments: readonly ByteInstruction[];
   protected abstract readonly generatedInstructions: Readonly<Record<number, (state: State, instruction: InstructionContext) => void>>;
   protected abstract readonly accumulatorOperations: readonly (() => void)[];
-  protected abstract readonly conditions: readonly (() => boolean)[];
   protected abstract get statusWord(): number;
   protected abstract set statusWord(value: number);
 
@@ -44,10 +42,8 @@ export abstract class Cpu8080Family<State extends Registers> {
 
   // rrr/ddd/sss select B/C/D/E/H/L/(HL)/A; the 8080 calls (HL) M.
   protected readonly byteOperands = ["b", "c", "d", "e", "h", "l", "(hl)", "a"] as const;
-  // Stack pp selects BC/DE/HL/status: PSW on the 8080, AF on the Z80.
-  readonly #stackPairs = ["bc", "de", "hl", "status"] as const;
 
-  // Called by each CPU only after its operation and condition fields have initialized.
+  // Called by each CPU only after its operation fields have initialized.
   // Builders capture callbacks and selectors; none reads live registers, flags, or RAM.
   // Shared opcode bits: 7 6 | 5 4 3 | 2 1 0 = xx yyy zzz.
   // xx selects a block; the other fields select its operation and operands.
@@ -88,12 +84,13 @@ export abstract class Cpu8080Family<State extends Registers> {
       ...opcodeFamily("10 ooo rrr", { o: this.aluInstructions, r: this.byteOperands }, ({ o: instruction, r: operand }) => instruction(operand)), // ALU r / ALU (HL)
 
       // 11 ccc 000: conditional returns read the stack only when the condition is true.
-      ...opcodeFamily("11 ccc 000", { c: this.conditions }, ({ c: condition }) => ({ readByte }: InstructionContext) => this.stack.return(readByte, condition())), // RET cc
+      ...this.#generatedHandlers(intelSubroutineForms.conditionalReturns), // RET cc
 
       // 11 pp q 001: q=0 pops BC/DE/HL/status (PSW or AF).
       // q=1 selects RET, an extension slot, PCHL / JP (HL), or SPHL / LD SP,HL.
-      ...opcodeFamily("11 pp 0 001", { p: this.#stackPairs }, ({ p: pair }) => ({ readByte }: InstructionContext) => this.writePair(pair, this.stack.pop(readByte))), // POP
-      ...instructionPattern("11 00 1 001", ({ readByte }) => this.stack.return(readByte)), // RET
+      ...this.#generatedHandlers(intelStackForms.pop), // POP BC/DE/HL
+      ...instructionPattern("11 11 0 001", ({ readByte }) => { this.statusWord = this.stack.pop(readByte); }), // POP PSW/AF
+      ...this.#generatedHandlers(intelSubroutineForms.return), // RET
       ...this.#generatedHandlers(intelJumpForms.indirect), // PCHL / JP (HL)
       ...this.#generatedHandlers(intelWordTransferForms.stackPointer), // SPHL / LD SP,HL
 
@@ -106,17 +103,18 @@ export abstract class Cpu8080Family<State extends Registers> {
       ...this.#generatedHandlers(intelExchangeForms), // 11 10 m 011: m=0 XTHL / EX (SP),HL; m=1 XCHG / EX DE,HL
 
       // 11 ccc 100: conditional calls always fetch nn, then push only on a taken path.
-      ...opcodeFamily("11 ccc 100", { c: this.conditions }, ({ c: condition }) => ({ fetchWord, writeByte }: InstructionContext) => this.stack.call(fetchWord(), writeByte, condition())), // CALL cc,nn
+      ...this.#generatedHandlers(intelSubroutineForms.conditionalCalls), // CALL cc,nn
 
       // 11 pp 0 101: PUSH uses BC/DE/HL/status. Bit 3=1 includes unconditional CALL.
-      ...opcodeFamily("11 pp 0 101", { p: this.#stackPairs }, ({ p: pair }) => ({ writeByte }: InstructionContext) => this.stack.push(this.readPair(pair), writeByte)), // PUSH
-      ...instructionPattern("11 00 1 101", ({ fetchWord, writeByte }) => this.stack.call(fetchWord(), writeByte)), // CALL nn
+      ...this.#generatedHandlers(intelStackForms.push), // PUSH BC/DE/HL
+      ...instructionPattern("11 11 0 101", ({ writeByte }) => this.stack.push(this.statusWord, writeByte)), // PUSH PSW/AF
+      ...this.#generatedHandlers(intelSubroutineForms.call), // CALL nn
 
       // 11 ooo 110: the same ooo operations with an immediate byte instead of a register/memory selector.
       ...opcodeFamily("11 ooo 110", { o: this.aluInstructions }, ({ o: instruction }) => instruction("immediate")), // ALU n
 
       // 11 ttt 111: ttt selects the restart address 00,08,10,18,20,28,30,38; it is an ordinary call.
-      ...opcodeFamily("11 ttt 111", { t: [0x00, 0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x38] }, ({ t: address }) => ({ writeByte }: InstructionContext) => this.stack.call(address, writeByte)), // RST p
+      ...this.#generatedHandlers(intelSubroutineForms.restarts), // RST p
     ];
   }
 
@@ -126,16 +124,12 @@ export abstract class Cpu8080Family<State extends Registers> {
 
   // Register operands.
 
-  protected readPair(pair: WordOperand): number {
-    if (pair === "sp") return this.state.sp;
-    if (pair === "status") return this.statusWord;
+  protected readPair(pair: RegisterPair): number {
     return readRegisterPair(this.state, pair);
   }
 
-  protected writePair(pair: WordOperand, value: number): void {
-    if (pair === "sp") this.state.sp = value;
-    else if (pair === "status") this.statusWord = value;
-    else writeRegisterPair(this.state, pair, value);
+  protected writePair(pair: RegisterPair, value: number): void {
+    writeRegisterPair(this.state, pair, value);
   }
 
   // Data words are little-endian and wrap independently of the instruction stream.

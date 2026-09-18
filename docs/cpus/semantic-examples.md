@@ -359,6 +359,28 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 JSR
+
+Fetch the target low byte, then push the current PC high byte and current PC low byte. Only then fetch the target high byte and write PC. A stack write may replace that final operand. Preserve flags and other registers. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+targetLow:u8 := fetch byte
+highPC:u16 := read PC
+highAddress:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(highAddress))] := highByte(highPC)
+highPointer:u8 := read SP
+write SP:u8 := subtract(highPointer, 01:u8)
+lowPC:u16 := read PC
+lowAddress:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(lowAddress))] := lowByte(lowPC)
+lowPointer:u8 := read SP
+write SP:u8 := subtract(lowPointer, 01:u8)
+targetHigh:u8 := fetch byte
+write PC:u16 := concatHighLow(targetHigh, targetLow)
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 AND (zero page,X)
 
 Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
@@ -829,6 +851,23 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 PHA
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+original:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+byteAddress:u8 := read SP
+write memory[bitOr(0100:u16, zeroExtend16(byteAddress))] := original
+bytePointer:u8 := read SP
+write SP:u8 := subtract(bytePointer, 01:u8)
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 EOR #byte
 
 Finish the operand reads before capturing A, then combine the captured bytes. Write A before setting N/Z. Preserve V, D, I, and C; decimal mode has no effect. A failed read leaves A and every flag unchanged.
@@ -1108,6 +1147,33 @@ flags "6502 result N/Z" simultaneously {
 
 Flags preserved throughout: V, D, I.
 
+### 6502 RTS
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC after adding 1 with word wrapping. Preserve flags, other registers, and control state. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+returnPC:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    pointer:u8 := read SP
+    write SP:u8 := addWrap(pointer, 01:u8)
+    address:u8 := read SP
+    byte:u8 := read memory[bitOr(0100:u16, zeroExtend16(address))]
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    pointer:u8 := read SP
+    write SP:u8 := addWrap(pointer, 01:u8)
+    address:u8 := read SP
+    byte:u8 := read memory[bitOr(0100:u16, zeroExtend16(address))]
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := addWrap(returnPC, 0001:u16)
+```
+
+Flags preserved throughout: N, V, D, I, Z, C.
+
 ### 6502 ROR zero page
 
 Resolve the address once, read the original byte, and write it back unchanged before the operation. Perform the calculation and its flag updates, then write the result and apply N/Z. Rotates read incoming C at the calculation stage. A failed access prevents all later effects; a failed result write retains any carry update but leaves N/Z unchanged. Preserve unlisted flags.
@@ -1132,6 +1198,27 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I.
+
+### 6502 PLA
+
+Pop the complete value before writing the destination. Then apply 6502 result N/Z, preserving unlisted flags. Preserve other registers and control state. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+result:u8 := source "pop byte through SP" {
+  pointer:u8 := read SP
+  write SP:u8 := addWrap(pointer, 01:u8)
+  address:u8 := read SP
+  byte:u8 := read memory[bitOr(0100:u16, zeroExtend16(address))]
+  yield byte
+}
+write A:u8 := result
+flags "6502 result N/Z" simultaneously {
+  N := topBit(result)
+  Z := isZero(result)
+} // Preserve unlisted flags.
+```
+
+Flags preserved throughout: V, D, I, C.
 
 ### 6502 ROR A
 
@@ -2650,6 +2737,148 @@ flags "6502 result N/Z" simultaneously {
 ```
 
 Flags preserved throughout: V, D, I, C.
+
+### 6800 BSR
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are big-endian.
+
+```text
+target:u16 := source "relative call target" {
+  offset:u8 := source "immediate byte" {
+    byte:u8 := fetch byte
+    yield byte
+  }
+  pc:u16 := read PC
+  yield addWrap(pc, signExtend16(offset))
+}
+returnPC:u16 := read PC
+firstAddress:u16 := read SP
+write memory[firstAddress] := lowByte(returnPC)
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+write PC:u16 := target
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 JSR resolved address
+
+After address resolution, capture the current return PC, push it, then write the captured target to PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are big-endian.
+
+```text
+address:u16 := input
+returnPC:u16 := read PC
+firstAddress:u16 := read SP
+write memory[firstAddress] := lowByte(returnPC)
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+write PC:u16 := address
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 RTS
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are big-endian.
+
+```text
+returnPC:u16 := source "pop big-endian word" {
+  high:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  low:u8 := source "pop byte through SP" {
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := returnPC
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 PSHA
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+original:u8 := source "register A" {
+  contents:u8 := read A
+  yield contents
+}
+byteAddress:u16 := read SP
+write memory[byteAddress] := original
+bytePointer:u16 := read SP
+write SP:u16 := subtract(bytePointer, 0001:u16)
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 PULA
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+result:u8 := source "pop byte through SP" {
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0001:u16)
+  address:u16 := read SP
+  byte:u8 := read memory[address]
+  yield byte
+}
+write A:u8 := result
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 PSHB
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+original:u8 := source "register B" {
+  contents:u8 := read B
+  yield contents
+}
+byteAddress:u16 := read SP
+write memory[byteAddress] := original
+bytePointer:u16 := read SP
+write SP:u16 := subtract(bytePointer, 0001:u16)
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
+
+### 6800 PULB
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.
+
+```text
+result:u8 := source "pop byte through SP" {
+  pointer:u16 := read SP
+  write SP:u16 := addWrap(pointer, 0001:u16)
+  address:u16 := read SP
+  byte:u8 := read memory[address]
+  yield byte
+}
+write B:u8 := result
+```
+
+Flags preserved throughout: H, I, N, Z, V, C.
 
 ### 6800 BRA
 
@@ -8610,6 +8839,64 @@ write A:u8 := result
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 RNZ
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read Z
+when not(condition) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 POP B
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write B:u8 := highByte(result)
+write C:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 JNZ
 
 Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
@@ -8643,6 +8930,132 @@ write PC:u16 := target
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 CNZ
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read Z
+when not(condition) {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 PUSH B
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+original:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(original)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(original)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RST 0
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0000:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RZ
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read Z
+when condition {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RET
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+returnPC:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := returnPC
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 JZ
 
 Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
@@ -8657,6 +9070,135 @@ condition:flag := read Z
 when condition {
   write PC:u16 := target
 }
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 CZ
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read Z
+when condition {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 CALL
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RST 1
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0008:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RNC
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read CY
+when not(condition) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 POP D
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write D:u8 := highByte(result)
+write E:u8 := lowByte(result)
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -8679,6 +9221,105 @@ when not(condition) {
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 CNC
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read CY
+when not(condition) {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 PUSH D
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+original:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(original)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(original)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RST 2
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0010:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RC
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read CY
+when condition {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 JC
 
 Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
@@ -8693,6 +9334,111 @@ condition:flag := read CY
 when condition {
   write PC:u16 := target
 }
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 CC
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read CY
+when condition {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RST 3
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0018:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RPO
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read P
+when not(condition) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 POP H
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -8733,6 +9479,105 @@ write memory[address] := lowByte(original)
 result := concatHighLow(high, low)
 write H:u8 := highByte(result)
 write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 CPO
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read P
+when not(condition) {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 PUSH H
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+original:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(original)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(original)
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RST 4
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0020:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RPE
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read P
+when condition {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -8787,6 +9632,83 @@ write L:u8 := e
 
 Flags preserved throughout: S, Z, AC, P, CY.
 
+### 8080 CPE
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read P
+when condition {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RST 5
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0028:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RP
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read S
+when not(condition) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
 ### 8080 JP
 
 Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
@@ -8800,6 +9722,83 @@ target:u16 := source "immediate word, low byte first" {
 condition:flag := read S
 when not(condition) {
   write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 CP
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read S
+when not(condition) {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RST 6
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0030:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RM
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read S
+when condition {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
 }
 ```
 
@@ -8834,6 +9833,53 @@ condition:flag := read S
 when condition {
   write PC:u16 := target
 }
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 CM
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read S
+when condition {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, AC, P, CY.
+
+### 8080 RST 7
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0038:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
 ```
 
 Flags preserved throughout: S, Z, AC, P, CY.
@@ -10870,6 +11916,108 @@ flags "8080 comparison" simultaneously {
 ```
 
 Flags preserved throughout: none.
+
+### 6809 BSR
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are big-endian.
+
+```text
+target:u16 := source "relative call target" {
+  offset:u8 := source "immediate byte" {
+    byte:u8 := fetch byte
+    yield byte
+  }
+  pc:u16 := read PC
+  yield addWrap(pc, signExtend16(offset))
+}
+returnPC:u16 := read PC
+firstPointer:u16 := read S
+write S:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read S
+write memory[firstAddress] := lowByte(returnPC)
+secondPointer:u16 := read S
+write S:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read S
+write memory[secondAddress] := highByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 LBSR
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are big-endian.
+
+```text
+target:u16 := source "relative call target" {
+  offset:u16 := source "immediate word, high byte first" {
+    high:u8 := fetch byte
+    low:u8 := fetch byte
+    yield concatHighLow(high, low)
+  }
+  pc:u16 := read PC
+  yield addWrap(pc, offset)
+}
+returnPC:u16 := read PC
+firstPointer:u16 := read S
+write S:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read S
+write memory[firstAddress] := lowByte(returnPC)
+secondPointer:u16 := read S
+write S:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read S
+write memory[secondAddress] := highByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 JSR resolved address
+
+After address resolution, capture the current return PC, push it, then write the captured target to PC. Preserve flags, other registers, and control state. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are big-endian.
+
+```text
+address:u16 := input
+returnPC:u16 := read PC
+firstPointer:u16 := read S
+write S:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read S
+write memory[firstAddress] := lowByte(returnPC)
+secondPointer:u16 := read S
+write S:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read S
+write memory[secondAddress] := highByte(returnPC)
+write PC:u16 := address
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
+
+### 6809 RTS
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. S wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are big-endian.
+
+```text
+returnPC:u16 := source "pop big-endian word" {
+  high:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  low:u8 := source "pop byte through S" {
+    address:u16 := read S
+    byte:u8 := read memory[address]
+    pointer:u16 := read S
+    write S:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := returnPC
+```
+
+Flags preserved throughout: E, F, H, I, N, Z, V, C.
 
 ### 6809 BRA
 
@@ -14844,6 +15992,64 @@ write A:u8 := result
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 RET NZ
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read Z
+when not(condition) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 POP BC
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write B:u8 := highByte(result)
+write C:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 JP NZ,nn
 
 Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
@@ -14877,6 +16083,132 @@ write PC:u16 := target
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 CALL NZ,nn
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read Z
+when not(condition) {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH BC
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+original:u16 := source "BC" {
+  high:u8 := read B
+  low:u8 := read C
+  yield concatHighLow(high, low)
+}
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(original)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(original)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RST 00H
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0000:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET Z
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read Z
+when condition {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+returnPC:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write PC:u16 := returnPC
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 JP Z,nn
 
 Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
@@ -14891,6 +16223,135 @@ condition:flag := read Z
 when condition {
   write PC:u16 := target
 }
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL Z,nn
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read Z
+when condition {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL nn
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RST 08H
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0008:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET NC
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read C
+when not(condition) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 POP DE
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write D:u8 := highByte(result)
+write E:u8 := lowByte(result)
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -14913,6 +16374,105 @@ when not(condition) {
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 CALL NC,nn
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read C
+when not(condition) {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH DE
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+original:u16 := source "DE" {
+  high:u8 := read D
+  low:u8 := read E
+  yield concatHighLow(high, low)
+}
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(original)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(original)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RST 10H
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0010:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET C
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read C
+when condition {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 JP C,nn
 
 Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
@@ -14927,6 +16487,111 @@ condition:flag := read C
 when condition {
   write PC:u16 := target
 }
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL C,nn
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read C
+when condition {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RST 18H
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0018:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET PO
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read PV
+when not(condition) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 POP HL
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write H:u8 := highByte(result)
+write L:u8 := lowByte(result)
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -14967,6 +16632,105 @@ write memory[address] := lowByte(original)
 result := concatHighLow(high, low)
 write H:u8 := highByte(result)
 write L:u8 := lowByte(result)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL PO,nn
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read PV
+when not(condition) {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH HL
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+original:u16 := source "HL" {
+  high:u8 := read H
+  low:u8 := read L
+  yield concatHighLow(high, low)
+}
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(original)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(original)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RST 20H
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0020:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET PE
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read PV
+when condition {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.
@@ -15021,6 +16785,83 @@ write L:u8 := e
 
 Flags preserved throughout: S, Z, H, PV, N, C.
 
+### z80 CALL PE,nn
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read PV
+when condition {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RST 28H
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0028:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET P
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read S
+when not(condition) {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
 ### z80 JP P,nn
 
 Read the complete target, then test the condition if present. Only a taken path writes PC; do not read memory at the jump destination. Preserve flags and other registers. Failed fetches or reads stop later effects; completed accesses remain.
@@ -15034,6 +16875,83 @@ target:u16 := source "immediate word, low byte first" {
 condition:flag := read S
 when not(condition) {
   write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL P,nn
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read S
+when not(condition) {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RST 30H
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0030:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RET M
+
+If present, test the condition before any stack access. On a taken path, pop the complete return address and write PC. Preserve flags, other registers, and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+condition:flag := read S
+when condition {
+  returnPC:u16 := source "pop little-endian word" {
+    low:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    high:u8 := source "pop byte through SP" {
+      address:u16 := read SP
+      byte:u8 := read memory[address]
+      pointer:u16 := read SP
+      write SP:u16 := addWrap(pointer, 0001:u16)
+      yield byte
+    }
+    yield concatHighLow(high, low)
+  }
+  write PC:u16 := returnPC
 }
 ```
 
@@ -15068,6 +16986,149 @@ condition:flag := read S
 when condition {
   write PC:u16 := target
 }
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 CALL M,nn
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target:u16 := source "immediate word, low byte first" {
+  low:u8 := fetch byte
+  high:u8 := fetch byte
+  yield concatHighLow(high, low)
+}
+condition:flag := read S
+when condition {
+  returnPC:u16 := read PC
+  firstPointer:u16 := read SP
+  write SP:u16 := subtract(firstPointer, 0001:u16)
+  firstAddress:u16 := read SP
+  write memory[firstAddress] := highByte(returnPC)
+  secondPointer:u16 := read SP
+  write SP:u16 := subtract(secondPointer, 0001:u16)
+  secondAddress:u16 := read SP
+  write memory[secondAddress] := lowByte(returnPC)
+  write PC:u16 := target
+}
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 RST 38H
+
+Capture the complete target before testing any condition. On a taken path, capture the current return PC, push it, then write the target to PC after both writes succeed. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+target := 0038:u16
+returnPC:u16 := read PC
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(returnPC)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(returnPC)
+write PC:u16 := target
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH IX
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+original:u16 := source "register IX" {
+  contents:u16 := read IX
+  yield contents
+}
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(original)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(original)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 POP IX
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write IX:u16 := result
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 PUSH IY
+
+Capture the complete source, then push it. Preserve flags and other registers. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+original:u16 := source "register IY" {
+  contents:u16 := read IY
+  yield contents
+}
+firstPointer:u16 := read SP
+write SP:u16 := subtract(firstPointer, 0001:u16)
+firstAddress:u16 := read SP
+write memory[firstAddress] := highByte(original)
+secondPointer:u16 := read SP
+write SP:u16 := subtract(secondPointer, 0001:u16)
+secondAddress:u16 := read SP
+write memory[secondAddress] := lowByte(original)
+```
+
+Flags preserved throughout: S, Z, H, PV, N, C.
+
+### z80 POP IY
+
+Pop the complete value before writing the destination. Preserve all flags. Preserve other registers and control state. SP wraps at 16 bits. Push decrements before each write; pop increments after each successful read. Each adjustment reads the live pointer; failed accesses retain only completed effects. Words are little-endian.
+
+```text
+result:u16 := source "pop little-endian word" {
+  low:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  high:u8 := source "pop byte through SP" {
+    address:u16 := read SP
+    byte:u8 := read memory[address]
+    pointer:u16 := read SP
+    write SP:u16 := addWrap(pointer, 0001:u16)
+    yield byte
+  }
+  yield concatHighLow(high, low)
+}
+write IY:u16 := result
 ```
 
 Flags preserved throughout: S, Z, H, PV, N, C.

@@ -1,10 +1,11 @@
 import { cpu8080StateDescription } from "../../state/8080.ts";
 import { bitAnd, bitOr, borrow, carry, cpuSymbols, evenParity, flagLiteral, flagValue, halfBorrow, halfCarry, literal, negative, not, readSource, value, zero } from "../model.ts";
 import type { FlagExpression, FlagPolicy, InstructionDefinition, Statement, ValueSource } from "../model.ts";
-import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers, intelExchanges, intelJumps, intelWordArithmeticFamily, intelWordTransfers } from "../intel.ts";
+import { intelAccumulatorRotate, intelAccumulatorTransfers, intelByteAdjustment, intelByteAlu, intelByteSources, intelByteTransfers, intelExchanges, intelJumps, intelRegisterStacks, intelSubroutines, intelWordArithmeticFamily, intelWordTransfers } from "../intel.ts";
 import { defineInstruction } from "../validate.ts";
 
 const cpu = cpuSymbols("8080", cpu8080StateDescription);
+const conditions = (["z", "cy", "p", "s"] as const).map(flag => cpu.flag(flag));
 
 const sources = intelByteSources(cpu.register);
 
@@ -72,7 +73,13 @@ function rotation(name: string, direction: "left" | "right", circular: boolean):
 }
 
 export const instructions8080 = {
-  ...intelJumps(cpu, (["z", "cy", "p", "s"] as const).map(flag => cpu.flag(flag)),
+  ...intelRegisterStacks(cpu, (register, operation) => `${operation.toUpperCase()} ${register[0]!.toUpperCase()}`),
+  ...intelSubroutines(cpu, conditions, {
+    call: condition => condition === undefined ? "CALL" : ["CNZ", "CZ", "CNC", "CC", "CPO", "CPE", "CP", "CM"][condition]!,
+    return: condition => condition === undefined ? "RET" : ["RNZ", "RZ", "RNC", "RC", "RPO", "RPE", "RP", "RM"][condition]!,
+    restart: address => `RST ${address / 8}`,
+  }),
+  ...intelJumps(cpu, conditions,
     condition => typeof condition === "number" ? ["JNZ", "JZ", "JNC", "JC", "JPO", "JPE", "JP", "JM"][condition]!
       : condition === "absolute" ? "JMP" : "PCHL"),
   ...intelByteTransfers(cpu, "MOV", "MVI", "M"),

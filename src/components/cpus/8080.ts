@@ -189,11 +189,6 @@ export class Cpu8080 extends Cpu8080Family<Cpu8080State> {
     return instruction => execute(this.state, instruction);
   });
 
-  // ccc = ff v: ff selects Z, CY, P, S; v is the required flag value (0 or 1).
-  // Predicates read flags at execution.
-  protected override readonly conditions = (["z", "cy", "p", "s"] as const).flatMap(flag =>
-    [false, true].map(value => () => this.state.flags[flag] === value));
-
   // 00 ooo 111: accumulator/carry operations, in encoded order.
   protected override readonly accumulatorOperations: readonly (() => void)[] = [
     () => semantics.rlc(this.state), // 000 RLC

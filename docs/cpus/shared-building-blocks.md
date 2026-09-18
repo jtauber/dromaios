@@ -1343,9 +1343,9 @@ ordering, S/Z/P/C policies, and a bitwise `3FFF` memory mask. Its selected PC
 slot and interrupt-supplied fetch rules remain in its execution boundary.
 These expansions add no semantic primitive.
 These definitions produce both execution and the explanatory listing. The
-JSR and 68000 probes below remain requirements for later vocabulary; they are
-not yet represented by this byte/word slice. Whole-model migration remains a
-separate decision.
+6502 JSR probe is now represented using existing byte/word statements, including
+its interleaved fetches and stack writes. The 68000 probes below remain requirements
+for later vocabulary. Whole-model migration remains a separate decision.
 
 The 6502 now authors these migrated instructions as encoding families and
 generates their execution bindings too. Its address and operand definitions also

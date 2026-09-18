@@ -2,8 +2,9 @@ import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagValue, 
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource } from "./model.ts";
 import { arithmetic, immediateByte, instructionSet, memorySource, registerSource, shift, transfer } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
-import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelJumpForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
-import { flagCondition, jump } from "./control-flow.ts";
+import { intelAccumulatorTransferForms, intelByteTransferForms, intelExchangeForms, intelJumpForms, intelStackForms, intelSubroutineForms, intelWordArithmeticForms, intelWordTransferForms } from "../intel-encodings.ts";
+import { flagCondition, jump, subroutineCall, subroutineReturn } from "./control-flow.ts";
+import { byteStack, stackPop, stackPush, wordStack } from "./stack.ts";
 import type { IntelByteOperand } from "../intel-encodings.ts";
 import { pairBytes } from "../register-pairs.ts";
 import type { RegisterPair } from "../register-pairs.ts";
@@ -42,6 +43,33 @@ export function intelJumps(cpu: IntelWordCpu, flags: readonly Flag[], name: (con
       jump(cpu, name(condition), immediateWord, flagCondition(flags[condition >> 1]!, Boolean(condition & 1)))] as const),
     ...intelJumpForms.absolute.map(([opcode]) => [opcode, jump(cpu, name("absolute"), immediateWord)] as const),
     ...intelJumpForms.indirect.map(([opcode]) => [opcode, jump(cpu, name("indirect"), wordSource(intelWordRegister(cpu, "hl")))] as const),
+  ]);
+}
+
+/** Register pushes capture the complete word before SP; pops replace it only after both reads. */
+export function intelStackTransfer(cpu: IntelWordCpu, register: WordRegister, operation: "push" | "pop", name: string) {
+  const stack = wordStack(byteStack(cpu.register("sp"), "occupied"), "little-endian");
+  return operation === "push" ? stackPush(cpu.declaration, name, stack, wordSource(register))
+    : stackPop(cpu.declaration, name, stack, wordDestination(register));
+}
+
+export function intelRegisterStacks(cpu: IntelWordCpu, name: (register: RegisterPair, operation: "push" | "pop") => string) {
+  return instructionSet((["push", "pop"] as const).flatMap(operation => intelStackForms[operation].map(([opcode, register]) =>
+    [opcode, intelStackTransfer(cpu, intelWordRegister(cpu, register), operation, name(register, operation))])));
+}
+
+/** Calls, returns, and restarts use the same conditions and stack; untaken paths have no stack effects. */
+export function intelSubroutines(cpu: IntelWordCpu, flags: readonly Flag[], names: {
+  readonly call: (condition: number | undefined) => string;
+  readonly return: (condition: number | undefined) => string;
+  readonly restart: (address: number) => string;
+}) {
+  const stack = wordStack(byteStack(cpu.register("sp"), "occupied"), "little-endian");
+  const condition = (code: number | undefined) => code === undefined ? undefined : flagCondition(flags[code >> 1]!, Boolean(code & 1));
+  return instructionSet([
+    ...[...intelSubroutineForms.conditionalCalls, ...intelSubroutineForms.call].map(([opcode, code]) => [opcode, subroutineCall(cpu, names.call(code), immediateWord, stack, condition(code))] as const),
+    ...[...intelSubroutineForms.conditionalReturns, ...intelSubroutineForms.return].map(([opcode, code]) => [opcode, subroutineReturn(cpu, names.return(code), stack, condition(code))] as const),
+    ...intelSubroutineForms.restarts.map(([opcode, address]) => [opcode, subroutineCall(cpu, names.restart(address), literal(16, address), stack)] as const),
   ]);
 }
 

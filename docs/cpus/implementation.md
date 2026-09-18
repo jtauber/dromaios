@@ -184,7 +184,7 @@ operands, pair views, data-word accesses, and 240 supported
 the remaining unprefixed forms and its own CB, ED, DD, and FD pages.
 
 The concrete CPUs supply protected hooks for ALU operations, accumulator/carry
-operations, call/return conditions, generated bodies keyed by opcode, byte increment/decrement, and PSW/AF
+operations, generated bodies keyed by opcode, byte increment/decrement, and PSW/AF
 packing. Both CPUs' byte ALU and byte-adjustment selectors bind complete generated bodies with
 explicit source reads, flags, and writeback. Shared
 [Intel construction](../../src/components/cpus/semantics/intel.ts) supplies
@@ -244,7 +244,7 @@ refresh, and supplied-instruction retirement remain in the core.
 
 Each concrete constructor validates and copies its state before passing that
 owned state to `super`. The base constructor binds only the state and call
-stack. The concrete CPU initializes its operation and condition selectors
+stack. The concrete CPU initializes its operation selectors
 before calling `baseInstructions()` to construct its table; the base constructor
 must never call that builder or a CPU hook. CPU-specific helpers stay in `#` methods except for the required overrides;
 protected members form the internal TypeScript inheritance boundary.
@@ -467,19 +467,16 @@ records. Existing CPU and example tests retain independent hardware expectations
 
 ## Shared 8080/Z80 call stack
 
-The [call-stack helper](../../src/components/cpus/call-stack.ts) binds the
-8080 or Z80's live PC/SP state. `push` predecrements SP before each byte write,
-high then low; `pop` reads low then high, incrementing SP after each read.
-Both wrap at 16 bits. `call` pushes the already advanced PC and selects the
-fetched target; `return` pops PC. False conditions perform no stack access.
-Opcode tables still define instruction encodings, conditions, and targets,
-including Z80 RST's ordinary call semantics.
-
-The 6502, 6800, 6809, 8008, 8088, and 68000 retain their different stack
-policies. The 8080-family core uses this helper; the helper itself does not own
-flags, interrupt state, memory recording, or CPU lifecycle. [Tests](../../tests/components/cpus/call-stack.test.ts)
-cover every SP value, actual access order, live state, and partial effects when
-an access throws. CPU tests retain independent instruction expectations.
+The [call-stack helper](../../src/components/cpus/call-stack.ts) remains in
+use for packed PSW/AF pushes/pops and Z80 interrupt entry/return. Ordinary
+BC/DE/HL/IX/IY pushes/pops and CALL/RET/RST now use generated definitions.
+Both paths retain predecrement-before-write and increment-after-read ordering,
+high/low pushes, low/high pops, and 16-bit wrap. The helper does not own flags,
+interrupt acceptance, memory recording, or CPU lifecycle.
+[Tests](../../tests/components/cpus/call-stack.test.ts) retain its independent
+SP, access-order, and failure checks. The
+[stack definitions contract](instruction-semantics.md#stacks-and-subroutines)
+explains shared construction across the five migrated CPUs.
 
 ## Shared binary helpers
 
@@ -487,7 +484,7 @@ The [binary helpers](../../src/components/cpus/binary.ts) interpret byte values
 without owning CPU state:
 
 - `signed8(byte)` interprets an unsigned byte as a signed integer in `-128–127`.
-  The 6502, 6800, 6809, and Z80 use it for relative offsets; the 68000 uses it
+  The 6809 and Z80 still use it for indexed offsets; the 68000 uses it
   before extending a MOVEQ immediate to its 32-bit register representation.
 - `readWordLE(nextByte)` reads two bytes, low first; `readWordBE(nextByte)` reads
   high first. Both return an unsigned 16-bit value. Each calls `nextByte`
@@ -567,8 +564,19 @@ displacements, and Boolean `and` for compound conditions. Their
 scope and failure behavior. Keep processor-specific target sources explicit:
 6502 indirect JMP increments only the pointer's low byte, and Motorola JMP
 receives an address after the existing decoder completes. These bodies never
-read memory at the jump destination. Calls and returns retain their existing
-core helpers.
+read memory at the jump destination.
+
+Calls, returns, restarts, and ordinary register pushes/pops use the
+[shared stack construction](../../src/components/cpus/semantics/stack.ts).
+Declare whether the pointer names an occupied or free byte, its fixed page when
+needed, and the word byte order. Keep pointer reads/updates on the correct side
+of each memory effect. Pop destinations and call targets are written only after
+the complete stack access succeeds. The 6502 JSR's low fetch, high/low pushes,
+and high fetch remain an explicit sequence in its definitions; RTS adds one to
+the popped address. Motorola JSR receives the decoder's resolved target, retaining
+indexed S updates and NMI arming. The Intel condition hooks and superseded
+call/return wrappers are gone. Packed-status and interrupt paths retain their
+runtime stack helpers.
 
 ## Shared arithmetic
 

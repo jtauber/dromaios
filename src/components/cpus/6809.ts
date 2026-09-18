@@ -204,7 +204,7 @@ export class Cpu6809 {
     ...instructionPattern("0001 0010", () => {}), // NOP
     ...instructionPattern("0001 0011", () => { this.#state.waitMode = "sync"; }), // SYNC
     ...instructionPattern("0001 0110", instruction => semantics.lbra(this.#state, instruction)), // LBRA rel16
-    ...instructionPattern("0001 0111", ({ fetchWord, writeByte }) => this.#call(this.#relativeAddress(fetchWord()), writeByte)), // LBSR rel16
+    ...instructionPattern("0001 0111", instruction => semantics.lbsr(this.#state, instruction)), // LBSR rel16
 
     ...instructionPattern("0001 1001", () => { this.#state.a = motorolaDecimalAdjust(this.#state.a, this.#state.flags); }), // DAA
     ...instructionPattern("0001 1010", ({ fetchByte }) => this.#writeTransferRegister("cc", packedFlags.encode(this.#state.flags) | fetchByte())), // ORCC
@@ -224,7 +224,7 @@ export class Cpu6809 {
     // 001101 s p: s=0 selects S, s=1 selects U; p=0 pushes, p=1 pulls.
     ...opcodeFamily("001101 s p", { s: ["s", "u"], p: [false, true] },
       ({ s, p }) => (instruction: InstructionContext) => this.#stackInstruction(s, p, instruction)), // PSHS / PULS / PSHU / PULU
-    ...instructionPattern("0011 1001", ({ readByte }) => { this.#state.pc = this.#pullWord("s", readByte); }), // RTS
+    ...instructionPattern("0011 1001", instruction => semantics.rts(this.#state, instruction)), // RTS
     ...instructionPattern("0011 1010", () => { this.#state.x = (this.#state.x + this.#state.b) & 0xffff; }), // ABX, unsigned B; preserve flags
     ...instructionPattern("0011 1011", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
     ...instructionPattern("0011 1100", instruction => this.#waitForInterrupt(instruction)), // CWAI #mask
@@ -245,9 +245,9 @@ export class Cpu6809 {
     ...motorolaByteBindings(semantics, this.#operandHandlers), // SUB/CMP/SBC/AND/BIT/LD/ST/EOR/ADC/OR/ADD
 
     // 10 mm 1101: mm=00 is BSR; the other modes are JSR.
-    ...instructionPattern("10 00 1101", ({ fetchByte, writeByte }) => this.#call(this.#relativeAddress(signed8(fetchByte())), writeByte)), // BSR rel8
+    ...instructionPattern("10 00 1101", instruction => semantics.bsr(this.#state, instruction)), // BSR rel8
     ...this.#memoryModes.flatMap(({ bits, address }) => this.#addressedHandlers(address,
-      addressPattern(`10 ${bits} 1101`, (address, { writeByte }) => this.#call(address, writeByte)))), // JSR
+      addressPattern(`10 ${bits} 1101`, (address, instruction) => semantics.jsr(this.#state, address, instruction)))), // JSR
 
     // 10 mm 1100: CMPX uses immediate/direct/indexed/extended sources for mm=00/01/10/11.
     ...this.#operandHandlers("10 mm 1100", semantics.cmpxImmediate, semantics.cmpxMemory), // CMPX
@@ -383,12 +383,6 @@ export class Cpu6809 {
   #relativeAddress(offset: number): number {
     // PC is past the operand. Modulo 65536 also interprets a word's two's-complement offset.
     return (this.#state.pc + offset) & 0xffff;
-  }
-
-  #call(address: number, writeByte: InstructionContext["writeByte"]): void {
-    // Fetch the complete operand before stacking the return PC on S, low byte first.
-    this.#pushWord("s", this.#state.pc, writeByte);
-    this.#state.pc = address;
   }
 
   // Interrupt entry and return share the mask-driven register stack operations.

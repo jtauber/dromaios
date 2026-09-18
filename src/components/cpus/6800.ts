@@ -3,7 +3,7 @@ import type { FetchedInstruction, StateTransition, InstructionStep, WaitingStep 
 import { flagRegister } from "./flags.ts";
 import { executeByteInstruction } from "./execute-byte-instruction.ts";
 import { executionBoundary } from "./execution-boundary.ts";
-import { signed8, readWordBE } from "./binary.ts";
+import { readWordBE } from "./binary.ts";
 import { recordMemory } from "./memory-access.ts";
 import type { ByteMemory, MemoryAccess } from "./memory-access.ts";
 import type { WordInstructionContext as InstructionContext } from "./instruction-context.ts";
@@ -149,11 +149,11 @@ export class Cpu6800 {
     // q=0 manipulates SP/X. Every instruction in this group preserves all flags.
     ...instructionPattern("00110 0 0 0", () => { this.#state.x = (this.#state.sp + 1) & 0xffff; }), // TSX
     ...instructionPattern("00110 0 0 1", () => { this.#state.sp = (this.#state.sp + 1) & 0xffff; }), // INS
-    ...opcodeFamily("00110 0 1 r", { r: ["a", "b"] }, ({ r: register }) => ({ readByte }: InstructionContext) => { this.#state[register] = this.#pullByte(readByte); }), // PULA / PULB
+    ...opcodeFamily("00110 0 1 r", { r: [semantics.pulA, semantics.pulB] }, ({ r: execute }) => (instruction: InstructionContext) => execute(this.#state, instruction)), // PULA / PULB
     ...instructionPattern("00110 1 0 0", () => { this.#state.sp = (this.#state.sp - 1) & 0xffff; }), // DES
     ...instructionPattern("00110 1 0 1", () => { this.#state.sp = (this.#state.x - 1) & 0xffff; }), // TXS
-    ...opcodeFamily("00110 1 1 r", { r: ["a", "b"] }, ({ r: register }) => ({ writeByte }: InstructionContext) => this.#pushByte(this.#state[register], writeByte)), // PSHA / PSHB
-    ...instructionPattern("0011 1001", ({ readByte }: InstructionContext) => this.#return(readByte)), // RTS
+    ...opcodeFamily("00110 1 1 r", { r: [semantics.pshA, semantics.pshB] }, ({ r: execute }) => (instruction: InstructionContext) => execute(this.#state, instruction)), // PSHA / PSHB
+    ...instructionPattern("0011 1001", instruction => semantics.rts(this.#state, instruction)), // RTS
     ...instructionPattern("0011 1011", ({ readByte }) => this.#returnFromInterrupt(readByte)), // RTI
 
     // 0011111 s: both save the full frame; s=0 waits, s=1 enters the software vector.
@@ -178,9 +178,9 @@ export class Cpu6800 {
     ...this.#operandHandlers("10 mm 1100", semantics.cpxImmediate, semantics.cpxMemory), // CPX
 
     // 10 mm 1101: mm=00 is BSR, 10/11 are indexed/extended JSR; 01 is undefined.
-    ...instructionPattern("10 00 1101", ({ fetchByte, writeByte }: InstructionContext) => this.#call(this.#relativeAddress(fetchByte()), writeByte)), // BSR rel
-    ...instructionPattern("10 10 1101", ({ fetchByte, writeByte }: InstructionContext) => this.#call(this.#indexedAddress(fetchByte()), writeByte)), // JSR offset,X
-    ...instructionPattern("10 11 1101", ({ fetchWord, writeByte }: InstructionContext) => this.#call(fetchWord(), writeByte)), // JSR addr
+    ...instructionPattern("10 00 1101", instruction => semantics.bsr(this.#state, instruction)), // BSR rel
+    ...instructionPattern("10 10 1101", instruction => semantics.jsr(this.#state, this.#indexedAddress(instruction.fetchByte()), instruction)), // JSR offset,X
+    ...instructionPattern("10 11 1101", instruction => semantics.jsr(this.#state, instruction.fetchWord(), instruction)), // JSR addr
 
     // 1 r mm 111t: r selects SP=0/X=1; t=0 loads, t=1 stores. No immediate store.
     ...this.#operandHandlers("10 mm 1110", semantics.ldsImmediate, semantics.ldsMemory), // LDS
@@ -212,23 +212,7 @@ export class Cpu6800 {
     this.#state.flags.z = this.#state.x === 0;
   }
 
-  // Control flow and stack operations.
-
-  #relativeAddress(displacement: number): number {
-    // BSR fetches the displacement before computing this relative address.
-    const offset = signed8(displacement);
-    return (this.#state.pc + offset) & 0xffff;
-  }
-
-  #call(address: number, writeByte: InstructionContext["writeByte"]): void {
-    // All instruction bytes are fetched before stacking the return PC, low byte first.
-    this.#pushWord(this.#state.pc, writeByte);
-    this.#state.pc = address;
-  }
-
-  #return(readByte: InstructionContext["readByte"]): void {
-    this.#state.pc = this.#pullWord(readByte);
-  }
+  // Interrupts and stack operations.
 
   #saveInterruptFrame(writeByte: ByteMemory["writeByte"]): void {
     // Descending stack: PC low/high, X low/high, A, B, then CC with the original I.
@@ -252,7 +236,7 @@ export class Cpu6800 {
     this.#state.b = this.#pullByte(readByte);
     this.#state.a = this.#pullByte(readByte);
     this.#state.x = this.#pullWord(readByte);
-    this.#return(readByte);
+    this.#state.pc = this.#pullWord(readByte);
   }
 
   #pushWord(value: number, writeByte: ByteMemory["writeByte"]): void {
