@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { cpu6502StateDescription } from "../src/components/cpus/state/6502.ts";
 import { cpu8008StateDescription } from "../src/components/cpus/state/8008.ts";
+import { cpu68000StateDescription } from "../src/components/cpus/state/68000.ts";
 import { compileCpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
 import type { CpuChapter } from "../src/components/cpus/semantics/literate/compile.ts";
 
@@ -32,6 +33,7 @@ export function generateCpuChapters(): void {
   const chapters = [
     { name: "6502-load-store", cpu: "6502", state: cpu6502StateDescription },
     { name: "8008-transfers", cpu: "8008", state: cpu8008StateDescription },
+    { name: "68000-word-transfers", cpu: "68000", state: cpu68000StateDescription },
   ].map(({ name, cpu, state }) => {
     const source = new URL(`specifications/${name}.md`, root);
     const chapter = compileCpuChapter(readFileSync(source, "utf8"), { name: cpu, state }, fileURLToPath(source));

@@ -24,6 +24,7 @@ import { arithmetic, instructionBodies, instructionSet, shift, transfer } from "
 import { choose } from "../control-flow.ts";
 import { flagPolicy, packedStatus, updateStatus } from "../status.ts";
 import { defineInstruction } from "../validate.ts";
+import { families as wordTransfers, policies as wordPolicies } from "../generated/68000-word-transfers.ts";
 
 const cpu = cpuSymbols("68000", cpu68000StateDescription);
 const sizes = { 8: "B", 16: "W", 32: "L" } as const;
@@ -44,7 +45,7 @@ function writeData(register: Register, size: Size, contents: NumberExpression, o
 }
 
 function resultFlags(size: Size) {
-  return flagPolicy(cpu, "68000 result", { result: size }, {
+  return size === 16 ? wordPolicies.wordResult : flagPolicy(cpu, "68000 result", { result: size }, {
     n: negative(value("result")), z: zero(value("result")), v: flagLiteral(false), c: flagLiteral(false),
   });
 }
@@ -91,6 +92,9 @@ function exchange(left: RegisterName, right: RegisterName) {
   });
 }
 
+const wordRegisterOpcodes = new Set(wordTransfers.registerCopy.map(([opcode]) => opcode));
+export const wordMoves68000 = instructionSet([...wordTransfers.load, ...wordTransfers.store], 16);
+
 export const instructions68000 = instructionSet([
   // 00 zz ddd 00m 00s rrr: zz=01 byte, 10 long, 11 word; m/s=0 Dn, 1 An.
   // Register-only MOVE/MOVEA. Byte transfers exclude An on both sides.
@@ -100,7 +104,10 @@ export const instructions68000 = instructionSet([
     { pattern: "00 11 ddd 00m 00s rrr", size: 16 }, // MOVE.W / MOVEA.W
   ] as const).flatMap(({ pattern, size }) => opcodeFamily(pattern,
     { d: codes, m: [dataRegisters, addressRegisters], s: [dataRegisters, addressRegisters], r: codes },
-    ({ d, m, s, r }) => move(size, s[r]!, m[d]!))),
+    selected => selected)
+    .filter(([opcode]) => !wordRegisterOpcodes.has(opcode))
+    .map(([opcode, { d, m, s, r }]) => [opcode, move(size, s[r]!, m[d]!)] as const)),
+  ...wordTransfers.registerCopy,
   // Register-only slots beside PEA and MOVEM: SWAP, then EXT.W (s=0) / EXT.L (s=1).
   ...opcodeFamily("0100 1000 01 000 rrr", { r: dataRegisters }, ({ r }) => swap(r)),
   ...opcodeFamily("0100 1000 1 s 000 rrr", { s: [16, 32] as const, r: dataRegisters }, ({ s, r }) => extendRegister(r, s)),

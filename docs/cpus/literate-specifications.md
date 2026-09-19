@@ -8,6 +8,9 @@ Executable chapters are maintained instruction sources:
 - [Intel 8008: moving bytes between registers and memory](../../src/components/cpus/specifications/8008-transfers.md)
   defines register/memory transfers and immediate loads, including their runtime
   opcode bindings. Its H:L address source also serves the arithmetic definitions.
+- [Motorola 68000: moving a word](../../src/components/cpus/specifications/68000-word-transfers.md)
+  defines word copies between data registers and word loads/stores through `(An)`.
+  Its word-result flag policy also serves the remaining word definitions.
 
 This is an authoring-language prototype over the existing
 [instruction representation](instruction-semantics.md), with a deliberately
@@ -72,11 +75,17 @@ Quoted descriptions use JSON string escaping.
 | `A <- result`, `memory(address) <- byte` | Write the captured value to a register or byte memory location. |
 | `result = operand s`, `operand d <- result` | Read or write a selected register/memory operand at this point. |
 | `apply NZ(result)` | Apply a declared flag policy to a captured argument. |
+| `address = resolve(16, mode, code)` | Ask the existing address decoder to resolve an operand of the stated width; mode and code are captured three-bit values. |
+| `fault alignment read(address) if lowBit(address)` | Return an alignment fault when the captured predicate is true, before subsequent effects. `write` identifies a failed destination access. |
+| `commit addresses` | Commit register updates staged by the existing address decoder. |
 
 Numeric expressions are capture names, explicitly sized literals such as
 `u8($01)` or `u16($FFFF)`, and `add(left, right)`, `and(left, right)`,
-`concat(high, low)`, or `extend(value, width)`. `and` is bitwise AND on
-equal-width values. Calls can nest. Numbers are decimal unless prefixed
+`or(left, right)`, `concat(high, low)`, `extend(value, width)`,
+`truncate(value, width)`, `highByte(word)`, or `lowByte(word)`. `and` and `or`
+operate bitwise on equal-width values. Extension must widen its operand;
+truncation must narrow it. Byte extraction requires a sixteen-bit word.
+Calls can nest. Numbers are decimal unless prefixed
 with `$`; widths are decimal. Captures and literals retain their widths, so
 zero-page wrapping follows from eight-bit addition rather than a special
 6502 operation.
@@ -90,10 +99,10 @@ policy NZ "6502 result N/Z" (result: 8) {
 }
 ```
 
-`negative` tests the top bit at the value's width; `zero` tests for zero. Updates
-take effect together, and unlisted flags are preserved. Duplicate flag updates
-are rejected. These are the first supported flag expressions, not the intended
-limit of the language.
+`negative` tests the top bit at the value's width; `zero` tests for zero;
+`lowBit` tests bit zero. Literal `0` clears a flag and `1` sets it. Updates take
+effect together, and unlisted flags are preserved. Duplicate flag updates are
+rejected. These predicates and constants also supply alignment-fault conditions.
 
 A `modes` declaration lists every binary selector value in numeric order, each
 with a quoted operand label and `register A`, `memory sourceName`, or
@@ -143,6 +152,39 @@ HLT remains implemented separately.
 These expanded opcode entries also supply the 8008's selected runtime bindings.
 The build does not maintain a second transfer-encoding table in the CPU core.
 
+An encoded value catalogue uses `codes` rather than `modes`:
+
+```text
+codes addressRegisters {
+  000 "A0"
+  001 "A1"
+  010 "A2"
+  011 "A3"
+  100 "A4"
+  101 "A5"
+  110 "A6"
+  111 "A7"
+}
+```
+
+These entries are read-only numeric operands whose values come from the binary
+codes. Every code of the selector width must appear, in order, and that width
+must be supported by the instruction representation. Labels supply instruction
+names; they do not declare or read stored registers. The 68000 reads the selected
+three-bit value with `code = operand r`, then uses `resolve(16, u3(2), code)`
+for address-register indirect mode. This keeps A7's bank selection in the existing
+decoder. Word size, address checks, byte order, destination preservation, and
+flag timing remain explicit in the chapter.
+
+`resolve`, `commit addresses`, and alignment faults lower to existing IR effects,
+whose validator currently requires the 68000 address/exception boundary.
+They add no decoder or exception-delivery implementation to the compiler.
+Ordinary `memory` reads and writes still transfer one byte, including at 32-bit
+logical addresses on the 68000. Its core projects them onto the physical bus.
+Word transfers explicitly combine or split those bytes. A false fault condition
+continues normally; a true one returns the fault to the CPU boundary without
+undoing completed effects. Value sources cannot contain instruction rejection.
+
 ## Boundaries and next evidence
 
 The CPU state schema remains authoritative for storage and public TypeScript
@@ -151,19 +193,28 @@ not yet generate that schema. Native opcode fetching, execution records, reset,
 interrupt recognition, and retirement remain in the existing CPU core. Most
 instruction families are still authored in TypeScript.
 
-The 8008 chapter adds register selectors, ordered operand reads/writes, and
-14-bit address masking. It does not yet describe the three-bit address-stack
-selector or the stack array. A 68000 word-transfer chapter should next challenge
-widths and ordered effects before we migrate a complete CPU. The later milestone
-is a whole CPU description, including its state and lifecycle contracts, that needs no CPU-specific compiler changes.
+The three chapters now exercise contrasting widths and ordered effects.
+The 8008 still lacks its address-stack selector and array in the language;
+the 68000 still uses its native effective-address decoder, including A7 banking
+and pending auto-updates. Its 192 chapter encodings select generated bodies
+before the broader MOVE catalogue's shared bodies; those shared bodies still
+serve other sizes and addressing modes. Only the chapter-owned forms earn
+literate coverage. The next review should judge the three chapters' vocabulary
+and boundaries before choosing a complete CPU migration. The later milestone
+is a whole CPU description, including its state and lifecycle contracts, that
+needs no CPU-specific compiler changes.
 These chapters establish an executable authoring path, not a percentage
 estimate of the work remaining toward that goal.
 
-The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts)
-and [8008 language tests](../../tests/components/cpus/semantics/literate-8008.test.ts)
+The [6502 language tests](../../tests/components/cpus/semantics/literate.test.ts),
+[8008 language tests](../../tests/components/cpus/semantics/literate-8008.test.ts),
+and [68000 language tests](../../tests/components/cpus/semantics/literate-68000.test.ts)
 check inventories, runtime integration, document diagnostics, malformed selectors
 and exclusions, capture isolation, and formal edits that change execution.
 Independent CPU tests retain their expected values, wrapping, access-order,
 live-state, and failure-boundary checks. The 8008 migration also compared the
 old and new generated execution, including every transfer and memory ALU form.
-The chapter replaces the maintained transfer definitions and encoding table.
+That chapter replaces the maintained transfer definitions and encoding table.
+The 68000 checks include independent ordered-effect expectations, failure at
+each observable stage, live upper-word preservation, both A7 banks, physical
+projection, and formal edits that change byte order and flag behavior.

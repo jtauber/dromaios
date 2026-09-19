@@ -1,9 +1,10 @@
 import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import type { OpcodeEntry } from "../../opcodes.ts";
 import { memorySource, registerSource } from "../builders.ts";
-import { addWrap, bitAnd, capture, concat, extend, fetchByte, isWidth, literal, negative, readMemory, readRegister,
-  readSource, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
-import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueSource, Width } from "../model.ts";
+import { addWrap, alignmentFault, bitAnd, bitOr, capture, commitAddressUpdates, concat, extend, fetchByte,
+  flagLiteral, highByte, isWidth, literal, lowBit, lowByte, negative, readMemory, readRegister,
+  readSource, resolveAddress, truncate, updateFlags, value, when, writeMemory, writeRegister, zero } from "../model.ts";
+import type { CpuDeclaration, Flag, FlagExpression, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueSource, Width } from "../model.ts";
 import { defineInstruction, validateInstruction } from "../validate.ts";
 import { chapterBlocks, ChapterError, ChapterTokens } from "./document.ts";
 
@@ -55,12 +56,25 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
       const bits = Number(name.slice(1));
       if (!isWidth(bits)) return tokens.fail("Unsupported literal width.");
       result = literal(bits, tokens.number());
+    } else if (name === "highByte" || name === "lowByte") {
+      result = (name === "highByte" ? highByte : lowByte)(expression(tokens));
+    } else if (name === "extend" || name === "truncate") {
+      const contents = expression(tokens); tokens.expect(",");
+      result = (name === "extend" ? extend : truncate)(contents, width(tokens));
     } else {
-      if (!["add", "and", "concat", "extend"].includes(name)) tokens.fail(`Unknown numeric operation ${name}.`);
+      const operations = { add: addWrap, and: bitAnd, or: bitOr, concat };
+      if (!Object.hasOwn(operations, name)) tokens.fail(`Unknown numeric operation ${name}.`);
       const left = expression(tokens); tokens.expect(",");
-      result = name === "extend" ? extend(left, width(tokens))
-        : (name === "add" ? addWrap : name === "and" ? bitAnd : concat)(left, expression(tokens));
+      result = operations[name as keyof typeof operations](left, expression(tokens));
     }
+    tokens.expect(")"); return result;
+  }
+  function flagExpression(tokens: ChapterTokens): FlagExpression {
+    if (tokens.take("0")) return flagLiteral(false);
+    if (tokens.take("1")) return flagLiteral(true);
+    const name = tokens.word(), operations = { negative, zero, lowBit };
+    if (!Object.hasOwn(operations, name)) tokens.fail(`Unknown flag operation ${name}.`);
+    tokens.expect("("); const result = operations[name as keyof typeof operations](expression(tokens));
     tokens.expect(")"); return result;
   }
   function steps(lines: readonly ChapterTokens[], bindings: ReadonlyMap<string, ValueSource> = sources,
@@ -76,7 +90,14 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
       return name;
     };
     for (const tokens of lines) {
-      if (tokens.take("apply")) {
+      if (tokens.take("fault")) {
+        tokens.expect("alignment"); const operation = tokens.word();
+        if (operation !== "read" && operation !== "write") tokens.fail("Expected a data read or write alignment fault.");
+        tokens.expect("("); const address = expression(tokens); tokens.expect(")"); tokens.expect("if");
+        result.push(when(flagExpression(tokens), [alignmentFault(operation, address)]));
+      } else if (tokens.take("commit")) {
+        tokens.expect("addresses"); result.push(commitAddressUpdates());
+      } else if (tokens.take("apply")) {
         const policy = lookup(policies, tokens); tokens.expect("(");
         const args: Record<string, NumberExpression> = {};
         for (const [index, name] of Object.keys(policy.parameters).entries()) {
@@ -101,7 +122,12 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
           result.push(writeRegister(register, expression(tokens)));
         } else {
           tokens.expect("=");
-          if (tokens.take("fetch")) result.push(fetchByte(name));
+          if (tokens.take("resolve")) {
+            tokens.expect("("); const size = tokens.number();
+            if (size !== 8 && size !== 16 && size !== 32) tokens.fail("Operand size must be 8, 16, or 32.");
+            tokens.expect(","); const mode = expression(tokens); tokens.expect(","); const code = expression(tokens); tokens.expect(")");
+            result.push(resolveAddress(name, size, mode, code));
+          } else if (tokens.take("fetch")) result.push(fetchByte(name));
           else if (tokens.take("register")) result.push(readRegister(name, lookup(registers, tokens)));
           else if (tokens.take("source")) result.push(readSource(name, lookup(bindings, tokens)));
           else if (tokens.take("operand")) {
@@ -166,25 +192,30 @@ export function compileCpuChapter(markdown: string, cpu: CpuDeclaration, file = 
         const bits = width(header); header.expect(")"); open();
         const updates: FlagPolicy["updates"][number][] = [], seen = new Set<string>();
         for (const tokens of body) {
-          const flag = lookup(flags, tokens); tokens.expect("="); const operation = tokens.word(); tokens.expect("(");
+          const flag = lookup(flags, tokens); tokens.expect("=");
           if (seen.has(flag.field)) tokens.fail(`Duplicate update of ${flag.field}.`);
           seen.add(flag.field);
-          if (operation !== "negative" && operation !== "zero") tokens.fail(`Unknown flag operation ${operation}.`);
-          updates.push({ flag, value: (operation === "negative" ? negative : zero)(expression(tokens)) });
-          tokens.expect(")"); tokens.end();
+          updates.push({ flag, value: flagExpression(tokens) }); tokens.end();
         }
         const policy: FlagPolicy = { name: description, parameters: { [parameter]: bits }, unlisted: "preserve", updates };
         checked(header, () => validateInstruction({ cpu, name, explanation: "", inputs: { [parameter]: bits },
           steps: [updateFlags(policy, { [parameter]: value(parameter) })] }));
         policies.set(name, policy);
-      } else if (kind === "modes") {
+      } else if (kind === "modes" || kind === "codes") {
         open(); const entries: ChapterMode[] = []; let digits: number | undefined;
         for (const tokens of body) {
           const code = tokens.digits(); digits ??= code.length;
           if (!/^[01]+$/.test(code) || code.length !== digits || parseInt(code, 2) !== entries.length) {
             tokens.fail("Mode codes must be consecutive binary values of equal width, starting at zero.");
           }
-          const description = tokens.quoted(); tokens.expect("="); const modeKind = tokens.word();
+          const description = tokens.quoted();
+          if (kind === "codes") {
+            if (!isWidth(digits)) tokens.fail("Encoded values require a supported bit width.");
+            entries.push({ kind: "value", name: description,
+              read: { name: description, width: digits, steps: [], result: literal(digits, entries.length) } });
+            tokens.end(); continue;
+          }
+          tokens.expect("="); const modeKind = tokens.word();
           if (modeKind === "register") {
             const register = lookup(registers, tokens);
             entries.push({ kind: "register", name: description, register, read: registerSource(register) });

@@ -46,7 +46,7 @@ const invalid: readonly [string, string, string, RegExp][] = [
   ["undeclared register", "index = register X", "index = register SP", /Unknown name SP/],
   ["scope", "A <- result", "A <- missing", /has not been captured/],
   ["width", "A <- result", "A <- extend(result, 16)", /expected 8-bit value/],
-  ["unknown operation", "return extend(offset, 16)", "return truncate(offset, 16)", /Unknown numeric operation/],
+  ["unknown operation", "return extend(offset, 16)", "return widen(offset, 16)", /Unknown numeric operation/],
   ["literal overflow", "add(pointer, u8($01))", "add(pointer, u8($100))", /literal does not fit/],
   ["argument count", "apply NZ(result)", "apply NZ(result, result)", /Expected/],
   ["trailing input", "result = source b", "result = source b extra", /trailing input/],

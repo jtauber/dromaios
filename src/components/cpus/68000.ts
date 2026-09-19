@@ -14,6 +14,7 @@ export type { Cpu68000State, Cpu68000Flags } from "./state/68000.ts";
 import { instructions as generated } from "./generated/68000.ts";
 import { instructions as quick } from "./generated/68000-quick.ts";
 import { instructions as moveBodies } from "./generated/68000-moves.ts";
+import { instructions as wordMoves } from "./generated/68000-word-moves.ts";
 import { instructions as logicBodies } from "./generated/68000-logic.ts";
 import { instructions as arithmeticBodies } from "./generated/68000-arithmetic.ts";
 import { instructions as bitBodies } from "./generated/68000-bits.ts";
@@ -370,10 +371,17 @@ export class Cpu68000 {
 
   // Bind encodings once per model; handlers receive the executing CPU and capture no instance state.
   static readonly #opcodeHandlers = opcodeTable<OpcodeHandler>([
-    // Register transfers, EXT/SWAP, and EXG own their patterns in semantics/definitions/68000.ts.
+    // Numeric register definitions include the literate MOVE.W copies, plus EXT/SWAP and EXG.
     ...Object.entries(generated).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> =>
       [Number(opcode), cpu => execute(cpu.#state)]),
-    ...[...operandMoveForms68000, ...logicForms68000, ...arithmeticForms68000, ...bitForms68000, ...wordArithmeticForms68000, ...decimalForms68000].map(({ opcode, body, sourceMode, sourceCode, destinationMode, destinationCode }): OpcodeEntry<OpcodeHandler> =>
+    // Literate word loads/stores own these encodings; other addressing forms keep shared bodies.
+    ...Object.entries(wordMoves).map(([opcode, execute]): OpcodeEntry<OpcodeHandler> =>
+      [Number(opcode), (cpu, instruction) => execute(cpu.#state, cpu.#addressContext(instruction))]),
+    ...[
+      ...operandMoveForms68000.filter(({ opcode }) => !Object.hasOwn(wordMoves, opcode)),
+      ...logicForms68000, ...arithmeticForms68000, ...bitForms68000,
+      ...wordArithmeticForms68000, ...decimalForms68000,
+    ].map(({ opcode, body, sourceMode, sourceCode, destinationMode, destinationCode }): OpcodeEntry<OpcodeHandler> =>
       [opcode, (cpu, instruction) => operandBodies[body]!(cpu.#state, sourceMode, sourceCode, destinationMode, destinationCode, cpu.#addressContext(instruction))]),
     // Control definitions retain native condition, cursor, target, and stack stages.
     ...controlForms68000.map(({ opcode, body, mode, code, displacement }): OpcodeEntry<OpcodeHandler> =>

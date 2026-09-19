@@ -84,8 +84,8 @@ remain TypeScript-authored.
 | 6800 DAA, TAP/TPA, flag/index/SP adjustments, and NOP; 6809 DAA and ORCC/ANDCC | Shared correction with preserved H/control; status before mask fetching; explicit complete flag replacement |
 | 8080/Z80 DAA, complements/carry controls, NOP/HALT, and PSW/AF stacks | Shared correction thresholds and layouts with distinct flag policies, result ordering, reserved bits, and delayed pop commits |
 
-There are 12,197 generated, executable bodies. All serve CPU execution;
-12,192 are bound through opcode or postbyte selection. Five boundary helpers
+There are 12,325 generated, executable bodies. All serve CPU execution;
+12,320 are bound through opcode or postbyte selection. Five boundary helpers
 serve 6502/6800/8088 entry, 6809 frame pushing, and 8088 WAIT resumption.
 The earlier MOV B,A test sample is part of the complete 8080 matrix.
 All eight CPUs have complete instruction-definition migration.
@@ -1524,10 +1524,15 @@ optimization pass into this review.
 
 The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `src/components/cpus/generated/{6502,6800,68000,8008,8080,8088,6809,z80}.ts`,
-`6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
+`6502-interrupts.ts`, `68000-quick.ts`, `68000-moves.ts`, `68000-word-moves.ts`, `68000-logic.ts`, `68000-arithmetic.ts`, `68000-bits.ts`, `68000-word-arithmetic.ts`,
 `68000-decimal.ts`, `68000-control.ts`, `68000-transfers.ts`, `68000-system.ts`, and the separate 8088 transfer, ALU, unary,
 stack, addressing, string, arithmetic, and control modules. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
+The 68000 word-transfer chapter owns 64 register-copy definitions in `68000.ts`
+and 128 numeric load/store definitions in `68000-word-moves.ts`. The core selects
+these encodings before the broader MOVE catalogue; other memory forms retain
+their shared parameterized bodies. Its chapter-authored word-result policy
+also serves the remaining word operations.
 The script first compiles literate chapters to `semantics/generated/`, then
 loads the definition registry. Both output directories are ignored and removed
 by `npm run clean`.
@@ -1571,7 +1576,8 @@ policies express the register behavior. Conditional A7 selection accesses only
 the chosen stored stack pointer. A separate state-schema module lets generation
 bootstrap without loading the 68000 core or its generated imports.
 
-The remaining 9,150 MOVE/MOVEA forms select 169 bodies by source/destination
+Of the remaining 9,150 MOVE/MOVEA forms, 128 word loads/stores use chapter-owned
+numeric definitions. The other 9,022 forms select 169 bodies by source/destination
 role, with numeric mode/register inputs from their common encoding inventory.
 `Cpu68000AddressContext` retains the existing EA decoder and one pending-update
 map per instruction. Address resolution performs extension fetches and staging,

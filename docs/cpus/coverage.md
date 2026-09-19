@@ -25,7 +25,7 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 0 / 268 | 0% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [522](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [596](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [604](../../src/components/cpus/68000.ts) | 192 / 36,029 | 0.5% |
 
 ## Literate authoring milestone
 
@@ -41,12 +41,19 @@ fields, read/write operands, name templates, address mask, and HLT exclusion
 generate both behavior and runtime bindings. Memory ALU forms reuse its address
 source, but their TypeScript-authored bodies do not earn literate coverage.
 
+The [68000 word-transfer chapter](../../src/components/cpus/specifications/68000-word-transfers.md)
+adds 64 data-register copies and 128 loads/stores through `(An)`. It specifies
+word extraction and preservation, address-resolution stages, alignment faults,
+high/low byte accesses, and flag timing. The existing decoder still owns A7's
+bank selection. The word-result policy also serves other word operations;
+only the 192 fully authored forms earn literate coverage.
+
 | Milestone | Evidence / remaining work |
 | --- | --- |
-| Two executable chapters | The 6502 and 8008 exercise prose, checked register declarations, encoding selectors, addressing, ordered effects, and flag policies through the existing representation. |
-| Production equivalence | The 8008 migration retains names, prose, keys, and ordering for all 12,197 definitions. 12,174 bodies remain structurally unchanged; 23 memory bodies use scoped chapter addressing. Old/new execution agrees across 11,376 cases. The other 26 generated modules are byte-identical. |
+| Three executable chapters | The 6502, 8008, and 68000 exercise prose, checked declarations, encoding selectors and values, multiple widths, addressing, ordered effects, fault returns, and flag policies through the existing representation. |
+| Production equivalence | The 68000 migration leaves all 27 existing generated modules byte-identical. The existing 12,197 instruction bodies retain their formal structure; 64 register-copy explanations now come from the chapter. A new module supplies 128 specialized word loads/stores. Old/new CPU execution agrees across 38,720 cases. |
 | Authoring feedback | Syntax, state-schema, width, scope, and encoding errors report Markdown locations; clean builds bootstrap chapter data before instruction generation. |
-| Third CPU chapter | Next: challenge widths and ordered effects with a 68000 word-transfer family. |
+| Language review | Next: assess the three chapters' vocabulary and remaining native boundaries before selecting a complete CPU migration. |
 | One complete literate CPU | Still ahead: remaining instructions, authoritative state layout, decoding, reset, and lifecycle contracts. |
 
 The percentages measure authored opcode forms, not progress toward a complete
@@ -56,7 +63,7 @@ CPU language or the amount of work remaining. See the
 ## Completed instruction-definition migration
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **12,197 generated bodies**, all used by CPU execution,
+contains **12,325 generated bodies**, all used by CPU execution,
 including 6502/6800/8088 entry helpers, a 6809 frame-push helper, and 8088 WAIT
 resumption. They cover **38,128 complete opcode forms**. All eight CPUs now
 have complete instruction-definition migration. The current
@@ -419,8 +426,9 @@ family inventory is:
   write. MOVE/MOVEQ/EXT write before N/Z/V/C; SWAP applies flags first. X/T/S
   remain untouched. The existing conditional, width, transfer, and flag
   vocabulary suffices for these register forms.
-  All remaining **9,150 MOVE/MOVEA forms** now use **169 shared bodies**,
-  completing the entire ordinary transfer family. Sources finish before
+  Of the remaining **9,150 MOVE/MOVEA forms**, **9,022** use **169 shared bodies**
+  and **128** use the chapter's specialized word loads/stores, completing the
+  entire ordinary transfer family. Sources finish before
   destination-address decoding. The decoder stages auto-updates, making them
   visible to later base/index calculations; the body commits them only after
   alignment checks and before writeback. Source/extension failures discard
@@ -543,14 +551,14 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 2,622 |
-| CPU-specific instruction definition files | 2,432 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,226 |
-| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,280** |
-| Authored CPU chapters (Markdown, including prose and formal blocks) | 289 |
-| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 65 |
-| Generated executable CPU output, counted separately | 310,971 |
-| Generated chapter data, counted separately | 12,260 |
+| Eight CPU implementation files | 2,630 |
+| CPU-specific instruction definition files | 2,439 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,258 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,327** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 443 |
+| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 67 |
+| Generated executable CPU output, counted separately | 314,243 |
+| Generated chapter data, counted separately | 77,285 |
 
 Tests, other documentation, machine definitions, and compiled JavaScript are
 outside this source count. Generated TypeScript is reproducible build output,
@@ -558,19 +566,22 @@ not maintained source. Its size is still reported to keep expansion visible.
 Both `src/components/cpus/generated/` and
 `src/components/cpus/semantics/generated/` are excluded from authored counts.
 
-The second chapter extends the front end from **279 to 345 lines**. It also
-removes the separate 8008 transfer-encoding inventory and the obsolete masked
-transfer path from shared Intel construction. The 8008 core now builds its
-bindings after initializing state; the chapter's H:L address rule serves
-transfers and memory ALU operands.
+The third chapter extends the front end from **345 to 376 lines**, adding
+width conversion and byte extraction, encoded value catalogues, flag constants,
+and existing address/fault effects. The compiler adds no CPU-specific decoder.
+The chapter's register-copy definitions replace their TypeScript construction;
+its word policy is shared by the remaining word definitions. Memory encodings
+select the chapter's specialized bodies; the broader MOVE catalogue still
+serves other sizes and addressing modes through its existing shared bodies.
 
-Authored CPU TypeScript grows from **9,199 to 9,280 lines**. Including both
-chapters (**184 → 289 lines**) and generation scripts (**59 → 65 lines**), total
-maintained CPU source grows from **9,442 to 9,634 lines** (**192 more**). This
-adds language capability and explanation rather than reducing source overall.
-Generated execution grows by **139 lines** in the 8008 module; the other 26
-modules are unchanged. Chapter data remains a separate disposable intermediate
-representation.
+Authored CPU TypeScript grows from **9,280 to 9,327 lines**. Including all three
+chapters (**289 → 443 lines**) and generation scripts (**65 → 67 lines**), total
+maintained CPU source grows from **9,634 to 9,837 lines** (**203 more**). This
+slice establishes the third language example and does not reduce source overall.
+Generated execution adds **3,272 lines** for the 128 specialized memory bodies;
+all 27 existing modules are unchanged. Generated chapter data repeats the
+validated CPU schema within expanded definitions and remains a separate,
+disposable intermediate representation.
 
 The 16 standalone address/operand readers remain generator probes; CPU execution
 expands those sources into complete bodies. They do not earn separate coverage
