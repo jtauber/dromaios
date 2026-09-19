@@ -126,7 +126,7 @@ npm run test:built -- z80 --test-name-pattern=interrupt
 
 A CPU selection includes its component tests and machine examples, but omits
 shared-helper and semantics tests. `test:built` skips the build; use it only
-while the compiled output is current. With no CPU selection or name filter,
+while the compiled output is current. With no CPU, name, or shard selection,
 either command runs the whole suite, including shared helpers, semantics,
 the parser, generators, and runner. Keep `npm test` as the final regression
 check; focused runs retain the selected tests' exhaustive cases and assertions.
@@ -144,6 +144,12 @@ browser APIs.
 
 The [GitHub Actions workflow](.github/workflows/ci.yml) runs `npm ci` and
 `npm test` on pushes and pull requests, using the Node version in `.nvmrc`.
+Four parallel jobs use Node's `--test-shard` option to divide the complete test
+file list, including shared-helper and semantics tests. Each file runs in one
+job; newly added tests are included automatically. Each job has a 30-minute
+limit, and a failure leaves the other jobs running so their results are available.
+To reproduce one job locally, use `npm test -- --test-shard=1/4` (or `2/4`,
+`3/4`, `4/4`); run all four shards or plain `npm test` for the full suite.
 A separate job installs and tests the Zed editor tooling.
 
 Runtime imports along the generator's native TypeScript path use `.ts`
