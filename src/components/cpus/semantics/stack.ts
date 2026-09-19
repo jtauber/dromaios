@@ -1,6 +1,6 @@
 import { addWrap, bitAnd, bitOr, concat, extend, highByte, literal, lowByte, not, projectAddress, readMemory, readRegister, readSource, subtract, value, when, writeMemory, writeRegister, zero } from "./model.ts";
 import type { CpuDeclaration, FlagPolicy, NumberExpression, Register, Statement, ValueSource } from "./model.ts";
-import { transfer } from "./builders.ts";
+import { readWord, transfer, writeWord } from "./builders.ts";
 import type { RegisterView } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
 
@@ -53,20 +53,20 @@ export function segmentedWordStack(segment: Register, pointer: Register) {
   if (segment.width !== 16 || pointer.width !== 16) throw new Error("A segmented word stack requires word registers.");
   const address = (segment: string, offset: string, high: boolean) =>
     projectAddress(value(segment), high ? addWrap(value(offset), literal(16, 1)) : value(offset), 4, 20);
+  const word = readWord("low-first", address("segment", "offset", false), address("segment", "offset", true));
   return {
     explanation: "Push decrements SP by two before capturing SS:SP; pop captures SS:SP before reading, then increments the live SP after both reads. "
       + "Transfer low then high with each logical offset wrapped before physical projection. Failed accesses retain completed pointer changes and byte transfers.",
     push: (contents, name = "stack") => [
       readRegister(name + "Pointer", pointer), writeRegister(pointer, subtract(value(name + "Pointer"), literal(16, 2))),
       readRegister(name + "Segment", segment), readRegister(name + "Offset", pointer),
-      writeMemory(address(name + "Segment", name + "Offset", false), lowByte(contents)),
-      writeMemory(address(name + "Segment", name + "Offset", true), highByte(contents)),
+      ...writeWord("low-first", address(name + "Segment", name + "Offset", false), address(name + "Segment", name + "Offset", true), contents),
     ],
     pop: { name: "pop segmented word", width: 16,
       steps: [readRegister("segment", segment), readRegister("offset", pointer),
-        readMemory("low", address("segment", "offset", false)), readMemory("high", address("segment", "offset", true)),
+        ...word.steps,
         readRegister("pointer", pointer), writeRegister(pointer, addWrap(value("pointer"), literal(16, 2)))],
-      result: concat(value("high"), value("low")),
+      result: word.result,
     },
   } satisfies Stack;
 }

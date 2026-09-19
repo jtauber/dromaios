@@ -515,27 +515,26 @@ judging source reduction; all counts include comments and blank lines.
 | Scope | Lines |
 | --- | ---: |
 | Eight CPU implementation files | 2,619 |
-| CPU-specific instruction definition files | 2,475 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,877 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,971** |
+| CPU-specific instruction definition files | 2,477 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,888 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,984** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 16 |
 | Generated CPU output, counted separately | 310,832 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The module catalogue now drives executable generation, explanation, and
-reproducibility checks. It replaces three separately maintained lists, keeping
-generation options beside each module and preserving explanation order.
-All **12,197 definitions** remain structurally unchanged, and all **27 generated
-modules** remain byte-identical.
+Shared word-read and word-write builders now serve Intel transfers and stack
+exchange, Motorola word operands, and 8088 memory and stack access. Callers
+specify byte significance and both addresses in access order, retaining their
+wrapping, segmentation, and state-update boundaries. All **12,197 definitions**
+remain structurally unchanged, and all **27 generated modules** remain
+byte-identical.
 
-Putting each catalogue entry on its own line and declaring its type increases
-authored CPU source from **8,932 to 8,971 lines** (**39 more**); the generation
-script shrinks from **18 to 16 lines**. Across the catalogue, script, and
-reproducibility test, removing repeated lists eliminates **3,033 characters**.
-This change consolidates bookkeeping rather than instruction behavior. Further
-source reduction remains ahead.
+This extraction increases authored CPU source from **8,971 to 8,984 lines**
+(**13 more**): CPU-specific definitions add **2**, and shared support adds **11**.
+It replaces repeated byte assembly/splitting with explicit word operations;
+it does not achieve a net line reduction. Further source reduction remains ahead.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

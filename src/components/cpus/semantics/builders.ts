@@ -1,6 +1,6 @@
 import { addWrap, borrow, capture, concat, fetchByte, flagLiteral, flagValue, highByte, lowByte, lowBit, negative, not, readFlag, readMemory, readRegister, readSource,
-  shiftLeft, shiftRight, subtract, updateFlags, value, writeRegister, zero } from "./model.ts";
-import type { Flag, FlagExpression, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
+  shiftLeft, shiftRight, subtract, updateFlags, value, writeMemory, writeRegister, zero } from "./model.ts";
+import type { AddressExpression, Flag, FlagExpression, FlagPolicy, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
 import type { CpuDeclaration, InstructionDefinition } from "./model.ts";
 import { opcodeTable } from "../opcodes.ts";
 import type { OpcodeEntry } from "../opcodes.ts";
@@ -62,6 +62,18 @@ export function byteRegisterView(register: Register, half: "low" | "high"): Regi
 export function memorySource(address: ValueSource): ValueSource {
   return { name: `byte at ${address.name}`, width: 8,
     steps: [readSource("address", address), readMemory("byte", value("address"))], result: value("byte") };
+}
+
+/** Read in the supplied address order; return the complete word from the two captured bytes. */
+export function readWord(order: "low-first" | "high-first", first: AddressExpression, second: AddressExpression, low = "low", high = "high") {
+  const names = order === "low-first" ? [low, high] as const : [high, low] as const;
+  return { steps: [readMemory(names[0], first), readMemory(names[1], second)], result: concat(value(high), value(low)) };
+}
+
+/** Split a captured word into two ordered writes. Address wrapping/projection belongs to the caller. */
+export function writeWord(order: "low-first" | "high-first", first: AddressExpression, second: AddressExpression, contents: NumberExpression): readonly Statement[] {
+  const bytes = order === "low-first" ? [lowByte, highByte] as const : [highByte, lowByte] as const;
+  return [writeMemory(first, bytes[0](contents)), writeMemory(second, bytes[1](contents))];
 }
 
 export function negativeZeroPolicy(name: string, n: Flag, z: Flag, width: Width): FlagPolicy {

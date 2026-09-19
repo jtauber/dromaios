@@ -1,6 +1,6 @@
-import { addOverflow, addWrap, and, carry, halfCarry, flagValue, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, highByte, literal, lowByte, negative, not, overflow, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
+import { addOverflow, addWrap, and, carry, halfCarry, flagValue, bitAnd, bitOr, bitXor, borrow, capture, concat, fetchByte, flagLiteral, literal, negative, not, overflow, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, xor, zero } from "./model.ts";
 import type { CpuDeclaration, Flag, FlagPolicy, InstructionDefinition, NumberExpression, Register, Statement, ValueSource, Width } from "./model.ts";
-import { arithmetic, compare, immediateByte, logical, negativeZeroPolicy, shift, transfer } from "./builders.ts";
+import { arithmetic, compare, immediateByte, logical, negativeZeroPolicy, readWord, shift, transfer, writeWord } from "./builders.ts";
 import { defineInstruction } from "./validate.ts";
 import { relativeBranch, relativeTarget, resolvedCall, subroutineCall, subroutineReturn } from "./control-flow.ts";
 import type { FlowCpu, Condition } from "./control-flow.ts";
@@ -144,12 +144,11 @@ interface OperandForm {
 function operandFamily(cpu: MotorolaCpu, mnemonic: string, width: Width,
   body: (operand: OperandForm) => Pick<InstructionDefinition, "explanation" | "steps">, key = mnemonic.toLowerCase()) {
   const word = width === 16;
+  const memoryWord = readWord("high-first", value("address"), addWrap(value("address"), literal(16, 1)));
   return Object.fromEntries((["Immediate", "Memory"] as const).map(mode => {
     const memory = mode === "Memory";
-    const reads = !memory ? [] : word
-      ? [readMemory("high", value("address")), readMemory("low", addWrap(value("address"), literal(16, 1)))]
-      : [readMemory("byte", value("address"))];
-    const source = memory ? (word ? concat(value("high"), value("low")) : value("byte")) : (word ? immediateWord : immediateByte);
+    const reads = !memory ? [] : word ? memoryWord.steps : [readMemory("byte", value("address"))];
+    const source = memory ? (word ? memoryWord.result : value("byte")) : (word ? immediateWord : immediateByte);
     return [`${key}${mode}`, defineInstruction({ cpu: cpu.declaration, name: `${mnemonic} ${memory ? "memory" : word ? "#word" : "#byte"}`,
       ...(memory ? { inputs: { address: 16 as const } } : {}), ...body({ memory, word, reads, source }),
     })];
@@ -219,8 +218,7 @@ export function motorolaTransfers(cpu: MotorolaCpu, suffix: string, register: Wr
           + "Only after a successful write, set N/Z from that byte and clear V, preserving other flags. "
           + "A failed write leaves flags unchanged; completed fetches and addressing effects remain."),
       steps: [stored ? readRegister("result", register) : readSource("result", register.source),
-        ...(word ? [writeMemory(value("address"), highByte(value("result"))),
-          writeMemory(addWrap(value("address"), literal(16, 1)), lowByte(value("result")))]
+        ...(word ? writeWord("high-first", value("address"), addWrap(value("address"), literal(16, 1)), value("result"))
           : [writeMemory(value("address"), value("result"))]),
         updateFlags(flags, { result: value("result") })],
     }),

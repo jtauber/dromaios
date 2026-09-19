@@ -1,6 +1,6 @@
 import { addWrap, bitAnd, bitOr, bitXor, capture, concat, fetchByte, flagLiteral, flagValue, highByte, literal, lowByte, not, readFlag, readMemory, readRegister, readSource, subtract, updateFlags, value, writeLatch, writeMemory, writeRegister } from "./model.ts";
 import type { CpuDeclaration, Flag, Latch, FlagPolicy, InstructionDefinition, Register, Statement, ValueSource } from "./model.ts";
-import { arithmetic, immediateByte, instructionSet, memorySource, registerSource, shift, transfer } from "./builders.ts";
+import { arithmetic, immediateByte, instructionSet, memorySource, readWord, registerSource, shift, transfer, writeWord } from "./builders.ts";
 import type { RegisterView } from "./builders.ts";
 import { decimalAdjust } from "./decimal.ts";
 import { flagInstruction, flagPolicy, packedStatus, restoreStatus } from "./status.ts";
@@ -114,12 +114,13 @@ export function intelSubroutines(cpu: IntelWordCpu, flags: readonly Flag[], name
 export function intelWordTransfer(cpu: IntelWordCpu, register: WordRegister, operation: WordTransfer, name: string): InstructionDefinition {
   const memory = operation === "load" || operation === "store";
   const address = value("address"), next = addWrap(address, literal(16, 1));
+  const word = readWord("low-first", address, next);
   const source: ValueSource = operation === "immediate" ? immediateWord : operation === "load"
     ? { name: "memory word, low byte first", width: 16,
-      steps: [readSource("address", immediateWord), readMemory("low", address), readMemory("high", next)], result: concat(value("high"), value("low")) }
+      steps: [readSource("address", immediateWord), ...word.steps], result: word.result }
     : wordSource(register);
   const destination = operation === "copy" ? cpu.register("sp") : operation === "store"
-    ? [writeMemory(address, lowByte(value("result"))), writeMemory(next, highByte(value("result")))]
+    ? writeWord("low-first", address, next, value("result"))
     : wordDestination(register);
   return defineInstruction({ cpu: cpu.declaration, name,
     explanation: (memory ? "Fetch the complete address low byte first, then " : operation === "immediate" ? "Fetch the immediate low byte then high byte; " : "")
@@ -140,15 +141,15 @@ export function intelWordTransfers(cpu: IntelWordCpu, names: (register: Register
 /** Stack exchange captures the register and SP before reading low/high, then writing high/low. SP is unchanged. */
 export function intelStackExchange(cpu: IntelWordCpu, register: WordRegister, name: string): InstructionDefinition {
   const address = value("address"), next = addWrap(address, literal(16, 1));
+  const word = readWord("low-first", address, next);
   return defineInstruction({ cpu: cpu.declaration, name,
     explanation: "Capture the complete register, then SP. Read memory low byte then high byte, wrapping at FFFF. "
       + "Write the original register high byte then low byte to those captured addresses, even if unchanged. "
       + "Only after both writes succeed, replace the register with the captured memory word; pairs read and write high byte first. "
       + "A failed access prevents register writeback and retains completed memory writes. Never write SP or access flags, alternate banks, or control state.",
     steps: [readSource("original", wordSource(register)), readRegister("address", cpu.register("sp")),
-      readMemory("low", address), readMemory("high", next),
-      writeMemory(next, highByte(value("original"))), writeMemory(address, lowByte(value("original"))),
-      ...transfer(wordDestination(register), concat(value("high"), value("low")))],
+      ...word.steps, ...writeWord("high-first", next, address, value("original")),
+      ...transfer(wordDestination(register), word.result)],
   });
 }
 

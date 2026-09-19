@@ -234,7 +234,7 @@ The authoring layers have separate homes:
 | Location | Responsibility |
 | --- | --- |
 | [model.ts](../../src/components/cpus/semantics/model.ts) | Primitive expressions, statements, and CPU symbols |
-| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, construction-time register views, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
+| [builders.ts](../../src/components/cpus/semantics/builders.ts) | Shared sources, ordered word reads/writes, construction-time register views, comparison/transfer/shift/logical/arithmetic recipes, N/Z policies, and checked opcode inventories |
 | [control-flow.ts](../../src/components/cpus/semantics/control-flow.ts) | Conditional effects, jumps, branches, calls, returns, and vector loads with explicit operand/condition/stack order |
 | [ports.ts](../../src/components/cpus/semantics/ports.ts) | Shared byte/word port transfers: capture addresses before operands, transfer low byte first, and commit input only after complete reads |
 | [stack.ts](../../src/components/cpus/semantics/stack.ts) | Descending byte stacks, explicit pointer position and fixed page, word byte order, masked register transfers, ordered frames, and complete push/pop instruction construction |
@@ -257,6 +257,14 @@ Each CPU definition module follows sources, policies, instruction construction,
 then instruction definitions and their selectors. Shared recipes return data built from the existing
 vocabulary; they add no runtime callbacks or new language primitives. The
 compiler and reporter expand their results just like directly authored bodies.
+
+`readWord` returns two ordered memory reads and the expression assembling their
+captured bytes; `writeWord` splits a captured word into two ordered writes. Both
+take `low-first` or `high-first` and two explicit addresses in access order.
+Callers supply wrapping and segmentation and place register/flag effects around
+the transfers. For example, Intel stack exchange reads low first at `address`,
+then `next`, but writes high first at `next`, then `address`. No helper assumes
+ascending addresses or moves a state update across an access.
 
 Motorola comparisons, logic, loads, and arithmetic use a local `operandFamily`
 constructor for immediate and resolved-memory forms. It supplies their names,

@@ -4,7 +4,7 @@ import { opcodeFamily } from "../../opcodes.ts";
 import { addOverflow, addWrap, bitAnd, bitOr, bitXor, borrow, capture, carry, concat, cpuSymbols, deferInterrupt, evenParity, extend, flagLiteral, flagValue, halfBorrow, halfCarry,
   readTest, reportInterrupt, sendEscape, divide, fetchByte, highByte, iterate, literal, lowByte, multiply, negative, not, overflow, projectAddress, readFlag, readMemory, readRegister, readSource, reject, select, shiftBits, signExtend, subtract, truncate, updateFlags, value, writeLatch, writeMemory, writeRegister, when, xor, zero } from "../model.ts";
 import type { InstructionDefinition, NumberExpression, Statement, ValueSource } from "../model.ts";
-import { arithmetic, atLeast, byteRegisterView, immediateByte, instructionSet, registerView, registerSource, shift, transfer } from "../builders.ts";
+import { arithmetic, atLeast, byteRegisterView, immediateByte, instructionSet, readWord, registerView, registerSource, shift, transfer, writeWord } from "../builders.ts";
 import type { ShiftInput } from "../builders.ts";
 import { immediateWord } from "../intel.ts";
 import { flagInstruction, flagPolicy, packedStatus, restoreStatus, updateStatus } from "../status.ts";
@@ -363,10 +363,12 @@ function registerOperands(width: 8 | 16): readonly OperandDefinition[] {
 function memoryOperand(width: 8 | 16, segment = value("segment"), offset = value("offset")): OperandDefinition {
   const address = (next: boolean) => projectAddress(segment, next ? addWrap(offset, literal(16, 1)) : offset, 4, 20);
   return { name: `${width === 8 ? "byte" : "word"} [segment:offset]`, memory: true,
-    read: name => width === 8 ? [readMemory(name, address(false))] : [
-      readMemory(`${name}Low`, address(false)), readMemory(`${name}High`, address(true)), capture(name, concat(value(`${name}High`), value(`${name}Low`)))],
-    write: contents => width === 8 ? [writeMemory(address(false), contents)] : [
-      writeMemory(address(false), lowByte(contents)), writeMemory(address(true), highByte(contents))],
+    read: name => {
+      if (width === 8) return [readMemory(name, address(false))];
+      const word = readWord("low-first", address(false), address(true), `${name}Low`, `${name}High`);
+      return [...word.steps, capture(name, word.result)];
+    },
+    write: contents => width === 8 ? [writeMemory(address(false), contents)] : writeWord("low-first", address(false), address(true), contents),
   };
 }
 
