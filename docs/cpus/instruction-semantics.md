@@ -9,8 +9,13 @@ The public execution interfaces and supported opcode inventories are unchanged.
 The experiment asks whether an instruction's meaning can be described clearly
 enough for execution and explanation to share one source. The authored
 [definitions](../../src/components/cpus/semantics/definitions.ts) pair prose with
-structured bodies. This is a step toward the literate-programming aspiration;
-it does not choose an external grammar or a document format for authoring CPUs.
+structured bodies. This representation is independent of the external grammar
+and document format used to author a CPU.
+
+The [literate specification prototype](literate-specifications.md) now provides
+an external authoring path into this representation. Its 6502 chapter owns
+LDA/STA and shared addressing rules; the rest of the definitions remain
+TypeScript-authored.
 
 ## The review slice
 
@@ -1521,7 +1526,9 @@ The [generation script](../../scripts/generate-cpu-semantics.ts) produces
 `68000-decimal.ts`, `68000-control.ts`, `68000-transfers.ts`, `68000-system.ts`, and the separate 8088 transfer, ALU, unary,
 stack, addressing, string, arithmetic, and control modules. The separate 8088
 operand modules contain specialized resolved bodies; its numeric opcode module retains automatic bindings.
-These files are ignored build output and removed by `npm run clean`.
+The script first compiles literate chapters to `semantics/generated/`, then
+loads the definition registry. Both output directories are ignored and removed
+by `npm run clean`.
 Regenerate with `npm run generate:cpus`;
 `npm run build` generates these bodies and the machine factories automatically.
 The source-only check and ordinary compilation both type-check the generated
@@ -2006,11 +2013,12 @@ All 256 earlier definitions remain structurally unchanged. Compound writes
 remain ordinary statements and do not introduce a general register-view system.
 
 All eight documented instruction inventories now use generated definitions.
-The next cleanup should review repeated definition construction and the remaining
-core/helper boundary, identifying obsolete code and checking total authored
-source in the [footprint report](coverage.md#source-footprint). Complete instruction
-migration does not yet provide a full CPU authoring language: lifecycle contracts,
-native decoders, external interfaces, and the literate format remain separate work.
+The [literate prototype](literate-specifications.md) now tests an external authoring
+path into those definitions. Continue checking total authored source in the
+[footprint report](coverage.md#source-footprint), including the chapters and their
+compiler. Complete instruction migration does not yet provide a full CPU
+authoring language: lifecycle contracts, native decoders, and external interfaces
+remain outside the chapter language.
 
 General addressing decoders (such as the full 6809 postbyte decoder), unbounded
 loops, and CPU-boundary exception delivery remain outside the

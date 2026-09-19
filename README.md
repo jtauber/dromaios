@@ -72,8 +72,9 @@ machines are still planned.
 
 All eight documented instruction sets now use shared definitions that generate
 execution and explanations. [CPU implementation coverage](docs/cpus/coverage.md)
-tracks that completed migration, source footprint, supported features, and
-remaining gaps, including timing. The [roadmap](ROADMAP.md) describes the
+tracks literate authoring, source footprint, supported features, and remaining
+gaps, including timing. An executable [literate CPU chapter](docs/cpus/literate-specifications.md)
+now feeds the same definition pipeline. The [roadmap](ROADMAP.md) describes the
 development stages.
 
 The implementation uses **TypeScript**, compiled to JavaScript ES modules,
@@ -102,7 +103,7 @@ scripts, and tests, and runs the compiled tests.
 `npm run build` performs the same checks and compilation without running tests.
 `npm run check:src` regenerates both outputs and runs the simulation check
 using [tsconfig.src.json](tsconfig.src.json), without emitting JavaScript.
-`npm run generate:cpus` refreshes just the generated instruction bodies.
+`npm run generate:cpus` compiles literate chapters and refreshes generated instruction bodies.
 `npm run generate:machines` refreshes just the generated TypeScript factories.
 
 The tracked [expanded instruction listing](docs/cpus/semantic-examples.md) is

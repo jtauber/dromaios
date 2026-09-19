@@ -3,50 +3,20 @@ import { opcodeFamily, opcodePattern } from "../../opcodes.ts";
 import { addWrap, bitAnd, bitOr, bitXor, borrow, capture, concat, cpuSymbols, extend, fetchByte, flagLiteral, highByte, literal, lowByte, negative, not,
   readMemory, readRegister, readSource, subtract, updateFlags, value, writeMemory, writeRegister, zero } from "../model.ts";
 import type { FlagPolicy, InstructionDefinition, NumberExpression, Register, SourceDefinitions, Statement, ValueSource } from "../model.ts";
-import { compare, immediateByte, instructionSet, logical, memorySource, negativeZeroPolicy, registerSource, shift, transfer } from "../builders.ts";
+import { compare, instructionSet, logical, memorySource, registerSource, shift, transfer } from "../builders.ts";
 import { defineInstruction } from "../validate.ts";
 import { flagCondition, loadVector, jump, relativeBranch, subroutineReturn } from "../control-flow.ts";
 import { byteStack, stackPop, stackPush, wordStack } from "../stack.ts";
 import { flagInstruction, flagPolicy, packedStatus, restoreStatus } from "../status.ts";
 import { mosArithmetic } from "../mos.ts";
+import { sources, policies, modes, families } from "../generated/6502-load-store.ts";
 
 const cpu = cpuSymbols("6502", cpu6502StateDescription);
 const stack = byteStack(cpu.register("sp"), "free", 0x0100);
 type Operand = readonly [name: string, source: ValueSource];
 
-// Address sources stop before the final data read; stores and modifiers use them directly.
-function absolute(index?: "x" | "y"): ValueSource {
-  return { name: index ? `absolute indexed by ${index.toUpperCase()}` : "absolute address, low byte first", width: 16, steps: [
-    fetchByte("low"), fetchByte("high"),
-    ...(index ? [readRegister("index", cpu.register(index))] : []),
-  ], result: index ? addWrap(concat(value("high"), value("low")), extend(value("index"), 16)) : concat(value("high"), value("low")) };
-}
-function zeroPage(index?: "x" | "y"): ValueSource {
-  return { name: index ? `zero page indexed by ${index.toUpperCase()}` : "zero page", width: 16, steps: [
-    fetchByte("offset"),
-    ...(index ? [readRegister("index", cpu.register(index))] : []),
-  ], result: extend(index ? addWrap(value("offset"), value("index")) : value("offset"), 16) };
-}
-function indirect(mode: "indexed-indirect" | "indirect-indexed"): ValueSource {
-  const indexFirst = mode === "indexed-indirect";
-  return { name: indexFirst ? "indexed indirect (zero page,X)" : "indirect indexed (zero page),Y", width: 16, steps: [
-    fetchByte("offset"),
-    ...(indexFirst ? [
-      readRegister("index", cpu.register("x")),
-      capture("pointer", addWrap(value("offset"), value("index"))),
-    ] : [capture("pointer", value("offset"))]),
-    readMemory("low", extend(value("pointer"), 16)),
-    readMemory("high", extend(addWrap(value("pointer"), literal(8, 1)), 16)),
-    capture("base", concat(value("high"), value("low"))),
-    ...(!indexFirst ? [readRegister("index", cpu.register("y"))] : []),
-  ], result: indexFirst ? value("base") : addWrap(value("base"), extend(value("index"), 16)) };
-}
-
-const addresses = {
-  zeroPage: zeroPage(), zeroPageX: zeroPage("x"), zeroPageY: zeroPage("y"),
-  absolute: absolute(), absoluteX: absolute("x"), absoluteY: absolute("y"),
-  indexedIndirect: indirect("indexed-indirect"), indirectIndexed: indirect("indirect-indexed"),
-};
+// The literate chapter owns these sources; all 6502 families consume the same definitions.
+const { immediateByte, ...addresses } = sources;
 
 // NMOS JMP (addr) increments only the pointer's low byte: xxFF reads its high target byte at xx00.
 const indirectJump: ValueSource = { name: "NMOS page-wrapped pointer", width: 16,
@@ -55,7 +25,7 @@ const indirectJump: ValueSource = { name: "NMOS page-wrapped pointer", width: 16
   result: concat(value("high"), value("low")),
 };
 
-const resultNZ = negativeZeroPolicy("6502 result N/Z", cpu.flag("n"), cpu.flag("z"), 8);
+const resultNZ = policies.NZ;
 const comparisonFlags: FlagPolicy = {
   ...resultNZ, name: "6502 comparison", parameters: { left: 8, right: 8, result: 8 },
   updates: [...resultNZ.updates, { flag: cpu.flag("c"), value: not(borrow(value("left"), value("right"))) }],
@@ -86,7 +56,7 @@ function comparison(register: "a" | "x" | "y", [operand, source]: Operand): Inst
     steps: compare(cpu.register(register), source, comparisonFlags),
   });
 }
-function load(register: "a" | "x" | "y", [operand, source]: Operand): InstructionDefinition {
+function load(register: "x" | "y", [operand, source]: Operand): InstructionDefinition {
   return defineInstruction({
     cpu: cpu.declaration, name: `LD${register.toUpperCase()} ${operand}`,
     explanation: "Finish the source reads before writing the destination, then set N/Z from the captured byte. "
@@ -94,7 +64,7 @@ function load(register: "a" | "x" | "y", [operand, source]: Operand): Instructio
     steps: transfer(cpu.register(register), source, resultNZ),
   });
 }
-function store(register: "a" | "x" | "y", [operand, address]: Operand): InstructionDefinition {
+function store(register: "x" | "y", [operand, address]: Operand): InstructionDefinition {
   return defineInstruction({
     cpu: cpu.declaration, name: `ST${register.toUpperCase()} ${operand}`,
     explanation: "Resolve the address once, including any pointer reads, before capturing the source register. "
@@ -160,16 +130,8 @@ function updateByte(name: string, target: Register | ValueSource, operation: rea
   });
 }
 
-// aaa bbb cc: cc=01, aaa selects ORA/AND/EOR/ADC/STA/LDA/CMP/SBC; bbb selects addressing in numeric order.
-// bbb=010 has no address: reads fetch an immediate byte, while STA omits that encoding.
-const accumulatorAddresses: readonly (Operand | undefined)[] = [
-  ["(zero page,X)", addresses.indexedIndirect], ["zero page", addresses.zeroPage],
-  undefined, ["absolute", addresses.absolute],
-  ["(zero page),Y", addresses.indirectIndexed], ["zero page,X", addresses.zeroPageX],
-  ["absolute,Y", addresses.absoluteY], ["absolute,X", addresses.absoluteX],
-];
-const accumulatorOperands = accumulatorAddresses.map((operand): Operand => operand === undefined
-  ? ["#byte", immediateByte] : [operand[0], memorySource(operand[1])]);
+// The chapter's bbb catalogue also serves the other aaa bbb 01 accumulator families.
+const accumulatorOperands: readonly Operand[] = modes.accumulator.map(mode => [mode.name, mode.read]);
 // Standalone source generation retains focused probes of this shared addressing inventory.
 export const sources6502 = { cpu: cpu.declaration, groups: {
   addresses, operands: Object.fromEntries(accumulatorOperands.map(([, source], code) => [code, source])),
@@ -242,9 +204,8 @@ export const instructions6502 = instructionSet([
   ...opcodeFamily("010 bbb 01", { b: accumulatorOperands }, ({ b }) => logic("EOR", b)),
   ...opcodeFamily("011 bbb 01", { b: accumulatorOperands }, ({ b }) => arithmetic("ADC", b)),
   ...opcodeFamily("111 bbb 01", { b: accumulatorOperands }, ({ b }) => arithmetic("SBC", b)),
-  ...opcodeFamily("100 bbb 01", { b: accumulatorAddresses }, ({ b }) => b)
-    .flatMap(([opcode, address]) => address === undefined ? [] : [[opcode, store("a", address)] as const]),
-  ...opcodeFamily("101 bbb 01", { b: accumulatorOperands }, ({ b }) => load("a", b)),
+  ...families.STA,
+  ...families.LDA,
   ...opcodeFamily("110 bbb 01", { b: accumulatorOperands }, ({ b }) => comparison("a", b)),
   // cc=00, aaa=001 selects BIT; bbb=001/011 selects zero page/absolute. No immediate or indexed form.
   ...opcodeFamily("001 0b1 00", { b: [["zero page", memorySource(addresses.zeroPage)], ["absolute", memorySource(addresses.absolute)]] }, ({ b }) => testBits(b)),
@@ -256,12 +217,12 @@ export const instructions6502 = instructionSet([
   ...opcodeFamily("101 000 r0", { r: indexRegisters }, ({ r }) => load(r, ["#byte", immediateByte])),
   ...opcodeFamily("101 001 r0", { r: indexRegisters }, ({ r }) => load(r, ["zero page", memorySource(addresses.zeroPage)])),
   ...opcodeFamily("101 011 r0", { r: indexRegisters }, ({ r }) => load(r, ["absolute", memorySource(addresses.absolute)])),
-  ...opcodeFamily("101 101 r0", { r: indexRegisters }, ({ r }) => load(r, [`zero page,${otherIndex[r].toUpperCase()}`, memorySource(zeroPage(otherIndex[r]))])),
-  ...opcodeFamily("101 111 r0", { r: indexRegisters }, ({ r }) => load(r, [`absolute,${otherIndex[r].toUpperCase()}`, memorySource(absolute(otherIndex[r]))])),
+  ...opcodeFamily("101 101 r0", { r: indexRegisters }, ({ r }) => load(r, [`zero page,${otherIndex[r].toUpperCase()}`, memorySource(addresses[r === "x" ? "zeroPageY" : "zeroPageX"])])),
+  ...opcodeFamily("101 111 r0", { r: indexRegisters }, ({ r }) => load(r, [`absolute,${otherIndex[r].toUpperCase()}`, memorySource(addresses[r === "x" ? "absoluteY" : "absoluteX"])])),
   // 100 bbb r0: STY/STX use zp/absolute/zp,OTHER; there is no immediate or absolute-indexed store.
   ...opcodeFamily("100 001 r0", { r: indexRegisters }, ({ r }) => store(r, ["zero page", addresses.zeroPage])),
   ...opcodeFamily("100 011 r0", { r: indexRegisters }, ({ r }) => store(r, ["absolute", addresses.absolute])),
-  ...opcodeFamily("100 101 r0", { r: indexRegisters }, ({ r }) => store(r, [`zero page,${otherIndex[r].toUpperCase()}`, zeroPage(otherIndex[r])])),
+  ...opcodeFamily("100 101 r0", { r: indexRegisters }, ({ r }) => store(r, [`zero page,${otherIndex[r].toUpperCase()}`, addresses[r === "x" ? "zeroPageY" : "zeroPageX"]])),
   // Register transfers occupy bbb=010/110; TXS alone preserves every flag.
   ...opcodePattern("101 010 00", registerTransfer("TAY", "a", "y", resultNZ)),
   ...opcodePattern("100 110 00", registerTransfer("TYA", "y", "a", resultNZ)),

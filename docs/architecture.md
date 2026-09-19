@@ -20,8 +20,10 @@ A long-term aspiration for the CPU DSL is **literate programming**: a detailed
 description of a CPU would combine explanations with formal definitions from
 which its emulator is generated. The authored description would serve as both
 readable documentation and implementation source. Typed definitions and code
-generation provide a working foundation; the complete CPU authoring language,
-document format, and representation of lifecycle behavior remain open.
+generation provide a working foundation. The first
+[literate chapter](cpus/literate-specifications.md) now compiles Markdown `cpu`
+fences into that representation, with diagnostics tied to the document.
+Complete CPU descriptions and lifecycle behavior remain ahead.
 
 The current [stored-state descriptions](cpus/implementation.md#stored-state-descriptions)
 are one such example: CPU-owned fields and constraints drive constructor
@@ -33,8 +35,8 @@ documented instruction sets, pairing formal behavior with prose. Validation
 and generation produce both expanded explanations and
 typed TypeScript bodies. CPU tables bind those bodies to stored state and narrow
 execution contexts. Native decoders, recording, retirement, and exception-entry
-orchestration remain in the cores; the complete literate authoring format is
-still open.
+orchestration remain in the cores. Chapter declarations currently validate
+references to stored state; they do not yet generate its schema.
 
 The rule of three applies to these generalizations too. The 8080, 6502, and
 6809 examples established the first comparisons; all eight CPUs now exercise
@@ -282,7 +284,7 @@ being treated as correctness references.
 
 Worker placement, performance optimizations, cycle-level bus simulation,
 complete machine save states, reverse execution, a public plugin API, the
-literate CPU authoring format, and richer device and wiring descriptions remain
-open. CPU snapshots, typed instruction definitions, and the current `.machine`
-language already provide foundations; extend them when concrete examples
+final form of the literate CPU language, and richer device and wiring descriptions
+remain open. CPU snapshots, typed instruction definitions, the first executable
+chapter, and the current `.machine` language already provide foundations; extend them when concrete examples
 justify the next capability.

@@ -2,12 +2,13 @@
 
 All eight initial CPU models now implement **100% of their documented opcode
 forms through [shared, inspectable instruction definitions](instruction-semantics.md)**
-that generate both executable code and explanations. The table records the
-completed instruction-definition migration and current source footprint. The
-detailed support inventory remains below as a reference for implemented behavior
+that generate both executable code and explanations. The table now follows
+authoring those forms in literate CPU chapters. This is a new migration: a zero
+here means the definitions are still authored in TypeScript, not missing CPU
+support. The detailed support inventory remains below as a reference for implemented behavior
 and processor limitations.
 
-Update this document whenever migration, CPU support, or source footprint changes.
+Update this document whenever literate authoring, CPU support, or source footprint changes.
 The [model contracts](../README.md#cpu-models) define state and execution policies;
 example specifications define programs and expected results. [CPU scope](scope.md)
 records intended targets and the reasons for choosing them. Existing reference
@@ -15,16 +16,38 @@ emulators do not count toward implementation here.
 
 ## At a glance
 
-| Model | Introduced | Transistors (approx.) | Source lines | Migrated / documented forms | Definition migration |
+| Model | Introduced | Transistors (approx.) | Source lines | Literate / documented forms | Literate authoring |
 | --- | --- | ---: | ---: | --- | --- |
-| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [228](../../src/components/cpus/8008.ts) | 250 / 250 | 100% |
-| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [197](../../src/components/cpus/8080.ts) | 244 / 244 | 100% |
-| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 197 / 197 | 100% |
-| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | 151 / 151 | 100% |
-| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
-| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
-| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [522](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [596](../../src/components/cpus/68000.ts) | 36,029 / 36,029 | 100% |
+| [Intel 8008](#8008) | 1972 | [3,500][intel-transistors] | [228](../../src/components/cpus/8008.ts) | 0 / 250 | 0% |
+| [Intel 8080](#8080) | 1974 | [6,000][intel-transistors] | [197](../../src/components/cpus/8080.ts) | 0 / 244 | 0% |
+| [Motorola 6800](#6800) | 1974 | [4,100][6800-transistors] | [213](../../src/components/cpus/6800.ts) | 0 / 197 | 0% |
+| [MOS 6502](#6502) | 1975 | [3,510][6502-transistors] | [101](../../src/components/cpus/6502.ts) | 15 / 151 | 9.9% |
+| [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 0 / 698 | 0% |
+| [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 0 / 268 | 0% |
+| [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [522](../../src/components/cpus/8088.ts) | 0 / 291 | 0% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [596](../../src/components/cpus/68000.ts) | 0 / 36,029 | 0% |
+
+## Literate authoring milestone
+
+The first [executable chapter](../../src/components/cpus/specifications/6502-load-store.md)
+owns all eight LDA and seven STA encodings, their shared addressing sources,
+and the N/Z policy. Those definitions feed real 6502 execution. The chapter's
+addresses and policy also serve other families, but only its fully authored
+LDA/STA bodies earn literate coverage credit.
+
+| Milestone | Evidence / remaining work |
+| --- | --- |
+| One executable chapter | Implemented: prose, checked register declarations, opcode patterns, addressing, ordered effects, and flag rules compile through the existing representation. |
+| Production equivalence | All 12,197 definitions and all 27 generated execution modules match the pre-chapter baseline; independent CPU tests remain the behavioral checks. |
+| Authoring feedback | Syntax, state-schema, width, scope, and encoding errors report Markdown locations; clean builds bootstrap chapter data before instruction generation. |
+| Contrasting CPU chapters | Next: challenge the vocabulary with 8008 and 68000 families. |
+| One complete literate CPU | Still ahead: remaining instructions, authoritative state layout, decoding, reset, and lifecycle contracts. |
+
+The percentages measure authored opcode forms, not progress toward a complete
+CPU language or the amount of work remaining. See the
+[language guide](literate-specifications.md) for supported syntax and boundaries.
+
+## Completed instruction-definition migration
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
 contains **12,197 generated bodies**, all used by CPU execution,
@@ -515,53 +538,53 @@ judging source reduction; all counts include comments and blank lines.
 | Scope | Lines |
 | --- | ---: |
 | Eight CPU implementation files | 2,619 |
-| CPU-specific instruction definition files | 2,470 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,870 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,959** |
-| CPU generation script (`scripts/generate-cpu-semantics.ts`) | 16 |
-| Generated CPU output, counted separately | 310,832 |
+| CPU-specific instruction definition files | 2,431 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, reporter, and literate front end | 4,149 |
+| **All authored TypeScript under `src/components/cpus`, excluding both generated directories** | **9,199** |
+| Authored CPU chapters (Markdown, including prose and formal blocks) | 184 |
+| CPU generation scripts (`generate-cpu-semantics.ts` and `generate-cpu-chapters.ts`) | 59 |
+| Generated executable CPU output, counted separately | 310,832 |
+| Generated chapter data, counted separately | 3,781 |
 
-Tests, documentation, machine definitions, and compiled JavaScript are outside
-this source count. Generated TypeScript is reproducible build output, not
-maintained source. Its size is still reported to keep expansion visible.
-The [8088 definitions](../../src/components/cpus/semantics/definitions/8088.ts)
-now share byte/word operand catalogues and memory-input declarations across
-transfers, ALU, unary, shift, multiply/divide, control, and segment-move families.
-Register/memory selectors used in body names come from the catalogue; each family
-retains its exclusions and ordered effects. All **12,197 definitions**, including
-body names and ordering, remain unchanged, and all **27 generated modules** remain
-byte-identical.
+Tests, other documentation, machine definitions, and compiled JavaScript are
+outside this source count. Generated TypeScript is reproducible build output,
+not maintained source. Its size is still reported to keep expansion visible.
+Both `src/components/cpus/generated/` and
+`src/components/cpus/semantics/generated/` are excluded from authored counts.
 
-This consolidation reduces the 8088 definition file from **653 to 646 lines**
-and total authored CPU source from **8,966 to 8,959 lines** (**7 fewer**), including
-the local helpers. Core and shared-support line counts are unchanged.
+The chapter migration removes **39 lines** from the 6502 TypeScript definitions.
+The new front end adds **279 lines**, increasing authored CPU TypeScript from
+**8,959 to 9,199 lines**. Including the **184-line chapter** and CPU generation
+scripts (**16 → 59 lines**), maintained CPU source grows from **8,975 to 9,442
+lines**. This is language infrastructure and explanatory source, not a source
+reduction. The generated execution remains byte-identical; chapter data adds a
+separate disposable intermediate representation.
+
 The 16 standalone address/operand readers remain generator probes; CPU execution
-now expands those sources into complete bodies. They do not earn separate
-migration credit.
+expands those sources into complete bodies. They do not earn separate coverage
+credit.
 
 ## How the percentages are counted
 
-Definition migration is **fully migrated documented opcode forms / total
-documented opcode forms × 100**, rounded to one decimal place. A positive result that
-would round to zero is shown as **<0.1%**; an incomplete result that would
-round to 100% is shown as **>99.9%**. A form counts only when the real CPU uses
-its generated instruction body for every documented operand choice, with the
-existing behavior and failure boundaries verified. A generated sample used
-only in tests does not count. A shared definition may cover several encodings;
-each migrated encoding counts under the same rules as the support inventory.
+Literate authoring is **documented opcode forms whose complete instruction
+bodies are authored in executable chapters / total documented forms × 100**,
+rounded to one decimal place. Shared sources alone do not migrate their callers.
+A chapter form counts only when the real CPU uses its generated body for every
+documented operand choice, with behavior and failure boundaries verified.
 
-This measures migration of instruction bodies, not effort, code reduction, or
-processor completeness. Opcode selection, core execution machinery, and an
-explicit address-decoder boundary can remain handwritten. The generated body
-must handle every documented operand choice at that boundary; this does not
-claim migration of the decoder itself. Reset, external interrupt delivery, cycle timing, and other
-processor features are outside the percentage. Test coverage is a separate
-measure of how much existing code the tests exercise.
+The earlier instruction-definition migration is complete for all eight CPUs;
+all forms already use the typed semantic representation, whether authored in
+TypeScript or Markdown. Neither measure is effort, code reduction, test coverage,
+or processor completeness. Opcode selection, core execution machinery, and an
+explicit address-decoder boundary can remain handwritten. State layout, reset,
+external interrupt delivery, timing, and other processor features are outside
+the authoring percentage. A whole literate CPU must account for those boundaries
+at its declared fidelity as well as its instruction bodies.
 
 An opcode form is a specific encoding, including its addressing form. For
 example, immediate LDA and absolute LDA count separately. Operand values do
-not create additional forms. Partly migrated forms earn no credit until all
-their documented choices use generated semantics. The support inventory below
+not create additional forms. Partly authored forms earn no literate credit until all
+their documented choices use chapter-defined semantics. The support inventory below
 continues to describe the behavior of both generated and handwritten bodies.
 
 The denominators count distinct documented encodings in the manufacturer

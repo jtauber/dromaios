@@ -119,9 +119,9 @@ definitions and the CPU's runtime code.
 The [helper tests](../../tests/components/cpus/state.test.ts) and
 [type checks](../../tests/types/state.ts) exercise the shared contracts; CPU
 and machine tests retain their independently authored hardware expectations.
-This is a concrete step toward richer CPU descriptions. Their eventual
-[literate form](../architecture.md#implementation-language-and-future-definition-languages)
-remains open.
+The [literate chapter prototype](literate-specifications.md) now checks scoped
+register and flag declarations against these schemas. Generating the complete
+stored-state description from a chapter remains future work.
 
 ## Make the encoding visible
 

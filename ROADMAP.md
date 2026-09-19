@@ -15,7 +15,7 @@ The [capability audit](docs/cpus/completion.md#cpu-only-checkpoint-review) recor
 the earlier CPU-only checkpoint; [CPU implementation coverage](docs/cpus/coverage.md)
 tracks current support, source footprint, and remaining fidelity limits.
 
-Current CPU work focuses on consolidating those definitions and shared code.
+Current CPU work tests literate authoring on top of those definitions and shared code.
 Reusable memory and byte-I/O compositions also work in simulation; the browser
 interface and complete historical machines remain ahead. The stages overlap:
 browser work can build on these foundations while CPU and component work continues.
@@ -57,11 +57,14 @@ The initial instruction subset and execution granularity are documented.
 Current support is tracked in [CPU implementation coverage](docs/cpus/coverage.md).
 Acceptance checks are defined in the [8080 example specification](docs/cpus/8080/examples/arithmetic.md).
 
-## 2. Consolidate CPU models and shared definitions — current
+## 2. Develop literate CPU specifications — current
 
 Opcode expansion and instruction-definition migration are complete for the
-initial eight CPUs. The next work is to review the resulting abstractions and
-reduce duplication while preserving each processor's behavior.
+initial eight CPUs. The next work is to make a readable CPU description the
+maintained source of its formal behavior, while preserving each processor's
+contracts. The [literate specification guide](docs/cpus/literate-specifications.md)
+describes the working chapter prototype; the
+[coverage report](docs/cpus/coverage.md#literate-authoring-milestone) owns its progress.
 
 - Reduce repeated definition construction and remove obsolete helpers where
   this improves clarity. Measure total authored source, including definitions,
@@ -73,9 +76,12 @@ reduce duplication while preserving each processor's behavior.
   and browser views develop. The [shared CPU runner](docs/runtime/runner.md)
   already supports bounded execution, completion addresses, halt/wait outcomes,
   unsupported attempts, and retained CPU-specific records.
-- Review further decoder and lifecycle generalizations through concrete cases.
-  Keep the eventual literate CPU description format open while the shared
-  semantics and their explanations develop.
+- Prove an executable literate chapter from prose and formal rules through
+  validation, generated execution, and document diagnostics. Replace the
+  corresponding handwritten definitions rather than keeping two authorities.
+- Challenge the language with contrasting families from the 8008 and 68000
+  before migrating a complete CPU, including state, decoding, and lifecycle.
+  Keep the final language shape open to what those examples teach us.
 - Address remaining accuracy and machine-integration needs in reviewable
   changes, with explicit model contracts and documented limits. Keep their
   detailed status in the coverage tracker.
@@ -127,7 +133,7 @@ Instruction-definition migration is now complete for all eight documented
 instruction inventories. The [typed definitions](docs/cpus/instruction-semantics.md)
 generate execution and explanations. CPU cores still own native decoding,
 recording, and lifecycle orchestration. A complete declarative CPU model and
-the eventual literate authoring format remain open design work; the
+the final literate authoring format remain open design work; the
 [shared-building-blocks proposal](docs/cpus/shared-building-blocks.md) records
 the broader goal. Neither further language work nor another CPU target is a
 prerequisite for browser or machine development.

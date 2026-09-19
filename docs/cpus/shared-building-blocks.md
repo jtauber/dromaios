@@ -9,6 +9,8 @@ examples identify language requirements, with hardware references for those
 distinctions; they are not complete specifications of those processors.
 All proposed API names, specification syntax, and generated-code examples
 below are illustrative; no language or generator is implemented by this note.
+Subsequent work now includes a [working literate chapter prototype](literate-specifications.md);
+its guide records the implemented syntax and boundaries.
 
 The central idea is that a CPU module should become an **executable
 specification**: declarations describe its state and encodings, expressions

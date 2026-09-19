@@ -42,13 +42,16 @@ execution conventions.
 ## Authored and generated sources
 
 Instruction behavior is authored in `src/components/cpus/semantics/`, using
-CPU definitions and shared builders. Follow the
+CPU definitions and shared builders, and in executable Markdown chapters under
+`src/components/cpus/specifications/`. Follow the
+[literate specification guide](docs/cpus/literate-specifications.md) for chapters and the
 [instruction semantics guide](docs/cpus/instruction-semantics.md) when changing
 these definitions; decoding and execution-boundary logic also remain in the
 CPU cores. For generated machine factories, edit the `.machine` sources under
 `src/machines/`, following the [machine definition guide](docs/machines/definitions.md).
 Do not hand-edit or commit `src/components/cpus/generated/`,
-`src/machines/generated/`, or `dist/`; the build regenerates them.
+`src/components/cpus/semantics/generated/`, `src/machines/generated/`, or `dist/`;
+the build regenerates them.
 
 The tracked [expanded instruction listing](docs/cpus/semantic-examples.md) is
 also generated. When definitions or their descriptions change, regenerate it

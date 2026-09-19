@@ -16,8 +16,8 @@ see the [development instructions](../README.md#development).
   instruments, and learning milestones from arithmetic to detailed software guides.
 - [CPU scope](cpus/scope.md): intended CPU targets, existing reference work,
   and the reasons for testing generalizations across three architectures.
-- [CPU implementation coverage](cpus/coverage.md): progress migrating instruction
-  bodies to shared definitions, plus supported forms, features, and remaining gaps.
+- [CPU implementation coverage](cpus/coverage.md): literate authoring progress,
+  source footprint, supported forms, features, and remaining gaps.
   The [68000 count audit](cpus/68000/opcode-count.md) details its denominator.
 - [CPU completion plan](cpus/completion.md): evidence for the eight-CPU
   capability checkpoint and the sequence for finishing interrupts and I/O.
@@ -33,6 +33,9 @@ see the [development instructions](../README.md#development).
 - [Instruction semantics experiment](cpus/instruction-semantics.md): typed,
   inspectable definitions that drive validation, generated instruction bodies,
   and [generated explanations](cpus/semantic-examples.md).
+
+- [Literate CPU specifications](cpus/literate-specifications.md): executable
+  Markdown chapters, their current syntax, build pipeline, and limits.
 
 ## CPU models
 
