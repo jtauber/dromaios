@@ -20,7 +20,9 @@ import { instructions as bitBodies } from "./generated/68000-bits.ts";
 import { bitForms68000 } from "./68000-bits.ts";
 import { instructions as wordArithmeticBodies } from "./generated/68000-word-arithmetic.ts";
 import { instructions as controlBodies } from "./generated/68000-control.ts";
-import { controlForms68000, isControlAddress68000 } from "./68000-control.ts";
+import { instructions as transferBodies } from "./generated/68000-transfers.ts";
+import { transferForms68000 } from "./68000-transfers.ts";
+import { controlForms68000 } from "./68000-control.ts";
 import { instructions as decimalBodies } from "./generated/68000-decimal.ts";
 import { arithmeticForms68000, wordArithmeticForms68000, decimalForms68000 } from "./68000-arithmetic.ts";
 import { logicForms68000 } from "./68000-logic.ts";
@@ -155,6 +157,9 @@ const operandBodies: Readonly<Record<string, (state: Cpu68000State, sourceMode: 
 
 const controlInstructions: Readonly<Record<string, (state: Cpu68000State, mode: number, code: number, displacement: number,
   instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = controlBodies;
+
+const transferInstructions: Readonly<Record<string, (state: Cpu68000State, mode: number, code: number,
+  instruction: InstructionContext & Cpu68000AddressContext) => InstructionFault | void>> = transferBodies;
 
 type OpcodeHandler = (cpu: Cpu68000, instruction: InstructionContext) => InstructionFault | void;
 type DataRegister = `d${0 | 1 | 2 | 3 | 4 | 5 | 6 | 7}`;
@@ -393,14 +398,12 @@ export class Cpu68000 {
     // Control definitions retain native condition, cursor, target, and stack stages.
     ...controlForms68000.map(({ opcode, body, mode, code, displacement }): OpcodeEntry<OpcodeHandler> =>
       [opcode, (cpu, instruction) => controlInstructions[body]!(cpu.#state, mode, code, displacement, cpu.#addressContext(instruction))]),
+    ...transferForms68000.map(({ opcode, body, mode, code }): OpcodeEntry<OpcodeHandler> =>
+      [opcode, (cpu, instruction) => transferInstructions[body]!(cpu.#state, mode, code, cpu.#addressContext(instruction))]),
     // Status immediates reuse EA=111100: f=0 CCR (low five bits), f=1 privileged SR.
     ...this.#statusImmediateHandlers("0000 0000 0 f 111100", (left, right) => left | right), // ORI #n,CCR/SR
     ...this.#statusImmediateHandlers("0000 0010 0 f 111100", (left, right) => left & right), // ANDI #n,CCR/SR
     ...this.#statusImmediateHandlers("0000 1010 0 f 111100", (left, right) => left ^ right), // EORI #n,CCR/SR
-
-    // MOVEP: 0000 ddd 1 t s 001 aaa. t=0 memory to Dn, 1 Dn to memory;
-    // s=0 word, 1 long. A signed displacement precedes alternate-byte transfers, even at odd addresses.
-    ...opcodeFamily("0000 ddd 1 t s 001 aaa", { d: this.#dataRegisters, t: [false, true], s: [16, 32] as const, a: this.#selectors }, ({ d, t: store, s: size, a }) => (cpu: Cpu68000, instruction: InstructionContext) => cpu.#movePeripheral(d, a, size, store, instruction)), // MOVEP
 
     // Status transfers: ss=11 reuses unary slots. Sources are data EAs, word-sized even for CCR.
     // MOVE from SR is unprivileged on the original 68000; its memory destination is read first.
@@ -409,11 +412,6 @@ export class Cpu68000 {
     ...this.#statusMoveHandlers("0100 0110 11 mmm rrr", true), // MOVE <ea>,SR
     // TAS's forbidden immediate slot is the explicit ILLEGAL instruction.
     ...opcodePattern("0100 1010 1111 1100", (): Cpu68000Exception => "illegal-instruction"), // ILLEGAL
-
-    // MOVEM: 0100 1 d 00 1 s mmm rrr. d=0 registers to memory, 1 memory to registers;
-    // s=0 word, 1 long. Stores permit alterable control EAs plus -(An);
-    // loads permit all control EAs plus (An)+. The next word is the register mask.
-    ...this.#movemHandlers("0100 1 d 00 1 s mmm rrr"), // MOVEM.W/L <list>,<ea> / <ea>,<list>
 
     // 0100 1110 0100 vvvv: vvvv is the trap operand, selecting vectors 32..47.
     ...opcodePattern("0100 1110 0100 xxxx", (): Cpu68000Exception => "trap"), // TRAP #n
@@ -461,14 +459,6 @@ export class Cpu68000 {
         if (full && !cpu.#state.flags.s) return "privilege-violation";
         return cpu.#readDataWord(m, r, instruction, value => { cpu.#setStatus(value, full); });
       };
-    }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
-  }
-
-  static #movemHandlers(pattern: string): readonly OpcodeEntry<OpcodeHandler>[] {
-    return opcodeFamily(pattern, { d: [false, true], s: [16, 32] as const, m: this.#selectors, r: this.#selectors }, ({ d: load, s: size, m, r }) => {
-      const control = isControlAddress68000(m, r) && (load || m !== 0b111 || r <= 0b001);
-      if (!control && m !== (load ? 0b011 : 0b100)) return undefined;
-      return (cpu: Cpu68000, instruction: InstructionContext) => cpu.#moveMultiple(size, load, m, r, instruction);
     }).flatMap(([opcode, handler]) => handler ? [[opcode, handler] as const] : []);
   }
 
@@ -588,12 +578,6 @@ export class Cpu68000 {
 
   // Effective addresses. Resolve each operand once, source before destination.
 
-  #controlAddress(mode: number, code: number, instruction: InstructionContext): number {
-    const operand = this.#resolveOperand(32, mode, code, instruction, new Map());
-    if (operand.kind !== "memory") throw new Error("Invalid control address reached execution.");
-    return operand.address;
-  }
-
   #resolveOperand(size: OperandSize, mode: number, code: number, instruction: InstructionContext, updates: AddressUpdates): Operand {
     const { fetchWord, fetchLong, nextAddress } = instruction;
     const register = this.#addressRegister(code);
@@ -687,40 +671,6 @@ export class Cpu68000 {
     else this.#state.usp = this.#state[register];
   }
 
-  #movePeripheral(register: DataRegister, code: number, size: 16 | 32, store: boolean, instruction: InstructionContext): void {
-    const address = (this.#state[this.#addressRegister(code)] + (instruction.fetchWord() << 16 >> 16)) >>> 0;
-    if (store) this.#writeMemory(size, address, this.#state[register], instruction.writeByte, 2);
-    else this.#writeOperand(size, { kind: "data", register }, this.#readMemory(size, address, instruction.readByte, 2), instruction.writeByte);
-  }
-
-  #moveMultiple(size: 16 | 32, load: boolean, mode: number, code: number,
-    instruction: InstructionContext): AlignmentFault | void {
-    const mask = instruction.fetchWord();
-    const predecrement = mode === 0b100;
-    const postincrement = mode === 0b011;
-    const base = this.#addressRegister(code);
-    // MOVEM updates once for the whole list, rather than once through the ordinary EA resolver.
-    let address = predecrement || postincrement ? this.#state[base] : this.#controlAddress(mode, code, instruction);
-    if (mask === 0) return; // No transfers: no alignment requirement or base update.
-    const firstAddress = predecrement ? (address - size / 8) >>> 0 : address;
-    if (firstAddress % 2 !== 0) return { operation: load ? "read" : "write", address: firstAddress, programSpace: mode === 7 && (code === 2 || code === 3) };
-    // Normal mask bits 0..15 select D0..D7,A0..A7. Predecrement reverses that list.
-    for (let bit = 0; bit < 16; bit++) {
-      if (!(mask & (1 << bit))) continue;
-      const selector = predecrement ? 15 - bit : bit;
-      const register = selector < 8 ? Cpu68000.#dataRegisters[selector]! : this.#addressRegister(selector - 8);
-      if (predecrement) address = (address - size / 8) >>> 0;
-      if (load) {
-        const readByte = mode === 7 && (code === 2 || code === 3) ? instruction.readProgramByte : instruction.readByte;
-        const value = this.#readMemory(size, address, readByte);
-        this.#state[register] = (size === 16 ? (value << 16 >> 16) : value) >>> 0;
-      } else this.#writeMemory(size, address, this.#state[register], instruction.writeByte);
-      if (!predecrement) address = (address + size / 8) >>> 0;
-    }
-    // On the 68000 a stored base is its original value; a loaded postincrement base is discarded.
-    if (predecrement || postincrement) this.#state[base] = address;
-  }
-
   // Remaining status returns. Validate targets before committing stack or status changes.
 
   #jump(target: number, instruction: InstructionContext): AlignmentFault | void {
@@ -811,15 +761,15 @@ export class Cpu68000 {
     };
   }
 
-  #readMemory(size: OperandSize, address: number, readByte: ByteMemory["readByte"], stride = 1): number {
+  #readMemory(size: OperandSize, address: number, readByte: ByteMemory["readByte"]): number {
     let value = 0;
-    for (let offset = 0; offset < size / 8; offset++) value = value * 0x100 + readByte(address + offset * stride);
+    for (let offset = 0; offset < size / 8; offset++) value = value * 0x100 + readByte(address + offset);
     return value;
   }
 
-  #writeMemory(size: OperandSize, address: number, value: number, writeByte: ByteMemory["writeByte"], stride = 1): void {
+  #writeMemory(size: OperandSize, address: number, value: number, writeByte: ByteMemory["writeByte"]): void {
     for (let offset = 0; offset < size / 8; offset++) {
-      writeByte(address + offset * stride, (value >>> (size - 8 - offset * 8)) & 0xff);
+      writeByte(address + offset, (value >>> (size - 8 - offset * 8)) & 0xff);
     }
   }
 }

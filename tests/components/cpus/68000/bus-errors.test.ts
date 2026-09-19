@@ -182,6 +182,67 @@ test("68000 call-stack write failures save the sequential PC and preserve the un
   }
 });
 
+test("68000 MOVEP faults on every alternate byte retain earlier stores and leave incomplete loads untouched", () => {
+  for (const size of [2, 4]) for (const load of [false, true]) for (let stop = 0; stop < size; stop++) {
+    const before = state({ a0: 0xcd002001 }), opcode = (load ? 0x0108 : 0x0188) + (size === 4 ? 0x40 : 0);
+    const { memory, cpu } = fixture([...word(opcode), 0, 0], before), input = [0x89, 0xab, 0xcd, 0xef];
+    input.forEach((value, i) => memory.load(before.a0 + i * 2, [value, 0xa5]));
+    const operation = load ? "read" : "write", output = (size === 4 ? long(before.d0) : word(before.d0 % 65536));
+    memory.fail = (kind, address) => kind === operation && address === physical(before.a0 + stop * 2);
+    const record = cpu.step();
+    checkBusFrame(record, memory, { operation, address: before.a0 + stop * 2, returnPc: before.pc + 4, ir: opcode, code: 1 });
+    assert.equal(record.after.d0, before.d0); assert.equal(record.after.a0, before.a0);
+    assert.deepEqual(record.accesses.slice(4, -18), Array.from({ length: stop }, (_, i) =>
+      ({ kind: operation, address: physical(before.a0 + i * 2), value: (load ? input : output)[i]! })));
+    for (let i = 0; i < size; i++) {
+      assert.equal(memory.ram.read(physical(before.a0 + i * 2)), !load && i < stop ? output[i] : input[i]);
+      assert.equal(memory.ram.read(physical(before.a0 + i * 2 + 1)), 0xa5);
+    }
+  }
+});
+
+test("68000 MOVEM faults retain whole earlier registers and defer the A7 base update in both banks", () => {
+  for (const size of [2, 4]) for (const load of [false, true]) for (const s of [false, true]) for (let stop = 0; stop < size * 4; stop++) {
+    const before = state(); before.flags.s = s;
+    const base = s ? before.ssp : before.usp, opcode = (load ? 0x4c9f : 0x48a7) + (size === 4 ? 0x40 : 0);
+    // D0/D1/A0/A7; the predecrement encoding reverses the mask and visits A7 first.
+    const { memory, cpu } = fixture([...word(opcode), ...word(load ? 0x8103 : 0xc081)], before);
+    const names = load ? ["d0", "d1", "a0", s ? "ssp" : "usp"] as const : [s ? "ssp" : "usp", "a0", "d1", "d0"] as const;
+    const addresses = names.map((_, i) => base + (load ? i : -i - 1) * size);
+    const input = size === 4 ? [0x89, 0xab, 0xcd, 0xef] : [0x80, 1];
+    for (const address of addresses) memory.load(address, input);
+    const operation = load ? "read" : "write", failedAddress = addresses[Math.floor(stop / size)]! + stop % size;
+    let failed = false;
+    memory.fail = (kind, address) => {
+      if (failed || kind !== operation || address !== physical(failedAddress)) return false;
+      failed = true; return true; // Exception entry can write the same supervisor stack addresses.
+    };
+    const record = cpu.step();
+    checkBusFrame(record, memory, { operation, address: failedAddress, returnPc: before.pc + 4, ir: opcode,
+      code: s ? 5 : 1, status: s ? 0xa217 : 0x8217 });
+    const expected = names.flatMap((name, i) => accesses(operation, addresses[i]!, load ? input : size === 4 ? long(before[name]) : word(before[name] % 65536)));
+    assert.deepEqual(record.accesses.slice(4, -18), expected.slice(0, stop));
+    for (const name of ["d0", "d1", "a0"] as const) {
+      const complete = load && (names.indexOf(name) + 1) * size <= stop;
+      assert.equal(record.after[name], complete ? size === 4 ? 0x89abcdef : 0xffff8001 : before[name]);
+    }
+    assert.equal(record.after.usp, before.usp);
+  }
+});
+
+test("68000 empty MOVEM lists still fault on mask and address-extension fetches before any data transfer", () => {
+  const bytes = [0x48, 0xe8, 0, 0, 0, 0x20]; // MOVEM.L <empty>,(32,A0)
+  for (const stop of [2, 3, 4, 5]) {
+    const { memory, cpu, before } = fixture(bytes);
+    memory.fail = (kind, address) => kind === "read" && address === physical(before.pc + stop);
+    const record = cpu.step();
+    checkBusFrame(record, memory, { operation: "fetch", address: before.pc + stop,
+      returnPc: before.pc + stop - stop % 2, ir: 0x48e8, code: 2 });
+    assert.deepEqual(record.accesses.slice(0, -18), accesses("read", before.pc, bytes.slice(0, stop)));
+    assert.equal(record.after.a0, before.a0); assert.equal(record.after.d0, before.d0);
+  }
+});
+
 test("68000 MOVEM retains complete earlier registers and ALU write faults retain computed flags", () => {
   for (let offset = 0; offset < 8; offset++) {
     const { memory, cpu, before } = fixture([0x4c, 0xd8, 0, 3]); // MOVEM.L (A0)+,D0-D1

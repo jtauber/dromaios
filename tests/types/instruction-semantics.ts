@@ -1,3 +1,4 @@
+import { instructions as transfers68000 } from "../../src/components/cpus/generated/68000-transfers.js";
 import { instructions as control68000 } from "../../src/components/cpus/generated/68000-control.js";
 import { instructions as arithmetic68000 } from "../../src/components/cpus/generated/68000-arithmetic.js";
 import { instructions as bits68000 } from "../../src/components/cpus/generated/68000-bits.js";
@@ -1018,4 +1019,25 @@ export function check68000ControlTypes(state: Cpu68000State, flow: Cpu68000Contr
   control68000.RTS(state, 0, 0, 0, flow);
   // @ts-expect-error Scc reads memory even when its condition is always true.
   control68000.ST_memory(state, 3, 7, 0, { resolveAddress: () => 0, commitAddressUpdates: () => {}, writeByte: () => {} });
+}
+
+export function check68000TransferTypes(state: Cpu68000State): void {
+  const fetch = { fetchWord: () => 0 }, read = { ...fetch, readByte: () => 0 }, write = { ...fetch, writeByte: () => {} };
+  const peripheral: void = transfers68000.MOVEP_16_load_d0_a7(state, 0, 0, read);
+  transfers68000.MOVEP_32_store_d7_a0(state, 0, 0, write);
+  const multiple: void | OperandAlignmentFault = transfers68000.MOVEM_32_store_a7(state, 4, 7, write);
+  transfers68000.MOVEM_16_load_a0(state, 3, 0, read);
+  transfers68000.MOVEM_32_load_program(state, 7, 2, { ...fetch, resolveAddress: () => 0, readProgramByte: () => 0 });
+  // @ts-expect-error MOVEP fetches a native displacement word, not separate bytes.
+  transfers68000.MOVEP_16_load_d0_a0(state, 0, 0, { fetchByte: () => 0, readByte: () => 0 });
+  // @ts-expect-error MOVEP stores never read data memory.
+  transfers68000.MOVEP_16_store_d0_a0(state, 0, 0, { ...write, readByte: () => 0 });
+  // @ts-expect-error MOVEM retains a possible operand alignment fault.
+  const success: void = transfers68000.MOVEM_16_load_a7(state, 3, 7, read);
+  // @ts-expect-error MOVEM postincrement owns its base update; it does not use the ordinary EA resolver.
+  transfers68000.MOVEM_16_load_a7(state, 3, 7, { ...read, resolveAddress: () => 0 });
+  // @ts-expect-error Control EAs require address resolution even with an empty register mask.
+  transfers68000.MOVEM_32_store_memory(state, 2, 0, write);
+  // @ts-expect-error PC-relative lists read program space, not data space.
+  transfers68000.MOVEM_32_load_program(state, 7, 2, { ...read, resolveAddress: () => 0 });
 }

@@ -223880,6 +223880,11960 @@ when not(stackSupervisor) {
 
 Flags preserved throughout: X, N, Z, V, C, T, S.
 
+### 68000 MOVEP.W (d,A0),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A1),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A2),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A3),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A4),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A5),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A6),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D0
+write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A7),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D0
+  write D0:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A0),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A1),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A2),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A3),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A4),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A5),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A6),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D0:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A7),D0
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D0:u32 := result
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D0:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D0,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D0,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D0,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D0,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D0,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D0,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D0,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D0,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D0
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D0
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D0,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D0,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D0,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D0,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D0,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D0,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D0,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D0
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D0,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D0
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D0
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A0),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A1),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A2),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A3),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A4),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A5),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A6),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D1
+write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A7),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D1
+  write D1:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A0),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A1),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A2),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A3),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A4),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A5),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A6),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D1:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A7),D1
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D1:u32 := result
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D1:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D1,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D1,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D1,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D1,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D1,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D1,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D1,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D1,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D1
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D1
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D1,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D1,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D1,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D1,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D1,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D1,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D1,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D1
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D1,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D1
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D1
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A0),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A1),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A2),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A3),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A4),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A5),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A6),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D2
+write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A7),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D2
+  write D2:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A0),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A1),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A2),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A3),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A4),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A5),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A6),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D2:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A7),D2
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D2:u32 := result
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D2:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D2,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D2,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D2,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D2,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D2,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D2,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D2,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D2,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D2
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D2
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D2,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D2,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D2,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D2,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D2,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D2,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D2,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D2
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D2,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D2
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D2
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A0),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A1),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A2),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A3),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A4),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A5),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A6),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D3
+write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A7),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D3
+  write D3:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A0),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A1),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A2),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A3),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A4),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A5),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A6),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D3:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A7),D3
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D3:u32 := result
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D3:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D3,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D3,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D3,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D3,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D3,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D3,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D3,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D3,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D3
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D3
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D3,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D3,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D3,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D3,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D3,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D3,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D3,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D3
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D3,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D3
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D3
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A0),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A1),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A2),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A3),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A4),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A5),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A6),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D4
+write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A7),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D4
+  write D4:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A0),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A1),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A2),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A3),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A4),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A5),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A6),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D4:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A7),D4
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D4:u32 := result
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D4:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D4,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D4,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D4,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D4,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D4,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D4,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D4,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D4,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D4
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D4
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D4,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D4,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D4,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D4,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D4,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D4,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D4,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D4
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D4,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D4
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D4
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A0),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A1),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A2),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A3),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A4),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A5),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A6),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D5
+write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A7),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D5
+  write D5:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A0),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A1),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A2),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A3),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A4),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A5),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A6),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D5:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A7),D5
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D5:u32 := result
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D5:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D5,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D5,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D5,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D5,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D5,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D5,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D5,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D5,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D5
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D5
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D5,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D5,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D5,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D5,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D5,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D5,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D5,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D5
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D5,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D5
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D5
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A0),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A1),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A2),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A3),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A4),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A5),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A6),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D6
+write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A7),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D6
+  write D6:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A0),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A1),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A2),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A3),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A4),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A5),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A6),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D6:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A7),D6
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D6:u32 := result
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D6:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D6,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D6,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D6,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D6,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D6,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D6,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D6,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D6,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D6
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D6
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D6,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D6,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D6,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D6,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D6,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D6,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D6,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D6
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D6,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D6
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D6
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A0),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A1),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A2),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A3),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A4),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A5),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A6),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+result := concatHighLow(resultByte0, resultByte1)
+preserved:u32 := read D7
+write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W (d,A7),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  result := concatHighLow(resultByte0, resultByte1)
+  preserved:u32 := read D7
+  write D7:u32 := bitOr(bitAnd(preserved, FFFF0000:u32), zeroExtend32(result))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A0),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D7:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A1),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D7:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A2),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D7:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A3),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D7:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A4),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D7:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A5),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D7:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A6),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+resultByte0:u8 := read memory[address]
+resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+write D7:u32 := result
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L (d,A7),D7
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D7:u32 := result
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  resultByte0:u8 := read memory[address]
+  resultByte1:u8 := read memory[addWrap(address, 00000002:u32)]
+  resultByte2:u8 := read memory[addWrap(address, 00000004:u32)]
+  resultByte3:u8 := read memory[addWrap(address, 00000006:u32)]
+  result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+  write D7:u32 := result
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D7,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D7,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D7,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D7,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D7,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D7,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D7,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := low16(source)
+write memory[address] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.W D7,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D7
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D7
+  result := low16(source)
+  write memory[address] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D7,(d,A0)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A0
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D7,(d,A1)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A1
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D7,(d,A2)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A2
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D7,(d,A3)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A3
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D7,(d,A4)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A4
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D7,(d,A5)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A5
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D7,(d,A6)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+base:u32 := read A6
+displacement:u16 := fetch complete native-order word
+address := addWrap(base, signExtend32(displacement))
+source:u32 := read D7
+result := source
+write memory[address] := low8(shiftBitsRight(result, 24))
+write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEP.L D7,(d,A7)
+
+Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+baseSupervisor:flag := read S
+when baseSupervisor {
+  base:u32 := read SSP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D7
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+when not(baseSupervisor) {
+  base:u32 := read USP
+  displacement:u16 := fetch complete native-order word
+  address := addWrap(base, signExtend32(displacement))
+  source:u32 := read D7
+  result := source
+  write memory[address] := low8(shiftBitsRight(result, 24))
+  write memory[addWrap(address, 00000002:u32)] := low8(shiftBitsRight(result, 16))
+  write memory[addWrap(address, 00000004:u32)] := low8(shiftBitsRight(result, 8))
+  write memory[addWrap(address, 00000006:u32)] := low8(shiftBitsRight(result, 0))
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W list,MEMORY
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    source:u32 := read D0
+    result := low16(source)
+    write memory[address0] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address0, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read D1
+    result := low16(source)
+    write memory[address1] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read D2
+    result := low16(source)
+    write memory[address2] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read D3
+    result := low16(source)
+    write memory[address3] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read D4
+    result := low16(source)
+    write memory[address4] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read D5
+    result := low16(source)
+    write memory[address5] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read D6
+    result := low16(source)
+    write memory[address6] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read D7
+    result := low16(source)
+    write memory[address7] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read A0
+    result := low16(source)
+    write memory[address8] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read A1
+    result := low16(source)
+    write memory[address9] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read A2
+    result := low16(source)
+    write memory[address10] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read A3
+    result := low16(source)
+    write memory[address11] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read A4
+    result := low16(source)
+    write memory[address12] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read A5
+    result := low16(source)
+    write memory[address13] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read A6
+    result := low16(source)
+    write memory[address14] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := low16(source)
+      write memory[address15] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := low16(source)
+      write memory[address15] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W list,-(A0)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A0
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000002:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFE:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFE:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := low16(source)
+    write memory[address2] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFE:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := low16(source)
+    write memory[address3] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFE:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := low16(source)
+    write memory[address4] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFE:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := low16(source)
+    write memory[address5] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFE:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := low16(source)
+    write memory[address6] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFE:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := low16(source)
+    write memory[address7] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFE:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := low16(source)
+    write memory[address8] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFE:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := low16(source)
+    write memory[address9] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFE:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := low16(source)
+    write memory[address10] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFE:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := low16(source)
+    write memory[address11] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFE:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := low16(source)
+    write memory[address12] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFE:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := low16(source)
+    write memory[address13] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFE:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := low16(source)
+    write memory[address14] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFE:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := low16(source)
+    write memory[address15] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFE:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := low16(source)
+    write memory[address16] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A0:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W list,-(A1)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A1
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000002:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFE:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFE:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := low16(source)
+    write memory[address2] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFE:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := low16(source)
+    write memory[address3] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFE:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := low16(source)
+    write memory[address4] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFE:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := low16(source)
+    write memory[address5] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFE:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := low16(source)
+    write memory[address6] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFE:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := low16(source)
+    write memory[address7] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFE:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := low16(source)
+    write memory[address8] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFE:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := low16(source)
+    write memory[address9] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFE:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := low16(source)
+    write memory[address10] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFE:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := low16(source)
+    write memory[address11] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFE:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := low16(source)
+    write memory[address12] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFE:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := low16(source)
+    write memory[address13] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFE:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := low16(source)
+    write memory[address14] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFE:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := low16(source)
+    write memory[address15] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFE:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := low16(source)
+    write memory[address16] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A1:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W list,-(A2)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A2
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000002:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFE:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFE:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := low16(source)
+    write memory[address2] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFE:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := low16(source)
+    write memory[address3] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFE:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := low16(source)
+    write memory[address4] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFE:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := low16(source)
+    write memory[address5] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFE:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := low16(source)
+    write memory[address6] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFE:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := low16(source)
+    write memory[address7] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFE:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := low16(source)
+    write memory[address8] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFE:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := low16(source)
+    write memory[address9] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFE:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := low16(source)
+    write memory[address10] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFE:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := low16(source)
+    write memory[address11] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFE:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := low16(source)
+    write memory[address12] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFE:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := low16(source)
+    write memory[address13] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFE:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := low16(source)
+    write memory[address14] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFE:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := low16(source)
+    write memory[address15] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFE:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := low16(source)
+    write memory[address16] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A2:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W list,-(A3)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A3
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000002:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFE:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFE:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := low16(source)
+    write memory[address2] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFE:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := low16(source)
+    write memory[address3] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFE:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := low16(source)
+    write memory[address4] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFE:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := low16(source)
+    write memory[address5] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFE:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := low16(source)
+    write memory[address6] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFE:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := low16(source)
+    write memory[address7] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFE:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := low16(source)
+    write memory[address8] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFE:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := low16(source)
+    write memory[address9] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFE:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := low16(source)
+    write memory[address10] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFE:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := low16(source)
+    write memory[address11] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFE:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := low16(source)
+    write memory[address12] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFE:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := low16(source)
+    write memory[address13] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFE:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := low16(source)
+    write memory[address14] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFE:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := low16(source)
+    write memory[address15] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFE:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := low16(source)
+    write memory[address16] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A3:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W list,-(A4)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A4
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000002:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFE:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFE:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := low16(source)
+    write memory[address2] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFE:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := low16(source)
+    write memory[address3] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFE:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := low16(source)
+    write memory[address4] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFE:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := low16(source)
+    write memory[address5] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFE:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := low16(source)
+    write memory[address6] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFE:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := low16(source)
+    write memory[address7] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFE:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := low16(source)
+    write memory[address8] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFE:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := low16(source)
+    write memory[address9] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFE:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := low16(source)
+    write memory[address10] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFE:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := low16(source)
+    write memory[address11] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFE:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := low16(source)
+    write memory[address12] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFE:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := low16(source)
+    write memory[address13] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFE:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := low16(source)
+    write memory[address14] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFE:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := low16(source)
+    write memory[address15] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFE:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := low16(source)
+    write memory[address16] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A4:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W list,-(A5)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A5
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000002:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFE:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFE:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := low16(source)
+    write memory[address2] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFE:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := low16(source)
+    write memory[address3] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFE:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := low16(source)
+    write memory[address4] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFE:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := low16(source)
+    write memory[address5] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFE:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := low16(source)
+    write memory[address6] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFE:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := low16(source)
+    write memory[address7] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFE:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := low16(source)
+    write memory[address8] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFE:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := low16(source)
+    write memory[address9] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFE:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := low16(source)
+    write memory[address10] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFE:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := low16(source)
+    write memory[address11] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFE:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := low16(source)
+    write memory[address12] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFE:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := low16(source)
+    write memory[address13] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFE:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := low16(source)
+    write memory[address14] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFE:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := low16(source)
+    write memory[address15] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFE:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := low16(source)
+    write memory[address16] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A5:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W list,-(A6)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A6
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000002:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFE:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := low16(source)
+      write memory[address1] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFE:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := low16(source)
+    write memory[address2] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFE:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := low16(source)
+    write memory[address3] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFE:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := low16(source)
+    write memory[address4] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFE:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := low16(source)
+    write memory[address5] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFE:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := low16(source)
+    write memory[address6] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFE:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := low16(source)
+    write memory[address7] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFE:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := low16(source)
+    write memory[address8] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFE:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := low16(source)
+    write memory[address9] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFE:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := low16(source)
+    write memory[address10] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFE:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := low16(source)
+    write memory[address11] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFE:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := low16(source)
+    write memory[address12] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFE:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := low16(source)
+    write memory[address13] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFE:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := low16(source)
+    write memory[address14] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFE:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := low16(source)
+    write memory[address15] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFE:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := low16(source)
+    write memory[address16] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A6:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W list,-(A7)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+baseSupervisor:flag := read S
+when baseSupervisor {
+  address0:u32 := read SSP
+  when not(isZero(mask)) {
+    firstAddress := subtract(address0, 00000002:u32)
+    when lowBit(firstAddress) {
+      return data-space write alignment fault at firstAddress; no later effects
+    }
+    address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFE:u32), address0)
+    when lowBit(shiftBitsRight(mask, 0)) {
+      registerSupervisor:flag := read S
+      when registerSupervisor {
+        source:u32 := read SSP
+        result := low16(source)
+        write memory[address1] := low8(shiftBitsRight(result, 8))
+        write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+      }
+      when not(registerSupervisor) {
+        source:u32 := read USP
+        result := low16(source)
+        write memory[address1] := low8(shiftBitsRight(result, 8))
+        write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+      }
+    }
+    address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFE:u32), address1)
+    when lowBit(shiftBitsRight(mask, 1)) {
+      source:u32 := read A6
+      result := low16(source)
+      write memory[address2] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFE:u32), address2)
+    when lowBit(shiftBitsRight(mask, 2)) {
+      source:u32 := read A5
+      result := low16(source)
+      write memory[address3] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFE:u32), address3)
+    when lowBit(shiftBitsRight(mask, 3)) {
+      source:u32 := read A4
+      result := low16(source)
+      write memory[address4] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFE:u32), address4)
+    when lowBit(shiftBitsRight(mask, 4)) {
+      source:u32 := read A3
+      result := low16(source)
+      write memory[address5] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFE:u32), address5)
+    when lowBit(shiftBitsRight(mask, 5)) {
+      source:u32 := read A2
+      result := low16(source)
+      write memory[address6] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFE:u32), address6)
+    when lowBit(shiftBitsRight(mask, 6)) {
+      source:u32 := read A1
+      result := low16(source)
+      write memory[address7] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFE:u32), address7)
+    when lowBit(shiftBitsRight(mask, 7)) {
+      source:u32 := read A0
+      result := low16(source)
+      write memory[address8] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFE:u32), address8)
+    when lowBit(shiftBitsRight(mask, 8)) {
+      source:u32 := read D7
+      result := low16(source)
+      write memory[address9] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFE:u32), address9)
+    when lowBit(shiftBitsRight(mask, 9)) {
+      source:u32 := read D6
+      result := low16(source)
+      write memory[address10] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFE:u32), address10)
+    when lowBit(shiftBitsRight(mask, 10)) {
+      source:u32 := read D5
+      result := low16(source)
+      write memory[address11] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFE:u32), address11)
+    when lowBit(shiftBitsRight(mask, 11)) {
+      source:u32 := read D4
+      result := low16(source)
+      write memory[address12] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFE:u32), address12)
+    when lowBit(shiftBitsRight(mask, 12)) {
+      source:u32 := read D3
+      result := low16(source)
+      write memory[address13] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFE:u32), address13)
+    when lowBit(shiftBitsRight(mask, 13)) {
+      source:u32 := read D2
+      result := low16(source)
+      write memory[address14] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFE:u32), address14)
+    when lowBit(shiftBitsRight(mask, 14)) {
+      source:u32 := read D1
+      result := low16(source)
+      write memory[address15] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFE:u32), address15)
+    when lowBit(shiftBitsRight(mask, 15)) {
+      source:u32 := read D0
+      result := low16(source)
+      write memory[address16] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    write SSP:u32 := address16
+  }
+}
+when not(baseSupervisor) {
+  address0:u32 := read USP
+  when not(isZero(mask)) {
+    firstAddress := subtract(address0, 00000002:u32)
+    when lowBit(firstAddress) {
+      return data-space write alignment fault at firstAddress; no later effects
+    }
+    address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFE:u32), address0)
+    when lowBit(shiftBitsRight(mask, 0)) {
+      registerSupervisor:flag := read S
+      when registerSupervisor {
+        source:u32 := read SSP
+        result := low16(source)
+        write memory[address1] := low8(shiftBitsRight(result, 8))
+        write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+      }
+      when not(registerSupervisor) {
+        source:u32 := read USP
+        result := low16(source)
+        write memory[address1] := low8(shiftBitsRight(result, 8))
+        write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+      }
+    }
+    address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFE:u32), address1)
+    when lowBit(shiftBitsRight(mask, 1)) {
+      source:u32 := read A6
+      result := low16(source)
+      write memory[address2] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFE:u32), address2)
+    when lowBit(shiftBitsRight(mask, 2)) {
+      source:u32 := read A5
+      result := low16(source)
+      write memory[address3] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFE:u32), address3)
+    when lowBit(shiftBitsRight(mask, 3)) {
+      source:u32 := read A4
+      result := low16(source)
+      write memory[address4] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFE:u32), address4)
+    when lowBit(shiftBitsRight(mask, 4)) {
+      source:u32 := read A3
+      result := low16(source)
+      write memory[address5] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFE:u32), address5)
+    when lowBit(shiftBitsRight(mask, 5)) {
+      source:u32 := read A2
+      result := low16(source)
+      write memory[address6] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFE:u32), address6)
+    when lowBit(shiftBitsRight(mask, 6)) {
+      source:u32 := read A1
+      result := low16(source)
+      write memory[address7] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFE:u32), address7)
+    when lowBit(shiftBitsRight(mask, 7)) {
+      source:u32 := read A0
+      result := low16(source)
+      write memory[address8] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFE:u32), address8)
+    when lowBit(shiftBitsRight(mask, 8)) {
+      source:u32 := read D7
+      result := low16(source)
+      write memory[address9] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFE:u32), address9)
+    when lowBit(shiftBitsRight(mask, 9)) {
+      source:u32 := read D6
+      result := low16(source)
+      write memory[address10] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFE:u32), address10)
+    when lowBit(shiftBitsRight(mask, 10)) {
+      source:u32 := read D5
+      result := low16(source)
+      write memory[address11] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFE:u32), address11)
+    when lowBit(shiftBitsRight(mask, 11)) {
+      source:u32 := read D4
+      result := low16(source)
+      write memory[address12] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFE:u32), address12)
+    when lowBit(shiftBitsRight(mask, 12)) {
+      source:u32 := read D3
+      result := low16(source)
+      write memory[address13] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFE:u32), address13)
+    when lowBit(shiftBitsRight(mask, 13)) {
+      source:u32 := read D2
+      result := low16(source)
+      write memory[address14] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFE:u32), address14)
+    when lowBit(shiftBitsRight(mask, 14)) {
+      source:u32 := read D1
+      result := low16(source)
+      write memory[address15] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFE:u32), address15)
+    when lowBit(shiftBitsRight(mask, 15)) {
+      source:u32 := read D0
+      result := low16(source)
+      write memory[address16] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    write USP:u32 := address16
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L list,MEMORY
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    source:u32 := read D0
+    result := source
+    write memory[address0] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address0, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address0, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address0, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read D1
+    result := source
+    write memory[address1] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read D2
+    result := source
+    write memory[address2] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address2, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read D3
+    result := source
+    write memory[address3] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address3, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read D4
+    result := source
+    write memory[address4] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address4, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read D5
+    result := source
+    write memory[address5] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address5, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read D6
+    result := source
+    write memory[address6] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address6, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read D7
+    result := source
+    write memory[address7] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address7, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read A0
+    result := source
+    write memory[address8] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address8, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read A1
+    result := source
+    write memory[address9] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address9, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read A2
+    result := source
+    write memory[address10] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address10, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read A3
+    result := source
+    write memory[address11] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address11, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read A4
+    result := source
+    write memory[address12] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address12, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read A5
+    result := source
+    write memory[address13] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address13, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read A6
+    result := source
+    write memory[address14] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address14, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := source
+      write memory[address15] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address15, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address15, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := source
+      write memory[address15] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address15, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address15, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L list,-(A0)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A0
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000004:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFC:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFC:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := source
+    write memory[address2] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address2, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFC:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := source
+    write memory[address3] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address3, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFC:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := source
+    write memory[address4] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address4, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFC:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := source
+    write memory[address5] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address5, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFC:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := source
+    write memory[address6] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address6, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFC:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := source
+    write memory[address7] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address7, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFC:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := source
+    write memory[address8] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address8, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFC:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := source
+    write memory[address9] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address9, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFC:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := source
+    write memory[address10] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address10, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFC:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := source
+    write memory[address11] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address11, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFC:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := source
+    write memory[address12] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address12, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFC:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := source
+    write memory[address13] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address13, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFC:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := source
+    write memory[address14] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address14, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFC:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := source
+    write memory[address15] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address15, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFC:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := source
+    write memory[address16] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address16, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A0:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L list,-(A1)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A1
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000004:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFC:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFC:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := source
+    write memory[address2] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address2, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFC:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := source
+    write memory[address3] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address3, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFC:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := source
+    write memory[address4] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address4, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFC:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := source
+    write memory[address5] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address5, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFC:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := source
+    write memory[address6] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address6, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFC:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := source
+    write memory[address7] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address7, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFC:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := source
+    write memory[address8] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address8, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFC:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := source
+    write memory[address9] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address9, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFC:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := source
+    write memory[address10] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address10, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFC:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := source
+    write memory[address11] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address11, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFC:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := source
+    write memory[address12] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address12, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFC:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := source
+    write memory[address13] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address13, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFC:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := source
+    write memory[address14] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address14, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFC:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := source
+    write memory[address15] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address15, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFC:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := source
+    write memory[address16] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address16, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A1:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L list,-(A2)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A2
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000004:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFC:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFC:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := source
+    write memory[address2] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address2, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFC:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := source
+    write memory[address3] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address3, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFC:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := source
+    write memory[address4] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address4, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFC:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := source
+    write memory[address5] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address5, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFC:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := source
+    write memory[address6] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address6, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFC:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := source
+    write memory[address7] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address7, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFC:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := source
+    write memory[address8] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address8, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFC:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := source
+    write memory[address9] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address9, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFC:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := source
+    write memory[address10] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address10, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFC:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := source
+    write memory[address11] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address11, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFC:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := source
+    write memory[address12] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address12, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFC:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := source
+    write memory[address13] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address13, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFC:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := source
+    write memory[address14] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address14, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFC:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := source
+    write memory[address15] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address15, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFC:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := source
+    write memory[address16] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address16, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A2:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L list,-(A3)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A3
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000004:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFC:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFC:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := source
+    write memory[address2] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address2, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFC:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := source
+    write memory[address3] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address3, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFC:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := source
+    write memory[address4] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address4, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFC:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := source
+    write memory[address5] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address5, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFC:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := source
+    write memory[address6] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address6, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFC:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := source
+    write memory[address7] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address7, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFC:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := source
+    write memory[address8] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address8, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFC:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := source
+    write memory[address9] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address9, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFC:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := source
+    write memory[address10] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address10, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFC:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := source
+    write memory[address11] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address11, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFC:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := source
+    write memory[address12] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address12, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFC:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := source
+    write memory[address13] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address13, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFC:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := source
+    write memory[address14] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address14, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFC:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := source
+    write memory[address15] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address15, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFC:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := source
+    write memory[address16] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address16, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A3:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L list,-(A4)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A4
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000004:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFC:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFC:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := source
+    write memory[address2] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address2, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFC:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := source
+    write memory[address3] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address3, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFC:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := source
+    write memory[address4] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address4, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFC:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := source
+    write memory[address5] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address5, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFC:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := source
+    write memory[address6] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address6, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFC:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := source
+    write memory[address7] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address7, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFC:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := source
+    write memory[address8] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address8, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFC:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := source
+    write memory[address9] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address9, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFC:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := source
+    write memory[address10] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address10, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFC:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := source
+    write memory[address11] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address11, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFC:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := source
+    write memory[address12] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address12, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFC:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := source
+    write memory[address13] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address13, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFC:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := source
+    write memory[address14] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address14, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFC:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := source
+    write memory[address15] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address15, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFC:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := source
+    write memory[address16] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address16, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A4:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L list,-(A5)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A5
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000004:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFC:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFC:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := source
+    write memory[address2] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address2, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFC:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := source
+    write memory[address3] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address3, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFC:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := source
+    write memory[address4] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address4, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFC:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := source
+    write memory[address5] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address5, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFC:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := source
+    write memory[address6] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address6, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFC:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := source
+    write memory[address7] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address7, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFC:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := source
+    write memory[address8] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address8, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFC:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := source
+    write memory[address9] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address9, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFC:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := source
+    write memory[address10] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address10, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFC:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := source
+    write memory[address11] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address11, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFC:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := source
+    write memory[address12] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address12, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFC:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := source
+    write memory[address13] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address13, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFC:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := source
+    write memory[address14] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address14, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFC:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := source
+    write memory[address15] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address15, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFC:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := source
+    write memory[address16] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address16, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A5:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L list,-(A6)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A6
+when not(isZero(mask)) {
+  firstAddress := subtract(address0, 00000004:u32)
+  when lowBit(firstAddress) {
+    return data-space write alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFC:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      source:u32 := read SSP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    when not(registerSupervisor) {
+      source:u32 := read USP
+      result := source
+      write memory[address1] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFC:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    source:u32 := read A6
+    result := source
+    write memory[address2] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address2, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address2, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFC:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    source:u32 := read A5
+    result := source
+    write memory[address3] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address3, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address3, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFC:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    source:u32 := read A4
+    result := source
+    write memory[address4] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address4, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address4, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFC:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    source:u32 := read A3
+    result := source
+    write memory[address5] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address5, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address5, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFC:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    source:u32 := read A2
+    result := source
+    write memory[address6] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address6, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address6, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFC:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    source:u32 := read A1
+    result := source
+    write memory[address7] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address7, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address7, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFC:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    source:u32 := read A0
+    result := source
+    write memory[address8] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address8, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address8, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFC:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    source:u32 := read D7
+    result := source
+    write memory[address9] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address9, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address9, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFC:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    source:u32 := read D6
+    result := source
+    write memory[address10] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address10, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address10, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFC:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    source:u32 := read D5
+    result := source
+    write memory[address11] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address11, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address11, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFC:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    source:u32 := read D4
+    result := source
+    write memory[address12] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address12, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address12, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFC:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    source:u32 := read D3
+    result := source
+    write memory[address13] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address13, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address13, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFC:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    source:u32 := read D2
+    result := source
+    write memory[address14] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address14, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address14, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFC:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    source:u32 := read D1
+    result := source
+    write memory[address15] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address15, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address15, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFC:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    source:u32 := read D0
+    result := source
+    write memory[address16] := low8(shiftBitsRight(result, 24))
+    write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+    write memory[addWrap(address16, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+    write memory[addWrap(address16, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+  }
+  write A6:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L list,-(A7)
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+baseSupervisor:flag := read S
+when baseSupervisor {
+  address0:u32 := read SSP
+  when not(isZero(mask)) {
+    firstAddress := subtract(address0, 00000004:u32)
+    when lowBit(firstAddress) {
+      return data-space write alignment fault at firstAddress; no later effects
+    }
+    address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFC:u32), address0)
+    when lowBit(shiftBitsRight(mask, 0)) {
+      registerSupervisor:flag := read S
+      when registerSupervisor {
+        source:u32 := read SSP
+        result := source
+        write memory[address1] := low8(shiftBitsRight(result, 24))
+        write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+        write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+        write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+      }
+      when not(registerSupervisor) {
+        source:u32 := read USP
+        result := source
+        write memory[address1] := low8(shiftBitsRight(result, 24))
+        write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+        write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+        write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+      }
+    }
+    address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFC:u32), address1)
+    when lowBit(shiftBitsRight(mask, 1)) {
+      source:u32 := read A6
+      result := source
+      write memory[address2] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address2, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address2, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFC:u32), address2)
+    when lowBit(shiftBitsRight(mask, 2)) {
+      source:u32 := read A5
+      result := source
+      write memory[address3] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address3, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address3, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFC:u32), address3)
+    when lowBit(shiftBitsRight(mask, 3)) {
+      source:u32 := read A4
+      result := source
+      write memory[address4] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address4, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address4, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFC:u32), address4)
+    when lowBit(shiftBitsRight(mask, 4)) {
+      source:u32 := read A3
+      result := source
+      write memory[address5] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address5, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address5, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFC:u32), address5)
+    when lowBit(shiftBitsRight(mask, 5)) {
+      source:u32 := read A2
+      result := source
+      write memory[address6] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address6, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address6, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFC:u32), address6)
+    when lowBit(shiftBitsRight(mask, 6)) {
+      source:u32 := read A1
+      result := source
+      write memory[address7] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address7, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address7, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFC:u32), address7)
+    when lowBit(shiftBitsRight(mask, 7)) {
+      source:u32 := read A0
+      result := source
+      write memory[address8] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address8, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address8, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFC:u32), address8)
+    when lowBit(shiftBitsRight(mask, 8)) {
+      source:u32 := read D7
+      result := source
+      write memory[address9] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address9, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address9, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFC:u32), address9)
+    when lowBit(shiftBitsRight(mask, 9)) {
+      source:u32 := read D6
+      result := source
+      write memory[address10] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address10, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address10, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFC:u32), address10)
+    when lowBit(shiftBitsRight(mask, 10)) {
+      source:u32 := read D5
+      result := source
+      write memory[address11] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address11, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address11, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFC:u32), address11)
+    when lowBit(shiftBitsRight(mask, 11)) {
+      source:u32 := read D4
+      result := source
+      write memory[address12] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address12, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address12, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFC:u32), address12)
+    when lowBit(shiftBitsRight(mask, 12)) {
+      source:u32 := read D3
+      result := source
+      write memory[address13] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address13, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address13, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFC:u32), address13)
+    when lowBit(shiftBitsRight(mask, 13)) {
+      source:u32 := read D2
+      result := source
+      write memory[address14] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address14, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address14, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFC:u32), address14)
+    when lowBit(shiftBitsRight(mask, 14)) {
+      source:u32 := read D1
+      result := source
+      write memory[address15] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address15, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address15, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFC:u32), address15)
+    when lowBit(shiftBitsRight(mask, 15)) {
+      source:u32 := read D0
+      result := source
+      write memory[address16] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address16, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address16, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    write SSP:u32 := address16
+  }
+}
+when not(baseSupervisor) {
+  address0:u32 := read USP
+  when not(isZero(mask)) {
+    firstAddress := subtract(address0, 00000004:u32)
+    when lowBit(firstAddress) {
+      return data-space write alignment fault at firstAddress; no later effects
+    }
+    address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, FFFFFFFC:u32), address0)
+    when lowBit(shiftBitsRight(mask, 0)) {
+      registerSupervisor:flag := read S
+      when registerSupervisor {
+        source:u32 := read SSP
+        result := source
+        write memory[address1] := low8(shiftBitsRight(result, 24))
+        write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+        write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+        write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+      }
+      when not(registerSupervisor) {
+        source:u32 := read USP
+        result := source
+        write memory[address1] := low8(shiftBitsRight(result, 24))
+        write memory[addWrap(address1, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+        write memory[addWrap(address1, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+        write memory[addWrap(address1, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+      }
+    }
+    address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, FFFFFFFC:u32), address1)
+    when lowBit(shiftBitsRight(mask, 1)) {
+      source:u32 := read A6
+      result := source
+      write memory[address2] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address2, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address2, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address2, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, FFFFFFFC:u32), address2)
+    when lowBit(shiftBitsRight(mask, 2)) {
+      source:u32 := read A5
+      result := source
+      write memory[address3] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address3, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address3, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address3, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, FFFFFFFC:u32), address3)
+    when lowBit(shiftBitsRight(mask, 3)) {
+      source:u32 := read A4
+      result := source
+      write memory[address4] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address4, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address4, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address4, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, FFFFFFFC:u32), address4)
+    when lowBit(shiftBitsRight(mask, 4)) {
+      source:u32 := read A3
+      result := source
+      write memory[address5] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address5, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address5, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address5, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, FFFFFFFC:u32), address5)
+    when lowBit(shiftBitsRight(mask, 5)) {
+      source:u32 := read A2
+      result := source
+      write memory[address6] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address6, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address6, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address6, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, FFFFFFFC:u32), address6)
+    when lowBit(shiftBitsRight(mask, 6)) {
+      source:u32 := read A1
+      result := source
+      write memory[address7] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address7, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address7, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address7, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, FFFFFFFC:u32), address7)
+    when lowBit(shiftBitsRight(mask, 7)) {
+      source:u32 := read A0
+      result := source
+      write memory[address8] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address8, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address8, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address8, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, FFFFFFFC:u32), address8)
+    when lowBit(shiftBitsRight(mask, 8)) {
+      source:u32 := read D7
+      result := source
+      write memory[address9] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address9, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address9, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address9, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, FFFFFFFC:u32), address9)
+    when lowBit(shiftBitsRight(mask, 9)) {
+      source:u32 := read D6
+      result := source
+      write memory[address10] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address10, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address10, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address10, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, FFFFFFFC:u32), address10)
+    when lowBit(shiftBitsRight(mask, 10)) {
+      source:u32 := read D5
+      result := source
+      write memory[address11] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address11, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address11, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address11, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, FFFFFFFC:u32), address11)
+    when lowBit(shiftBitsRight(mask, 11)) {
+      source:u32 := read D4
+      result := source
+      write memory[address12] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address12, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address12, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address12, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, FFFFFFFC:u32), address12)
+    when lowBit(shiftBitsRight(mask, 12)) {
+      source:u32 := read D3
+      result := source
+      write memory[address13] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address13, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address13, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address13, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, FFFFFFFC:u32), address13)
+    when lowBit(shiftBitsRight(mask, 13)) {
+      source:u32 := read D2
+      result := source
+      write memory[address14] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address14, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address14, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address14, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, FFFFFFFC:u32), address14)
+    when lowBit(shiftBitsRight(mask, 14)) {
+      source:u32 := read D1
+      result := source
+      write memory[address15] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address15, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address15, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address15, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, FFFFFFFC:u32), address15)
+    when lowBit(shiftBitsRight(mask, 15)) {
+      source:u32 := read D0
+      result := source
+      write memory[address16] := low8(shiftBitsRight(result, 24))
+      write memory[addWrap(address16, 00000001:u32)] := low8(shiftBitsRight(result, 16))
+      write memory[addWrap(address16, 00000002:u32)] := low8(shiftBitsRight(result, 8))
+      write memory[addWrap(address16, 00000003:u32)] := low8(shiftBitsRight(result, 0))
+    }
+    write USP:u32 := address16
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W MEMORY,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D0:u32 := signExtend32(result)
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D1:u32 := signExtend32(result)
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D2:u32 := signExtend32(result)
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D3:u32 := signExtend32(result)
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D4:u32 := signExtend32(result)
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D5:u32 := signExtend32(result)
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D6:u32 := signExtend32(result)
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D7:u32 := signExtend32(result)
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A0:u32 := signExtend32(result)
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A1:u32 := signExtend32(result)
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A2:u32 := signExtend32(result)
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A3:u32 := signExtend32(result)
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A4:u32 := signExtend32(result)
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A5:u32 := signExtend32(result)
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A6:u32 := signExtend32(result)
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write SSP:u32 := signExtend32(result)
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write USP:u32 := signExtend32(result)
+    }
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W (A0)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A0
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D0:u32 := signExtend32(result)
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D1:u32 := signExtend32(result)
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D2:u32 := signExtend32(result)
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D3:u32 := signExtend32(result)
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D4:u32 := signExtend32(result)
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D5:u32 := signExtend32(result)
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D6:u32 := signExtend32(result)
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D7:u32 := signExtend32(result)
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A0:u32 := signExtend32(result)
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A1:u32 := signExtend32(result)
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A2:u32 := signExtend32(result)
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A3:u32 := signExtend32(result)
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A4:u32 := signExtend32(result)
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A5:u32 := signExtend32(result)
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A6:u32 := signExtend32(result)
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write SSP:u32 := signExtend32(result)
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write USP:u32 := signExtend32(result)
+    }
+  }
+  write A0:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W (A1)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A1
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D0:u32 := signExtend32(result)
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D1:u32 := signExtend32(result)
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D2:u32 := signExtend32(result)
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D3:u32 := signExtend32(result)
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D4:u32 := signExtend32(result)
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D5:u32 := signExtend32(result)
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D6:u32 := signExtend32(result)
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D7:u32 := signExtend32(result)
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A0:u32 := signExtend32(result)
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A1:u32 := signExtend32(result)
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A2:u32 := signExtend32(result)
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A3:u32 := signExtend32(result)
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A4:u32 := signExtend32(result)
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A5:u32 := signExtend32(result)
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A6:u32 := signExtend32(result)
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write SSP:u32 := signExtend32(result)
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write USP:u32 := signExtend32(result)
+    }
+  }
+  write A1:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W (A2)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A2
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D0:u32 := signExtend32(result)
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D1:u32 := signExtend32(result)
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D2:u32 := signExtend32(result)
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D3:u32 := signExtend32(result)
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D4:u32 := signExtend32(result)
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D5:u32 := signExtend32(result)
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D6:u32 := signExtend32(result)
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D7:u32 := signExtend32(result)
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A0:u32 := signExtend32(result)
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A1:u32 := signExtend32(result)
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A2:u32 := signExtend32(result)
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A3:u32 := signExtend32(result)
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A4:u32 := signExtend32(result)
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A5:u32 := signExtend32(result)
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A6:u32 := signExtend32(result)
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write SSP:u32 := signExtend32(result)
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write USP:u32 := signExtend32(result)
+    }
+  }
+  write A2:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W (A3)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A3
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D0:u32 := signExtend32(result)
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D1:u32 := signExtend32(result)
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D2:u32 := signExtend32(result)
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D3:u32 := signExtend32(result)
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D4:u32 := signExtend32(result)
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D5:u32 := signExtend32(result)
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D6:u32 := signExtend32(result)
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D7:u32 := signExtend32(result)
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A0:u32 := signExtend32(result)
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A1:u32 := signExtend32(result)
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A2:u32 := signExtend32(result)
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A3:u32 := signExtend32(result)
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A4:u32 := signExtend32(result)
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A5:u32 := signExtend32(result)
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A6:u32 := signExtend32(result)
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write SSP:u32 := signExtend32(result)
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write USP:u32 := signExtend32(result)
+    }
+  }
+  write A3:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W (A4)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A4
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D0:u32 := signExtend32(result)
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D1:u32 := signExtend32(result)
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D2:u32 := signExtend32(result)
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D3:u32 := signExtend32(result)
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D4:u32 := signExtend32(result)
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D5:u32 := signExtend32(result)
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D6:u32 := signExtend32(result)
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D7:u32 := signExtend32(result)
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A0:u32 := signExtend32(result)
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A1:u32 := signExtend32(result)
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A2:u32 := signExtend32(result)
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A3:u32 := signExtend32(result)
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A4:u32 := signExtend32(result)
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A5:u32 := signExtend32(result)
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A6:u32 := signExtend32(result)
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write SSP:u32 := signExtend32(result)
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write USP:u32 := signExtend32(result)
+    }
+  }
+  write A4:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W (A5)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A5
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D0:u32 := signExtend32(result)
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D1:u32 := signExtend32(result)
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D2:u32 := signExtend32(result)
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D3:u32 := signExtend32(result)
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D4:u32 := signExtend32(result)
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D5:u32 := signExtend32(result)
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D6:u32 := signExtend32(result)
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D7:u32 := signExtend32(result)
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A0:u32 := signExtend32(result)
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A1:u32 := signExtend32(result)
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A2:u32 := signExtend32(result)
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A3:u32 := signExtend32(result)
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A4:u32 := signExtend32(result)
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A5:u32 := signExtend32(result)
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A6:u32 := signExtend32(result)
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write SSP:u32 := signExtend32(result)
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write USP:u32 := signExtend32(result)
+    }
+  }
+  write A5:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W (A6)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A6
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D0:u32 := signExtend32(result)
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D1:u32 := signExtend32(result)
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D2:u32 := signExtend32(result)
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D3:u32 := signExtend32(result)
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D4:u32 := signExtend32(result)
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D5:u32 := signExtend32(result)
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D6:u32 := signExtend32(result)
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D7:u32 := signExtend32(result)
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A0:u32 := signExtend32(result)
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A1:u32 := signExtend32(result)
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A2:u32 := signExtend32(result)
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A3:u32 := signExtend32(result)
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A4:u32 := signExtend32(result)
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A5:u32 := signExtend32(result)
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A6:u32 := signExtend32(result)
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write SSP:u32 := signExtend32(result)
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write USP:u32 := signExtend32(result)
+    }
+  }
+  write A6:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W (A7)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+baseSupervisor:flag := read S
+when baseSupervisor {
+  address0:u32 := read SSP
+  when not(isZero(mask)) {
+    firstAddress := address0
+    when lowBit(firstAddress) {
+      return data-space read alignment fault at firstAddress; no later effects
+    }
+    address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+    when lowBit(shiftBitsRight(mask, 0)) {
+      resultByte0:u8 := read memory[address0]
+      resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D0:u32 := signExtend32(result)
+    }
+    address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+    when lowBit(shiftBitsRight(mask, 1)) {
+      resultByte0:u8 := read memory[address1]
+      resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D1:u32 := signExtend32(result)
+    }
+    address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+    when lowBit(shiftBitsRight(mask, 2)) {
+      resultByte0:u8 := read memory[address2]
+      resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D2:u32 := signExtend32(result)
+    }
+    address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+    when lowBit(shiftBitsRight(mask, 3)) {
+      resultByte0:u8 := read memory[address3]
+      resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D3:u32 := signExtend32(result)
+    }
+    address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+    when lowBit(shiftBitsRight(mask, 4)) {
+      resultByte0:u8 := read memory[address4]
+      resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D4:u32 := signExtend32(result)
+    }
+    address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+    when lowBit(shiftBitsRight(mask, 5)) {
+      resultByte0:u8 := read memory[address5]
+      resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D5:u32 := signExtend32(result)
+    }
+    address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+    when lowBit(shiftBitsRight(mask, 6)) {
+      resultByte0:u8 := read memory[address6]
+      resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D6:u32 := signExtend32(result)
+    }
+    address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+    when lowBit(shiftBitsRight(mask, 7)) {
+      resultByte0:u8 := read memory[address7]
+      resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D7:u32 := signExtend32(result)
+    }
+    address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+    when lowBit(shiftBitsRight(mask, 8)) {
+      resultByte0:u8 := read memory[address8]
+      resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A0:u32 := signExtend32(result)
+    }
+    address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+    when lowBit(shiftBitsRight(mask, 9)) {
+      resultByte0:u8 := read memory[address9]
+      resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A1:u32 := signExtend32(result)
+    }
+    address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+    when lowBit(shiftBitsRight(mask, 10)) {
+      resultByte0:u8 := read memory[address10]
+      resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A2:u32 := signExtend32(result)
+    }
+    address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+    when lowBit(shiftBitsRight(mask, 11)) {
+      resultByte0:u8 := read memory[address11]
+      resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A3:u32 := signExtend32(result)
+    }
+    address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+    when lowBit(shiftBitsRight(mask, 12)) {
+      resultByte0:u8 := read memory[address12]
+      resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A4:u32 := signExtend32(result)
+    }
+    address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+    when lowBit(shiftBitsRight(mask, 13)) {
+      resultByte0:u8 := read memory[address13]
+      resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A5:u32 := signExtend32(result)
+    }
+    address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+    when lowBit(shiftBitsRight(mask, 14)) {
+      resultByte0:u8 := read memory[address14]
+      resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A6:u32 := signExtend32(result)
+    }
+    address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+    when lowBit(shiftBitsRight(mask, 15)) {
+      registerSupervisor:flag := read S
+      when registerSupervisor {
+        resultByte0:u8 := read memory[address15]
+        resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+        result := concatHighLow(resultByte0, resultByte1)
+        write SSP:u32 := signExtend32(result)
+      }
+      when not(registerSupervisor) {
+        resultByte0:u8 := read memory[address15]
+        resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+        result := concatHighLow(resultByte0, resultByte1)
+        write USP:u32 := signExtend32(result)
+      }
+    }
+    write SSP:u32 := address16
+  }
+}
+when not(baseSupervisor) {
+  address0:u32 := read USP
+  when not(isZero(mask)) {
+    firstAddress := address0
+    when lowBit(firstAddress) {
+      return data-space read alignment fault at firstAddress; no later effects
+    }
+    address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+    when lowBit(shiftBitsRight(mask, 0)) {
+      resultByte0:u8 := read memory[address0]
+      resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D0:u32 := signExtend32(result)
+    }
+    address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+    when lowBit(shiftBitsRight(mask, 1)) {
+      resultByte0:u8 := read memory[address1]
+      resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D1:u32 := signExtend32(result)
+    }
+    address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+    when lowBit(shiftBitsRight(mask, 2)) {
+      resultByte0:u8 := read memory[address2]
+      resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D2:u32 := signExtend32(result)
+    }
+    address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+    when lowBit(shiftBitsRight(mask, 3)) {
+      resultByte0:u8 := read memory[address3]
+      resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D3:u32 := signExtend32(result)
+    }
+    address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+    when lowBit(shiftBitsRight(mask, 4)) {
+      resultByte0:u8 := read memory[address4]
+      resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D4:u32 := signExtend32(result)
+    }
+    address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+    when lowBit(shiftBitsRight(mask, 5)) {
+      resultByte0:u8 := read memory[address5]
+      resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D5:u32 := signExtend32(result)
+    }
+    address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+    when lowBit(shiftBitsRight(mask, 6)) {
+      resultByte0:u8 := read memory[address6]
+      resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D6:u32 := signExtend32(result)
+    }
+    address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+    when lowBit(shiftBitsRight(mask, 7)) {
+      resultByte0:u8 := read memory[address7]
+      resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write D7:u32 := signExtend32(result)
+    }
+    address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+    when lowBit(shiftBitsRight(mask, 8)) {
+      resultByte0:u8 := read memory[address8]
+      resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A0:u32 := signExtend32(result)
+    }
+    address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+    when lowBit(shiftBitsRight(mask, 9)) {
+      resultByte0:u8 := read memory[address9]
+      resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A1:u32 := signExtend32(result)
+    }
+    address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+    when lowBit(shiftBitsRight(mask, 10)) {
+      resultByte0:u8 := read memory[address10]
+      resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A2:u32 := signExtend32(result)
+    }
+    address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+    when lowBit(shiftBitsRight(mask, 11)) {
+      resultByte0:u8 := read memory[address11]
+      resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A3:u32 := signExtend32(result)
+    }
+    address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+    when lowBit(shiftBitsRight(mask, 12)) {
+      resultByte0:u8 := read memory[address12]
+      resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A4:u32 := signExtend32(result)
+    }
+    address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+    when lowBit(shiftBitsRight(mask, 13)) {
+      resultByte0:u8 := read memory[address13]
+      resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A5:u32 := signExtend32(result)
+    }
+    address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+    when lowBit(shiftBitsRight(mask, 14)) {
+      resultByte0:u8 := read memory[address14]
+      resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write A6:u32 := signExtend32(result)
+    }
+    address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+    when lowBit(shiftBitsRight(mask, 15)) {
+      registerSupervisor:flag := read S
+      when registerSupervisor {
+        resultByte0:u8 := read memory[address15]
+        resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+        result := concatHighLow(resultByte0, resultByte1)
+        write SSP:u32 := signExtend32(result)
+      }
+      when not(registerSupervisor) {
+        resultByte0:u8 := read memory[address15]
+        resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+        result := concatHighLow(resultByte0, resultByte1)
+        write USP:u32 := signExtend32(result)
+      }
+    }
+    write USP:u32 := address16
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.W PROGRAM,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return program-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000002:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read program memory[address0]
+    resultByte1:u8 := read program memory[addWrap(address0, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D0:u32 := signExtend32(result)
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000002:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read program memory[address1]
+    resultByte1:u8 := read program memory[addWrap(address1, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D1:u32 := signExtend32(result)
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000002:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read program memory[address2]
+    resultByte1:u8 := read program memory[addWrap(address2, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D2:u32 := signExtend32(result)
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000002:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read program memory[address3]
+    resultByte1:u8 := read program memory[addWrap(address3, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D3:u32 := signExtend32(result)
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000002:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read program memory[address4]
+    resultByte1:u8 := read program memory[addWrap(address4, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D4:u32 := signExtend32(result)
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000002:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read program memory[address5]
+    resultByte1:u8 := read program memory[addWrap(address5, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D5:u32 := signExtend32(result)
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000002:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read program memory[address6]
+    resultByte1:u8 := read program memory[addWrap(address6, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D6:u32 := signExtend32(result)
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000002:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read program memory[address7]
+    resultByte1:u8 := read program memory[addWrap(address7, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write D7:u32 := signExtend32(result)
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000002:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read program memory[address8]
+    resultByte1:u8 := read program memory[addWrap(address8, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A0:u32 := signExtend32(result)
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000002:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read program memory[address9]
+    resultByte1:u8 := read program memory[addWrap(address9, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A1:u32 := signExtend32(result)
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000002:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read program memory[address10]
+    resultByte1:u8 := read program memory[addWrap(address10, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A2:u32 := signExtend32(result)
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000002:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read program memory[address11]
+    resultByte1:u8 := read program memory[addWrap(address11, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A3:u32 := signExtend32(result)
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000002:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read program memory[address12]
+    resultByte1:u8 := read program memory[addWrap(address12, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A4:u32 := signExtend32(result)
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000002:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read program memory[address13]
+    resultByte1:u8 := read program memory[addWrap(address13, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A5:u32 := signExtend32(result)
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000002:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read program memory[address14]
+    resultByte1:u8 := read program memory[addWrap(address14, 00000001:u32)]
+    result := concatHighLow(resultByte0, resultByte1)
+    write A6:u32 := signExtend32(result)
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000002:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read program memory[address15]
+      resultByte1:u8 := read program memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write SSP:u32 := signExtend32(result)
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read program memory[address15]
+      resultByte1:u8 := read program memory[addWrap(address15, 00000001:u32)]
+      result := concatHighLow(resultByte0, resultByte1)
+      write USP:u32 := signExtend32(result)
+    }
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L MEMORY,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address0, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address0, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D0:u32 := result
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address1, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address1, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D1:u32 := result
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address2, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address2, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D2:u32 := result
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address3, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address3, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D3:u32 := result
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address4, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address4, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D4:u32 := result
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address5, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address5, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D5:u32 := result
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address6, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address6, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D6:u32 := result
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address7, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address7, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D7:u32 := result
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address8, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address8, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A0:u32 := result
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address9, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address9, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A1:u32 := result
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address10, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address10, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A2:u32 := result
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address11, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address11, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A3:u32 := result
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address12, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address12, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A4:u32 := result
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address13, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address13, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A5:u32 := result
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address14, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address14, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A6:u32 := result
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write SSP:u32 := result
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write USP:u32 := result
+    }
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L (A0)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A0
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address0, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address0, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D0:u32 := result
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address1, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address1, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D1:u32 := result
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address2, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address2, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D2:u32 := result
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address3, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address3, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D3:u32 := result
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address4, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address4, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D4:u32 := result
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address5, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address5, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D5:u32 := result
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address6, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address6, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D6:u32 := result
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address7, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address7, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D7:u32 := result
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address8, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address8, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A0:u32 := result
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address9, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address9, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A1:u32 := result
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address10, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address10, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A2:u32 := result
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address11, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address11, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A3:u32 := result
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address12, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address12, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A4:u32 := result
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address13, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address13, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A5:u32 := result
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address14, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address14, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A6:u32 := result
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write SSP:u32 := result
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write USP:u32 := result
+    }
+  }
+  write A0:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L (A1)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A1
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address0, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address0, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D0:u32 := result
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address1, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address1, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D1:u32 := result
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address2, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address2, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D2:u32 := result
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address3, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address3, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D3:u32 := result
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address4, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address4, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D4:u32 := result
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address5, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address5, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D5:u32 := result
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address6, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address6, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D6:u32 := result
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address7, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address7, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D7:u32 := result
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address8, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address8, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A0:u32 := result
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address9, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address9, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A1:u32 := result
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address10, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address10, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A2:u32 := result
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address11, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address11, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A3:u32 := result
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address12, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address12, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A4:u32 := result
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address13, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address13, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A5:u32 := result
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address14, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address14, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A6:u32 := result
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write SSP:u32 := result
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write USP:u32 := result
+    }
+  }
+  write A1:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L (A2)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A2
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address0, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address0, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D0:u32 := result
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address1, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address1, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D1:u32 := result
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address2, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address2, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D2:u32 := result
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address3, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address3, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D3:u32 := result
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address4, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address4, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D4:u32 := result
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address5, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address5, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D5:u32 := result
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address6, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address6, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D6:u32 := result
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address7, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address7, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D7:u32 := result
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address8, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address8, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A0:u32 := result
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address9, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address9, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A1:u32 := result
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address10, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address10, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A2:u32 := result
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address11, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address11, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A3:u32 := result
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address12, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address12, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A4:u32 := result
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address13, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address13, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A5:u32 := result
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address14, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address14, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A6:u32 := result
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write SSP:u32 := result
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write USP:u32 := result
+    }
+  }
+  write A2:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L (A3)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A3
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address0, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address0, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D0:u32 := result
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address1, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address1, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D1:u32 := result
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address2, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address2, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D2:u32 := result
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address3, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address3, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D3:u32 := result
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address4, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address4, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D4:u32 := result
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address5, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address5, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D5:u32 := result
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address6, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address6, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D6:u32 := result
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address7, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address7, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D7:u32 := result
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address8, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address8, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A0:u32 := result
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address9, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address9, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A1:u32 := result
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address10, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address10, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A2:u32 := result
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address11, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address11, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A3:u32 := result
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address12, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address12, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A4:u32 := result
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address13, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address13, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A5:u32 := result
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address14, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address14, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A6:u32 := result
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write SSP:u32 := result
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write USP:u32 := result
+    }
+  }
+  write A3:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L (A4)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A4
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address0, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address0, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D0:u32 := result
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address1, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address1, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D1:u32 := result
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address2, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address2, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D2:u32 := result
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address3, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address3, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D3:u32 := result
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address4, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address4, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D4:u32 := result
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address5, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address5, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D5:u32 := result
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address6, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address6, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D6:u32 := result
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address7, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address7, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D7:u32 := result
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address8, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address8, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A0:u32 := result
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address9, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address9, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A1:u32 := result
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address10, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address10, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A2:u32 := result
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address11, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address11, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A3:u32 := result
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address12, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address12, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A4:u32 := result
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address13, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address13, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A5:u32 := result
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address14, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address14, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A6:u32 := result
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write SSP:u32 := result
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write USP:u32 := result
+    }
+  }
+  write A4:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L (A5)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A5
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address0, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address0, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D0:u32 := result
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address1, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address1, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D1:u32 := result
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address2, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address2, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D2:u32 := result
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address3, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address3, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D3:u32 := result
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address4, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address4, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D4:u32 := result
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address5, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address5, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D5:u32 := result
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address6, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address6, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D6:u32 := result
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address7, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address7, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D7:u32 := result
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address8, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address8, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A0:u32 := result
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address9, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address9, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A1:u32 := result
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address10, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address10, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A2:u32 := result
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address11, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address11, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A3:u32 := result
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address12, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address12, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A4:u32 := result
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address13, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address13, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A5:u32 := result
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address14, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address14, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A6:u32 := result
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write SSP:u32 := result
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write USP:u32 := result
+    }
+  }
+  write A5:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L (A6)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := read A6
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return data-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read memory[address0]
+    resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address0, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address0, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D0:u32 := result
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read memory[address1]
+    resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address1, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address1, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D1:u32 := result
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read memory[address2]
+    resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address2, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address2, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D2:u32 := result
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read memory[address3]
+    resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address3, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address3, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D3:u32 := result
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read memory[address4]
+    resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address4, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address4, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D4:u32 := result
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read memory[address5]
+    resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address5, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address5, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D5:u32 := result
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read memory[address6]
+    resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address6, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address6, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D6:u32 := result
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read memory[address7]
+    resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address7, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address7, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D7:u32 := result
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read memory[address8]
+    resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address8, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address8, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A0:u32 := result
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read memory[address9]
+    resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address9, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address9, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A1:u32 := result
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read memory[address10]
+    resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address10, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address10, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A2:u32 := result
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read memory[address11]
+    resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address11, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address11, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A3:u32 := result
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read memory[address12]
+    resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address12, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address12, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A4:u32 := result
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read memory[address13]
+    resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address13, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address13, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A5:u32 := result
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read memory[address14]
+    resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+    resultByte2:u8 := read memory[addWrap(address14, 00000002:u32)]
+    resultByte3:u8 := read memory[addWrap(address14, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A6:u32 := result
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write SSP:u32 := result
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read memory[address15]
+      resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write USP:u32 := result
+    }
+  }
+  write A6:u32 := address16
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L (A7)+,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+baseSupervisor:flag := read S
+when baseSupervisor {
+  address0:u32 := read SSP
+  when not(isZero(mask)) {
+    firstAddress := address0
+    when lowBit(firstAddress) {
+      return data-space read alignment fault at firstAddress; no later effects
+    }
+    address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+    when lowBit(shiftBitsRight(mask, 0)) {
+      resultByte0:u8 := read memory[address0]
+      resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address0, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address0, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D0:u32 := result
+    }
+    address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+    when lowBit(shiftBitsRight(mask, 1)) {
+      resultByte0:u8 := read memory[address1]
+      resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address1, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address1, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D1:u32 := result
+    }
+    address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+    when lowBit(shiftBitsRight(mask, 2)) {
+      resultByte0:u8 := read memory[address2]
+      resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address2, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address2, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D2:u32 := result
+    }
+    address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+    when lowBit(shiftBitsRight(mask, 3)) {
+      resultByte0:u8 := read memory[address3]
+      resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address3, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address3, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D3:u32 := result
+    }
+    address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+    when lowBit(shiftBitsRight(mask, 4)) {
+      resultByte0:u8 := read memory[address4]
+      resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address4, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address4, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D4:u32 := result
+    }
+    address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+    when lowBit(shiftBitsRight(mask, 5)) {
+      resultByte0:u8 := read memory[address5]
+      resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address5, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address5, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D5:u32 := result
+    }
+    address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+    when lowBit(shiftBitsRight(mask, 6)) {
+      resultByte0:u8 := read memory[address6]
+      resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address6, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address6, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D6:u32 := result
+    }
+    address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+    when lowBit(shiftBitsRight(mask, 7)) {
+      resultByte0:u8 := read memory[address7]
+      resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address7, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address7, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D7:u32 := result
+    }
+    address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+    when lowBit(shiftBitsRight(mask, 8)) {
+      resultByte0:u8 := read memory[address8]
+      resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address8, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address8, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A0:u32 := result
+    }
+    address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+    when lowBit(shiftBitsRight(mask, 9)) {
+      resultByte0:u8 := read memory[address9]
+      resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address9, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address9, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A1:u32 := result
+    }
+    address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+    when lowBit(shiftBitsRight(mask, 10)) {
+      resultByte0:u8 := read memory[address10]
+      resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address10, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address10, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A2:u32 := result
+    }
+    address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+    when lowBit(shiftBitsRight(mask, 11)) {
+      resultByte0:u8 := read memory[address11]
+      resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address11, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address11, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A3:u32 := result
+    }
+    address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+    when lowBit(shiftBitsRight(mask, 12)) {
+      resultByte0:u8 := read memory[address12]
+      resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address12, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address12, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A4:u32 := result
+    }
+    address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+    when lowBit(shiftBitsRight(mask, 13)) {
+      resultByte0:u8 := read memory[address13]
+      resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address13, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address13, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A5:u32 := result
+    }
+    address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+    when lowBit(shiftBitsRight(mask, 14)) {
+      resultByte0:u8 := read memory[address14]
+      resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address14, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address14, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A6:u32 := result
+    }
+    address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+    when lowBit(shiftBitsRight(mask, 15)) {
+      registerSupervisor:flag := read S
+      when registerSupervisor {
+        resultByte0:u8 := read memory[address15]
+        resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+        resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+        resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+        result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+        write SSP:u32 := result
+      }
+      when not(registerSupervisor) {
+        resultByte0:u8 := read memory[address15]
+        resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+        resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+        resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+        result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+        write USP:u32 := result
+      }
+    }
+    write SSP:u32 := address16
+  }
+}
+when not(baseSupervisor) {
+  address0:u32 := read USP
+  when not(isZero(mask)) {
+    firstAddress := address0
+    when lowBit(firstAddress) {
+      return data-space read alignment fault at firstAddress; no later effects
+    }
+    address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+    when lowBit(shiftBitsRight(mask, 0)) {
+      resultByte0:u8 := read memory[address0]
+      resultByte1:u8 := read memory[addWrap(address0, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address0, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address0, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D0:u32 := result
+    }
+    address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+    when lowBit(shiftBitsRight(mask, 1)) {
+      resultByte0:u8 := read memory[address1]
+      resultByte1:u8 := read memory[addWrap(address1, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address1, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address1, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D1:u32 := result
+    }
+    address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+    when lowBit(shiftBitsRight(mask, 2)) {
+      resultByte0:u8 := read memory[address2]
+      resultByte1:u8 := read memory[addWrap(address2, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address2, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address2, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D2:u32 := result
+    }
+    address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+    when lowBit(shiftBitsRight(mask, 3)) {
+      resultByte0:u8 := read memory[address3]
+      resultByte1:u8 := read memory[addWrap(address3, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address3, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address3, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D3:u32 := result
+    }
+    address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+    when lowBit(shiftBitsRight(mask, 4)) {
+      resultByte0:u8 := read memory[address4]
+      resultByte1:u8 := read memory[addWrap(address4, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address4, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address4, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D4:u32 := result
+    }
+    address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+    when lowBit(shiftBitsRight(mask, 5)) {
+      resultByte0:u8 := read memory[address5]
+      resultByte1:u8 := read memory[addWrap(address5, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address5, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address5, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D5:u32 := result
+    }
+    address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+    when lowBit(shiftBitsRight(mask, 6)) {
+      resultByte0:u8 := read memory[address6]
+      resultByte1:u8 := read memory[addWrap(address6, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address6, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address6, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D6:u32 := result
+    }
+    address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+    when lowBit(shiftBitsRight(mask, 7)) {
+      resultByte0:u8 := read memory[address7]
+      resultByte1:u8 := read memory[addWrap(address7, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address7, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address7, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write D7:u32 := result
+    }
+    address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+    when lowBit(shiftBitsRight(mask, 8)) {
+      resultByte0:u8 := read memory[address8]
+      resultByte1:u8 := read memory[addWrap(address8, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address8, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address8, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A0:u32 := result
+    }
+    address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+    when lowBit(shiftBitsRight(mask, 9)) {
+      resultByte0:u8 := read memory[address9]
+      resultByte1:u8 := read memory[addWrap(address9, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address9, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address9, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A1:u32 := result
+    }
+    address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+    when lowBit(shiftBitsRight(mask, 10)) {
+      resultByte0:u8 := read memory[address10]
+      resultByte1:u8 := read memory[addWrap(address10, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address10, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address10, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A2:u32 := result
+    }
+    address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+    when lowBit(shiftBitsRight(mask, 11)) {
+      resultByte0:u8 := read memory[address11]
+      resultByte1:u8 := read memory[addWrap(address11, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address11, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address11, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A3:u32 := result
+    }
+    address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+    when lowBit(shiftBitsRight(mask, 12)) {
+      resultByte0:u8 := read memory[address12]
+      resultByte1:u8 := read memory[addWrap(address12, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address12, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address12, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A4:u32 := result
+    }
+    address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+    when lowBit(shiftBitsRight(mask, 13)) {
+      resultByte0:u8 := read memory[address13]
+      resultByte1:u8 := read memory[addWrap(address13, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address13, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address13, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A5:u32 := result
+    }
+    address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+    when lowBit(shiftBitsRight(mask, 14)) {
+      resultByte0:u8 := read memory[address14]
+      resultByte1:u8 := read memory[addWrap(address14, 00000001:u32)]
+      resultByte2:u8 := read memory[addWrap(address14, 00000002:u32)]
+      resultByte3:u8 := read memory[addWrap(address14, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write A6:u32 := result
+    }
+    address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+    when lowBit(shiftBitsRight(mask, 15)) {
+      registerSupervisor:flag := read S
+      when registerSupervisor {
+        resultByte0:u8 := read memory[address15]
+        resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+        resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+        resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+        result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+        write SSP:u32 := result
+      }
+      when not(registerSupervisor) {
+        resultByte0:u8 := read memory[address15]
+        resultByte1:u8 := read memory[addWrap(address15, 00000001:u32)]
+        resultByte2:u8 := read memory[addWrap(address15, 00000002:u32)]
+        resultByte3:u8 := read memory[addWrap(address15, 00000003:u32)]
+        result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+        write USP:u32 := result
+      }
+    }
+    write USP:u32 := address16
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
+### 68000 MOVEM.L PROGRAM,list
+
+Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.
+
+```text
+mode:u3 := input
+code:u3 := input
+mask:u16 := fetch complete native-order word
+address0:u32 := resolve 32-bit memory EA (mode mode, register code); stage auto-updates for later operands
+when not(isZero(mask)) {
+  firstAddress := address0
+  when lowBit(firstAddress) {
+    return program-space read alignment fault at firstAddress; no later effects
+  }
+  address1 := select(lowBit(shiftBitsRight(mask, 0)), addWrap(address0, 00000004:u32), address0)
+  when lowBit(shiftBitsRight(mask, 0)) {
+    resultByte0:u8 := read program memory[address0]
+    resultByte1:u8 := read program memory[addWrap(address0, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address0, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address0, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D0:u32 := result
+  }
+  address2 := select(lowBit(shiftBitsRight(mask, 1)), addWrap(address1, 00000004:u32), address1)
+  when lowBit(shiftBitsRight(mask, 1)) {
+    resultByte0:u8 := read program memory[address1]
+    resultByte1:u8 := read program memory[addWrap(address1, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address1, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address1, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D1:u32 := result
+  }
+  address3 := select(lowBit(shiftBitsRight(mask, 2)), addWrap(address2, 00000004:u32), address2)
+  when lowBit(shiftBitsRight(mask, 2)) {
+    resultByte0:u8 := read program memory[address2]
+    resultByte1:u8 := read program memory[addWrap(address2, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address2, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address2, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D2:u32 := result
+  }
+  address4 := select(lowBit(shiftBitsRight(mask, 3)), addWrap(address3, 00000004:u32), address3)
+  when lowBit(shiftBitsRight(mask, 3)) {
+    resultByte0:u8 := read program memory[address3]
+    resultByte1:u8 := read program memory[addWrap(address3, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address3, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address3, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D3:u32 := result
+  }
+  address5 := select(lowBit(shiftBitsRight(mask, 4)), addWrap(address4, 00000004:u32), address4)
+  when lowBit(shiftBitsRight(mask, 4)) {
+    resultByte0:u8 := read program memory[address4]
+    resultByte1:u8 := read program memory[addWrap(address4, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address4, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address4, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D4:u32 := result
+  }
+  address6 := select(lowBit(shiftBitsRight(mask, 5)), addWrap(address5, 00000004:u32), address5)
+  when lowBit(shiftBitsRight(mask, 5)) {
+    resultByte0:u8 := read program memory[address5]
+    resultByte1:u8 := read program memory[addWrap(address5, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address5, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address5, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D5:u32 := result
+  }
+  address7 := select(lowBit(shiftBitsRight(mask, 6)), addWrap(address6, 00000004:u32), address6)
+  when lowBit(shiftBitsRight(mask, 6)) {
+    resultByte0:u8 := read program memory[address6]
+    resultByte1:u8 := read program memory[addWrap(address6, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address6, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address6, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D6:u32 := result
+  }
+  address8 := select(lowBit(shiftBitsRight(mask, 7)), addWrap(address7, 00000004:u32), address7)
+  when lowBit(shiftBitsRight(mask, 7)) {
+    resultByte0:u8 := read program memory[address7]
+    resultByte1:u8 := read program memory[addWrap(address7, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address7, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address7, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write D7:u32 := result
+  }
+  address9 := select(lowBit(shiftBitsRight(mask, 8)), addWrap(address8, 00000004:u32), address8)
+  when lowBit(shiftBitsRight(mask, 8)) {
+    resultByte0:u8 := read program memory[address8]
+    resultByte1:u8 := read program memory[addWrap(address8, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address8, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address8, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A0:u32 := result
+  }
+  address10 := select(lowBit(shiftBitsRight(mask, 9)), addWrap(address9, 00000004:u32), address9)
+  when lowBit(shiftBitsRight(mask, 9)) {
+    resultByte0:u8 := read program memory[address9]
+    resultByte1:u8 := read program memory[addWrap(address9, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address9, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address9, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A1:u32 := result
+  }
+  address11 := select(lowBit(shiftBitsRight(mask, 10)), addWrap(address10, 00000004:u32), address10)
+  when lowBit(shiftBitsRight(mask, 10)) {
+    resultByte0:u8 := read program memory[address10]
+    resultByte1:u8 := read program memory[addWrap(address10, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address10, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address10, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A2:u32 := result
+  }
+  address12 := select(lowBit(shiftBitsRight(mask, 11)), addWrap(address11, 00000004:u32), address11)
+  when lowBit(shiftBitsRight(mask, 11)) {
+    resultByte0:u8 := read program memory[address11]
+    resultByte1:u8 := read program memory[addWrap(address11, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address11, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address11, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A3:u32 := result
+  }
+  address13 := select(lowBit(shiftBitsRight(mask, 12)), addWrap(address12, 00000004:u32), address12)
+  when lowBit(shiftBitsRight(mask, 12)) {
+    resultByte0:u8 := read program memory[address12]
+    resultByte1:u8 := read program memory[addWrap(address12, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address12, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address12, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A4:u32 := result
+  }
+  address14 := select(lowBit(shiftBitsRight(mask, 13)), addWrap(address13, 00000004:u32), address13)
+  when lowBit(shiftBitsRight(mask, 13)) {
+    resultByte0:u8 := read program memory[address13]
+    resultByte1:u8 := read program memory[addWrap(address13, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address13, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address13, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A5:u32 := result
+  }
+  address15 := select(lowBit(shiftBitsRight(mask, 14)), addWrap(address14, 00000004:u32), address14)
+  when lowBit(shiftBitsRight(mask, 14)) {
+    resultByte0:u8 := read program memory[address14]
+    resultByte1:u8 := read program memory[addWrap(address14, 00000001:u32)]
+    resultByte2:u8 := read program memory[addWrap(address14, 00000002:u32)]
+    resultByte3:u8 := read program memory[addWrap(address14, 00000003:u32)]
+    result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+    write A6:u32 := result
+  }
+  address16 := select(lowBit(shiftBitsRight(mask, 15)), addWrap(address15, 00000004:u32), address15)
+  when lowBit(shiftBitsRight(mask, 15)) {
+    registerSupervisor:flag := read S
+    when registerSupervisor {
+      resultByte0:u8 := read program memory[address15]
+      resultByte1:u8 := read program memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read program memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read program memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write SSP:u32 := result
+    }
+    when not(registerSupervisor) {
+      resultByte0:u8 := read program memory[address15]
+      resultByte1:u8 := read program memory[addWrap(address15, 00000001:u32)]
+      resultByte2:u8 := read program memory[addWrap(address15, 00000002:u32)]
+      resultByte3:u8 := read program memory[addWrap(address15, 00000003:u32)]
+      result := concatHighLow(concatHighLow(resultByte0, resultByte1), concatHighLow(resultByte2, resultByte3))
+      write USP:u32 := result
+    }
+  }
+}
+```
+
+Flags preserved throughout: X, N, Z, V, C, T, S.
+
 ### 6502 BRK
 
 Fetch padding before saving PC; stack B set. Push PC high then live PC low, then packed status with old I. Set I only after those writes; preserve NMOS D. Read the complete low-first vector before replacing PC. SP wraps at 8 bits within page 0100. Push decrements after each successful write; pop increments before each read. Each adjustment reads the live pointer; failed accesses retain only completed effects.

@@ -215,6 +215,13 @@ share those byte stages while retaining their own commit order and A7 aliases.
 LEA selects its destination bank before source resolution. These bodies never
 replace native fetch-cursor or exception-delivery handling.
 
+The [transfer inventory](../../src/components/cpus/68000-transfers.ts) keeps
+MOVEP's alternate-byte stride and MOVEM's register-mask order beside their
+patterns. Reuse byte-transfer construction while retaining their own commit
+stages. MOVEM owns one final pointer update for the whole list; do not route it
+through ordinary single-operand auto-updates. Keep mask fetching, empty-list
+handling, register selection, and partial-failure behavior visible in its definition.
+
 The complete support inventory belongs in [CPU implementation coverage](coverage.md).
 This guide describes organization and does not replace the model contracts or
 manufacturer references for instruction behavior.

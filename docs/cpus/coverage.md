@@ -24,12 +24,12 @@ emulators do not count toward implementation here.
 | [Zilog Z80](#z80) | 1976 | [8,500][z80-transistors] | [392](../../src/components/cpus/z80.ts) | 698 / 698 | 100% |
 | [Motorola 6809](#6809) | 1978 | [9,000][6809-transistors] | [370](../../src/components/cpus/6809.ts) | 268 / 268 | 100% |
 | [Intel 8088](#8088) | 1979 | [29,000][intel-transistors] | [548](../../src/components/cpus/8088.ts) | 291 / 291 | 100% |
-| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [825](../../src/components/cpus/68000.ts) | 35,447 / 36,029 | 98.4% |
+| [Motorola 68000](#68000) | 1979 | [68,000][68000-transistors] | [775](../../src/components/cpus/68000.ts) | 35,843 / 36,029 | 99.5% |
 
 The current [definition inventory](../../src/components/cpus/semantics/definitions.ts)
-contains **11,840 generated bodies**, all used by CPU execution,
+contains **12,134 generated bodies**, all used by CPU execution,
 including 6502/6800/8088 entry helpers, a 6809 frame-push helper, and 8088 WAIT
-resumption. They cover **37,546 complete opcode forms**. All six 8-bit CPUs and
+resumption. They cover **37,942 complete opcode forms**. All six 8-bit CPUs and
 the 8088 now have complete instruction-definition migration. The current
 family inventory is:
 
@@ -454,7 +454,14 @@ family inventory is:
   aliases, and RTS validates the full return target before advancing the stack.
   Scc reads its destination before testing flags and writing even unchanged
   bytes. The unused runtime Motorola condition table is removed.
-  The remaining **582 forms** cover MOVEP/MOVEM and status/system instructions.
+  MOVEP and MOVEM add **396 forms** through **294 bodies**. MOVEP reuses
+  high-first byte transfers with a stride of two and permits odd addresses.
+  MOVEM fetches its mask before resolving the EA, visits selected registers in
+  normal or reversed order, and commits its base pointer only after the whole
+  list succeeds. Empty lists still resolve the EA but perform no alignment
+  check or base update. Word loads sign-extend; PC-relative loads use program
+  space. Failed transfers retain earlier complete registers and written bytes.
+  The remaining **186 forms** cover status/system instructions.
 
 The [current review](instruction-semantics.md#decision-and-next-review)
 focuses on complete operation families, explicit carry and writeback stages,
@@ -500,32 +507,29 @@ judging source reduction; all counts include comments and blank lines.
 
 | Scope | Lines |
 | --- | ---: |
-| Eight CPU implementation files | 2,874 |
-| CPU-specific instruction definition files | 2,354 |
-| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,745 |
-| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **8,973** |
+| Eight CPU implementation files | 2,824 |
+| CPU-specific instruction definition files | 2,408 |
+| Other authored CPU source: shared helpers, state schemas, semantic model, builders, validation, generator, and reporter | 3,771 |
+| **All authored TypeScript under `src/components/cpus`, excluding `generated/`** | **9,003** |
 | CPU generation script (`scripts/generate-cpu-semantics.ts`) | 18 |
-| Generated CPU output, counted separately | 299,589 |
+| Generated CPU output, counted separately | 309,494 |
 
 Tests, documentation, machine definitions, and compiled JavaScript are outside
 this source count. Generated TypeScript is reproducible build output, not
 maintained source. Its size is still reported to keep expansion visible.
-The 68000 control migration adds **332 shared bodies** for **1,285 forms**.
-Embedded branch displacements remain parameters. Definitions reuse the shared
-Motorola condition construction, ALU destination stages, partial-register
-writes, and explicit high-first byte transfers. Two narrow statements read the
-sequential cursor and select a target; fetch-alignment outcomes preserve the
-CPU's distinct retirement and fault-delivery responsibilities.
+The 68000 MOVEP/MOVEM migration adds **294 bodies** for **396 forms**.
+MOVEP reuses the byte-transfer construction with an explicit address stride.
+MOVEM expands its sixteen mask bits into optional transfers with named local
+addresses; the definitions expose register order and final pointer commit
+without adding a runtime register selector or a new semantic primitive.
 
-The 68000 module falls from **952 to 825 lines** (**127 fewer**), removing
-control-family wrappers and their branch, call, push, frame, and RTS bodies.
-Definitions add **98 lines** and supporting CPU source adds **61**, including
-the control inventory and cursor/target vocabulary; the obsolete runtime
-Motorola condition table is removed. Total authored CPU source increases from
-**8,941 to 8,973 lines** (**32 more**); generated output adds **5,385**.
-The smaller core does not yet mean a reduction in total authored source.
-All **11,508 earlier definitions** remain structurally unchanged, and all 24
-previously generated modules remain byte-identical.
+The 68000 module falls from **825 to 775 lines** (**50 fewer**), removing
+MOVEP/MOVEM handlers, list-transfer bodies, and the obsolete control-address
+wrapper. Definitions add **54 lines** and the transfer inventory adds **26**.
+Total authored CPU source increases from **8,973 to 9,003 lines** (**30 more**);
+generated output adds **9,905**. The smaller core does not yet mean a reduction
+in total authored source. All **11,840 earlier definitions** remain structurally
+unchanged, and all 25 previously generated modules remain byte-identical.
 The 16 standalone address/operand readers remain generator probes; CPU execution
 now expands those sources into complete bodies. They do not earn separate
 migration credit.

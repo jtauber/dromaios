@@ -1,3 +1,5 @@
+import { transferForms68000 } from "../../68000-transfers.ts";
+import type { TransferForm68000 } from "../../68000-transfers.ts";
 import { controlForms68000, conditionNames68000 as conditionNames } from "../../68000-control.ts";
 import type { ControlForm68000 } from "../../68000-control.ts";
 import { motorolaBranchNames } from "../../motorola.ts";
@@ -117,15 +119,15 @@ export const quick68000 = Object.fromEntries(dataRegisters.map(name => [name, de
 // while retaining the logical address and program/data space for a possible bus fault.
 const byteAddress = (name: string, offset: number) => offset ? addWrap(value(name), literal(32, offset)) : value(name);
 
-function memoryRead(size: Size, address: string, result: string, program = false): readonly Statement[] {
+function memoryRead(size: Size, address: string, result: string, program = false, stride = 1): readonly Statement[] {
   const read = program ? readProgramMemory : readMemory;
   const byte = (offset: number) => value(`${result}Byte${offset}`);
-  return [...Array.from({ length: size / 8 }, (_, offset) => read(`${result}Byte${offset}`, byteAddress(address, offset))),
+  return [...Array.from({ length: size / 8 }, (_, offset) => read(`${result}Byte${offset}`, byteAddress(address, offset * stride))),
     capture(result, size === 8 ? byte(0) : size === 16 ? concat(byte(0), byte(1)) : concat(concat(byte(0), byte(1)), concat(byte(2), byte(3))))];
 }
 
-function memoryWrite(size: Size, address = "destinationAddress", result = "result"): readonly Statement[] {
-  return Array.from({ length: size / 8 }, (_, offset) => writeMemory(byteAddress(address, offset),
+function memoryWrite(size: Size, address = "destinationAddress", result = "result", stride = 1): readonly Statement[] {
+  return Array.from({ length: size / 8 }, (_, offset) => writeMemory(byteAddress(address, offset * stride),
     size === 8 ? value(result) : truncate(shiftBits(value(result), "right", size - 8 - offset * 8), 8)));
 }
 
@@ -199,6 +201,58 @@ for (const { body, size, source, destination } of operandMoveForms68000) {
   if (!moveBodies.has(body)) moveBodies.set(body, operandMove(size, source, destination));
 }
 export const moves68000 = Object.freeze(Object.fromEntries(moveBodies));
+
+function peripheralTransfer({ size, register, base, store }: Extract<TransferForm68000, { kind: "peripheral" }>) {
+  const data = cpu.register(register);
+  return defineInstruction({ cpu: cpu.declaration,
+    name: `MOVEP.${sizes[size]} ${store ? `${register.toUpperCase()},(d,${base.toUpperCase()})` : `(d,${base.toUpperCase()}),${register.toUpperCase()}`}`,
+    inputs: { mode: 3, code: 3 },
+    explanation: "Capture An before fetching the signed displacement. Transfer high byte first at alternate addresses, with 32-bit logical wrap; odd addresses are legal. "
+      + "A store captures Dn after the displacement fetch. A load replaces Dn only after all bytes arrive, preserving its live upper word for MOVEP.W. Preserve An and every flag.",
+    steps: withRegister(base, "baseSupervisor", address => [readRegister("base", address), fetchWord("displacement"),
+      capture("address", addWrap(value("base"), signExtend(value("displacement"), 32))),
+      ...(store ? [readRegister("source", data), capture("result", narrow(value("source"), size)), ...memoryWrite(size, "address", "result", 2)]
+        : [...memoryRead(size, "address", "result", false, 2), ...writeData(data, size, value("result"))])]),
+  });
+}
+
+function multipleTransfer({ size, load, base, predecrement, program }: Extract<TransferForm68000, { kind: "multiple" }>) {
+  const registers = [...dataRegisters, ...addressRegisters];
+  if (predecrement) registers.reverse();
+  // Each mask bit owns one optional transfer. Name the address after each bit so
+  // an unselected register consumes no bytes; no mutable register selector is needed.
+  const transfers = registers.flatMap((name, bit): readonly Statement[] => {
+    const selected = lowBit(shiftBits(value("mask"), "right", bit));
+    const before = `address${bit}`, after = `address${bit + 1}`;
+    const address = predecrement ? after : before;
+    return [capture(after, select(selected, addWrap(value(before), literal(32, predecrement ? 2 ** 32 - size / 8 : size / 8)), value(before))),
+      when(selected, withRegister(name, "registerSupervisor", register => load
+        ? [...memoryRead(size, address, "result", program), writeRegister(register, size === 16 ? signExtend(value("result"), 32) : value("result"))]
+        : [readRegister("source", register), capture("result", narrow(value("source"), size)), ...memoryWrite(size, address)]))];
+  });
+  const transfer = (register?: Register): readonly Statement[] => [
+    ...(register ? [readRegister("address0", register)] : [resolveAddress("address0", 32, value("mode"), value("code"))]),
+    when(not(zero(value("mask"))), [capture("firstAddress", predecrement ? subtract(value("address0"), literal(32, size / 8)) : value("address0")),
+      ...checkAlignment(size, "firstAddress", load ? "read" : "write", program), ...transfers,
+      ...(register ? [writeRegister(register, value("address16"))] : [])]),
+  ];
+  const location = base ? predecrement ? `-(${base.toUpperCase()})` : `(${base.toUpperCase()})+` : program ? "PROGRAM" : "MEMORY";
+  return defineInstruction({ cpu: cpu.declaration,
+    name: `MOVEM.${sizes[size]} ${load ? `${location},list` : `list,${location}`}`, inputs: { mode: 3, code: 3 },
+    explanation: "Fetch the register mask before resolving the address. An empty list still fetches EA extensions but checks no alignment and updates no base. "
+      + "Otherwise check the first transfer's alignment before touching registers or memory. Visit selected D0..D7,A0..A7, reversed for predecrement stores. "
+      + "Capture each source and select each A7 bank at its own turn. Transfer high byte first with 32-bit logical wrap; PC-relative loads use program space. "
+      + "Word loads sign-extend into the complete register. Commit the captured base bank only after the whole list succeeds: a stored base keeps its original value, "
+      + "and the final postincrement pointer wins over a loaded base. Failure retains earlier transfers but skips the final base update. Preserve every flag.",
+    steps: [fetchWord("mask"), ...(base ? withRegister(base, "baseSupervisor", transfer) : transfer())],
+  });
+}
+
+const transferBodies = new Map<string, InstructionDefinition>();
+for (const form of transferForms68000) {
+  if (!transferBodies.has(form.body)) transferBodies.set(form.body, form.kind === "peripheral" ? peripheralTransfer(form) : multipleTransfer(form));
+}
+export const transfers68000 = Object.freeze(Object.fromEntries(transferBodies));
 
 /** Logical ALU stages differ from MOVE: commit before reading the destination, flags before writing it. */
 function logic(operation: LogicOperation68000, size: Size, source: LogicOperand68000 | undefined, destination: Exclude<LogicOperand68000, { kind: "immediate" }>) {
